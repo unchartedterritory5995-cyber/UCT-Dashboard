@@ -1,0 +1,1226 @@
+[
+ {
+  "answer_json": {
+   "answer": "Fixed-fractional position sizing"
+  },
+  "difficulty": 2,
+  "id": "si_fd70b4b65108",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Scaling rules — adds and trims",
+    "Kelly criterion and fractional Kelly",
+    "Volatility-adjusted sizing (ATR-based)",
+    "Fixed-fractional position sizing"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Risk a fixed percentage of account equity per trade — typically 0.5-2%. Position size = (account × risk_pct) / (entry - stop). Adjust for volatility: in higher-vol regimes (VIX above 20-25) reduce risk by 30-50%. Never risk more than 1% per trade after a 5% drawdown from peak — drawdowns compound; cutting size halts the spiral.",
+   "subject": "ps-001"
+  },
+  "reveal_json": {
+   "category": "position_sizing",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Risk a fixed percentage of account equity per trade — typically 0.5-2%. Position size = (account × risk_pct) / (entry - stop). Adjust for volatility: in higher-vol regimes (VIX above 20-25) reduce risk by 30-50%. Never risk more than 1% per trade after a 5% drawdown from peak — drawdowns compound; cutting size halts the spiral.",
+   "source": "api/data/voice_kb/trading_principles.json#ps-001",
+   "title": "Fixed-fractional position sizing"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ps-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Kelly criterion and fractional Kelly"
+  },
+  "difficulty": 2,
+  "id": "si_45ed9c398fe3",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Fixed-fractional position sizing",
+    "Kelly criterion and fractional Kelly",
+    "Correlation-adjusted total exposure",
+    "Scaling rules — adds and trims"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Full Kelly maximizes long-run growth: f = (win_rate × avg_win - loss_rate × avg_loss) / avg_win. But full Kelly has 50% drawdown distributions; serious traders use half-Kelly or quarter-Kelly. Anything above 1.0 Kelly is destructive. For most discretionary equity setups with 55-65% hit rates and 1.5-2R averages, quarter-Kelly maps to roughly 0.5-1% risk per trade.",
+   "subject": "ps-002"
+  },
+  "reveal_json": {
+   "category": "position_sizing",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Full Kelly maximizes long-run growth: f = (win_rate × avg_win - loss_rate × avg_loss) / avg_win. But full Kelly has 50% drawdown distributions; serious traders use half-Kelly or quarter-Kelly. Anything above 1.0 Kelly is destructive. For most discretionary equity setups with 55-65% hit rates and 1.5-2R averages, quarter-Kelly maps to roughly 0.5-1% risk per trade.",
+   "source": "api/data/voice_kb/trading_principles.json#ps-002",
+   "title": "Kelly criterion and fractional Kelly"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ps-002",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Volatility-adjusted sizing (ATR-based)"
+  },
+  "difficulty": 2,
+  "id": "si_73a3b2cab731",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Fixed-fractional position sizing",
+    "Volatility-adjusted sizing (ATR-based)",
+    "Correlation-adjusted total exposure",
+    "Scaling rules — adds and trims"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Set position size so that 1 ATR of adverse movement = a fixed dollar loss. shares = (account × risk_pct) / (k × ATR), where k is your stop distance in ATRs (usually 1-2). This automatically scales you smaller in volatile names and larger in quiet ones — it's the right way to size across the cap spectrum from large-cap to small-cap names.",
+   "subject": "ps-003"
+  },
+  "reveal_json": {
+   "category": "position_sizing",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Set position size so that 1 ATR of adverse movement = a fixed dollar loss. shares = (account × risk_pct) / (k × ATR), where k is your stop distance in ATRs (usually 1-2). This automatically scales you smaller in volatile names and larger in quiet ones — it's the right way to size across the cap spectrum from large-cap to small-cap names.",
+   "source": "api/data/voice_kb/trading_principles.json#ps-003",
+   "title": "Volatility-adjusted sizing (ATR-based)"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ps-003",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Correlation-adjusted total exposure"
+  },
+  "difficulty": 2,
+  "id": "si_1b908adcae20",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Correlation-adjusted total exposure",
+    "Volatility-adjusted sizing (ATR-based)",
+    "Scaling rules — adds and trims",
+    "Fixed-fractional position sizing"
+   ],
+   "q": "Which principle is this?",
+   "quote": "If 5 positions are all semiconductor longs, you don't have 5 trades — you have one large sector bet. Cap total exposure to any single sector at 2x your per-trade risk. Cap total long exposure in a falling-VIX bullish regime at 100% of equity, but cut to 60% when McClellan is below -100 or breadth deteriorates.",
+   "subject": "ps-004"
+  },
+  "reveal_json": {
+   "category": "position_sizing",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "If 5 positions are all semiconductor longs, you don't have 5 trades — you have one large sector bet. Cap total exposure to any single sector at 2x your per-trade risk. Cap total long exposure in a falling-VIX bullish regime at 100% of equity, but cut to 60% when McClellan is below -100 or breadth deteriorates.",
+   "source": "api/data/voice_kb/trading_principles.json#ps-004",
+   "title": "Correlation-adjusted total exposure"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ps-004",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Scaling rules — adds and trims"
+  },
+  "difficulty": 2,
+  "id": "si_9fa79291fe78",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Volatility-adjusted sizing (ATR-based)",
+    "Scaling rules — adds and trims",
+    "Fixed-fractional position sizing",
+    "Kelly criterion and fractional Kelly"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Add only into strength (price extends in your favor past a confirmation level) — never add to a loser ('averaging down' destroys discipline). Initial entry should be 60-70% of intended size; reserve 30-40% for an add on confirmation. Trim 1/3 to 1/2 at 1R, move stop to entry; let the rest run to 2-3R+.",
+   "subject": "ps-005"
+  },
+  "reveal_json": {
+   "category": "position_sizing",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Add only into strength (price extends in your favor past a confirmation level) — never add to a loser ('averaging down' destroys discipline). Initial entry should be 60-70% of intended size; reserve 30-40% for an add on confirmation. Trim 1/3 to 1/2 at 1R, move stop to entry; let the rest run to 2-3R+.",
+   "source": "api/data/voice_kb/trading_principles.json#ps-005",
+   "title": "Scaling rules — adds and trims"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ps-005",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "High Tight Flag (Powerplay)"
+  },
+  "difficulty": 2,
+  "id": "si_1984a2848f63",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Stage 2 launch (Weinstein / Minervini)",
+    "Parabolic short (failed parabolic)",
+    "High Tight Flag (Powerplay)",
+    "Episodic pivot (PEAD / earnings gap)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock rises 90-100%+ in 4-8 weeks, then forms a tight 10-25% consolidation lasting 3-5 weeks with declining volume. The flag should be ORDERLY — no wide-range panic bars. Buy on volume breakout of the flag high. Stop below flag low or 50% retrace of flag. Failure rate is high (40%+) but winners can double-triple. Best in trending bull markets only.",
+   "subject": "sd-001"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock rises 90-100%+ in 4-8 weeks, then forms a tight 10-25% consolidation lasting 3-5 weeks with declining volume. The flag should be ORDERLY — no wide-range panic bars. Buy on volume breakout of the flag high. Stop below flag low or 50% retrace of flag. Failure rate is high (40%+) but winners can double-triple. Best in trending bull markets only.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-001",
+   "title": "High Tight Flag (Powerplay)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "VCP (Volatility Contraction Pattern)"
+  },
+  "difficulty": 2,
+  "id": "si_65449d9368f5",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Classic flag pullback to rising MA",
+    "Episodic pivot (PEAD / earnings gap)",
+    "VCP (Volatility Contraction Pattern)",
+    "High Tight Flag (Powerplay)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock makes a deep base (25-50% from prior high), then a series of progressively tighter pullbacks — each lower in depth and on lower volume than the last (e.g. -25%, -15%, -8%). Volume dries up at the apex. Buy on volume expansion through the highest pivot. Best for liquid mid-large caps. Failure: price falls below the last tight area within 1-2 days.",
+   "subject": "sd-002"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock makes a deep base (25-50% from prior high), then a series of progressively tighter pullbacks — each lower in depth and on lower volume than the last (e.g. -25%, -15%, -8%). Volume dries up at the apex. Buy on volume expansion through the highest pivot. Best for liquid mid-large caps. Failure: price falls below the last tight area within 1-2 days.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-002",
+   "title": "VCP (Volatility Contraction Pattern)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-002",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Classic flag pullback to rising MA"
+  },
+  "difficulty": 2,
+  "id": "si_652594ad722b",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Classic flag pullback to rising MA",
+    "Episodic pivot (PEAD / earnings gap)",
+    "Stage 2 launch (Weinstein / Minervini)",
+    "Parabolic short (failed parabolic)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Strong uptrend (above rising 50-day MA, RS line making highs), then 3-8 day pullback to the 10/20-day EMA or 50-day SMA on declining volume. Look for a 'kiss' of the MA + inside bar + close in upper third of range. Entry: above the high of the kiss bar. Stop: below the kiss bar low or below 50-day SMA. Target: prior high + measured move of the pole.",
+   "subject": "sd-003"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Strong uptrend (above rising 50-day MA, RS line making highs), then 3-8 day pullback to the 10/20-day EMA or 50-day SMA on declining volume. Look for a 'kiss' of the MA + inside bar + close in upper third of range. Entry: above the high of the kiss bar. Stop: below the kiss bar low or below 50-day SMA. Target: prior high + measured move of the pole.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-003",
+   "title": "Classic flag pullback to rising MA"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-003",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Episodic pivot (PEAD / earnings gap)"
+  },
+  "difficulty": 2,
+  "id": "si_7d92553c255e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "ORB (Opening Range Breakout) intraday",
+    "U&R (Undercut and Rally)",
+    "Episodic pivot (PEAD / earnings gap)",
+    "Parabolic short (failed parabolic)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock gaps 8-20% on earnings with massive volume, and the gap doesn't fill in the first 30 minutes. Look for opening-range-high break on the morning of the gap or first close above the high-of-day on day 2. The setup works best when the stock was NOT extended before earnings (in a base, not 50%+ in 3 months). Stops are tight: low of the gap day or breakout bar.",
+   "subject": "sd-004"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock gaps 8-20% on earnings with massive volume, and the gap doesn't fill in the first 30 minutes. Look for opening-range-high break on the morning of the gap or first close above the high-of-day on day 2. The setup works best when the stock was NOT extended before earnings (in a base, not 50%+ in 3 months). Stops are tight: low of the gap day or breakout bar.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-004",
+   "title": "Episodic pivot (PEAD / earnings gap)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-004",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Stage 2 launch (Weinstein / Minervini)"
+  },
+  "difficulty": 2,
+  "id": "si_b271acd6342e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Stage 2 launch (Weinstein / Minervini)",
+    "U&R (Undercut and Rally)",
+    "Power Earnings Gap (PEG)",
+    "Wedge pop (rising wedge breakdown OR falling wedge breakout)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock has been in a long stage-1 base (months to years) below a flattening 30-week MA. Then: 30-week MA flips up, stock breaks above resistance on volume 1.5-2x average, RS line confirms with a new high. This is the highest-probability long entry there is. Best in major bottoming environments. Position can be held for months. Stop: below the 30-week MA.",
+   "subject": "sd-005"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock has been in a long stage-1 base (months to years) below a flattening 30-week MA. Then: 30-week MA flips up, stock breaks above resistance on volume 1.5-2x average, RS line confirms with a new high. This is the highest-probability long entry there is. Best in major bottoming environments. Position can be held for months. Stop: below the 30-week MA.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-005",
+   "title": "Stage 2 launch (Weinstein / Minervini)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-005",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Parabolic short (failed parabolic)"
+  },
+  "difficulty": 2,
+  "id": "si_b5bbe3f75c25",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "U&R (Undercut and Rally)",
+    "Power Earnings Gap (PEG)",
+    "Parabolic short (failed parabolic)",
+    "ORB (Opening Range Breakout) intraday"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock has run 100-500% in 1-3 months with accelerating slope. First sign of failure: largest down-volume bar of the move, OR break of the 9 EMA on closing basis after riding it tight, OR a key reversal day (gap up, close near lows on volume). Short the lower-high after the first crack, with stop above the recent pivot high. Targets: 21 EMA, then 50 SMA. NOT a short for the actual top — wait for confirmation.",
+   "subject": "sd-006"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock has run 100-500% in 1-3 months with accelerating slope. First sign of failure: largest down-volume bar of the move, OR break of the 9 EMA on closing basis after riding it tight, OR a key reversal day (gap up, close near lows on volume). Short the lower-high after the first crack, with stop above the recent pivot high. Targets: 21 EMA, then 50 SMA. NOT a short for the actual top — wait for confirmation.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-006",
+   "title": "Parabolic short (failed parabolic)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-006",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "ORB (Opening Range Breakout) intraday"
+  },
+  "difficulty": 2,
+  "id": "si_bd4511bf8a5d",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Wedge pop (rising wedge breakdown OR falling wedge breakout)",
+    "High Tight Flag (Powerplay)",
+    "VCP (Volatility Contraction Pattern)",
+    "ORB (Opening Range Breakout) intraday"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Mark high/low of first 5 or 15 minutes after the open. Buy a break of the high (or short the break of the low) on volume expansion. Stop below the opposite end of the range. Best with gap-up names in strong markets, or with stocks reporting fresh news. Avoid on choppy days or right before major macro events. Win rate is regime-dependent: 55-65% in trend, 35-45% in chop.",
+   "subject": "sd-007"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Mark high/low of first 5 or 15 minutes after the open. Buy a break of the high (or short the break of the low) on volume expansion. Stop below the opposite end of the range. Best with gap-up names in strong markets, or with stocks reporting fresh news. Avoid on choppy days or right before major macro events. Win rate is regime-dependent: 55-65% in trend, 35-45% in chop.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-007",
+   "title": "ORB (Opening Range Breakout) intraday"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-007",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "U&R (Undercut and Rally)"
+  },
+  "difficulty": 2,
+  "id": "si_c380dc34bf4d",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Parabolic short (failed parabolic)",
+    "U&R (Undercut and Rally)",
+    "Episodic pivot (PEAD / earnings gap)",
+    "Stage 2 launch (Weinstein / Minervini)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Stock undercuts a key recent low (1-3% below) intraday, then closes back above it. This shakes out weak hands and traps shorts. Buy the next day's open or on a close above the undercut bar's high. Stop: below the undercut low. Works because the failed breakdown signals exhausted selling. Best after a clean basing pattern, not after free-fall.",
+   "subject": "sd-008"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Stock undercuts a key recent low (1-3% below) intraday, then closes back above it. This shakes out weak hands and traps shorts. Buy the next day's open or on a close above the undercut bar's high. Stop: below the undercut low. Works because the failed breakdown signals exhausted selling. Best after a clean basing pattern, not after free-fall.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-008",
+   "title": "U&R (Undercut and Rally)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-008",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Power Earnings Gap (PEG)"
+  },
+  "difficulty": 2,
+  "id": "si_9536ef2937e1",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Stage 2 launch (Weinstein / Minervini)",
+    "Power Earnings Gap (PEG)",
+    "Classic flag pullback to rising MA",
+    "Episodic pivot (PEAD / earnings gap)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Earnings beats both top and bottom line, raises guidance, gaps up 5%+ on 3x+ average volume, and is in a strong group with bullish RS. The gap holds for the first hour. Buy intraday pullbacks to VWAP or the lower half of the gap range. Hold for days to weeks. Best in early stages of a stock's uptrend, not at all-time highs after months of running.",
+   "subject": "sd-009"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Earnings beats both top and bottom line, raises guidance, gaps up 5%+ on 3x+ average volume, and is in a strong group with bullish RS. The gap holds for the first hour. Buy intraday pullbacks to VWAP or the lower half of the gap range. Hold for days to weeks. Best in early stages of a stock's uptrend, not at all-time highs after months of running.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-009",
+   "title": "Power Earnings Gap (PEG)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-009",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Wedge pop (rising wedge breakdown OR falling wedge breakout)"
+  },
+  "difficulty": 2,
+  "id": "si_5b8ad88e2a36",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Wedge pop (rising wedge breakdown OR falling wedge breakout)",
+    "Parabolic short (failed parabolic)",
+    "ORB (Opening Range Breakout) intraday",
+    "U&R (Undercut and Rally)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Falling wedge: lower lows and lower highs converge toward an apex with decreasing volume — buy the break above the upper trendline on volume expansion. Rising wedge inverse: short the break below the lower trendline. Wedges work because volume dries up as participants leave; the break is on fresh participation. Failure if price re-enters the wedge within 2-3 bars.",
+   "subject": "sd-010"
+  },
+  "reveal_json": {
+   "category": "setup_definition",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Falling wedge: lower lows and lower highs converge toward an apex with decreasing volume — buy the break above the upper trendline on volume expansion. Rising wedge inverse: short the break below the lower trendline. Wedges work because volume dries up as participants leave; the break is on fresh participation. Failure if price re-enters the wedge within 2-3 bars.",
+   "source": "api/data/voice_kb/trading_principles.json#sd-010",
+   "title": "Wedge pop (rising wedge breakdown OR falling wedge breakout)"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.placement",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#sd-010",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Loss aversion and the urge to be 'right'"
+  },
+  "difficulty": 2,
+  "id": "si_736c62fd3767",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Anchoring to entry price",
+    "Confirmation bias in news/charts",
+    "Recency bias in regime calls",
+    "Loss aversion and the urge to be 'right'"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Losses feel ~2x more painful than equivalent gains feel good. This makes traders hold losers (hoping to break even) and cut winners (locking in 'being right'). Antidote: pre-define exits on entry. Treat 'I was wrong' as information, not identity. The PnL doesn't care about your ego.",
+   "subject": "bb-001"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Losses feel ~2x more painful than equivalent gains feel good. This makes traders hold losers (hoping to break even) and cut winners (locking in 'being right'). Antidote: pre-define exits on entry. Treat 'I was wrong' as information, not identity. The PnL doesn't care about your ego.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-001",
+   "title": "Loss aversion and the urge to be 'right'"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "FOMO and the chase reflex"
+  },
+  "difficulty": 2,
+  "id": "si_172a682ff96e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "FOMO and the chase reflex",
+    "Confirmation bias in news/charts",
+    "Recency bias in regime calls",
+    "Cutting winners early (the 'I made some' trap)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Watching a stock rip without you triggers the same neural circuits as physical pain. The urge to chase is strongest 3-5% after the breakout — exactly where stops should be wide and risk-reward is worst. Rule: never chase past 5% from the proper pivot. If you missed it, the second base (a tight pullback after the initial move) is often higher-probability anyway.",
+   "subject": "bb-002"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Watching a stock rip without you triggers the same neural circuits as physical pain. The urge to chase is strongest 3-5% after the breakout — exactly where stops should be wide and risk-reward is worst. Rule: never chase past 5% from the proper pivot. If you missed it, the second base (a tight pullback after the initial move) is often higher-probability anyway.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-002",
+   "title": "FOMO and the chase reflex"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-002",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Revenge trading after a loss"
+  },
+  "difficulty": 2,
+  "id": "si_afb25af86129",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Overtrading in chop",
+    "Anchoring to entry price",
+    "Confirmation bias in news/charts",
+    "Revenge trading after a loss"
+   ],
+   "q": "Which principle is this?",
+   "quote": "After a loss, the brain wants to 'win it back' immediately. The next setup looks better than it is. Antidote: after a stop-out, the next trade must be 50% smaller, OR a 15-minute mandatory break before next entry. The data is clear — trades placed within 5 minutes of a loss have a 30% lower win rate.",
+   "subject": "bb-003"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "After a loss, the brain wants to 'win it back' immediately. The next setup looks better than it is. Antidote: after a stop-out, the next trade must be 50% smaller, OR a 15-minute mandatory break before next entry. The data is clear — trades placed within 5 minutes of a loss have a 30% lower win rate.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-003",
+   "title": "Revenge trading after a loss"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-003",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Overtrading in chop"
+  },
+  "difficulty": 2,
+  "id": "si_b70698eae118",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Overtrading in chop",
+    "Confirmation bias in news/charts",
+    "Recency bias in regime calls",
+    "Cutting winners early (the 'I made some' trap)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Trending markets reward action; choppy markets punish it. The hardest discipline is sitting in cash when nothing is working. If your last 5 trades are all stop-outs with similar setups, the regime has changed — STOP, not adjust. Trade count per day should compress in chop and expand in trend.",
+   "subject": "bb-004"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Trending markets reward action; choppy markets punish it. The hardest discipline is sitting in cash when nothing is working. If your last 5 trades are all stop-outs with similar setups, the regime has changed — STOP, not adjust. Trade count per day should compress in chop and expand in trend.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-004",
+   "title": "Overtrading in chop"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-004",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Anchoring to entry price"
+  },
+  "difficulty": 2,
+  "id": "si_3450332b37d2",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Overtrading in chop",
+    "Confirmation bias in news/charts",
+    "Recency bias in regime calls",
+    "Anchoring to entry price"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Traders anchor to where they got in and refuse to exit at a loss until 'breakeven'. The market doesn't know your entry. Decisions should be based ONLY on whether the current price action invalidates the thesis — not on the unrealized PnL. If you wouldn't enter the trade at the current price, you shouldn't be holding it.",
+   "subject": "bb-005"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Traders anchor to where they got in and refuse to exit at a loss until 'breakeven'. The market doesn't know your entry. Decisions should be based ONLY on whether the current price action invalidates the thesis — not on the unrealized PnL. If you wouldn't enter the trade at the current price, you shouldn't be holding it.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-005",
+   "title": "Anchoring to entry price"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-005",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Confirmation bias in news/charts"
+  },
+  "difficulty": 2,
+  "id": "si_b450b0fb7bbf",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Recency bias in regime calls",
+    "Cutting winners early (the 'I made some' trap)",
+    "Loss aversion and the urge to be 'right'",
+    "Confirmation bias in news/charts"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Once you've taken a position, you'll find evidence that supports it everywhere. Antidote: before entering, write down what would invalidate the thesis. If you can't articulate the failure case, you don't really have a thesis. Review the failure case daily during the trade.",
+   "subject": "bb-006"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Once you've taken a position, you'll find evidence that supports it everywhere. Antidote: before entering, write down what would invalidate the thesis. If you can't articulate the failure case, you don't really have a thesis. Review the failure case daily during the trade.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-006",
+   "title": "Confirmation bias in news/charts"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-006",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Recency bias in regime calls"
+  },
+  "difficulty": 2,
+  "id": "si_da51ea002b9f",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Recency bias in regime calls",
+    "Anchoring to entry price",
+    "Confirmation bias in news/charts",
+    "Cutting winners early (the 'I made some' trap)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "After 5 winning trend trades, traders assume trend works forever; after 3 chop losses, they assume the regime has flipped. Real regime changes are slow and visible in breadth + advance-decline + new high/low data — not in your last 8 trades. Use the breadth dashboard and McClellan, not your PnL, to assess regime.",
+   "subject": "bb-007"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "After 5 winning trend trades, traders assume trend works forever; after 3 chop losses, they assume the regime has flipped. Real regime changes are slow and visible in breadth + advance-decline + new high/low data — not in your last 8 trades. Use the breadth dashboard and McClellan, not your PnL, to assess regime.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-007",
+   "title": "Recency bias in regime calls"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-007",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Cutting winners early (the 'I made some' trap)"
+  },
+  "difficulty": 2,
+  "id": "si_568f88894377",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Cutting winners early (the 'I made some' trap)",
+    "Revenge trading after a loss",
+    "Overtrading in chop",
+    "Anchoring to entry price"
+   ],
+   "q": "Which principle is this?",
+   "quote": "The pain of 'giving back' an open profit can be sharper than the pleasure of holding for the larger gain. Rule: define your trim levels in advance (1R partial, 2R partial, trail rest). Once you trim 1R, the rest is house money — the psychology eases. Never trim more than 50% before 2R unless the thesis breaks.",
+   "subject": "bb-008"
+  },
+  "reveal_json": {
+   "category": "behavioral_bias",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "The pain of 'giving back' an open profit can be sharper than the pleasure of holding for the larger gain. Rule: define your trim levels in advance (1R partial, 2R partial, trail rest). Once you trim 1R, the rest is house money — the psychology eases. Never trim more than 50% before 2R unless the thesis breaks.",
+   "source": "api/data/voice_kb/trading_principles.json#bb-008",
+   "title": "Cutting winners early (the 'I made some' trap)"
+  },
+  "review_status": "draft",
+  "skill_id": "review.pattern_map",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#bb-008",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day"
+  },
+  "difficulty": 2,
+  "id": "si_3cb6ad2216d1",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Chop regime — indexes range-bound, daily reversals common",
+    "Bull correction (10-15% from highs, breadth thrust possible)",
+    "Bear trend (below 200-day, McClellan < -200)",
+    "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Posture: long-only, aggressive. Buy pullbacks to rising MAs, breakouts of tight bases. Position sizes can run 0.75-1.5% risk. Hold winners longer; trail wider. Exposure can run 100%+ on margin in late stages of the trend. Watch for distribution days (>4 in a month) as the first sign of regime change.",
+   "subject": "rp-001"
+  },
+  "reveal_json": {
+   "category": "regime_playbook",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Posture: long-only, aggressive. Buy pullbacks to rising MAs, breakouts of tight bases. Position sizes can run 0.75-1.5% risk. Hold winners longer; trail wider. Exposure can run 100%+ on margin in late stages of the trend. Watch for distribution days (>4 in a month) as the first sign of regime change.",
+   "source": "api/data/voice_kb/trading_principles.json#rp-001",
+   "title": "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#rp-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Bull correction (10-15% from highs, breadth thrust possible)"
+  },
+  "difficulty": 2,
+  "id": "si_988e5fdb26bf",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day",
+    "Bear trend (below 200-day, McClellan < -200)",
+    "Distribution / topping regime (highs but breadth diverging)",
+    "Bull correction (10-15% from highs, breadth thrust possible)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Posture: cautious longs only at oversold extremes (RSI < 30 on indexes, VIX > 25, panic in put/call). Best longs are quality names that pulled in 20%+ but held above 200-day. Risk per trade 0.3-0.5%. Don't catch falling knives — wait for a 2-3 day reversal pattern. If you must short, only at logical resistance levels with stops above swing high.",
+   "subject": "rp-002"
+  },
+  "reveal_json": {
+   "category": "regime_playbook",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Posture: cautious longs only at oversold extremes (RSI < 30 on indexes, VIX > 25, panic in put/call). Best longs are quality names that pulled in 20%+ but held above 200-day. Risk per trade 0.3-0.5%. Don't catch falling knives — wait for a 2-3 day reversal pattern. If you must short, only at logical resistance levels with stops above swing high.",
+   "source": "api/data/voice_kb/trading_principles.json#rp-002",
+   "title": "Bull correction (10-15% from highs, breadth thrust possible)"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#rp-002",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Bear trend (below 200-day, McClellan < -200)"
+  },
+  "difficulty": 2,
+  "id": "si_26368bfca1cf",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Chop regime — indexes range-bound, daily reversals common",
+    "Bear trend (below 200-day, McClellan < -200)",
+    "Bull correction (10-15% from highs, breadth thrust possible)",
+    "Distribution / topping regime (highs but breadth diverging)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Posture: defensive. No longs except at extreme oversold reversal points. Short failed rallies into supply (50-day, broken support). Position sizes smaller (0.5%). Cash is a position. Most accounts get destroyed in bear markets not by single losses but by repeatedly trying to call bottoms. The first 1-2 oversold bounces fail.",
+   "subject": "rp-003"
+  },
+  "reveal_json": {
+   "category": "regime_playbook",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Posture: defensive. No longs except at extreme oversold reversal points. Short failed rallies into supply (50-day, broken support). Position sizes smaller (0.5%). Cash is a position. Most accounts get destroyed in bear markets not by single losses but by repeatedly trying to call bottoms. The first 1-2 oversold bounces fail.",
+   "source": "api/data/voice_kb/trading_principles.json#rp-003",
+   "title": "Bear trend (below 200-day, McClellan < -200)"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#rp-003",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Distribution / topping regime (highs but breadth diverging)"
+  },
+  "difficulty": 2,
+  "id": "si_3769a8702935",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Chop regime — indexes range-bound, daily reversals common",
+    "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day",
+    "Bull correction (10-15% from highs, breadth thrust possible)",
+    "Distribution / topping regime (highs but breadth diverging)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Indexes near highs but: new highs < new lows, % above 50-day declining, McClellan negative, leadership rotating defensive (utilities, staples leading). Posture: tighten stops on every long, take profits aggressively, reduce position sizes by 30%, no new positions in extended names. This is the highest-cost regime to ignore.",
+   "subject": "rp-004"
+  },
+  "reveal_json": {
+   "category": "regime_playbook",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Indexes near highs but: new highs < new lows, % above 50-day declining, McClellan negative, leadership rotating defensive (utilities, staples leading). Posture: tighten stops on every long, take profits aggressively, reduce position sizes by 30%, no new positions in extended names. This is the highest-cost regime to ignore.",
+   "source": "api/data/voice_kb/trading_principles.json#rp-004",
+   "title": "Distribution / topping regime (highs but breadth diverging)"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#rp-004",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Chop regime — indexes range-bound, daily reversals common"
+  },
+  "difficulty": 2,
+  "id": "si_75f0ad250884",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Bear trend (below 200-day, McClellan < -200)",
+    "Chop regime — indexes range-bound, daily reversals common",
+    "Bull trend regime — breadth strong, VIX low, indexes above rising 50-day",
+    "Bull correction (10-15% from highs, breadth thrust possible)"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Mean reversion works; breakouts fail. Posture: cut trade frequency in half, wait for clean range extremes for entries, take 1-2R partials fast. The wrong move is to keep trying breakouts hoping the trend resumes — chop chews up account equity in slow death. Win rate drops 15-20% in chop vs trend.",
+   "subject": "rp-005"
+  },
+  "reveal_json": {
+   "category": "regime_playbook",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Mean reversion works; breakouts fail. Posture: cut trade frequency in half, wait for clean range extremes for entries, take 1-2R partials fast. The wrong move is to keep trying breakouts hoping the trend resumes — chop chews up account equity in slow death. Win rate drops 15-20% in chop vs trend.",
+   "source": "api/data/voice_kb/trading_principles.json#rp-005",
+   "title": "Chop regime — indexes range-bound, daily reversals common"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#rp-005",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Open: first 30 minutes are usually noise"
+  },
+  "difficulty": 2,
+  "id": "si_4146e2e937fe",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Options dealer flow and gamma squeezes",
+    "After-hours and pre-market liquidity",
+    "Open: first 30 minutes are usually noise",
+    "Friday / month-end / quarter-end position behavior"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Opening 30 min sees the highest volume and the widest spreads of the day. Patterns often reverse 30-60 minutes in as overnight orders clear. Best entry windows for swing setups: 10:00-11:30 ET (after the opening drive) and 14:30-15:30 ET (pre-close trend day continuation). Avoid 11:30-14:00 lunchtime chop unless you have a specific intraday strategy.",
+   "subject": "ms-001"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Opening 30 min sees the highest volume and the widest spreads of the day. Patterns often reverse 30-60 minutes in as overnight orders clear. Best entry windows for swing setups: 10:00-11:30 ET (after the opening drive) and 14:30-15:30 ET (pre-close trend day continuation). Avoid 11:30-14:00 lunchtime chop unless you have a specific intraday strategy.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-001",
+   "title": "Open: first 30 minutes are usually noise"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "VWAP as institutional fair value"
+  },
+  "difficulty": 2,
+  "id": "si_3fd2e8040a94",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "VWAP as institutional fair value",
+    "Spread and slippage on small caps",
+    "Friday / month-end / quarter-end position behavior",
+    "Options dealer flow and gamma squeezes"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Volume-weighted average price is the benchmark institutions use for execution. Stocks holding above session VWAP are being accumulated; below VWAP they're being distributed. Best long entries on pullbacks to VWAP that hold; best short entries on rejections of VWAP from below. AVWAP from an earnings event or breakout pivot is even more powerful — it marks the price level where smart money started buying.",
+   "subject": "ms-002"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Volume-weighted average price is the benchmark institutions use for execution. Stocks holding above session VWAP are being accumulated; below VWAP they're being distributed. Best long entries on pullbacks to VWAP that hold; best short entries on rejections of VWAP from below. AVWAP from an earnings event or breakout pivot is even more powerful — it marks the price level where smart money started buying.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-002",
+   "title": "VWAP as institutional fair value"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-002",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Spread and slippage on small caps"
+  },
+  "difficulty": 2,
+  "id": "si_977030543d76",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Friday / month-end / quarter-end position behavior",
+    "Options dealer flow and gamma squeezes",
+    "Spread and slippage on small caps",
+    "VWAP as institutional fair value"
+   ],
+   "q": "Which principle is this?",
+   "quote": "On sub-$2B market cap names with <500k average daily volume, slippage on market orders can eat 0.5-1.5% per round-trip. Use limit orders for entries; use marketable limits (limit 0.5% through best bid/offer) for exits when speed matters. Account for slippage in your reward-to-risk math — a setup with 2R reward on small caps is closer to 1.5R real.",
+   "subject": "ms-003"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "On sub-$2B market cap names with <500k average daily volume, slippage on market orders can eat 0.5-1.5% per round-trip. Use limit orders for entries; use marketable limits (limit 0.5% through best bid/offer) for exits when speed matters. Account for slippage in your reward-to-risk math — a setup with 2R reward on small caps is closer to 1.5R real.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-003",
+   "title": "Spread and slippage on small caps"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-003",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Friday / month-end / quarter-end position behavior"
+  },
+  "difficulty": 2,
+  "id": "si_7d91a6d0f138",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "VWAP as institutional fair value",
+    "Friday / month-end / quarter-end position behavior",
+    "After-hours and pre-market liquidity",
+    "Open: first 30 minutes are usually noise"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Fridays often see institutional risk reduction in the afternoon (don't want weekend gap risk). Month-end can see window-dressing buying in already-strong leaders. Quarter-end (especially Q4) sees mechanical rebalancing flow. Best to avoid initiating fresh trades on Friday afternoon unless conviction is high; tighten stops instead.",
+   "subject": "ms-004"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Fridays often see institutional risk reduction in the afternoon (don't want weekend gap risk). Month-end can see window-dressing buying in already-strong leaders. Quarter-end (especially Q4) sees mechanical rebalancing flow. Best to avoid initiating fresh trades on Friday afternoon unless conviction is high; tighten stops instead.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-004",
+   "title": "Friday / month-end / quarter-end position behavior"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-004",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Options dealer flow and gamma squeezes"
+  },
+  "difficulty": 2,
+  "id": "si_7273c6f48a10",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "After-hours and pre-market liquidity",
+    "Open: first 30 minutes are usually noise",
+    "Options dealer flow and gamma squeezes",
+    "Friday / month-end / quarter-end position behavior"
+   ],
+   "q": "Which principle is this?",
+   "quote": "When stocks have heavy call open interest at a price just above current, market makers are short gamma — they must buy more stock as price rises to stay hedged. This amplifies moves above large call strikes. Watch for max-pain levels and key strike clusters in front-month options on stocks that have run sharply. Pin risk near OPEX (3rd Friday) is real.",
+   "subject": "ms-005"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "When stocks have heavy call open interest at a price just above current, market makers are short gamma — they must buy more stock as price rises to stay hedged. This amplifies moves above large call strikes. Watch for max-pain levels and key strike clusters in front-month options on stocks that have run sharply. Pin risk near OPEX (3rd Friday) is real.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-005",
+   "title": "Options dealer flow and gamma squeezes"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-005",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "After-hours and pre-market liquidity"
+  },
+  "difficulty": 2,
+  "id": "si_0b3d74bae9f0",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "VWAP as institutional fair value",
+    "After-hours and pre-market liquidity",
+    "Options dealer flow and gamma squeezes",
+    "Open: first 30 minutes are usually noise"
+   ],
+   "q": "Which principle is this?",
+   "quote": "Spreads in AH/PM can be 3-10x wider than RTH. Stops triggered in extended hours can fill far from the level. Best practice: use 'day' time-in-force on stops (not GTC) so they only fire 9:30-16:00 ET unless you intentionally want extended-hours exits. AH/PM moves often reverse partially or fully at the regular open.",
+   "subject": "ms-006"
+  },
+  "reveal_json": {
+   "category": "microstructure",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "Spreads in AH/PM can be 3-10x wider than RTH. Stops triggered in extended hours can fill far from the level. Best practice: use 'day' time-in-force on stops (not GTC) so they only fire 9:30-16:00 ET unless you intentionally want extended-hours exits. AH/PM moves often reverse partially or fully at the regular open.",
+   "source": "api/data/voice_kb/trading_principles.json#ms-006",
+   "title": "After-hours and pre-market liquidity"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.orders",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#ms-006",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Trading is a probabilistic game, not a certainty game"
+  },
+  "difficulty": 2,
+  "id": "si_d7b164cea6ab",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Stage 2 launch (Weinstein / Minervini)",
+    "Parabolic short (failed parabolic)",
+    "Trading is a probabilistic game, not a certainty game",
+    "The market doesn't owe you anything"
+   ],
+   "q": "Which principle is this?",
+   "quote": "No setup is 100%. The edge is in: positive expectancy (avg_win × win_rate > avg_loss × loss_rate), large sample sizes (50+ trades per setup before judging), consistent process. Single trades are noise; quarterly results are signal. Focus on executing your plan, not on the outcome of any single trade.",
+   "subject": "mt-001"
+  },
+  "reveal_json": {
+   "category": "meta",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "No setup is 100%. The edge is in: positive expectancy (avg_win × win_rate > avg_loss × loss_rate), large sample sizes (50+ trades per setup before judging), consistent process. Single trades are noise; quarterly results are signal. Focus on executing your plan, not on the outcome of any single trade.",
+   "source": "api/data/voice_kb/trading_principles.json#mt-001",
+   "title": "Trading is a probabilistic game, not a certainty game"
+  },
+  "review_status": "draft",
+  "skill_id": "size.r_expectancy",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#mt-001",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The market doesn't owe you anything"
+  },
+  "difficulty": 2,
+  "id": "si_83c7d572fa13",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Distribution / topping regime (highs but breadth diverging)",
+    "Chop regime — indexes range-bound, daily reversals common",
+    "The market doesn't owe you anything",
+    "Trading is a probabilistic game, not a certainty game"
+   ],
+   "q": "Which principle is this?",
+   "quote": "There's no rule that says good analysis must be rewarded, or that trends must continue because they 'should'. The market only rewards traders who adapt to what IS, not what should be. Be willing to be wrong, be quick to cut, and never marry a thesis. Conviction is for losers; flexibility is for survivors.",
+   "subject": "mt-002"
+  },
+  "reveal_json": {
+   "category": "meta",
+   "numbers_in_quote_are_not_keys": true,
+   "quote": "There's no rule that says good analysis must be rewarded, or that trends must continue because they 'should'. The market only rewards traders who adapt to what IS, not what should be. Be willing to be wrong, be quick to cut, and never marry a thesis. Conviction is for losers; flexibility is for survivors.",
+   "source": "api/data/voice_kb/trading_principles.json#mt-002",
+   "title": "The market doesn't owe you anything"
+  },
+  "review_status": "draft",
+  "skill_id": "size.r_expectancy",
+  "source_kind": "principle",
+  "source_ref": "api/data/voice_kb/trading_principles.json#mt-002",
+  "type": "recall",
+  "version": 1
+ }
+]

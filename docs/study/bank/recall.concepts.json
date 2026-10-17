@@ -1,0 +1,775 @@
+[
+ {
+  "answer_json": {
+   "answer": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)"
+  },
+  "difficulty": 3,
+  "id": "si_790d37b796b7",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "higher_lows_run >= 3",
+    "close_position >= 0.66",
+    "new_52w_high",
+    "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)"
+   ],
+   "q": "The firm's screener calls a stock \"trending\" when which of these holds?",
+   "subject": "trending"
+  },
+  "reveal_json": {
+   "grounding": [
+    "full-bull"
+   ],
+   "quote": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#trending",
+   "system": "the firm's screener",
+   "word": "trending"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#trending",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)"
+  },
+  "difficulty": 3,
+  "id": "si_45d74da3957b",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "gap_pct >= 3",
+    "gap_pct <= -3",
+    "dist_52w_high_pct >= -5",
+    "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)"
+   ],
+   "q": "The firm's screener calls a stock \"in a downtrend\" when which of these holds?",
+   "subject": "in a downtrend"
+  },
+  "reveal_json": {
+   "grounding": [
+    "bear"
+   ],
+   "quote": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#in a downtrend",
+   "system": "the firm's screener",
+   "word": "in a downtrend"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#in a downtrend",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rs_rank >= 80"
+  },
+  "difficulty": 3,
+  "id": "si_406f04e07a4d",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "market_cap >= 200000000000",
+    "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
+    "rs_rank >= 80",
+    "market_cap >= 10000000000"
+   ],
+   "q": "The firm's screener calls a stock \"leader\" when which of these holds?",
+   "subject": "leader"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "rs_rank >= 80",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#leader",
+   "system": "the firm's screener",
+   "word": "leader"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#leader",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
+  },
+  "difficulty": 3,
+  "id": "si_3f2849ec29f1",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "pullback_depth_pct >= 20",
+    "higher_lows_run >= 3",
+    "close_position >= 0.66"
+   ],
+   "q": "The firm's screener calls a stock \"leaders pulling back\" when which of these holds?",
+   "subject": "leaders pulling back"
+  },
+  "reveal_json": {
+   "attributed_setup": "Classic Flag/Pullback",
+   "grounding": [
+    "starter_screen"
+   ],
+   "quote": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#leaders pulling back",
+   "system": "the firm's screener",
+   "word": "leaders pulling back"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#leaders pulling back",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "tight_consolidation"
+  },
+  "difficulty": 3,
+  "id": "si_0a9551afc08a",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "tight_consolidation",
+    "close_position >= 0.66",
+    "new_52w_high",
+    "market_cap >= 10000000000"
+   ],
+   "q": "The firm's screener calls a stock \"coiled\" when which of these holds?",
+   "subject": "coiled"
+  },
+  "reveal_json": {
+   "attributed_setup": "VCP",
+   "grounding": [
+    "scalar"
+   ],
+   "quote": "tight_consolidation",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#coiled",
+   "system": "the firm's screener",
+   "word": "coiled"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#coiled",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rs_rank >= 80 && tight_consolidation"
+  },
+  "difficulty": 3,
+  "id": "si_e771873b960c",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "gap_pct >= 3",
+    "rs_rank >= 80 && tight_consolidation",
+    "vol_ratio >= 2",
+    "avg_volume_30d >= 1000000"
+   ],
+   "q": "The firm's screener calls a stock \"tight base\" when which of these holds?",
+   "subject": "tight base"
+  },
+  "reveal_json": {
+   "grounding": [
+    "starter_screen"
+   ],
+   "quote": "rs_rank >= 80 && tight_consolidation",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#tight base",
+   "system": "the firm's screener",
+   "word": "tight base"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#tight base",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rsi14 <= 30"
+  },
+  "difficulty": 3,
+  "id": "si_54e994105e3e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "higher_lows_run >= 3",
+    "rsi14 <= 30",
+    "pullback_depth_pct <= 5",
+    "pullback_depth_pct >= 20"
+   ],
+   "q": "The firm's screener calls a stock \"oversold\" when which of these holds?",
+   "subject": "oversold"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "rsi14 <= 30",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#oversold",
+   "system": "the firm's screener",
+   "word": "oversold"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#oversold",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rsi14 >= 70"
+  },
+  "difficulty": 3,
+  "id": "si_5f05ea22d103",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "market_cap >= 10000000000",
+    "market_cap >= 200000000000",
+    "rsi14 >= 70",
+    "new_52w_high"
+   ],
+   "q": "The firm's screener calls a stock \"overbought\" when which of these holds?",
+   "subject": "overbought"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "rsi14 >= 70",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#overbought",
+   "system": "the firm's screener",
+   "word": "overbought"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#overbought",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "vol_ratio >= 2"
+  },
+  "difficulty": 3,
+  "id": "si_993642c2d239",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "rsi14 >= 70",
+    "avg_volume_30d >= 1000000",
+    "gap_pct >= 3",
+    "vol_ratio >= 2"
+   ],
+   "q": "The firm's screener calls a stock \"heavy volume\" when which of these holds?",
+   "subject": "heavy volume"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "vol_ratio >= 2",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#heavy volume",
+   "system": "the firm's screener",
+   "word": "heavy volume"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#heavy volume",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "avg_volume_30d >= 1000000"
+  },
+  "difficulty": 3,
+  "id": "si_71c2840d8ab8",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "avg_volume_30d >= 1000000",
+    "market_cap >= 200000000000",
+    "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
+    "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)"
+   ],
+   "q": "The firm's screener calls a stock \"liquid\" when which of these holds?",
+   "subject": "liquid"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "avg_volume_30d >= 1000000",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#liquid",
+   "system": "the firm's screener",
+   "word": "liquid"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#liquid",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "gap_pct >= 3"
+  },
+  "difficulty": 3,
+  "id": "si_993a08a340ac",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "tight_consolidation",
+    "rs_rank >= 80 && tight_consolidation",
+    "gap_pct >= 3"
+   ],
+   "q": "The firm's screener calls a stock \"gapping up\" when which of these holds?",
+   "subject": "gapping up"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "gap_pct >= 3",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#gapping up",
+   "system": "the firm's screener",
+   "word": "gapping up"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#gapping up",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "gap_pct <= -3"
+  },
+  "difficulty": 3,
+  "id": "si_f30f505f9cbb",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "pullback_depth_pct <= 5",
+    "pullback_depth_pct >= 20",
+    "gap_pct <= -3"
+   ],
+   "q": "The firm's screener calls a stock \"gapping down\" when which of these holds?",
+   "subject": "gapping down"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "gap_pct <= -3",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#gapping down",
+   "system": "the firm's screener",
+   "word": "gapping down"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#gapping down",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "dist_52w_high_pct >= -5"
+  },
+  "difficulty": 3,
+  "id": "si_2276b09ff0e9",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "dist_52w_high_pct >= -5",
+    "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
+    "rs_rank >= 80",
+    "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
+   ],
+   "q": "The firm's screener calls a stock \"near its highs\" when which of these holds?",
+   "subject": "near its highs"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "dist_52w_high_pct >= -5",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#near its highs",
+   "system": "the firm's screener",
+   "word": "near its highs"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#near its highs",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
+  },
+  "difficulty": 3,
+  "id": "si_584ea1b60595",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "gap_pct >= 3",
+    "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "vol_ratio >= 2",
+    "avg_volume_30d >= 1000000"
+   ],
+   "q": "The firm's screener calls a stock \"at the 20 ema\" when which of these holds?",
+   "subject": "at the 20 ema"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#at the 20 ema",
+   "system": "the firm's screener",
+   "word": "at the 20 ema"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#at the 20 ema",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "pullback_depth_pct <= 5"
+  },
+  "difficulty": 3,
+  "id": "si_2e93f007073d",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
+    "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
+    "rs_rank >= 80",
+    "pullback_depth_pct <= 5"
+   ],
+   "q": "The firm's screener calls a stock \"shallow pullback\" when which of these holds?",
+   "subject": "shallow pullback"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "pullback_depth_pct <= 5",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#shallow pullback",
+   "system": "the firm's screener",
+   "word": "shallow pullback"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#shallow pullback",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "pullback_depth_pct >= 20"
+  },
+  "difficulty": 3,
+  "id": "si_361d6cdc7f81",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
+    "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
+    "pullback_depth_pct >= 20",
+    "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000"
+   ],
+   "q": "The firm's screener calls a stock \"deep pullback\" when which of these holds?",
+   "subject": "deep pullback"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "pullback_depth_pct >= 20",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#deep pullback",
+   "system": "the firm's screener",
+   "word": "deep pullback"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#deep pullback",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "higher_lows_run >= 3"
+  },
+  "difficulty": 3,
+  "id": "si_04efe3773588",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "higher_lows_run >= 3",
+    "tight_consolidation",
+    "rs_rank >= 80 && tight_consolidation",
+    "rsi14 <= 30"
+   ],
+   "q": "The firm's screener calls a stock \"higher lows\" when which of these holds?",
+   "subject": "higher lows"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "higher_lows_run >= 3",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#higher lows",
+   "system": "the firm's screener",
+   "word": "higher lows"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#higher lows",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "close_position >= 0.66"
+  },
+  "difficulty": 3,
+  "id": "si_f5970991120f",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "higher_lows_run >= 3",
+    "new_52w_high",
+    "market_cap >= 10000000000",
+    "close_position >= 0.66"
+   ],
+   "q": "The firm's screener calls a stock \"closing strong\" when which of these holds?",
+   "subject": "closing strong"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "close_position >= 0.66",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#closing strong",
+   "system": "the firm's screener",
+   "word": "closing strong"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#closing strong",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "new_52w_high"
+  },
+  "difficulty": 3,
+  "id": "si_262a27ae6e9e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "pullback_depth_pct >= 20",
+    "new_52w_high",
+    "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "pullback_depth_pct <= 5"
+   ],
+   "q": "The firm's screener calls a stock \"at new highs\" when which of these holds?",
+   "subject": "at new highs"
+  },
+  "reveal_json": {
+   "grounding": [
+    "scalar"
+   ],
+   "quote": "new_52w_high",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#at new highs",
+   "system": "the firm's screener",
+   "word": "at new highs"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#at new highs",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "market_cap >= 10000000000"
+  },
+  "difficulty": 3,
+  "id": "si_cf68df4e9586",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "pullback_depth_pct <= 5",
+    "market_cap >= 10000000000",
+    "dist_52w_high_pct >= -5",
+    "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
+   ],
+   "q": "The firm's screener calls a stock \"large cap\" when which of these holds?",
+   "subject": "large cap"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "market_cap >= 10000000000",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#large cap",
+   "system": "the firm's screener",
+   "word": "large cap"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#large cap",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "market_cap >= 200000000000"
+  },
+  "difficulty": 3,
+  "id": "si_45769dcc81b8",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+    "tight_consolidation",
+    "rs_rank >= 80 && tight_consolidation",
+    "market_cap >= 200000000000"
+   ],
+   "q": "The firm's screener calls a stock \"mega cap\" when which of these holds?",
+   "subject": "mega cap"
+  },
+  "reveal_json": {
+   "grounding": [
+    "filter_preset"
+   ],
+   "quote": "market_cap >= 200000000000",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#mega cap",
+   "system": "the firm's screener",
+   "word": "mega cap"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#mega cap",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000"
+  },
+  "difficulty": 3,
+  "id": "si_c465516c0726",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": "M6",
+  "prompt_json": {
+   "choices": [
+    "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
+    "market_cap >= 200000000000",
+    "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
+    "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)"
+   ],
+   "q": "The firm's screener calls a stock \"pullback to the 20ema\" when which of these holds?",
+   "subject": "pullback to the 20ema"
+  },
+  "reveal_json": {
+   "attributed_setup": "Classic Flag/Pullback",
+   "grounding": [
+    "starter_screen"
+   ],
+   "quote": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
+   "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#pullback to the 20ema",
+   "system": "the firm's screener",
+   "word": "pullback to the 20ema"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "concept",
+  "source_ref": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#pullback to the 20ema",
+  "type": "recall",
+  "version": 1
+ }
+]

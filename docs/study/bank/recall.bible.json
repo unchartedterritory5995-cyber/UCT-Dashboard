@@ -1,0 +1,1033 @@
+[
+ {
+  "answer_json": {
+   "answer": "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope"
+  },
+  "difficulty": 2,
+  "id": "si_58f8e2b08225",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Chasing well past the breakout instead of entering near the pivot.",
+    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Taking the breakout when it is not also a high-of-day break.",
+    "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope"
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 1"
+  },
+  "reveal_json": {
+   "quote": "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope",
+   "rule": 1,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "size.stop",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#1",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "7-8",
+    "7 to 8%",
+    "7-8 percent"
+   ],
+   "answer": "7-8%"
+  },
+  "difficulty": 3,
+  "id": "si_a68a6946b73e",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 1: cut losses at what percent below your buy point?",
+   "subject": "oneil rule 1"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope",
+   "rule": 1,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "size.stop",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#1#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target"
+  },
+  "difficulty": 2,
+  "id": "si_5f30f1505a7b",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target",
+    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Buying the pullback before a candle actually holds the 20-EMA.",
+    "Using the setup on a stock whose daily chart is not bullish."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 2"
+  },
+  "reveal_json": {
+   "quote": "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target",
+   "rule": 2,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.sell_right",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#2",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "20-25",
+    "20 to 25%",
+    "20-25 percent"
+   ],
+   "answer": "20-25%"
+  },
+  "difficulty": 3,
+  "id": "si_8046d9989601",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 2 names a profit rule. What percent?",
+   "subject": "oneil rule 2"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target",
+   "rule": 2,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.sell_right",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#2#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows"
+  },
+  "difficulty": 2,
+  "id": "si_c8bd67ac00a5",
+  "lesson_origin": "source",
+  "lesson_text": "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Taking the breakout when it is not also a high-of-day break.",
+    "Buying the first wild swings before any real base has formed.",
+    "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows"
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 3"
+  },
+  "reveal_json": {
+   "quote": "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows",
+   "rule": 3,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.new_highs",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#3",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "52-week highs",
+    "new 52-week or all-time highs"
+   ],
+   "answer": "52-week or all-time highs"
+  },
+  "difficulty": 3,
+  "id": "si_184a64ac7f39",
+  "lesson_origin": "source",
+  "lesson_text": "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows",
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 3: buy stocks at or near which highs?",
+   "subject": "oneil rule 3"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows",
+   "rule": 3,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.new_highs",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#3#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Volume must confirm every breakout (40-50%+ above average)"
+  },
+  "difficulty": 2,
+  "id": "si_d1337a2ae65f",
+  "lesson_origin": "source",
+  "lesson_text": "Volume must confirm every breakout (40-50%+ above average)",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Buying the first wild swings before any real base has formed.",
+    "Volume must confirm every breakout (40-50%+ above average)",
+    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Taking the breakout when it is not also a high-of-day break."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 4"
+  },
+  "reveal_json": {
+   "quote": "Volume must confirm every breakout (40-50%+ above average)",
+   "rule": 4,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.volume_confirm",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#4",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "40-50%",
+    "40-50",
+    "40 to 50%"
+   ],
+   "answer": "40-50%+"
+  },
+  "difficulty": 3,
+  "id": "si_8c39315e1f78",
+  "lesson_origin": "source",
+  "lesson_text": "Volume must confirm every breakout (40-50%+ above average)",
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 4: volume must confirm a breakout by how much above average?",
+   "subject": "oneil rule 4"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Volume must confirm every breakout (40-50%+ above average)",
+   "rule": 4,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.volume_confirm",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#4#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Never average down — add only to winners"
+  },
+  "difficulty": 2,
+  "id": "si_7405d1667c3b",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "Never average down — add only to winners",
+    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Selling the entire position into the first day or two and missing the multi-week trend."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 5"
+  },
+  "reveal_json": {
+   "quote": "Never average down — add only to winners",
+   "rule": 5,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.add",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#5",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Never buy on tips or opinions — let the chart and fundamentals confirm"
+  },
+  "difficulty": 2,
+  "id": "si_311292c8c0b3",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Never buy on tips or opinions — let the chart and fundamentals confirm",
+    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+    "Chasing well past the breakout instead of entering near the pivot."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 6"
+  },
+  "reveal_json": {
+   "quote": "Never buy on tips or opinions — let the chart and fundamentals confirm",
+   "rule": 6,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "review.plan",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#6",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Don't buy more than 5-7 stocks at once — concentration beats diversification"
+  },
+  "difficulty": 2,
+  "id": "si_4ebbabe20694",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Don't buy more than 5-7 stocks at once — concentration beats diversification",
+    "Ignoring whether volume actually dried up through the coil.",
+    "Entering inside the wedge before the drop confirms."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 7"
+  },
+  "reveal_json": {
+   "quote": "Don't buy more than 5-7 stocks at once — concentration beats diversification",
+   "rule": 7,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "size.heat",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#7",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "5-7 stocks",
+    "5 to 7",
+    "five to seven"
+   ],
+   "answer": "5-7"
+  },
+  "difficulty": 3,
+  "id": "si_b63fbef825dd",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 7: never hold more than how many stocks at once?",
+   "subject": "oneil rule 7"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Don't buy more than 5-7 stocks at once — concentration beats diversification",
+   "rule": 7,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "size.heat",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#7#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "RS line should be making new highs before or at the same time as price"
+  },
+  "difficulty": 2,
+  "id": "si_0b892f55f6fa",
+  "lesson_origin": "source",
+  "lesson_text": "RS line should be making new highs before or at the same time as price",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "RS line should be making new highs before or at the same time as price",
+    "Ignoring whether volume actually dried up through the coil.",
+    "Entering inside the wedge before the drop confirms.",
+    "Chasing when the opening-range high does not break (no edge — move on)."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 8"
+  },
+  "reveal_json": {
+   "quote": "RS line should be making new highs before or at the same time as price",
+   "rule": 8,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.rs",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#8",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The best stocks form sound base patterns before major moves"
+  },
+  "difficulty": 2,
+  "id": "si_dda5baf57684",
+  "lesson_origin": "source",
+  "lesson_text": "The best stocks form sound base patterns before major moves",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The best stocks form sound base patterns before major moves",
+    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Taking the breakout when it is not also a high-of-day break.",
+    "Buying the first wild swings before any real base has formed."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 9"
+  },
+  "reveal_json": {
+   "quote": "The best stocks form sound base patterns before major moves",
+   "rule": 9,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.flat_base",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#9",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Earnings growth is the engine — without it, there is no sustainable move"
+  },
+  "difficulty": 2,
+  "id": "si_1f47bc1075f4",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+    "Chasing well past the breakout instead of entering near the pivot.",
+    "Earnings growth is the engine — without it, there is no sustainable move",
+    "Buying the flagpole instead of waiting for the flag and breakout."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 10"
+  },
+  "reveal_json": {
+   "quote": "Earnings growth is the engine — without it, there is no sustainable move",
+   "rule": 10,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.scorecard",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Big winning stocks show up on new high lists, not new low lists"
+  },
+  "difficulty": 2,
+  "id": "si_e3478e5a8571",
+  "lesson_origin": "source",
+  "lesson_text": "Big winning stocks show up on new high lists, not new low lists",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "Short: shorting into the averages before a rejection candle confirms.",
+    "Big winning stocks show up on new high lists, not new low lists",
+    "Using the setup on a stock whose daily chart is not bullish."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 11"
+  },
+  "reveal_json": {
+   "quote": "Big winning stocks show up on new high lists, not new low lists",
+   "rule": 11,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.new_highs",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#11",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Institutions must be buying — accumulation days > distribution days"
+  },
+  "difficulty": 2,
+  "id": "si_f0077d5c0fbc",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Short: shorting into the averages before a rejection candle confirms.",
+    "Entering inside the wedge before the pop confirms.",
+    "Institutions must be buying — accumulation days > distribution days",
+    "Long: anticipating the reclaim before price actually crosses back above the averages."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 12"
+  },
+  "reveal_json": {
+   "quote": "Institutions must be buying — accumulation days > distribution days",
+   "rule": 12,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.volume_accum",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#12",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The general market direction determines 75% of a stock's outcome"
+  },
+  "difficulty": 2,
+  "id": "si_545ebc24732c",
+  "lesson_origin": "source",
+  "lesson_text": "The general market direction determines 75% of a stock's outcome",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The general market direction determines 75% of a stock's outcome",
+    "Ignoring whether volume actually dried up through the coil.",
+    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Selling the entire position into the first day or two and missing the multi-week trend."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 13"
+  },
+  "reveal_json": {
+   "quote": "The general market direction determines 75% of a stock's outcome",
+   "rule": 13,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "75",
+    "75 percent"
+   ],
+   "answer": "75%"
+  },
+  "difficulty": 3,
+  "id": "si_1fbee726e4f6",
+  "lesson_origin": "source",
+  "lesson_text": "The general market direction determines 75% of a stock's outcome",
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 13: the general market decides what share of a stock's outcome?",
+   "subject": "oneil rule 13"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "The general market direction determines 75% of a stock's outcome",
+   "rule": 13,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dial",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#13#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)"
+  },
+  "difficulty": 2,
+  "id": "si_26b3cafe117d",
+  "lesson_origin": "source",
+  "lesson_text": "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+    "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
+    "Selling the entire position into the first day or two and missing the multi-week trend."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 14"
+  },
+  "reveal_json": {
+   "quote": "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
+   "rule": 14,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dd_ftd",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#14",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "4-7",
+    "day 4 to 7",
+    "days 4-7"
+   ],
+   "answer": "Day 4-7"
+  },
+  "difficulty": 3,
+  "id": "si_cd6f0a161879",
+  "lesson_origin": "source",
+  "lesson_text": "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 14: a Follow-Through Day comes on which days of a rally attempt?",
+   "subject": "oneil rule 14"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
+   "rule": 14,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dd_ftd",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#14#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "5-6 distribution days in 25 sessions signals market top — reduce exposure"
+  },
+  "difficulty": 2,
+  "id": "si_419d4fd31c15",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Ignoring whether volume actually dried up through the coil.",
+    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Selling the entire position into the first day or two and missing the multi-week trend.",
+    "5-6 distribution days in 25 sessions signals market top — reduce exposure"
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 15"
+  },
+  "reveal_json": {
+   "quote": "5-6 distribution days in 25 sessions signals market top — reduce exposure",
+   "rule": 15,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dd_ftd",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "5-6 distribution days",
+    "5 to 6",
+    "five to six"
+   ],
+   "answer": "5-6"
+  },
+  "difficulty": 3,
+  "id": "si_6b59ca344ffe",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 15: how many distribution days in 25 sessions signal a top?",
+   "subject": "oneil rule 15"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "5-6 distribution days in 25 sessions signals market top — reduce exposure",
+   "rule": 15,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.dd_ftd",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#15#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The best time to buy is within 5-10% of a proper base breakout pivot"
+  },
+  "difficulty": 2,
+  "id": "si_36b81e741177",
+  "lesson_origin": "source",
+  "lesson_text": "The best time to buy is within 5-10% of a proper base breakout pivot",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Ignoring whether volume actually dried up through the coil.",
+    "Chasing when the opening-range high does not break (no edge — move on).",
+    "The best time to buy is within 5-10% of a proper base breakout pivot",
+    "Entering inside the wedge before the drop confirms."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 16"
+  },
+  "reveal_json": {
+   "quote": "The best time to buy is within 5-10% of a proper base breakout pivot",
+   "rule": 16,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.flat_base",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#16",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "5-10",
+    "5 to 10%",
+    "5-10 percent"
+   ],
+   "answer": "5-10%"
+  },
+  "difficulty": 3,
+  "id": "si_0878f50f7a96",
+  "lesson_origin": "source",
+  "lesson_text": "The best time to buy is within 5-10% of a proper base breakout pivot",
+  "module": null,
+  "prompt_json": {
+   "format": "fill",
+   "q": "O'Neil's rule 16: the best buy is within what percent of a proper base breakout pivot?",
+   "subject": "oneil rule 16"
+  },
+  "reveal_json": {
+   "key_is_oneils_number": true,
+   "quote": "The best time to buy is within 5-10% of a proper base breakout pivot",
+   "rule": 16,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.flat_base",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#16#number",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buy the leading stock in the leading industry group"
+  },
+  "difficulty": 2,
+  "id": "si_4f0738e1b437",
+  "lesson_origin": "source",
+  "lesson_text": "Buy the leading stock in the leading industry group",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Using the setup on a stock whose daily chart is not bullish.",
+    "Buy the leading stock in the leading industry group",
+    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Buying the pullback before a candle actually holds the 20-EMA."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 17"
+  },
+  "reveal_json": {
+   "quote": "Buy the leading stock in the leading industry group",
+   "rule": 17,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.groups",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#17",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Round numbers are not sell targets — sell on climax tops and technical signals"
+  },
+  "difficulty": 2,
+  "id": "si_076166e38f66",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "Round numbers are not sell targets — sell on climax tops and technical signals",
+    "Buying the pullback before a candle actually holds the 20-EMA.",
+    "Using the setup on a stock whose daily chart is not bullish."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 18"
+  },
+  "reveal_json": {
+   "quote": "Round numbers are not sell targets — sell on climax tops and technical signals",
+   "rule": 18,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.sell_right",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#18",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Never marry a stock — be willing to sell if the story changes"
+  },
+  "difficulty": 2,
+  "id": "si_f8fc780b1013",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Forcing the trade before the moving averages have actually converged.",
+    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Never marry a stock — be willing to sell if the story changes",
+    "Forcing IPO breakouts in a weak market where new issues fail."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 19"
+  },
+  "reveal_json": {
+   "quote": "Never marry a stock — be willing to sell if the story changes",
+   "rule": 19,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.sell_wrong",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#19",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Price/volume analysis beats news — the tape never lies"
+  },
+  "difficulty": 2,
+  "id": "si_c46ac7861f80",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Price/volume analysis beats news — the tape never lies",
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+    "Chasing well past the breakout instead of entering near the pivot."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 20"
+  },
+  "reveal_json": {
+   "quote": "Price/volume analysis beats news — the tape never lies",
+   "rule": 20,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.volume_confirm",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sell when a stock fails to follow through after a breakout on heavy volume"
+  },
+  "difficulty": 2,
+  "id": "si_e6657519cd32",
+  "lesson_origin": "source",
+  "lesson_text": "Sell when a stock fails to follow through after a breakout on heavy volume",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Buying the pullback before a candle actually holds the 20-EMA.",
+    "Using the setup on a stock whose daily chart is not bullish.",
+    "Sell when a stock fails to follow through after a breakout on heavy volume",
+    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 21"
+  },
+  "reveal_json": {
+   "quote": "Sell when a stock fails to follow through after a breakout on heavy volume",
+   "rule": 21,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.sell_wrong",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#21",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The biggest winners look \"too expensive\" before they double"
+  },
+  "difficulty": 2,
+  "id": "si_3872448c5f6b",
+  "lesson_origin": "source",
+  "lesson_text": "The biggest winners look \"too expensive\" before they double",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Using the setup on a stock whose daily chart is not bullish.",
+    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "The biggest winners look \"too expensive\" before they double",
+    "Buying the pullback before a candle actually holds the 20-EMA."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 22"
+  },
+  "reveal_json": {
+   "quote": "The biggest winners look \"too expensive\" before they double",
+   "rule": 22,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.rs",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#22",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Study your mistakes more than your successes — losers teach more"
+  },
+  "difficulty": 2,
+  "id": "si_d0c92ced3c07",
+  "lesson_origin": "source",
+  "lesson_text": null,
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Forcing IPO breakouts in a weak market where new issues fail.",
+    "Forcing the trade before the moving averages have actually converged.",
+    "Study your mistakes more than your successes — losers teach more",
+    "Widening the stop to survive the base’s depth and blowing the risk budget."
+   ],
+   "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
+   "subject": "oneil rule 23"
+  },
+  "reveal_json": {
+   "quote": "Study your mistakes more than your successes — losers teach more",
+   "rule": 23,
+   "source": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules",
+   "system": "O'Neil"
+  },
+  "review_status": "draft",
+  "skill_id": "review.journal",
+  "source_kind": "bible",
+  "source_ref": "uct-intelligence/prompts/01_methodology_bible.txt#oneil-23-rules#23",
+  "type": "recall",
+  "version": 1
+ }
+]

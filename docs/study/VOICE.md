@@ -111,3 +111,27 @@ firm's market-health score, the 0-150 number on the dashboard".
 - Confirm the house-word list for F1's first unit (§5).
 - Any words you want added to the banned list, or phrases you want required.
 - Whether reveals may ever use "we" for the firm ("we trimmed into strength") or always "I".
+
+## 9. What the importer enforces today (lane G, 2026-10-17; append-only record)
+
+`api/services/study_import.py` is the code behind §6. On every `POST /api/study/import` an item
+is checked and, when it fails, stored as a **draft with `import_flags`** and listed in the
+response (never dropped). The checks, exactly as implemented:
+
+- **Grounding.** Every number in `lesson_text` and in the reveal's prose keys (`verdict`, `why`,
+  `lesson_line`, `note`) must appear in `answer_json` or `reveal_json` facts, with the K / M / %
+  variants the COT narrative gate allows. The item's own `asof` date and `sym` are allowed.
+  Numbers in the question are not facts: a lesson that restates them must carry them in the reveal.
+- **Voice, question text** (`prompt_json.q` only; quoted source text under it is not checked):
+  the §6 banned phrases, em-dashes, emoji, "traders should" / "successful traders", exclamation
+  marks, any sentence over 22 words.
+- **Voice, lesson text** (`lesson_text` + the reveal prose keys): the same list plus rhetorical
+  questions. A verbatim source sentence is used as the lesson only when it passes as written;
+  it is never rewritten.
+- **Near-duplicate.** Same skill, token Jaccard ≥ 0.85 over question + quote + choices. Two
+  questions that differ in a number, in the chart they show (`asof` + ticker), or in a declared
+  `prompt_json.subject` (a candle name, a glossary term, a rule number) are two items.
+- **Review lane.** `size` items and verbatim-keyed recall items (a `reveal_json.quote` from a
+  glossary / principle / bible / concept / playbook / candles / toolkit source) are
+  `deterministic`; two agreeing provenance signals are `fast`; a disagreement or an
+  expired / undecided outcome is `second_look`; everything else is `manual`.
