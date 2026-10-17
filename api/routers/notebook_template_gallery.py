@@ -14,6 +14,12 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
   member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
+  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
+  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
+  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a; 404 while off)
+  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 404 while off; 60/hour)
+  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; 404 while off; same budget)
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
   admin   PATCH  /api/j2/template-gallery/admin/items/{gallery_id}     approve|reject|hide|unhide|feature|unfeature
   admin   PATCH  /api/j2/template-gallery/admin/reports/{report_id}    hide|dismiss
@@ -32,9 +38,11 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
     (`public.enforce_rate`; ⚠️ PER-PROCESS STATE, scopes `notebook-gallery-publish` and
     `notebook-gallery-report` -- a second web process doubles both), plus a DURABLE daily cap
     each in `daily_usage_counters` (survives deploys; fails open on a database error). Adopting
-    a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day.
-  * THE LITERAL `/updates` ROUTES COME BEFORE `/{gallery_id}`: a `GET /{gallery_id}` exists and would
-    take "updates" as an item id and answer its 404. Keep them above it.
+    a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day. Helpful (`notebook-gallery-helpful`)
+    and follow (`notebook-gallery-follow`) are 60/hour each, in-process only; marking and unmarking share a budget.
+  * THE LITERAL `/updates`, `/feed` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
+    `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
+    Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
     cannot shadow them, and outside `/api/j2/note-templates/...`, whose `/{template_id}` would.
 """
@@ -63,7 +71,15 @@ DAILY_REPORT_SCOPE = "notebook_gallery_report"
 ADOPT_RATE = "30/hour"
 SCOPE_ADOPT = "notebook-gallery-adopt"
 DAILY_ADOPT_SCOPE = "notebook_gallery_adopt"
+# R-P3-11: Helpful and follow are 60/hour each, in-process only (no durable daily count: a vote or a follow is
+# a toggle, not a charge). Marking AND unmarking spend the same budget, so a toggle loop is bounded too.
+HELPFUL_RATE = "60/hour"
+SCOPE_HELPFUL = "notebook-gallery-helpful"
+FOLLOW_RATE = "60/hour"
+SCOPE_FOLLOW = "notebook-gallery-follow"
 
+HELPFUL_RATE_SENTENCE = "You've marked a lot of styles helpful. Try again later."
+FOLLOW_RATE_SENTENCE = "You've followed or unfollowed a lot of authors. Try again later."
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
 ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
@@ -237,6 +253,46 @@ def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_bod
     return {"style": style}
 
 
+# ⛔ `/feed` and `/authors/...` (P3a Task 6) are literal paths too, declared BEFORE `GET /{gallery_id}`, and gated
+# the same way: `_require_library` ahead of the plan check (R-P3-10). Nothing here returns a user id or an
+# email (R-P3-2): an author is the opaque handle.
+
+@router.get("/feed", dependencies=[Depends(_require_library)])
+def feed_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{templates: [...]}` -- what the authors this member follows have listed, newest first. The same item
+    shape as the gallery list, so one card renders both."""
+    return {"templates": gallery.feed(user["id"])}
+
+
+@router.get("/authors/{handle}", dependencies=[Depends(_require_library)])
+def author_page_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{author: {handle, label, itemCount, following, mine}, items: [...]}` -- 404 for a handle that is not one."""
+    page = gallery.author_page(user["id"], handle)
+    if page is None:
+        raise public.not_found()
+    return page
+
+
+@router.post("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+def follow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{following: true}`. 404 for an unknown handle or your own (R-P3-11: 60/hour with unfollow)."""
+    public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
+    out = gallery.set_follow(user["id"], handle, True)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.delete("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{following: false}`. The same 404s and the same budget as following."""
+    public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
+    out = gallery.set_follow(user["id"], handle, False)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
 @router.get("/{gallery_id}")
 def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     item = gallery.get_item(user["id"], gallery_id, is_admin=_is_admin(user))
@@ -306,6 +362,27 @@ def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
         raise
     if out is None:
         _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise public.not_found()
+    return out
+
+
+@router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{helpful: true, count}`. One per member per item; 404 for an item they can't see, one that isn't listed,
+    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking)."""
+    public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
+    out = gallery.set_helpful(user["id"], gallery_id, True)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.delete("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+def unhelpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{helpful: false, count}`. The same 404s and the same budget as marking."""
+    public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
+    out = gallery.set_helpful(user["id"], gallery_id, False)
+    if out is None:
         raise public.not_found()
     return out
 

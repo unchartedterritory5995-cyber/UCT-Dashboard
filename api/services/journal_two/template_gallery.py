@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import secrets
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -200,6 +201,30 @@ _DDL = (
         created_at        TEXT NOT NULL,
         PRIMARY KEY (gallery_id, user_id)
     )""",
+    # P3a Task 6: "Helpful" -- one vote per (item, member), and never on your own item (the service refuses).
+    """CREATE TABLE IF NOT EXISTS j2_gallery_helpful (
+        item_id     TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        PRIMARY KEY (item_id, user_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_gallery_helpful_user ON j2_gallery_helpful(user_id)",
+    # P3a Task 6 (R-P3-2): the OPAQUE per-author handle, the only author key that leaves the server. `user_id`
+    # stays in this table and in nothing a response carries. Minted on first need (`author_handle`).
+    """CREATE TABLE IF NOT EXISTS j2_gallery_authors (
+        user_id     TEXT PRIMARY KEY,
+        handle      TEXT NOT NULL UNIQUE,
+        created_at  TEXT NOT NULL
+    )""",
+    # P3a Task 6: who follows whom. Both columns are member ids (the author side is the author's `user_id`,
+    # never the handle), so account deletion clears a row from either side (`account_purge`).
+    """CREATE TABLE IF NOT EXISTS j2_gallery_follows (
+        follower_id  TEXT NOT NULL,
+        author_id    TEXT NOT NULL,
+        created_at   TEXT NOT NULL,
+        PRIMARY KEY (follower_id, author_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_gallery_follows_author ON j2_gallery_follows(author_id)",
 )
 
 
@@ -369,6 +394,34 @@ def _author_label(row: sqlite3.Row) -> str:
     return name[:60]
 
 
+#: An author handle is `secrets.token_urlsafe(9)`: 12 characters. Anything longer than this is not one.
+MAX_HANDLE_CHARS = 64
+
+
+def author_handle(user_id: str, conn: sqlite3.Connection) -> str:
+    """The author's OPAQUE handle (R-P3-2), minted on first need and never changed.
+
+    It is the only author key that leaves the server: random, so it says nothing about the account, and
+    unique, so it names exactly one author. Commits the one insert it makes."""
+    row = conn.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (user_id,)).fetchone()
+    if row:
+        return row["handle"]
+    for _ in range(5):
+        handle = secrets.token_urlsafe(9)
+        try:
+            conn.execute("INSERT INTO j2_gallery_authors (user_id, handle, created_at) VALUES (?, ?, ?)",
+                         (user_id, handle, _now()))
+            conn.commit()
+            return handle
+        except sqlite3.IntegrityError:
+            # Either the handle is taken (draw again) or another request minted this author's handle first
+            # (use theirs: one author, one handle).
+            row = conn.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (user_id,)).fetchone()
+            if row:
+                return row["handle"]
+    raise RuntimeError("could not mint an author handle")
+
+
 def _node_text(node: Any) -> str:
     if not isinstance(node, dict):
         return ""
@@ -447,7 +500,13 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "version": int(row["version"] or 1) if "version" in keys else 1,
         "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
         "trendingCount": int(row["trending_count"] or 0) if "trending_count" in keys else 0,
-        "helpfulCount": 0,
+        # P3a Task 6. The count is everyone's; `helpedByMe` is THIS viewer's (the select binds them).
+        "helpfulCount": int(row["helpful_count"] or 0) if "helpful_count" in keys else 0,
+        "helpedByMe": bool(row["helped_by_me"]) if "helped_by_me" in keys else False,
+        # R-P3-2: the opaque handle is the only author key that leaves the server. A firm item has none; a
+        # member item whose author is anonymous still has one, because the LABEL is what is anonymous.
+        # None for a member item whose author has no handle row yet.
+        "authorHandle": (row["author_handle"] if "author_handle" in keys else None) if row["kind"] != "firm" else None,
         "listedAt": row["listed_at"],
         "updatedAt": row["updated_at"],
         "mine": mine,
@@ -463,7 +522,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         out["sourceStyleId"] = row["source_style_id"] if "source_style_id" in keys else None
         out["hasRevision"] = bool(row["pending_at"]) if "pending_at" in keys else False
         # The held revision's title, for the reviewer. The queue's pending rows carry it as the narrow
-        # `revision_title` column (`_SELECT_QUEUE`); a single-template read (`_SELECT`) has `pending_json`.
+        # `revision_title` column (`_select(queue=True)`); a single-template read (`_select()`) has `pending_json`.
         # The member list's columns have neither, so it reads None there.
         if "revision_title" in keys:
             out["revisionTitle"] = row["revision_title"]
@@ -474,36 +533,69 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
     return out
 
 
-_SELECT = (
-    "SELECT g.*, u.display_name AS author_display,"
+# ── the select, one function (P3a Task 6) ──────────────────────────────────────────────────
+#
+# The select is viewer-PARAMETERISED: `helped_by_me` is "did THIS member mark it", so the text carries ONE `?`,
+# in the select list, ahead of every WHERE parameter. That makes the argument order a fact about the SQL, not a
+# convention each caller remembers, and is why every read goes through `_read`, which puts the viewer first.
+#
+#   _select()                          the single-template read: `g.*` (a body, for preview and use)
+#   _select(list_only=True)            the list's own query: every column `_summary` reads, NOT `body_json` (M-6)
+#   _select(list_only=True, queue=True)  the reviewer queue's PENDING rows: the narrow columns plus ONE expression,
+#                                      the held revision's title, read inside SQLite so `pending_json` never leaves
+#                                      it. `json_valid` first: json_extract raises on malformed JSON, and one
+#                                      unreadable revision must not take the whole queue down.
+_LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
+                 " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
+                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
+_REVISION_TITLE = ("CASE WHEN json_valid(g.pending_json)"
+                   " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
+_COMPUTED = (
+    " u.display_name AS author_display, a.handle AS author_handle,"
     " (SELECT COUNT(*) FROM j2_template_gallery_uses x WHERE x.gallery_id = g.id) AS used_by,"
     " (SELECT COUNT(*) FROM j2_template_gallery_uses x WHERE x.gallery_id = g.id"
     f"    AND x.used_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-{TRENDING_DAYS} days')) AS trending_count,"
     " (SELECT COUNT(*) FROM j2_template_gallery_reports r"
-    "    WHERE r.gallery_id = g.id AND r.status = 'open') AS open_reports"
+    "    WHERE r.gallery_id = g.id AND r.status = 'open') AS open_reports,"
+    " (SELECT COUNT(*) FROM j2_gallery_helpful hc WHERE hc.item_id = g.id) AS helpful_count,"
+    " EXISTS (SELECT 1 FROM j2_gallery_helpful hm WHERE hm.item_id = g.id AND hm.user_id = ?) AS helped_by_me"
     " FROM j2_template_gallery g LEFT JOIN users u ON u.id = g.user_id"
+    " LEFT JOIN j2_gallery_authors a ON a.user_id = g.user_id"
 )
-#: The list's own query: every column `_summary` reads, and NOT `body_json` (M-6).
-_SELECT_LIST = _SELECT.replace(
-    "SELECT g.*,",
-    "SELECT g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
-    " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-    " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
-assert ("g.*" not in _SELECT_LIST and "body_json" not in _SELECT_LIST
-        and "payload_json" not in _SELECT_LIST and "pending_json" not in _SELECT_LIST)
-#: The reviewer queue's PENDING rows: the list's narrow columns plus ONE expression, the held revision's
-#: title, read inside SQLite so `pending_json` itself never leaves it. `json_valid` first: json_extract
-#: raises on malformed JSON, and one unreadable revision must not take the whole queue down. Never
-#: `g.*`, never a body (the M-6 rail): a second FULL select is exactly what this is not.
-_SELECT_QUEUE = _SELECT_LIST.replace(
-    "g.pending_at,",
-    "g.pending_at, CASE WHEN json_valid(g.pending_json)"
-    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
-assert (_SELECT_QUEUE != _SELECT_LIST and "g.*" not in _SELECT_QUEUE and "body_json" not in _SELECT_QUEUE
-        and "payload_json" not in _SELECT_QUEUE
-        and _SELECT_QUEUE.replace("json_valid(g.pending_json)", "").replace("json_extract(g.pending_json,", "")
-        .count("pending_json") == 0)
+
+
+def _select(list_only: bool = False, queue: bool = False) -> str:
+    """The gallery select (see the block comment above). Binds exactly one `?`: the viewer, first."""
+    if queue and not list_only:
+        raise ValueError("the queue's select is a narrow one")
+    head = "g.*," if not list_only else (_LIST_COLUMNS + (" " + _REVISION_TITLE if queue else ""))
+    return f"SELECT {head}{_COMPUTED}"
+
+
+def _check_select_shapes() -> None:
+    """The M-6 guarantees, asserted at import on whatever the three shapes come to (Task 6 made them a
+    function; the guarantees did not change): the list and the queue never read a body, a payload or `g.*`, the
+    list never names `pending_json`, the queue names it only inside the one `json_extract`, and each binds
+    exactly the one viewer."""
+    full, narrow, queue = _select(), _select(list_only=True), _select(list_only=True, queue=True)
+    assert "g.*" in full
+    assert ("g.*" not in narrow and "body_json" not in narrow
+            and "payload_json" not in narrow and "pending_json" not in narrow)
+    assert (queue != narrow and "g.*" not in queue and "body_json" not in queue and "payload_json" not in queue
+            and queue.replace("json_valid(g.pending_json)", "").replace("json_extract(g.pending_json,", "")
+            .count("pending_json") == 0)
+    assert full.count("?") == narrow.count("?") == queue.count("?") == 1
+
+
+_check_select_shapes()
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
+
+
+def _read(conn: sqlite3.Connection, viewer_id: str | None, where: str, args: Any = (), *,
+          list_only: bool = False, queue: bool = False, tail: str = ""):
+    """Run the gallery select with the viewer bound FIRST, then the WHERE's own arguments. Every caller of
+    `_select` goes through here; a viewer-less read (the review queue) binds "", which no member id equals."""
+    return conn.execute(f"{_select(list_only, queue)} WHERE {where}{tail}", (viewer_id or "", *args))
 
 
 def _like(q: str) -> str:
@@ -567,18 +659,20 @@ def list_gallery(
         order = "trending_count DESC, used_by DESC, COALESCE(g.listed_at, g.created_at) DESC"
     else:
         order = "COALESCE(g.listed_at, g.created_at) DESC"
-    sql = f"{_SELECT_LIST} WHERE {' AND '.join(where)} ORDER BY {order}, g.rowid DESC LIMIT {LIST_LIMIT}"
     owned = conn is None
     conn = conn or get_connection()
     try:
-        return [_summary(r, viewer_id=viewer_id, is_admin=is_admin) for r in conn.execute(sql, args)]
+        rows = _read(conn, viewer_id, " AND ".join(where), args, list_only=True,
+                     tail=f" ORDER BY {order}, g.rowid DESC LIMIT {LIST_LIMIT}")
+        return [_summary(r, viewer_id=viewer_id, is_admin=is_admin) for r in rows]
     finally:
         if owned:
             conn.close()
 
 
-def _row(conn: sqlite3.Connection, gallery_id: str) -> sqlite3.Row | None:
-    return conn.execute(f"{_SELECT} WHERE g.id = ?", (gallery_id,)).fetchone()
+def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None) -> sqlite3.Row | None:
+    """One gallery row, whole. `viewer_id` is whose `helpedByMe` it reads (None: nobody's)."""
+    return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
 def _library_hides(row: sqlite3.Row) -> bool:
@@ -602,7 +696,7 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = _row(conn, gallery_id)
+        row = _row(conn, gallery_id, viewer_id)
         if not _can_see(row, viewer_id, is_admin):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
@@ -648,6 +742,7 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
         preview_json = json.dumps(preview_lines(body))      # stored once, read by the list (M-6)
         defs = property_definitions(user_id, src["properties_json"], conn)
         defs_json = json.dumps(defs) if defs else None
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
         now = _now()
         existing = conn.execute(
             "SELECT id FROM j2_template_gallery WHERE user_id = ? AND source_template_id = ?",
@@ -672,7 +767,7 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
                  defs_json, now, now, preview_json),
             )
         conn.commit()
-        return _summary(_row(conn, gid), viewer_id=user_id, is_admin=False)
+        return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
     finally:
         if owned:
             conn.close()
@@ -765,6 +860,7 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
             raise GalleryError("That style is too long for the gallery. Trim its outline and try again.")
         body = payload["outlineBodyJson"] or {"type": "doc", "content": []}
         preview_json = json.dumps(preview_lines(body))
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
         now = _now()
         existing = conn.execute(
             "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_style_id = ?",
@@ -796,7 +892,7 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
                 (gid, user_id, style_id, clean_title, clean_desc, clean_cat, json.dumps(body), now, now,
                  preview_json, payload_json, clean_ts))
         conn.commit()
-        out = _summary(_row(conn, gid), viewer_id=user_id, is_admin=False)
+        out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedProperties"] = dropped
         return out
     finally:
@@ -806,7 +902,7 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
 
 def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = None) -> bool:
     """The author takes their copy down. Always possible, in every state. Deletes the
-    gallery copy and the reports, use counts and watches about it -- the author's own request
+    gallery copy and the reports, use counts, watches and helpful votes about it -- the author's own request
     about their own content; copies others already made are theirs and stay."""
     owned = conn is None
     conn = conn or get_connection()
@@ -819,6 +915,7 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gallery_id,))
             conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gallery_id,))
             conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gallery_id,))
+            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,))
         conn.commit()
         return bool(cur.rowcount)
     finally:
@@ -864,7 +961,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = _row(conn, gallery_id)
+        row = _row(conn, gallery_id, user_id)
         if not _can_see(row, user_id, False):
             return None
         count = conn.execute(
@@ -907,7 +1004,7 @@ def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row 
     """The row of a style a member may adopt: a style item that is approved and not hidden."""
     if not isinstance(gallery_id, str) or not gallery_id:
         return None
-    row = _row(conn, gallery_id)
+    row = _row(conn, gallery_id)             # no viewer: adopt and update read the item, not the member's vote
     if row is None or row["item_type"] != "style" or row["status"] != "approved" or row["hidden"]:
         return None
     return row
@@ -1181,7 +1278,7 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = _row(conn, gallery_id)
+        row = _row(conn, gallery_id, user_id)
         if row is None or row["status"] != "approved" or row["hidden"] or _library_hides(row):
             return None
         if row["user_id"] == user_id:
@@ -1201,6 +1298,122 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
             conn.close()
 
 
+# ── Helpful, author pages, follows and the feed (P3a Task 6) ───────────────────────────────
+
+_NEWEST_FIRST = " ORDER BY COALESCE(g.listed_at, g.created_at) DESC, g.rowid DESC LIMIT " + str(LIST_LIMIT)
+
+
+def set_helpful(user_id: str, gallery_id: Any, on: bool,
+                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """Mark a listed item helpful, or take the mark back. `{"helpful": bool, "count": int}`.
+
+    None when the library is off, or the member may not vote on it: the item is not theirs to see, is not
+    listed (pending, rejected, hidden), or is their OWN. One vote per member per item (the primary key), so
+    marking it twice is the same as once, and unmarking what was never marked changes nothing."""
+    if not library_enabled() or not isinstance(gallery_id, str) or not gallery_id:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _row(conn, gallery_id, user_id)
+        if (not _can_see(row, user_id, False) or row["status"] != "approved" or row["hidden"]
+                or row["user_id"] == user_id):
+            return None
+        if on:
+            conn.execute("INSERT OR IGNORE INTO j2_gallery_helpful (item_id, user_id, created_at) VALUES (?, ?, ?)",
+                         (gallery_id, user_id, _now()))
+        else:
+            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ? AND user_id = ?", (gallery_id, user_id))
+        conn.commit()
+        count = conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,)).fetchone()[0]
+        return {"helpful": bool(on), "count": int(count)}
+    finally:
+        if owned:
+            conn.close()
+
+
+def _author_of(conn: sqlite3.Connection, handle: Any) -> str | None:
+    """The author's `user_id` for a handle, or None for anything that is not one. The id is for the caller's
+    next query and goes no further: it is never put in a response (R-P3-2)."""
+    if not isinstance(handle, str) or not handle.strip() or len(handle) > MAX_HANDLE_CHARS:
+        return None
+    row = conn.execute("SELECT user_id FROM j2_gallery_authors WHERE handle = ?", (handle,)).fetchone()
+    return row["user_id"] if row else None
+
+
+def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """An author's page: who they are as the gallery already shows them, and what of theirs is listed.
+
+    `{"author": {handle, label, itemCount, following, mine}, "items": [...]}`, or None when the library is off
+    or the handle is not one. ⛔ R-P3-2: only approved, listed, non-hidden items, under the display name the
+    gallery already shows (`_author_label`), and no user id or email anywhere in it. An author with nothing
+    listed reads as `ANONYMOUS_AUTHOR`: there is no row to take their display name from."""
+    if not library_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        author_id = _author_of(conn, handle)
+        if author_id is None:
+            return None
+        where = f"{_VISIBLE} AND g.user_id = ?"
+        rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
+        count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
+        following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
+                                 (viewer_id, author_id)).fetchone() is not None
+        return {
+            "author": {"handle": handle, "label": _author_label(rows[0]) if rows else ANONYMOUS_AUTHOR,
+                       "itemCount": int(count), "following": following,
+                       "mine": bool(viewer_id) and viewer_id == author_id},
+            "items": [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def set_follow(viewer_id: str, handle: Any, on: bool,
+               conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """Follow an author by their handle, or stop. `{"following": bool}`; None when the library is off, the
+    handle is not one, or it is the viewer's own (nobody follows themselves)."""
+    if not library_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        author_id = _author_of(conn, handle)
+        if author_id is None or author_id == viewer_id:
+            return None
+        if on:
+            conn.execute("INSERT OR IGNORE INTO j2_gallery_follows (follower_id, author_id, created_at)"
+                         " VALUES (?, ?, ?)", (viewer_id, author_id, _now()))
+        else:
+            conn.execute("DELETE FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
+                         (viewer_id, author_id))
+        conn.commit()
+        return {"following": bool(on)}
+    finally:
+        if owned:
+            conn.close()
+
+
+def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
+    """What the authors the viewer follows have listed, newest first (`LIST_LIMIT`). Empty while the library
+    is off. The same listed rule as every other read: approved and not hidden."""
+    if not library_enabled():
+        return []
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = _read(conn, viewer_id,
+                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
+                     (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
+        return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── the review queue (admin) ────────────────────────────────────────────────────────────
 
 def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
@@ -1213,14 +1426,15 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
         # held revision) is reviewable only while the library is on.
         outlines_only = "" if library_enabled() else " AND g.item_type = 'outline'"
 
-        def rows(where: str, order: str, select: str = _SELECT_LIST) -> list[dict]:
+        def rows(where: str, order: str, queue: bool = False) -> list[dict]:
+            # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in conn.execute(
-                        f"{select} WHERE ({where}){outlines_only} ORDER BY {order} LIMIT {LIST_LIMIT}")]
+                    for r in _read(conn, None, f"({where}){outlines_only}", (), list_only=True, queue=queue,
+                                   tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
-        # The pending rows add the held revision's title (`_SELECT_QUEUE`): still narrow columns, never the
-        # body (R-T4-1; the M-6 rail traces this).
-        pending = rows("g.status = 'pending' OR g.pending_at IS NOT NULL", "g.updated_at ASC", _SELECT_QUEUE)
+        # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never
+        # the body (R-T4-1; the M-6 rail traces this).
+        pending = rows("g.status = 'pending' OR g.pending_at IS NOT NULL", "g.updated_at ASC", queue=True)
         hidden = rows("g.hidden = 1", "g.hidden_at DESC")
         reported = rows("EXISTS (SELECT 1 FROM j2_template_gallery_reports r"
                         " WHERE r.gallery_id = g.id AND r.status = 'open')", "open_reports DESC")
@@ -1312,7 +1526,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                     " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
                     (clean_note, admin_id, now, now, gallery_id))
                 conn.commit()
-                return _summary(_row(conn, gallery_id), viewer_id=admin_id, is_admin=True)
+                return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
             conn.execute(
                 "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
                 " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ?",
@@ -1332,7 +1546,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             conn.execute("UPDATE j2_template_gallery SET featured = ? WHERE id = ?",
                          (1 if action == "feature" else 0, gallery_id))
         conn.commit()
-        return _summary(_row(conn, gallery_id), viewer_id=admin_id, is_admin=True)
+        return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
     finally:
         if owned:
             conn.close()
