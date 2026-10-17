@@ -3130,13 +3130,19 @@ _PAGE_LAYOUT_VERSION = 1
 _PAGE_LAYOUT_MAX_BYTES = 16384
 _PAGE_LAYOUT_MAX_ENTRIES = 40
 _PAGE_LAYOUT_ID_MAX = 40
+# The model nests four levels (object > today > list > entry). The depth is bounded after the parse by
+# an iterative walk, so a hostile blob is a 400 on every Python version: CPython 3.12 raises
+# RecursionError from the parser itself at ~1,000 levels, while 3.14 parses 8,000.
+_PAGE_LAYOUT_MAX_DEPTH = 8
 _PAGE_LAYOUT_REFUSAL = "That page layout could not be saved. Reset it and try again."
 
 
 def _validate_page_layout(raw) -> None:
     """Raise HTTPException(400) unless `raw` is a layout blob the client could have saved:
     a JSON object with `version == 1`, at most 16 KB (UTF-8 bytes), whose `today.<phase>` lists and
-    `trade` list hold at most 40 `{id: str of 1..40 characters, shown: bool}` entries each.
+    `trade` list hold at most 40 `{id: str of 1..40 characters, shown: bool}` entries each. No value
+    nests deeper than 8 levels, and NaN / Infinity are refused. Whatever is wrong, the answer is the
+    one 400: a lone surrogate, a parser RecursionError and a non-finite number included.
     "" and None are the client's "cleared" write."""
     if raw == "" or raw is None:
         return
@@ -3156,14 +3162,29 @@ def _validate_page_layout(raw) -> None:
             if not isinstance(shown, bool):
                 refuse()
 
+    def no_constant(name):
+        raise ValueError(name)  # NaN, Infinity, -Infinity: not JSON, and the browser cannot parse them
+
     if not isinstance(raw, str):
         refuse()
-    if len(raw.encode("utf-8")) > _PAGE_LAYOUT_MAX_BYTES:
+    try:
+        size = len(raw.encode("utf-8"))  # a lone surrogate (JSON "\ud800") cannot be encoded
+    except UnicodeEncodeError:
+        refuse()
+    if size > _PAGE_LAYOUT_MAX_BYTES:
         refuse()
     try:
-        blob = json.loads(raw)
-    except (ValueError, TypeError):
+        blob = json.loads(raw, parse_constant=no_constant)
+    except (ValueError, TypeError, RecursionError):
         refuse()
+    stack = [(blob, 1)]
+    while stack:  # iterative, so the walk itself cannot recurse
+        node, depth = stack.pop()
+        if isinstance(node, (dict, list)):
+            if depth > _PAGE_LAYOUT_MAX_DEPTH:
+                refuse()
+            children = node.values() if isinstance(node, dict) else node
+            stack.extend((child, depth + 1) for child in children)
     if not isinstance(blob, dict):
         refuse()
     version = blob.get("version")

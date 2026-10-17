@@ -81,6 +81,7 @@ def test_the_key_is_a_named_schema_not_opaque():
 def test_the_server_bounds_ARE_the_clients_bounds():
     """One number on each side, pinned equal: a layout the client writes is never a 400, and a value
     the client cannot produce is refused."""
+    assert auth_router._PAGE_LAYOUT_VERSION == _js_const("LAYOUT_VERSION")
     assert auth_router._PAGE_LAYOUT_MAX_ENTRIES == _js_const("LAYOUT_MAX_ENTRIES")
     assert auth_router._PAGE_LAYOUT_ID_MAX == _js_const("LAYOUT_MAX_ID_LENGTH")
     assert auth_router._PAGE_LAYOUT_MAX_BYTES == _js_const("LAYOUT_MAX_BYTES")
@@ -178,3 +179,89 @@ def test_a_refused_write_leaves_the_stored_layout_alone(client):
     assert _post(client, good).status_code == 200
     assert _post(client, '{"version": 2}').status_code == 400
     assert client.get("/api/auth/preferences").json().get(KEY) == good
+
+
+# -- hostile input: every refusal is the one 400, never a 500 -------------------------------------
+
+def _post_raw(client, value_json):
+    """Post a hand-built body so `value_json` (JSON text) reaches the server exactly as written.
+    A lone surrogate arrives as the JSON escape backslash-u-d800, which Python decodes to a str that cannot
+    be encoded as UTF-8 -- the shape a normal client library never sends."""
+    body = '{"key": "%s", "value": %s}' % (KEY, value_json)
+    return client.post(
+        "/api/auth/preferences", content=body.encode("ascii"), headers={"Content-Type": "application/json"}
+    )
+
+
+@pytest.mark.parametrize("value_json", [
+    pytest.param('"\\ud800"', id="a lone high surrogate as the whole value"),
+    pytest.param('"\\udfff"', id="a lone low surrogate as the whole value"),
+    pytest.param('"{\\"version\\":1,\\"x\\":\\"\\ud800\\"}"', id="a lone surrogate inside a carried field"),
+])
+def test_a_lone_surrogate_is_a_400_not_a_500(client, value_json):
+    resp = _post_raw(client, value_json)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == SENTENCE
+
+
+@pytest.mark.parametrize("raw", ["\ud800", '{"version":1,"x":"\ud800"}'])
+def test_the_validator_itself_answers_a_surrogate_with_the_400(raw):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        auth_router._validate_page_layout(raw)
+    assert exc.value.status_code == 400 and exc.value.detail == SENTENCE
+
+
+def _nested_array(depth):
+    return "[" * depth + "]" * depth
+
+
+def test_deep_nesting_is_a_400_on_every_python_version(client):
+    deep_array = _nested_array(8000)  # 16,000 bytes: under the size cap, so only depth can refuse it
+    assert len(deep_array) < auth_router._PAGE_LAYOUT_MAX_BYTES
+    for value in (deep_array, '{"version": 1, "x": ' + _nested_array(7000) + "}"):
+        resp = _post(client, value)
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"] == SENTENCE
+
+
+def _nested_object(extra_levels):
+    v = 1
+    for _ in range(extra_levels):
+        v = {"a": v}
+    return {"version": 1, "x": v}  # the top object is level 1
+
+
+def test_nesting_deeper_than_eight_levels_is_refused_and_eight_is_accepted(client):
+    assert auth_router._PAGE_LAYOUT_MAX_DEPTH == 8
+    assert _post(client, json.dumps(_nested_object(7))).status_code == 200  # 8 levels
+    resp = _post(client, json.dumps(_nested_object(8)))  # 9 levels
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == SENTENCE
+
+
+def test_a_real_layout_is_well_inside_the_depth_limit(client):
+    assert _post(client, json.dumps(_layout())).status_code == 200  # object > today > list > entry
+    assert _post(client, json.dumps({"version": 1, "trade": [{"id": "a", "shown": True}]})).status_code == 200
+
+
+def test_a_recursion_error_from_the_parser_is_a_400(monkeypatch):
+    """On Python 3.12 the C scanner raises RecursionError at ~1,000 levels, while 3.14 parses 8,000.
+    Simulate the 3.12 behaviour directly: the validator must turn it into the one 400."""
+    from fastapi import HTTPException
+
+    def boom(*a, **k):
+        raise RecursionError("maximum recursion depth exceeded")
+
+    monkeypatch.setattr(auth_router.json, "loads", boom)
+    with pytest.raises(HTTPException) as exc:
+        auth_router._validate_page_layout('{"version": 1}')
+    assert exc.value.status_code == 400 and exc.value.detail == SENTENCE
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_a_non_finite_number_is_refused(client, constant):
+    resp = _post(client, '{"version": 1, "x": %s}' % constant)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == SENTENCE

@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   LAYOUT_PREF, PHASES, PHASE_LABELS, PANELS, DEFAULT_LAYOUT,
-  LAYOUT_MAX_ENTRIES, LAYOUT_MAX_ID_LENGTH,
+  LAYOUT_VERSION, LAYOUT_MAX_ENTRIES, LAYOUT_MAX_ID_LENGTH, LAYOUT_MAX_BYTES,
   normalizeLayout, resolvePanels, movePanel, togglePanel, resetPage,
 } from './pageLayouts'
 import layoutsSource from './pageLayouts.js?raw'
@@ -194,8 +194,70 @@ describe('normalizeLayout', () => {
   })
 
   it('exports the bounds the server validator is pinned to', () => {
+    expect(LAYOUT_VERSION).toBe(1)
     expect(LAYOUT_MAX_ENTRIES).toBe(40)
     expect(LAYOUT_MAX_ID_LENGTH).toBe(40)
+    expect(LAYOUT_MAX_BYTES).toBe(16384)
+  })
+
+  it('5. never returns a list the server would refuse: capped at LAYOUT_MAX_ENTRIES, registry panels always stay', () => {
+    const saved = clone(DEFAULT_LAYOUT)
+    // 40 unknown ids and no registry id at all: appending the nine would make 49
+    saved.today.market = Array.from({ length: LAYOUT_MAX_ENTRIES }, (_, i) => ({ id: `future${i}`, shown: i % 2 === 0 }))
+    const out = normalizeLayout(saved).today.market
+    expect(out.length).toBeLessThanOrEqual(LAYOUT_MAX_ENTRIES)
+    for (const p of PANELS.today) expect(ids(out)).toContain(p.id)
+    // unknown ids are dropped from the END, so the earliest survive in their saved order
+    const kept = ids(out).filter((id) => id.startsWith('future'))
+    expect(kept).toEqual(Array.from({ length: kept.length }, (_, i) => `future${i}`))
+    expect(kept).toHaveLength(LAYOUT_MAX_ENTRIES - PANELS.today.length)
+  })
+
+  it('caps a 40-entry list that lacks one registry id, and keeps that registry id', () => {
+    const saved = clone(DEFAULT_LAYOUT)
+    saved.trade = [
+      ...PANELS.trade.slice(0, -1).map((p) => ({ id: p.id, shown: true })),
+      ...Array.from({ length: LAYOUT_MAX_ENTRIES - (PANELS.trade.length - 1) }, (_, i) => ({ id: `future${i}`, shown: false })),
+    ]
+    expect(saved.trade).toHaveLength(LAYOUT_MAX_ENTRIES)
+    const out = normalizeLayout(saved).trade
+    expect(out).toHaveLength(LAYOUT_MAX_ENTRIES)
+    expect(ids(out)).toContain('review')
+    expect(ids(out)).not.toContain(`future${LAYOUT_MAX_ENTRIES - PANELS.trade.length}`)
+  })
+
+  it('6. carries unknown top-level fields and unknown phases through, and never renders them', () => {
+    const saved = clone(DEFAULT_LAYOUT)
+    saved.futureField = { x: [1, 2, { y: 'z' }] }
+    saved.today.overnight = [{ id: 'nightPanel', shown: true }]
+    saved.today.badPhase = 'oops'
+    saved.today.badEntries = [{ id: 'ok', shown: true }, { id: 'no' }]
+    const out = normalizeLayout(JSON.stringify(saved))
+    expect(out.futureField).toEqual({ x: [1, 2, { y: 'z' }] })
+    expect(out.today.overnight).toEqual([{ id: 'nightPanel', shown: true }])
+    // a phase key survives only as a list of valid entries
+    expect('badPhase' in out.today).toBe(false)
+    expect('badEntries' in out.today).toBe(false)
+    // the known shape is untouched
+    expect(out.version).toBe(1)
+    expect(Object.keys(out.today).filter((k) => PHASES.includes(k))).toEqual([...PHASES])
+    // never rendered
+    expect(resolvePanels(out, 'today', 'overnight')).toEqual([])
+    expect(resolvePanels(out, 'today', 'market').map((p) => p.id)).not.toContain('nightPanel')
+    // and the round trip through a mutator keeps it
+    const toggled = togglePanel(out, 'today', 'market', 'regime')
+    expect(toggled.futureField).toEqual(out.futureField)
+    expect(toggled.today.overnight).toEqual(out.today.overnight)
+    expect(normalizeLayout(toggled)).toEqual(toggled)
+  })
+
+  it('carried data is a copy and a hostile key cannot reach a prototype', () => {
+    const saved = deepFreeze(JSON.parse('{"version":1,"__proto__":{"polluted":true},"keep":{"a":1}}'))
+    const out = normalizeLayout(saved)
+    expect(out.keep).toEqual({ a: 1 })
+    expect(Object.isFrozen(out.keep)).toBe(false)
+    expect({}.polluted).toBeUndefined()
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype)
   })
 })
 
@@ -302,6 +364,20 @@ describe('togglePanel, movePanel, resetPage', () => {
     expect(out.today.premarket).toEqual(l.today.premarket)
     expect(out.trade).toEqual(l.trade)
     expect(resetPage(l, 'trade')).toEqual({ ...l, trade: DEFAULT_LAYOUT.trade })
+  })
+
+  it('3. a reset keeps unknown ids, after the default registry panels, in their saved order', () => {
+    let l = withFuture()
+    l.today.market.push({ id: 'futureTwo', shown: false })
+    l = togglePanel(l, 'today', 'market', 'regime')
+    const out = resetPage(l, 'today', 'market')
+    expect(ids(out.today.market)).toEqual([...TODAY_SHOWN, ...TODAY_NEW, 'futurePanel', 'futureTwo'])
+    expect(out.today.market.find((e) => e.id === 'futurePanel')).toEqual({ id: 'futurePanel', shown: true })
+    expect(out.today.market.find((e) => e.id === 'futureTwo')).toEqual({ id: 'futureTwo', shown: false })
+    expect(shownIds(out.today.market)).toEqual(TODAY_SHOWN.concat(['futurePanel']))
+    expect(resolvePanels(out, 'today', 'market').map((p) => p.id)).not.toContain('futurePanel')
+    // other phases are untouched
+    expect(out.today.premarket).toEqual(l.today.premarket)
   })
 
   it('6. is pure: a deep-frozen input comes through every function unchanged', () => {

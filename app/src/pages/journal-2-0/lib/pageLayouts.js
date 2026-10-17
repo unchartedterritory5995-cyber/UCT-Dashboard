@@ -75,6 +75,8 @@ const validEntry = (e) =>
 // One saved list -> a full list. Not an array: the default. Otherwise keep the valid entries
 // (unknown ids included), the first occurrence of each id, and append any registry id the saved list
 // lacks at the END with its defaultShown -- so a panel a later release adds appears hidden and last.
+// The list is then held to LAYOUT_MAX_ENTRIES, the server's ceiling, so a layout this model writes is
+// never a 400: registry panels always stay, and unknown ids are dropped from the END to fit.
 function normalizeList(page, saved) {
   if (!Array.isArray(saved)) return defaultList(page)
   const seen = new Set()
@@ -87,8 +89,27 @@ function normalizeList(page, saved) {
   for (const p of PANELS[page]) {
     if (!seen.has(p.id)) out.push({ id: p.id, shown: p.defaultShown })
   }
+  if (out.length <= LAYOUT_MAX_ENTRIES) return out
+  const known = new Set(PANELS[page].map((p) => p.id))
+  let excess = out.length - LAYOUT_MAX_ENTRIES
+  for (let i = out.length - 1; i >= 0 && excess > 0; i--) {
+    if (!known.has(out[i].id)) { out.splice(i, 1); excess-- }
+  }
   return out
 }
+
+// Data this build does not know about -- a field or a phase a newer client wrote -- is carried
+// through untouched (a JSON copy, so it never aliases a frozen input) so an older client's save does
+// not erase it. It is never rendered. Built with fromEntries / spread (CreateDataProperty), so a
+// hostile key such as "__proto__" stays an own property and cannot reach a prototype.
+function cloneJson(v) {
+  try {
+    const text = JSON.stringify(v)
+    return text === undefined ? undefined : JSON.parse(text)
+  } catch { return undefined } // a circular or BigInt value: not JSON, so not carried
+}
+
+const validList = (v) => Array.isArray(v) && v.length <= LAYOUT_MAX_ENTRIES && v.every(validEntry)
 
 // Never throws; always returns a full, fresh layout (never the shared DEFAULT_LAYOUT object).
 export function normalizeLayout(raw) {
@@ -97,11 +118,22 @@ export function normalizeLayout(raw) {
     try { value = JSON.parse(value) } catch { return buildDefault() }
   }
   if (!isObject(value) || value.version !== LAYOUT_VERSION) return buildDefault()
-  const today = isObject(value.today) ? value.today : {}
+  const savedToday = isObject(value.today) ? value.today : {}
+  const unknownPhases = Object.entries(savedToday)
+    .filter(([k, v]) => !PHASES.includes(k) && validList(v))
+    .map(([k, v]) => [k, cloneJson(v)])
+  const unknownFields = Object.entries(value)
+    .filter(([k]) => k !== 'version' && k !== 'today' && k !== 'trade')
+    .map(([k, v]) => [k, cloneJson(v)])
+    .filter(([, v]) => v !== undefined)
   return {
     version: LAYOUT_VERSION,
-    today: Object.fromEntries(PHASES.map((phase) => [phase, normalizeList('today', today[phase])])),
+    today: {
+      ...Object.fromEntries(PHASES.map((phase) => [phase, normalizeList('today', savedToday[phase])])),
+      ...Object.fromEntries(unknownPhases),
+    },
     trade: normalizeList('trade', value.trade),
+    ...Object.fromEntries(unknownFields),
   }
 }
 
@@ -157,9 +189,13 @@ export function movePanel(layout, page, phase, id, dir) {
   return withList(base, page, phase, next)
 }
 
-// That page and phase back to the registry default. Other pages and phases are untouched.
+// That page and phase back to the registry default. Other pages and phases are untouched. Unknown
+// ids (a panel a newer build wrote) survive a reset: they follow the default registry panels, in
+// their saved order.
 export function resetPage(layout, page, phase) {
   const base = normalizeLayout(layout)
-  if (!knownPage(page) || !listOf(base, page, phase)) return base
-  return withList(base, page, phase, defaultList(page))
+  const list = knownPage(page) ? listOf(base, page, phase) : null
+  if (!list) return base
+  const known = new Set(PANELS[page].map((p) => p.id))
+  return withList(base, page, phase, [...defaultList(page), ...list.filter((e) => !known.has(e.id))])
 }
