@@ -18,21 +18,44 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 
 ## State (update this block at every checkpoint)
 - Branch `feat/study`, worktree `C:\Users\pgosz\uct-worktrees\study` (owner file present), based on
-  master `f2e816e042` (2026-10-17). Nothing merged to master. Nothing deployed.
-- Phase 0 (all files at once): 5 of 8 files drafted (22980148dc); UNITS-foundations.md, UNITS-method.md, skill_map.json being drafted by agents (not yet committed). Branch NOT yet pushed to origin (push blocked for the AI; owner runs `git push -u origin feat/study`).
-- Phase 1 backend: IN PROGRESS (skeleton) — see "Build checklist".
-- Content bank: 0 items. Targets: 5,000+ Method · 2,500+ Foundations · 2,000+ vocabulary terms /
-  4,000+ vocabulary questions. Both curricula authored in parallel, interleaved.
+  master `f2e816e042` (2026-10-17). Nothing merged to master. Nothing deployed. **NOT pushed to
+  origin yet** (push blocked for the AI session; owner runs `git push -u origin feat/study`).
+- Python: `.venv/` in this worktree (Python 3.12, requirements + pytest installed 2026-10-17).
+  Run tests as `.venv/Scripts/python.exe -m pytest tests/<named files> -q -p no:cacheprovider`.
+- Commits so far: c8edff5363 spec+plan+RESUME · 22980148dc five Phase 0 files · b568f4d580 RESUME ·
+  ad2f95cbf9 wire_archive market_call (blocker B2) · ab7a0efbbe UNITS-foundations (129 units) ·
+  1a6b3da6cb scans image-copy job (blocker B1) + UNITS-method (96 units) + skill_map.json.
+- Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
+- Phase 1 backend: skeleton in progress by an engineering lane (api/services/study_*.py,
+  api/routers/study.py, tests/test_study_*.py); it commits with pathspecs on api/tests only.
+- Content bank: 0 items. Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units
+  (~2,920 q) + Method 96 units (~5,605 q). Both curricula authored in parallel.
+
+## Owner review packet (Phase 0 — read in this order, one session)
+1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
+2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
+   a thin-data table). Notable: 1929 and 1973-74 can only be authored (index bars start 1974);
+   Greeks units need hand-frozen past chains; F7.05 waits on the wire-archive tier backfill.
+3. `docs/study/UNITS-method.md` — 96 units; all 79 course lessons linked, 6 "covered in part"
+   need your sign-off; the 28-setup roster with supply (6 good · 12 medium · 5 thin · 6 none);
+   "Source facts that differ from the spec" (34 templates not 48; a 4th setup vocabulary in the
+   archive; VCP/Flat Base/HTF/EP/PEG/U&R/Remount have 0 real-bar fixtures; 21- vs 17-mistake
+   audit; course drawdown protocol vs your published ladder).
+4. `docs/study/skill_map.json` — the machine map (28 setups with aliases, 106 lesson links).
+5. `docs/study/sizing_rule.md` — confirm the drawdown ladder (§4) and "under 1% is normal".
+6. `docs/study/pass_bars.md` — the proposed bars.
+7. `docs/study/video_toolchain.md` — approve Option A and the voice source.
+8. `docs/study/VOICE_CONSENT.md` — sign before any voice sample is used.
 
 ## Phase 0 checklist (owner signs off each file in one session)
 - [x] `docs/study/VOICE.md` (draft 22980148dc, awaiting owner sign-off) — derived from the owner's own prose (toolkit cards, morning-wire
       `data/voice/voice_exemplars.json` + `voice_profile.json`, methodology bible, playbooks; Desk
       transcripts and Substack issues once read from the server).
-- [ ] `docs/study/UNITS-foundations.md` — every unit for F1–F12, F2b, V with what it teaches, rungs,
+- [x] `docs/study/UNITS-foundations.md` (draft ab7a0efbbe, 129 units) — every unit for F1–F12, F2b, V with what it teaches, rungs,
       example needs, course lesson covered.
-- [ ] `docs/study/UNITS-method.md` — every unit keyed on the course JSON's 16 modules + Calls +
+- [x] `docs/study/UNITS-method.md` (draft 1a6b3da6cb, 96 units) — every unit keyed on the course JSON's 16 modules + Calls +
       Overlay, with the per-setup supply table (28 setups) and the loss source per setup.
-- [ ] `docs/study/skill_map.json` — curricula → tracks → units → skills, ids, lesson_key links,
+- [x] `docs/study/skill_map.json` (draft 1a6b3da6cb) — curricula → tracks → units → skills, ids, lesson_key links,
       28-setup aliases to the other vocabularies.
 - [x] `docs/study/sizing_rule.md` (draft 22980148dc, owner to confirm §4 ladder) — §4.11 as the single sizing authority; toolkit card regenerated from it.
 - [x] `docs/study/pass_bars.md` (proposal 22980148dc) — proposed checkpoint bars for owner decision.
@@ -50,9 +73,9 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
       import, corrections export)
 - [ ] `api/main.py` lifespan init + jobs (reminders claim-row, weekly close w/ catch-up,
       gen_detections after 02:00 ET; NO 06:30 fan-out)
-- [ ] Outside-Study prerequisites (their own small merges): wire_archive persists `exposure_tier`;
+- [~] Outside-Study prerequisites (their own small merges): wire_archive persists `exposure_tier` (DONE ad2f95cbf9);
       StockChart `studyMode` / `armedTool` / `toolsAllowlist`; hub hidden under a fullscreen Sheet;
-      `/api/ticker-meta` short-circuits non-universe symbols; one-time Scans image copy to R2.
+      `/api/ticker-meta` short-circuits non-universe symbols; one-time Scans image copy to R2 (SCRIPT DONE 1a6b3da6cb: `scripts/study/copy_scans_images.py`, not yet run on the pod).
 - [ ] Frontend: StudyPanel + trail sub-view inside CoursesSection, fullscreen DrillPlayer (one chart
       per session), drills, reveal panel, end card, Practise sheet, StudyReview admin mode.
 - [ ] Tests: `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
