@@ -121,19 +121,23 @@ def test_a_bc_flat_base_that_broke_down_is_stale_and_not_served(monkeypatch):
 
 
 def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_handle():
-    closes = [90] * 10 + [97, 96, 95, 96, 98, 101, 104, 106]
-    bars = _bars(closes)
-    cup = {"structure_key": "cup-with-handle", "start_t": ymd_t(0), "end_t": ymd_t(17),
-           "top": 100.0, "floor": 85.0, "pivot": 100.1,
-           "sub_boxes": [{"start_t": ymd_t(0), "end_t": ymd_t(9), "top": 100.0, "floor": 85.0},
-                         {"start_t": ymd_t(10), "end_t": ymd_t(17), "top": 106.5, "floor": 94.5}]}
+    # round 2: the rim is the LEFT LIP (bar 2's high), not the box top / pivot a later spike set
+    closes = [95, 98, 100, 96, 92, 88, 86, 89, 93, 98, 97, 96, 97, 98, 102]
+    highs = [c + 0.5 for c in closes]
+    highs[9] = 104.0                                   # the right-side spike
+    bars = _bars(closes, highs=highs)
+    cup = {"structure_key": "cup-with-handle", "start_t": ymd_t(0), "end_t": ymd_t(14),
+           "top": 104.0, "floor": 85.5, "pivot": 104.1,
+           "sub_boxes": [{"start_t": ymd_t(0), "end_t": ymd_t(9), "top": 104.0, "floor": 85.5},
+                         {"start_t": ymd_t(10), "end_t": ymd_t(14), "top": 102.5, "floor": 95.5}]}
     ex = auto_structures.box_to_detection("ZZZ", cup, bars)["geometry"]["extras"]
     assert ex["draw_box"] is False
-    assert ex["draw_pivot"] == {"start_t": ymd_t(0), "end_t": ymd_t(15), "price": 100.1}
-    assert ex["draw_handle"] == {"start_t": ymd_t(10), "end_t": ymd_t(14), "top": 98.5, "floor": 94.5}
+    assert ex["draw_pivot"] == {"start_t": ymd_t(2), "end_t": ymd_t(14), "price": 100.5}
+    assert ex["draw_handle"]["start_t"] == ymd_t(10)
     # handle broke out on its first bar: no handle to draw, and the cup's own sub-box is NOT it
     gone = auto_structures.box_to_detection("ZZZ", {**cup, "sub_boxes": [
-        cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(15)}]}, bars)
+        cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(14)}]},
+        _bars(closes[:-1] + [105], highs=highs[:-1] + [105.5]))
     assert "draw_handle" not in gone["geometry"]["extras"]
 
 

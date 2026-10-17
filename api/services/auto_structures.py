@@ -172,10 +172,22 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
                 extras["stale"] = True
                 extras["stale_reason"] = "broke_down"
                 return
-            extras["draw_pivot"] = _display.pivot_line(ext, start_t, end_t, price)
-        else:   # bc:cup-with-handle: the rim line, from the left lip to the breakout bar
-            end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
-            extras["draw_pivot"] = {"start_t": int(start_t), "end_t": int(end), "price": price}
+            pv = _display.pivot_line(ext, start_t, end_t, price)
+            # round 2: a real base under the line, and the line near price
+            ok, why = _display.pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if not ok:
+                extras["stale"] = True
+                extras["stale_reason"] = why
+                return
+            extras["draw_pivot"] = pv
+        else:   # bc:cup-with-handle: the rim line, from the LEFT LIP to the breakout bar
+            subs0 = extras.get("sub_boxes") or []
+            cup = subs0[0] if len(subs0) >= 2 else {"start_t": start_t, "end_t": end_t}
+            rim = _display.cup_rim_line(bars, cup.get("start_t"), cup.get("end_t"), end_t)
+            if rim is None:     # span unknown: the old line (box top / pivot) as before
+                end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
+                rim = {"start_t": int(start_t), "end_t": int(end), "price": price}
+            extras["draw_pivot"] = rim
             subs = extras.get("draw_sub_boxes")
             # only while the handle survived handle_extent (else the last sub-box is the cup's)
             if isinstance(subs, list) and len(subs) >= 2 and len(subs) == len(extras["sub_boxes"]):

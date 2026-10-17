@@ -268,18 +268,21 @@ def test_lane_verdict_parallel_crossing_diverging():
     assert display.lane_verdict(bars, div["geometry"]) == (False, "diverging")
 
 
-def test_bull_flag_draws_its_pole_and_only_the_best_overlapping_lanes():
-    lows = [10, 10.5, 12, 14, 15, 16, 15.5, 15.2, 15, 15.1, 15.2, 15.3]
+def test_bull_flag_draws_its_pole_and_only_the_best_overlapping_flag():
+    # team set round 2: the flag pauses UNDER the pole high (16), and an overlapped flag is not
+    # drawn at all (stale) -- before, it kept its pole + entry line beside the best one's
+    lows = [10, 10.5, 12, 14, 15, 15, 14.8, 14.6, 14.5, 14.4, 14.3, 14.2]
     bars = _bars([lo + 0.5 for lo in lows], lows=lows, highs=[lo + 1 for lo in lows])
-    best = _flag(70, ((5, 17), (11, 16.3)), ((5, 15.5), (11, 15)))
-    worse = _flag(55, ((6, 16.5), (11, 16.3)), ((6, 15.5), (11, 15.1)), pole=(1, 5))
+    best = _flag(70, ((5, 16), (11, 15.2)), ((5, 15), (11, 14.2)))
+    worse = _flag(55, ((6, 15.8), (11, 15.2)), ((6, 14.8), (11, 14.2)), pole=(1, 4))
     display.draw_geometry([worse, best], bars)
     assert best["geometry"]["extras"]["draw_pole"] == [{"t": ymd_t(0), "price": 10.0},
                                                        {"t": ymd_t(4), "price": 16.0}]
     assert best["geometry"]["extras"]["draw_lanes"] is True
+    assert not best["geometry"]["extras"].get("stale")
     assert worse["geometry"]["extras"]["draw_lanes"] is False
     assert worse["geometry"]["extras"]["lanes_reason"] == "overlapped"
-    assert "draw_pole" in worse["geometry"]["extras"]
+    assert worse["geometry"]["extras"]["stale"] is True
 
 
 def test_bull_flag_on_its_fixtures_stamps_pole_and_lane_verdict():

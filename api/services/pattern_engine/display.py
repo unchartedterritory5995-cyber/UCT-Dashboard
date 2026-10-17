@@ -63,6 +63,22 @@ display-only:
               or "sma", from extras.tagged_ma), computed exactly as the
               detector computes it, plus `tag` {t, price}: the tag bar's low,
               drawn as a marker.
+
+TEAM SET ROUND 2 (lab REPORT_TEAM_SET.md, 2026-10-17 blind check), still
+display-only:
+  bull_flag   a flag is drawn only when it is a PAUSE: no flag bar's high and
+              neither lane end above the pole high (FLAG_POLE_TOL), and the
+              channel's midline flat-to-down (rise <= FLAG_RISE_TOL x pole
+              height). Otherwise `stale` (`stale_reason` past_pole_high /
+              rising_channel): the judges saw rising channels past the pole
+              high, a second leg, drawn as flags. Of the flags left over the
+              same bars only the most confident is drawn at all (the others
+              are `stale`, reason overlapped): one pole, one entry line.
+  draw_pivot  a flat base's pivot line needs a real base under it
+              (`pivot_base_verdict`: >= PIVOT_BASE_MIN_BARS closes within
+              PIVOT_BASE_BAND_ATR ATR below the line) and the line within
+              PIVOT_NEAR_ATR ATR of the last close; otherwise the base is
+              `stale` (no_base / far_from_price) and not drawn.
 """
 from __future__ import annotations
 
@@ -152,6 +168,16 @@ TEAM_PULLBACKS = frozenset({"uct_pullback_ma_v5"})
 #: A flag's lanes "diverge" when the channel is more than this many times as
 #: wide at its right end as at its left end.
 LANE_DIVERGE_RATIO = 2.0
+#: A flag (a pause) stays at or below its pole high: this relative tolerance.
+FLAG_POLE_TOL = 0.002
+#: A flag's channel midline may rise at most this fraction of the pole height.
+FLAG_RISE_TOL = 0.10
+#: A pivot line needs at least this many closes in the band just below it ...
+PIVOT_BASE_MIN_BARS = 5
+#: ... the band being this many ATR(14) deep (a close up to 0.1 ATR over the line counts) ...
+PIVOT_BASE_BAND_ATR = 2.0
+#: ... and the line must sit within this many ATR(14) of the last close.
+PIVOT_NEAR_ATR = 3.0
 
 
 def _index(bars) -> dict:
@@ -364,6 +390,119 @@ def lane_verdict(bars: list, geometry: dict):
     return True, None
 
 
+def atr14(bars: list, n: int = 14):
+    """Mean true range of the last `n` bars (fewer when the series is short); None when unknown."""
+    if not bars:
+        return None
+    k = min(n, len(bars))
+    trs = []
+    for j in range(len(bars) - k, len(bars)):
+        h, lo = float(bars[j]["h"]), float(bars[j]["l"])
+        if j > 0:
+            pc = float(bars[j - 1]["c"])
+            trs.append(max(h, pc) - min(lo, pc))
+        else:
+            trs.append(h - lo)
+    a = sum(trs) / len(trs)
+    return a if a > 0 else None
+
+
+def pivot_base_verdict(bars: list, start_t, end_t, price):
+    """(draw, reason) for a base's pivot line at `price` over [start_t, end_t].
+
+    Round-2 fix (REPORT_TEAM_SET.md: the pivot was pinned to the last bar's
+    high with no base under it, or to a peak far above price):
+      far_from_price  the line is more than PIVOT_NEAR_ATR ATR from the last close;
+      no_base         fewer than PIVOT_BASE_MIN_BARS closes of the span sit in the
+                      band [price - PIVOT_BASE_BAND_ATR ATR, price + 0.1 ATR].
+    (True, None) otherwise; (True, None) when the span or ATR is unknown (the
+    line draws as before rather than vanish on missing data)."""
+    pos = _index(bars)
+    s, e = pos.get(start_t), pos.get(end_t)
+    at = atr14(bars)
+    if s is None or e is None or price is None or not at:
+        return True, None
+    if s > e:
+        s, e = e, s
+    price = float(price)
+    if abs(float(bars[-1]["c"]) - price) > PIVOT_NEAR_ATR * at:
+        return False, "far_from_price"
+    lo, hi = price - PIVOT_BASE_BAND_ATR * at, price + 0.1 * at
+    n_in = sum(1 for j in range(s, e + 1) if lo <= float(bars[j]["c"]) <= hi)
+    if n_in < PIVOT_BASE_MIN_BARS:
+        return False, "no_base"
+    return True, None
+
+
+def flag_pause_verdict(bars: list, pos: dict, d: dict):
+    """(is_pause, reason) for a bull_flag: its flag must be a PAUSE under the pole.
+
+    past_pole_high  a flag bar's high, or either lane at either end, is above the
+                    pole high (x (1 + FLAG_POLE_TOL)): a second leg, not a flag;
+    rising_channel  the channel's midline rises more than FLAG_RISE_TOL x the
+                    pole height over the drawn span.
+    (True, None) when the pole or flag bars are unknown."""
+    pts = d.get("pivot_ts") or []
+    b0 = pos.get(pts[0]) if len(pts) > 1 else None
+    b1 = pos.get(pts[1]) if len(pts) > 1 else None
+    if b0 is None or b1 is None:
+        return True, None
+    last = pos.get(pts[-1]) if len(pts) > 2 else None
+    last = len(bars) - 1 if last is None else last
+    pole_hi = float(bars[b1]["h"])
+    pole_h = pole_hi - float(bars[b0]["l"])
+    ceiling = pole_hi * (1.0 + FLAG_POLE_TOL)
+    flag = bars[b1 + 1:last + 1]
+    if flag and max(float(b["h"]) for b in flag) > ceiling:
+        return False, "past_pole_high"
+    g = d.get("geometry") or {}
+    a = g.get("anchors") or []
+    xs = [pos.get(p.get("t")) for p in a] if len(a) == 4 else []
+    if len(xs) == 4 and None not in xs:
+        spaces = list((g.get("extras") or {}).get("line_spaces") or []) + ["price", "price"]
+        up = ((xs[0], a[0]["price"]), (xs[1], a[1]["price"]))
+        dn = ((xs[2], a[2]["price"]), (xs[3], a[3]["price"]))
+        left, right = min(xs), max(xs)
+        uL, uR = _line_at(*up, left, spaces[0]), _line_at(*up, right, spaces[0])
+        lL, lR = _line_at(*dn, left, spaces[1]), _line_at(*dn, right, spaces[1])
+        if max(uL, uR) > ceiling:
+            return False, "past_pole_high"
+        if pole_h > 0 and ((uR + lR) - (uL + lL)) / 2.0 > FLAG_RISE_TOL * pole_h:
+            return False, "rising_channel"
+    return True, None
+
+
+def cup_rim_line(bars: list, cup_start_t, cup_end_t, end_t):
+    """The cup's rim line at its LEFT LIP: {start_t, end_t, price}, or None.
+
+    Round 2 (REPORT_TEAM_SET.md: the rim sat on a later spike instead of the
+    left lip). The lip is the highest high from the cup's first bar up to its
+    low -- the high before the cup's decline (ties keep the earliest bar). The
+    line runs from the lip to the first close above it after the cup's low
+    (the breakout), else to `end_t`."""
+    pos = _index(bars)
+    s, e = pos.get(cup_start_t), pos.get(cup_end_t)
+    if s is None or e is None or s > e:
+        return None
+    low_j = s
+    for j in range(s, e + 1):
+        if bars[j]["l"] < bars[low_j]["l"]:
+            low_j = j
+    lip_j = s
+    for j in range(s, low_j + 1):
+        if bars[j]["h"] > bars[lip_j]["h"]:
+            lip_j = j
+    lip = float(bars[lip_j]["h"])
+    last = pos.get(end_t)
+    last = len(bars) - 1 if last is None else last
+    end_j = last
+    for j in range(low_j + 1, last + 1):
+        if float(bars[j]["c"]) > lip:
+            end_j = j
+            break
+    return {"start_t": bars[lip_j]["t"], "end_t": bars[end_j]["t"], "price": lip}
+
+
 def pivot_line(ext, start_t, end_t, price) -> dict:
     """A base's breakout / pivot line: `price` from the capped consolidation's
     first bar to its breakout bar (or the box's own span when uncapped)."""
@@ -445,8 +584,13 @@ def draw_geometry(detections: list, bars: list) -> list:
                     extras["stale"] = True
                     extras["stale_reason"] = "broke_down"
                 else:
-                    extras["draw_pivot"] = pivot_line(ext, anchors[1]["t"], anchors[3]["t"],
-                                                      anchors[1]["price"])
+                    pv = pivot_line(ext, anchors[1]["t"], anchors[3]["t"], anchors[1]["price"])
+                    ok, why = pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+                    if ok:
+                        extras["draw_pivot"] = pv
+                    else:   # round 2: no base under the line, or far from price
+                        extras["stale"] = True
+                        extras["stale_reason"] = why
             elif pid in TEAM_PULLBACKS:
                 ex0 = geom.setdefault("extras", {})
                 ema = tagged_ma_segment(bars, pos, ex0, d)
@@ -486,20 +630,29 @@ def draw_geometry(detections: list, bars: list) -> list:
                 extras["draw_lanes"] = ok
                 if reason:
                     extras["lanes_reason"] = reason
+                pause, why = flag_pause_verdict(bars, pos, d)
+                if not pause:   # round 2: a second leg past the pole, not a pause
+                    extras["stale"] = True
+                    extras["stale_reason"] = why
+                    extras["draw_lanes"] = False
                 flags.append(d)
         except Exception:  # noqa: BLE001 -- one detection's fix skips that one only
             continue
-    # Overlapping bull_flags of one run: only the most confident keeps its lanes.
+    # Overlapping bull_flags of one run: only the most confident is drawn at all
+    # (round 2: one pole and one entry line per flag -- a lanes-off flag still
+    # drew its pole and entry, so the run showed two of each).
     kept: list = []
     for d in sorted(flags, key=lambda x: -(x.get("confidence") or 0)):
         try:
             extras = d["geometry"]["extras"]
-            if not extras.get("draw_lanes"):
+            if extras.get("stale"):
                 continue
             span = _bar_span(pos, d)
             if span and any(k[0] <= span[1] and span[0] <= k[1] for k in kept):
                 extras["draw_lanes"] = False
                 extras["lanes_reason"] = "overlapped"
+                extras["stale"] = True
+                extras["stale_reason"] = "overlapped"
                 continue
             if span:
                 kept.append(span)

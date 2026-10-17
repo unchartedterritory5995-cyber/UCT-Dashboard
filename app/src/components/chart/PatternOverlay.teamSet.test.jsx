@@ -99,6 +99,38 @@ describe('PatternOverlay — team set: bases draw their pivot line', () => {
   })
 })
 
+// Round 2 (lab REPORT_TEAM_SET.md): the server marks a flag that is not a pause (a rising channel
+// past the pole high) or that overlaps a more confident one as `stale`; the overlay must draw
+// nothing for it -- before, an overlapped flag kept its pole and entry line, so a run showed two.
+describe('PatternOverlay — team set round 2: one flag per run', () => {
+  const flag = (id, extras) => ({
+    id, pattern_id: 'bull_flag', pattern_name: 'Bull Flag', confidence: 70,
+    display_tier: 'trusted', display_layer: 'structures', direction: 'bullish', draw_entry: true,
+    levels: { entry: 51.6 },
+    geometry: {
+      shape: 'trendline_pair', semantic_subtype: 'parallel_channel',
+      anchors: [{ t: 20261001, price: 51.5 }, { t: 20261015, price: 50.8 },
+        { t: 20261001, price: 49.5 }, { t: 20261015, price: 48.8 }],
+      extras: { draw_lanes: true, draw_pole: [{ t: 20260915, price: 44 }, { t: 20260930, price: 52 }], ...extras },
+    },
+  })
+
+  it('draws the kept flag and nothing at all for a stale (overlapped / not-a-pause) one', () => {
+    const kept = flag('a', {})
+    const overlapped = flag('b', { draw_lanes: false, lanes_reason: 'overlapped', stale: true, stale_reason: 'overlapped' })
+    const leg = flag('c', { draw_lanes: false, stale: true, stale_reason: 'past_pole_high' })
+    const { container } = renderOverlay([kept, overlapped, leg])
+    const drawn = [...container.querySelectorAll('[data-detection]')]
+    expect(drawn).toHaveLength(1)
+    expect(selectDrawable([kept, overlapped, leg], { tf: 'D', trustedOnly: true })).toEqual([kept])
+  })
+
+  it('control: without the stale stamp both flags draw', () => {
+    const { container } = renderOverlay([flag('a', {}), flag('b', { draw_lanes: false })])
+    expect(container.querySelectorAll('[data-detection]')).toHaveLength(2)
+  })
+})
+
 describe('PatternOverlay — team set: the MA pullback', () => {
   const pullback = (kind, period) => ({
     id: 'pb', pattern_id: 'uct_pullback_ma_v5', pattern_name: 'UCT MA Pullback v5', confidence: 80,
