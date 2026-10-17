@@ -796,6 +796,13 @@ def _access_payload(user: dict, plan: str) -> dict:
         "hub_preview_enabled": os.environ.get(
             "HUB_PREVIEW_ENABLED", "1"
         ).strip().lower() not in ("0", "false", "no", "off"),
+        # ── Study (drills) kill switch — the hub flag's shape exactly: read PER
+        # REQUEST, DEFAULT ON (unset = not killed; only 0/false/no/off hides it).
+        # The router answers 404 on the same read; this key lets the client hide
+        # the Study panel without a round trip (spec §7.1, §13.2 T10).
+        "study_enabled": os.environ.get(
+            "STUDY_ENABLED", "1"
+        ).strip().lower() not in ("0", "false", "no", "off"),
         # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
         # Same request-time mechanism as the hub flag above: read HERE, per
         # request, never captured at module import. That is what lets the flag be

@@ -215,6 +215,7 @@ from api.routers import theme_engine as theme_engine_router
 from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
+from api.routers import study as study_router  # Study (drills); STUDY_ENABLED read per request
 from api.routers import fundamentals as fundamentals_router
 from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
@@ -3786,6 +3787,14 @@ async def lifespan(app: FastAPI):
         print("[startup] education.db initialized")
     except Exception as e:
         print(f"[startup] education init failed (non-fatal): {e}")
+
+    # Study (drills) store — beside education (spec §13.2 T17). Schema only; no jobs yet.
+    try:
+        from api.services import study_store
+        study_store.init_db()
+        print("[startup] study.db initialized")
+    except Exception as e:
+        print(f"[startup] study init failed (non-fatal): {e}")
 
     try:
         from api.services import desk_session_jobs as _dsj_boot
@@ -10033,6 +10042,7 @@ app.include_router(theme_engine_router.router)  # Theme Membership Engine admin 
 app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
+app.include_router(study_router.router)   # /api/study/* (require_paid local; STUDY_ENABLED per request)
 app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 from api.routers import econ as econ_router  # noqa: E402 -- beside its mount: keeps the line-keyed bars census stable
