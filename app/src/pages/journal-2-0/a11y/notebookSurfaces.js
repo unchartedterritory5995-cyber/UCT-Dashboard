@@ -330,4 +330,18 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
+  // Notebook P4a: page layouts (dark behind journal_page_layouts_enabled). The Customize editor (one recipe per
+  // phase tab, plus the trade page's) and Today with the five new panels shown; rail a11y/pageLayouts.a11y.test.jsx.
+  // The slot is the eager door whose lazy import loads the editor, so the editor's recipe stands for it.
+  'components/layout/PageLayoutEditor.jsx': { recipe: 'page-layout-editor-market', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'components/layout/PageLayoutEditorSlot.jsx': { recipe: 'page-layout-editor-market', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/TodaySurface.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/ChecklistTodayPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/MyRulesPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/RegimePanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/TodayNotePanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/NoticesPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  // The trade page rendering from the layout (story first with the chart hidden; every panel hidden). Its own
+  // rail file, because that file replaces `swr`.
+  'components/trade/TradeDetailPage.jsx': { recipe: 'trade-page-layout', railFile: 'a11y/pageLayoutsTrade.a11y.test.jsx' },
 })
