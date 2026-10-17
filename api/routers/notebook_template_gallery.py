@@ -168,8 +168,7 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
 def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
     held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
-    `_require_library` route dependency, before the plan check and the body. Declared BEFORE
-    `/{gallery_id}` so the literal path wins (the GET below would otherwise take `styles`)."""
+    `_require_library` route dependency, before the plan check and the body."""
     public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
     day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
     try:

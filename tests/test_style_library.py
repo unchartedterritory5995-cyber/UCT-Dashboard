@@ -514,3 +514,109 @@ def test_post_styles_needs_a_paid_plan_while_the_library_is_on(api, conn, lib_on
     api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
     r = api.post("/api/j2/template-gallery/styles", json={"styleId": s["id"], "title": "T", "category": "journal"})
     assert r.status_code == 402
+
+
+# ── fix round 2 ──────────────────────────────────────────────────────────────────────────
+
+_REVIEW_KEYS = ("hasRevision", "revisionTitle", "reviewNote")
+
+
+def test_a_held_revision_and_a_review_note_are_invisible_to_a_browsing_member(conn, lib_on):
+    # Review minor 1: the boundary is _summary's `mine or is_admin` block. A paid non-author, non-admin
+    # reads none of the review state, from the single read OR the list; the author and an admin do.
+    s = _style(conn)
+    item = _publish(conn, s["id"], title="V1")
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    _publish(conn, s["id"], title="V2")                                      # HELD
+    gid = item["id"]
+    seen_by = {
+        "viewer": gallery.get_item("viewer", gid, conn=conn),
+        "viewer-list": next(r for r in gallery.list_gallery("viewer", conn=conn) if r["id"] == gid),
+    }
+    for who, view in seen_by.items():
+        assert view["title"] == "V1", who                                   # non-vacuity: it IS the listed row
+        assert not [k for k in _REVIEW_KEYS if k in view], who
+    author = gallery.get_item("author", gid, conn=conn)
+    admin = gallery.get_item("admin", gid, is_admin=True, conn=conn)
+    for view in (author, admin):
+        assert view["hasRevision"] is True and view["revisionTitle"] == "V2"
+    for view in (next(r for r in gallery.list_gallery("author", section="mine", conn=conn) if r["id"] == gid),
+                 next(r for r in gallery.list_gallery("admin", is_admin=True, conn=conn) if r["id"] == gid)):
+        assert view["hasRevision"] is True and "revisionTitle" in view
+    # the review note: the author and an admin read it, a browsing member does not
+    gallery.admin_act("admin", gid, "reject", note="Too thin", conn=conn)
+    assert gallery.get_item("author", gid, conn=conn)["reviewNote"] == "Too thin"
+    assert gallery.get_item("admin", gid, is_admin=True, conn=conn)["reviewNote"] == "Too thin"
+    assert "reviewNote" not in gallery.get_item("viewer", gid, conn=conn)
+    assert "reviewNote" not in next(r for r in gallery.list_gallery("viewer", conn=conn) if r["id"] == gid)
+
+
+def test_the_style_route_gives_its_daily_charge_back_on_a_refusal(api, conn, lib_on, monkeypatch):
+    # Review minor 2: the durable daily counter is charged before the write and handed back when the
+    # request fails (400, 404), exactly like the outline route.
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+    url = "/api/j2/template-gallery/styles"
+    scope = "notebook_gallery_publish"
+
+    def used():
+        return daily_counters.value(et_today(), scope, "author")
+
+    s = _style(conn)
+    before = used()
+    ok = api.post(url, json={"styleId": s["id"], "title": "T", "category": "journal"})
+    assert ok.status_code == 200 and used() == before + 1                    # non-vacuity: a success IS charged
+    before = used()
+    assert api.post(url, json={"styleId": s["id"], "title": "", "category": "journal"}).status_code == 400
+    assert used() == before                                                  # the 400 gave it back
+    assert api.post(url, json={"styleId": "nope", "title": "T", "category": "journal"}).status_code == 404
+    assert used() == before                                                  # the 404 gave it back
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert api.post(url, json={"styleId": s["id"], "title": "T", "category": "journal"}).status_code == 404
+    assert used() == before                                                  # library off: never charged
+
+
+def test_admin_act_on_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeypatch):
+    # R-T4-3 (R-P3-10): a known id must not act on a style row while the library is off, whatever the
+    # action. Outline rows are unaffected; a style row with the library ON is the control.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    style = _row(conn, item_type="style", status="pending", title="S")
+    outline = _row(conn, item_type="outline", status="pending", title="O")
+
+    def status(gid):
+        return conn.execute("SELECT status, hidden, featured FROM j2_template_gallery WHERE id = ?",
+                            (gid,)).fetchone()
+
+    before = tuple(status(style))
+    for action, kw in (("approve", {}), ("reject", {"note": "no"}), ("hide", {}), ("unhide", {}),
+                       ("feature", {}), ("unfeature", {})):
+        if action == "approve":
+            kw = {"reviewed_updated_at": conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
+                                                      (style,)).fetchone()[0]}
+        assert gallery.admin_act("admin", style, action, conn=conn, **kw) is None, action
+    assert tuple(status(style)) == before                                    # nothing was written
+    # an outline row still acts
+    got = gallery.admin_act("admin", outline, "approve", conn=conn, reviewed_updated_at=conn.execute(
+        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (outline,)).fetchone()[0])
+    assert got is not None and status(outline)["status"] == "approved"
+    # control: the same style row acts once the library is on
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    got = gallery.admin_act("admin", style, "approve", conn=conn, reviewed_updated_at=conn.execute(
+        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (style,)).fetchone()[0])
+    assert got is not None and status(style)["status"] == "approved"
+
+
+def test_a_report_on_a_style_row_cannot_be_acted_on_while_the_library_is_off(conn, monkeypatch):
+    # The report queue's twin of the above: `hide` goes through admin_act, so without a guard it would
+    # answer True and hide nothing.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    gid = _row(conn, item_type="style", status="approved", user_id="author", title="S")
+    assert gallery.report("viewer", gid, reason="spam", conn=conn)["reported"] is True
+    rid = conn.execute("SELECT id FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,)).fetchone()[0]
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is False
+    assert gallery.admin_report_act("admin", rid, "dismiss", conn=conn) is False
+    assert conn.execute("SELECT status FROM j2_template_gallery_reports WHERE id = ?", (rid,)).fetchone()[0] == "open"
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")                 # control
+    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is True
+    assert conn.execute("SELECT hidden FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1

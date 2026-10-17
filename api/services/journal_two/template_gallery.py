@@ -978,7 +978,9 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
     conn = conn or get_connection()
     try:
         row = conn.execute("SELECT * FROM j2_template_gallery WHERE id = ?", (gallery_id,)).fetchone()
-        if row is None:
+        # R-T4-3 (R-P3-10): a style row is absent while the library is off, for a reviewer who knows its id
+        # as much as for a member. The queue and `get_item` already hide it; this is the write door.
+        if row is None or _library_hides(row):
             return None
         now = _now()
         if action == "approve":
@@ -1060,6 +1062,10 @@ def admin_report_act(admin_id: str, report_id: str, action: Any,
         r = conn.execute("SELECT * FROM j2_template_gallery_reports WHERE id = ? AND status = 'open'",
                          (report_id,)).fetchone()
         if r is None:
+            return False
+        target = conn.execute("SELECT item_type FROM j2_template_gallery WHERE id = ?",
+                              (r["gallery_id"],)).fetchone()
+        if target is not None and _library_hides(target):      # R-T4-3: a style's report is as absent as the style
             return False
         if action == "hide":
             admin_act(admin_id, r["gallery_id"], "hide", conn=conn)
