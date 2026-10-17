@@ -1,0 +1,408 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p3a/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.styleChunks.test.js [2m([22m[2m4 tests[22m[2m)[22m[33m 7622[2mms[22m[39m
+     [33m[2m✓[22m[39m exactly two import()s of a styles/ module in all of journal-2-0: the surfaces module and the Styles manager dialog [33m 7616[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/TemplateGallery.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 9168[2mms[22m[39m
+     [33m[2m✓[22m[39m is absent while the gate is off, and nothing else in the picker changes [33m 800[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the gallery with focus on its heading, and Back returns focus to the door [33m 1190[2mms[22m[39m
+     [33m[2m✓[22m[39m shows UCT picks above the community, each with its author, and filters by search and category [33m 669[2mms[22m[39m
+     [33m[2m✓[22m[39m previews read-only, and Use template copies it, says so, then makes a note through the member door [33m 711[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused Use is the server’s own sentence on screen [33m 499[2mms[22m[39m
+     [33m[2m✓[22m[39m reports with a reason and an optional note, and thanks the member in words [33m 1088[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused report is the server’s own sentence on screen [33m 684[2mms[22m[39m
+     [33m[2m✓[22m[39m Share on one of Your templates submits it for review and says what is left out [33m 1058[2mms[22m[39m
+     [33m[2m✓[22m[39m Your submissions shows where each one stands and Unpublish asks once [33m 653[2mms[22m[39m
+     [33m[2m✓[22m[39m is not offered to a member [33m 546[2mms[22m[39m
+     [33m[2m✓[22m[39m lets an admin approve, reject with a reason, hide a reported one and unhide [33m 1267[2mms[22m[39m
+ [31m❯[39m src/pages/command/keyListenerCensus.test.js [2m([22m[2m7 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 11928[2mms[22m[39m
+     [32m✓[39m CONTROL: a comment or prose mention is not a listener; a real call is[32m 6[2mms[22m[39m
+     [32m✓[39m CONTROL: a dynamic registration and a wrapper hook are caught as orphans[32m 2[2mms[22m[39m
+     [32m✓[39m CONTROL: dispatching a key event is not listening for one[32m 1[2mms[22m[39m
+     [33m[2m✓[22m[39m NON-VACUITY: it walks the whole tree, parses every file, and finds the registry [33m 11909[2mms[22m[39m
+[31m     [31m×[31m no file holds MORE raw key listeners than its baseline (new ones go through the registry)[39m[32m 8[2mms[22m[39m
+     [32m✓[39m no baseline row is STALE (a migrated listener must leave the baseline in the same commit)[32m 0[2mms[22m[39m
+[31m     [31m×[31m the baseline sits at or under the stated CEILING, and the CEILING is tight[39m[32m 1[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorEnumeration.test.js [2m([22m[2m41 tests[22m[2m)[22m[33m 22629[2mms[22m[39m
+     [33m[2m✓[22m[39m ② every OTHER server-side writer of j2_notes is a known second writer [33m 540[2mms[22m[39m
+     [33m[2m✓[22m[39m ⑤ SERVER-side doors OUTSIDE journal_two.py are a LEDGER, each with its settle story [33m 787[2mms[22m[39m
+     [33m[2m✓[22m[39m ③ CLIENT: every write to a door route lands its revision, or is a NAMED exception [33m 10537[2mms[22m[39m
+     [33m[2m✓[22m[39m ④ a write whose URL is a VARIABLE is resolved and checked like any other [33m 440[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the variable-URL scan really does see delete_folder as a door [33m 544[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the route derivation really does find the door routes [33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — rail ② reads routers OUTSIDE journal_two.py, through module-qualified service delegation [33m 356[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site [33m 1211[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported [33m 860[2mms[22m[39m
+     [33m[2m✓[22m[39m every request in a note-touching file has a readable method, and every door write lands its revision [33m 686[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — both of journalStyles.js's note-moving calls resolve to their routes and are seen as settled [33m 1094[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle [33m 843[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where [33m 1172[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the favourite toggle, blind to every rail until now, resolves to both routes and is not a door [33m 1487[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a DIRECT fetch to a derived style door with no settle is RED, and settled it is clean [33m 360[2mms[22m[39m
+     [33m[2m✓[22m[39m the real tree has NO helper exceptions: every injected or forwarded fetch resolves or is fixed [33m 650[2mms[22m[39m
+     [33m[2m✓[22m[39m the door universe is DERIVED and non-empty (non-vacuity) [33m 385[2mms[22m[39m
+     [33m[2m✓[22m[39m every door is classified, nothing stale, and NO door is a loss [33m 355[2mms[22m[39m
+ [32m✓[39m src/components/screener/reachable.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 33901[2mms[22m[39m
+     [33m[2m✓[22m[39m PLANTED CUT: remove the mount's import and ScanResults goes unreachable [33m 10654[2mms[22m[39m
+     [33m[2m✓[22m[39m THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page [33m 4882[2mms[22m[39m
+     [33m[2m✓[22m[39m THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed [33m 9696[2mms[22m[39m
+     [33m[2m✓[22m[39m THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one [33m 4296[2mms[22m[39m
+     [33m[2m✓[22m[39m THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught [33m 4354[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/command/keyListenerCensus.test.js[2m > [22mTERM-063 — the raw key-listener ratchet[2m > [22mno file holds MORE raw key listeners than its baseline (new ones go through the registry)
+[31m[1mAssertionError[22m[39m: RAW KEY LISTENER ADDED OUTSIDE THE REGISTRY. Declare the binding in app/src/pages/command/shortcutRegistry.js and bind it with registerShortcuts(). Current census, for reference:
+{
+ "app/src/components/chart/BoardsToolButton.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/builder/editor/CodeEditor.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartContextMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartDrawingOverlay.jsx": {
+  "literal": 2
+ },
+ "app/src/components/chart/ChartSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartThemesModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/EarningsMarkerPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/KeyboardHelpOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/keyboardShortcuts.js": {
+  "literal": 1
+ },
+ "app/src/components/chart/PatternSidePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/SymbolSearch.jsx": {
+  "literal": 1
+ },
+ "app/src/components/IntradayDayPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/intro/IntroAnimation.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/ContextPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/Sheet.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/useFocusTrap.js": {
+  "literal": 1
+ },
+ "app/src/components/research/EarningsResearchModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/research-kit/InfoTip.jsx": {
+  "literal": 1
+ },
+ "app/src/components/StockChart.jsx": {
+  "literal": 2
+ },
+ "app/src/components/TickerPopup.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AgentPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AudioPlayerBar.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/VisionAttachButton.jsx": {
+  "literal": 1
+ },
+ "app/src/lib/todayPackClient.js": {
+  "orphan": 1
+ },
+ "app/src/pages/admin/GoldReview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Admin.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/breadth/BreadthDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViews.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViewsCustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/CustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/drill/BreadthDrillModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/PresetRow.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/CalendarHeader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/DayDetailDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Calendar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/ChartsWorkspace.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/CompareSymbolsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/grid/MultiChartGrid.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/LayoutDock.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/placement/GhostPreview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/popout/PopoutWindow.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/WidgetHeader.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/widgets/BreadthSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/BreadthWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/LeverageInverseControl.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NewsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlUniverseMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ScatterWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/TimeframeMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/community/components/ProfileCard.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/DarkPool.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/ArticleReader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/VideosSection.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/DeleteAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/NewAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddTradeModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/calendar/MiniMonthNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ClosePositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ColumnsPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ConfirmModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/DeleteAllModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/EditPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/GenerateReportModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ImportCsvModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/CaptureHost.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/UnsentTrashDialog.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/AddOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/CloseOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/scope/ScopeBar.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeDetailPage.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeScreenshots.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/TradeDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/blockHandle.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/calloutNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/codeBlockNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/mathNodes.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/tabs/NotebookTab.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/Landing.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/LiveFlowMassive.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/modelbook/SetupsView.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/ModelBook.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/OptionsFlow_admin.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ColumnDesc.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/FilterRail.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ScreenerReviewOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Settings.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/ThemeTrackerPage.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/traderArchive/ArchiveThumbs.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/watchlist/WatchlistSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Watchlists.jsx": {
+  "literal": 2
+ }
+}: expected [ …(2) ] to deeply equal []
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "app/src/pages/admin/GoldReview.jsx: literal 1 > baseline 0",[39m
+[31m+   "app/src/pages/traderArchive/ArchiveThumbs.jsx: literal 1 > baseline 0",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/pages/command/keyListenerCensus.test.js:[2m324:13[22m[39m
+    [90m322| [39m        + 'app/src/pages/command/shortcutRegistry.js and bind it with …
+    [90m323| [39m        + `Current census, for reference:\n${JSON.stringify(Object.fro…
+    [90m324| [39m      [33m:[39m [32m''[39m)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m            [31m^[39m
+    [90m325| [39m  })
+    [90m326| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/command/keyListenerCensus.test.js[2m > [22mTERM-063 — the raw key-listener ratchet[2m > [22mthe baseline sits at or under the stated CEILING, and the CEILING is tight
+[31m[1mAssertionError[22m: expected 113 to be 111 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 111[39m
+[31m+ 113[39m
+
+[36m [2m❯[22m src/pages/command/keyListenerCensus.test.js:[2m343:34[22m[39m
+    [90m341| [39m      s [33m+[39m (r[33m.[39mliteral [33m||[39m [34m0[39m) [33m+[39m (r[33m.[39monprop [33m||[39m [34m0[39m) [33m+[39m (r[33m.[39morphan [33m||[39m [34m0[39m)[33m,[39m [34m0[39m)
+    [90m342| [39m    [34mexpect[39m(sum)[33m.[39m[34mtoBeLessThanOrEqual[39m([33mCEILING[39m)
+    [90m343| [39m    [34mexpect[39m([34mtotal[39m([34mcensus[39m()[33m.[39mrows))[33m.[39m[34mtoBe[39m([33mCEILING[39m)
+    [90m   | [39m                                 [31m^[39m
+    [90m344| [39m  })
+    [90m345| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m79 passed[39m[22m[90m (81)[39m
+[2m   Start at [22m 08:18:26
+[2m   Duration [22m 47.37s[2m (transform 2.88s, setup 2.45s, import 14.19s, tests 85.25s, environment 3.12s)[22m
+
