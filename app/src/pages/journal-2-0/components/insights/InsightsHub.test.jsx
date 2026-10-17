@@ -28,8 +28,9 @@ vi.mock('../../hooks/useScope', () => ({
 }))
 // InsightsHub reads the live account (for the per-account Coach section). Stub it
 // so the shell test doesn't drag in the accounts SWR fetch.
+let selectedAccount = 'acc1'
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
-  default: () => ({ accountId: 'acc1' }),
+  default: () => ({ accountId: selectedAccount }),
 }))
 
 // P5 A7: Regime is real when the `regime` feature flag is on (default ON). Stub
@@ -83,12 +84,17 @@ vi.mock('../../lib/reviewDrafts', () => ({
 // P2 Tier 3 Task 6: the winners checklist is a lazy leaf. Mocked so the hub's gate and its lazy
 // mount are tested here; the panel's own behaviour is ChecklistFromWinners.test.jsx.
 let winnersThrows = false
-vi.mock('./ChecklistFromWinners', () => ({
-  default: ({ accountId }) => {
-    if (winnersThrows) throw new Error('chunk exploded')
-    return <div>Winners mounted for {String(accountId)}</div>
-  },
-}))
+let winnersMounts = 0
+vi.mock('./ChecklistFromWinners', async () => {
+  const { useState } = await import('react')
+  return {
+    default: function Winners({ accountId }) {
+      const [instance] = useState(() => { winnersMounts += 1; return winnersMounts })
+      if (winnersThrows) throw new Error('chunk exploded')
+      return <div>Winners mounted for {String(accountId)} (instance {instance})</div>
+    },
+  }
+})
 
 import InsightsHub, { SECTION_FAILED_TEXT } from './InsightsHub'
 import { TIER3_FLAG } from '../../lib/tier3Flag'
@@ -128,6 +134,8 @@ beforeEach(() => {
   verdictScoreFlagOn = true
   reviewDraftsFlagOn = false
   winnersThrows = false
+  winnersMounts = 0
+  selectedAccount = 'acc1'
   __resetNotebookFlags()
 })
 
@@ -303,9 +311,23 @@ describe('InsightsHub — Checklist from my winners (P2 Tier 3 Task 6)', () => {
     latchNotebookFlags({ [TIER3_FLAG]: true })
     renderHub()
     fireEvent.click(screen.getByRole('button', { name: WINNERS }))
-    expect(await screen.findByText('Winners mounted for acc1')).toBeInTheDocument()
+    expect(await screen.findByText('Winners mounted for acc1 (instance 1)')).toBeInTheDocument()
     expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
     expect(screen.getByTestId('loc').textContent).toContain('ins=winners')
+  })
+
+  it('switching account mounts a fresh panel (M2: nothing accepted for one account hides in another)', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    const view = renderHub({ route: '/journal?ins=winners' })
+    expect(await screen.findByText('Winners mounted for acc1 (instance 1)')).toBeInTheDocument()
+    selectedAccount = 'acc2'
+    view.rerender(
+      <MemoryRouter initialEntries={['/journal?ins=winners']}>
+        <InsightsHub analytics={analytics} />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Winners mounted for acc2 (instance 2)')).toBeInTheDocument()
   })
 
   it('a panel that cannot render says so in words, and the sub-nav still stands', async () => {

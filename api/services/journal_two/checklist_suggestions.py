@@ -4,31 +4,40 @@ and never writes. Accepting one is the member's act, through the rules doors tha
 (R-T3-6, R-T3-V4).
 
   suggest(conn, user_id, account_id) ->
-    {"status": "ok" | "too_few", "winnerCount": int, "bestCount": int,
-     "suggestions": [{"tag", "label", "shareBest", "shareOthers",
+    {"status": "ok" | "too_few", "winnerCount": int, "bestCount": int, "restCount": int,
+     "suggestions": [{"tag", "label", "sourceId", "pendingMark": rule id | None,
+                      "shareBest", "shareOthers",
                       "evidence": [{"tradeRef", "tradeId", "symbol", "exitDate", "r"}]}]}
 
-THE POPULATION (R-T3-5).
+THE POPULATION (R-T3-5; fix round 1, ruling R-T3-T6-R2).
   * Closed equity trades: `j2_trades` holds exactly those. Inclusion is `ANALYTICS_INCLUDED_SQL`,
     imported, never restated, so an `analytics_excluded` trade counts nowhere.
   * Effective R is `analytics._effective_r_map` (stop R, else the excursion's true R), imported.
-    A trade with NO effective R cannot be ranked, so it is left out of the population entirely:
-    neither a best trade nor one of "the rest".
-  * A winner is a trade whose effective R is above 0. The best trades are the top BEST_N winners
-    by R; ties break by the later exit day, then by trade id, so the cut is the same every read.
+    ONLY THE RANKING NEEDS R: a winner is a trade whose effective R is above 0, and the best trades
+    are the top BEST_N winners by R; ties break by the later exit day, then by trade id. A trade
+    with no effective R can never be a best trade.
+  * "THE REST" IS EVERY OTHER INCLUDED CLOSED TRADE, with or without an effective R. A broker book
+    stores no stop, so most of its trades have no R; leaving them out of the rest made a tag on
+    nearly every trade read as "on 0% of the rest" and pass on an infinite lift.
   * Fewer than MIN_WINNERS winners: `too_few`, and nothing is suggested.
+  * NO REST, NO SUGGESTION: when every included trade is among the best there is nothing to
+    compare against, so no tag can show a lift and none is suggested (`restCount: 0`).
 
 WHICH TAGS (R-T3-4). Habits are the trade's `emotion_tags`. `mistake_tags` is never read: a mistake
 is never a checklist item, however often it rides along with a winner.
 
 WHEN A TAG QUALIFIES (R-T3-5). Both: it is on at least MIN_SHARE of the best trades, and its rate
-among the best is at least MIN_LIFT times its rate among the rest (every other ranked trade). A tag
-never seen outside the best has an infinite ratio. The ratio is what stops a tag on every trade
-from posing as a winners' habit. At most MAX_SUGGESTIONS, ordered by the rate among the best.
+among the best is at least MIN_LIFT times its rate among the rest. A tag never seen in a non-empty
+rest has an infinite ratio. At most MAX_SUGGESTIONS, ordered by the rate among the best.
 
-A TAG ALREADY ON THE CHECKLIST is dropped: an active before-entry rule whose label contains the
-tag as a word, compared without case. With an account, that account's rules; with none (All
-Accounts), every rule the member has.
+A RULE ALREADY MADE FOR THE TAG (active rules only; with an account that account's rules, with
+none every rule the member has):
+  * an active BEFORE-ENTRY rule whose label holds the tag as a word (any case), or that was made
+    from this suggestion (`sourceId`), drops the tag: it is on the checklist already;
+  * an active rule NOT yet marked before entry that was made from this suggestion, or whose label
+    is the suggested label (any case), is "already added, mark it": the tag stays, with
+    `pendingMark` = that rule's id, so the client marks the existing rule and never makes a second
+    one (fix round 1, M3: a failed mark followed by a reload must not offer a second create).
 """
 from __future__ import annotations
 
@@ -65,7 +74,16 @@ def _tags(raw: Any) -> set[str]:
     return {t.strip() for t in analytics._json_tags(raw) if isinstance(t, str) and t.strip()}
 
 
-def _ranked_rows(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[dict]:
+#: The provenance a rule made from this panel carries (`source_id`); the client sends it back as-is.
+SOURCE_PREFIX = "winners:"
+
+
+def source_id_for(tag: str) -> str:
+    return f"{SOURCE_PREFIX}{tag}"
+
+
+def _included_rows(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[dict]:
+    """Every included closed trade, with `r` = its effective R, or None when it cannot be ranked."""
     sql = (
         "SELECT id, symbol, exit_date, trading_day_et, r_multiple, external_id, source, "
         "       emotion_tags "
@@ -81,15 +99,13 @@ def _ranked_rows(conn: sqlite3.Connection, user_id: str, account_id: str | None)
     out = []
     for row in rows:
         r = r_map.get(row["id"])
-        if r is None:
-            continue  # cannot be ranked: outside the population
         out.append({
             "id": row["id"],
             "ref": trade_ref_for_row(row),
             "symbol": row["symbol"],
             # The canonical day spine (filters.trades_where): the ET trading day, else the exit date.
             "day": row["trading_day_et"] or (row["exit_date"] or "")[:10],
-            "r": float(r),
+            "r": None if r is None else float(r),
             "tags": _tags(row["emotion_tags"]),
         })
     return out
@@ -103,49 +119,72 @@ def _rank(trades: list[dict]) -> list[dict]:
     return ordered
 
 
-def _checklist_words(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[str]:
-    """Lower-cased labels of the active before-entry rules in scope."""
-    sql = ("SELECT label FROM j2_journal_rules WHERE user_id = ? AND status = 'active' "
-           "AND before_entry = 1")
+def _active_rules(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[dict]:
+    """The active rules in scope, newest first: label (trimmed, lower-cased), before_entry, source."""
+    sql = ("SELECT id, label, before_entry, source_id FROM j2_journal_rules "
+           "WHERE user_id = ? AND status = 'active'")
     params: list[Any] = [user_id]
     if account_id:
         sql += " AND account_id = ?"
         params.append(account_id)
-    return [(r["label"] or "").lower() for r in conn.execute(sql, params).fetchall()]
+    sql += " ORDER BY created_at DESC, rowid DESC"
+    return [{"id": r["id"], "label": (r["label"] or "").strip().lower(),
+             "before_entry": bool(r["before_entry"]), "source_id": r["source_id"]}
+            for r in conn.execute(sql, params).fetchall()]
 
 
-def _on_checklist(tag: str, labels: list[str]) -> bool:
+def _rule_state(tag: str, rules: list[dict]) -> tuple[bool, str | None]:
+    """(already on the checklist, the id of a made-but-unmarked rule to mark) for one tag."""
     word = re.compile(rf"(?<![\w-]){re.escape(tag.lower())}(?![\w-])")
-    return any(word.search(label) for label in labels)
+    ours_id = source_id_for(tag)
+    suggested = label_for(tag).lower()
+    pending = None
+    for r in rules:
+        ours = r["source_id"] == ours_id
+        if r["before_entry"]:
+            if ours or word.search(r["label"]):
+                return True, None
+        elif pending is None and (ours or r["label"] == suggested):
+            pending = r["id"]
+    return False, pending
 
 
 def suggest(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> dict:
-    trades = _ranked_rows(conn, user_id, account_id)
-    winners = _rank([t for t in trades if t["r"] > 0])
+    trades = _included_rows(conn, user_id, account_id)
+    winners = _rank([t for t in trades if t["r"] is not None and t["r"] > 0])
     if len(winners) < MIN_WINNERS:
-        return {"status": "too_few", "winnerCount": len(winners), "bestCount": 0, "suggestions": []}
+        return {"status": "too_few", "winnerCount": len(winners), "bestCount": 0, "restCount": 0,
+                "suggestions": []}
 
     best = winners[:BEST_N]
     best_ids = {t["id"] for t in best}
+    # R-T3-T6-R2: the rest is EVERY other included trade, ranked or not.
     rest = [t for t in trades if t["id"] not in best_ids]
-    on_checklist = _checklist_words(conn, user_id, account_id)
+    out = {"status": "ok", "winnerCount": len(winners), "bestCount": len(best),
+           "restCount": len(rest), "suggestions": []}
+    if not rest:
+        return out  # nothing to compare against, so no tag can show a lift
 
+    rules = _active_rules(conn, user_id, account_id)
     candidates = []
     for tag in sorted({tag for t in best for tag in t["tags"]}):
         carrying = [t for t in best if tag in t["tags"]]
         rest_count = sum(1 for t in rest if tag in t["tags"])
         share_best = len(carrying) / len(best)
-        share_rest = rest_count / len(rest) if rest else 0.0
+        share_rest = rest_count / len(rest)
         if share_best < MIN_SHARE:
             continue
-        # A tag never seen outside the best has an infinite ratio; otherwise best >= lift x rest.
+        # A tag never seen in the rest has an infinite ratio; otherwise best >= lift x rest.
         if rest_count and share_best < MIN_LIFT * share_rest:
             continue
-        if _on_checklist(tag, on_checklist):
+        on_checklist, pending = _rule_state(tag, rules)
+        if on_checklist:
             continue
         candidates.append({
             "tag": tag,
             "label": label_for(tag),
+            "sourceId": source_id_for(tag),
+            "pendingMark": pending,
             "shareBest": round(share_best, 4),
             "shareOthers": round(share_rest, 4),
             # `best` is already in R order (then day, then id), so the evidence is too.
@@ -157,5 +196,5 @@ def suggest(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> d
     candidates.sort(key=lambda c: c["_share"], reverse=True)
     for c in candidates:
         del c["_share"]
-    return {"status": "ok", "winnerCount": len(winners), "bestCount": len(best),
-            "suggestions": candidates[:MAX_SUGGESTIONS]}
+    out["suggestions"] = candidates[:MAX_SUGGESTIONS]
+    return out

@@ -69,6 +69,8 @@ const DISCIPLINE_SECTION = { key: 'discipline', label: 'Discipline' }
 const REVIEWS_SECTION = { key: 'reviews', label: 'Reviews' }
 // P2 Tier 3 Task 6: "Checklist from my winners" exists only while the Tier 3 switch is latched on
 // (dark by default). Its view is its own chunk (lazyLeaf), so the hub's first open is unchanged.
+// It is keyed by the account (fix round 1, M2): switching account mounts a fresh panel, so a tag
+// accepted for one account is never hidden in another.
 const WINNERS_SECTION = { key: 'winners', label: 'Checklist from my winners' }
 const ChecklistFromWinners = lazyLeaf(() => import('./ChecklistFromWinners'))
 const DEFAULT_SECTION = 'playbook'
@@ -165,7 +167,7 @@ export default function InsightsHub({ analytics }) {
         {active === 'reviews' && <ReviewDraftsSection accountId={accountId} />}
         {active === 'winners' && (
           <SectionBoundary>
-            <Suspense fallback={null}><ChecklistFromWinners accountId={accountId} /></Suspense>
+            <Suspense fallback={null}><ChecklistFromWinners key={accountId || 'all'} accountId={accountId} /></Suspense>
           </SectionBoundary>
         )}
         {active === 'coach' &&

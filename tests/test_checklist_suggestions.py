@@ -6,9 +6,13 @@ id); at least MIN_WINNERS winners; a tag qualifies on BOTH a share of the best (
 lift over the rest (MIN_LIFT, infinite when the tag never appears outside the best); at most
 MAX_SUGGESTIONS, ordered by share. A trade with no effective R cannot be ranked and is left out.
 Inclusion is analytics' own ANALYTICS_INCLUDED_SQL, so an `analytics_excluded` trade counts nowhere.
+Fix round 1, R-T3-T6-R2: only the RANKING needs R. "The rest" is every other included closed trade,
+ranked or not; an empty rest suggests nothing. M3: a rule made but not yet marked before entry keeps
+the tag with `pendingMark`, so a second accept marks it instead of making a second rule.
 
-The route: GET /api/j2/insights/checklist-suggestions, 404 with JOURNAL_TIER3_ENABLED off (before the
-session or the plan), 401 signed out, 402 for an unpaid member (the router's require_paid).
+The route lives in its own router (R-T3-T6-R1, api/routers/notebook_winners_checklist.py): 404 with
+JOURNAL_TIER3_ENABLED off (before the session or the plan), 401 signed out, 402 with its OWN
+sentence for an unpaid member.
 """
 from __future__ import annotations
 
@@ -81,13 +85,15 @@ _DAY0 = datetime(2026, 3, 2, tzinfo=timezone.utc)
 
 
 def _trade(conn, aid, *, r, day_index, symbol="NVDA", emotion=None, mistake=None, excluded=False,
-           user_id="u1", tid=None):
-    """A closed equity trade. `r` is its stop R (None: no effective R); day_index sets the exit day."""
+           user_id="u1", tid=None, pnl=None):
+    """A closed equity trade. `r` is its stop R (None: no effective R); day_index sets the exit day.
+    `pnl` defaults to the sign of `r`; pass it to make, say, a winner by P&L that has no R."""
     tid = tid or str(uuid.uuid4())
     day = (_DAY0 + timedelta(days=day_index)).date().isoformat()
     exit_iso = f"{day}T18:00:00Z"
-    pnl = 100.0 if (r or 0) > 0 else -100.0
-    result = "Win" if (r or 0) > 0 else "Loss"
+    if pnl is None:
+        pnl = 100.0 if (r or 0) > 0 else -100.0
+    result = "Win" if pnl > 0 else "Loss"
     conn.execute(
         """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price,
                entry_date, exit_price, exit_date, original_stop, setup, notes, pnl_dollar,
@@ -143,7 +149,7 @@ def test_fewer_than_ten_winners_is_too_few_and_suggests_nothing(conn):
     aid = _account(conn)
     _book(conn, aid, winners=9, losers=5, best_tags={i: ["patient"] for i in range(9)})
     out = cs.suggest(conn, "u1", aid)
-    assert out == {"status": "too_few", "winnerCount": 9, "bestCount": 0, "suggestions": []}
+    assert out == {"status": "too_few", "winnerCount": 9, "bestCount": 0, "restCount": 0, "suggestions": []}
     assert cs.MIN_WINNERS == 10
 
 
@@ -225,14 +231,40 @@ def test_a_tag_already_present_as_a_before_entry_rule_is_not_suggested(conn):
 
 def test_only_an_active_before_entry_rule_drops_the_tag_and_it_matches_the_whole_word(conn):
     aid = _patient_book(conn)
-    _rule(conn, aid, "Before entry: am I patient?", before_entry=False)          # not on the checklist
+    unmarked = _rule(conn, aid, "Before entry: am I patient?", before_entry=False)  # not on the checklist
     _rule(conn, aid, "Before entry: am I patient?", status="dismissed")          # gone from it
     _rule(conn, aid, "Before entry: am I impatient?")                            # another word
     other = _account(conn)
     _rule(conn, other, "Before entry: am I patient?")                            # another account
-    assert _tag(cs.suggest(conn, "u1", aid), "patient") is not None
+    s = _tag(cs.suggest(conn, "u1", aid), "patient")
+    assert s is not None
+    # M3: the unmarked rule with the suggested label is "already added, mark it", never a second create.
+    assert s["pendingMark"] == unmarked
     # All Accounts reads every rule the member has, so the other account's rule now counts.
     assert _tag(cs.suggest(conn, "u1", None), "patient") is None
+
+
+def test_a_rule_made_from_the_suggestion_is_marked_not_made_again(conn):
+    """M3. After a failed mark the rule exists unmarked, possibly with an edited label: the tag is
+    offered as `pendingMark` (mark it), never as a fresh create. Once marked, the tag is gone."""
+    from api.services.journal_two import journal_rules
+    aid = _patient_book(conn)
+    s0 = _tag(cs.suggest(conn, "u1", aid), "patient")
+    assert s0["pendingMark"] is None and s0["sourceId"] == "winners:patient"
+    rec = journal_rules.create_rule("u1", aid, "Breathe before I click", source_type="psychology",
+                                    source_id=s0["sourceId"], conn=conn)
+    s1 = _tag(cs.suggest(conn, "u1", aid), "patient")
+    assert s1 is not None and s1["pendingMark"] == rec["id"]
+    # Marked before entry (the label holds no "patient"): the provenance alone drops the tag.
+    conn.execute("UPDATE j2_journal_rules SET before_entry = 1 WHERE id = ?", (rec["id"],))
+    conn.commit()
+    assert _tag(cs.suggest(conn, "u1", aid), "patient") is None
+
+
+def test_an_unrelated_unmarked_rule_naming_the_tag_is_not_taken_for_ours(conn):
+    aid = _patient_book(conn)
+    _rule(conn, aid, "Stay patient in chop", before_entry=False)
+    assert _tag(cs.suggest(conn, "u1", aid), "patient")["pendingMark"] is None
 
 
 # ── 6. analytics_excluded trades are ignored ───────────────────────────────────
@@ -299,14 +331,51 @@ def test_the_rank_is_r_then_the_later_day_then_the_trade_id():
     assert [x["id"] for x in cs._rank(list(reversed(ranked)))] == ["d", "c", "a", "b"]
 
 
-def test_a_trade_with_no_effective_r_is_left_out(conn):
+def test_a_winner_by_pnl_with_no_effective_r_is_never_a_best_trade(conn):
     aid = _account(conn)
     for i in range(9):
         _trade(conn, aid, r=2.0, day_index=i)
     for i in range(5):
-        _trade(conn, aid, r=None, day_index=20 + i, emotion=["patient"])     # a winner by P&L, no R
+        # Real winners by P&L and result, with no stop R and no excursion: they cannot be ranked.
+        tid = _trade(conn, aid, r=None, pnl=250.0, day_index=20 + i, emotion=["patient"])
+        assert conn.execute("SELECT result FROM j2_trades WHERE id = ?", (tid,)).fetchone()[0] == "Win"
     out = cs.suggest(conn, "u1", aid)
     assert out["status"] == "too_few" and out["winnerCount"] == 9
+
+
+def test_a_trade_with_no_effective_r_still_counts_in_the_rest(conn):
+    """R-T3-T6-R2. A synced broker book: 20 manual winners with a stop, 30 broker trades with none.
+    `calm` is on 10 of the best and on all 30 unranked trades (40 of 50): NOT a winners' habit."""
+    aid = _account(conn)
+    for i in range(20):
+        tags = ["calm", "patient"] if i < 10 else (["mixed"] if i < 18 else [])
+        if i < 10 and i >= 8:
+            tags = tags + ["mixed"]
+        _trade(conn, aid, r=float(21 - i), day_index=i, symbol=f"W{i}", emotion=tags)
+    for j in range(30):
+        tags = ["calm"] + (["mixed"] if j < 3 else [])
+        _trade(conn, aid, r=None, pnl=(50.0 if j % 2 else -50.0), day_index=100 + j, symbol=f"B{j}",
+               emotion=tags)
+    out = cs.suggest(conn, "u1", aid)
+    assert (out["winnerCount"], out["bestCount"], out["restCount"]) == (20, 20, 30)
+    assert _tag(out, "calm") is None                      # 0.5 vs 1.0: measured, never infinite
+    patient = _tag(out, "patient")                        # never in the rest: infinite, and passes
+    assert patient is not None and patient["shareOthers"] == 0.0
+    mixed = _tag(out, "mixed")                            # 10/20 vs 3/30: measured from real rows
+    assert mixed is not None and (mixed["shareBest"], mixed["shareOthers"]) == (0.5, 0.1)
+
+
+def test_when_every_trade_is_among_the_best_nothing_is_suggested(conn):
+    """No rest, nothing to compare against: an infinite lift over an empty set never passes."""
+    aid = _account(conn)
+    _book(conn, aid, winners=15, losers=0, best_tags={i: ["patient"] for i in range(15)})
+    out = cs.suggest(conn, "u1", aid)
+    assert (out["status"], out["winnerCount"], out["bestCount"], out["restCount"]) == ("ok", 15, 15, 0)
+    assert out["suggestions"] == []
+    # Control: one unranked trade outside the best is a real rest, and the tag is measured against it.
+    _trade(conn, aid, r=None, pnl=-30.0, day_index=200)
+    out2 = cs.suggest(conn, "u1", aid)
+    assert out2["restCount"] == 1 and _tag(out2, "patient")["shareOthers"] == 0.0
 
 
 def test_another_members_trades_are_never_read(conn):
@@ -315,8 +384,11 @@ def test_another_members_trades_are_never_read(conn):
     _book(conn, other, winners=20, losers=10, best_tags={i: ["patient"] for i in range(20)}, user_id="u2")
     assert cs.suggest(conn, "u2", other)["winnerCount"] == 20      # control: the book is there
     assert cs.suggest(conn, "u1", None) == {"status": "too_few", "winnerCount": 0, "bestCount": 0,
-                                            "suggestions": []}
+                                            "restCount": 0, "suggestions": []}
     assert cs.suggest(conn, "u1", aid)["winnerCount"] == 0
+    # M6: u1 naming u2's account reads nothing of u2's.
+    assert cs.suggest(conn, "u1", other) == {"status": "too_few", "winnerCount": 0, "bestCount": 0,
+                                             "restCount": 0, "suggestions": []}
 
 
 # ── 8. the route ──────────────────────────────────────────────────────────────
@@ -324,9 +396,9 @@ def test_another_members_trades_are_never_read(conn):
 @pytest.fixture
 def client(db_path, monkeypatch):
     monkeypatch.setenv(cs.FLAG, "1")
-    from api.routers import journal_two
+    from api.routers import notebook_winners_checklist
     app = FastAPI()
-    app.include_router(journal_two.router)
+    app.include_router(notebook_winners_checklist.router)
     c = TestClient(app)
     c.app_ref = app
     yield c
@@ -367,7 +439,33 @@ def test_signed_out_is_401_and_an_unpaid_member_is_402(client):
     assert client.get(URL).status_code == 401
     _as(client, plan="free")
     r = client.get(URL)
-    assert r.status_code == 402 and r.json()["detail"] == "Notebook Ask requires a paid plan"
+    assert r.status_code == 402 and r.json()["detail"] == "Checklist from my winners requires a paid plan"
+
+
+def test_journal_twos_own_gate_keeps_its_ask_sentence(db_path):
+    """R-T3-T6-R1: the route moved out; journal_two's require_paid is untouched."""
+    from fastapi import HTTPException
+    from api.routers import journal_two
+    with pytest.raises(HTTPException) as e:
+        journal_two.require_paid({"id": "u1", "role": "member", "plan": "free"})
+    assert (e.value.status_code, e.value.detail) == (402, "Notebook Ask requires a paid plan")
+    assert not any(getattr(r, "path", "").startswith("/api/j2/insights") for r in journal_two.router.routes)
+
+
+def test_the_route_reads_nothing_of_another_members_account(client, conn):
+    """M6, through the route: u1 naming u2's account id gets an empty book."""
+    other = _account(conn, user_id="u2")
+    _book(conn, other, winners=20, losers=10, best_tags={i: ["patient"] for i in range(20)}, user_id="u2")
+    _as(client, uid="u2")
+    assert client.get(URL, params={"account_id": other}).json()["winnerCount"] == 20     # control
+    _as(client, uid="u1")
+    body = client.get(URL, params={"account_id": other}).json()
+    assert (body["winnerCount"], body["suggestions"]) == (0, [])
+
+
+def test_an_overlong_account_id_is_refused(client):
+    _as(client)
+    assert client.get(URL, params={"account_id": "x" * 129}).status_code == 422
 
 
 def test_the_switch_is_read_per_request(monkeypatch):
