@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS study_items (
   review_lane      TEXT NOT NULL DEFAULT 'manual',   -- manual | deterministic | fast | second_look
   adjustment_basis TEXT,                             -- C16: split-adjusted | as-printed
   tier_scale_id    TEXT,                             -- B2: which tier vocabulary a regime key uses
+  import_flags     TEXT,                             -- JSON list of importer check failures (never silently dropped)
   reviewed_by      TEXT,
   reviewed_at      TEXT,
   created_at       TEXT NOT NULL,
@@ -189,7 +190,8 @@ CREATE TABLE IF NOT EXISTS study_profile (
   last_done_day         TEXT,
   freeze_used_week      TEXT,
   daily_goal            INTEGER NOT NULL DEFAULT 50,
-  reminder_time         TEXT,
+  reminder_time         TEXT,                        -- HH:MM in the member's own zone
+  reminder_tz           TEXT,                        -- IANA zone; NULL = America/New_York
   reminder_on           INTEGER NOT NULL DEFAULT 0,
   leaderboard_optout    INTEGER NOT NULL DEFAULT 0,
   journal_autopsy_optin INTEGER NOT NULL DEFAULT 0,
@@ -251,15 +253,31 @@ CREATE TABLE IF NOT EXISTS study_trust (
   sample_rate REAL NOT NULL DEFAULT 0.1,
   updated_at  TEXT
 );
+
+-- The frozen weekly leaderboard (study_weekly_close job, Sunday 23:59 ET).
+-- One row per closed ET week; the boot catch-up compares this to the weeks
+-- that hold XP and closes any it missed.
+CREATE TABLE IF NOT EXISTS study_weekly_close (
+  week_et   TEXT PRIMARY KEY,
+  closed_at TEXT NOT NULL,
+  rows_json TEXT NOT NULL
+);
 """
+
+#: Columns added after the first schema shipped. `CREATE TABLE IF NOT EXISTS`
+#: cannot add a column to an existing table, so each is an idempotent ALTER.
+_ALTERS = (
+    ("study_items", "import_flags", "TEXT"),
+    ("study_profile", "reminder_tz", "TEXT"),
+)
 
 _ITEM_CONTENT_FIELDS = (
     "type", "skill_id", "module", "difficulty", "prompt_json", "answer_json",
     "reveal_json", "source_kind", "source_ref", "bars_ref", "sym", "asof",
     "lesson_text", "lesson_origin", "adjustment_basis", "tier_scale_id",
-    "review_lane",
+    "review_lane", "import_flags",
 )
-_JSON_FIELDS = ("prompt_json", "answer_json", "reveal_json")
+_JSON_FIELDS = ("prompt_json", "answer_json", "reveal_json", "import_flags")
 
 #: Fields a member-facing prompt may carry. ⛔ `sym`, `answer_json`,
 #: `reveal_json`, `lesson_text` and `source_ref` are NOT here on purpose.
@@ -267,7 +285,7 @@ _PROMPT_FIELDS = ("id", "version", "type", "skill_id", "module", "difficulty",
                   "prompt_json", "bars_ref", "tier_scale_id")
 
 #: Columns a member may write through PUT /profile.
-PROFILE_EDITABLE = ("daily_goal", "reminder_time", "reminder_on",
+PROFILE_EDITABLE = ("daily_goal", "reminder_time", "reminder_tz", "reminder_on",
                     "leaderboard_optout", "journal_autopsy_optin",
                     "placement_json", "display_name")
 
@@ -316,6 +334,10 @@ def init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        for table, col, decl in _ALTERS:
+            cols = {r[1] for r in c.execute(f"PRAGMA table_info({table})")}
+            if col not in cols:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
 
 
 @contextlib.contextmanager
@@ -632,6 +654,8 @@ def update_profile(user_id: str, patch: dict) -> dict:
         clean["placement_json"] = _dumps(clean["placement_json"])
     if "display_name" in clean and clean["display_name"] is not None:
         clean["display_name"] = str(clean["display_name"]).strip()[:40] or None
+    if "reminder_tz" in clean and clean["reminder_tz"] is not None:
+        clean["reminder_tz"] = str(clean["reminder_tz"]).strip()[:64] or None
     stamp = _iso(_now_utc())
     with _write() as c:
         _ensure_profile(c, user_id, stamp)
@@ -716,9 +740,11 @@ def _band(mastery: float, reps: int) -> str:
 
 
 def _streak_after(profile: sqlite3.Row, today: str) -> tuple[int, int, str, Optional[str]]:
-    """(streak, streak_best, last_done_day, freeze_used_week) after a scored
-    answer on `today` (ET). One missed day a week is forgiven (D14: "a free
-    day each week"); the week key is the Monday of `today`'s week."""
+    """(streak, streak_best, last_done_day, freeze_used_week) after the member
+    FINISHES the daily set on `today` (ET) — §4.5: "finishing it keeps the
+    streak", so a single answered item never credits a day. One missed day a
+    week is forgiven (D14: "a free day each week"); the week key is the Monday
+    of `today`'s week."""
     streak = int(profile["streak"] or 0)
     best = int(profile["streak_best"] or 0)
     last = profile["last_done_day"]
@@ -811,12 +837,41 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
             (user_id, skill_id, mastery, reps, stamp, band),
         )
 
-        # 4. profile: xp / level / streak
+        # 4. profile: xp / level; the streak ONLY when this answer finishes
+        #    the member's daily set (§4.5) — the session row is marked finished
+        #    in the same transaction so the credit can never happen twice.
         prof = _ensure_profile(c, user_id, stamp)
         gained = (XP_CORRECT * difficulty) if correct_i else XP_WRONG
         xp = int(prof["xp"] or 0) + gained
         level = 1 + xp // XP_PER_LEVEL
-        streak, best, last_day, freeze_week = _streak_after(prof, today)
+        streak = int(prof["streak"] or 0)
+        best = int(prof["streak_best"] or 0)
+        last_day = prof["last_done_day"]
+        freeze_week = prof["freeze_used_week"]
+        daily_done = False
+        if session_id:
+            sess = c.execute(
+                "SELECT kind, day_et, finished_at, item_ids_json FROM study_sessions "
+                "WHERE id=? AND user_id=?", (session_id, user_id)).fetchone()
+            if sess and sess["kind"] == "daily" and not sess["finished_at"]:
+                ids = [i for i in (_loads(sess["item_ids_json"], []) or []) if i]
+                if ids:
+                    marks = ",".join("?" for _ in ids)
+                    n_done = c.execute(
+                        f"SELECT COUNT(DISTINCT item_id) AS n FROM study_attempts WHERE user_id=? "
+                        f"AND session_id=? AND item_id IN ({marks})",
+                        (user_id, session_id, *ids)).fetchone()["n"]
+                    if int(n_done) >= len(ids):
+                        daily_done = True
+                        n_right = c.execute(
+                            "SELECT COUNT(*) AS n FROM (SELECT item_id, MAX(correct) AS c FROM study_attempts "
+                            "WHERE user_id=? AND session_id=? GROUP BY item_id) WHERE c=1",
+                            (user_id, session_id)).fetchone()["n"]
+                        c.execute("UPDATE study_sessions SET finished_at=?, result_json=? WHERE id=?",
+                                  (stamp, _dumps({"answered": len(ids), "correct": int(n_right)}),
+                                   session_id))
+                        streak, best, last_day, freeze_week = _streak_after(
+                            prof, sess["day_et"] or today)
         c.execute(
             "UPDATE study_profile SET xp=?, level=?, streak=?, streak_best=?, last_done_day=?, "
             "freeze_used_week=?, updated_at=? WHERE user_id=?",
@@ -833,7 +888,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
                        (user_id, week)).fetchone()
     return {
         "attempt_id": attempt_id, "due_at": due_at, "xp_gained": gained, "xp": xp,
-        "level": level, "streak": streak, "streak_best": best,
+        "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done,
         "skill": {"skill_id": skill_id, "mastery": mastery, "band": band, "reps": reps},
         "week_et": week, "weekly_xp": int(wk["xp"]) if wk else gained,
     }
@@ -1081,6 +1136,84 @@ def claim_reminder(user_id: str, day_et: str) -> bool:
             return True
         except sqlite3.IntegrityError:
             return False
+
+
+def list_reminder_profiles() -> list[dict]:
+    """Members who opted into the reminder, with their chosen time and zone.
+    The reminders job reads this once per tick."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT user_id, reminder_time, reminder_tz FROM study_profile "
+            "WHERE reminder_on=1 AND reminder_time IS NOT NULL AND reminder_time != ''").fetchall()
+    return [dict(r) for r in rows]
+
+
+def daily_session_finished(user_id: str, day_et: str) -> bool:
+    """True when the member's daily set for `day_et` exists AND is finished.
+    No session yet counts as unfinished (the reminder should fire)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT finished_at FROM study_sessions WHERE user_id=? AND kind='daily' AND day_et=? "
+            "ORDER BY created_at DESC LIMIT 1", (user_id, day_et)).fetchone()
+    return bool(row and row["finished_at"])
+
+
+# ── Weekly close (the frozen leaderboard) ─────────────────────────────────────
+
+def closed_weeks() -> set[str]:
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute("SELECT week_et FROM study_weekly_close").fetchall()
+    return {r["week_et"] for r in rows}
+
+
+def weeks_with_xp(*, before_week: str) -> list[str]:
+    """Every ET week (Monday key) that holds XP and ended before `before_week`,
+    oldest first — the catch-up's candidate list."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT DISTINCT week_et FROM study_weekly_xp WHERE week_et < ? ORDER BY week_et",
+            (before_week,)).fetchall()
+    return [r["week_et"] for r in rows]
+
+
+def close_week(week_et: str, *, top: int = 50, now: Optional[datetime] = None) -> Optional[dict]:
+    """Freeze the week's leaderboard into study_weekly_close. Idempotent: a
+    week already closed is left exactly as it was and None is returned."""
+    board = leaderboard(week_et, top=top)
+    stamp = _iso(now or _now_utc())
+    with _write() as c:
+        try:
+            c.execute("INSERT INTO study_weekly_close (week_et, closed_at, rows_json) VALUES (?,?,?)",
+                      (week_et, stamp, _dumps(board["rows"])))
+        except sqlite3.IntegrityError:
+            return None
+    return {"week_et": week_et, "closed_at": stamp, "rows": board["rows"]}
+
+
+def get_week_close(week_et: str) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM study_weekly_close WHERE week_et=?", (week_et,)).fetchone()
+    if not row:
+        return None
+    return {"week_et": row["week_et"], "closed_at": row["closed_at"],
+            "rows": _loads(row["rows_json"], [])}
+
+
+# ── Reads for the importer's checks ───────────────────────────────────────────
+
+def list_question_rows(skill_ids: Iterable[str]) -> list[dict]:
+    """id, skill_id, prompt_json of every non-retired item in these skills —
+    the bank the near-duplicate check compares an import against."""
+    ids = sorted({s for s in skill_ids if s})
+    if not ids:
+        return []
+    marks = ",".join("?" for _ in ids)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"SELECT id, skill_id, prompt_json FROM study_items WHERE skill_id IN ({marks}) "
+            f"AND review_status != ?", (*ids, STATUS_RETIRED)).fetchall()
+    return [{"id": r["id"], "skill_id": r["skill_id"], "prompt_json": _loads(r["prompt_json"], {})}
+            for r in rows]
 
 
 # ── Badges / checkpoints (thin; Phase 1 wires the rules) ─────────────────────

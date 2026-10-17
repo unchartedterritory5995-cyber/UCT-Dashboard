@@ -208,9 +208,18 @@ def test_attempt_scores_server_side_and_reveals_after(paid_client, store):
     assert rev["lesson"] == "The third contraction was the tell."
     assert rev["outcome"] == "target hit" and rev["answer"] == {"answer": "yes"}
     assert rev["forward_bars"] == FWD[:study_router.REVEAL_FORWARD_BARS] and rev["forward_total"] == 30
-    assert body["progress"]["xp_gained"] == ss.XP_CORRECT * 3 and body["progress"]["streak"] == 1
+    # one answer never credits the streak (§4.5: finishing the set does)
+    assert body["progress"]["xp_gained"] == ss.XP_CORRECT * 3 and body["progress"]["streak"] == 0
+    assert body["progress"]["daily_done"] is False
     assert body["skill"]["skill_id"] == "setup.vcp"
     assert paid_client.get("/api/study/today").json()["answered_item_ids"] == ["si_spot1"]
+    # finish the rest of today's set → the streak is credited on the last one
+    last = None
+    for iid in [i["id"] for i in today["items"] if i["id"] != "si_spot1"]:
+        last = paid_client.post("/api/study/attempts", json={"item_id": iid, "answer": "x",
+                                                             "session_id": today["session_id"]}).json()
+    assert last["progress"]["streak"] == 1 and last["progress"]["daily_done"] is True
+    assert paid_client.get("/api/study/today").json()["finished_at"]
 
 
 def test_wrong_attempt_and_non_chart_reveal(paid_client, store):

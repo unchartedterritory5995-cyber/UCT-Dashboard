@@ -58,8 +58,40 @@ def test_items_schema_carries_the_sweep_columns(store):
     with contextlib.closing(_conn(store)) as c:
         cols = {r[1] for r in c.execute("PRAGMA table_info(study_items)")}
     for col in ("lesson_text", "lesson_origin", "review_status", "adjustment_basis", "tier_scale_id",
-                "review_lane", "sym", "asof", "bars_ref"):
+                "review_lane", "sym", "asof", "bars_ref", "import_flags"):
         assert col in cols, col
+    with contextlib.closing(_conn(store)) as c:
+        names = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "study_weekly_close" in names
+        assert "reminder_tz" in {r[1] for r in c.execute("PRAGMA table_info(study_profile)")}
+
+
+def test_init_db_adds_the_altered_columns_to_an_older_db(store):
+    """A study.db created before import_flags / reminder_tz existed gains them
+    on the next init_db (CREATE TABLE IF NOT EXISTS alone cannot do that)."""
+    with contextlib.closing(_conn(store)) as c:
+        c.execute("ALTER TABLE study_items DROP COLUMN import_flags")
+        c.execute("ALTER TABLE study_profile DROP COLUMN reminder_tz")
+        c.commit()
+    store.init_db()
+    with contextlib.closing(_conn(store)) as c:
+        assert "import_flags" in {r[1] for r in c.execute("PRAGMA table_info(study_items)")}
+        assert "reminder_tz" in {r[1] for r in c.execute("PRAGMA table_info(study_profile)")}
+
+
+def test_close_week_freezes_the_board_once(store):
+    store.upsert_items([_item()])
+    store.approve("si_000000000001", "owner")
+    store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=T0)
+    store.record_attempt("u2", "si_000000000001", "a", False, 0.0, now=T0)
+    week = store.week_of(store.et_day_of(T0))
+    out = store.close_week(week, now=T0)
+    assert out["week_et"] == week and [r["xp"] for r in out["rows"]] == [20, 2]
+    assert store.close_week(week, now=T0) is None                      # idempotent
+    assert store.closed_weeks() == {week}
+    assert store.get_week_close(week)["rows"][0]["xp"] == 20
+    assert store.weeks_with_xp(before_week="2099-01-01") == [week]
+    assert store.weeks_with_xp(before_week=week) == []
     with contextlib.closing(_conn(store)) as c:
         acols = {r[1] for r in c.execute("PRAGMA table_info(study_attempts)")}
         pcols = {r[1] for r in c.execute("PRAGMA table_info(study_profile)")}
@@ -146,7 +178,8 @@ def test_record_attempt_writes_all_five_tables(store):
     r = store.record_attempt("u1", "si_000000000001", {"answer": "a"}, True, 1.0, time_ms=900,
                              session_id="ss_x", now=T0)
     assert r["xp_gained"] == store.XP_CORRECT * 2          # difficulty 2
-    assert r["streak"] == 1 and r["level"] == 1
+    assert r["streak"] == 0 and r["level"] == 1             # no daily set finished → no streak credit
+    assert r["daily_done"] is False
     with contextlib.closing(_conn(store)) as c:
         assert c.execute("SELECT COUNT(*) FROM study_attempts").fetchone()[0] == 1
         assert c.execute("SELECT COUNT(*) FROM study_item_state").fetchone()[0] == 1
@@ -243,21 +276,59 @@ def test_list_due_adds_a_stale_skill_item_when_slots_remain(store):
 
 # ── streak + weekly xp ────────────────────────────────────────────────────────
 
+def _finish_daily(store, user, item_ids, when):
+    """Create the day's daily set and answer every item in it; return the last
+    record_attempt result (the one that completes the set)."""
+    day = store.et_day_of(when)
+    s = store.create_session(user, "daily", item_ids, day_et=day, now=when)
+    r = None
+    for iid in item_ids:
+        r = store.record_attempt(user, iid, "a", True, 1.0, session_id=s["id"], now=when)
+    return r
+
+
+def test_streak_credits_only_when_the_daily_set_is_finished(store):
+    """§4.5: finishing Today's Study keeps the streak. Answering some of it, or
+    practising outside the daily set, credits nothing."""
+    store.upsert_items([_item("si_1"), _item("si_2")])
+    store.approve("si_1", "owner")
+    store.approve("si_2", "owner")
+    # practice outside any session: no credit
+    r = store.record_attempt("u1", "si_1", "a", True, 1.0, now=T0)
+    assert r["streak"] == 0 and r["daily_done"] is False
+    # half the daily set: no credit
+    s = store.create_session("u1", "daily", ["si_1", "si_2"], day_et=store.et_day_of(T0), now=T0)
+    r = store.record_attempt("u1", "si_1", "a", False, 0.0, session_id=s["id"], now=T0)
+    assert r["streak"] == 0 and r["daily_done"] is False
+    assert store.get_session(s["id"])["finished_at"] is None
+    # the last item: finished, credited, session closed with its result
+    r = store.record_attempt("u1", "si_2", "a", True, 1.0, session_id=s["id"], now=T0)
+    assert r["streak"] == 1 and r["daily_done"] is True
+    sess = store.get_session(s["id"])
+    assert sess["finished_at"] and sess["result"] == {"answered": 2, "correct": 1}
+    # answering again inside a finished set never credits twice
+    r = store.record_attempt("u1", "si_1", "a", True, 1.0, session_id=s["id"], now=T0)
+    assert r["streak"] == 1 and r["daily_done"] is False
+    assert store.daily_session_finished("u1", store.et_day_of(T0)) is True
+    assert store.daily_session_finished("u1", "2000-01-01") is False
+
+
 def test_streak_counts_days_with_one_free_day_a_week(store):
     store.upsert_items([_item()])
     store.approve("si_000000000001", "owner")
     day = T0
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day)
+    ids = ["si_000000000001"]
+    r = _finish_daily(store, "u1", ids, day)
     assert r["streak"] == 1
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day)        # same day
+    r = _finish_daily(store, "u1", ids, day)                                   # same day, a second set
     assert r["streak"] == 1
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day + timedelta(days=1))
+    r = _finish_daily(store, "u1", ids, day + timedelta(days=1))
     assert r["streak"] == 2
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day + timedelta(days=3))
+    r = _finish_daily(store, "u1", ids, day + timedelta(days=3))
     assert r["streak"] == 3                                   # Thu: Wed forgiven (the week's free day)
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day + timedelta(days=5))
+    r = _finish_daily(store, "u1", ids, day + timedelta(days=5))
     assert r["streak"] == 1 and r["streak_best"] == 3         # Sat: a second miss in the SAME week resets
-    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=day + timedelta(days=7))
+    r = _finish_daily(store, "u1", ids, day + timedelta(days=7))
     assert r["streak"] == 2                                   # Mon next week: Sun forgiven (new week)
 
 

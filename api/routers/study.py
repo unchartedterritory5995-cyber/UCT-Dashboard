@@ -262,7 +262,8 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     return {"attempt_id": result["attempt_id"], "item_id": item["id"],
             "correct": verdict.correct, "score": verdict.score, "reveal": reveal,
             "progress": {k: result[k] for k in ("xp_gained", "xp", "level", "streak",
-                                                "streak_best", "due_at", "weekly_xp")},
+                                                "streak_best", "due_at", "weekly_xp",
+                                                "daily_done")},
             "skill": result["skill"]}
 
 
