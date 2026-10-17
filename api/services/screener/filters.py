@@ -400,6 +400,9 @@ FILTERS = dict([
             {"label": "Up >5%", "op": "gte", "min": 5},
             {"label": "Down >3%", "op": "lte", "max": -3}], unit="%",
            description=PREMARKET_DESCRIPTION),
+    # A bare control (no editorial thresholds) over the leading base's pivot. The
+    # "Setups gapping pre-market" starter screens on its PRESENCE (`>= 0`).
+    _open_range("base_pivot_px", "Base Pivot", "pattern", "base_pivot_px", unit="$"),
     _range("premarket_price", "Pre-mkt price", "technical", "premarket_price",
            [{"label": "Any"}, {"label": "Over $5", "op": "gte", "min": 5},
             {"label": "Over $10", "op": "gte", "min": 10}], unit="$",
@@ -1353,6 +1356,11 @@ def _log_if_slow(label, total_s, parts):
         " ".join(f"{k}={v:.1f}s" for k, v in parts.items()))
 
 
+def _premarket_columns() -> frozenset:
+    from . import premarket  # noqa: PLC0415 - lazy, like the snapshot read beside it
+    return frozenset(premarket.COLUMNS)
+
+
 def _live_only_columns() -> frozenset:
     from . import snapshot_db  # noqa: PLC0415 - lazy: the registry stays import-light
     return frozenset(getattr(snapshot_db, "LIVE_ONLY_COLUMNS", ()))
@@ -1388,6 +1396,11 @@ def _build_shared_filters(dist):
         # session" for a zero that the hour caused instead of "none today".
         if f["column"] in _live_only_columns():
             entry["live_only"] = True
+        # ⭐ ...and of those, the two that fill only 04:00-09:30 ET (the pre-market
+        # sweep's own declaration), so the empty state can say "pre-market" rather
+        # than "live during the session" for a zero the hour caused.
+        if f["column"] in _premarket_columns():
+            entry["premarket_only"] = True
         if f["type"] == "range":
             band = bands.get(f["column"])
             if band is not None:

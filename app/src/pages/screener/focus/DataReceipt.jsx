@@ -23,6 +23,28 @@ export function liveClock(live) {
 }
 const columnName = c => plainColumnLabel(c) || COLUMN_DEFS[c]?.label || c
 
+// Pre-market mode (spec 2026-10-16 §2). `premarket` is the scan's `snapshot.premarket`
+// ({state, as_of}), present only while the server serves the pre-market columns to this user.
+// It labels the screen only while it is CURRENT: under the serving age (180 s) and inside the
+// pre-market window on the ET clock, so a page left open past 9:30 never keeps saying it.
+export const PREMARKET_MAX_AGE_S = 180
+const PREMARKET_COLUMNS = ['premarket_chg_pct', 'premarket_price']
+function etMinutes(ms) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+  }).formatToParts(new Date(ms)).map(p => [p.type, p.value]))
+  return { weekday: parts.weekday, minutes: Number(parts.hour) * 60 + Number(parts.minute) }
+}
+// eslint-disable-next-line react-refresh/only-export-components -- a pure helper the tests read
+export function premarketCurrent(pm, now = Date.now()) {
+  const v = pm?.as_of
+  if (pm?.state !== 'premarket' || typeof v !== 'number' || !Number.isFinite(v)) return false
+  const age = now / 1000 - v
+  if (age < 0 || age > PREMARKET_MAX_AGE_S) return false
+  const { weekday, minutes } = etMinutes(now)
+  return weekday !== 'Sat' && weekday !== 'Sun' && minutes >= 4 * 60 && minutes < 9 * 60 + 30
+}
+
 // What the button and the popover say. `live` is the scan's `snapshot.live` (query.py
 // live_screen_state): `state === 'live'` only when rows on this page carry values the minute
 // sweep recomputed, and `columns` names exactly those columns. Live time leads; the nightly
@@ -30,7 +52,7 @@ const columnName = c => plainColumnLabel(c) || COLUMN_DEFS[c]?.label || c
 // missed nightly is still said out loud for the columns it owns.
 // P7: a snapshot more than one session old is said out loud (amber), never a quiet date change.
 // `now` is injectable for tests.
-export default function DataReceipt({ snapshotDate, live, coverage, now }) {
+export default function DataReceipt({ snapshotDate, live, premarket, coverage, now }) {
   const [open, setOpen] = useState(false)
   const box = useRef(null)
   const btn = useRef(null)
@@ -52,7 +74,9 @@ export default function DataReceipt({ snapshotDate, live, coverage, now }) {
   // Staleness is computed at RENDER: there is no timer, so a page left open across a missed
   // nightly turns stale on its next render (a scan answer, a live tick, any interaction).
   const stale = !!when && isStaleSnapshot(snapshotDate, now)
-  const isLive = live?.state === 'live'
+  const isPre = premarketCurrent(premarket, now)
+  const preClock = isPre ? liveClock(premarket) : null
+  const isLive = !isPre && live?.state === 'live'
   const clock = isLive ? liveClock(live) : null
   const liveCols = isLive ? (live.columns || []).map(columnName) : []
   const nightlyShort = when ? when.replace(/ close$/, '') : null
@@ -60,15 +84,22 @@ export default function DataReceipt({ snapshotDate, live, coverage, now }) {
     <span className={styles.menuWrap} ref={box} onKeyDown={onKeyDown}>
       <button ref={btn} type="button" className={styles.receiptBtn} aria-expanded={open} aria-controls={open ? id : undefined}
         onClick={() => setOpen(o => !o)}>
-        <span className={isLive ? styles.liveDot : styles.idleDot} aria-hidden="true" />
-        {isLive
+        <span className={isLive || isPre ? styles.liveDot : styles.idleDot} aria-hidden="true" />
+        {isPre
+          ? <>Pre-market{preClock ? ` · ${preClock}` : ''}</>
+          : isLive
           ? <>Live{clock ? ` · ${clock}` : ''}{stale && nightlyShort ? <> · <span className={styles.staleTag}>nightly {nightlyShort}</span></> : null}</>
           : <span className={stale ? styles.staleTag : undefined}>{day(snapshotDate)}{stale ? ' · stale' : ''}</span>}
         <span className={styles.infoMark} aria-hidden="true">i</span>
       </button>
       {open && (
         <div id={id} role="region" aria-label="About this data" className={`${styles.menu} ${styles.menuRight} ${styles.receipt}`}>
-          {isLive ? (
+          {isPre ? (
+            <>
+              <p className={styles.receiptHead}>Pre-market{preClock ? `, updated ${preClock} ET` : ''}: {PREMARKET_COLUMNS.map(columnName).join(', ')}. From the last pre-market trade, 4:00 to 9:30 ET. No pre-market volume is available.</p>
+              <p className={styles.receiptHead}>Everything else on this screen is from the {when || 'latest close'}.</p>
+            </>
+          ) : isLive ? (
             <>
               <p className={styles.receiptHead}>Live{clock ? `, updated ${clock} ET` : ''}: {liveCols.join(', ')}. These refresh about once a minute while the market is open.</p>
               <p className={styles.receiptHead}>Everything else on this screen (RS rank, volume vs avg, ratings, fundamentals and patterns) is from the {when || 'latest close'}.</p>

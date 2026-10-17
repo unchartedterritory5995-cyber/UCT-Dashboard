@@ -385,7 +385,7 @@ def stub_services(monkeypatch):
                      "is_public": True, "share_token": SHARE_TOKEN}
     monkeypatch.setattr(scr_saved, "init", lambda: None)
     monkeypatch.setattr(scr_saved, "list_for", lambda uid: [])
-    monkeypatch.setattr(scr_saved, "starters", lambda: [])
+    monkeypatch.setattr(scr_saved, "starters", lambda user=None: [])
     monkeypatch.setattr(scr_saved, "create",
                         lambda uid, name, spec, is_public=False: {"id": 1, "name": name})
     monkeypatch.setattr(scr_saved, "update",

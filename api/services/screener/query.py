@@ -1919,6 +1919,17 @@ def run_scan(spec, user_id=None, user=None):
                     ranked=_count(plan["where"], plan["describe_params"][
                         len(plan["overlay"].join_params):]))
             stale_block = _stale_block(conn, plan)
+            # ⭐ WHEN THE PRE-MARKET VALUES ARE FROM — only when `pm` is serving, so an
+            # ordinary response is byte-identical to before. Same session date and age
+            # cutoff the join bound, so the clock describes exactly the values served.
+            premarket_block = None
+            if plan["overlay"].pm_on:
+                ymd, age_cut = plan["overlay"].pm_params
+                pm_asof = conn.execute(
+                    f"SELECT MAX(premarket_asof) FROM {_pm_mod.TABLE} "
+                    "WHERE session_ymd = ? AND premarket_asof >= ?",
+                    (ymd, age_cut)).fetchone()[0]
+                premarket_block = {"state": "premarket", "as_of": pm_asof}
     out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
@@ -1956,6 +1967,8 @@ def run_scan(spec, user_id=None, user=None):
     # the gate bit, so an ordinary response is byte-identical to before.
     if stale_block:
         snap["stale"] = stale_block
+    if premarket_block:
+        snap["premarket"] = premarket_block
     # `total` IS the described row count. One `GROUP BY` already counted every
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.

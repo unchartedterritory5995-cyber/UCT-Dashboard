@@ -414,7 +414,12 @@ def screener_snapshot_status(user=Depends(require_paid)):
     `query.live_tier_state()` — read the block comment above it before changing
     any of these words.
     """
-    return {**scr_db.status(), "live": scr_query.live_tier_state()}
+    # ⭐ The pre-market sweep's last receipt (spec 2026-10-16 §2), for a user the flag
+    # reaches; None otherwise, so a member at `admin` reads the same "off" the scan
+    # gives them.
+    from api.services.screener import premarket as _pm
+    return {**scr_db.status(), "live": scr_query.live_tier_state(),
+            "premarket": _pm.last_receipt() if _pm.served_to(user) else None}
 
 
 @router.get("/api/screener/volume-curve")
@@ -1055,7 +1060,7 @@ def screener_earnings_context_status(user=Depends(require_admin)):
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
-    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters()}
+    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
 
 
 @router.post("/api/screener/saved-screens")
