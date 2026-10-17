@@ -1,0 +1,20 @@
+P4a Task 8 -- first-open closure bytes (raw measurement is bytes.txt + perf-budgets.json; build.log is the build)
+
+measured now (tip 74570dd4a0; product code identical to 3bf5352f01):  2,260,253 B across 61 JS chunks
+V10, Task 1 (commit 1777bfeb06, docs/notebook/evidence/p4a-verify-2026-10-17T13-29-31/perf-budgets.json): 2,259,916 B across 61 JS chunks
+delta vs V10: +337 B
+brief's ceiling (V10 + 120 B): 2,260,036 B   ->   OVER the ceiling by 217 B
+the tool's own budget (docs/notebook/perf-budgets.json): 2,260,793 B   ->   the tool says PASS (540 B under)
+
+Which first-open chunks grew (chunk sizes from the two builds; "largest 8" from the tool's --json, the rest from the two vite build logs at 0.01 kB resolution):
+  assets/index-*.js            576,354 -> 576,585   +231 B   (the app entry; its hash changed, index-DuCWD7PS -> index-BYcIAaPu)
+  assets/tiptap-*.js           282,859 -> 282,945    +86 B
+  assets/reviewDraftsFlag-*.js     733 ->     813    +80 B   (this chunk now holds lib/dailyNote.js: the daily-note helpers; 0.73 -> 0.81 kB)
+  assets/NotebookFlagGate-*.js 352,557 -> 352,497    -60 B
+  sum: +231 +86 +80 -60 = +337 B   (matches the delta exactly)
+
+Not measured: which commit moved each chunk. Inference only: `git diff 1777bfeb06..HEAD --stat` over non-test app/src shows these eager-side edits between V10 and now:
+lib/dailyNote.js (+4 lines, matches the reviewDraftsFlag chunk), lib/offline/notebookFlags.js (+1), tabs/NotebookTab.jsx (4), tabs/CalendarTab.jsx (9),
+components/calendar/DayDetailPage.jsx (9), hooks/useJ2DayNotesMutation.js (90), lib/dayBasis.js (+29), plus screener files from a master merge.
+Everything else added since (the editor, the slot, the panels, pageLayouts.js, TodaySurface, TradeDetailPage) is behind a lazy import and is not in this closure.
+This task's own edits (PageLayoutEditor.jsx/.css, tests, tools) are all outside the closure; nothing was trimmed.

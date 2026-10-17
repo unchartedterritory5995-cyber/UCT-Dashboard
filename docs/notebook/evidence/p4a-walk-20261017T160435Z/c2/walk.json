@@ -1,0 +1,3778 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:35+00:00",
+   "email": "q1c2m3135442@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:37+00:00",
+   "email": "q1c2pl12803135975@local.dev",
+   "account": "0fd9c255-e179-4a3e-ab0a-8b1899c2bb55",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "eaaeae4e-1c4c-473b-a5f0-0b79b817ce78",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:39+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"56f3fd0a-646\",\"user_id\":\"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:05:37.669461+00:00\",\"updated_at\":\"2026-10-17T16:05:38.509720+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize-097bdc29.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:41+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regi-508bc698.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:45+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"56f3fd0a-646\",\"user_id\":\"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:05:37.669461+00:00\",\"updated_at\":\"2026-10-17T16:05:42.912525+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:46+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clo-62c57305.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.customize-trade",
+   "step": "Trade page: Chart hidden, The story first, Save -> the page shows the story first and no chart",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:54+00:00",
+   "trade_id": "eaaeae4e-1c4c-473b-a5f0-0b79b817ce78",
+   "order_before": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "order_after_save": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_trade_first_three": [
+    {
+     "id": "story",
+     "shown": true
+    },
+    {
+     "id": "linkedNotes",
+     "shown": true
+    },
+    {
+     "id": "entryContext",
+     "shown": true
+    }
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=W&bars=600&warm=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"56f3fd0a-646\",\"user_id\":\"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:05:37.669461+00:00\",\"updated_at\":\"2026-10-17T16:05:48.158868+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"s",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-1280-page_layouts.customize-trade-Trade-page-Chart-hidden-The-story-first-Save---the-page-shows-t-12d705e4.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:05:58+00:00",
+   "panel_order": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"56f3fd0a-646\",\"user_id\":\"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:05:37.669461+00:00\",\"updated_at\":\"2026-10-17T16:05:55.221660+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-1280-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-res-684a87b5.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.reset",
+   "step": "Reset to default on the trade page and on Today, Save, reload: both pages and both stored lists are the registry's",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:18+00:00",
+   "trade": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "outcome",
+     "chart",
+     "story",
+     "executions",
+     "review"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "today": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "weekStrip",
+     "goalProgress",
+     "quickActions"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=1&bars=960&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/eaaeae4e-1c4c-473b-a5f0-0b79b817ce78\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"56f3fd0a-646\",\"user_id\":\"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:05:37.669461+00:00\",\"updated_at\":\"2026-10-17T16:06:12.346156+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.reset-Reset-to-default-on-the-trade-page-and-on-Today-Save-reload-both-pages-an-76a834c7.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:40+00:00",
+   "email": "q1c2pl8203178709@local.dev",
+   "account": "0af582db-dadd-4fec-9244-678498804798",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "2d3adce8-0e3b-47cf-afd7-8fb6b782dd87",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:41+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"f02f8020-711\",\"user_id\":\"78729948-ff98-429a-8aaf-ca31dd638d86\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:06:40.814799+00:00\",\"updated_at\":\"2026-10-17T16:06:41.078301+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize--78a10a6e.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:43+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regim-cb6f5ddc.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:47+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"f02f8020-711\",\"user_id\":\"78729948-ff98-429a-8aaf-ca31dd638d86\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:06:40.814799+00:00\",\"updated_at\":\"2026-10-17T16:06:43.859785+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:48+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clos-68e9e07e.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.customize-trade",
+   "step": "Trade page: Chart hidden, The story first, Save -> the page shows the story first and no chart",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:54+00:00",
+   "trade_id": "2d3adce8-0e3b-47cf-afd7-8fb6b782dd87",
+   "order_before": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "order_after_save": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_trade_first_three": [
+    {
+     "id": "story",
+     "shown": true
+    },
+    {
+     "id": "linkedNotes",
+     "shown": true
+    },
+    {
+     "id": "entryContext",
+     "shown": true
+    }
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 27,
+    "inline_links": 0,
+    "under": 10,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 280,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 742,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 772,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"f02f8020-711\",\"user_id\":\"78729948-ff98-429a-8aaf-ca31dd638d86\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:06:40.814799+00:00\",\"updated_at\":\"2026-10-17T16:06:49.310075+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"s",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-820-page_layouts.customize-trade-Trade-page-Chart-hidden-The-story-first-Save---the-page-shows-th-0c450f4a.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:06:58+00:00",
+   "panel_order": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 27,
+    "inline_links": 0,
+    "under": 10,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 280,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 742,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 772,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"f02f8020-711\",\"user_id\":\"78729948-ff98-429a-8aaf-ca31dd638d86\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:06:40.814799+00:00\",\"updated_at\":\"2026-10-17T16:06:55.238787+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-820-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-rest-3b487f78.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.reset",
+   "step": "Reset to default on the trade page and on Today, Save, reload: both pages and both stored lists are the registry's",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:19+00:00",
+   "trade": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "outcome",
+     "chart",
+     "story",
+     "executions",
+     "review"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "today": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "weekStrip",
+     "goalProgress",
+     "quickActions"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/2d3adce8-0e3b-47cf-afd7-8fb6b782dd87\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"f02f8020-711\",\"user_id\":\"78729948-ff98-429a-8aaf-ca31dd638d86\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:06:40.814799+00:00\",\"updated_at\":\"2026-10-17T16:07:12.866053+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.reset-Reset-to-default-on-the-trade-page-and-on-Today-Save-reload-both-pages-and-02f1ba9d.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:19+00:00",
+   "email": "q1c2pl3903239239@local.dev",
+   "account": "1bd8473c-986a-4cff-85a8-0cb261148cf0",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "5d547cf1-2a06-46ac-93d7-ec7d39696eab",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:21+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6efadf97-409\",\"user_id\":\"dac9e455-d359-4564-bbd9-1cbd4a382507\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:07:20.709984+00:00\",\"updated_at\":\"2026-10-17T16:07:21.117950+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize--20dbe084.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.editor-loading",
+   "step": "390: pressing Customize while the editor chunk is still loading (PARKED finding: the slot's Suspense fallback is null)",
+   "verdict": "INFO",
+   "at": "2026-10-17T16:07:23+00:00",
+   "chunk_requests_held": 1,
+   "shown_while_loading": {
+    "dialogs": 0,
+    "busy": 0,
+    "statuses": []
+   },
+   "nothing_shown": true,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.editor-loading-390-pressing-Customize-while-the-editor-chunk-is-still-loading-PA-095e80ff.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:24+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regim-2c183fd7.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:28+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6efadf97-409\",\"user_id\":\"dac9e455-d359-4564-bbd9-1cbd4a382507\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:07:20.709984+00:00\",\"updated_at\":\"2026-10-17T16:07:24.971084+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:29+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clos-0277bf6e.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.customize-trade",
+   "step": "Trade page: Chart hidden, The story first, Save -> the page shows the story first and no chart",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:35+00:00",
+   "trade_id": "5d547cf1-2a06-46ac-93d7-ec7d39696eab",
+   "order_before": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "order_after_save": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_trade_first_three": [
+    {
+     "id": "story",
+     "shown": true
+    },
+    {
+     "id": "linkedNotes",
+     "shown": true
+    },
+    {
+     "id": "entryContext",
+     "shown": true
+    }
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 27,
+    "inline_links": 0,
+    "under": 10,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 362,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 332,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 362,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6efadf97-409\",\"user_id\":\"dac9e455-d359-4564-bbd9-1cbd4a382507\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:07:20.709984+00:00\",\"updated_at\":\"2026-10-17T16:07:30.323948+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"s",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-390-page_layouts.customize-trade-Trade-page-Chart-hidden-The-story-first-Save---the-page-shows-th-051cd5df.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:39+00:00",
+   "panel_order": [
+    "story",
+    "outcome",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 27,
+    "inline_links": 0,
+    "under": 10,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 362,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 332,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 362,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6efadf97-409\",\"user_id\":\"dac9e455-d359-4564-bbd9-1cbd4a382507\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:07:20.709984+00:00\",\"updated_at\":\"2026-10-17T16:07:36.279925+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-390-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-rest-d392f740.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.reset",
+   "step": "Reset to default on the trade page and on Today, Save, reload: both pages and both stored lists are the registry's",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:07:59+00:00",
+   "trade": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "outcome",
+     "chart",
+     "story",
+     "executions",
+     "review"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "today": {
+    "rows": true,
+    "sheet_closed": true,
+    "toast": true,
+    "order": [
+     "weekStrip",
+     "goalProgress",
+     "quickActions"
+    ],
+    "order_is_default": true,
+    "stored_is_registry": true
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/5d547cf1-2a06-46ac-93d7-ec7d39696eab\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6efadf97-409\",\"user_id\":\"dac9e455-d359-4564-bbd9-1cbd4a382507\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:07:20.709984+00:00\",\"updated_at\":\"2026-10-17T16:07:53.849720+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.reset-Reset-to-default-on-the-trade-page-and-on-Today-Save-reload-both-pages-and-a2153f37.png"
+  },
+  {
+   "tip": "0616828caa",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.coverage",
+   "step": "every page-layouts feature left a row at each of its viewports",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:08:00+00:00",
+   "missing": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-p4a-walk2\\c2",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "JOURNAL_PAGE_LAYOUTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p4a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T11-04-53.md (identity 610e9767d9f4..., data dir C:\\data-p4a-walk2\\c2)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\p4a-walk-20261017T160435Z\\c2\\integrity-c2.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-17 11:04:58",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-17 11:05:34",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-17 11:07:26",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-17 11:08:06",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p4a-walk-20261017T160435Z\\c2\\integrity-c2.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tip": "0616828caa",
+ "tool_tree": "0616828caa467fc2edadb2c4f9cb2d750837784a",
+ "started": "2026-10-17T16:04:49+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED"
+  ],
+  "c1": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verify": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verifygrip": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"0fd9c255-e179-4a3e-ab0a-8b1899c2bb55\"}",
+   "response": "{\"id\": \"c9a29007-51a9-4b9b-867f-f1afb84d46a5\", \"userId\": \"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\", \"accountId\": \"0fd9c255-e179-4a3e-ab0a-8b1899c2bb55\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:05:36.657913+00:00\", \"updatedAt\": \"2026-10-17T16:05:36.657913+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"0fd9c255-e179-4a3e-ab0a-8b1899c2bb55\"}",
+   "response": "{\"id\": \"7eaa7308-b597-4bf1-ad10-5c6cb6bba0a1\", \"userId\": \"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\", \"accountId\": \"0fd9c255-e179-4a3e-ab0a-8b1899c2bb55\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:05:37.035875+00:00\", \"updatedAt\": \"2026-10-17T16:05:37.035875+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions/7eaa7308-b597-4bf1-ad10-5c6cb6bba0a1/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"eaaeae4e-1c4c-473b-a5f0-0b79b817ce78\", \"userId\": \"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\", \"positionId\": \"7eaa7308-b597-4bf1-ad10-5c6cb6bba0a1\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:05:37.077750+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"7eaa7308-b597-4bf1-ad10-5c6cb6bba0a1\", \"userId\": \"81a8ea89-eb91-4faf-8eeb-7c8ea8c2eff5\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:05:37.035875+00:00\", \"updatedAt\": \"2026-10-17T16:05:37.077750+00:00\", \"closedAt\": \"2026-10-17T16:05:37.077750+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"0af582db-dadd-4fec-9244-678498804798\"}",
+   "response": "{\"id\": \"9d5e86f8-7a99-4201-9856-29471edc868a\", \"userId\": \"78729948-ff98-429a-8aaf-ca31dd638d86\", \"accountId\": \"0af582db-dadd-4fec-9244-678498804798\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:06:40.164698+00:00\", \"updatedAt\": \"2026-10-17T16:06:40.164698+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"0af582db-dadd-4fec-9244-678498804798\"}",
+   "response": "{\"id\": \"e166a3bf-697d-4981-94e8-63b1c4a0b43a\", \"userId\": \"78729948-ff98-429a-8aaf-ca31dd638d86\", \"accountId\": \"0af582db-dadd-4fec-9244-678498804798\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:06:40.211348+00:00\", \"updatedAt\": \"2026-10-17T16:06:40.211348+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions/e166a3bf-697d-4981-94e8-63b1c4a0b43a/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"2d3adce8-0e3b-47cf-afd7-8fb6b782dd87\", \"userId\": \"78729948-ff98-429a-8aaf-ca31dd638d86\", \"positionId\": \"e166a3bf-697d-4981-94e8-63b1c4a0b43a\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:06:40.255763+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"e166a3bf-697d-4981-94e8-63b1c4a0b43a\", \"userId\": \"78729948-ff98-429a-8aaf-ca31dd638d86\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:06:40.211348+00:00\", \"updatedAt\": \"2026-10-17T16:06:40.255763+00:00\", \"closedAt\": \"2026-10-17T16:06:40.255763+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"1bd8473c-986a-4cff-85a8-0cb261148cf0\"}",
+   "response": "{\"id\": \"25155703-9374-4945-b403-bb16f99f25d3\", \"userId\": \"dac9e455-d359-4564-bbd9-1cbd4a382507\", \"accountId\": \"1bd8473c-986a-4cff-85a8-0cb261148cf0\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:07:19.784765+00:00\", \"updatedAt\": \"2026-10-17T16:07:19.784765+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"1bd8473c-986a-4cff-85a8-0cb261148cf0\"}",
+   "response": "{\"id\": \"f3b96ffb-34c9-4ea3-8ff9-3b87346f56e1\", \"userId\": \"dac9e455-d359-4564-bbd9-1cbd4a382507\", \"accountId\": \"1bd8473c-986a-4cff-85a8-0cb261148cf0\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:07:19.809542+00:00\", \"updatedAt\": \"2026-10-17T16:07:19.809542+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions/f3b96ffb-34c9-4ea3-8ff9-3b87346f56e1/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"5d547cf1-2a06-46ac-93d7-ec7d39696eab\", \"userId\": \"dac9e455-d359-4564-bbd9-1cbd4a382507\", \"positionId\": \"f3b96ffb-34c9-4ea3-8ff9-3b87346f56e1\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:07:19.872646+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"f3b96ffb-34c9-4ea3-8ff9-3b87346f56e1\", \"userId\": \"dac9e455-d359-4564-bbd9-1cbd4a382507\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:07:19.809542+00:00\", \"updatedAt\": \"2026-10-17T16:07:19.872646+00:00\", \"closedAt\": \"2026-10-17T16:07:19.872646+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  }
+ ],
+ "finished": "2026-10-17T16:08:38+00:00"
+}

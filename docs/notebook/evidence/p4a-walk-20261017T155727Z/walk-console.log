@@ -1,0 +1,40 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m2898838@local.dev"} 
+PASS    [c2 1280] page_layouts.setup: the member has an account, one open position and one closed trade (member API) {"email": "q1c2pl12802899587@local.dev", "account": "32afdd03-a779-432a-9759-d819e4c58d84", "open_status": 200, "second_status": 200, "close_status": 200, "trade_id": "a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f"} 
+PASS    [c2 1280] page_layouts.today-order: Today opens with its default panels in the registry order; Customize is in the header {"customize_visible": true} 
+PASS    [c2 1280] page_layouts.customize-today: Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says "Layout saved." {"phase": "After close", "moves_up": 6, "sheet_closed": true, "toast_seen": true} 
+PASS    [c2 1280] page_layouts.today-reload: Reload: Market regime renders first and My rules renders {"regime_region": true, "my_rules_region": true, "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then "} 
+PASS    [c2 1280] page_layouts.other-phase: Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing {"edited_phase": "After close", "other_phase": "Premarket", "sheet_closed": true, "preference_writes_during_step": 0} 
+FAIL    [c2 1280] page_layouts.customize-trade: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} 
+FAIL    [c2 1280] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order {} 
+FAIL    [c2 1280] page_layouts.reset: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} 
+PASS    [c2 820] page_layouts.setup: the member has an account, one open position and one closed trade (member API) {"email": "q1c2pl8202927950@local.dev", "account": "6612a511-8e0d-427a-81b1-e1f85ff8f88f", "open_status": 200, "second_status": 200, "close_status": 200, "trade_id": "243653c9-645d-4247-bf9f-5421c6898a13"} 
+PASS    [c2 820] page_layouts.today-order: Today opens with its default panels in the registry order; Customize is in the header {"customize_visible": true} small=2
+PASS    [c2 820] page_layouts.customize-today: Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says "Layout saved." {"phase": "After close", "moves_up": 6, "sheet_closed": true, "toast_seen": true} small=2
+PASS    [c2 820] page_layouts.today-reload: Reload: Market regime renders first and My rules renders {"regime_region": true, "my_rules_region": true, "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then "} small=2
+PASS    [c2 820] page_layouts.other-phase: Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing {"edited_phase": "After close", "other_phase": "Premarket", "sheet_closed": true, "preference_writes_during_step": 0} small=2
+FAIL    [c2 820] page_layouts.customize-trade: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} small=31
+FAIL    [c2 820] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order {} small=23
+FAIL    [c2 820] page_layouts.reset: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} small=31
+PASS    [c2 390] page_layouts.setup: the member has an account, one open position and one closed trade (member API) {"email": "q1c2pl3902994842@local.dev", "account": "42dda82e-ffe8-40e0-80f7-f3e44cac1ef9", "open_status": 200, "second_status": 200, "close_status": 200, "trade_id": "ca539388-72ea-4c3d-9b5a-e00891974f74"} 
+PASS    [c2 390] page_layouts.today-order: Today opens with its default panels in the registry order; Customize is in the header {"customize_visible": true} OVERFLOW small=7
+INFO    [c2 390] page_layouts.editor-loading: 390: pressing Customize while the editor chunk is still loading (PARKED finding: the slot's Suspense fallback is null) {"chunk_requests_held": 1, "nothing_shown": true} OVERFLOW small=7
+PASS    [c2 390] page_layouts.customize-today: Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says "Layout saved." {"phase": "After close", "moves_up": 6, "sheet_closed": true, "toast_seen": true} OVERFLOW small=7
+PASS    [c2 390] page_layouts.today-reload: Reload: Market regime renders first and My rules renders {"regime_region": true, "my_rules_region": true, "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then "} OVERFLOW small=7
+PASS    [c2 390] page_layouts.other-phase: Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing {"edited_phase": "After close", "other_phase": "Premarket", "sheet_closed": true, "preference_writes_during_step": 0} OVERFLOW small=7
+FAIL    [c2 390] page_layouts.customize-trade: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} small=32
+FAIL    [c2 390] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order {} small=24
+FAIL    [c2 390] page_layouts.reset: driver exception (the row did not finish) {"error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exa"} small=26
+PASS    [c2 1280] page_layouts.coverage: every page-layouts feature left a row at each of its viewports {} 
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\p4a-walk-20261017T155727Z\c2\integrity-c2.md
+VERDICT c2: 27 steps, 9 FAIL
+  [1280] page_layouts.customize-trade: driver exception (the row did not finish)
+  [1280] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order
+  [1280] page_layouts.reset: driver exception (the row did not finish)
+  [820] page_layouts.customize-trade: driver exception (the row did not finish)
+  [820] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order
+  [820] page_layouts.reset: driver exception (the row did not finish)
+  [390] page_layouts.customize-trade: driver exception (the row did not finish)
+  [390] page_layouts.trade-reload: Reload the trade page: The story is first, there is no chart, the rest keep the registry order
+  [390] page_layouts.reset: driver exception (the row did not finish)
+raw log written: docs\notebook\evidence\p4a-walk-20261017T155727Z\c2\walk.json
+WALK EXIT: 1

@@ -1,0 +1,4122 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:39+00:00",
+   "email": "q1c2m2898838@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:41+00:00",
+   "email": "q1c2pl12802899587@local.dev",
+   "account": "32afdd03-a779-432a-9759-d819e4c58d84",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:45+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0430d609-4f3\",\"user_id\":\"7d2cc02f-061c-409c-9bb5-30a2ea627289\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:01:44.156314+00:00\",\"updated_at\":\"2026-10-17T16:01:45.017632+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize-097bdc29.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:47+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regi-508bc698.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:51+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0430d609-4f3\",\"user_id\":\"7d2cc02f-061c-409c-9bb5-30a2ea627289\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:01:44.156314+00:00\",\"updated_at\":\"2026-10-17T16:01:48.049453+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:01:52+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clo-62c57305.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.customize-trade",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:01:58+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=1&bars=960&warm=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0430d609-4f3\",\"user_id\":\"7d2cc02f-061c-409c-9bb5-30a2ea627289\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:01:44.156314+00:00\",\"updated_at\":\"2026-10-17T16:01:53.495405+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-1280-page_layouts.customize-trade-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:02:02+00:00",
+   "panel_order": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0430d609-4f3\",\"user_id\":\"7d2cc02f-061c-409c-9bb5-30a2ea627289\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:01:44.156314+00:00\",\"updated_at\":\"2026-10-17T16:01:59.491981+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-1280-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-res-684a87b5.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.reset",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:02:07+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0430d609-4f3\",\"user_id\":\"7d2cc02f-061c-409c-9bb5-30a2ea627289\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:01:44.156314+00:00\",\"updated_at\":\"2026-10-17T16:02:03.776047+00:00\",\"items\":[],\"owner_name\":\"q1c2pl1280\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-1280-page_layouts.reset-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:02:50+00:00",
+   "email": "q1c2pl8202927950@local.dev",
+   "account": "6612a511-8e0d-427a-81b1-e1f85ff8f88f",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "243653c9-645d-4247-bf9f-5421c6898a13",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:02:52+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"b4ed6656-762\",\"user_id\":\"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:02:51.192739+00:00\",\"updated_at\":\"2026-10-17T16:02:51.595187+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize--78a10a6e.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:02:53+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regim-cb6f5ddc.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:02:58+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"b4ed6656-762\",\"user_id\":\"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:02:51.192739+00:00\",\"updated_at\":\"2026-10-17T16:02:54.505813+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:02:59+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 41,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Set a daily or weekly goal to track progress",
+      "tag": "BUTTON",
+      "w": 734,
+      "h": 32,
+      "host": "goal-nudge"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-820-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clos-68e9e07e.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.customize-trade",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:05+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 67,
+    "inline_links": 0,
+    "under": 31,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "3M",
+      "tag": "BUTTON",
+      "w": 31,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "6M",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "YTD",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "1Y",
+      "tag": "BUTTON",
+      "w": 27,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "5Y",
+      "tag": "BUTTON",
+      "w": 29,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 280,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 742,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 772,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Show The story",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Linked notes",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Market at entry",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Plan vs execution",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Outcome",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Chart",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Before and after",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Executions",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"b4ed6656-762\",\"user_id\":\"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:02:51.192739+00:00\",\"updated_at\":\"2026-10-17T16:03:00.071451+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-820-page_layouts.customize-trade-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:09+00:00",
+   "panel_order": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 43,
+    "inline_links": 0,
+    "under": 23,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "3M",
+      "tag": "BUTTON",
+      "w": 31,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "6M",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "YTD",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "1Y",
+      "tag": "BUTTON",
+      "w": 27,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "5Y",
+      "tag": "BUTTON",
+      "w": 29,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 280,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 742,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 772,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"b4ed6656-762\",\"user_id\":\"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:02:51.192739+00:00\",\"updated_at\":\"2026-10-17T16:03:06.255255+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-820-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-rest-3b487f78.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "page_layouts.reset",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:14+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 67,
+    "inline_links": 0,
+    "under": 31,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 20,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "3M",
+      "tag": "BUTTON",
+      "w": 31,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "6M",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "YTD",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "1Y",
+      "tag": "BUTTON",
+      "w": 27,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "5Y",
+      "tag": "BUTTON",
+      "w": 29,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 280,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 742,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 772,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Show Linked notes",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Market at entry",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Plan vs execution",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Outcome",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Chart",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Before and after",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show The story",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Executions",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/243653c9-645d-4247-bf9f-5421c6898a13\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"b4ed6656-762\",\"user_id\":\"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:02:51.192739+00:00\",\"updated_at\":\"2026-10-17T16:03:10.592330+00:00\",\"items\":[],\"owner_name\":\"q1c2pl820\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-820-page_layouts.reset-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.setup",
+   "step": "the member has an account, one open position and one closed trade (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:16+00:00",
+   "email": "q1c2pl3902994842@local.dev",
+   "account": "42dda82e-ffe8-40e0-80f7-f3e44cac1ef9",
+   "open_status": 200,
+   "second_status": 200,
+   "close_status": 200,
+   "trade_id": "ca539388-72ea-4c3d-9b5a-e00891974f74",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.today-order",
+   "step": "Today opens with its default panels in the registry order; Customize is in the header",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:18+00:00",
+   "customize_visible": true,
+   "panel_order": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "registry_default": [
+    "coachStrip",
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "rows": [
+    {
+     "tag": "div",
+     "key": "Scope filter isn't applied on Today — it stays y"
+    },
+    {
+     "tag": "section",
+     "key": "End-of-day recap"
+    },
+    {
+     "tag": "section",
+     "key": "This week"
+    },
+    {
+     "tag": "section",
+     "key": "Goal Progress"
+    },
+    {
+     "tag": "section",
+     "key": "Quick actions"
+    },
+    {
+     "tag": "span",
+     "key": ""
+    }
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"787d4a5e-5cb\",\"user_id\":\"32909d0c-10fa-48be-a483-43ac9b377147\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:03:17.211507+00:00\",\"updated_at\":\"2026-10-17T16:03:17.732714+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.today-order-Today-opens-with-its-default-panels-in-the-registry-order-Customize--20dbe084.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.editor-loading",
+   "step": "390: pressing Customize while the editor chunk is still loading (PARKED finding: the slot's Suspense fallback is null)",
+   "verdict": "INFO",
+   "at": "2026-10-17T16:03:20+00:00",
+   "chunk_requests_held": 1,
+   "shown_while_loading": {
+    "dialogs": 0,
+    "busy": 0,
+    "statuses": []
+   },
+   "nothing_shown": true,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.editor-loading-390-pressing-Customize-while-the-editor-chunk-is-still-loading-PA-095e80ff.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.customize-today",
+   "step": "Customize (After close): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:21+00:00",
+   "phase": "After close",
+   "editor_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "moves_up": 6,
+   "sheet_closed": true,
+   "toast_seen": true,
+   "stored_first_three": [
+    {
+     "id": "regime",
+     "shown": true
+    },
+    {
+     "id": "coachStrip",
+     "shown": true
+    },
+    {
+     "id": "weekStrip",
+     "shown": true
+    }
+   ],
+   "preference_posts": [
+    "/api/auth/preferences"
+   ],
+   "panel_order_after_save": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"journal_page_layout\",\"value\":\"{\\\"version\\\":1,\\\"today\\\":{\\\"premarket\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"market\\\":[{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}],\\\"postclose\\\":[{\\\"id\\\":\\\"regime\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"coachStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"weekStrip\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"goalProgress\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"quickActions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"checklistToday\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"myRules\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"todayNote\\\",\\\"shown\\\":false},{\\\"id\\\":\\\"notices\\\",\\\"shown\\\":false}]},\\\"trade\\\":[{\\\"id\\\":\\\"linkedNotes\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"entryContext\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"planGrade\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"outcome\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"chart\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"beforeAfter\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"story\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"executions\\\",\\\"shown\\\":true},{\\\"id\\\":\\\"review\\\",\\\"sh",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.customize-today-Customize-After-close-Market-regime-and-My-rules-on-Market-regim-2c183fd7.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.today-reload",
+   "step": "Reload: Market regime renders first and My rules renders",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:25+00:00",
+   "panel_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "regime_region": true,
+   "my_rules_region": true,
+   "my_rules_text": "MY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"787d4a5e-5cb\",\"user_id\":\"32909d0c-10fa-48be-a483-43ac9b377147\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:03:17.211507+00:00\",\"updated_at\":\"2026-10-17T16:03:22.346131+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.today-reload-Reload-Market-regime-renders-first-and-My-rules-renders.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.other-phase",
+   "step": "Customize: the Premarket tab is still the default list; the After close tab keeps the edit; Cancel writes nothing",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:27+00:00",
+   "edited_phase": "After close",
+   "other_phase": "Premarket",
+   "other_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "registry_default_rows": [
+    [
+     "Coach notes",
+     true
+    ],
+    [
+     "This week",
+     true
+    ],
+    [
+     "Goal progress",
+     true
+    ],
+    [
+     "Quick actions",
+     true
+    ],
+    [
+     "Checklist for today",
+     false
+    ],
+    [
+     "My rules",
+     false
+    ],
+    [
+     "Market regime",
+     false
+    ],
+    [
+     "Today's note",
+     false
+    ],
+    [
+     "Notices",
+     false
+    ]
+   ],
+   "edited_first_row": [
+    [
+     "Market regime",
+     true
+    ]
+   ],
+   "sheet_closed": true,
+   "preference_writes_during_step": 0,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     421,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "A",
+      "cls": "_checkBtn_1mt39_144",
+      "right": 421,
+      "label": "",
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 42,
+    "inline_links": 0,
+    "under": 7,
+    "sample": [
+     {
+      "label": "SUN 11, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "MON 12, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "TUE 13, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "WED 14, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "THU 15, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "FRI 16, no trades",
+      "tag": "BUTTON",
+      "w": 41,
+      "h": 75,
+      "host": "week-cell"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {},
+   "screenshot": "c2-390-page_layouts.other-phase-Customize-the-Premarket-tab-is-still-the-default-list-the-After-clos-0277bf6e.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.customize-trade",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:33+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 68,
+    "inline_links": 0,
+    "under": 32,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Show 3 more indicators",
+      "tag": "BUTTON",
+      "w": 45,
+      "h": 14,
+      "host": null
+     },
+     {
+      "label": "3M",
+      "tag": "BUTTON",
+      "w": 31,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "6M",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "YTD",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "1Y",
+      "tag": "BUTTON",
+      "w": 27,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "5Y",
+      "tag": "BUTTON",
+      "w": 29,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 362,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 332,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 362,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Show The story",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Linked notes",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Market at entry",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Plan vs execution",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Outcome",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Chart",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Before and after",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"787d4a5e-5cb\",\"user_id\":\"32909d0c-10fa-48be-a483-43ac9b377147\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:03:17.211507+00:00\",\"updated_at\":\"2026-10-17T16:03:27.867393+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-390-page_layouts.customize-trade-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.trade-reload",
+   "step": "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:37+00:00",
+   "panel_order": [
+    "outcome",
+    "chart",
+    "story",
+    "executions",
+    "review"
+   ],
+   "expected_rest": [
+    "linkedNotes",
+    "entryContext",
+    "planGrade",
+    "outcome",
+    "beforeAfter",
+    "executions",
+    "review"
+   ],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 44,
+    "inline_links": 0,
+    "under": 24,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Show 3 more indicators",
+      "tag": "BUTTON",
+      "w": 45,
+      "h": 14,
+      "host": null
+     },
+     {
+      "label": "3M",
+      "tag": "BUTTON",
+      "w": 31,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "6M",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "YTD",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "1Y",
+      "tag": "BUTTON",
+      "w": 27,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "5Y",
+      "tag": "BUTTON",
+      "w": 29,
+      "h": 44,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 362,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 332,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 362,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"787d4a5e-5cb\",\"user_id\":\"32909d0c-10fa-48be-a483-43ac9b377147\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:03:17.211507+00:00\",\"updated_at\":\"2026-10-17T16:03:34.085633+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-390-page_layouts.trade-reload-Reload-the-trade-page-The-story-is-first-there-is-no-chart-the-rest-d392f740.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "page_layouts.reset",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-17T16:03:42+00:00",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n",
+   "traceback": "ng\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"button\", name=\"Save\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_saveBtn_1y429_79\">Save</button> aka get_by_test_id(\"why-prompt-editing\").get_by_role(\"button\", name=\"Save\")\n    2) <button type=\"button\" class=\"_btn_1qjlo_16 _primary_1qjlo_20\">Save</button> aka get_by_label(\"Customize trade page\").get_by_role(\"button\", name=\"Save\")\n\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Save\", exact=True)\n\n",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 61,
+    "inline_links": 0,
+    "under": 26,
+    "sample": [
+     {
+      "label": "← Trade Journal",
+      "tag": "A",
+      "w": 97,
+      "h": 21,
+      "host": null
+     },
+     {
+      "label": "▶ Replay",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 30,
+      "host": "header"
+     },
+     {
+      "label": "Save to Notebook",
+      "tag": "BUTTON",
+      "w": 146,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Save image",
+      "tag": "BUTTON",
+      "w": 111,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Copy image",
+      "tag": "BUTTON",
+      "w": 113,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "Research",
+      "tag": "BUTTON",
+      "w": 99,
+      "h": 28,
+      "host": "header"
+     },
+     {
+      "label": "5m",
+      "tag": "BUTTON",
+      "w": 36,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "w": 44,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "w": 30,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "w": 32,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "w": 35,
+      "h": 40,
+      "host": null
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "w": 16,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 11,
+      "host": null
+     },
+     {
+      "label": "— No setup —",
+      "tag": "SELECT",
+      "w": 362,
+      "h": 35,
+      "host": null
+     },
+     {
+      "label": "Executions",
+      "tag": "SUMMARY",
+      "w": 332,
+      "h": 42,
+      "host": null
+     },
+     {
+      "label": "Tell me about this trade",
+      "tag": "BUTTON",
+      "w": 362,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Show Linked notes",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Market at entry",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Plan vs execution",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Outcome",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Chart",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Before and after",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show The story",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Executions",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     },
+     {
+      "label": "Show Compass review",
+      "tag": "INPUT",
+      "w": 24,
+      "h": 24,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/ca539388-72ea-4c3d-9b5a-e00891974f74\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"787d4a5e-5cb\",\"user_id\":\"32909d0c-10fa-48be-a483-43ac9b377147\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-17T16:03:17.211507+00:00\",\"updated_at\":\"2026-10-17T16:03:38.395221+00:00\",\"items\":[],\"owner_name\":\"q1c2pl390\"}"
+    }
+   ],
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "screenshot": "c2-390-page_layouts.reset-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "74570dd4a0",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "page_layouts.coverage",
+   "step": "every page-layouts feature left a row at each of its viewports",
+   "verdict": "PASS",
+   "at": "2026-10-17T16:03:42+00:00",
+   "missing": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-p4a-walk\\c2",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "JOURNAL_PAGE_LAYOUTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p4a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T11-00-44.md (identity 9beee6d0cde4..., data dir C:\\data-p4a-walk\\c2)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\p4a-walk-20261017T155727Z\\c2\\integrity-c2.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-17 11:00:50",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-17 11:01:28",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-17 11:03:23",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-17 11:03:49",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p4a-walk-20261017T155727Z\\c2\\integrity-c2.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tip": "74570dd4a0",
+ "tool_tree": "74570dd4a0e6608e2d82f983641039238ebb61b4",
+ "started": "2026-10-17T16:00:40+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED"
+  ],
+  "c1": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verify": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "JOURNAL_PAGE_LAYOUTS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verifygrip": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"32afdd03-a779-432a-9759-d819e4c58d84\"}",
+   "response": "{\"id\": \"b55e507c-3f03-40dd-8797-8a6a6b2dff41\", \"userId\": \"7d2cc02f-061c-409c-9bb5-30a2ea627289\", \"accountId\": \"32afdd03-a779-432a-9759-d819e4c58d84\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:01:41.144932+00:00\", \"updatedAt\": \"2026-10-17T16:01:41.144932+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"32afdd03-a779-432a-9759-d819e4c58d84\"}",
+   "response": "{\"id\": \"beeb523e-72ae-4b6b-89e0-d2a297efc9e7\", \"userId\": \"7d2cc02f-061c-409c-9bb5-30a2ea627289\", \"accountId\": \"32afdd03-a779-432a-9759-d819e4c58d84\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:01:41.197578+00:00\", \"updatedAt\": \"2026-10-17T16:01:41.197578+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions/beeb523e-72ae-4b6b-89e0-d2a297efc9e7/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"a08dcd36-ae22-4cca-9f45-f5dbdaa18f2f\", \"userId\": \"7d2cc02f-061c-409c-9bb5-30a2ea627289\", \"positionId\": \"beeb523e-72ae-4b6b-89e0-d2a297efc9e7\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:01:41.376349+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"beeb523e-72ae-4b6b-89e0-d2a297efc9e7\", \"userId\": \"7d2cc02f-061c-409c-9bb5-30a2ea627289\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:01:41.197578+00:00\", \"updatedAt\": \"2026-10-17T16:01:41.376349+00:00\", \"closedAt\": \"2026-10-17T16:01:41.376349+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"6612a511-8e0d-427a-81b1-e1f85ff8f88f\"}",
+   "response": "{\"id\": \"3fbe2cec-43bd-4ec0-8df5-f5ef88777307\", \"userId\": \"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\", \"accountId\": \"6612a511-8e0d-427a-81b1-e1f85ff8f88f\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:02:50.492443+00:00\", \"updatedAt\": \"2026-10-17T16:02:50.492443+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"6612a511-8e0d-427a-81b1-e1f85ff8f88f\"}",
+   "response": "{\"id\": \"e3d629ab-e5f0-4488-a4f2-70d6ea104916\", \"userId\": \"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\", \"accountId\": \"6612a511-8e0d-427a-81b1-e1f85ff8f88f\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:02:50.549491+00:00\", \"updatedAt\": \"2026-10-17T16:02:50.549491+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "method": "POST",
+   "url": "/api/j2/positions/e3d629ab-e5f0-4488-a4f2-70d6ea104916/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"243653c9-645d-4247-bf9f-5421c6898a13\", \"userId\": \"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\", \"positionId\": \"e3d629ab-e5f0-4488-a4f2-70d6ea104916\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:02:50.596223+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"e3d629ab-e5f0-4488-a4f2-70d6ea104916\", \"userId\": \"52235d65-0eb7-4bdb-88b0-9855bf5e01ef\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:02:50.549491+00:00\", \"updatedAt\": \"2026-10-17T16:02:50.596223+00:00\", \"closedAt\": \"2026-10-17T16:02:50.596223+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"42dda82e-ffe8-40e0-80f7-f3e44cac1ef9\"}",
+   "response": "{\"id\": \"735f0058-3fac-44e7-a9e3-a802642663fe\", \"userId\": \"32909d0c-10fa-48be-a483-43ac9b377147\", \"accountId\": \"42dda82e-ffe8-40e0-80f7-f3e44cac1ef9\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:03:15.937545+00:00\", \"updatedAt\": \"2026-10-17T16:03:15.937545+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"entryDate\": \"2026-10-17\", \"accountId\": \"42dda82e-ffe8-40e0-80f7-f3e44cac1ef9\"}",
+   "response": "{\"id\": \"6db07d85-3efe-44f9-9bfc-65070e625ce2\", \"userId\": \"32909d0c-10fa-48be-a483-43ac9b377147\", \"accountId\": \"42dda82e-ffe8-40e0-80f7-f3e44cac1ef9\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 5.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:03:16.011786+00:00\", \"updatedAt\": \"2026-10-17T16:03:16.011786+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "method": "POST",
+   "url": "/api/j2/positions/6db07d85-3efe-44f9-9bfc-65070e625ce2/close",
+   "status": 200,
+   "request": "{\"shares\": 5, \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17\"}",
+   "response": "{\"trade\": {\"id\": \"ca539388-72ea-4c3d-9b5a-e00891974f74\", \"userId\": \"32909d0c-10fa-48be-a483-43ac9b377147\", \"positionId\": \"6db07d85-3efe-44f9-9bfc-65070e625ce2\", \"symbol\": \"AAPL\", \"side\": \"Long\", \"shares\": 5.0, \"entryPrice\": 100.0, \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"exitPrice\": 104.0, \"exitDate\": \"2026-10-17T00:00:00+00:00\", \"originalStop\": 95.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 20.0, \"pnlPercent\": 0.04, \"rMultiple\": 0.8, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:03:16.065713+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"6db07d85-3efe-44f9-9bfc-65070e625ce2\", \"userId\": \"32909d0c-10fa-48be-a483-43ac9b377147\", \"accountId\": null, \"symbol\": \"AAPL\", \"side\": \"Long\", \"entryDate\": \"2026-10-17T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 5.0, \"entryPrice\": 100.0, \"stopPrice\": 95.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-17T16:03:16.011786+00:00\", \"updatedAt\": \"2026-10-17T16:03:16.065713+00:00\", \"closedAt\": \"2026-10-17T16:03:16.065713+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  }
+ ],
+ "finished": "2026-10-17T16:04:21+00:00"
+}
