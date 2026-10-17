@@ -22,6 +22,9 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
                          ticker (of that setup when one resolves); no price levels
   GET /rhymes            today's scanner hits beside the archive's precedent (display only)
   GET /ticker/{sym}/daily team posts and calls per day on one ticker (Terminal ATTN)
+  GET /ticker/{sym}/team-history  the chart's Team history panel: every team mention and call,
+                         outcome only for calls older than 20 sessions, a nullable session
+                         moment; also gated by WISDOM_TICKER_HISTORY_ENABLED (team_history.py)
   GET /image/{image_id}  one stored chart image (private storage, never a public URL)
 Record-bearing payloads carry ``images: [image_id, ...]`` on rows whose post has stored charts.
 
@@ -359,6 +362,19 @@ def member_ticker_daily(sym: str, days: int = Query(365, ge=1, le=service.MAX_DA
     """Team posts and calls per day on one ticker (the Terminal ATTN overlay)."""
     _require_enabled()
     return _read(service.ticker_daily, sym, days=days)
+
+@member_router.get("/ticker/{sym}/team-history")
+def member_ticker_team_history(sym: str, _user: dict = Depends(require_paid)) -> dict:
+    """Every team mention and call on one ticker, newest first (the chart's Team history panel).
+    Outcomes only for calls older than 20 sessions; never a price level. Dark behind
+    WISDOM_TICKER_HISTORY_ENABLED as well as WISDOM_ARCHIVE_ENABLED (404 while either is off)."""
+    from api.services.wisdom.archive import team_history
+
+    _require_enabled()
+    if not team_history.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return _read(team_history.for_ticker, sym)
+
 
 @member_router.get("/image/{image_id}")
 def member_image(image_id: str, _user: dict = Depends(require_paid)) -> Response:

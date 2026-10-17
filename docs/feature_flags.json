@@ -2990,6 +2990,18 @@
       ],
       "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
+    "WISDOM_TICKER_HISTORY_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-17",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "DARK at build (feat/ticker-history), deliberately: the owner flips it on web. MEMBER-VISIBLE when on (paid only, double-gated with WISDOM_ARCHIVE_ENABLED): the chart Company Panel and the Research History tab gain a Team history panel listing every archived team mention and call on the ticker (trader display name, setup, action), newest first. The 5- and 20-session outcome is shown ONLY for calls posted more than 20 trading sessions ago (provider.is_aged, the archive's own price-age gate); a younger call reads 'outcome pending'. No price level is ever returned. A session-video moment is a nullable field filled only through team_history.set_moment_resolver. Route: GET /api/wisdom/archive/ticker/{sym}/team-history (require_paid; 404 while either flag is off). Read per call in api/services/wisdom/core/flags.py; rides the auth payload as wisdom_ticker_history_enabled. Rollback: set 0 or unset on web."
+    },
     "WISDOM_VISION_ENABLED": {
       "status": "dark",
       "where": [],

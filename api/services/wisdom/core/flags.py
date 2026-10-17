@@ -112,6 +112,14 @@ def archive_lines_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_ARCHIVE_LINES_ENABLED", "0"))
 
 
+def team_history_enabled() -> bool:
+    """The chart's per-ticker "Team history" panel (archive/team_history.py): every archived
+    team mention and call on one ticker, with the 5/20-session outcome ONLY for calls older
+    than 20 sessions (the archive's own aging rule). MEMBER-VISIBLE when on, paid only, and
+    double-gated with WISDOM_ARCHIVE_ENABLED. Default OFF (declared dark)."""
+    return _truthy(os.environ.get("WISDOM_TICKER_HISTORY_ENABLED", "0"))
+
+
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
 
@@ -183,4 +191,5 @@ GATES = (
     ("WISDOM_ARCHIVE_ENABLED", archive_enabled, True),
     ("WISDOM_ARCHIVE_ASK_ENABLED", archive_ask_enabled, True),
     ("WISDOM_ARCHIVE_LINES_ENABLED", archive_lines_enabled, True),
+    ("WISDOM_TICKER_HISTORY_ENABLED", team_history_enabled, True),
 )
