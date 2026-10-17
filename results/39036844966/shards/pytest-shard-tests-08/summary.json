@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 3404,
+  "passed": 3355,
+  "failed": 45,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 669.95,
+  "failed_files": [
+    "tests/test_notebook_switch_rehearsal.py",
+    "tests/test_notebook_transcript_capture.py",
+    "tests/test_options_l3.py",
+    "tests/test_param_manifest.py",
+    "tests/test_param_repaste_c46.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_phase_e_acceptance.py",
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "45 failed, 3355 passed, 4 skipped, 54 warnings in 669.95s (0:11:09)",
+  "ok": true
+}
