@@ -43,7 +43,7 @@ SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
-         "smart", "followup", "discover", "remove"]
+         "smart", "followup", "page_layouts", "discover", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -80,6 +80,71 @@ FOLLOWUP_NOTICE_TITLE = f"{FOLLOWUP_SYM} reported: write your follow-up"       #
 # compares the result to these two, so a copy change in the product reds there and not on a walk run.
 FOLLOWUP_EPS_LINE = "EPS: $1.47 actual vs $1.42 expected (+3.5% surprise)."
 FOLLOWUP_REACTION_PREFIX = "Reaction: −4.2% close to close"
+# Notebook P4a (Task 8): the `page_layouts` group. The switch is the auth payload key below (armed in c2 because
+# JOURNAL_PAGE_LAYOUTS_ENABLED is in notebook_fin_walk.WAVE_FLAGS). Panel ids, labels and defaults are READ from the
+# product's own registry (lib/pageLayouts.js), never retyped: `page_layout_registry()`.
+PAGE_LAYOUTS_KEY = "journal_page_layouts_enabled"           # lib/pageLayoutsFlag.js, the auth payload key
+PAGE_LAYOUTS_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "pageLayouts.js"
+
+
+def page_layout_registry() -> dict:
+    """lib/pageLayouts.js, read as text: the preference key, the phase labels, and each page's panels in registry order as
+    (id, label, defaultShown)."""
+    src = PAGE_LAYOUTS_JS.read_text(encoding="utf-8")
+    pref = re.search(r"export const LAYOUT_PREF = '([^']+)'", src).group(1)
+    labels = re.search(r"export const PHASE_LABELS = Object\.freeze\(\{([^}]*)\}\)", src).group(1)
+    phases = dict(re.findall(r"(\w+): '([^']+)'", labels))
+    block = src.split("export const PANELS = Object.freeze({", 1)[1].split("\n})\n", 1)[0]
+    today_part, trade_part = block.split("trade: Object.freeze([", 1)
+    entry = re.compile(r"\{ id: '(\w+)', label: (?:'([^']*)'|\"([^\"]*)\"), defaultShown: (true|false) \}")
+
+    def panels(part):
+        return [(m.group(1), m.group(2) if m.group(2) is not None else m.group(3), m.group(4) == "true") for m in entry.finditer(part)]
+    return {"pref": pref, "phases": phases, "today": panels(today_part), "trade": panels(trade_part)}
+
+
+# What Today's direct children are, by the words they carry (aria-label, else the first heading, else the summary).
+TODAY_PANEL_KEYS = (("coach", "coachStrip"), ("this week", "weekStrip"), ("goal progress", "goalProgress"),
+                    ("quick actions", "quickActions"), ("checklist for today", "checklistToday"), ("my rules", "myRules"),
+                    ("market regime", "regime"), ("today's note", "todayNote"), ("notices", "notices"))
+TODAY_ORDER_JS = r"""() => {
+  const root = document.querySelector('[data-testid="today-surface"]'); if (!root) return null
+  const t = (s) => (s || '').trim().replace(/\s+/g, ' ')
+  return [...root.children].map(e => {
+    const h = e.querySelector('h2, h3'), sum = e.querySelector(':scope > summary')
+    return { tag: e.tagName.toLowerCase(), key: t(e.getAttribute('aria-label') || (h && h.textContent) || (sum && sum.textContent)
+             || e.getAttribute('data-testid') || e.innerText).slice(0, 48) } }) }"""
+TRADE_ORDER_JS = r"""() => {
+  const hd = document.querySelector('header[class*="identityRow"]'); if (!hd) return null
+  const t = (s) => (s || '').trim().replace(/\s+/g, ' ')
+  const kids = [...hd.parentElement.children]
+  return kids.slice(kids.indexOf(hd) + 1).map(e => {
+    const heads = [...e.querySelectorAll('h2')].map(x => t(x.textContent)), sums = [...e.querySelectorAll('summary')].map(x => t(x.textContent))
+    let id = null
+    if (e.matches('[data-testid="trade-outcome-grid"]') || e.querySelector('[data-testid="trade-outcome-grid"]')) id = 'outcome'
+    else if (e.matches('[class*="chartCard"]') || e.querySelector('[class*="chartCard"]')) id = 'chart'
+    else if (heads.includes('The story')) id = 'story'
+    else if (heads.includes('Compass post-mortem')) id = 'review'
+    else if (e.tagName === 'DETAILS' && sums.some(x => x.startsWith('Executions'))) id = 'executions'
+    return { tag: e.tagName.toLowerCase(), id, key: t(e.getAttribute('aria-label') || heads[0] || sums[0] || e.getAttribute('data-testid') || e.innerText).slice(0, 48) } }) }"""
+
+
+def today_panel_ids(rows) -> list:
+    """Today's registry panel ids in DOM order, from TODAY_ORDER_JS rows. The header row and the lead match no panel word."""
+    ids = []
+    for r in rows or []:
+        key = (r.get("key") or "").lower()
+        hit = next((pid for word, pid in TODAY_PANEL_KEYS if key.startswith(word)), None)
+        if hit:
+            ids.append(hit)
+    return ids
+
+
+def trade_panel_ids(rows) -> list:
+    """The trade page's registry panel ids in DOM order, from TRADE_ORDER_JS rows, for the panels the walk can name."""
+    return [r["id"] for r in rows or [] if r.get("id")]
+
+
 # Notebook P2b (Task 13): the four prep blocks' group names (lib/journalBlocks.js labels, the name
 # BlockNodeView gives its role="group") and the part each one captures (trader_blocks.PREP_BLOCK).
 PREP_GROUPS = {"prepWire": ("Morning wire and exposure", "wire"), "prepEarnings": ("Earnings for my names", "earnings"),
@@ -3492,6 +3557,311 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
                rows_not_in_coverage=unlisted, shot=False)
     run("followup", followup)
+
+    # ── Notebook P4a (Task 8): page layouts -- Customize on Today and the trade page, saved, reloaded, reset ────────────────
+    # Gated on the auth payload's own key (never this process's idea of the flag set). A switch that is off is NOT_RUN with
+    # that reason -- a row that could not be driven is neither PASS nor FAIL. Each viewport is a fresh member (so each has
+    # its own layout), who has one open position (Today is not the zero-data experience, which suppresses every panel but
+    # the coach strip) and one closed trade (the trade page). The session phase is the wall clock's: the walk reads the phase
+    # the editor opens on and works on THAT list, and reads the registry (lib/pageLayouts.js) for every default it compares to.
+    def page_layouts():
+        reg = page_layout_registry()
+        on = notebook_flag_on(PAGE_LAYOUTS_KEY)
+        vps = ("1280", "820", "390")
+        names = ("today-order", "customize-today", "today-reload", "other-phase", "customize-trade", "trade-reload", "reset")
+        walked_at = {f"page_layouts.{n}": vps for n in names}
+        walked_at["page_layouts.editor-loading"] = ("390",)
+        label_of = {"today": {pid: lab for pid, lab, _ in reg["today"]}, "trade": {pid: lab for pid, lab, _ in reg["trade"]}}
+        default_ids = {"today": [pid for pid, _, shown in reg["today"] if shown], "trade": [pid for pid, _, shown in reg["trade"] if shown]}
+        phase_id = {lab: pid for pid, lab in reg["phases"].items()}
+        phase_order = list(reg["phases"].values())
+
+        def in_order(found, expected):
+            """`found` is `expected` with some members absent (a panel that renders nothing is not a failure of the order)."""
+            return found == [x for x in expected if x in found]
+
+        def not_run(feature, vp, reason, **facts):
+            C.step(None, inst, feature, f"{vp}: could not be driven", "NOT_RUN", viewport_asked=vp,
+                   reason=f"INCONCLUSIVE: {reason}", shot=False, **facts)
+
+        def stored_layout(c_):
+            raw = w.prefs_of(c_, base).get(reg["pref"])
+            try:
+                return json.loads(raw) if isinstance(raw, str) else raw
+            except ValueError:
+                return None
+
+        def pref_writes(i_, since):
+            return [wr for wr in i_.pending_writes[since:] if "/api/auth/preferences" in wr[2]]
+
+        def open_today(p_):
+            C.goto(p_, base, "/journal")
+            nudges(p_)
+            ready = C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+            nudges(p_)
+            return ready
+
+        def open_trade(p_, trade_id):
+            C.goto(p_, base, f"/journal-2-0/trade/{trade_id}")
+            nudges(p_)
+            ready = C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+            nudges(p_)
+            return ready
+
+        def open_editor(p_, title):
+            p_.get_by_role("button", name="Customize", exact=True).first.click()
+            rows = C.vis_loc(p_.get_by_role("checkbox", name=re.compile(r"^Show ")), 45000)   # the sheet is rebuilt once the preference is read
+            return p_.get_by_role("dialog", name=title), rows
+
+        def editor_rows(dlg):
+            return dlg.get_by_role("checkbox").evaluate_all("els => els.map(e => [e.getAttribute('aria-label').replace(/^Show /, ''), e.checked])")
+
+        def to_top(p_, label):
+            up = p_.get_by_role("button", name=f"Move {label} up", exact=True)
+            n = 0
+            while n < 20 and up.is_enabled():
+                up.click()
+                n += 1
+                p_.wait_for_timeout(60)
+            return n
+
+        def save_editor(p_, title):
+            p_.get_by_role("button", name="Save", exact=True).click()
+            closed = True
+            try:
+                p_.get_by_role("dialog", name=title).wait_for(state="hidden", timeout=20000)
+            except Exception:  # noqa: BLE001 -- recorded as not closed
+                closed = False
+            toast = C.vis_loc(p_.get_by_text("Layout saved.", exact=True), 10000)
+            return closed, toast
+
+        def walk_vp(vp):
+            c_, email_, _me, i_, p_ = new_member(f"c2pl{vp}", vp)
+            ST: dict = {}
+            try:
+                listing = c_.request.get(base + "/api/j2/accounts").json()
+                accts = (listing.get("accounts") if isinstance(listing, dict) else listing) or []
+                acct_id = next((a["id"] for a in accts if a.get("isDefault")), accts[0]["id"] if accts else None)
+                c_.add_init_script(f"try {{ localStorage.setItem('{SELECTED_ACCOUNT_KEY}', '{acct_id}') }} catch (e) {{}}")
+                s1, _open = C.api(c_, i_, "POST", base, "/api/j2/positions", {"symbol": "IBM", "side": "Long", "shares": 10, "entryPrice": 200.0,
+                                                                           "stopPrice": 190.0, "entryDate": C.TODAY.isoformat(), "accountId": acct_id})
+                s2, p2 = C.api(c_, i_, "POST", base, "/api/j2/positions", {"symbol": "AAPL", "side": "Long", "shares": 5, "entryPrice": 100.0,
+                                                                         "stopPrice": 95.0, "entryDate": C.TODAY.isoformat(), "accountId": acct_id})
+                s3, closed = C.api(c_, i_, "POST", base, f"/api/j2/positions/{(p2 or {}).get('id')}/close",
+                                   {"shares": 5, "exitPrice": 104.0, "exitDate": C.TODAY.isoformat()})
+                ST["trade_id"] = ((closed or {}).get("trade") or closed or {}).get("id") if isinstance(closed, dict) else None
+                C.step(None, i_, "page_layouts.setup", "the member has an account, one open position and one closed trade (member API)",
+                       "PASS" if ST["trade_id"] and s1 in (200, 201) else "FAIL", email=email_, account=acct_id, open_status=s1,
+                       second_status=s2, close_status=s3, trade_id=ST["trade_id"], shot=False)
+
+                def guard(feature):
+                    def wrap(fn):
+                        try:
+                            fn()
+                        except h.SetupFailed:
+                            raise
+                        except Exception as e:  # noqa: BLE001 -- recorded; the next row still runs
+                            C.step(p_, i_, feature, "driver exception (the row did not finish)", "FAIL",
+                                   error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
+                    return wrap
+
+                # ── 1. today-order: Today opens with the registry's default panels, in order, and Customize in the header
+                @guard("page_layouts.today-order")
+                def _():
+                    ready = open_today(p_)
+                    rows = p_.evaluate(TODAY_ORDER_JS)
+                    ids = today_panel_ids(rows)
+                    ok = ready and in_order(ids, default_ids["today"]) and "quickActions" in ids and not ({"regime", "myRules"} & set(ids))
+                    C.step(p_, i_, "page_layouts.today-order", "Today opens with its default panels in the registry order; Customize is in the header",
+                           "PASS" if ok else "FAIL", customize_visible=ready, panel_order=ids, registry_default=default_ids["today"], rows=rows)
+
+                # ── 2. customize-today: switch on Regime and My rules, move Regime to the top, Save. (390: what the press shows first)
+                @guard("page_layouts.customize-today")
+                def _():
+                    held = []
+                    pat = re.compile(r"/assets/PageLayoutEditor[^/]*\.js(\?.*)?$")
+                    title = "Customize Today"
+                    if vp == "390":
+                        p_.route(pat, lambda route: held.append(route))
+                        p_.get_by_role("button", name="Customize", exact=True).first.click()
+                        p_.wait_for_timeout(1500)
+                        sample = p_.evaluate("""() => ({ dialogs: document.querySelectorAll('[role=dialog]').length,
+                            busy: document.querySelectorAll('[aria-busy=true]').length,
+                            statuses: [...document.querySelectorAll('[role=status]')].map(e => e.innerText.trim()).filter(Boolean).slice(0, 6) })""")
+                        C.step(p_, i_, "page_layouts.editor-loading", "390: pressing Customize while the editor chunk is still loading (PARKED finding: the slot's Suspense fallback is null)",
+                               "INFO", chunk_requests_held=len(held), shown_while_loading=sample,
+                               nothing_shown=bool(len(held) and not sample["dialogs"] and not sample["statuses"] and not sample["busy"]))
+                        for r in held:
+                            r.continue_()
+                        p_.unroute(pat)
+                        rows_ok = C.vis_loc(p_.get_by_role("checkbox", name=re.compile(r"^Show ")), 45000)
+                        dlg = p_.get_by_role("dialog", name=title)
+                    else:
+                        dlg, rows_ok = open_editor(p_, title)
+                    phase = dlg.locator("button[aria-pressed='true']").first.inner_text().strip()
+                    ST["phase_label"], ST["phase"] = phase, phase_id.get(phase)
+                    p_.get_by_role("checkbox", name=f"Show {label_of['today']['regime']}", exact=True).check()
+                    p_.get_by_role("checkbox", name=f"Show {label_of['today']['myRules']}", exact=True).check()
+                    moved = to_top(p_, label_of["today"]["regime"])
+                    in_editor = editor_rows(dlg)
+                    n0 = len(i_.pending_writes)
+                    closed, toast = save_editor(p_, title)
+                    lay = stored_layout(c_) or {}
+                    lst = ((lay.get("today") or {}).get(ST["phase"]) or [])
+                    live = today_panel_ids(p_.evaluate(TODAY_ORDER_JS))
+                    posts = [wr[2] for wr in pref_writes(i_, n0)]
+                    ok = (rows_ok and closed and toast and bool(lst) and lst[0].get("id") == "regime" and lst[0].get("shown") is True
+                          and any(e.get("id") == "myRules" and e.get("shown") for e in lst) and bool(posts))
+                    C.step(p_, i_, "page_layouts.customize-today", f"Customize ({phase}): Market regime and My rules on, Market regime first, Save -> the sheet closes and says \"Layout saved.\"",
+                           "PASS" if ok else "FAIL", phase=phase, editor_first_row=in_editor[:1], moves_up=moved, sheet_closed=closed, toast_seen=toast,
+                           stored_first_three=lst[:3], preference_posts=posts, panel_order_after_save=live)
+
+                # ── 3. today-reload: after a reload Regime renders first and My rules renders
+                @guard("page_layouts.today-reload")
+                def _():
+                    p_.reload(wait_until="domcontentloaded")
+                    h._dismiss_intro(p_)
+                    nudges(p_)
+                    ready = C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+                    reg_up = C.vis_loc(p_.get_by_role("region", name=label_of["today"]["regime"], exact=True), 30000)
+                    rules_up = C.vis_loc(p_.get_by_role("region", name=label_of["today"]["myRules"], exact=True), 45000)
+                    ids = today_panel_ids(p_.evaluate(TODAY_ORDER_JS))
+                    rules_text = p_.get_by_role("region", name=label_of["today"]["myRules"], exact=True).first.inner_text()[:140] if rules_up else None
+                    ok = ready and reg_up and rules_up and bool(ids) and ids[0] == "regime" and "myRules" in ids
+                    C.step(p_, i_, "page_layouts.today-reload", "Reload: Market regime renders first and My rules renders",
+                           "PASS" if ok else "FAIL", panel_order=ids, regime_region=reg_up, my_rules_region=rules_up, my_rules_text=rules_text)
+
+                # ── 4. other-phase: another phase tab still holds the registry default; the edited phase kept its edit; Cancel writes nothing
+                @guard("page_layouts.other-phase")
+                def _():
+                    title = "Customize Today"
+                    n0 = len(i_.pending_writes)
+                    dlg, rows_ok = open_editor(p_, title)
+                    other = next(lab for lab in phase_order if lab != ST.get("phase_label"))
+                    p_.get_by_role("button", name=other, exact=True).click()
+                    p_.wait_for_timeout(300)
+                    other_rows = editor_rows(dlg)
+                    want = [[lab, shown] for _, lab, shown in reg["today"]]
+                    p_.get_by_role("button", name=ST.get("phase_label"), exact=True).click()
+                    p_.wait_for_timeout(300)
+                    back_rows = editor_rows(dlg)
+                    p_.get_by_role("button", name="Cancel", exact=True).click()
+                    closed = True
+                    try:
+                        dlg.wait_for(state="hidden", timeout=15000)
+                    except Exception:  # noqa: BLE001
+                        closed = False
+                    writes = pref_writes(i_, n0)
+                    ok = (rows_ok and other_rows == want and bool(back_rows) and back_rows[0][0] == label_of["today"]["regime"]
+                          and closed and not writes)
+                    C.step(p_, i_, "page_layouts.other-phase", f"Customize: the {other} tab is still the default list; the {ST.get('phase_label')} tab keeps the edit; Cancel writes nothing",
+                           "PASS" if ok else "FAIL", edited_phase=ST.get("phase_label"), other_phase=other, other_rows=other_rows,
+                           registry_default_rows=want, edited_first_row=back_rows[:1], sheet_closed=closed, preference_writes_during_step=len(writes))
+
+                # ── 5. customize-trade: open a trade, hide Chart, move The story first, Save
+                @guard("page_layouts.customize-trade")
+                def _():
+                    if not ST.get("trade_id"):
+                        not_run("page_layouts.customize-trade", vp, "page_layouts.setup made no closed trade (see its row)")
+                        return
+                    title = "Customize trade page"
+                    ready = open_trade(p_, ST["trade_id"])
+                    before = trade_panel_ids(p_.evaluate(TRADE_ORDER_JS))
+                    dlg, rows_ok = open_editor(p_, title)
+                    p_.get_by_role("checkbox", name=f"Show {label_of['trade']['chart']}", exact=True).uncheck()
+                    moved = to_top(p_, label_of["trade"]["story"])
+                    n0 = len(i_.pending_writes)
+                    closed, toast = save_editor(p_, title)
+                    lay = stored_layout(c_) or {}
+                    lst = lay.get("trade") or []
+                    after = trade_panel_ids(p_.evaluate(TRADE_ORDER_JS))
+                    ok = (ready and rows_ok and closed and toast and bool(lst) and lst[0].get("id") == "story"
+                          and any(e.get("id") == "chart" and e.get("shown") is False for e in lst)
+                          and bool(after) and after[0] == "story" and "chart" not in after and bool(pref_writes(i_, n0)))
+                    C.step(p_, i_, "page_layouts.customize-trade", "Trade page: Chart hidden, The story first, Save -> the page shows the story first and no chart",
+                           "PASS" if ok else "FAIL", trade_id=ST["trade_id"], order_before=before, order_after_save=after, moves_up=moved,
+                           sheet_closed=closed, toast_seen=toast, stored_trade_first_three=lst[:3])
+
+                # ── 6. trade-reload: the order holds
+                @guard("page_layouts.trade-reload")
+                def _():
+                    if not ST.get("trade_id"):
+                        not_run("page_layouts.trade-reload", vp, "page_layouts.setup made no closed trade (see its row)")
+                        return
+                    p_.reload(wait_until="domcontentloaded")
+                    h._dismiss_intro(p_)
+                    nudges(p_)
+                    ready = C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+                    C.vis_loc(p_.get_by_role("heading", name=label_of["trade"]["story"], exact=True), 30000)
+                    ids = trade_panel_ids(p_.evaluate(TRADE_ORDER_JS))
+                    rest = [x for x in default_ids["trade"] if x not in ("story", "chart")]
+                    ok = ready and bool(ids) and ids[0] == "story" and "chart" not in ids and in_order(ids[1:], rest)
+                    C.step(p_, i_, "page_layouts.trade-reload", "Reload the trade page: The story is first, there is no chart, the rest keep the registry order",
+                           "PASS" if ok else "FAIL", panel_order=ids, expected_rest=rest)
+
+                # ── 7. reset: reset both pages to the default, Save; the pages and the stored lists are the registry's
+                @guard("page_layouts.reset")
+                def _():
+                    out = {}
+                    if ST.get("trade_id"):
+                        title = "Customize trade page"
+                        open_trade(p_, ST["trade_id"])
+                        dlg, rows_ok = open_editor(p_, title)
+                        p_.get_by_role("button", name="Reset to default", exact=True).click()
+                        closed, toast = save_editor(p_, title)
+                        p_.reload(wait_until="domcontentloaded")
+                        h._dismiss_intro(p_)
+                        nudges(p_)
+                        C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+                        C.vis_loc(p_.get_by_role("heading", name=label_of["trade"]["story"], exact=True), 30000)
+                        ids = trade_panel_ids(p_.evaluate(TRADE_ORDER_JS))
+                        lst = (stored_layout(c_) or {}).get("trade") or []
+                        out["trade"] = {"rows": rows_ok, "sheet_closed": closed, "toast": toast, "order": ids,
+                                        "order_is_default": in_order(ids, default_ids["trade"]) and "chart" in ids and "story" in ids,
+                                        "stored_is_registry": [[e.get("id"), e.get("shown")] for e in lst] == [[pid, shown] for pid, _, shown in reg["trade"]]}
+                    open_today(p_)
+                    title = "Customize Today"
+                    dlg, rows_ok = open_editor(p_, title)
+                    p_.get_by_role("button", name="Reset to default", exact=True).click()
+                    closed, toast = save_editor(p_, title)
+                    p_.reload(wait_until="domcontentloaded")
+                    h._dismiss_intro(p_)
+                    nudges(p_)
+                    C.vis_loc(p_.get_by_role("button", name="Customize", exact=True), 60000)
+                    p_.wait_for_timeout(2500)
+                    ids = today_panel_ids(p_.evaluate(TODAY_ORDER_JS))
+                    lst = ((stored_layout(c_) or {}).get("today") or {}).get(ST.get("phase")) or []
+                    out["today"] = {"rows": rows_ok, "sheet_closed": closed, "toast": toast, "order": ids,
+                                    "order_is_default": in_order(ids, default_ids["today"]) and not ({"regime", "myRules"} & set(ids)),
+                                    "stored_is_registry": [[e.get("id"), e.get("shown")] for e in lst] == [[pid, shown] for pid, _, shown in reg["today"]]}
+                    ok = all(v["rows"] and v["sheet_closed"] and v["toast"] and v["order_is_default"] and v["stored_is_registry"] for v in out.values()) and "today" in out \
+                        and (not ST.get("trade_id") or "trade" in out)
+                    C.step(p_, i_, "page_layouts.reset", "Reset to default on the trade page and on Today, Save, reload: both pages and both stored lists are the registry's",
+                           "PASS" if ok else "FAIL", **out)
+            finally:
+                c_.close()
+
+        for vp in vps:
+            if not on:
+                for feature, where in walked_at.items():
+                    if vp in where:
+                        not_run(feature, vp, f"{PAGE_LAYOUTS_KEY} is off in this sandbox")
+                continue
+            try:
+                walk_vp(vp)
+            except h.SetupFailed:
+                raise
+            except Exception as e:  # noqa: BLE001 -- recorded; the next viewport still runs
+                C.step(None, inst, "page_layouts.setup", f"{vp}: driver exception", "FAIL", viewport_asked=vp,
+                       error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:], shot=False)
+        # page_layouts.coverage: every row left a record at each of its viewports (a NOT_RUN row counts: it says why).
+        want = {(f, vp) for f, vps_ in walked_at.items() for vp in vps_}
+        seen = {(s.get("feature"), s.get("viewport")) for s in C.REC["steps"] if s.get("config") == cfg}
+        seen |= {(s.get("feature"), s.get("viewport_asked")) for s in C.REC["steps"] if s.get("config") == cfg}
+        missing = sorted(want - seen)
+        C.step(None, inst, "page_layouts.coverage", "every page-layouts feature left a row at each of its viewports",
+               "PASS" if not missing else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing], shot=False)
+    run("page_layouts", page_layouts)
 
     def discover():
         doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
