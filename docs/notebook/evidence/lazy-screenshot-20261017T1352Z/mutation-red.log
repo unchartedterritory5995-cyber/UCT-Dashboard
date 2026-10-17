@@ -1,0 +1,38 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-lazy-screenshot/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/screenshotLazy.test.js [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 570[2mms[22m[39m
+     [32m✓[39m NON-VACUITY: the walk sees both call sites[32m 2[2mms[22m[39m
+[31m     [31m×[31m no file under journal-2-0 imports modern-screenshot statically[39m[33m 336[2mms[22m[39m
+     [32m✓[39m exactly one dynamic import in exportNote.js, one in embedArchive.js, and none elsewhere[32m 230[2mms[22m[39m
+     [32m✓[39m CONTROLS: a static import is seen, a comment is not, a dynamic one is told apart[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/screenshotLazy.test.js[2m > [22mmodern-screenshot stays out of the Notebook first-open closure[2m > [22mno file under journal-2-0 imports modern-screenshot statically
+[31m[1mAssertionError[22m: expected [ 'lib/exportNote.js' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "lib/exportNote.js",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/screenshotLazy.test.js:[2m63:23[22m[39m
+    [90m 61| [39m  it('no file under journal-2-0 imports modern-screenshot statically',…
+    [90m 62| [39m    const offenders = scan(SHOT).filter((f) => f.statics.length).map((…
+    [90m 63| [39m    [34mexpect[39m(offenders)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                      [31m^[39m
+    [90m 64| [39m  })
+    [90m 65| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 08:55:23
+[2m   Duration [22m 1.04s[2m (transform 94ms, setup 236ms, import 109ms, tests 570ms, environment 0ms)[22m
+

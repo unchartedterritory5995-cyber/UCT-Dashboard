@@ -398,6 +398,56 @@ def test_upsert_caps_notes_at_10000_chars(db_conn):
         upsert_day_notes("u1", "2026-04-19", {"notes": "x" * 10_001}, conn=db_conn)
 
 
+def test_a_key_left_out_keeps_its_stored_value(db_conn):
+    """The 2026-10-17 day-page defect: a save carrying only notes/attachments/rules (what the old hook
+    sent, and what an unreloaded tab still sends) must not blank prep, mid-day or recap."""
+    from api.services.journal_two.calendar import (
+        upsert_day_notes, get_day_notes,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    upsert_day_notes("u1", "2026-04-19", {
+        "notes": "general", "prepNotes": "watch NVDA 132", "midDayNotes": "held the plan",
+        "recapNotes": "two good fills",
+        "attachments": [{"kind": "link", "url": "https://tradingview.com/x/abc", "label": "chart"}],
+        "rules": [{"id": "r1", "label": "Wait for confirmation", "checked": False}],
+    }, conn=db_conn)
+
+    # The old hook's exact shape: a rule tick, three keys only.
+    upsert_day_notes("u1", "2026-04-19", {
+        "notes": "general",
+        "attachments": [{"kind": "link", "url": "https://tradingview.com/x/abc", "label": "chart"}],
+        "rules": [{"id": "r1", "label": "Wait for confirmation", "checked": True}],
+    }, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["prepNotes"] == "watch NVDA 132"
+    assert got["midDayNotes"] == "held the plan"
+    assert got["recapNotes"] == "two good fills"
+    assert got["rules"][0]["checked"] is True
+
+    # A save that leaves out attachments and rules keeps them too.
+    upsert_day_notes("u1", "2026-04-19", {"recapNotes": "two good fills, one late exit"}, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["recapNotes"] == "two good fills, one late exit"
+    assert got["notes"] == "general"
+    assert len(got["attachments"]) == 1
+    assert got["rules"][0]["checked"] is True
+
+
+def test_a_key_sent_empty_still_clears(db_conn):
+    """Keeping a left-out key must not stop a member clearing a field on purpose."""
+    from api.services.journal_two.calendar import (
+        upsert_day_notes, get_day_notes,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    upsert_day_notes("u1", "2026-04-19", {
+        "prepNotes": "watch NVDA", "rules": [{"id": "r1", "label": "x", "checked": True}],
+    }, conn=db_conn)
+    upsert_day_notes("u1", "2026-04-19", {"prepNotes": "", "rules": []}, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["prepNotes"] == ""
+    assert got["rules"] == []
+
+
 def test_upsert_rejects_invalid_attachment_kind(db_conn):
     from api.services.journal_two.calendar import (
         upsert_day_notes, DayNotesValidationError,

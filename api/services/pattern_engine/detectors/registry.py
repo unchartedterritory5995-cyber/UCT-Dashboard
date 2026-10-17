@@ -126,6 +126,33 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # 3.74 vs production 1.94; blind fresh-packet review 19 yes / 1 no / 5
     # ambiguous. Experimental, internal until the owner rules it public.
     "uct_pullback_ma_v5",
+    # Team setup recognition rules: inside day and flat-top breakout, NEW ids
+    # beside inside_bar_breakout / nr7 / flat_base (unchanged). Lab-frozen rules,
+    # each confirmed by two independent blind packets (pooled precision of
+    # decided 90.5% and 82.4%). Experimental, internal until the owner rules them
+    # public; NOT in the team drawing set.
+    "uct_inside_day", "uct_flat_top_breakout",
+    # Team setup recognition rules, second pair: the flag / high tight flag
+    # rule WITH the lab's shared guard (falling 200 SMA overhead or a pinned
+    # post-gap tape), and the MA reclaim rule. NEW ids beside bull_flag /
+    # high_tight_flag / pennant / remount (unchanged). Each confirmed by two
+    # independent blind packets (pooled precision of decided 79.5% and 82.9%).
+    # Experimental, internal until the owner rules them public; NOT in the team
+    # drawing set.
+    "uct_flag_htf", "uct_ma_reclaim",
+    # Team setup recognition rule, third port: a close through the top-1
+    # falling line of a FROZEN copy of the learned drawer (vendored in the
+    # detector module, never the display drawer). NEW id, no existing detector
+    # changed. Confirmed by two independent blind packets shown the tested line
+    # (pooled precision of decided 86.8%). Experimental, internal until the
+    # owner rules it public; NOT in the team drawing set.
+    "uct_trendline_break",
+    # Same port: the launch pad v4 rule (a close just above a tight 8/21/50
+    # cluster, no falling 200 overhead). NEW id beside uct_launch_pad, which is
+    # a different, earlier rule and is unchanged. Confirmed by two independent
+    # blind packets (pooled precision of decided 82.4%). Experimental, internal;
+    # NOT in the team drawing set.
+    "uct_launch_pad_v4",
 })
 
 
