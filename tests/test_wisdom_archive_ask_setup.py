@@ -384,12 +384,13 @@ def test_no_per_trader_cut_means_no_traders_line(wisdom_db, on):
 
 # ── the brain's rule: edge20 z first, then edgeR z; n >= 30; |z| >= 3 ────────
 
-def _cut(n, *, z20=None, zR=None):
+def _cut(n, *, z20=None, zR=None, n20=None):
     out = _stats(n, zR)
     if zR is None:
         del out["edgeR_z"]
     if z20 is not None:
         out["edge20_z"] = z20
+        out["n_edge20"] = n if n20 is None else n20
     return out
 
 
@@ -404,6 +405,10 @@ def _cut(n, *, z20=None, zR=None):
     (_cut(60, zR=3.4), ("edge", "edgeR", 3.4)),                    # old import: no edge20_z, edgeR decides
     (_cut(60, zR=-3.4), ("negative", "edgeR", -3.4)),
     (_cut(60, zR=2.0), None),
+    # n is the brain's: the count of edge20 values gates BOTH steps, not n_scored
+    (_cut(40, z20=3.4, n20=29), None),                             # 40 scored but 29 with an edge20: not measured
+    (_cut(40, z20=1.0, zR=3.5, n20=29), None),                     # ...and the edgeR step is gated by it too
+    (_cut(35, z20=3.4, n20=30), ("edge", "edge20", 3.4)),           # 30 edge20 values is enough
 ])
 def test_edge_call_is_the_brains_rule_in_the_scorecards_order(cut, want):
     assert askai.EDGE_Z == 3.0 and askai.MIN_CONTEXT_N == 30            # the brain's EDGE_Z and MIN_N
@@ -412,6 +417,7 @@ def test_edge_call_is_the_brains_rule_in_the_scorecards_order(cut, want):
 
 def test_edge20_z_survives_the_import_and_decides_the_traders_line(wisdom_db, on):
     trader = {"TSDR": _cut(60, z20=3.6, zR=1.1),        # edge only on edge20 (the old line said not proven)
+              "Jersace": _cut(45, z20=3.9, n20=28),     # 45 scored, only 28 with an edge20: not measured
               "Bracco": _cut(45, z20=-3.3, zR=3.5),     # edge20 negative beats an edgeR edge
               "Manrav": _cut(50, z20=0.4, zR=3.2),      # edge20 quiet, edgeR decides
               "Chartmaster": _cut(40, zR=3.1)}          # an old import's cut, edgeR only
@@ -428,7 +434,7 @@ def test_edge20_z_survives_the_import_and_decides_the_traders_line(wisdom_db, on
     assert "Chartmaster (n 40, edge R +0.30, z 3.1 on edge R)" in line
     cite = next(c for c in cites if c["kind"] == "trader_archive_setup_traders")
     assert cite["traders"] == {"edge": ["chartmaster", "manrav", "tsdr"], "negative": ["bracco"],
-                               "not_enough_data": []}
+                               "not_enough_data": ["jersace"]}
 
 
 def test_an_unknown_stat_field_is_still_refused(wisdom_db):

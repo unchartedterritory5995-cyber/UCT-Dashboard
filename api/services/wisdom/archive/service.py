@@ -201,7 +201,7 @@ SETUP_FIELDS = {"setup_id", "name", "family", "aliases", "used_by", "stats", "st
                 "teachings", "winners", "failures", "sha"}
 #: The measured numbers a playbook's stats may carry; anything else is refused.
 STAT_FIELDS = ("n", "n_scored", "win20", "med_r20", "mean_r20", "med_edge20", "mean_simR", "mean_edgeR",
-               "edgeR_z", "edge20_z", "thin")
+               "edgeR_z", "edge20_z", "n_edge20", "thin")
 CONTEXT_GROUPS = ("trader", "kind", "market", "entry", "extension_from_50", "direction")
 TEACHING_FIELDS = {"record_id", "author_id", "date", "note"}
 EXAMPLE_FIELDS = {"call_id", "record_id", "ticker", "author_id", "posted", "direction", "action", "evidence",
