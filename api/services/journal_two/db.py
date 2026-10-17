@@ -860,6 +860,30 @@ CREATE TABLE IF NOT EXISTS j2_note_mentions (
 CREATE INDEX IF NOT EXISTS idx_j2_note_mentions_user_sym
     ON j2_note_mentions(user_id, symbol);
 
+-- ── Mood and focus check-in sidecar (P2 Tier 3, Task 4) ───────────────────
+-- One row per `moodCheckIn` widgetEmbed in a note's body_json, rebuilt on every
+-- body write by notes._sync_note_sidecars in the same walk and the same
+-- transaction as j2_note_embeds -- the same "rebuildable projection, never
+-- edited directly" contract. A block is recorded only when its `day` is a real
+-- YYYY-MM-DD date, at least one level is '1'..'5', and it has an embedId; any
+-- other block is skipped and the note still saves.
+-- Trash and restore leave these rows alone (R-T3-V3): readers join j2_notes on
+-- `deleted_at IS NULL`. The hard-delete sweep (purge_expired_deleted_notes)
+-- and the account purge delete them explicitly. No foreign key, like its
+-- neighbours.
+CREATE TABLE IF NOT EXISTS j2_note_checkins (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    embed_id    TEXT NOT NULL,
+    day         TEXT NOT NULL,            -- 'YYYY-MM-DD', the block's day param
+    mood        INTEGER,                  -- 1..5 or NULL
+    focus       INTEGER,                  -- 1..5 or NULL
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (note_id, embed_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_checkins_user_day
+    ON j2_note_checkins(user_id, day);
+
 -- ── Wave D (Internal Links / Backlinks / Knowledge Relationships) ──────────
 -- One row per `noteLink` node in a note's body_json -- same "rebuildable
 -- projection, never edited directly" contract as j2_note_embeds/

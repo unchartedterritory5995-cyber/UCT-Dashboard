@@ -354,17 +354,64 @@ def _sync_note_mentions(
             [(note_id, user_id, sym, now) for sym in symbols])
 
 
+# ── The mood and focus check-in sidecar (P2 Tier 3, Task 4) ─────────────────
+# ⛔ ONE FACT IN TWO FILES: CHECKIN_LEVELS is the client's CHECKIN_LEVELS in
+# app/src/pages/journal-2-0/lib/blocks/checkinWords.js (R-T3-V1: the registry
+# types mood and focus as plain strings, so the level is checked here and
+# there). tests/test_note_checkins_sidecar.py runs the client's
+# nextCheckinParams through Node and asserts this side keeps exactly what it
+# keeps. Only these strings: a number, ' 4' or '04' is not a level.
+CHECKIN_LEVELS = frozenset({"1", "2", "3", "4", "5"})
+_CHECKIN_WIDGET_ID = "moodCheckIn"
+# ASCII digits and fullmatch: `\d` admits other scripts' digits, and `$`
+# matches before a trailing newline.
+_CHECKIN_DAY_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def _checkin_level(value: Any) -> int | None:
+    """A check-in level ('1'..'5') as its integer, else None (unpicked or not a level)."""
+    return int(value) if isinstance(value, str) and value in CHECKIN_LEVELS else None
+
+
+def _checkin_day(value: Any) -> str | None:
+    """The block's `day` when it is a real YYYY-MM-DD date, else None."""
+    if not isinstance(value, str) or not _CHECKIN_DAY_RE.fullmatch(value):
+        return None
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return value
+
+
+def _checkin_row(attrs: dict[str, Any], params: dict[str, Any]) -> dict[str, Any] | None:
+    """One check-in block's row, or None when the block is not recordable. Never raises: a bad
+    block is skipped and the note still saves (the degrade rule of _sync_note_sidecars)."""
+    embed_id = attrs.get("embedId")
+    if not isinstance(embed_id, str) or not embed_id:
+        return None
+    day = _checkin_day(params.get("day"))
+    if day is None:
+        return None
+    mood, focus = _checkin_level(params.get("mood")), _checkin_level(params.get("focus"))
+    if mood is None and focus is None:
+        return None
+    return {"embed_id": embed_id, "day": day, "mood": mood, "focus": focus}
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
 ) -> None:
-    """Rebuild all 5 note-content sidecar projections inside the caller's
-    transaction (no commit here). Replaces the old _sync_note_embeds /
+    """Rebuild every note-content sidecar projection inside the caller's
+    transaction (no commit here): the five below, plus j2_note_checkins (P2
+    Tier 3), which rides the same walk. Replaces the old _sync_note_embeds /
     _sync_note_mentions / _sync_note_links / _sync_note_fact_refs /
     _sync_note_excerpt_refs quintet, which every call site invoked together
     in this exact order -- see the module comment above for why combining
     them is a real perf win and not just tidying."""
     embeds: list[dict[str, Any]] = []
+    checkins: list[dict[str, Any]] = []
     link_ids: list[str] = []
     fact_ids: list[str] = []
     excerpt_ids: list[str] = []
@@ -405,6 +452,10 @@ def _sync_note_sidecars(
                     "mode": attrs.get("mode") or None,
                     "captured_at": attrs.get("capturedAt") or None,
                 })
+                if widget_id == _CHECKIN_WIDGET_ID:
+                    row = _checkin_row(attrs, params)
+                    if row is not None:
+                        checkins.append(row)
         elif ntype == "noteLink":
             # Wave D. A note linking to the same target twice keeps BOTH
             # occurrences (position is part of the sidecar's primary key) --
@@ -444,6 +495,24 @@ def _sync_note_sidecars(
             [(note_id, user_id, i, r["widget_id"], r["symbol"], r["timeframe"],
               r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
              for i, r in enumerate(embeds)])
+
+    # j2_note_checkins -- delete+insert, like the mentions below. The key is
+    # (note_id, embed_id), and a copied block can carry its source's embedId:
+    # the first in document order is kept, so a duplicate can never fail the
+    # INSERT and with it the note write.
+    conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
+    if checkins:
+        seen: set[str] = set()
+        now = _now_iso()
+        rows = []
+        for r in checkins:
+            if r["embed_id"] in seen:
+                continue
+            seen.add(r["embed_id"])
+            rows.append((note_id, user_id, r["embed_id"], r["day"], r["mood"], r["focus"], now))
+        conn.executemany(
+            "INSERT INTO j2_note_checkins (note_id, user_id, embed_id, day, mood, focus,"
+            " created_at) VALUES (?,?,?,?,?,?,?)", rows)
 
     # j2_note_mentions -- the one projection derived from body_plain, not
     # body_json; its own function so the body_plain backfill
@@ -4368,6 +4437,8 @@ def purge_expired_deleted_notes(
             conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+            # P2 Tier 3: no trigger cleans the check-ins either (R-T3-V3).
+            conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
         conn.commit()
         return len(ids)
     finally:
