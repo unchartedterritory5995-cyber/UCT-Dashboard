@@ -682,9 +682,10 @@ function FocusList({ onMode }) {
     if (pendingRef.current) return
     say('Saving…')
     say(await saveToNotebook(buildScreenerCapture({
-      meta, filters: s.filters, visibleColumns: columns, displayRows, livePrices: prices,
+      // With New only on, the capture is what is on screen: the new rows and their count.
+      meta, filters: s.filters, visibleColumns: columns, displayRows: listRows, livePrices: prices,
       spec: { filters: s.filters, sort: s.sort, view: s.view, columns: s.columns, rank: s.rank },
-      total: shownTotal, snapshotDate: listed?.snapshot_date, snapshot: listed?.snapshot, scanReceipts,
+      total: newOnlyOn ? listRows.length : shownTotal, snapshotDate: listed?.snapshot_date, snapshot: listed?.snapshot, scanReceipts,
     })))
   }
   const hasResult = !!result && total != null

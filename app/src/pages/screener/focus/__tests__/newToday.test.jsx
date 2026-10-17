@@ -9,6 +9,12 @@ vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="ta
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+const captures = []
+vi.mock('../../shell/notebookCapture', async importOriginal => {
+  const real = await importOriginal()
+  return { ...real, buildScreenerCapture: args => { captures.push(args); return real.buildScreenerCapture(args) } }
+})
+vi.mock('../focusActions', async importOriginal => ({ ...(await importOriginal()), saveToNotebook: async () => 'Saved' }))
 import ResultList from '../ResultList'
 import NewTodayLine from '../NewTodayLine'
 import FocusScreener from '../FocusScreener'
@@ -165,4 +171,15 @@ test("a member's carried pool on a starter asks nothing (a different population 
   await openStarter()
   await new Promise(r => setTimeout(r, 50))
   expect(diffBodies().filter(b => (b.spec.filters || []).some(f => f.key === 'rs_rank'))).toEqual([])
+})
+
+test('Add to Notebook with New only on captures exactly the rows on screen and their count', async () => {
+  captures.length = 0
+  mount()
+  fireEvent.click(await screen.findByRole('button', { name: '2 new' }))
+  fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: /Add to Notebook/ }))
+  await waitFor(() => expect(captures.length).toBe(1))
+  expect(captures[0].displayRows.map(r => r.ticker)).toEqual(['ECO', 'APLS'])
+  expect(captures[0].total).toBe(2)
 })
