@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
@@ -260,8 +260,9 @@ describe('ChecklistFromWinners — fix round 1', () => {
     await screen.findByText('patient', { selector: 'span' })
     fireEvent.click(within(card('patient')).getByRole('button', { name: /add to my checklist/i }))
     const save = within(screen.getByRole('dialog')).getByRole('button', { name: 'Save rule' })
-    fireEvent.click(save)
-    fireEvent.click(save)
+    // Both clicks inside one act: React has not re-rendered the disabled button between them, so only
+    // the in-flight guard can stop the second.
+    act(() => { save.click(); save.click() })
     await screen.findByText(ADDED_TEXT)
     expect(writes(globalThis.fetch).filter((c) => c.method === 'POST')).toHaveLength(1)
   })
