@@ -17,7 +17,7 @@ const fmtChg = v => {
 // so the list hands each row PRIMITIVES (its live price and change) plus stable references (the
 // row object, `onSelect`, the hub cursor's constant prop objects). A tick for one ticker then
 // re-renders that ticker's row only, not every loaded row.
-const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany, structures, spark }) {
+const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany, structures, spark, isNew = false }) {
   const s = setupLine({ ...r, price }, structures)
   return (
     <div id={`focus-opt-${r.ticker}`} role="option" aria-selected={sel}
@@ -27,7 +27,8 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
       <span className={onRadar ? styles.dotOn : styles.dotOff}
         {...(onRadar ? { 'aria-label': 'On your radar', role: 'img' } : { 'aria-hidden': true })} />
       <span className={styles.rowMain}>
-        <span className={styles.ticker}>{r.ticker}</span>
+        {/* New today (spec 2026-10-16 s1): in the screen now, not at the previous nightly build. */}
+        <span className={styles.ticker}>{r.ticker}{isNew && <span className={styles.newPill}>New</span>}</span>
         {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
         <span className={styles.setup} title={s.title || undefined}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
       </span>
@@ -49,7 +50,7 @@ const NO_STRUCTURES = {}
 export const LOOKAHEAD_ROWS = 2
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null },
   ref,
 ) {
   const listRef = useRef(null)
@@ -152,7 +153,7 @@ const ResultList = forwardRef(function ResultList(
           return (
             <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
               onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
-              showCompany={showCompany} structures={structures} spark={spark} />
+              showCompany={showCompany} structures={structures} spark={spark} isNew={!!newSet && newSet.has(r.ticker)} />
           )
         })}
         {hasMore && <div ref={endRef} className={styles.moreSentinel} aria-hidden="true" />}

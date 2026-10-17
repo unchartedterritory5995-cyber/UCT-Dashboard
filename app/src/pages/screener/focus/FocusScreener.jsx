@@ -48,6 +48,8 @@ import HelpMenu from './HelpMenu'
 import Menu, { MenuItem, MenuHeading } from './Menu'
 import DataReceipt, { coverageHasDrop } from './DataReceipt'
 import ResultList from './ResultList'
+import NewTodayLine from './NewTodayLine'
+import useNewToday from './useNewToday'
 import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
@@ -261,6 +263,27 @@ function FocusList({ onMode }) {
   const displayRows = useMemo(() => (liveSortOn && liveSortEligible ? sortRowsLive(rows, s.sort, prices) : rows),
     [liveSortOn, liveSortEligible, rows, s.sort, prices])
 
+  // ── New today (spec 2026-10-16 s1) ───────────────────────────────────────
+  // Asked with the screen's criteria only (the filter LIST, logic, rank), so a re-sort asks
+  // nothing. Off (the payload flag) asks nothing and draws nothing.
+  const ntOn = useContext(AuthContext)?.screenerNewTodayEnabled === true
+  const ntFilters = s.baseSpec.filters
+  const ntCriteria = useMemo(() => ({ filters: ntFilters, logic: s.logic, rank: s.rank }), [ntFilters, s.logic, s.rank])
+  const nt = useNewToday(ntCriteria, ntOn)
+  const newSet = useMemo(() => (nt?.state === 'ok' ? new Set(nt.entered || []) : null), [nt])
+  const [newOnly, setNewOnly] = useState(false)
+  // A different screen starts with every row shown. Keyed on the criteria (what the answer is
+  // about), so a re-sort of the same screen keeps New only on.
+  const ntKey = JSON.stringify(ntCriteria)
+  useEffect(() => { setNewOnly(false) }, [ntKey])
+  const newOnlyOn = newOnly && !!newSet
+  // ⛔ ONE list: the rows shown, the selection, the hub cursor and the count all read
+  // `listRows`, so the arrow keys step through exactly what is on screen.
+  const listRows = useMemo(() => (newOnlyOn ? displayRows.filter(r => newSet.has(r.ticker)) : displayRows), [newOnlyOn, displayRows, newSet])
+  // New only filters the LOADED rows; paging is held while it is on, or the list's load-more
+  // would page through the whole screen looking for rows the filter hides.
+  const listHasMore = hasMore && !newOnlyOn
+
   // ── toast ────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState(null) // {msg, changeList}
   const toastTimer = useRef(null)
@@ -298,7 +321,7 @@ function FocusList({ onMode }) {
   const paneFlag = useCallback(row => { if (pendingRef.current) return; onFlag(row); focusList() }, [onFlag, focusList])
   const paneWatch = useCallback(row => { if (pendingRef.current) return; onWatch(row); focusList() }, [onWatch, focusList])
 
-  const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
+  const sel = useFocusSelection({ rows: listRows, resetKey: rowsKey, hasMore: listHasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
 
   // ── the joystick hub (phones/tablets), registered over the rows AS SHOWN, like ScannerShell.
   // Its screens door opens the screen menu. Where the hub cannot exist (useHubEligible, the gate
@@ -306,7 +329,7 @@ function FocusList({ onMode }) {
   const screenMenuApi = useRef(null)
   const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
   const hubOn = useHubEligible()
-  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: shown.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens, busy: pending })
+  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows: listRows, filters: shown.filters, prices, hasMore: listHasMore, loadMore: s.loadMore, onOpenScans: openScreens, busy: pending })
   const hubIndex = hubCursor.index
   const hubScrubTo = hubCursor.scrubTo
   const selectRow = sel.select
@@ -318,14 +341,14 @@ function FocusList({ onMode }) {
   useEffect(() => {
     const prev = sync.current
     sync.current = { sel: sel.index, hub: hubIndex, key: rowsKey }
-    if (!hubOn || !displayRows.length || sel.index === hubIndex) return
+    if (!hubOn || !listRows.length || sel.index === hubIndex) return
     if (prev.key !== rowsKey || prev.sel !== sel.index) {
-      const n = displayRows.length
+      const n = listRows.length
       hubScrubTo?.(n > 1 ? sel.index / (n - 1) : 0)
     } else if (prev.hub !== hubIndex && hubIndex >= 0) {
       selectRow(hubIndex)
     }
-  }, [hubOn, sel.index, hubIndex, rowsKey, displayRows.length, hubScrubTo, selectRow])
+  }, [hubOn, sel.index, hubIndex, rowsKey, listRows.length, hubScrubTo, selectRow])
   const radar = useRadar(displayRows)
 
   // ── drawer and sheets ────────────────────────────────────────────────────
@@ -653,10 +676,11 @@ function FocusList({ onMode }) {
   } else {
     body = (
       <div className={styles.body}>
-        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
-          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={shownTotal} hasMore={hasMore}
+        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
+          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
-          headExtra={<FlaggedActions />} />
+          newSet={newSet}
+          headExtra={<><NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} /><FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
         <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
           onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
