@@ -25,7 +25,11 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 - Commits so far: c8edff5363 spec+plan+RESUME · 22980148dc five Phase 0 files · b568f4d580 RESUME ·
   ad2f95cbf9 wire_archive market_call (blocker B2) · ab7a0efbbe UNITS-foundations (129 units) ·
   1a6b3da6cb scans image-copy job (blocker B1) + UNITS-method (96 units) + skill_map.json ·
-  aab8042648 RESUME · 47476c0328 Phase 1 backend skeleton (+3,401 lines, 125 tests).
+  aab8042648 RESUME · 47476c0328 Phase 1 backend skeleton (+3,401 lines, 125 tests) · b32489bf08/c10a54a78a/
+  efb8812ad9/9395cbb976 lane F1 (StockChart studyMode, hub hides under fullscreen Sheet, StudyPanel,
+  SkillTrail, ProgressRing, Courses integration, Settings card; 50 tests) · 75bc05e44c/ab298a0754 lane F2
+  (DrillPlayer, 7 drills, RevealCard, EndCard, PractiseSheet, useStudySession, outbox; 42 tests) ·
+  e565b0620e integrator wiring of the drill + practise sheet into CoursesSection (reachable rail green).
 - Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
 - Phase 1 backend: SKELETON LANDED 47476c0328 (study_store/scoring/select + router + 6 test files,
   125 tests). Integrator re-ran all six in this session (125 passed) plus the four rails
@@ -84,8 +88,12 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 - [~] Outside-Study prerequisites (their own small merges): wire_archive persists `exposure_tier` (DONE ad2f95cbf9);
       StockChart `studyMode` / `armedTool` / `toolsAllowlist`; hub hidden under a fullscreen Sheet;
       `/api/ticker-meta` short-circuits non-universe symbols; one-time Scans image copy to R2 (SCRIPT DONE 1a6b3da6cb: `scripts/study/copy_scans_images.py`, not yet run on the pod).
-- [ ] Frontend: StudyPanel + trail sub-view inside CoursesSection, fullscreen DrillPlayer (one chart
-      per session), drills, reveal panel, end card, Practise sheet, StudyReview admin mode.
+- [~] Frontend: StudyPanel + trail + DrillPlayer + 7 Phase-1 drills + reveal + end card + Practise
+      sheet + Settings card LANDED and wired (e565b0620e). Still open: StudyReview admin mode
+      (owner's review screen, §13.6 card), intro cover card (D15), Grade/Levels/Next/Family/Listen
+      drills (Phase 2), size-answer key shape (`dollars` = risk $ vs position $) to confirm with the
+      bank, lesson-link param (`?section=courses&lesson=<lesson_key>`) to be honoured by the page,
+      daily `xp_today` from the backend for the XP bar, a real `misses` session kind.
 - [x] Tests (6 files, 125 passing): `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
       `test_study_import.py`, `test_study_flags.py`; frontend `StudyPanel.test.jsx`, `DrillPlayer.test.jsx`.
 
