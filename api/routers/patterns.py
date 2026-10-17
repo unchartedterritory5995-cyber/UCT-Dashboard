@@ -150,6 +150,9 @@ from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as _
 # Team setup recognition rules, second pair (flag + guard, MA reclaim): INTERNAL, same gate.
 from api.services.pattern_engine.detectors.uct import uct_flag_htf as _uct_flag_htf  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as _uct_ma_reclaim  # noqa: F401
+# Team setup recognition rules, third port (trendline break on a frozen drawer line, launch pad v4): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_trendline_break as _uct_trendline_break  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as _uct_launch_pad_v4  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 

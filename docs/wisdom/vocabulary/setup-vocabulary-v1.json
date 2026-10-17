@@ -2524,6 +2524,18 @@
      "vocab_id": "remount",
      "mismatch": 0,
      "note": "team-setup lab rule (close back above the 50 or 200 SMA after closes under it), internal detector"
+    },
+    {
+     "external_name": "uct_trendline_break",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 for a trendline break; team-setup lab rule (close through a falling trendline drawn by a frozen copy of the learned drawer), internal detector"
+    },
+    {
+     "external_name": "uct_launch_pad_v4",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": "team-setup lab rule (close just above a tight 8/21/50 average cluster, no falling 200 overhead), internal detector"
     }
    ]
   },

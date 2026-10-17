@@ -31,6 +31,7 @@ from api.services.pattern_engine import detect_all, memory
 from api.services.pattern_engine.detectors import registry
 from api.services.pattern_engine.detectors.uct import uct_flag_htf as FL
 from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
+from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as LP4
 from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as MR
 from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as PB
 from api.services.pattern_engine.detectors.uct import uct_setups_common as U
@@ -42,6 +43,7 @@ _ID = "uct_pullback_ma_v5"
 _FT_ID = "uct_flat_top_breakout"
 _FL_ID = "uct_flag_htf"
 _MR_ID = "uct_ma_reclaim"
+_LP4_ID = "uct_launch_pad_v4"
 _DAY = 86_400
 
 
@@ -99,11 +101,14 @@ def test_the_pullback_detector_declares_its_history_and_nothing_else_does():
     # marked session, plus the two prior trigger sessions). uct_flag_htf
     # declares 222 (its guard reads the 200 SMA 20 sessions back) and
     # uct_ma_reclaim 225 (its 200 SMA branch reads it 23 sessions back), so the
-    # deepest declaration, and the scan's fetch, is now 225.
-    assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID}, declared
+    # deepest declaration, and the scan's fetch, is now 225. uct_launch_pad_v4
+    # declares 222 (its falling-200 gate reads the 200 SMA 20 sessions back),
+    # which leaves the deepest at 225.
+    assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID}, declared
     assert registry.min_bars_for(_FT_ID) == FT.MIN_BARS == 202
     assert registry.min_bars_for(_FL_ID) == FL.MIN_BARS == 222
     assert registry.min_bars_for(_MR_ID) == MR.MIN_BARS == 225
+    assert registry.min_bars_for(_LP4_ID) == LP4.MIN_BARS == 222
     assert registry.scan_depth(registry.SCAN_BASE_DEPTH) == 225
     assert registry.scan_depth(500) == 500
 
@@ -173,7 +178,7 @@ def test_undeclared_detectors_produce_identical_detections(monkeypatch):
     old_bars = full[-200:]
     ctx = build_context(old_bars, sym="IDENT")
     others = [p for p in registry.list_pattern_ids() if not registry.min_bars_for(p)]
-    assert not {_ID, _FT_ID, _FL_ID, _MR_ID} & set(others)
+    assert not {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID} & set(others)
     monkeypatch.setattr(time, "time", lambda: 1_800_000_000.0)
 
     def strip(ds):

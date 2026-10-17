@@ -54,7 +54,11 @@ _TEAM_SETUPS = ("uct_inside_day", "uct_flat_top_breakout")
 #: ids beside bull_flag / high_tight_flag / pennant / remount, same gate
 #: (fixtures in tests/pattern_engine/detectors/test_uct_team_setups2.py).
 _TEAM_SETUPS2 = ("uct_flag_htf", "uct_ma_reclaim")
-_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS, *_TEAM_SETUPS2)
+#: Team setup recognition rules, third port (trendline break on a frozen
+#: drawer line, launch pad v4): NEW ids, same gate (fixtures in tests/pattern_engine/detectors/
+#: test_uct_team_setups3.py).
+_TEAM_SETUPS3 = ("uct_trendline_break", "uct_launch_pad_v4")
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS, *_TEAM_SETUPS2, *_TEAM_SETUPS3)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"

@@ -140,6 +140,19 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # Experimental, internal until the owner rules them public; NOT in the team
     # drawing set.
     "uct_flag_htf", "uct_ma_reclaim",
+    # Team setup recognition rule, third port: a close through the top-1
+    # falling line of a FROZEN copy of the learned drawer (vendored in the
+    # detector module, never the display drawer). NEW id, no existing detector
+    # changed. Confirmed by two independent blind packets shown the tested line
+    # (pooled precision of decided 86.8%). Experimental, internal until the
+    # owner rules it public; NOT in the team drawing set.
+    "uct_trendline_break",
+    # Same port: the launch pad v4 rule (a close just above a tight 8/21/50
+    # cluster, no falling 200 overhead). NEW id beside uct_launch_pad, which is
+    # a different, earlier rule and is unchanged. Confirmed by two independent
+    # blind packets (pooled precision of decided 82.4%). Experimental, internal;
+    # NOT in the team drawing set.
+    "uct_launch_pad_v4",
 })
 
 
