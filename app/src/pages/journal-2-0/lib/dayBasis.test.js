@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { effectiveDayBasis } from './dayBasis'
+import { effectiveDayBasis, isBrokerAccount } from './dayBasis'
 
 describe('effectiveDayBasis', () => {
   const broker = { balanceSource: 'snaptrade' }
@@ -25,5 +25,15 @@ describe('effectiveDayBasis', () => {
   it('a broker account with no preference yet reads on the account basis', () => {
     expect(effectiveDayBasis(broker, {})).toBe('account')
     expect(effectiveDayBasis(broker, undefined)).toBe('account')
+  })
+})
+
+describe('isBrokerAccount', () => {
+  it('is true only for an account with a balance source other than manual', () => {
+    expect(isBrokerAccount({ balanceSource: 'snaptrade' })).toBe(true)
+    expect(isBrokerAccount({ balanceSource: 'manual' })).toBe(false)
+    expect(isBrokerAccount({})).toBe(false)
+    expect(isBrokerAccount(null)).toBe(false)
+    expect(isBrokerAccount(undefined)).toBe(false)
   })
 })

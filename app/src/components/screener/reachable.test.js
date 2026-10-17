@@ -285,29 +285,6 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
-  // ── P4A PAGE LAYOUTS — BUILT, NOT YET MOUNTED (2026-10-17) ───────────────
-  //
-  // Notebook P4a builds the page-layout model, its flag and the five new Today panels
-  // before it mounts any of them: Task 5 wires the layout renderer into the Today
-  // surface, and these modules become reachable from App.jsx through it. This block
-  // is the countdown to that task, not a parking space: when Task 5 lands this rail
-  // goes RED until the entries below are deleted, with the expiry row, in the same
-  // change. Each panel is lazy-only by design (Today is a lazy route); none may be
-  // imported by an eager file.
-  'app/src/pages/journal-2-0/lib/pageLayoutsFlag.js':
-    'P4a Task 2 — the page-layouts flag. Task 5 reads it from the Today surface; then drop this entry.',
-  'app/src/pages/journal-2-0/lib/pageLayouts.js':
-    'P4a Task 2 — the page-layout model and its validator. Task 5 mounts the renderer over it; then drop this entry.',
-  'app/src/pages/journal-2-0/surfaces/today/panels/ChecklistTodayPanel.jsx':
-    'P4a Task 4 — the Today checklist panel. Task 5 mounts it through the layout renderer; then drop this entry.',
-  'app/src/pages/journal-2-0/surfaces/today/panels/MyRulesPanel.jsx':
-    'P4a Task 4 — the Today My rules panel. Task 5 mounts it through the layout renderer; then drop this entry.',
-  'app/src/pages/journal-2-0/surfaces/today/panels/RegimePanel.jsx':
-    'P4a Task 4 — the Today market regime panel. Task 5 mounts it through the layout renderer; then drop this entry.',
-  'app/src/pages/journal-2-0/surfaces/today/panels/TodayNotePanel.jsx':
-    "P4a Task 4 — the Today's-note panel. Task 5 mounts it through the layout renderer; then drop this entry.",
-  'app/src/pages/journal-2-0/surfaces/today/panels/NoticesPanel.jsx':
-    'P4a Task 4 — the Today notices panel. Task 5 mounts it through the layout renderer; then drop this entry.',
   // WAVE 13 CHART PLAN (13H-1, 2026-10-02) — unparked by 13H-2 on 2026-10-03.
   // `lib/chartPlan.js` and `lib/planLevels.js` stood here from 13H-1 (2026-10-02)
   // until the plan panel mounted them: App.jsx → … → WidgetEmbedView.jsx →
@@ -820,7 +797,6 @@ const PARKING_EXPIRES = {
   // being edited on the in-flight `pine/s1-strategy-broker` branch (34da5eb926,
   // 2026-10-05). Next lapse: WIRE or DELETE each module; do not renew again.
   'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-23',
-  'P4A PAGE LAYOUTS — BUILT, NOT YET MOUNTED (2026-10-17)': '2026-11-30',
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',

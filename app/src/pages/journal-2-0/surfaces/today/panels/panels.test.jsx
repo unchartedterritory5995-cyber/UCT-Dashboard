@@ -12,6 +12,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { todayET } from '../../../lib/calendar'
+import { DAILY_TEMPLATE_MISSING } from '../../../lib/dailyNote'
 
 const { navigateSpy, openDailyNoteSpy, prefsRef, myRulesProbe } = vi.hoisted(() => ({
   navigateSpy: vi.fn(),
@@ -177,6 +178,27 @@ describe('ChecklistTodayPanel', () => {
     expect(calls.some((c) => c.method === 'PUT')).toBe(false)
   })
 
+  it('after a failed read, "Try again" asks for the day again and shows the checklist when it answers', async () => {
+    let answers = 0
+    stubFetch([[(u, m) => m === 'GET' && u.startsWith(DAY_URL), () => { answers += 1; return answers === 1 ? json({}, 500) : json(DAY) }]])
+    mount(<ChecklistTodayPanel account={account} accountId="a1" />)
+    expect(await screen.findByText("Today's checklist isn't available right now.")).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'GET')).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByLabelText('Waited for confirmation')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('"Try again" is not offered while the day loads or once it has loaded', async () => {
+    stubFetch([[(u, m) => m === 'GET' && u.startsWith(DAY_URL), () => json(DAY)]])
+    mount(<ChecklistTodayPanel account={account} accountId="a1" />)
+    await screen.findByLabelText('Waited for confirmation')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
   it('with no account selected says exactly the pick-an-account line and reads nothing', () => {
     stubFetch([])
     mount(<ChecklistTodayPanel account={null} accountId={null} />)
@@ -279,6 +301,67 @@ describe('TodayNotePanel', () => {
     expect(openDailyNoteSpy).toHaveBeenCalledTimes(1)
     release({ note: { id: 'n9' } })
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('TodayNotePanel: in flight, failure and a missing template', () => {
+  const open = () => screen.getByRole('button', { name: "Open today's note" })
+
+  it('while the request runs the button is disabled and aria-busy, and it comes back after', async () => {
+    let release
+    openDailyNoteSpy.mockReturnValue(new Promise((res) => { release = res }))
+    mount(<TodayNotePanel />)
+    expect(open()).not.toBeDisabled()
+    expect(open()).not.toHaveAttribute('aria-busy', 'true')
+
+    fireEvent.click(open())
+    await waitFor(() => expect(open()).toBeDisabled())
+    expect(open()).toHaveAttribute('aria-busy', 'true')
+
+    release({ note: { id: 'n3' } })
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(open()).not.toBeDisabled())
+    expect(open()).not.toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('after a rejected call the guard has reset: a second tap asks again and opens the note', async () => {
+    openDailyNoteSpy.mockRejectedValueOnce(new Error('daily note request failed (500)'))
+    openDailyNoteSpy.mockResolvedValueOnce({ note: { id: 'n8' } })
+    mount(<TodayNotePanel />)
+
+    fireEvent.click(open())
+    expect(await screen.findByText("Couldn't open today's note. Try again.")).toBeInTheDocument()
+    await waitFor(() => expect(open()).not.toBeDisabled())
+
+    fireEvent.click(open())
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
+    expect(openDailyNoteSpy).toHaveBeenCalledTimes(2)
+    expect(navigateSpy.mock.calls[0][0]).toBe('/journal?j2tab=notebook&note=n8')
+    expect(screen.queryByText("Couldn't open today's note. Try again.")).not.toBeInTheDocument()
+  })
+
+  it('when the chosen daily template is gone it says so, as the shortcut does, then opens the note on request', async () => {
+    openDailyNoteSpy.mockResolvedValue({ note: { id: 'n5' }, created: true, templateMissing: true })
+    mount(<TodayNotePanel />)
+    fireEvent.click(open())
+
+    expect(await screen.findByText(DAILY_TEMPLATE_MISSING)).toBeInTheDocument()
+    expect(DAILY_TEMPLATE_MISSING).toBe("Your daily template no longer exists, so today's note started blank.")
+    // The member reads the notice before leaving Today: nothing navigated yet.
+    expect(navigateSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open the note' }))
+    expect(navigateSpy).toHaveBeenCalledTimes(1)
+    expect(navigateSpy.mock.calls[0][0]).toBe('/journal?j2tab=notebook&note=n5')
+  })
+
+  it('no notice and no extra button when the template is not missing', async () => {
+    openDailyNoteSpy.mockResolvedValue({ note: { id: 'n6' }, created: false, templateMissing: false })
+    mount(<TodayNotePanel />)
+    fireEvent.click(open())
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText(DAILY_TEMPLATE_MISSING)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open the note' })).not.toBeInTheDocument()
   })
 })
 

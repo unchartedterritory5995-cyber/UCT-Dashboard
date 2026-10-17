@@ -31,7 +31,7 @@ export default function ChecklistTodayPanel({ account, accountId }) {
   const { prefs } = usePreferences()
   // With no account there is no day to read or write: both hooks get a null date and stay idle.
   const date = accountId ? todayET() : null
-  const { notes, isLoading, error } = useJ2DayDetail(date, accountId, effectiveDayBasis(account, prefs))
+  const { notes, isLoading, error, refresh } = useJ2DayDetail(date, accountId, effectiveDayBasis(account, prefs))
   const { save, saving } = useJ2DayNotesMutation(date)
 
   let body
@@ -40,7 +40,14 @@ export default function ChecklistTodayPanel({ account, accountId }) {
   } else if (isLoading) {
     body = <p className={styles.muted}>Loading today&apos;s checklist…</p>
   } else if (error && !notes) {
-    body = <p className={styles.muted}>Today&apos;s checklist isn&apos;t available right now.</p>
+    // useJ2DayDetail does not retry a failed read on its own (and does not re-read on focus), so the way
+    // out is the member's: ask again.
+    body = (
+      <div>
+        <p className={styles.muted}>Today&apos;s checklist isn&apos;t available right now.</p>
+        <button type="button" className={styles.retryButton} onClick={refresh}>Try again</button>
+      </div>
+    )
   } else {
     body = (
       <DayRulesChecklist

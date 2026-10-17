@@ -8,6 +8,7 @@ let mockAccountId = null
 let mockAccount = null
 const mockSetAccount = vi.fn()
 let mockAccounts = []
+let mockPrefs = {}
 
 vi.mock('../hooks/useJ2SelectedAccount', () => ({
   default: () => ({
@@ -20,7 +21,7 @@ vi.mock('../hooks/useJ2SelectedAccount', () => ({
 }))
 
 vi.mock('../../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: {}, setPref: vi.fn() }),
+  default: () => ({ prefs: mockPrefs, setPref: vi.fn() }),
   parsePref: (raw, fallback) => (raw == null ? fallback : raw),
 }))
 
@@ -56,6 +57,7 @@ beforeEach(() => {
   mockAccount = null
   mockSetAccount.mockClear()
   mockAccounts = [{ id: 'acc1', name: 'Robinhood' }]
+  mockPrefs = {}
   capturedUrl = null
   global.fetch = vi.fn((url) => {
     capturedUrl = String(url)
@@ -138,5 +140,42 @@ describe('CalendarTab — first-run zero-trades prompt', () => {
     // Wait for the initial load to finish (the "Loading calendar…" hint clears).
     await waitFor(() => expect(screen.queryByText(/Loading calendar/i)).toBeNull())
     expect(screen.queryByTestId('calendar-first-run')).toBeNull()
+  })
+})
+
+// The calendar reads its P&L on the same basis the day page and the Today checklist read a day on
+// (lib/dayBasis.js effectiveDayBasis): one derivation, so this pins what the fetch asks for.
+describe('CalendarTab — the basis it asks for is effectiveDayBasis', () => {
+  it('a manual account is read on the closed basis, whatever the preference says', async () => {
+    mockAccountId = 'acc1'
+    mockAccount = { id: 'acc1', balanceSource: 'manual' }
+    mockPrefs = { j2_calendar_pnl_basis: 'account' }
+    renderTab()
+    await screen.findByTestId('scope-bar')
+    expect(capturedUrl).toContain('basis=closed')
+  })
+
+  it('a broker account with no preference yet is read on the account basis', async () => {
+    mockAccountId = 'acc1'
+    mockAccount = { id: 'acc1', balanceSource: 'snaptrade' }
+    renderTab()
+    await screen.findByTestId('scope-bar')
+    expect(capturedUrl).toContain('basis=account')
+  })
+
+  it('a broker account follows the preferred basis the member picked', async () => {
+    mockAccountId = 'acc1'
+    mockAccount = { id: 'acc1', balanceSource: 'snaptrade' }
+    mockPrefs = { j2_calendar_pnl_basis: 'closed' }
+    renderTab()
+    await screen.findByTestId('scope-bar')
+    expect(capturedUrl).toContain('basis=closed')
+  })
+
+  it('no account (All Accounts) is read on the closed basis', async () => {
+    mockPrefs = { j2_calendar_pnl_basis: 'account' }
+    renderTab()
+    await screen.findByTestId('scope-bar')
+    expect(capturedUrl).toContain('basis=closed')
   })
 })

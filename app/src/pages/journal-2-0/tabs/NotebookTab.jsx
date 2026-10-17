@@ -44,7 +44,7 @@ import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
 import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
-import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
+import { DAILY_TEMPLATE_MISSING, DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
@@ -1875,7 +1875,7 @@ export default function NotebookTab() {
         refreshSidebarCounts()
       }
       if (templateMissing) {
-        setActionError("Your daily template no longer exists, so today's note started blank.")
+        setActionError(DAILY_TEMPLATE_MISSING)
       }
       openNote(note)
     } catch (e) {

@@ -66,6 +66,35 @@
   outline-offset: 2px;
 }
 
+.retryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.retryButton:hover {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+.retryButton:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.noteButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .noteError {
   margin: 8px 0 0;
   font-size: 12.5px;
@@ -74,7 +103,8 @@
 }
 
 @media (max-width: 1024px) {
-  .noteButton {
+  .noteButton,
+  .retryButton {
     min-height: var(--tap-min);
   }
 }

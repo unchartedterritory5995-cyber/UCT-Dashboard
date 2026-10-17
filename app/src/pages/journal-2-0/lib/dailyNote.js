@@ -18,6 +18,10 @@ import { todayET } from './calendar'
 /** The preference that names the member's daily template (a template id, or ''). */
 export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
 
+/** What both doors say when the member's chosen daily template no longer exists (`templateMissing`): the
+ *  Notebook's Ctrl+Alt+D shortcut (tabs/NotebookTab.jsx) and the Today panel. One sentence, one place. */
+export const DAILY_TEMPLATE_MISSING = "Your daily template no longer exists, so today's note started blank."
+
 /** Open (or make) today's note. Resolves `{note, created, templateMissing}`. */
 export async function openDailyNote({ templateId, today = todayET } = {}) {
   const res = await fetch('/api/j2/notes/daily', {
