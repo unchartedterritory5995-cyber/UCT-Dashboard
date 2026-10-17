@@ -60,6 +60,11 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # recall gains and a blind random-day review; experimental, internal until
     # the owner rules them public.
     "uct_undercut_reclaim", "uct_episodic_pivot_v2",
+    # Detector recall v2, pullback v5 (2026-10-17): a NEW id beside the four
+    # pullback_to_* detectors (unchanged). Lab test half recall 20.1% at lift
+    # 3.74 vs production 1.94; blind fresh-packet review 19 yes / 1 no / 5
+    # ambiguous. Experimental, internal until the owner rules it public.
+    "uct_pullback_ma_v5",
 })
 
 

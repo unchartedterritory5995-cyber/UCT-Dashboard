@@ -143,6 +143,7 @@ from api.services.pattern_engine.detectors.uct import uct_go_signal as _uct_go_s
 # Detector recall v2 (2026-10-16): INTERNAL, same gate, kept out of _PATTERN_METADATA.
 from api.services.pattern_engine.detectors.uct import uct_undercut_reclaim as _uct_undercut_reclaim  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_ep_v2 as _uct_ep_v2  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as _uct_pullback_ma_v5  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 
