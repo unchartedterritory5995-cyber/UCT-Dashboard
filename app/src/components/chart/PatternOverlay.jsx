@@ -31,6 +31,14 @@
 //   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
 //   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
 //   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
+//   Whether `drawn` is present is the SERVER's call (admins; members only with the team set on).
+//
+// ⭐ TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET = the trusted tier):
+//   `trustedOnly` draws it (members always; admins by default, "All" shows everything). Its
+//   display-only extras: `draw_pivot` (a base's breakout / pivot line, solid, extended right),
+//   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `stale` (a base
+//   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
+//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped).
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -102,6 +110,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
     if (!d) continue
     if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
+    if (d.geometry?.extras?.stale) continue
     // A member (AUTO_STRUCTURES_MEMBERS_ENABLED) draws the trusted tier ONLY; a row with no
     // tier is not trusted. The server already filtered; this never widens what it sent.
     if (trustedOnly && d.display_tier !== 'trusted') continue
@@ -134,7 +143,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   showLevels:        draw the levels layer (nearest LEVELS_NEAREST to lastPrice); default false
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
- *   trustedOnly:       draw ONLY display_tier 'trusted' rows, no levels, no drawn (members); default false
+ *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
  */
 export default function PatternOverlay({
   chart,
@@ -184,7 +193,7 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
-  const hasDrawn = !trustedOnly && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
   const drawable = selectDrawable(detections, {
@@ -246,8 +255,14 @@ export default function PatternOverlay({
         const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
         // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
         const lanesOff = ex.draw_lanes === false
-        const Renderer = hasEma ? EmaSegment : (lanesOff ? null : SHAPE_RENDERERS[shape])
-        const secondary = Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : []
+        // A team-set base whose box did not hold up draws its pivot line only.
+        const boxOff = ex.draw_box === false
+        const Renderer = hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape])
+        const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
+        const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
+        // The curve replaces the flat MA level; the stop level stays.
+        const secondary = (Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : [])
+          .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
         const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
         const anchors = d?.geometry?.anchors || []
         return (
@@ -258,6 +273,48 @@ export default function PatternOverlay({
                 tToX={tToX}
                 priceToY={priceToY}
                 barHalfWidthPx={barHalfWidthPx}
+                onClick={onDetectionClick}
+              />
+            )}
+            {pivot && (
+              <LevelSegment
+                detection={{
+                  ...d,
+                  id: `${d.id}:pivot`,
+                  confidence: null,
+                  geometry: {
+                    shape: 'horizontal_line',
+                    label: `Pivot ${Number(pivot.price).toFixed(2)}`,
+                    anchors: [
+                      { t: pivot.start_t, price: Number(pivot.price) },
+                      { t: pivot.end_t, price: Number(pivot.price) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
+                onClick={onDetectionClick}
+                extendRight={40}
+                dashed={false}
+              />
+            )}
+            {handle && (
+              <Rectangle
+                detection={{
+                  ...d,
+                  id: `${d.id}:handle`,
+                  pattern_name: 'Handle',
+                  confidence: null,
+                  geometry: {
+                    shape: 'rectangle',
+                    anchors: [
+                      { t: handle.start_t, price: Number(handle.top) },
+                      { t: handle.end_t, price: Number(handle.floor) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
                 onClick={onDetectionClick}
               />
             )}

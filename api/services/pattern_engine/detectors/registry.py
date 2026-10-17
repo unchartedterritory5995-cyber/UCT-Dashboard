@@ -171,7 +171,7 @@ def list_public_pattern_ids() -> list[str]:
 #:                  failed AS DRAWN in v2 (bull_flag 1.50, pullback_to_10ema
 #:                  1.90, holy_grail 1.80) and the RSI divergences, which never
 #:                  rendered (no verdicts). Drawn for admins, visually distinct.
-#: Members (later flip) see `trusted` only.
+#: Members (later flip) see `trusted` only (since 2026-10-17: the team set below).
 #:
 #: v3 re-judge (lab/geometry_eval REPORT_TIERS_V3.md, 2026-10-17): the same
 #: blind rule over 13 detectors whose DRAWING changed, n=10 fresh charts each.
@@ -182,18 +182,41 @@ def list_public_pattern_ids() -> list[str]:
 #:                EXPERIMENTAL: its charts were judged WITHOUT an RSI panel, so
 #:                only the price-extreme line was judged, never the divergence
 #:                itself (CI low 1.80). Re-test with the RSI panel first.
-#:   Unchanged: DISPLAY_TRUSTED; double_bottom / double_top / head_shoulders
-#:   stay hidden (their misses are now DETECTION: mismatched extremes).
-DISPLAY_TRUSTED: frozenset = frozenset({
-    "donchian_breakout", "rectangle",
+#:   double_bottom / double_top / head_shoulders stay hidden (their misses are
+#:   now DETECTION: mismatched extremes).
+#:
+#: TEAM DRAWING SET (owner direction, 2026-10-17). The chart's auto-drawings
+#: show what the TEAM actually draws, not what scored best on generic shapes:
+#:   * flags        bull_flag: the pole + the flag's lanes (v2/v3 lane fixes);
+#:   * bases        flat_base, bc:flat-base, bc:cup-with-handle: the breakout /
+#:                  pivot line (`extras.draw_pivot`, pattern_engine.display);
+#:                  a box only where its geometry held up (flat_base's capped
+#:                  box, the cup's capped handle); bc:flat-base draws the pivot
+#:                  line ONLY (its box judged 1.20 in v3);
+#:   * pullbacks    uct_pullback_ma_v5: the tagged moving average as a curve
+#:                  (21 EMA / 50 SMA) plus the tag-bar marker;
+#:   * key levels + trendlines: the learned drawer (`drawn`, auto_draw.py,
+#:                  trained on the traders' own drawn lines) -- served beside
+#:                  the rows, not a pattern id.
+#: Donchian / rectangle are NOT what the team uses: they left the trusted set
+#: and draw as experimental (admins' "show all"). DISPLAY_TRUSTED IS this set.
+#: Member exposure WAITS ON A BLIND CHECK of the set as drawn: members were
+#: switched off (AUTO_STRUCTURES_MEMBERS_ENABLED=0 at 2026-10-17T17:07:28Z) and
+#: stay off until it passes. uct_pullback_ma_v5 is also INTERNAL
+#: (INTERNAL_PATTERN_IDS), so no member path serves it whatever its tier.
+DISPLAY_TEAM_SET: frozenset = frozenset({
+    "bull_flag",
+    "flat_base", "bc:flat-base", "bc:cup-with-handle",
+    "uct_pullback_ma_v5",
 })
+DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
     "double_bottom", "double_top", "head_shoulders", "vcp",
     "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
     "range_detection", "bc:vcp", "bc:base-on-base",
-    # v3 re-judge (REPORT_TIERS_V3.md, 2026-10-17): mean < 1.5 (flat_base left)
-    "bc:flat-base",
+    # v3 re-judge (REPORT_TIERS_V3.md, 2026-10-17) hid bc:flat-base (box 1.20);
+    # it left again 2026-10-17 for the team set, drawn as its pivot line only.
     # round 1 (2026-10-16): noise
     "inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
     "symmetrical_triangle", "descending_triangle", "bear_flag",

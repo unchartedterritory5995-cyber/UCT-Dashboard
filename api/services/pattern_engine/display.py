@@ -48,6 +48,21 @@ v3 follow-ups (REPORT_TIERS_V3.md, 2026-10-17), still display-only:
     own start (`snap_to_extremes`), so it cannot land on an older deeper low.
   * `failed_breakout` names a box whose price closed above its top line and
     then back below it (a stale cup-with-handle; auto_structures drops it).
+
+TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET), still
+display-only:
+  draw_pivot  {start_t, end_t, price}: a base's breakout / pivot line (the flat
+              top), over the capped consolidation and ending at its breakout
+              bar. flat_base here (price = the detector's base high, the level
+              it fires above); bc:flat-base / bc:cup-with-handle in
+              auto_structures.box_to_detection (price = base_catalog's pivot).
+              `draw_box` False means draw the line only, not the box.
+  stale       flat_base whose consolidation broke DOWN (closed out of the
+              band below and never recovered): the overlay does not draw it.
+  draw_ema    uct_pullback_ma_v5: the moving average it TAGGED (`kind` "ema"
+              or "sma", from extras.tagged_ma), computed exactly as the
+              detector computes it, plus `tag` {t, price}: the tag bar's low,
+              drawn as a marker.
 """
 from __future__ import annotations
 
@@ -131,6 +146,9 @@ MAX_BOX_BARS = 60
 #: Box detections whose drawn extent is capped to the consolidation. The
 #: bc:* boxes are capped in api/services/auto_structures.box_to_detection.
 EXTENT_CAPPED = frozenset({"flat_base", "bc:flat-base", "bc:square-box"})
+#: Team-set pullbacks that draw the MA they tagged: extras.tagged_ma -> (kind, period).
+TAGGED_MA = {"e8": ("ema", 8), "e21": ("ema", 21), "s50": ("sma", 50), "s200": ("sma", 200)}
+TEAM_PULLBACKS = frozenset({"uct_pullback_ma_v5"})
 #: A flag's lanes "diverge" when the channel is more than this many times as
 #: wide at its right end as at its left end.
 LANE_DIVERGE_RATIO = 2.0
@@ -346,6 +364,42 @@ def lane_verdict(bars: list, geometry: dict):
     return True, None
 
 
+def pivot_line(ext, start_t, end_t, price) -> dict:
+    """A base's breakout / pivot line: `price` from the capped consolidation's
+    first bar to its breakout bar (or the box's own span when uncapped)."""
+    s_t, e_t = (ext["start_t"], ext["end_t"]) if ext else (start_t, end_t)
+    return {"start_t": int(s_t), "end_t": int(e_t), "price": float(price)}
+
+
+def tagged_ma_segment(bars: list, pos: dict, extras: dict, d: dict):
+    """{kind, period, points, tag} for a pullback that names the MA it tagged
+    (extras.tagged_ma: e21 / s50 / ...), or None. The MA is computed by the
+    detector's own helpers (uct_setups_common.ema / sma) over the same bars, so
+    the point on the marked session IS extras.tagged_ma_value. The segment runs
+    from the swing high the pullback came off (the detection's start) to the
+    last bar, at least PULLBACK_EMA_MIN_BARS long; `tag` is the tag bar's low."""
+    spec = TAGGED_MA.get(str(extras.get("tagged_ma") or ""))
+    if not spec:
+        return None
+    from api.services.pattern_engine.detectors.uct import uct_setups_common as U
+    kind, period = spec
+    closes = [float(b["c"]) for b in bars]
+    series = U.ema(closes, period) if kind == "ema" else U.sma(closes, period)
+    n = len(bars)
+    s0 = pos.get(d.get("start_t"))
+    start = n - PULLBACK_EMA_MIN_BARS if s0 is None else min(s0, n - PULLBACK_EMA_MIN_BARS)
+    start = max(0, start)
+    points = [{"t": bars[j]["t"], "price": round(series[j], 4)}
+              for j in range(start, n) if series[j] is not None]
+    if len(points) < 2:
+        return None
+    out = {"kind": kind, "period": period, "points": points}
+    tj = pos.get(extras.get("tag_t"))
+    if tj is not None:
+        out["tag"] = {"t": bars[tj]["t"], "price": float(bars[tj]["l"])}
+    return out
+
+
 def _bar_span(pos, d):
     idx = [pos.get(t) for t in (d.get("pivot_ts") or [])]
     idx = [i for i in idx if i is not None]
@@ -383,8 +437,21 @@ def draw_geometry(detections: list, bars: list) -> list:
                 # [prior_advance_low, base_start@high, base_end@high, base_end@low]
                 ext = consolidation_extent(bars, anchors[1]["t"], anchors[3]["t"],
                                            anchors[1]["price"], anchors[3]["price"])
-                geom.setdefault("extras", {})["draw_anchors"] = (
+                extras = geom.setdefault("extras", {})
+                extras["draw_anchors"] = (
                     extent_anchors(ext) if ext else [dict(anchors[1]), dict(anchors[3])])
+                # Team set: the flat-top pivot line (the level it fires above).
+                if ext and ext.get("break") == "breakdown":
+                    extras["stale"] = True
+                    extras["stale_reason"] = "broke_down"
+                else:
+                    extras["draw_pivot"] = pivot_line(ext, anchors[1]["t"], anchors[3]["t"],
+                                                      anchors[1]["price"])
+            elif pid in TEAM_PULLBACKS:
+                ex0 = geom.setdefault("extras", {})
+                ema = tagged_ma_segment(bars, pos, ex0, d)
+                if ema:
+                    ex0["draw_ema"] = ema
             elif pid in PULLBACK_EMA:
                 period = PULLBACK_EMA[pid]
                 pts = d.get("pivot_ts") or []

@@ -6,10 +6,14 @@ the current base boxes (`include_structures=true`).
 
 AUTO_STRUCTURES_MEMBERS_ENABLED (default OFF, read PER CALL, and only meaningful
 while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
-see ONLY trusted-tier detections (registry.DISPLAY_TRUSTED). Experimental,
-hidden, the levels layer, base boxes and the learned `drawn` block stay
-admin-only; the route filters server-side (`member_rows`), never the client. Display-only end to end: nothing here changes what any
-detector fires on, its confidence, HIST_SCORE or `confirmed_only`.
+see ONLY the TEAM DRAWING SET (registry.DISPLAY_TRUSTED = DISPLAY_TEAM_SET,
+owner direction 2026-10-17): trusted-tier detections, trusted-tier base boxes
+(their pivot lines) and, on D/W/M, the learned `drawn` levels + trendlines.
+Experimental, hidden and the levels layer stay admin-only; the route filters
+server-side (`member_rows`), never the client. The member flag was switched OFF
+at 2026-10-17T17:07:28Z and stays off until the team set passes a blind check.
+Display-only end to end: nothing here changes what any detector fires on, its
+confidence, HIST_SCORE or `confirmed_only`.
 """
 from __future__ import annotations
 
@@ -126,6 +130,8 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
             extras["draw_sub_boxes"] = subs
         except Exception:  # noqa: BLE001
             pass
+    if bars and pid in TEAM_PIVOT_BOXES:
+        _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot)
     return {
         "id": f"{pid}:{sym}:{start_t}:{end_t}",
         "sym": sym,
@@ -146,6 +152,37 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
         "status": "forming",
         **display_policy(pid),
     }
+
+
+#: Team drawing set (owner direction 2026-10-17, registry.DISPLAY_TEAM_SET): the
+#: base_catalog boxes the team draws, as their breakout / pivot line. The BOX is
+#: dropped (`draw_box` False) because neither box held up blind (v3: bc:flat-base
+#: 1.20, bc:cup-with-handle 1.50); the cup keeps its capped handle (`draw_handle`).
+TEAM_PIVOT_BOXES = frozenset({"bc:flat-base", "bc:cup-with-handle"})
+
+
+def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
+    """Stamp extras.draw_pivot / draw_box / draw_handle (display only), or mark
+    a flat base that already broke DOWN out of its band as stale. Never raises."""
+    try:
+        price = float(top if pivot is None else pivot)
+        ext = _display.consolidation_extent(bars, start_t, end_t, top, floor)
+        if pid == "bc:flat-base":
+            if ext and ext.get("break") == "breakdown":
+                extras["stale"] = True
+                extras["stale_reason"] = "broke_down"
+                return
+            extras["draw_pivot"] = _display.pivot_line(ext, start_t, end_t, price)
+        else:   # bc:cup-with-handle: the rim line, from the left lip to the breakout bar
+            end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
+            extras["draw_pivot"] = {"start_t": int(start_t), "end_t": int(end), "price": price}
+            subs = extras.get("draw_sub_boxes")
+            # only while the handle survived handle_extent (else the last sub-box is the cup's)
+            if isinstance(subs, list) and len(subs) >= 2 and len(subs) == len(extras["sub_boxes"]):
+                extras["draw_handle"] = dict(subs[-1])
+        extras["draw_box"] = False
+    except Exception:  # noqa: BLE001 -- a drawing stamp never drops the box
+        pass
 
 
 def _daily_bars(sym: str) -> list:
