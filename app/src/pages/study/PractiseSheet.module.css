@@ -1,0 +1,38 @@
+/* PractiseSheet (spec §13.7 D13): three rows, 52px each. */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 52px;
+  min-width: var(--tap-min);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: var(--text-lg);
+  text-align: left;
+  cursor: pointer;
+}
+.row:hover { background: var(--bg-hover); }
+.row:disabled { color: var(--text-muted); cursor: default; }
+.row:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.rowIcon { display: inline-flex; width: 18px; height: 18px; }
+.rowLabel { flex: 1 1 auto; }
+
+.failed {
+  margin: var(--space-md) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}

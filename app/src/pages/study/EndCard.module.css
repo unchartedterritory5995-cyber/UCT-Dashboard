@@ -1,0 +1,134 @@
+/* EndCard (spec §13.7 D12, D17): ring 400ms, one gold Done, one ghost. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+}
+
+.ringWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.ring { display: block; }
+.ringTrack { stroke: var(--border); }
+.ringFill {
+  stroke: var(--ut-gold);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--duration-slow) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ringFill { transition: none; }
+}
+.score {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.xp {
+  width: 100%;
+  max-width: 320px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.xpRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+.xpRow dt { margin: 0; }
+.xpRow dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+.xpMain { color: var(--ut-gold) !important; font-weight: 600; font-size: var(--text-lg); }
+
+.week {
+  display: flex;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.dayDot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-accent);
+  background: transparent;
+}
+.dayOn .dayDot { background: var(--ut-gold); border-color: var(--ut-gold); }
+.dayLetter { color: var(--text-muted); font-size: var(--text-xs); }
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-pill);
+  background: var(--ut-gold-dim);
+}
+.badgeCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ut-gold);
+  color: #141410;
+}
+.badgeText { display: flex; flex-direction: column; text-align: left; }
+.badgeName { color: var(--text-bright); font-size: var(--text-md); font-weight: 600; }
+.badgeLine { color: var(--text-muted); font-size: var(--text-sm); }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 320px;
+}
+.done {
+  min-height: 52px;
+  min-width: var(--tap-min);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.done:hover { background: var(--ut-gold-bright); }
+.done:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+.ghost {
+  min-height: var(--tap-min);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+.ghost:hover { background: var(--bg-hover); }
+.ghost:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
