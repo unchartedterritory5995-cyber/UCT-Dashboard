@@ -55,6 +55,11 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # capitulation, go signal. Lab-measured and independently blind-adjudicated
     # (86-92% precision); internal until the owner rules them public.
     "uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal",
+    # Detector recall v2 (2026-10-16): undercut & reclaim and episodic pivot v2,
+    # NEW ids beside u_and_r / episodic_pivot (which are unchanged). Lab-measured
+    # recall gains and a blind random-day review; experimental, internal until
+    # the owner rules them public.
+    "uct_undercut_reclaim", "uct_episodic_pivot_v2",
 })
 
 
@@ -66,6 +71,86 @@ def is_internal(pattern_id) -> bool:
 def list_public_pattern_ids() -> list[str]:
     """Registered pattern_ids a member may see, sorted (internal ids removed)."""
     return [pid for pid in list_pattern_ids() if pid not in INTERNAL_PATTERN_IDS]
+
+
+# ---------------------------------------------------------------------------
+# DISPLAY POLICY — how a detection is DRAWN on a chart (display-only)
+# ---------------------------------------------------------------------------
+#: ⛔ ONE AUTHORITY. Every chart surface reads a detection's drawing tier from
+#: here, served per row by `display_policy()` on GET /api/patterns/{sym}; the
+#: client never keeps its own copy of these lists. Nothing here changes what a
+#: detector FIRES on, its confidence, HIST_SCORE or `confirmed_only` — it only
+#: decides whether and how the geometry is drawn.
+#:
+#: Source: lab/geometry_eval/REPORT.md (2026-10-16, "Trustworthy vs noise"):
+#: 1,092 trader-stated trigger/entry levels across 785 calls, each detector's
+#: levels scored against a random-price control (U), a shifted-level control (S)
+#: and the posted-day open (O), both halves required.
+#:   trusted      — beat U and S in BOTH halves, specific (~2x fire rate on call
+#:                  days), not ubiquitous: bull_flag, pullback_to_10ema,
+#:                  holy_grail; plus double_bottom, whose levels.entry (not its
+#:                  neckline points) beat U, S and O in both halves.
+#:   hidden       — noise: matched no better than chance, or fired LESS before
+#:                  calls (bear_flag), and the three named base relations.
+#:   experimental — everything else (borderline, underpowered, or too rare to
+#:                  judge); drawn for admins with a visual distinction only.
+#: Members (later flip) see `trusted` only.
+DISPLAY_TRUSTED: frozenset = frozenset({
+    "bull_flag", "pullback_to_10ema", "holy_grail", "double_bottom",
+})
+DISPLAY_HIDDEN: frozenset = frozenset({
+    "inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
+    "symmetrical_triangle", "descending_triangle", "bear_flag",
+    # base_catalog relations (the chart's base-box layer keys them "bc:<key>")
+    "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box",
+})
+#: Ubiquitous level emitters (REPORT.md: support_resistance fires on ~95% of
+#: random stock-days, volume_profile_nodes on 100%). They recognise nothing as
+#: structure, so they are NOT drawn with the structures: they live in a
+#: separate, default-off LEVELS layer that draws only the 1-2 levels nearest
+#: price.
+DISPLAY_LEVELS_LAYER: frozenset = frozenset({
+    "support_resistance", "volume_profile_nodes",
+})
+#: Detectors whose own logic is an intraday session concept but which still
+#: fire on DAILY bars in the daily detect_all pass (REPORT.md fix 8). Firing is
+#: untouched; the overlay just never draws them on D/W/M.
+DISPLAY_INTRADAY_ONLY: frozenset = frozenset({
+    "opening_range_breakout", "opening_range_breakdown", "lance_opening_drive",
+})
+#: Detectors whose `levels.entry` (the breakout pivot) is the drawn level that
+#: measured best (REPORT.md: bull_flag and double_bottom entry beat O).
+DISPLAY_DRAW_ENTRY: frozenset = frozenset({"bull_flag", "double_bottom"})
+
+#: The learned auto-drawer (api/services/auto_draw.py; lab auto-draw study, model of
+#: 2026-10-16, graded against trader-drawn lines). While its `drawn` block rides the
+#: response (admin + AUTO_STRUCTURES_ENABLED), the overlay applies these two display
+#: rules; nothing here changes firing, confidence, HIST_SCORE or `confirmed_only`.
+#:   hidden by default  -- volume_profile_nodes matched drawn levels at exactly chance
+#:                         (recall and precision indistinguishable from random prices).
+#:   replaced by learned -- swing_pivots drew ~10 levels a chart at barely-above-chance
+#:                         precision; the learned top 3 of the same pivots replace it.
+DISPLAY_LEARNED_HIDES: frozenset = frozenset({"volume_profile_nodes"})
+DISPLAY_LEARNED_REPLACES: frozenset = frozenset({"swing_pivots"})
+
+
+def display_policy(pattern_id) -> dict:
+    """The drawing policy for one detection (or base-box key "bc:<key>")."""
+    pid = str(pattern_id or "")
+    if pid in DISPLAY_LEVELS_LAYER:
+        tier, layer = "experimental", "levels"
+    elif pid in DISPLAY_HIDDEN:
+        tier, layer = "hidden", "structures"
+    elif pid in DISPLAY_TRUSTED:
+        tier, layer = "trusted", "structures"
+    else:
+        tier, layer = "experimental", "structures"
+    return {
+        "display_tier": tier,
+        "display_layer": layer,
+        "intraday_only": pid in DISPLAY_INTRADAY_ONLY,
+        "draw_entry": pid in DISPLAY_DRAW_ENTRY,
+    }
 
 
 def drop_internal(rows, key: str = "pattern_id") -> list:

@@ -71,14 +71,21 @@ def evaluate(bars: list, S: dict, i: int) -> Optional[dict]:
     g1 = g1a or g1b or g1c
     g2 = o < c1
     swept = []
+    # display-only: (start index, level) of each swept level, the same numbers
+    # the sweep test compares against. Read by nothing that decides firing.
+    swept_levels = {}
     if l < l1:
         swept.append("prior_low")
-    if l < min(x["l"] for x in bars[i - 5:i]):
+        swept_levels["prior_low"] = (i - 1, l1)
+    low5 = min(x["l"] for x in bars[i - 5:i])
+    if l < low5:
         swept.append("5bar_low")
+        swept_levels["5bar_low"] = (i - 5, low5)
     for name, key in (("ema9", "e9"), ("ema20", "e20"), ("sma50", "s50")):
         m1, m = S[key][i - 1], S[key][i]
         if m1 and m and c1 > m1 and l < m:
             swept.append(name)
+            swept_levels[name] = (i - 1, m)
     rng = h - l
     g4 = rng > 0 and ((min(o, c) - l) >= GO_WICK * rng or (l < o and (c - l) / rng >= GO_FOOT_DCR))
     g5 = c > c1
@@ -97,7 +104,7 @@ def evaluate(bars: list, S: dict, i: int) -> Optional[dict]:
         "oops_overlap": g2 and l < l1 and g5,
         "rvol50": round(v / v50, 2) if v50 else None,
         "trigger": c1 if o < c1 <= h else c, "stop": l, "prior_close": c1,
-        "open": o, "close": c, "low": l,
+        "open": o, "close": c, "low": l, "swept_levels": swept_levels,
     }
 
 
@@ -147,11 +154,23 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "oops_overlap": c["oops_overlap"], "rvol50": c["rvol50"],
         "daily_footprint_only": True,
     }
+    secondary = [U.hline(bars, i - 1, i, c["prior_close"], "prior_close",
+                         f"Prior close {c['prior_close']:.2f}")]
+    for name in c["swept"]:
+        s0, lv = c["swept_levels"][name]
+        role = "ma" if name in ("ema9", "ema20", "sma50") else "swept_low"
+        secondary.append(U.hline(bars, s0, i, lv, role,
+                                 f"Swept {_SWEEP_LABELS[name]} {lv:.2f}"))
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=i - 1, anchors=anchors,
         anchor_roles=["prior_close", "swept_low"], extras=extras, levels=levels, context=context,
-        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx)
+        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx,
+        secondary=secondary)
+
+
+_SWEEP_LABELS = {"prior_low": "prior low", "5bar_low": "5-day low", "ema9": "9 EMA",
+                 "ema20": "20 EMA", "sma50": "50 SMA"}
 
 
 _SWEEP_WORDS = {"prior_low": "the prior day's low", "5bar_low": "the five-day low",

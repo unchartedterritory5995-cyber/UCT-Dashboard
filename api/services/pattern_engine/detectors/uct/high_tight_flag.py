@@ -648,6 +648,12 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": anchors,
+            # Display-only (lab/geometry_eval REPORT.md fix 2): four POINTS, not
+            # two lines. Same labels canonical_adapter.adapt_high_tight_flag
+            # applies, now emitted at the source so the renderer never pairs
+            # flag_low->flag_high as a "lower trendline".
+            "anchor_roles": ["pole_base", "pole_top", "flag_low", "flag_high"],
+            "semantic_subtype": "pole_and_flag",
             "extras": {
                 "pole_pct": round(pole_pct * 100.0, 2),
                 "pole_bars": int(pole_bars),

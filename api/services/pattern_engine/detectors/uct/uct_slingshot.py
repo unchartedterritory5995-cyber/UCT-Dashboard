@@ -98,6 +98,11 @@ def evaluate(bars: list, S: dict, i: int) -> Optional[dict]:
         "hve_closes_below": hvcs, "prev_day_low": bars[i - 1]["l"],
         "rvol50": round(v[i] / v50[i], 2) if v50[i] else None,
         "trigger": c[i], "stop": bars[i]["l"], "close": c[i], "low": bars[i]["l"],
+        # display-only: the 3-bar pullback box the tight_pullback label measures,
+        # and the unrounded 4-EMA-of-highs level the cross is judged against.
+        "pb_high": max(bars[k]["h"] for k in range(i - 3, i)),
+        "pb_low": min(bars[k]["l"] for k in range(i - 3, i)),
+        "e4h_level": e4h[i],
     }
 
 
@@ -146,12 +151,16 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "hve_closes_below": c["hve_closes_below"],
         "alt_stop_prev_day_low": round(c["prev_day_low"], 2), "rvol50": c["rvol50"],
     }
+    secondary = [
+        U.rect(bars, i - 3, i - 1, c["pb_high"], c["pb_low"], "pullback", "Pullback 3 bars"),
+        U.hline(bars, i - 3, i, c["e4h_level"], "ma", f"4-EMA highs {c['e4h_level']:.2f}"),
+    ]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=i - 3, anchors=anchors,
         anchor_roles=["pullback_start", "slingshot_close"], extras=extras,
         levels=levels, context=context, narrative=_narrative(c, levels, context),
-        geom=geom, vol=vol, ctx=ctx)
+        geom=geom, vol=vol, ctx=ctx, secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:

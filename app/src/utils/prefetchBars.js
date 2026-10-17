@@ -12,9 +12,9 @@
 import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut, mergeDelta } from './barsIDB'
-import { memHas, memPut } from './barsMemCache'
+import { memHas, memPut, memPeek, memPeekSavedAt } from './barsMemCache'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -131,13 +131,13 @@ function _startFetch(url) {
   })
 }
 async function _fillUrgent(url, sym, tf) {
-  if (memHas(sym, tf)) return
+  if (_memUsable(sym, tf)) return
   let have = null
   try { have = await idbGet(sym, tf) } catch { /* IDB unavailable: fetch instead */ }
-  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT)) { memPut(sym, tf, have.bars); return }
+  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) { memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null }); return }
   const json = _noteWarmResult(await preload(url, warmFetcher))
   if (json?.bars?.length && !json.delta) {
-    const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+    const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
     const next = (staleDaily && have.bars.length > json.bars.length) ? mergeDelta(have.bars, json.bars) : json.bars
     memPut(sym, tf, next)
     await idbPut(sym, tf, next)
@@ -194,7 +194,7 @@ function _enqueue(url, priority = false) {
 // already in mem or fetched/queued in the last 30s (`_seen`) so a held key is not
 // re-fetched on every ArrowDown. Pumps on the next microtask, never idle-deferred.
 function _enqueueUrgent(sym, tf) {
-  if (memHas(sym, tf)) return
+  if (_memUsable(sym, tf)) return
   const url = _url(sym, tf, false)
   _urgent.set(url, { sym, tf })
   // The same symbol may already sit in the queue under its background `&warm=1`
@@ -300,7 +300,7 @@ export async function prepareForDisplay(sym, tf) {
     const hasBars = !!have?.bars?.length
     if (hasBars && _INTRADAY_TFS.has(String(tf)) && typeof lastT === 'number'
         && isCurrentEnoughForPaint(lastT, tf)) {
-      memPut(sym, tf, have.bars)
+      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
       return 'current'
     }
     // Ask for exactly what is missing: the tail when we have a sound base to
@@ -468,7 +468,9 @@ async function _idbWarmOne({ sym, tf }) {
     // staleness gate refuses to paint it, so leaving it here is what makes the
     // NEXT click cold-load on a black screen. Refresh it so scanning keeps the
     // daily cache current and the click paints instantly.
-    const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+    // …and, after the bell, a today bar written DURING the session: the chart refuses
+    // it as a first frame (provisional close), so it is refreshed here like a stale one.
+    const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
 
     // ⚰️⚰️ THE COMMENT THAT USED TO SIT HERE SAID "Intraday is already handled:
     // idbGet returns null for a stale-intraday entry → `have` is null". THAT
@@ -588,6 +590,23 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
   else _idbKickSoon()
 }
 
+// A DAILY set the chart's paint authority refuses as a first frame for a reason a
+// refetch cures: it is missing a closed session, or (after the bell) its today bar
+// was written DURING the session and so holds a mid-session close. The Focus
+// screener's neighbour warm relies on this: a refused neighbour drew only after its
+// own /api/bars landed, 530-850 ms per ArrowDown (2026-10-16).
+function _dailyNeedsRefresh(lastT, savedAt) {
+  return isDailyTailStale(lastT) || isDailyTodayCloseProvisionalForPaint(lastT, savedAt)
+}
+// "Already warm" means the chart would PAINT what mem holds, not merely that mem
+// holds something: a refused daily entry must not make the warmers skip the repair.
+function _memUsable(sym, tf) {
+  if (!memHas(sym, tf)) return false
+  if (String(tf) !== 'D') return true
+  const bars = memPeek(sym, tf)
+  return !_dailyNeedsRefresh(bars?.[bars.length - 1]?.t, memPeekSavedAt(sym, tf))
+}
+
 // ── IDB → mem promotion (no network) ─────────────────────────────────────────
 // StockChart paints a ticker switch on the FIRST render only when the sync mem
 // cache has the (sym, tf) — its memPeek fallback. The durable warmers above
@@ -601,10 +620,10 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
 // whose newest bar is older than max(6 tf-periods, 20min) is NOT promoted,
 // because the chart itself refuses to paint it (it full-refetches instead);
 // promoting it would flash an old session mid-scan. D/W/M always promote.
-function _memPromoteFresh(tf, lastT) {
-  // Daily: reject a tail missing recent sessions (mirrors the chart's gate — a
-  // stale daily promoted to mem would just be suppressed, or flash old data).
-  if (String(tf) === 'D') return !isDailyTailStale(lastT)
+function _memPromoteFresh(tf, lastT, savedAt = null) {
+  // Daily: reject a tail missing recent sessions, or (after the bell) a today bar
+  // written mid-session (mirrors the chart's gate — it would just be suppressed).
+  if (String(tf) === 'D') return !_dailyNeedsRefresh(lastT, savedAt)
   if (!_INTRADAY_TFS.has(String(tf))) return true   // W/M always promote
   if (typeof lastT !== 'number') return false
   const tfSec = Math.max(60, (Number(tf) || 5) * 60)
@@ -618,8 +637,8 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
     for (const tf of tfs) {
       if (memHas(sym, tf)) continue        // already hot — pure no-op per press
       idbGet(sym, tf).then(entry => {
-        if (entry?.bars?.length && !memHas(sym, tf) && _memPromoteFresh(tf, entry.lastT)) {
-          memPut(sym, tf, entry.bars)
+        if (entry?.bars?.length && !memHas(sym, tf) && _memPromoteFresh(tf, entry.lastT, entry.savedAt)) {
+          memPut(sym, tf, entry.bars, { savedAt: entry.savedAt ?? null })   // the SOURCE stamp, never now
         }
       }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
     }
@@ -772,20 +791,20 @@ export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM
 const _intentTimers = new Map()
 
 async function _warmIntentNow(sym, tf) {
-  if (memHas(sym, tf)) return
+  if (_memUsable(sym, tf)) return
   try {
     // IDB-first: a durable, fresh-enough entry promotes to mem with zero
     // network — the hover/focus click then paints same-frame. Only a cold or
     // stale-intraday miss pays the fetch.
     const have = await idbGet(sym, tf)
-    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT)) {
-      memPut(sym, tf, have.bars)
+    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) {
+      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
       return
     }
     const json = await preload(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
     if (json?.bars?.length && !json.delta) {
       // Preserve deeper history on a stale-daily refresh (see _idbWarmOne).
-      const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+      const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
       const next = (staleDaily && have?.bars?.length > json.bars.length)
         ? mergeDelta(have.bars, json.bars)
         : json.bars

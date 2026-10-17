@@ -18,9 +18,28 @@ export function getColor(detection) {
   return PATTERN_COLORS[detection?.direction] || PATTERN_COLORS.neutral
 }
 
+// Bars after a structure's own last bar (geometry.extras.pattern_age_bars) past
+// which it is drawn faded: still shown, but visibly not the live structure.
+export const STALE_AFTER_BARS = 20
+
+export function isExperimental(detection) {
+  return detection?.display_tier === 'experimental'
+}
+
+export function isStale(detection) {
+  const age = detection?.geometry?.extras?.pattern_age_bars
+  return typeof age === 'number' && age > STALE_AFTER_BARS
+}
+
 export function getOpacity(detection) {
   const conf = detection?.confidence ?? 50
-  return Math.max(0.4, Math.min(1.0, conf / 100))
+  let op = Math.max(0.4, Math.min(1.0, conf / 100))
+  // Display-only distinctions (lab/geometry_eval tiers + pattern age): an
+  // experimental detector reads quieter than a trusted one, a stale structure
+  // quieter still. Never below a legible floor.
+  if (isExperimental(detection)) op *= 0.75
+  if (isStale(detection)) op *= 0.6
+  return Math.max(0.25, op)
 }
 
 export function getStrokeWidth(detection) {
@@ -28,7 +47,9 @@ export function getStrokeWidth(detection) {
 }
 
 export function getStrokeDasharray(detection) {
-  return detection?.status === 'forming' ? '5,3' : 'none'
+  if (detection?.status === 'forming') return '5,3'
+  // Experimental tier: a dotted stroke, so it never reads as a trusted line.
+  return isExperimental(detection) ? '2,3' : 'none'
 }
 
 export function isRecent(detection) {
@@ -45,6 +66,9 @@ export function getGlowFilter(detection) {
 export function formatLabel(detection) {
   const name = detection?.pattern_name || detection?.pattern_id || 'pattern'
   const conf = detection?.confidence
-  if (conf == null) return name
-  return `${name} (${Math.round(conf)})`
+  const base = conf == null ? name : `${name} (${Math.round(conf)})`
+  const tags = []
+  if (isExperimental(detection)) tags.push('exp')
+  if (isStale(detection)) tags.push(`${detection.geometry.extras.pattern_age_bars} bars ago`)
+  return tags.length ? `${base} · ${tags.join(' · ')}` : base
 }

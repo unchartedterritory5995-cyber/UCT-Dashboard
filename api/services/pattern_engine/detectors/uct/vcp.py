@@ -841,6 +841,14 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": anchors,
+            # Display-only (lab/geometry_eval REPORT.md fix 2): these anchors are
+            # a ZIGZAG of points (start high, each contraction low, pivot), not
+            # two lines. The roles let the renderer draw what they mean instead
+            # of pairing anchors[0]->[1] and [2]->[3] positionally.
+            "anchor_roles": (["start_high"]
+                             + ["contraction_low"] * len(contractions)
+                             + ["pivot"]),
+            "semantic_subtype": "contraction_zigzag",
             "extras": {
                 "n_contractions": n,
                 "contraction_pcts": contraction_pcts,
