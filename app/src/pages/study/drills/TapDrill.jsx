@@ -31,12 +31,6 @@ export function targetOf(item) {
   return item?.prompt_json?.target || 'the spot'
 }
 
-export function hudText(state, locked) {
-  if (locked) return 'Placed'
-  if (state?.barIndex == null) return `Tap ${targetOf({ prompt_json: { target: state?.target } })}`
-  return 'Tap Check, or tap again to move'
-}
-
 export function framingOf(item) {
   const p = item?.prompt_json || {}
   if (p.framing) return p.framing
