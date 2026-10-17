@@ -126,6 +126,20 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # 3.74 vs production 1.94; blind fresh-packet review 19 yes / 1 no / 5
     # ambiguous. Experimental, internal until the owner rules it public.
     "uct_pullback_ma_v5",
+    # Team setup recognition rules: inside day and flat-top breakout, NEW ids
+    # beside inside_bar_breakout / nr7 / flat_base (unchanged). Lab-frozen rules,
+    # each confirmed by two independent blind packets (pooled precision of
+    # decided 90.5% and 82.4%). Experimental, internal until the owner rules them
+    # public; NOT in the team drawing set.
+    "uct_inside_day", "uct_flat_top_breakout",
+    # Team setup recognition rules, second pair: the flag / high tight flag
+    # rule WITH the lab's shared guard (falling 200 SMA overhead or a pinned
+    # post-gap tape), and the MA reclaim rule. NEW ids beside bull_flag /
+    # high_tight_flag / pennant / remount (unchanged). Each confirmed by two
+    # independent blind packets (pooled precision of decided 79.5% and 82.9%).
+    # Experimental, internal until the owner rules them public; NOT in the team
+    # drawing set.
+    "uct_flag_htf", "uct_ma_reclaim",
 })
 
 
