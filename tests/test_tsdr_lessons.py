@@ -736,13 +736,24 @@ def test_regroup_only_runs_with_the_threads_flag(monkeypatch):
 
 # ── video refill ─────────────────────────────────────────────────────────────
 
-def _threaded_without_video(aid, day):
+def _threaded_without_video(aid, day, youtube_id="yt-1"):
     m = msg(sf(2026, 3, day), attachments=[video(aid)])
     tl.record_message(m, TSDR)
     tl._update(aid, status="posted", title=f"Lesson {aid}", recap="A. B. C. D.",
                tags=json.dumps(["market"]), discord_post_id=f"old-{aid}",
-               post_channel_id="t-market", section="market", forward_post_id="")
+               post_channel_id="t-market", section="market", forward_post_id="",
+               youtube_id=youtube_id)
     return m
+
+
+def _refused_forward(sent):
+    def post(p, b):
+        sent.append(b)
+        if "message_reference" in b:
+            raise tl.DiscordError(429, '{"message": "Maximum amount of forwarded '
+                                       'attachment bytes reached", "retry_after": 300.0}')
+        return {"id": f"n{len(sent)}"}
+    return post
 
 
 def test_a_missing_video_is_posted_again_and_the_old_recap_removed(monkeypatch):
@@ -764,29 +775,60 @@ def test_a_missing_video_is_posted_again_and_the_old_recap_removed(monkeypatch):
     assert tl.run_video_refill(deadline=9e12)["refilled"] == 0       # done, not repeated
 
 
-def test_a_still_capped_forward_changes_nothing_and_waits(monkeypatch):
+def test_a_refused_forward_falls_back_to_the_youtube_copy(monkeypatch):
     _seed_threads()
-    _threaded_without_video("nv2", 5)
-    _threaded_without_video("nv3", 6)
-
-    def post(p, b):
-        if "message_reference" in b:
-            raise tl.DiscordError(429, '{"message": "Maximum amount of forwarded '
-                                       'attachment bytes reached", "retry_after": 300.0}')
-        return {"id": "retry-recap"}
-
+    _threaded_without_video("nv2", 5, youtube_id="abc123")
+    sent = []
     fake = FakeDiscord({
         ("GET", "/channels/t-market/messages/old-nv2"): {"id": "old-nv2"},
-        ("POST", "/channels/t-market/messages"): post,
-        ("DELETE", "/channels/t-market/messages/retry-recap"): None,
+        ("POST", "/channels/t-market/messages"): _refused_forward(sent),
+        ("DELETE", "/channels/t-market/messages/old-nv2"): None,
     })
     monkeypatch.setattr(tl, "_discord", fake)
-    assert tl.run_video_refill(deadline=9e12) == {"refilled": 0, "waiting": 1, "errors": 0}
-    # only the retry recap came down; the old one stays; the second lesson was not tried
-    assert [c[1] for c in fake.calls if c[0] == "DELETE"] == \
-        ["/channels/t-market/messages/retry-recap"]
-    assert tl.get_lesson("nv2")["discord_post_id"] == "old-nv2"
-    assert not [c for c in fake.calls if "old-nv3" in c[1]]
+    assert tl.run_video_refill(deadline=9e12) == {"refilled": 1, "waiting": 0, "errors": 0}
+    assert "embeds" in sent[0] and "message_reference" in sent[1]
+    assert sent[2] == {"content": "https://youtu.be/abc123"}          # the video, in place
+    assert tl.get_lesson("nv2")["forward_post_id"] == "n3"
+    assert [c[1] for c in fake.calls if c[0] == "DELETE"] == ["/channels/t-market/messages/old-nv2"]
+
+
+def test_a_lesson_without_a_youtube_copy_is_not_retried(monkeypatch):
+    # Retrying only the forward posted and deleted a recap every tick for a
+    # file Discord never forwarded. Without a YouTube copy, nothing is touched.
+    _seed_threads()
+    _threaded_without_video("nv3", 6, youtube_id=None)
+    fake = FakeDiscord({})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_video_refill(deadline=9e12) == {"refilled": 0, "waiting": 0, "errors": 0}
+    assert fake.calls == []
+
+
+def test_lessons_missing_their_video_go_first_to_youtube(monkeypatch):
+    _seed_threads()
+    _threaded_without_video("first", 9, youtube_id=None)
+    for i, aid in enumerate(("older1", "older2")):
+        tl.record_message(msg(sf(2026, 2, 1 + i), attachments=[video(aid)]), TSDR)
+        tl._update(aid, status="posted", title=aid, recap="A. B.", section="market",
+                   post_channel_id="t-market", discord_post_id=f"p-{aid}",
+                   forward_post_id=f"f-{aid}")
+    order = []
+    monkeypatch.setattr(tl, "upload_lesson", lambda row: order.append(row["attachment_id"]) or "uploaded")
+    monkeypatch.setenv("TSDR_LESSONS_YT_PER_DAY", "1")
+    tl.run_youtube(deadline=9e12)
+    assert order == ["first"]
+
+
+def test_a_refused_forward_without_youtube_leaves_the_recap(monkeypatch):
+    _seed_threads()
+    sent = []
+    fake = FakeDiscord({("POST", "/channels/t-market/messages"): _refused_forward(sent)})
+    monkeypatch.setattr(tl, "_discord", fake)
+    lesson = {"attachment_id": "z", "message_id": "1", "channel_id": TSDR, "title": "T",
+              "posted_at": 1772377200,
+              "recap": "A. B.", "tags": json.dumps(["market"])}
+    placed = tl.post_to_section(lesson, "https://discord.com/x")
+    assert placed["post_id"] == "n1" and placed["forward_id"] == ""
+    assert len(sent) == 2                                              # no YouTube post
 
 
 def test_refill_leaves_a_deleted_lesson_deleted(monkeypatch):

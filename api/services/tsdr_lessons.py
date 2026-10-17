@@ -68,7 +68,7 @@ DEFAULT_GUILD_ID = "882293203485720596"
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
 KEEP_TYPES = frozenset({0, 19})              # DEFAULT, REPLY
 MAX_ATTEMPTS = 3
-MAX_PAGES_PER_TICK = 5
+MAX_PAGES_PER_TICK = 20   # TSDR_LESSONS_SCAN_PAGES overrides; one page is 100 messages
 MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # long recordings run past 600 MB; streamed to disk
 MAX_VIDEO_SECONDS = 2 * 60 * 60
 MIN_WORDS = 20
@@ -395,9 +395,11 @@ def _mark_backfill_done(done_key: str) -> None:
     set_state(done_key, since_date().date().isoformat())
 
 
-def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dict:
+def scan_channel(channel_id: str, *, max_pages: Optional[int] = None) -> dict:
     """Forward pages first (new posts), the rest of the budget on the backfill
     down to TSDR_LESSONS_SINCE. A cursor moves only after its page is recorded."""
+    if max_pages is None:
+        max_pages = _int_env("TSDR_LESSONS_SCAN_PAGES", MAX_PAGES_PER_TICK)
     out = {"pages": 0, "added": 0}
     fwd_key, back_key, done_key = (f"cursor:{channel_id}", f"backfill:{channel_id}",
                                    f"backfill_done:{channel_id}")
@@ -628,6 +630,12 @@ def forward_body(lesson: dict) -> dict:
                                   "guild_id": guild_id()}}
 
 
+def youtube_video_body(lesson: dict) -> dict:
+    """The fallback when Discord will not forward the video: the lesson's
+    unlisted YouTube copy, which Discord shows as a playable video in place."""
+    return {"content": f"https://youtu.be/{lesson['youtube_id']}"}
+
+
 def post_to_section(lesson: dict, link: str) -> dict:
     """Post a lesson into its section thread: the recap, then the forwarded
     video. Returns {section, thread, post_id, forward_id}. A thread that was
@@ -650,9 +658,21 @@ def post_to_section(lesson: dict, link: str) -> dict:
                          forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
     except DiscordError as e:
-        # run_video_refill retries it on a later tick.
+        # Measured 2026-10-17: two lessons were refused every tick for 90 min
+        # ("Maximum amount of forwarded attachment bytes reached"), so the
+        # refusal is not only a rate: a large enough file is never forwarded.
+        # The YouTube copy plays in place instead; without one, run_video_refill
+        # waits for the upload.
         log.warning("[tsdr-lessons] could not forward the video for %s: %s",
                     lesson.get("attachment_id"), e)
+        if lesson.get("youtube_id"):
+            try:
+                yt = _in_thread("POST", thread, f"/channels/{thread}/messages",
+                                youtube_video_body(lesson)) or {}
+                forward_id = str(yt.get("id") or "")
+            except DiscordError as e2:
+                log.warning("[tsdr-lessons] could not post the YouTube video for %s: %s",
+                            lesson.get("attachment_id"), e2)
     return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
             "forward_id": forward_id}
 
@@ -991,15 +1011,21 @@ def run_regroup(*, deadline: float, limit: int = 60) -> dict:
 
 def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
     """Lessons in a thread whose video forward failed: post the lesson again
-    (recap, then the video) and delete the old recap, but ONLY once the forward
+    (recap, then the video) and delete the old recap, but ONLY once the video
     has gone through, so a thread never gains a second recap without its video.
-    The lesson moves to the end of its thread. Stops at the first forward cap."""
+    The lesson moves to the end of its thread.
+
+    Only lessons with a YouTube copy are retried, because that copy is a video
+    post Discord cannot refuse. Retrying a forward alone posted and deleted a
+    recap in the thread every tick for a file Discord would never forward;
+    run_youtube uploads these lessons first, so each waits at most a day."""
     out = {"refilled": 0, "waiting": 0, "errors": 0}
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND section IN "
             f"({','.join('?' * len(_SECTION_KEYS))}) AND (forward_post_id IS NULL "
-            "OR forward_post_id = '') ORDER BY posted_at LIMIT ?",
+            "OR forward_post_id = '') AND youtube_id IS NOT NULL "
+            "ORDER BY posted_at LIMIT ?",
             (*_SECTION_KEYS, int(limit))).fetchall()]
     for row in rows:
         if time.time() > deadline:
@@ -1025,7 +1051,7 @@ def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
                 log.warning("[tsdr-lessons] could not remove the retry recap %s: %s",
                             placed["post_id"], e)
             out["waiting"] += 1
-            break                                   # the cap holds for minutes
+            continue
         _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
                 forward_post_id=placed["forward_id"], section=placed["section"])
         if old_post:
@@ -1129,6 +1155,11 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     return "uploaded"
 
 
+_NEEDS_VIDEO_FIRST = ("ORDER BY CASE WHEN section IS NOT NULL AND section != 'removed' "
+                      "AND (forward_post_id IS NULL OR forward_post_id = '') "
+                      "THEN 0 ELSE 1 END, ")
+
+
 def run_youtube(*, deadline: float) -> dict:
     out = {"uploaded": 0, "errors": 0}
     left = _yt_quota_left()
@@ -1137,7 +1168,10 @@ def run_youtube(*, deadline: float) -> dict:
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             f"SELECT * FROM tsdr_lessons WHERE status = 'posted' AND youtube_id IS NULL "
-            f"AND yt_attempts < ? {_queue_order_sql()} LIMIT ?",
+            f"AND yt_attempts < ? "
+            # a lesson in a thread without its video goes first: its YouTube
+            # copy is the video run_video_refill posts
+            f"{_queue_order_sql().replace('ORDER BY ', _NEEDS_VIDEO_FIRST, 1)} LIMIT ?",
             (MAX_ATTEMPTS, left)).fetchall()]
     for row in rows:
         if time.time() > deadline:
