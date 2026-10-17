@@ -45,7 +45,7 @@ from api.middleware.auth_middleware import (
     is_paid_user,
     require_admin,
 )
-from api.services import study_scoring, study_select, study_store
+from api.services import study_import, study_scoring, study_select, study_store
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -407,16 +407,42 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
     """Bulk upsert from docs/study/bank/*.json. Items land as DRAFTS. An item
     with a `bars` spec gets its snapshot resolved from the server's bars.db
     via get_bars_before only; a miss is REPORTED, never fetched. Each item's
-    `bars` spec is popped before the row is written."""
+    `bars` spec is popped before the row is written. A fixture item may carry
+    `bars_embed` (its own bars, the record itself) which is stored as-is.
+
+    Every item runs the importer checks (study_import.check_item: number
+    grounding, voice, near-duplicate, review lane). A failing item is STILL
+    stored, as a draft with `import_flags`, and listed under `flagged` in the
+    response — never silently dropped (§13.6: the review card shows the two
+    automatic checks)."""
     misses: list = []
     rejected: list = []
+    flagged: list = []
     ready: list = []
+    skills = {str(raw.get("skill_id") or "") for raw in body.items if isinstance(raw, dict)}
+    dup_bank: list = list(study_store.list_question_rows(skills)) if skills else []
     for raw in body.items:
         it = dict(raw)
         spec = it.pop("bars", None)
+        embed = it.pop("bars_embed", None)
         iid = it.get("id") or study_store.new_item_id()
         it["id"] = iid
         it.pop("review_status", None)            # §8.8: nothing goes live unreviewed
+        chk = study_import.check_item(it, dup_bank)
+        it["import_flags"] = chk["flags"] or None
+        it["review_lane"] = it.get("review_lane") or chk["lane"]
+        if chk["flags"]:
+            flagged.append({"id": iid, "flags": chk["flags"]})
+        dup_bank.append({"id": iid, "skill_id": it.get("skill_id"), "prompt_json": it.get("prompt_json")})
+        if embed and isinstance(embed, dict) and embed.get("bars"):
+            bars_id = it.get("bars_ref") or f"sb_{iid}"
+            study_store.upsert_bars(bars_id, str(embed.get("tf") or "D"), list(embed["bars"]),
+                                    embed.get("forward"), embed.get("sha256"))
+            it["bars_ref"] = bars_id
+            it["sym"] = str(it.get("sym") or embed.get("sym") or "").upper() or None
+            it["asof"] = it.get("asof") or embed.get("asof")
+            ready.append(it)
+            continue
         if spec:
             res = resolve_bars(spec)
             if not res["ok"]:
@@ -443,4 +469,4 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"inserted": up["inserted"], "updated": up["updated"], "ids": up["ids"],
-            "terms": n_terms, "misses": misses, "rejected": rejected}
+            "terms": n_terms, "misses": misses, "rejected": rejected, "flagged": flagged}
