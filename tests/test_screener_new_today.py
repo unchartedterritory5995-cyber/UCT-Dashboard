@@ -71,6 +71,14 @@ def test_a_screen_wider_than_the_cap_stores_no_list(snap, monkeypatch):
         assert c.execute("SELECT COUNT(*) FROM screen_membership WHERE tickers IS NOT NULL").fetchone()[0] == 0
 
 
+def test_a_premarket_screen_is_a_live_screen():
+    """Pre-market columns are blank in every nightly build, so a nightly comparison would
+    mark every row New; the diff must answer live_screen instead."""
+    spec = {"filters": [{"key": "premarket_chg_pct", "op": "gte", "min": 3}]}
+    assert M.reads_live_only(spec) is True
+    assert M.diff(spec)["state"] == "live_screen"
+
+
 def test_a_live_screen_is_not_recorded(snap):
     live = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}]}
     assert M.record(live, snapshot_date="2026-10-16", session_date="2026-10-15") == "skipped_live"
