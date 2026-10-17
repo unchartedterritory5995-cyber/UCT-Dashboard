@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { CHART_SCRIM_EXCLUDE_BOTTOM } from './constants'
 import { modesById } from './registry'
 import { routeToModeId } from './hubRoutes'
+import { FULLSCREEN_SHEET_ATTR } from '../components/mobile/fullscreenSheetAttr'
 
 /**
  * The attribute `MobileChartsApp` stamps on `<html>` for as long as the phone/tablet chart
@@ -92,6 +93,15 @@ function useLiveMediaQuery(query) {
  * `MutationObserver` on the one attribute is the only way to react to it without polling.
  */
 function useChartShellPresent() {
+  return useRootAttrPresent(CHART_SHELL_ATTR)
+}
+
+/**
+ * Whether `html[<attr>]` is currently present, kept live via a `MutationObserver`.
+ * The chart shell and a fullscreen Sheet (components/mobile/fullscreenSheetAttr.js)
+ * both announce themselves this way, so one subscription serves both.
+ */
+function useRootAttrPresent(attr) {
   // Same reasoning as `useLiveMediaQuery` above: subscribe-and-read atomically rather than
   // seed-then-resync. The attribute is set imperatively by `MobileChartsApp`'s own mount effect,
   // so the ordering between that effect and this one is not something either file controls.
@@ -105,15 +115,15 @@ function useChartShellPresent() {
     }
     const root = document.documentElement
     const observer = new MutationObserver(onChange)
-    observer.observe(root, { attributes: true, attributeFilter: [CHART_SHELL_ATTR] })
+    observer.observe(root, { attributes: true, attributeFilter: [attr] })
     return () => observer.disconnect()
-  }, [])
+  }, [attr])
 
   const getSnapshot = useCallback(() => (
     typeof document !== 'undefined' && !!document.documentElement
-      ? document.documentElement.hasAttribute(CHART_SHELL_ATTR)
+      ? document.documentElement.hasAttribute(attr)
       : false
-  ), [])
+  ), [attr])
 
   return useSyncExternalStore(subscribe, getSnapshot, () => false)
 }
@@ -158,6 +168,9 @@ function useChartShellPresent() {
  */
 export default function useHubViewport() {
   const chartShellPresent = useChartShellPresent()
+  // Study spec §13.2 T16: a fullscreen Sheet (the drill) covers the whole screen and the
+  // hub must not float over it. Live through the same MutationObserver shape as the shell.
+  const fullscreenSheet = useRootAttrPresent(FULLSCREEN_SHEET_ATTR)
   const chartPortraitMedia = useLiveMediaQuery(CHART_PORTRAIT_QUERY)
   const landscapeImmersiveMedia = useLiveMediaQuery(LANDSCAPE_IMMERSIVE_QUERY)
 
@@ -171,6 +184,6 @@ export default function useHubViewport() {
   return {
     isChartPortrait,
     scrimExcludeBottom: isChartPortrait ? CHART_SCRIM_EXCLUDE_BOTTOM : null,
-    hidden: landscapeImmersive || hideOnRoute,
+    hidden: landscapeImmersive || hideOnRoute || fullscreenSheet,
   }
 }
