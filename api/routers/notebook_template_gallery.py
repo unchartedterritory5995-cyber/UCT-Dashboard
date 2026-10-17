@@ -67,6 +67,15 @@ def _require_enabled() -> None:
         raise public.not_found()
 
 
+def _require_library() -> None:
+    """P3a's gate for the STYLE routes (R-P3-10), a route dependency listed in `dependencies=[...]`, which
+    FastAPI resolves before the route's own parameters (the plan check, the body): a library-off pod
+    answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
+    exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
+    if not gallery.library_enabled():
+        raise public.not_found()
+
+
 router = APIRouter(
     prefix="/api/j2/template-gallery",
     tags=["journal-2-0", "notebook-template-gallery"],
@@ -155,13 +164,12 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
     return gallery.admin_queue()
 
 
-@router.post("/styles")
+@router.post("/styles", dependencies=[Depends(_require_library)])
 def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
-    held revision of an approved one. 404 while the library is off (R-P3-10). Declared BEFORE
+    held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
+    `_require_library` route dependency, before the plan check and the body. Declared BEFORE
     `/{gallery_id}` so the literal path wins (the GET below would otherwise take `styles`)."""
-    if not gallery.library_enabled():
-        raise public.not_found()
     public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
     day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
     try:

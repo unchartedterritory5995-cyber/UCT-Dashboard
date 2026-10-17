@@ -449,9 +449,13 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         out["reviewNote"] = row["review_note"] or ""
         out["createdAt"] = row["created_at"]
         out["hasRevision"] = bool(row["pending_at"]) if "pending_at" in keys else False
-        # The held revision's title, for the reviewer. `pending_json` is NOT in the list's columns
-        # (`_SELECT_LIST`); only the full row (`_SELECT`: the queue's pending rows, one template) has it.
-        out["revisionTitle"] = _revision_title(row["pending_json"]) if "pending_json" in keys else None
+        # The held revision's title, for the reviewer. The queue's pending rows carry it as the narrow
+        # `revision_title` column (`_SELECT_QUEUE`); a single-template read (`_SELECT`) has `pending_json`.
+        # The member list's columns have neither, so it reads None there.
+        if "revision_title" in keys:
+            out["revisionTitle"] = row["revision_title"]
+        else:
+            out["revisionTitle"] = _revision_title(row["pending_json"]) if "pending_json" in keys else None
     if is_admin:
         out["openReports"] = int(row["open_reports"] or 0) if "open_reports" in row.keys() else 0
     return out
@@ -474,6 +478,18 @@ _SELECT_LIST = _SELECT.replace(
     " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
 assert ("g.*" not in _SELECT_LIST and "body_json" not in _SELECT_LIST
         and "payload_json" not in _SELECT_LIST and "pending_json" not in _SELECT_LIST)
+#: The reviewer queue's PENDING rows: the list's narrow columns plus ONE expression, the held revision's
+#: title, read inside SQLite so `pending_json` itself never leaves it. `json_valid` first: json_extract
+#: raises on malformed JSON, and one unreadable revision must not take the whole queue down. Never
+#: `g.*`, never a body (the M-6 rail): a second FULL select is exactly what this is not.
+_SELECT_QUEUE = _SELECT_LIST.replace(
+    "g.pending_at,",
+    "g.pending_at, CASE WHEN json_valid(g.pending_json)"
+    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
+assert (_SELECT_QUEUE != _SELECT_LIST and "g.*" not in _SELECT_QUEUE and "body_json" not in _SELECT_QUEUE
+        and "payload_json" not in _SELECT_QUEUE
+        and _SELECT_QUEUE.replace("json_valid(g.pending_json)", "").replace("json_extract(g.pending_json,", "")
+        .count("pending_json") == 0)
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
 
 
@@ -914,10 +930,9 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
                     for r in conn.execute(
                         f"{select} WHERE ({where}){outlines_only} ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
-        # The pending rows are what a reviewer READS, so they take the full row (`_SELECT`, the one shared
-        # SELECT -- it carries the trending subquery too, which a reviewer's row ignores): the held
-        # revision's title lives in `pending_json`, which the list's columns never include.
-        pending = rows("g.status = 'pending' OR g.pending_at IS NOT NULL", "g.updated_at ASC", _SELECT)
+        # The pending rows add the held revision's title (`_SELECT_QUEUE`): still narrow columns, never the
+        # body (R-T4-1; the M-6 rail traces this).
+        pending = rows("g.status = 'pending' OR g.pending_at IS NOT NULL", "g.updated_at ASC", _SELECT_QUEUE)
         hidden = rows("g.hidden = 1", "g.hidden_at DESC")
         reported = rows("EXISTS (SELECT 1 FROM j2_template_gallery_reports r"
                         " WHERE r.gallery_id = g.id AND r.status = 'open')", "open_reports DESC")

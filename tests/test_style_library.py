@@ -486,3 +486,31 @@ def test_post_styles_refusals(api, conn, lib_on):
     custom = _style(conn, kindId=kind["id"], name="Scalp")
     r = api.post("/api/j2/template-gallery/styles", json={"styleId": custom["id"], "title": "T", "category": "journal"})
     assert r.status_code == 400 and r.json()["detail"] == gallery.CUSTOM_KIND_SENTENCE
+
+
+def test_post_styles_is_the_one_404_for_everyone_while_the_library_is_off(api, conn, monkeypatch):
+    # R-T4-2 / R-P3-10: a library-off pod looks exactly like today, where POST /styles does not exist.
+    # The gate is a ROUTER DEPENDENCY ordered before the session, the plan and the body, so an unpaid
+    # member, a paid member and a signed-out caller all get the gallery's one 404.
+    from api.middleware import auth_middleware as authmw
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    s = _style(conn)
+    body = {"styleId": s["id"], "title": "T", "category": "journal"}
+    url = "/api/j2/template-gallery/styles"
+    paid = api.post(url, json=body)
+    api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
+    unpaid = api.post(url, json=body)
+    api.app.dependency_overrides.pop(authmw.get_current_user, None)
+    api.app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
+    signed_out = api.post(url, content=b"{bad")
+    assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404)
+    assert paid.json() == unpaid.json() == signed_out.json()                 # the SAME body, not three different 404s
+
+
+def test_post_styles_needs_a_paid_plan_while_the_library_is_on(api, conn, lib_on):
+    from api.middleware import auth_middleware as authmw
+    s = _style(conn)
+    api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
+    r = api.post("/api/j2/template-gallery/styles", json={"styleId": s["id"], "title": "T", "category": "journal"})
+    assert r.status_code == 402
