@@ -1,0 +1,323 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-offline-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text and no (conflicted copy)[2m > [22m[2m⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:83:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3911:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1981:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(d) an Undo across a whole-view swap still rotates, and the offline words survive[2m > [22m[2ma swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(e) ⛔⛔ CONTROL — a genuine second writer still forks[2m > [22m[2moffline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:83:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3911:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1981:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx [2m([22m[2m11 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[33m 18134[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ Undo back to text that has already landed: the undone text is NOT re-sent behind the member’s back[39m[33m 4365[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the plain one-edit case: type, it lands, Undo it, it lands, leave [33m 1120[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ online: the Undo comes before the first save, the next save lands, the member leaves[39m[33m 1452[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text[39m[33m 1250[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ (a) by Redo: a landed deletion, Undo, Redo back to the landed text, leave ⇒ no silent revert[39m[33m 1531[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ (b) by Redo: delete (unsent), Undo, Redo, keep typing, leave ⇒ the final text, no (conflicted copy)[39m[33m 1842[2mms[22m[39m
+[31m     [31m×[31m ⭐ an ordinary Undo and Redo mint no lineage (they are the member’s edits of this view)[39m[33m 925[2mms[22m[39m
+[31m     [31m×[31m version restore: the old view’s unsent words survive typing on the restored version AND an Undo back across it[39m[33m 1680[2mms[22m[39m
+[31m     [31m×[31m a swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not[39m[33m 1240[2mms[22m[39m
+[31m     [31m×[31m offline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words[39m[33m 1463[2mms[22m[39m
+     [33m[2m✓[22m[39m online, after an Undo: another device writes while this view holds unsent words ⇒ the editor’s save forks, never clobbers [33m 1264[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 9 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(a) type, let it land, Undo, leave ⇒ the server ends with the post-undo text and no fork[2m > [22m⭐⭐ Undo back to text that has already landed: the undone text is NOT re-sent behind the member’s back
+[31m[1mAssertionError[22m: the member's Undo was reversed on the server: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef gh"}]}]}: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m214:103[22m[39m
+    [90m212| [39m    [35mconst[39m out [33m=[39m [35mawait[39m [34mleaveAndDrain[39m()
+    [90m213| [39m    [34mexpectNoFork[39m(out)
+    [90m214| [39m    expect(holdsExactly('ab cd ef'), `the member's Undo was reversed o…
+    [90m   | [39m                                                                                                      [31m^[39m
+    [90m215| [39m    [34mexpect[39m([34moutbox[39m()[33m,[39m [32m'nothing is left queued'[39m)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+    [90m216| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text and no (conflicted copy)[2m > [22m⭐⭐ online: the Undo comes before the first save, the next save lands, the member leaves
+[31m[1mAssertionError[22m: a (conflicted copy) of a note only this member touched: expected "vi.fn()" to not be called at all, but actually been called 1 times[90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m    Array [
+      Object {
+        "baseUpdatedAt": "2026-10-16T20:00:00.000000+00:00",
+        "generation": 4,
+        "kind": "note-update",
+        "mutationId": "note:n1",
+        "noteId": "n1",
+        "patch": Object {
+          "bodyJson": Object {
+            "content": Array [
+              Object {
+                "content": Array [
+                  Object {
+                    "text": "ab cd ef",
+                    "type": "text",
+                  },
+                ],
+                "type": "paragraph",
+              },
+            ],
+            "type": "doc",
+          },
+          "subtitle": "",
+          "title": "Note",
+        },
+        "queuedAt": 1792155711219,
+        "sessionId": "01888b7b-f760-4e1f-8a5d-aeae91f67d0c",
+        "writtenSchema": 4,
+      },
+    ]
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m expectNoFork src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m193:78[22m[39m
+    [90m191| [39mconst holdsExactly = (t) => serverText() === JSON.stringify(doc(para(t…
+    [90m192| [39m[35mfunction[39m [34mexpectNoFork[39m({ fork[33m,[39m results }) {
+    [90m193| [39m  expect(fork, 'a (conflicted copy) of a note only this member touched…
+    [90m   | [39m                                                                             [31m^[39m
+    [90m194| [39m  [34mexpect[39m(results[33m.[39m[34mmap[39m((r) [33m=>[39m r[33m.[39moutcome))[33m.[39mnot[33m.[39m[34mtoContain[39m([33mFORKED[39m)
+    [90m195| [39m  [34mexpect[39m(server[33m.[39mforks[33m,[39m [32m'a sibling note was created'[39m)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+[90m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m246:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text and no (conflicted copy)[2m > [22m⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text
+[31m[1mAssertionError[22m: the durable copy does not hold the member's final text: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]}: expected '{"type":"doc","content":[{"type":"par…' to contain 'ab cd gh'[39m
+
+Expected: [32m"ab cd gh"[39m
+Received: [31m"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]}"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m262:145[22m[39m
+    [90m260| [39m    [35mawait[39m [34mtick[39m([34m1500[39m)
+    [90m261| [39m    expect(holdsExactly('ab cd'), 'precondition: nothing landed').toBe…
+    [90m262| [39m    expect(JSON.stringify(record()?.bodyJson), `the durable copy does …
+    [90m   | [39m                                                                                                                                                [31m^[39m
+    [90m263| [39m    server[33m.[39moffline [33m=[39m [35mfalse[39m
+    [90m264| [39m    [35mconst[39m out [33m=[39m [35mawait[39m [34mleaveAndDrain[39m()
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(c) the Redo variants[2m > [22m⭐⭐ (a) by Redo: a landed deletion, Undo, Redo back to the landed text, leave ⇒ no silent revert
+[31m[1mAssertionError[22m: the member's Redo was reversed on the server: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]}: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m286:100[22m[39m
+    [90m284| [39m    [35mconst[39m out [33m=[39m [35mawait[39m [34mleaveAndDrain[39m()
+    [90m285| [39m    [34mexpectNoFork[39m(out)
+    [90m286| [39m    expect(holdsExactly('ab cd'), `the member's Redo was reversed on t…
+    [90m   | [39m                                                                                                   [31m^[39m
+    [90m287| [39m  })
+    [90m288| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(c) the Redo variants[2m > [22m⭐⭐ (b) by Redo: delete (unsent), Undo, Redo, keep typing, leave ⇒ the final text, no (conflicted copy)
+[31m[1mAssertionError[22m: a (conflicted copy) of a note only this member touched: expected "vi.fn()" to not be called at all, but actually been called 1 times[90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m    Array [
+      Object {
+        "baseUpdatedAt": "2026-10-16T20:00:00.000000+00:00",
+        "generation": 5,
+        "kind": "note-update",
+        "mutationId": "note:n1",
+        "noteId": "n1",
+        "patch": Object {
+          "bodyJson": Object {
+            "content": Array [
+              Object {
+                "content": Array [
+                  Object {
+                    "text": "ab cd ef",
+                    "type": "text",
+                  },
+                ],
+                "type": "paragraph",
+              },
+            ],
+            "type": "doc",
+          },
+          "subtitle": "",
+          "title": "Note",
+        },
+        "queuedAt": 1792155715973,
+        "sessionId": "01888b7b-f760-4e1f-8a5d-aeae91f67d0c",
+        "writtenSchema": 4,
+      },
+    ]
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m expectNoFork src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m193:78[22m[39m
+    [90m191| [39mconst holdsExactly = (t) => serverText() === JSON.stringify(doc(para(t…
+    [90m192| [39m[35mfunction[39m [34mexpectNoFork[39m({ fork[33m,[39m results }) {
+    [90m193| [39m  expect(fork, 'a (conflicted copy) of a note only this member touched…
+    [90m   | [39m                                                                             [31m^[39m
+    [90m194| [39m  [34mexpect[39m(results[33m.[39m[34mmap[39m((r) [33m=>[39m r[33m.[39moutcome))[33m.[39mnot[33m.[39m[34mtoContain[39m([33mFORKED[39m)
+    [90m195| [39m  [34mexpect[39m(server[33m.[39mforks[33m,[39m [32m'a sibling note was created'[39m)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+[90m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m302:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(c) the Redo variants[2m > [22m⭐ an ordinary Undo and Redo mint no lineage (they are the member’s edits of this view)
+[31m[1mAssertionError[22m: an ordinary Undo/Redo replaced the view’s lineage: expected 6 to be 3 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 3[39m
+[31m+ 6[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m315:80[22m[39m
+    [90m313| [39m    [35mawait[39m [34mredo[39m()
+    [90m314| [39m    [35mawait[39m [34mundo[39m()
+    [90m315| [39m    expect(minted.length, 'an ordinary Undo/Redo replaced the view’s l…
+    [90m   | [39m                                                                               [31m^[39m
+    [90m316| [39m  })
+    [90m317| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(d) an Undo across a whole-view swap still rotates, and the offline words survive[2m > [22mversion restore: the old view’s unsent words survive typing on the restored version AND an Undo back across it
+[31m[1mAssertionError[22m: an ordinary Undo on the restored version minted a lineage: expected 5 to be 4 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 4[39m
+[31m+ 5[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m338:88[22m[39m
+    [90m336| [39m    [35mconst[39m before [33m=[39m minted[33m.[39mlength
+    [90m337| [39m    await undo()                                         // ' gh' — an…
+    [90m338| [39m    expect(minted.length, 'an ordinary Undo on the restored version mi…
+    [90m   | [39m                                                                                       [31m^[39m
+    [90m339| [39m    await undo()                                         // across the…
+    [90m340| [39m    expect(await viewText(), 'precondition: the Undo crossed the versi…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(d) an Undo across a whole-view swap still rotates, and the offline words survive[2m > [22ma swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not
+[31m[1mAssertionError[22m: Undo of typing on the swapped-in view: expected 5 to be 4 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 4[39m
+[31m+ 5[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m359:68[22m[39m
+    [90m357| [39m    [35mlet[39m n [33m=[39m minted[33m.[39mlength
+    [90m358| [39m    [35mawait[39m [34mundo[39m()
+    [90m359| [39m    expect(minted.length, 'Undo of typing on the swapped-in view').toB…
+    [90m   | [39m                                                                   [31m^[39m
+    [90m360| [39m    [35mawait[39m [34mundo[39m()
+    [90m361| [39m    [34mexpect[39m([35mawait[39m [34mviewText[39m())[33m.[39m[34mtoBe[39m([32m'ab cd'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(e) ⛔⛔ CONTROL — a genuine second writer still forks[2m > [22moffline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words
+[31m[1mAssertionError[22m: the fork does not carry the member’s newest words: expected '{"type":"doc","content":[{"type":"par…' to contain 'ab cd gh'[39m
+
+Expected: [32m"ab cd gh"[39m
+Received: [31m"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]}"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m393:119[22m[39m
+    [90m391| [39m    expect(fork, 'the second writer did not fork').toHaveBeenCalledTim…
+    [90m392| [39m    [34mexpect[39m(results[33m.[39m[34mmap[39m((r) [33m=>[39m r[33m.[39moutcome))[33m.[39m[34mtoEqual[39m([[33mFORKED[39m])
+    [90m393| [39m    expect(JSON.stringify(fork.mock.calls[0][0].patch.bodyJson), 'the …
+    [90m   | [39m                                                                                                                      [31m^[39m
+    [90m394| [39m    expect(serverText(), 'the other device’s words were overwritten').…
+    [90m395| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 08:01:41
+[2m   Duration [22m 19.22s[2m (transform 2.81s, setup 253ms, import 212ms, tests 18.13s, environment 499ms)[22m
+
