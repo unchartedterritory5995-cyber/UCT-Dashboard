@@ -343,6 +343,22 @@ def _readiness_refusal(label: str) -> ValueError:
     return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
+# ⭐ "VOLUME VS USUAL BY NOW" SORTS ON LAST SESSION'S VOLUME WHEN THE MARKET IS CLOSED.
+# `rvol_live` is blank outside the session (and before 09:45 ET), and members scan
+# mostly after hours and on weekends: sorted by it alone, every live-volume screen
+# came out in ticker order then. Outside the session the sort reads `vol_ratio` (the
+# last session's full-day volume vs its average), the same "live, else last session"
+# rule the volume starters filter on (`saved_screens._live_volume_or_nightly`).
+_SORT_FALLBACK = {"rvol_live": "vol_ratio"}
+
+
+def _sort_expr(overlay, sort_key):
+    fb = _SORT_FALLBACK.get(sort_key)
+    if fb is None:
+        return overlay.col_expr(sort_key)
+    return f"COALESCE({overlay.col_expr(sort_key)}, {overlay.col_expr(fb)})"
+
+
 def _overlay(conn, user=None) -> _Overlay:
     """The live decision (`_live_overlay`, unchanged) plus the pre-market one.
 
@@ -1500,7 +1516,7 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         tiebreak = ("" if sort_key == "ticker"
                     else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
-               f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST"
+               f"ORDER BY {_sort_expr(overlay, sort_key)} {sort_dir} NULLS LAST"
                f"{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.

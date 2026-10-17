@@ -71,7 +71,10 @@ def _seed(*, long_teachings: bool = False):
     setups = [
         _setup("launch_pad", "Launch Pad", family="breakout base", aliases=["pad base"],
                stats=_stats(140, 3.4, edge=0.4),
-               context={"market": {"downtrend": _stats(40, 0.8), "uptrend": _stats(90, 3.1)}},
+               context={"market": {"downtrend": _stats(40, 0.8), "uptrend": _stats(90, 3.1)},
+                        "trader": {"TSDR": _stats(60, 3.4, edge=0.4), "Bracco": _stats(45, -3.2, edge=-0.5),
+                                   "Manrav": _stats(12, 4.5), "AtTheAsk": _stats(40, 1.0),
+                                   "SomeMember": _stats(100, 5.0)}},
                teachings=lp_teach,
                winners=[_ex("t9210#0", "ZZTA", "tsdr", "2026-06-01", 0.12),
                         _ex("t9211#0", "ZZTB", "manrav", "2026-10-14", 0.05)],
@@ -347,3 +350,29 @@ def test_both_flags_on_add_the_block_once_cited_and_salted(wisdom_db, on, monkey
     assert "trader_archive" in meta["grounding_sources"]
     assert any(c["kind"].startswith("trader_archive_setup") for c in meta["archive_citations"])
     assert ai.SETUP_GAP not in meta["grounding_gaps"] and ai.SETUP_RECORD_NOTE in system
+
+
+# ── who has an edge on this setup (the imported per-trader cut) ──────────────
+
+def test_the_traders_line_names_who_has_an_edge_under_the_same_rule(wisdom_db, on):
+    _seed()
+    text, cites = ask_setup.setup_block("how does the team trade launch pads?", today=TODAY)
+    line = next(i for i in text[len(ask_setup.HEADER):].split(" | ") if i.startswith("[TRADERS"))
+    assert line.startswith("[TRADERS · setup launch_pad] who has an edge on this setup: ")
+    assert "measured edge: TSDR (n 60, edge R +0.40, z 3.4)" in line
+    assert "measured negative: Bracco (n 45, edge R -0.50, z -3.2)" in line
+    nend = line.split("not enough data: ")[1]
+    assert "Manrav" in nend and "At.The.Ask" in nend                 # z 4.5 on 12 calls is NOT measured
+    assert "Manrav" not in line.split("not enough data")[0]
+    assert "SomeMember" not in text                                   # only the six traders are ever named
+    cite = next(c for c in cites if c["kind"] == "trader_archive_setup_traders")
+    assert cite["traders"] == {"edge": ["tsdr"], "negative": ["bracco"],
+                               "not_enough_data": ["attheask", "manrav"]}
+    assert cite["flag_env"] == "WISDOM_ARCHIVE_ASK_ENABLED"
+
+
+def test_no_per_trader_cut_means_no_traders_line(wisdom_db, on):
+    _seed()
+    text, cites = ask_setup.setup_block("how does the team trade an oops reversal?", today=TODAY)
+    assert "[RECORD · setup oops]" in text                            # control: the block is there
+    assert "[TRADERS" not in text and not [c for c in cites if c["kind"].endswith("_traders")]
