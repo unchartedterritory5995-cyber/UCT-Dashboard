@@ -15,7 +15,8 @@
 // is how a member got a 54-byte "PNG" with no warning. See the size-safety
 // block below — it is what this file is actually protecting now.
 
-import { domToBlob } from 'modern-screenshot'
+// modern-screenshot is imported on use (inside exportNoteAsPng), not here: ~24 KB the Notebook's
+// first open never needs. Pinned by screenshotLazy.test.js.
 
 // ---------------------------------------------------------------------------
 // Canvas size safety
@@ -248,6 +249,7 @@ export async function exportNoteAsPng(el, title, probeFn) {
     return { ok: false, reason: TOO_LONG_FOR_PNG_MESSAGE }
   }
 
+  const { domToBlob } = await import('modern-screenshot')
   const blob = await domToBlob(el, {
     type: 'image/png',
     scale,
