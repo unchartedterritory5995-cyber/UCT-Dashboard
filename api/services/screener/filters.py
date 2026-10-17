@@ -963,7 +963,9 @@ VIEWS = {
         "earnings_setup_grade", "analyst_consensus", "pt_upside_pct",
         "upgrades_30d", "downgrades_30d"]},
     "context": {"label": "Context", "columns": [
-        "ticker", "company", "theme", "in_uct20", "index_sp500", "index_ndx",
+        # `security_type` (2026-10-17): the Type filter's family had no view, so a member
+        # could filter Stocks / ADRs / ETFs and never see which a row is.
+        "ticker", "company", "security_type", "theme", "in_uct20", "index_sp500", "index_ndx",
         "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
         "hvc_52w"]},
     "candles": {"label": "Candles", "columns": [
