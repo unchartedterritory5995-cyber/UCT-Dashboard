@@ -301,7 +301,7 @@ def screener_count(spec: ScanSpec, user=Depends(require_paid)):
     """
     try:
         return scr_query.preview_count(spec.model_dump(),
-                                       user_id=(user or {}).get("id"))
+                                       user_id=(user or {}).get("id"), user=user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -327,7 +327,7 @@ def screener_count_batch(body: CountBatch, user=Depends(require_paid)):
     """
     uid = (user or {}).get("id")
     results = scr_query.preview_count_batch([s.model_dump() for s in body.specs],
-                                            user_id=uid)
+                                            user_id=uid, user=user)
     out = []
     for slot, res in enumerate(results):
         if isinstance(res, ValueError):
@@ -362,7 +362,7 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         from api.services import coverage_receipt as _cov
         if _cov.is_enabled():
             try:
-                out["coverage"] = scr_query.coverage_for(body, user_id=uid)
+                out["coverage"] = scr_query.coverage_for(body, user_id=uid, user=user)
             except Exception as e:  # noqa: BLE001
                 import logging
                 logging.getLogger(__name__).warning("[screener] coverage receipt failed: %s", e)
@@ -414,7 +414,12 @@ def screener_snapshot_status(user=Depends(require_paid)):
     `query.live_tier_state()` — read the block comment above it before changing
     any of these words.
     """
-    return {**scr_db.status(), "live": scr_query.live_tier_state()}
+    # ⭐ The pre-market sweep's last receipt (spec 2026-10-16 §2), for a user the flag
+    # reaches; None otherwise, so a member at `admin` reads the same "off" the scan
+    # gives them.
+    from api.services.screener import premarket as _pm
+    return {**scr_db.status(), "live": scr_query.live_tier_state(),
+            "premarket": _pm.last_receipt() if _pm.served_to(user) else None}
 
 
 @router.get("/api/screener/volume-curve")
@@ -1055,7 +1060,7 @@ def screener_earnings_context_status(user=Depends(require_admin)):
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
-    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters()}
+    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
 
 
 @router.post("/api/screener/saved-screens")

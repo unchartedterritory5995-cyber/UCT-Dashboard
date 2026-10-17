@@ -485,8 +485,14 @@ def test_the_overlaid_columns_are_the_TIERS_OWN_LIST_and_nothing_else(served):
         expr = overlay.col_expr(col)
         if col in expected:
             assert expr == f'COALESCE(l."{col}", screener_rows."{col}")', col
+        elif col in query._PM_COLUMNS:
+            # The two pre-market columns are the `pm` join's, never the live
+            # overlay's or the nightly row's: not served here, so NULL.
+            assert not overlay.pm_on and expr == 'NULL', col
         else:
             assert expr == f'screener_rows."{col}"', col
+    assert query._PM_COLUMNS and query._PM_COLUMNS <= set(snapshot_db.COLUMNS)
+    assert not (query._PM_COLUMNS & expected)
 
 
 def test_a_roster_change_reaches_the_SQL_with_no_edit_in_the_read_path(served, monkeypatch):

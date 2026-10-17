@@ -9,13 +9,15 @@ FLAG = "SCREENER_FOCUS_LAYOUT_ENABLED"
 def auth(monkeypatch):
     monkeypatch.delenv(FLAG, raising=False)
     monkeypatch.delenv("SCREENER_NEW_TODAY_ENABLED", raising=False)
+    monkeypatch.delenv("SCREENER_PREMARKET_ENABLED", raising=False)
     import api.routers.auth as mod
     return importlib.reload(mod)
 
 
 def test_unset_is_off_for_everyone(auth):
     assert auth._screener_flags(is_admin=True) == {"screener_focus_layout_enabled": False,
-                                                   "screener_new_today_enabled": False}
+                                                   "screener_new_today_enabled": False,
+                                                   "screener_premarket_enabled": False}
 
 
 @pytest.mark.parametrize("raw", ["1", "true", "yes", "on"])

@@ -233,7 +233,7 @@ def test_snapshot_records_the_vendor_data_time_beside_unchanged_rows(monkeypatch
     monkeypatch.setattr(c, "_get", lambda url: {"tickers": tickers}, raising=False)
     out = c.get_full_market_snapshot()
     assert set(out["T0"]) == {"last_price", "prev_close", "today_vol", "prev_vol", "day_open",
-                              "day_high", "day_low"}
+                              "day_high", "day_low", "last_trade_ns"}
     m = c.last_full_snapshot_meta
     assert m["stamped"] == 100 and m["tickers"] == 102          # future stamp + unstamped dropped
     assert now - 905 <= m["data_at"] <= now - 900 and m["data_at_newest"] == now - 900

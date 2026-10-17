@@ -453,8 +453,41 @@ def _stocks_only(starter):
     return {**starter, "spec": spec}
 
 
-def starters():
-    return [_stocks_only(s) for s in _starter_defs()]
+def premarket_starters():
+    """The two Morning prep starters (spec 2026-10-16 §2). They screen on the two
+    pre-market columns, which are served 04:00-09:30 ET only, so outside that window
+    both answer empty (the Focus empty state says why). Shown only to users the flag
+    reaches -- see `starters(user)`."""
+    sort = {"key": "premarket_chg_pct", "dir": "desc"}
+    return [
+        {"id": "starter_premarket_gappers", "name": "Gapping pre-market",
+         "group": "Morning prep",
+         "description": "Stocks up 3%+ before the open (4:00–9:30 ET), $10M+ traded daily, price $5+. No pre-market volume is available.",
+         "spec": {"filters": [
+             {"key": "premarket_chg_pct", "op": "gte", "min": 3},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
+             {"key": "price", "op": "gte", "min": 5}],
+          "view": "technical", "sort": dict(sort)}},
+        {"id": "starter_premarket_setups", "name": "Setups gapping pre-market",
+         "group": "Morning prep",
+         # `base_pivot_px >= 0` is the PRESENCE test: SQL answers it only for a row
+         # that holds a pivot, i.e. a stock with a base.
+         "description": "Stocks with a base pivot, up 2%+ before the open, $10M+ traded daily. No pre-market volume is available.",
+         "spec": {"filters": [
+             {"key": "base_pivot_px", "op": "gte", "min": 0},
+             {"key": "premarket_chg_pct", "op": "gte", "min": 2},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
+          "view": "technical", "sort": dict(sort)}},
+    ]
+
+
+def starters(user=None):
+    """Every starter this user may see. The Morning prep pair joins only when
+    `premarket.served_to(user)`; with no user that is a member's answer, so a caller
+    that does not pass one fails closed at `admin`."""
+    from api.services.screener import premarket  # noqa: PLC0415
+    extra = premarket_starters() if premarket.served_to(user) else []
+    return [_stocks_only(s) for s in [*_starter_defs(), *extra]]
 
 
 def _live_volume_or_nightly(min_x):
