@@ -86,9 +86,9 @@ REPORT_ACTIONS = ("hide", "dismiss")
 
 #: P3a Task 7: the bell rows the library writes. One string is both the alert `type` and `data.source`,
 #: and the client's Notices box matches it (app/src/pages/journal-2-0/lib/notices.js LIBRARY, pinned there
-#: by notices.test.js reading this file). An update notice links into the member's own copy;
-#: `StylesManager` opens the update sheet from that link. A withdraw notice has no link: there is nothing
-#: left to open.
+#: by notices.test.js reading this file). An update notice links into the member's own copy; the plan's
+#: Task 10 makes `StylesManager` open the update sheet from that link (nothing reads it before then). A
+#: withdraw notice has no link: there is nothing left to open.
 LIBRARY_NOTICE_SOURCE = "notebook_style_library"
 LIBRARY_UPDATE_PATH = "/journal/notebook?styles=1&libraryUpdate="
 UPDATE_NOTICE = "{title} has a new version from its author. Open it to see what changed."
@@ -951,8 +951,13 @@ def _ring_update_watchers(conn: sqlite3.Connection, gallery_id: str) -> int:
                   "galleryId": gallery_id, "version": version}):
             conn.execute("UPDATE j2_gallery_watches SET notified_version = ? WHERE gallery_id = ? AND user_id = ?",
                          (version, gallery_id, w["user_id"]))
+            # ⛔ Committed per watcher, BEFORE the next add_alert: its durable copy is written through a SECOND
+            # connection to this same auth.db, and an open write transaction here would make that insert wait
+            # out its busy timeout, fail silently, and leave the next member's notice recorded as delivered
+            # while it lives only in the in-memory cache (Task 7 review C1). It also never holds the
+            # app-wide write lock across a delivery.
+            conn.commit()
             rung += 1
-    conn.commit()
     return rung
 
 
@@ -969,10 +974,13 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
         item = conn.execute(
             "SELECT item_type, title FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id)).fetchone()
+        # The same rule as the update ring: only a watcher whose copy still exists is told ("your copy is
+        # yours" is a sentence about that copy).
         watchers = [] if item is None or item["item_type"] != "style" else [
             r["user_id"] for r in conn.execute(
-                "SELECT user_id FROM j2_gallery_watches WHERE gallery_id = ? AND user_id != ?",
-                (gallery_id, user_id)).fetchall()]
+                "SELECT w.user_id FROM j2_gallery_watches w JOIN j2_journal_styles s"
+                " ON s.id = w.style_id AND s.user_id = w.user_id AND s.deleted_at IS NULL"
+                " WHERE w.gallery_id = ? AND w.user_id != ?", (gallery_id, user_id)).fetchall()]
         cur = conn.execute(
             "DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id),
@@ -1618,7 +1626,11 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         # P3a Task 7: AFTER the review has committed, so a notice can never undo it. An approved revision
         # bumps the version, so its watchers are behind; any later review action retries a failed delivery.
         if action in _RING_ACTIONS and row["item_type"] == "style":
-            _ring_update_watchers(conn, gallery_id)
+            try:
+                _ring_update_watchers(conn, gallery_id)
+            except Exception as e:  # noqa: BLE001 -- the review has committed; a notice never fails it (review I1)
+                conn.rollback()      # only the current watcher's uncommitted mark; earlier ones are committed
+                print(f"[template-gallery] update notices for {gallery_id} stopped: {type(e).__name__}: {e}")
         return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
     finally:
         if owned:
