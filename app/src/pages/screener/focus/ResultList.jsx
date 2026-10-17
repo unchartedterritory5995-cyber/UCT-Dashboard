@@ -28,7 +28,7 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
         {...(onRadar ? { 'aria-label': 'On your radar', role: 'img' } : { 'aria-hidden': true })} />
       <span className={styles.rowMain}>
         {/* New today (spec 2026-10-16 s1): in the screen now, not at the previous nightly build. */}
-        <span className={styles.ticker}>{r.ticker}{isNew && <span className={styles.newPill}>New</span>}</span>
+        <span className={styles.ticker}>{r.ticker}{isNew && <span className={styles.newPill}><span className="sr-only">, </span>New</span>}</span>
         {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
         <span className={styles.setup} title={s.title || undefined}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
       </span>

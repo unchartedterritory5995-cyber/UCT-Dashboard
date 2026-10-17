@@ -68,12 +68,16 @@ const META = { filters: [{ key: 'rs_rank', label: 'RS Rank', category: 'technica
   categories: [{ key: 'technical', label: 'Technical' }], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }
 const ROWS = [row('MU'), row('ECO'), row('APLS')]
 let diff = ok(['ECO', 'APLS'], ['ZZZ'])
+// A starter whose recorded spec carries a field the editor's filter list does not keep (`label`),
+// so asking with the reconstructed list would hash differently from the nightly record.
+const STARTER_SPEC = { filters: [{ key: 'rs_rank', op: 'gte', min: 90, label: 'RS 90+' }], view: 'overview' }
+const STARTERS = [{ id: 'starter_rs', name: 'RS leaders', group: 'Momentum leaders', spec: STARTER_SPEC }]
 function route(url) {
   if (url === '/api/screener/membership-diff') return { ok: true, json: async () => diff }
   if (url.startsWith('/api/screener/meta')) return { ok: true, json: async () => META }
   if (url === '/api/screener/scan') return { ok: true, json: async () => ({ rows: ROWS, total: ROWS.length, page: 1, snapshot_date: '2026-10-15' }) }
   if (url === '/api/screener/count') return { ok: true, json: async () => ({ count: ROWS.length }) }
-  if (url.startsWith('/api/screener/saved-screens')) return { ok: true, json: async () => ({ saved: [], starters: [] }) }
+  if (url.startsWith('/api/screener/saved-screens')) return { ok: true, json: async () => ({ saved: [], starters: STARTERS }) }
   if (url.startsWith('/api/exports/quota')) return { ok: false, status: 404, json: async () => ({}) }
   return { ok: true, json: async () => ([]) }
 }
@@ -138,4 +142,27 @@ test('a screen with no history draws no line and no pills', async () => {
   await waitFor(() => screen.getByTestId('focus-row-ECO'))
   expect(screen.queryByRole('button', { name: /new$/ })).toBeNull()
   expect(screen.getByTestId('focus-row-ECO')).not.toHaveTextContent('New')
+})
+
+async function openStarter() {
+  fireEvent.click(await screen.findByRole('button', { name: /Change screen$/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /^Open RS leaders/ }))
+}
+
+test('an unedited starter asks with its OWN recorded spec, the one the nightly record hashed', async () => {
+  mount()
+  await screen.findByTestId('focus-row-MU')
+  await openStarter()
+  await waitFor(() => expect(diffBodies().some(b => b.spec.filters?.[0]?.label === 'RS 90+')).toBe(true))
+  const body = diffBodies().filter(b => b.spec.filters?.[0]?.label === 'RS 90+').at(-1)
+  expect(body.spec.filters).toEqual(STARTER_SPEC.filters)
+})
+
+test("a member's carried pool on a starter asks nothing (a different population from the record)", async () => {
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec({ filters: { universe: { op: 'eq', value: 'uct' } } })}`)
+  mount()
+  await screen.findByTestId('focus-row-MU')
+  await openStarter()
+  await new Promise(r => setTimeout(r, 50))
+  expect(diffBodies().filter(b => (b.spec.filters || []).some(f => f.key === 'rs_rank'))).toEqual([])
 })

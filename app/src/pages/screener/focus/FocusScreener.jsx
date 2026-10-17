@@ -266,10 +266,25 @@ function FocusList({ onMode }) {
   // ── New today (spec 2026-10-16 s1) ───────────────────────────────────────
   // Asked with the screen's criteria only (the filter LIST, logic, rank), so a re-sort asks
   // nothing. Off (the payload flag) asks nothing and draws nothing.
+  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
+  const specKey = normalSpec(s.baseSpec)
+  const isEdited = !!current && normalSpec(current.spec) !== specKey
   const ntOn = useContext(AuthContext)?.screenerNewTodayEnabled === true
-  const ntFilters = s.baseSpec.filters
-  const ntCriteria = useMemo(() => ({ filters: ntFilters, logic: s.logic, rank: s.rank }), [ntFilters, s.logic, s.rank])
-  const nt = useNewToday(ntCriteria, ntOn)
+  // ⭐ ASKED BY THE SCREEN'S IDENTITY, NOT BY ITS RECONSTRUCTED FILTERS. The nightly record is
+  // keyed on the starter's or saved screen's OWN spec; the editor's filter list can differ from
+  // it in order and in the member's carried pool (applySpec keeps Global/UCT/Watchlist). So an
+  // unedited named screen asks with `current.spec`. A member's pool carried onto a screen that
+  // does not name one is a different population from the All Market record, so it asks
+  // nothing rather than marking names against the wrong set; an edited screen was never
+  // recorded and asks with its own criteria (the server answers `unsaved`).
+  const ntIdentity = !isEdited && current?.spec ? current.spec : null
+  const carriedPool = !!ntIdentity && !(ntIdentity.filters || []).some(f => POOL_KEYS.includes(f?.key))
+    && (s.baseSpec.filters || []).some(f => POOL_KEYS.includes(f?.key))
+  const ntFilters = ntIdentity ? ntIdentity.filters : s.baseSpec.filters
+  const ntLogic = ntIdentity ? (ntIdentity.logic || null) : s.logic
+  const ntRank = ntIdentity ? (ntIdentity.rank || null) : s.rank
+  const ntCriteria = useMemo(() => ({ filters: ntFilters, logic: ntLogic, rank: ntRank }), [ntFilters, ntLogic, ntRank])
+  const nt = useNewToday(ntCriteria, ntOn && !carriedPool)
   const newSet = useMemo(() => (nt?.state === 'ok' ? new Set(nt.entered || []) : null), [nt])
   const [newOnly, setNewOnly] = useState(false)
   // A different screen starts with every row shown. Keyed on the criteria (what the answer is
@@ -381,9 +396,6 @@ function FocusList({ onMode }) {
   // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
   // mount opened on still matches one (List→Table→List remounts this component). A bare
   // arrival carries no spec to match, so it lands on the first pinned screen as before.
-  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
-  const specKey = normalSpec(s.baseSpec)
-  const isEdited = !!current && normalSpec(current.spec) !== specKey
   useEffect(() => { if (current) rememberNamed(current) }, [current])
   // Spec changes made here (drawer, sort, undo, picking a screen) keep the name, shown as
   // edited. Any other change came from outside: back/forward, the `S:<id>` door, a shared
