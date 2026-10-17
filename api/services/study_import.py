@@ -250,9 +250,53 @@ def voice_check(text: str, *, question: bool = False, lesson: bool = False) -> l
     return out
 
 
+def dedup_text(item: dict) -> str:
+    """What the near-duplicate diff compares by Jaccard: the question, the
+    quoted source text the member reads under it, and the choices. The
+    chart's identity is a HARD key (`chart_key`), not a token."""
+    p = _as_dict(item.get("prompt_json"))
+    parts = [question_text(item)]
+    if isinstance(p.get("quote"), str):
+        parts.append(p["quote"])
+    for c in p.get("choices") or []:
+        parts.append(str(c))
+    return " ".join(parts)
+
+
+def subject_key(item: dict) -> str:
+    """`prompt_json.subject`: the thing the question is about (a candle name,
+    a glossary term, a rule number, a setup). A generator sets it so two
+    short questions over two different names are two items; the diff still
+    catches the same thing asked twice about ONE subject. '' when absent."""
+    p = _as_dict(item.get("prompt_json"))
+    s = p.get("subject")
+    return str(s).strip().lower() if s is not None else ""
+
+
+def chart_key(item: dict) -> tuple[str, str]:
+    """(asof, SYM) of the chart an item shows, from the item or its bars spec
+    / embed; ('', '') for a non-chart item. Two charts asked the same way
+    are two items, so a differing key is never a duplicate."""
+    asof = item.get("asof")
+    sym = item.get("sym")
+    for src in (item.get("bars"), item.get("bars_embed")):
+        if isinstance(src, dict):
+            asof = asof or src.get("asof")
+            sym = sym or src.get("sym")
+    return (str(asof or ""), str(sym or "").upper())
+
+
 def normalise_question(text: str) -> set[str]:
     """Lower-cased word tokens of a question, for the Jaccard."""
     return set(_WORD_RE.findall((text or "").lower()))
+
+
+def question_numbers(item: dict) -> list[str]:
+    """The normalised numbers in the question text, sorted. Two questions
+    that differ in a number (a sizing drill's inputs, a rule number, a
+    drawdown) are two questions, whatever their words share."""
+    out = [n for n in (_normalise(t) for t in _numbers_in_text(question_text(item))) if n is not None]
+    return sorted(out)
 
 
 def jaccard(a: set, b: set) -> float:
@@ -265,19 +309,29 @@ def jaccard(a: set, b: set) -> float:
 
 def near_duplicate(item: dict, bank: Iterable[dict], *, threshold: float = NEAR_DUP_THRESHOLD
                    ) -> Optional[dict]:
-    """The bank item with the same skill whose normalised question is at least
+    """The bank item with the same skill whose normalised question (see
+    `dedup_text`: question + quote + choices + chart identity) is at least
     `threshold` similar (token Jaccard), or None. Items with the same id are
     never compared against themselves (a re-import is not a duplicate)."""
-    toks = normalise_question(question_text(item))
+    toks = normalise_question(dedup_text(item))
     if not toks:
         return None
+    nums = question_numbers(item)
+    ck = chart_key(item)
+    sk = subject_key(item)
     best: Optional[dict] = None
     for other in bank:
         if other.get("id") == item.get("id"):
             continue
         if other.get("skill_id") != item.get("skill_id"):
             continue
-        score = jaccard(toks, normalise_question(question_text(other)))
+        if question_numbers(other) != nums:
+            continue                      # a different number is a different question
+        if chart_key(other) != ck:
+            continue                      # a different chart is a different item
+        if sk and subject_key(other) and subject_key(other) != sk:
+            continue                      # a different subject is a different item
+        score = jaccard(toks, normalise_question(dedup_text(other)))
         if score >= threshold and (best is None or score > best["score"]):
             best = {"id": other.get("id"), "score": round(score, 4)}
     return best

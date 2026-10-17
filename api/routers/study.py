@@ -433,7 +433,9 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
         it["review_lane"] = it.get("review_lane") or chk["lane"]
         if chk["flags"]:
             flagged.append({"id": iid, "flags": chk["flags"]})
-        dup_bank.append({"id": iid, "skill_id": it.get("skill_id"), "prompt_json": it.get("prompt_json")})
+        dup_bank.append({"id": iid, "skill_id": it.get("skill_id"), "prompt_json": it.get("prompt_json"),
+                         "asof": it.get("asof") or (spec or {}).get("asof") or (embed or {}).get("asof"),
+                         "sym": it.get("sym") or (spec or {}).get("sym") or (embed or {}).get("sym")})
         if embed and isinstance(embed, dict) and embed.get("bars"):
             bars_id = it.get("bars_ref") or f"sb_{iid}"
             study_store.upsert_bars(bars_id, str(embed.get("tf") or "D"), list(embed["bars"]),

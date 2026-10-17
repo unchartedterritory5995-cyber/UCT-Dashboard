@@ -108,9 +108,9 @@ def test_voice_passes_the_owners_own_sentences():
 # ── near-duplicate ────────────────────────────────────────────────────────────
 
 def test_near_duplicate_same_skill_similar_text():
-    bank = [{"id": "si_a", "skill_id": "f1.basics", "prompt_json": {"q": "What is a bid, exactly?"}},
-            {"id": "si_b", "skill_id": "f2.other", "prompt_json": {"q": "What is a bid?"}}]
-    hit = si.near_duplicate(_item(prompt_json={"q": "What is a bid exactly?"}), bank)
+    bank = [{"id": "si_a", "skill_id": "f1.basics", "prompt_json": {"q": "What is a bid, exactly?", "choices": ["a", "b"]}},
+            {"id": "si_b", "skill_id": "f2.other", "prompt_json": {"q": "What is a bid?", "choices": ["a", "b"]}}]
+    hit = si.near_duplicate(_item(prompt_json={"q": "What is a bid exactly?", "choices": ["a", "b"]}), bank)
     assert hit == {"id": "si_a", "score": 1.0}
     assert si.near_duplicate(_item(prompt_json={"q": "Where does the stop go on a flag?"}), bank) is None
 
@@ -120,6 +120,51 @@ def test_near_duplicate_ignores_itself_and_respects_the_threshold():
             {"id": "si_c", "skill_id": "f1.basics", "prompt_json": {"q": "What is a bid and an ask and a spread?"}}]
     assert si.near_duplicate(_item(), bank) is None            # self + below 0.85
     assert si.jaccard({"a", "b"}, {"a", "b", "c"}) == pytest.approx(2 / 3)
+
+
+def test_near_duplicate_reads_the_quote_the_choices_and_the_chart_identity():
+    """The same question over two different quoted sources, two different
+    choice sets, or two different charts is two items, not a duplicate."""
+    base = {"skill_id": "vocab.candle", "prompt_json": {"q": "Which candle name fits this description?"}}
+    a = {**base, "id": "si_a", "prompt_json": {**base["prompt_json"], "quote": "A long lower wick after a decline."}}
+    b = {**base, "id": "si_b", "prompt_json": {**base["prompt_json"], "quote": "A long upper wick after an advance."}}
+    assert si.near_duplicate(a, [b]) is None
+    c = {"id": "si_c", "skill_id": "s", "prompt_json": {"q": "Does the setup fire here?", "choices": ["Yes", "No"]},
+         "bars_embed": {"sym": "AAPL", "asof": "2022-07-12"}}
+    d = {**c, "id": "si_d", "bars_embed": {"sym": "MSFT", "asof": "2023-01-26"}}
+    assert si.near_duplicate(c, [d]) is None
+    assert si.near_duplicate(c, [{**d, "bars_embed": dict(c["bars_embed"])}]) == {"id": "si_d", "score": 1.0}
+    assert si.chart_key(c) == ("2022-07-12", "AAPL") and si.chart_key(a) == ("", "")
+    # the chart is a hard key: a near-identical question over another chart of the same ticker is not a dup
+    e = {**c, "id": "si_e", "bars_embed": {"sym": "AAPL", "asof": "2023-01-26"}}
+    assert si.near_duplicate(c, [e]) is None
+
+
+def test_a_different_number_in_the_question_is_a_different_question():
+    """Sizing drills share one template and differ by their inputs; the
+    drawdown ladder items differ by one percent. Those are not duplicates."""
+    a = {"id": "si_a", "skill_id": "size.drawdown",
+         "prompt_json": {"q": "You are 8% off your peak. What is your max size?", "choices": ["20%", "10%", "8%", "5%"]}}
+    b = {**a, "id": "si_b", "prompt_json": {**a["prompt_json"], "q": "You are 10% off your peak. What is your max size?"}}
+    assert si.near_duplicate(a, [b]) is None
+    assert si.near_duplicate(a, [{**b, "prompt_json": dict(a["prompt_json"])}]) == {"id": "si_b", "score": 1.0}
+    assert si.question_numbers(a) == ["8"] and si.question_numbers(b) == ["10"]
+
+
+def test_a_declared_subject_separates_two_names_that_share_their_words():
+    """'Upside Tasuki Gap' vs 'Downside Tasuki Gap' in one short template is
+    0.89 by Jaccard; prompt_json.subject makes them two items. The same
+    subject asked the same way is still a duplicate."""
+    a = {"id": "si_a", "skill_id": "vocab.candle",
+         "prompt_json": {"q": "How many bars make a Upside Tasuki Gap?", "choices": ["1", "2", "3", "4", "5"],
+                         "subject": "Upside Tasuki Gap"}}
+    b = {"id": "si_b", "skill_id": "vocab.candle",
+         "prompt_json": {"q": "How many bars make a Downside Tasuki Gap?", "choices": ["1", "2", "3", "4", "5"],
+                         "subject": "Downside Tasuki Gap"}}
+    assert si.near_duplicate(a, [b]) is None
+    hit = si.near_duplicate(a, [{**b, "id": "si_c", "prompt_json": {**b["prompt_json"], "subject": "upside tasuki gap"}}])
+    assert hit and hit["id"] == "si_c" and hit["score"] >= 0.85
+    assert si.subject_key(a) == "upside tasuki gap" and si.subject_key({"prompt_json": {"q": "x"}}) == ""
 
 
 # ── lanes ─────────────────────────────────────────────────────────────────────
@@ -175,7 +220,7 @@ def test_import_stores_a_failing_item_as_a_flagged_draft_and_reports_it(push_cli
     good = _item(id="si_good")
     bad = _item(id="si_bad", prompt_json={"q": "How wide was the spread?"},
                 lesson_text="The spread was 0.5%, or 7 ticks.")
-    dup = _item(id="si_dup", prompt_json={"q": "What is a bid?"}, lesson_text=None)
+    dup = _item(id="si_dup", prompt_json={"q": "What is a bid?", "choices": ["a", "b"]}, lesson_text=None)
     r = push_client.post("/api/study/import", json={"items": [good, bad, dup]})
     assert r.status_code == 200, r.text
     out = r.json()

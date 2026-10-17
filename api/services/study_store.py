@@ -1202,18 +1202,18 @@ def get_week_close(week_et: str) -> Optional[dict]:
 # ── Reads for the importer's checks ───────────────────────────────────────────
 
 def list_question_rows(skill_ids: Iterable[str]) -> list[dict]:
-    """id, skill_id, prompt_json of every non-retired item in these skills —
-    the bank the near-duplicate check compares an import against."""
+    """id, skill_id, prompt_json, asof, sym of every non-retired item in these
+    skills — the bank the near-duplicate check compares an import against."""
     ids = sorted({s for s in skill_ids if s})
     if not ids:
         return []
     marks = ",".join("?" for _ in ids)
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            f"SELECT id, skill_id, prompt_json FROM study_items WHERE skill_id IN ({marks}) "
+            f"SELECT id, skill_id, prompt_json, asof, sym FROM study_items WHERE skill_id IN ({marks}) "
             f"AND review_status != ?", (*ids, STATUS_RETIRED)).fetchall()
-    return [{"id": r["id"], "skill_id": r["skill_id"], "prompt_json": _loads(r["prompt_json"], {})}
-            for r in rows]
+    return [{"id": r["id"], "skill_id": r["skill_id"], "prompt_json": _loads(r["prompt_json"], {}),
+             "asof": r["asof"], "sym": r["sym"]} for r in rows]
 
 
 # ── Badges / checkpoints (thin; Phase 1 wires the rules) ─────────────────────
