@@ -14,7 +14,8 @@
  *   s.getState(id) / s.setState(id, state)
  *   s.barsFor(id)            normalised bars (t as 'YYYY-MM-DD'), visible + forward
  *   s.ensureBars(id)         fetch /items/{id}/bars when the set did not inline them
- *   s.results, s.combo, s.summary
+ *   s.results, s.combo, s.summary   (summary.total/correct count scored items only;
+ *                                    a walk-through counts in summary.seen, §13.9 #1)
  *
  * Offline (D18): the whole set is on the device the moment /today answers (it is
  * also cached in localStorage so a reload without a connection still opens it);
@@ -69,6 +70,13 @@ export function appendForwardBars(bars, forward) {
   return out
 }
 
+/** Item types the server records as seen, never graded (§13.9 #1). */
+export const UNSCORED_TYPES = new Set(['walkthrough'])
+
+export function isUnscoredItem(item) {
+  return !!item && UNSCORED_TYPES.has(String(item.type || '').toLowerCase())
+}
+
 function readCache() {
   try {
     const raw = window.localStorage?.getItem(SET_CACHE_KEY)
@@ -117,14 +125,19 @@ function reducer(state, action) {
     case 'result': {
       const r = action.result
       const correct = !!r.correct
-      const combo = correct ? state.combo + 1 : 0
+      // a seen walk-through (unscored) leaves the combo exactly where it was
+      const unscored = !!r.unscored || isUnscoredItem(state.items.find((it) => it.id === action.id))
+      const combo = unscored ? state.combo : correct ? state.combo + 1 : 0
       const next = { ...state, results: { ...state.results, [action.id]: { ...r, answered: true, pending: false, failed: false } }, combo, comboBest: Math.max(state.comboBest, combo) }
       if (r.reveal?.forward_bars?.length) {
         next.barsById = { ...state.barsById, [action.id]: appendForwardBars(state.barsById[action.id] || [], r.reveal.forward_bars) }
       }
       return next
     }
-    case 'post-failed': return { ...state, results: { ...state.results, [action.id]: { pending: true, failed: true, answer: action.answer, error: action.error } }, combo: 0 }
+    case 'post-failed': {
+      const keep = isUnscoredItem(state.items.find((it) => it.id === action.id))
+      return { ...state, results: { ...state.results, [action.id]: { pending: true, failed: true, answer: action.answer, error: action.error } }, combo: keep ? state.combo : 0 }
+    }
     case 'next': return { ...state, index: Math.min(state.items.length, state.index + 1) }
     case 'defer': {
       if (state.index >= state.items.length) return state
@@ -223,12 +236,18 @@ export default function useStudySession({ initial = null, sessionId = null, fetc
     return bars
   }, [s.barsById])
 
+  // The score counts the SCORED items only: a walk-through is seen, not
+  // answered, so "7 of 10" never includes it; `seen` counts those read.
   const summary = useMemo(() => {
-    const total = s.items.length
-    let correct = 0, answered = 0, xp = 0, pending = 0
+    let total = 0, correct = 0, answered = 0, xp = 0, pending = 0, seen = 0
     let last = null
     for (const it of s.items) {
       const r = s.results[it.id]
+      if (isUnscoredItem(it) || r?.unscored) {
+        if (r && !r.pending) seen += 1
+        continue
+      }
+      total += 1
       if (!r) continue
       if (r.pending) { pending += 1; continue }
       if (r.answered) answered += 1
@@ -236,7 +255,7 @@ export default function useStudySession({ initial = null, sessionId = null, fetc
       xp += Number(r.progress?.xp_gained || 0)
       if (r.progress) last = r.progress
     }
-    return { total, correct, answered, pending, xp, comboBest: s.comboBest, progress: last }
+    return { total, correct, answered, pending, seen, xp, comboBest: s.comboBest, progress: last }
   }, [s.items, s.results, s.comboBest])
 
   return {

@@ -11,6 +11,7 @@ import RegimeDrill from './RegimeDrill'
 import ScenarioDrill from './ScenarioDrill'
 import TapDrill from './TapDrill'
 import CallDrill from './CallDrill'
+import WalkthroughDrill from './WalkthroughDrill'
 
 export const DRILLS = {
   recall: RecallDrill,
@@ -22,10 +23,17 @@ export const DRILLS = {
   call_scan: CallDrill,
   call_archive: CallDrill,
   call: CallDrill,
+  walkthrough: WalkthroughDrill,   // unscored: seen, never checked (spec §13.9 #1)
 }
 
 export function drillFor(type) {
   return DRILLS[String(type || '').toLowerCase()] || RecallDrill
 }
 
-export { RecallDrill, SpotDrill, SizeDrill, RegimeDrill, ScenarioDrill, TapDrill, CallDrill }
+/** True for a drill the player never checks or scores: no Check step, no
+ *  reveal card, the sticky button reads Continue, the attempt still posts. */
+export function isUnscoredDrill(mod) {
+  return !!mod?.unscored
+}
+
+export { RecallDrill, SpotDrill, SizeDrill, RegimeDrill, ScenarioDrill, TapDrill, CallDrill, WalkthroughDrill }

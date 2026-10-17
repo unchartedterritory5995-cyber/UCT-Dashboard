@@ -7,7 +7,10 @@
  * barsOverride, sym = the item id, frozen, no watermark, no live updates, no
  * feeds) and hidden with visibility:hidden on items without a chart, never
  * unmounted · the drill body · the reveal panel · a sticky bar with ONE
- * morphing button, Check → Continue.
+ * morphing button, Check → Continue. A drill that declares `unscored`
+ * (WalkthroughDrill, §13.9 #1) drives that button itself: it reads Continue
+ * from the start, enables when the last step is on screen, posts the attempt
+ * as seen and moves on with no verdict and no reveal card.
  *
  *   <DrillPlayer open onClose={fn} initial={setPayload?} sessionId={id?} profile={p}
  *                weekDots={[..]} onFinished={fn} onKeepPractising={fn} />
@@ -27,7 +30,7 @@ import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
 import useStudySession from './useStudySession'
-import { drillFor } from './drills'
+import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
 import EndCard from './EndCard'
@@ -92,6 +95,7 @@ export default function DrillPlayer({
   const s = useStudySession(fetcher ? { initial, sessionId, fetcher } : { initial, sessionId })
   const item = s.current
   const mod = useMemo(() => drillFor(item?.type), [item?.type])
+  const unscored = isUnscoredDrill(mod)               // a walk-through: Continue, never Check
   const [phase, setPhase] = useState('answer')          // answer | checking | reveal | failed
   const [result, setResult] = useState(null)
   const [postError, setPostError] = useState(null)
@@ -163,11 +167,21 @@ export default function DrillPlayer({
     if (next !== state) { setState(next); tapFeedback(prefs) }
   }, [chartVisible, locked, mod, item, chartBars, state, setState, prefs])
 
+  const advance = useCallback(() => { s.next() }, [s])
+
   const check = useCallback(async () => {
     if (!item || !answerable || phase !== 'answer') return
     setPhase('checking')
     const answer = mod.answerFromState(state, item)
     const res = await s.answer(answer, Date.now() - (s.startedAt.current || Date.now()))
+    if (unscored) {
+      // A walk-through (§13.9 #1): the attempt is posted so the server records
+      // it as seen, then straight on to the next item. No verdict, no reveal
+      // card, no combo; a failed post stays in the outbox and replays.
+      setResult(res?.failed ? null : res)
+      advance()
+      return
+    }
     if (res?.failed) {
       setPostError(res.error)
       setPhase('failed')
@@ -178,9 +192,7 @@ export default function DrillPlayer({
     else if (Array.isArray(res?.badges) && res.badges.length) setBadge(res.badges[0])
     comboFeedback(res.correct ? s.combo + 1 : 0, prefs)
     setPhase('reveal')
-  }, [item, answerable, phase, mod, state, s, prefs])
-
-  const advance = useCallback(() => { s.next() }, [s])
+  }, [item, answerable, phase, mod, state, s, prefs, unscored, advance])
 
   const primary = useCallback(() => {
     if (phase === 'answer') check()
@@ -221,7 +233,7 @@ export default function DrillPlayer({
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const combo = s.combo
-  const label = phase === 'answer' || phase === 'checking' ? 'Check' : 'Continue'
+  const label = !unscored && (phase === 'answer' || phase === 'checking') ? 'Check' : 'Continue'
   const framing = item && needsChart && mod.framingOf ? mod.framingOf(item) : ''
   const Overlay = mod.ChartOverlay
 

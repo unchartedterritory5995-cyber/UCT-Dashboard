@@ -235,3 +235,88 @@
   color: var(--text-muted);
   font-size: var(--text-md);
 }
+
+/* Walk-through (unscored, spec 13.9 #1): a small label, the steps read so
+   far (the current one bright), a dot per step, a Next control at tap size. */
+.walk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.walkLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.walkPart {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.walkSteps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.walkStep, .walkStepCurrent {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: var(--lh-normal);
+}
+.walkStepCurrent {
+  border-left-color: var(--ut-gold);
+  color: var(--text-bright);
+}
+.walkFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: var(--tap-min);
+}
+.walkDots {
+  display: flex;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.walkDot, .walkDotDone {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.walkDotDone { background: var(--ut-gold); }
+.walkNext {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-pill);
+  background: var(--ut-gold-dim);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.walkNext:hover { background: var(--bg-hover); }
+.walkNext:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.walkNext:disabled { opacity: 0.45; cursor: default; }

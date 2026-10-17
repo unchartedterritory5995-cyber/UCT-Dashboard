@@ -1,7 +1,7 @@
 /** useStudySession rails (spec §13.2 T5/T6, §13.7 D7, D18). */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import useStudySession, { normalizeBars, appendForwardBars, SET_CACHE_KEY, TODAY_URL, ATTEMPTS_URL } from './useStudySession'
+import useStudySession, { normalizeBars, appendForwardBars, isUnscoredItem, SET_CACHE_KEY, TODAY_URL, ATTEMPTS_URL } from './useStudySession'
 import { OUTBOX_KEY, readOutbox } from './studyOutbox'
 
 const item = (id, type = 'recall', extra = {}) => ({ id, type, prompt_json: { question: id, choices: ['a', 'b'] }, ...extra })
@@ -152,5 +152,60 @@ describe('useStudySession', () => {
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(result.current.sessionId).toBe('practice-1')
     expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+describe('useStudySession walk-throughs (unscored, spec 13.9 #1)', () => {
+  const walk = (id) => ({ id, type: 'walkthrough', prompt_json: { q: 'Regime', order: 1, steps: ['One.', 'Two.'] } })
+
+  function fetcherWithWalks(p) {
+    return vi.fn(async (url, opts = {}) => {
+      if (url === TODAY_URL) return p
+      if (url === ATTEMPTS_URL) {
+        if (String(opts.body.item_id).startsWith('w')) {
+          return { attempt_id: 1, item_id: opts.body.item_id, correct: true, score: null, unscored: true, reveal: {}, progress: { xp_gained: 0 } }
+        }
+        return { attempt_id: 2, item_id: opts.body.item_id, correct: opts.body.answer.choice === 'a', score: 1, reveal: {}, progress: { xp_gained: 10 } }
+      }
+      throw new Error(`unexpected ${url}`)
+    })
+  }
+
+  it('a seen walk-through keeps the combo, counts in summary.seen, never in total / correct / xp', async () => {
+    const p = { session_id: 's', kind: 'unit', answered_item_ids: [], items: [item('a'), walk('w1'), item('c')] }
+    const { result } = renderHook(() => useStudySession({ fetcher: fetcherWithWalks(p) }))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(isUnscoredItem(walk('w1'))).toBe(true)
+    expect(isUnscoredItem(item('a'))).toBe(false)
+    expect(result.current.summary).toMatchObject({ total: 2, seen: 0 })
+    await act(async () => { await result.current.answer({ choice: 'a' }) })
+    expect(result.current.combo).toBe(1)
+    act(() => result.current.next())
+    expect(result.current.current.id).toBe('w1')
+    let res
+    await act(async () => { res = await result.current.answer({ seen: 2 }) })
+    expect(res.unscored).toBe(true)
+    expect(result.current.combo).toBe(1)                       // untouched by a seen row
+    expect(result.current.results.w1).toMatchObject({ answered: true, unscored: true })
+    expect(result.current.summary).toMatchObject({ total: 2, correct: 1, answered: 1, seen: 1, xp: 10 })
+    act(() => result.current.next())
+    await act(async () => { await result.current.answer({ choice: 'b' }) })
+    expect(result.current.combo).toBe(0)
+    expect(result.current.summary).toMatchObject({ total: 2, correct: 1, answered: 2, seen: 1, xp: 20 })   // the stub pays 10 either way
+  })
+
+  it('a failed post on a walk-through stays pending without resetting the combo', async () => {
+    const p = { session_id: 's', kind: 'unit', answered_item_ids: [], items: [item('a'), walk('w2')] }
+    const fetcher = fetcherWithWalks(p)
+    const { result } = renderHook(() => useStudySession({ fetcher }))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    await act(async () => { await result.current.answer({ choice: 'a' }) })
+    act(() => result.current.next())
+    fetcher.mockImplementationOnce(async () => { throw new TypeError('Failed to fetch') })
+    await act(async () => { await result.current.answer({ seen: 2 }) })
+    expect(result.current.results.w2).toMatchObject({ pending: true, failed: true })
+    expect(result.current.combo).toBe(1)
+    expect(result.current.summary).toMatchObject({ total: 1, correct: 1, seen: 0, pending: 0 })
+    expect(readOutbox()).toHaveLength(1)
   })
 })

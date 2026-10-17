@@ -50,6 +50,7 @@ const item = (type, id, prompt, withBars = false) => ({
 
 const recall = (id, q = 'What is a pivot?') => item('recall', id, { question: q, kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] })
 const spot = (id) => item('spot', id, { question: 'Which setup is this?', choices: ['VCP', 'Flat base', 'Cup'] }, true)
+const walk = (id, order = 1) => item('walkthrough', id, { q: 'Regime', order, steps: ['The score maps to a band.', 'A band is permission, not prediction.'] })
 
 function makeFetcher(payload, { postFail = 0 } = {}) {
   let fails = postFail
@@ -57,6 +58,13 @@ function makeFetcher(payload, { postFail = 0 } = {}) {
     if (url === '/api/study/today') return payload
     if (url === '/api/study/attempts' && opts.method === 'POST') {
       if (fails > 0) { fails -= 1; throw new TypeError('Failed to fetch') }
+      if (String(opts.body.item_id).startsWith('si_walk')) {
+        return {
+          attempt_id: 9, item_id: opts.body.item_id, correct: true, score: null, unscored: true,
+          reveal: { lesson: 'Say it that way every time.', detail: { seen: opts.body.answer?.seen, unscored: true } },
+          progress: { xp_gained: 0, xp: 0, level: 1, streak: 0, streak_best: 0, due_at: null, weekly_xp: 0, daily_done: false },
+        }
+      }
       const correct = opts.body.answer?.choice === 'The buy point' || opts.body.answer?.choice === 'VCP'
       return {
         attempt_id: 1, item_id: opts.body.item_id, correct, score: correct ? 1 : 0,
@@ -211,5 +219,60 @@ describe('DrillPlayer', () => {
     fireEvent.keyDown(document.body, { key: 'Enter' })
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
     expect(screen.getByRole('status')).toHaveTextContent('Correct')
+  })
+})
+
+describe('DrillPlayer walk-throughs (unscored, spec 13.9 #1)', () => {
+  const unitSet = () => ({
+    session_id: 'unit-1', kind: 'unit', answered_item_ids: [],
+    items: [walk('si_walk_1'), recall('si_q1'), spot('si_q2')],
+  })
+
+  it('reads Continue from the start, enables on the last step, posts {seen}, shows no reveal and advances', async () => {
+    const fetcher = makeFetcher(unitSet())
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    expect(await screen.findByText('Question 1 of 3')).toBeInTheDocument()
+    const btn = screen.getByTestId('primary-action')
+    expect(btn).toHaveTextContent('Continue')
+    expect(btn).toBeDisabled()
+    expect(screen.queryByText('Check')).not.toBeInTheDocument()
+    expect(screen.getByTestId('walkthrough')).toBeInTheDocument()
+    expect(screen.getAllByTestId('walk-step')).toHaveLength(1)
+    // no chart for a text walk-through: the box is hidden, nothing mounted yet
+    expect(screen.getByTestId('chart-box')).toHaveAttribute('data-chart-visible', '0')
+
+    fireEvent.click(screen.getByTestId('walk-next'))
+    expect(screen.getAllByTestId('walk-step')).toHaveLength(2)
+    expect(screen.queryByTestId('walk-next')).not.toBeInTheDocument()
+    expect(screen.getByTestId('primary-action')).not.toBeDisabled()
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue')
+
+    fireEvent.click(screen.getByTestId('primary-action'))
+    // straight to the next item: no "Correct", no "Not quite", no reveal card
+    expect(await screen.findByText('Question 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('What is a pivot?')).toBeInTheDocument()
+    expect(screen.queryByText('Correct')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not quite')).not.toBeInTheDocument()
+    expect(screen.queryByText('Say it that way every time.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Check')
+    const posts = fetcher.mock.calls.filter(([u, o]) => u === '/api/study/attempts' && o?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(posts[0][1].body).toMatchObject({ item_id: 'si_walk_1', session_id: 'unit-1', answer: { seen: 2 } })
+    expect(typeof posts[0][1].body.time_ms).toBe('number')
+    expect(screen.queryByTestId('combo-chip')).not.toBeInTheDocument()
+  })
+
+  it('Enter is Continue on the last step, and the end card scores the quiz items only', async () => {
+    const set = { session_id: 'unit-2', kind: 'unit', answered_item_ids: [], items: [walk('si_walk_2'), recall('si_q9')] }
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByText('Question 1 of 2')
+    fireEvent.keyDown(document.body, { key: 'Enter' })          // not yet: the last step is not on screen
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('walk-next'))
+    fireEvent.keyDown(document.body, { key: 'Enter' })
+    expect(await screen.findByText('Question 2 of 2')).toBeInTheDocument()
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('primary-action'))
+    expect(await screen.findByTestId('end-score')).toHaveTextContent('1 of 1')
   })
 })
