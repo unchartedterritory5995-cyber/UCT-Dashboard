@@ -1002,3 +1002,84 @@ def test_the_link_rescan_reopens_each_scanned_channel_once():
     tl._mark_backfill_done(f"backfill_done:{TSDR}")
     assert tl.rescan_for_links() is False               # only ever once
     assert tl._backfill_done(f"backfill_done:{TSDR}")
+
+
+# ── transcripts sent in for link lessons ─────────────────────────────────────
+
+def _posted_link_clip(vid=YT):
+    m = msg(sf(2026, 7, 9), content=f"Must watch https://youtu.be/{vid}")
+    tl.record_message(m, TSDR)
+    tl._update(tl.LINK_PREFIX + vid, status="posted", title="Chat w/ PBA",
+               recap="A short clip.", transcript="", tags=json.dumps(["clip"]),
+               section="clips", post_channel_id="t-clips", discord_post_id="old-r",
+               forward_post_id="old-v")
+    return m
+
+
+def test_only_posted_links_without_a_transcript_are_listed():
+    _posted_link_clip()
+    tl.record_message(msg(sf(2026, 7, 9), attachments=[video("file1")]), TSDR)
+    assert tl.links_needing_transcript() == [{"video_id": YT, "title": "Chat w/ PBA"}]
+    assert tl.store_link_transcript(YT, "word " * 60) == "queued"
+    assert tl.links_needing_transcript() == []
+    assert tl.store_link_transcript("AbCdEfGhIjK", "word " * 60) == "unknown"
+    assert tl.store_link_transcript(YT, "too few words") == "too short"
+
+
+def test_a_sent_transcript_rewrites_the_clip_as_a_full_lesson(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = _posted_link_clip()
+    tl.store_link_transcript(YT, "word " * 60)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen)
+    monkeypatch.setattr(tl, "youtube_transcript", lambda vid: pytest.fail("captions refetched"))
+    monkeypatch.setattr(tl, "youtube_video_title", lambda vid: "Chat w/ PBA")
+    _seed_threads()
+    deleted, sent = [], []
+    for mid in ("old-r", "old-v"):
+        fake.routes[("DELETE", f"/channels/t-clips/messages/{mid}")] = \
+            lambda p, b, mid=mid: deleted.append(mid) or {}
+    fake.routes[("POST", "/channels/t-setups/messages")] = \
+        lambda p, b: sent.append(b) or {"id": f"n{len(sent)}"}
+    assert tl.run_link_redo(deadline=9e12) == {"requeued": 1, "errors": 0}
+    assert deleted == ["old-r", "old-v"]
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen["transcript"].startswith("word")
+    row = tl.get_lesson(tl.LINK_PREFIX + YT)
+    assert (row["section"], row["redo"], row["discord_post_id"]) == ("setups", 0, "n1")
+    assert sent[1] == {"content": f"https://youtu.be/{YT}"}
+
+
+def test_a_failed_take_down_is_retried_and_leaves_the_clip(monkeypatch):
+    _posted_link_clip()
+    tl.store_link_transcript(YT, "word " * 60)
+    fake = FakeDiscord({("DELETE", "/channels/t-clips/messages/old-r"):
+                        lambda p, b: (_ for _ in ()).throw(tl.DiscordError(500, "boom"))})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_link_redo(deadline=9e12) == {"requeued": 0, "errors": 1}
+    row = tl.get_lesson(tl.LINK_PREFIX + YT)
+    assert (row["status"], row["redo"]) == ("posted", 1)
+
+
+def test_the_transcript_routes_take_the_push_secret_and_nothing_else(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import tsdr_lessons as router_mod
+    monkeypatch.setenv("PUSH_SECRET", "")
+    blank = FastAPI(); blank.include_router(router_mod.router)
+    assert TestClient(blank).get("/api/tsdr-lessons/links-needing-transcript",
+                                 headers={"Authorization": "Bearer "}).status_code == 401
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    app = FastAPI()
+    app.include_router(router_mod.router)
+    client = TestClient(app)
+    _posted_link_clip()
+    assert client.get("/api/tsdr-lessons/links-needing-transcript").status_code in (401, 403)
+    ok = {"Authorization": "Bearer s3cret"}
+    assert client.get("/api/tsdr-lessons/links-needing-transcript",
+                      headers=ok).json() == {"videos": [{"video_id": YT, "title": "Chat w/ PBA"}]}
+    r = client.post("/api/tsdr-lessons/link-transcript", headers=ok,
+                    json={"video_id": YT, "transcript": "word " * 60})
+    assert r.json() == {"result": "queued"}
+    assert client.post("/api/tsdr-lessons/link-transcript", headers=ok,
+                       json={"video_id": "AbCdEfGhIjK", "transcript": "w"}).status_code == 404
