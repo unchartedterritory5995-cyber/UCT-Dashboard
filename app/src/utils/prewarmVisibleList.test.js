@@ -71,3 +71,38 @@ describe('prewarmVisibleList — warm a whole list the moment it opens', () => {
     expect(urlsFor('BIG0').length).toBeGreaterThan(0)
   })
 })
+
+describe('prewarmVisibleList during a first visit (pack still ingesting)', () => {
+  beforeEach(() => {
+    memClear()
+    preloadMock.mockReset()
+    preloadMock.mockResolvedValue({ bars: [{ t: 1, o: 1, h: 2, l: 0, c: 1, v: 9 }] })
+    try { localStorage.clear() } catch { /* ignore */ }   // no barspack.version: ingesting
+    _noteWarmResult({ bars: [{ t: 1 }] })
+    vi.useFakeTimers()
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('loads the TOP rows on screen without waiting for the pack (2026-10-17)', async () => {
+    const list = Array.from({ length: 40 }, (_, i) => `FV${i}`)
+    prewarmVisibleList(list, { chartTf: 'D', memTop: 24 })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(urlsFor('FV0').length).toBeGreaterThan(0)
+    expect(urlsFor('FV23').length).toBeGreaterThan(0)
+  })
+
+  it('CONTROL: rows below the visible window still wait for the pack', async () => {
+    const list = Array.from({ length: 40 }, (_, i) => `FW${i}`)
+    prewarmVisibleList(list, { chartTf: 'D', memTop: 24 })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(urlsFor('FW24').length).toBe(0)
+    expect(urlsFor('FW39').length).toBe(0)
+  })
+
+  it('CONTROL: a shedding server holds even the visible rows', async () => {
+    _noteWarmResult({ error: 'warming' })                 // 503 backoff armed
+    prewarmVisibleList(['FX0', 'FX1'], { chartTf: 'D' })
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(urlsFor('FX0').length).toBe(0)
+  })
+})
