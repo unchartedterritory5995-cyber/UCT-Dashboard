@@ -13,7 +13,7 @@
  * Mirrors PositionDetailPage's structure, hooks, skeleton + CSS conventions.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import ShareToFloor from '../../../../components/community/ShareToFloor'
 import useSWR from 'swr'
@@ -43,6 +43,9 @@ import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import EntryContextCard from '../EntryContextCard'
 import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import usePreferences from '../../../../hooks/usePreferences'
+import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../../lib/pageLayouts'
+import { pageLayoutsEnabled } from '../../lib/pageLayoutsFlag'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -357,6 +360,7 @@ export default function TradeDetailPage() {
   const { accountId } = useJ2SelectedAccount()
   const { settings } = useJ2Settings()
   const isPaid = useIsPaid()
+  const { prefs } = usePreferences()
 
   // Deterministic AI-suggested tags (P6-4). Skip the fetch when the flag is off.
   const tagSuggestOn = useFeatureFlag('tagSuggest')
@@ -564,80 +568,39 @@ export default function TradeDetailPage() {
     setAddingStop(false)
   }
 
-  return (
-    <div className={styles.page}>
-      {/* Top bar: back link + prev/next */}
-      <div className={styles.topBar}>
-        <Link to={backTo} className={styles.back}>← Trade Journal</Link>
-        <div className={styles.navBtns}>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => go(prevId)}
-            disabled={!prevId}
-            aria-label="Previous trade"
-          >‹</button>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => go(nextId)}
-            disabled={!nextId}
-            aria-label="Next trade"
-          >›</button>
-        </div>
-      </div>
+  // The sections after the identity header, from the page layout (P4a). With the layouts switch off the list
+  // is DEFAULT_LAYOUT's, which is the order the page always had; with it on, the member's saved trade layout
+  // decides which sections show and in what order. Each entry below is the JSX that used to sit in the
+  // return, moved unchanged with its own condition, and closes over the page's state, so no state moves.
+  const layout = pageLayoutsEnabled() ? normalizeLayout(prefs?.[LAYOUT_PREF]) : DEFAULT_LAYOUT
+  const panels = resolvePanels(layout, 'trade').filter((p) => p.shown)
+  const render = {
+    linkedNotes: () => trade.id != null && (
+      <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
+    ),
 
-      {/* ── 1. Outcome header ─────────────────────────────────────────── */}
-      <header className={styles.identityRow}>
-        {/* Lane KEYS3 (Q6): where keyboard focus lands after a move to this page
-            (lib/routeFocus.jsx). The page's actions are the next stops; the back link and
-            Previous / Next are behind it. Focusable by script only. */}
-        <h1 className={styles.sym} tabIndex={-1} data-route-landing="">{trade.symbol}</h1>
-        <span className={`${styles.sideBadge} ${isLong ? styles.long : styles.short}`}>
-          {(trade.side || '').toUpperCase()}
-        </span>
-        {trade.result && (
-          <span className={`${styles.resultBadge} ${
-            trade.result === 'Win' ? styles.resWin
-              : trade.result === 'Loss' ? styles.resLoss : styles.resBe
-          }`}>
-            {trade.result}
-          </span>
-        )}
-        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
-        <span className={styles.headActions}>
-          <ReplayButton trade={trade} />
-          <SaveToNotebookButton trade={trade} tf={tf} />
-          <TradeCardActions trade={trade} />
-          <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
-          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
-        </span>
-      </header>
+    /* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
+        position page showed (the backend key is symbol + entry day, not an id), so the card
+        stays after the trade closes. Dark behind notebook_entry_context_enabled. */
+    entryContext: () => trade.id != null && <EntryContextCard kind="trade" id={trade.id} />,
 
-      {trade.id != null && (
-        <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
-      )}
-      {/* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
-          position page showed (the backend key is symbol + entry day, not an id), so the card
-          stays after the trade closes. Dark behind notebook_entry_context_enabled. */}
-      {trade.id != null && <EntryContextCard kind="trade" id={trade.id} />}
+    /* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
+        renders nothing while off). The setup chip writes through the same PATCH.
+        P0.16: it sits straight after the entry-context card, ABOVE the outcome grid. It was
+        far below the fold (about 1176 px on a desktop, 1501 on a phone), under the numbers it
+        is the verdict on. The props are unchanged; only the position moved. */
+    planGrade: () => planGradingEnabled() && (
+      <Suspense fallback={null}>
+        <PlanGradeCard
+          tradeId={trade.id}
+          trade={trade}
+          onTagSetup={(setup) => patchTrade({ setup }, { setup })}
+          onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
+        />
+      </Suspense>
+    ),
 
-      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
-          renders nothing while off). The setup chip writes through the same PATCH.
-          P0.16: it sits straight after the entry-context card, ABOVE the outcome grid. It was
-          far below the fold (about 1176 px on a desktop, 1501 on a phone), under the numbers it
-          is the verdict on. The props are unchanged; only the position moved. */}
-      {planGradingEnabled() && (
-        <Suspense fallback={null}>
-          <PlanGradeCard
-            tradeId={trade.id}
-            trade={trade}
-            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
-            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
-          />
-        </Suspense>
-      )}
-
+    outcome: () => (
       <div className={styles.outcomeGrid} data-testid="trade-outcome-grid">
         <div className={styles.outcomeCell}>
           <div className={styles.outcomeLabel}>Net P&amp;L</div>
@@ -741,8 +704,10 @@ export default function TradeDetailPage() {
           )}
         </div>
       </div>
+    ),
 
-      {/* ── 2. Chart card ─────────────────────────────────────────────── */}
+    /* ── 2. Chart card ─────────────────────────────────────────────── */
+    chart: () => (
       <div className={styles.chartCard}>
         <div className={styles.chartWrap}>
           {/* ChartPane is the SAME chart /charts renders — identity row, session
@@ -793,16 +758,16 @@ export default function TradeDetailPage() {
           )}
         </div>
       </div>
+    ),
 
-      {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+    beforeAfter: () => notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
+      <Suspense fallback={null}>
+        <TradeBeforeAfter tradeId={trade.id} />
+      </Suspense>
+    ),
 
-      {notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
-        <Suspense fallback={null}>
-          <TradeBeforeAfter tradeId={trade.id} />
-        </Suspense>
-      )}
-
-      {/* ── 3. The story ──────────────────────────────────────────────── */}
+    /* ── 3. The story ──────────────────────────────────────────────── */
+    story: () => (
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>The story</h2>
 
@@ -887,8 +852,10 @@ export default function TradeDetailPage() {
           <TradeScreenshots tradeId={id} />
         </div>
       </section>
+    ),
 
-      {/* ── 4. Executions ─────────────────────────────────────────────── */}
+    /* ── 4. Executions ─────────────────────────────────────────────── */
+    executions: () => (
       <details className={styles.execDetails}>
         <summary className={styles.execSummary}>Executions</summary>
         {isBroker && brokerActivities.length > 0 ? (
@@ -934,32 +901,89 @@ export default function TradeDetailPage() {
           </table>
         )}
       </details>
+    ),
 
-      {/* ── 5. Compass post-mortem (paid-gated) ───────────────────────── */}
-      {isPaid && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Compass post-mortem</h2>
-          <TradeReviewCard
-            review={review}
-            isLoading={reviewLoading}
-            onFeedback={(v) => review && reviewFeedback(review.id, v)}
-            onRegenerate={() => review && regenerateReview(review.id)}
-            onForget={() => review && forgetReview(review.id)}
-          />
-          {reviewError && <div className={styles.errorLine}>{reviewError}</div>}
-          {!review && !reviewLoading && (
-            <button
-              type="button"
-              className={styles.compassBtn}
-              onClick={() => trade.id && generateReview(trade.id)}
-              disabled={!trade.id}
-            >
-              <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
-              Tell me about this trade
-            </button>
-          )}
-        </section>
-      )}
+    /* ── 5. Compass post-mortem (paid-gated) ───────────────────────── */
+    review: () => isPaid && (
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Compass post-mortem</h2>
+        <TradeReviewCard
+          review={review}
+          isLoading={reviewLoading}
+          onFeedback={(v) => review && reviewFeedback(review.id, v)}
+          onRegenerate={() => review && regenerateReview(review.id)}
+          onForget={() => review && forgetReview(review.id)}
+        />
+        {reviewError && <div className={styles.errorLine}>{reviewError}</div>}
+        {!review && !reviewLoading && (
+          <button
+            type="button"
+            className={styles.compassBtn}
+            onClick={() => trade.id && generateReview(trade.id)}
+            disabled={!trade.id}
+          >
+            <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+            Tell me about this trade
+          </button>
+        )}
+      </section>
+    ),
+  }
+
+  return (
+    <div className={styles.page}>
+      {/* Top bar: back link + prev/next */}
+      <div className={styles.topBar}>
+        <Link to={backTo} className={styles.back}>← Trade Journal</Link>
+        <div className={styles.navBtns}>
+          <button
+            type="button"
+            className={styles.navBtn}
+            onClick={() => go(prevId)}
+            disabled={!prevId}
+            aria-label="Previous trade"
+          >‹</button>
+          <button
+            type="button"
+            className={styles.navBtn}
+            onClick={() => go(nextId)}
+            disabled={!nextId}
+            aria-label="Next trade"
+          >›</button>
+        </div>
+      </div>
+
+      {/* ── 1. Outcome header ─────────────────────────────────────────── */}
+      <header className={styles.identityRow}>
+        {/* Lane KEYS3 (Q6): where keyboard focus lands after a move to this page
+            (lib/routeFocus.jsx). The page's actions are the next stops; the back link and
+            Previous / Next are behind it. Focusable by script only. */}
+        <h1 className={styles.sym} tabIndex={-1} data-route-landing="">{trade.symbol}</h1>
+        <span className={`${styles.sideBadge} ${isLong ? styles.long : styles.short}`}>
+          {(trade.side || '').toUpperCase()}
+        </span>
+        {trade.result && (
+          <span className={`${styles.resultBadge} ${
+            trade.result === 'Win' ? styles.resWin
+              : trade.result === 'Loss' ? styles.resLoss : styles.resBe
+          }`}>
+            {trade.result}
+          </span>
+        )}
+        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
+        <span className={styles.headActions}>
+          <ReplayButton trade={trade} />
+          <SaveToNotebookButton trade={trade} tf={tf} />
+          <TradeCardActions trade={trade} />
+          <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
+          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
+        </span>
+      </header>
+
+      {/* The save error is not a panel: it sits straight after the header so it is seen whatever the layout shows. */}
+      {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+
+      {panels.map((p) => <Fragment key={p.id}>{render[p.id]?.()}</Fragment>)}
     </div>
   )
 }
