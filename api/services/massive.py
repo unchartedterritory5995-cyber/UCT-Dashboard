@@ -856,6 +856,24 @@ class _MassiveRestClient:
                     return None
                 return round(f, 4) if f > 0 else None
 
+            # (2026-10-16) `lastTrade.t` — the provider's last-trade time, ns since
+            # epoch. The screener's pre-market sweep writes a row ONLY for a symbol
+            # that traded today in pre-market; without the time it cannot tell an
+            # 08:41 print from yesterday's close (which would read 0.0% as if
+            # measured). None when absent or not a positive finite number.
+            def _ns(v):
+                if isinstance(v, bool):
+                    return None
+                if isinstance(v, int):           # exact: a float loses ns precision
+                    return v if v > 0 else None
+                try:
+                    f = float(v)
+                except (TypeError, ValueError):
+                    return None
+                if f != f or f in (float("inf"), float("-inf")) or f <= 0:
+                    return None
+                return int(f)
+
             out[ticker] = {
                 "last_price": round(last_price, 4),
                 "prev_close": round(float(prev_day.get("c") or 0.0), 4),
@@ -864,6 +882,7 @@ class _MassiveRestClient:
                 "day_open":   _px(day.get("o")),
                 "day_high":   _px(day.get("h")),
                 "day_low":    _px(day.get("l")),
+                "last_trade_ns": _ns(last.get("t")),
             }
         # (2026-10-12) WHEN THE DATA IS FROM, beside the rows (their shape is unchanged for
         # every other consumer). `data_at` = the vendor's own per-ticker `updated` stamp at the
