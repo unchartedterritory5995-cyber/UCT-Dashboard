@@ -69,7 +69,7 @@ def _account(conn, user_id="u1"):
 
 
 def _trade(conn, aid, day, *, pnl=100.0, fees=0.0, result="Win", user_id="u1",
-           exit_iso=None):
+           exit_iso=None, emotion_tags=None):
     """A closed equity trade. `day` is its trading_day_et (None for an unjoinable row); the exit
     stamp defaults to that day so the analytics date spine sees the same day."""
     tid = str(uuid.uuid4())
@@ -79,10 +79,11 @@ def _trade(conn, aid, day, *, pnl=100.0, fees=0.0, result="Win", user_id="u1",
         """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price,
                entry_date, exit_price, exit_date, original_stop, setup, notes, pnl_dollar,
                pnl_percent, r_multiple, hold_days, result, context_at_entry, account_id,
-               created_at, trading_day_et, hour_et, fees)
+               created_at, trading_day_et, hour_et, fees, emotion_tags)
            VALUES (?, ?, 'manual', 'NVDA', 'Long', 100, 500, ?, 510, ?, 490, 'VCP', NULL, ?,
-                   0.02, 1.5, 1, ?, '{}', ?, ?, ?, NULL, ?)""",
-        (tid, user_id, exit_iso, exit_iso, pnl, result, aid, now, day, fees))
+                   0.02, 1.5, 1, ?, '{}', ?, ?, ?, NULL, ?, ?)""",
+        (tid, user_id, exit_iso, exit_iso, pnl, result, aid, now, day, fees,
+         json.dumps(emotion_tags) if emotion_tags else None))
     conn.commit()
     return tid
 
@@ -286,8 +287,9 @@ def test_every_level_is_returned_and_a_zero_trade_level_is_null_not_zero(conn):
     for dim in ("mood", "focus"):
         assert [r["level"] for r in s[dim]] == [1, 2, 3, 4, 5]
         for r in s[dim]:
-            assert set(r) == {"level", "word", "days", "tradeCount", "avgPnl", "winRate"}
-            assert r["tradeCount"] == 0
+            assert set(r) == {"level", "word", "days", "tradeCount", "decisiveCount", "avgPnl",
+                              "winRate"}
+            assert r["tradeCount"] == 0 and r["decisiveCount"] == 0
             assert r["avgPnl"] is None and r["winRate"] is None
     assert _level(s, "mood", 3)["days"] == 1
     assert s["checkInDays"] == 1 and s["joinedTrades"] == 0 and s["unjoined"] == 0
@@ -312,6 +314,7 @@ def test_win_rate_and_avg_pnl_follow_the_psychology_definitions(conn):
     s = _checkins(conn, aid)
     four = _level(s, "mood", 4)
     assert four["tradeCount"] == 3
+    assert four["decisiveCount"] == 2                 # the win and the loss; the BE is not decisive
     assert four["avgPnl"] == 20.0                     # (90 - 30 + 0) / 3
     assert four["winRate"] == 0.5                     # 1 / (1 + 1), the BE left out
 
@@ -319,6 +322,38 @@ def test_win_rate_and_avg_pnl_follow_the_psychology_definitions(conn):
     _trade(conn, aid, "2026-10-15", pnl=0.0, result="BE")
     one = _level(_checkins(conn, aid), "mood", 1)
     assert one["tradeCount"] == 1 and one["avgPnl"] == 0.0 and one["winRate"] is None
+    assert one["decisiveCount"] == 0
+
+
+def test_decisive_count_is_the_rates_n_not_the_trade_count(conn):
+    """Ruling R-T3-T5-R4: 12 trades, 11 breakevens and 1 win. The rate (100%) rests on ONE
+    decisive trade, and decisiveCount says so while tradeCount stays 12."""
+    aid = _account(conn)
+    _note(conn, _checkin(mood="3", day="2026-10-14"))
+    _trade(conn, aid, "2026-10-14", pnl=40.0, result="Win")
+    for _ in range(11):
+        _trade(conn, aid, "2026-10-14", pnl=0.0, result="BE")
+    three = _level(_checkins(conn, aid), "mood", 3)
+    assert three["tradeCount"] == 12
+    assert three["decisiveCount"] == 1
+    assert three["winRate"] == 1.0
+
+
+def test_avg_pnl_rounds_each_trade_to_cents_first_like_the_emotion_panel(conn):
+    """Review M1. Sub-cent broker fees: nets 0.006 and 0.000. The emotion panel rounds each
+    trade's net to cents first (0.01, 0.00), then averages: 0.005, shown as 0.01. Averaging the
+    raw nets first gives 0.003, shown as 0.0, a cent apart on the same section. The check-in
+    level must read exactly what the emotion panel reads for the same trades."""
+    from api.services.journal_two.analytics import get_analytics
+    aid = _account(conn)
+    _note(conn, _checkin(mood="2", day="2026-10-14"))
+    _trade(conn, aid, "2026-10-14", pnl=1.0, fees=0.994, result="Win", emotion_tags=["calm"])
+    _trade(conn, aid, "2026-10-14", pnl=0.0, fees=0.0, result="BE", emotion_tags=["calm"])
+    psy = get_analytics("u1", account_id=aid, conn=conn)["psychology"]
+    emotion = {e["emotion"]: e for e in psy["emotionOutcomes"]}["calm"]["avgPnl"]
+    level = _level(psy["checkIns"], "mood", 2)["avgPnl"]
+    assert emotion == 0.01                            # non-vacuity: the sub-cent case is live
+    assert level == emotion
 
 
 def test_days_count_distinct_days_and_trades_follow_their_own_day(conn):

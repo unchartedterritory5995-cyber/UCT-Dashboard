@@ -1,7 +1,10 @@
 // The mood and focus check-in's words and its ONE day rule (P2 Tier 3, R-T3-2).
-// ⛔ LAZY-ONLY: imported by the block body (MoodCheckInBlock.jsx) and the psychology leaf, never by an
-// eager file, so none of this rides the Notebook's first open. NO IMPORTS (lib/blocks/blockDoors.test.js
-// scans this directory).
+// ⛔ LAZY-ONLY: imported by the block body (MoodCheckInBlock.jsx), never by an eager file, so none of
+// this rides the Notebook's first open. The "By check-in" view (CheckInOutcomes.jsx) does NOT import it:
+// it shows the words the analytics payload carries, and the server's MOOD_WORDS / FOCUS_WORDS
+// (api/services/journal_two/analytics.py) are pinned to THIS file by tests/test_analytics_checkins.py,
+// which runs it through Node. Change a word here and there together. NO IMPORTS
+// (lib/blocks/blockDoors.test.js scans this directory).
 // ⛔ R-T3-V1: the registry types mood and focus as plain strings (an enum there would need catalog
 // settings the check-in does not have), so THIS is where a level is checked: '1'..'5', or '' for unpicked.
 // The server sidecar checks the same set on its own side.

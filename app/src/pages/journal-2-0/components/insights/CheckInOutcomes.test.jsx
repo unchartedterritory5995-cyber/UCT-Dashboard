@@ -4,27 +4,29 @@ import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import CheckInOutcomes, { EMPTY_TEXT, TOO_FEW_TEXT } from './CheckInOutcomes'
 import PsychologySection from './PsychologySection'
 import { TIER3_FLAG } from '../../lib/tier3Flag'
+import { rateStat, wordStat } from '../../lib/sampleSize'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
 // The payload shape `analytics._checkin_section` builds (tests/test_analytics_checkins.py).
-const level = (lv, word, days, tradeCount, avgPnl, winRate) => ({ level: lv, word, days, tradeCount, avgPnl, winRate })
+const level = (lv, word, days, tradeCount, avgPnl, winRate, decisiveCount) =>
+  ({ level: lv, word, days, tradeCount, decisiveCount, avgPnl, winRate })
 const checkIns = {
   checkInDays: 9,
   joinedTrades: 31,
   unjoined: 2,
   mood: [
-    level(1, 'Rough', 1, 3, -42.5, 0.0),
-    level(2, 'Low', 0, 0, null, null),
-    level(3, 'Okay', 2, 9, 12.0, 0.5),
-    level(4, 'Good', 4, 12, 88.25, 0.75),
-    level(5, 'Great', 2, 7, 130.0, 1.0),
+    level(1, 'Rough', 1, 3, -42.5, 0.0, 3),
+    level(2, 'Low', 0, 0, null, null, 0),
+    level(3, 'Okay', 2, 9, 12.0, 0.5, 8),
+    level(4, 'Good', 4, 12, 88.25, 0.75, 12),
+    level(5, 'Great', 2, 7, 130.0, 1.0, 7),
   ],
   focus: [
-    level(1, 'Scattered', 0, 0, null, null),
-    level(2, 'Distracted', 1, 2, -10.0, 0.0),
-    level(3, 'Steady', 3, 10, 5.0, 0.4),
-    level(4, 'Focused', 4, 19, 64.0, 0.7),
-    level(5, 'Locked in', 1, 0, null, null),
+    level(1, 'Scattered', 0, 0, null, null, 0),
+    level(2, 'Distracted', 1, 2, -10.0, 0.0, 2),
+    level(3, 'Steady', 3, 10, 5.0, 0.4, 10),
+    level(4, 'Focused', 4, 19, 64.0, 0.7, 10),
+    level(5, 'Locked in', 1, 0, null, null, 0),
   ],
 }
 
@@ -63,6 +65,10 @@ describe('CheckInOutcomes — the Tier 3 switch', () => {
     await settleLazy()
     // getBy, not findBy: this is the control that the off test's settle is long enough.
     expect(screen.getByText('By check-in')).toBeInTheDocument()
+    // Review M5: on an untagged book the header must not say everything needs tags, because the
+    // check-in view below it needs none.
+    expect(screen.queryByText(/everything here needs tags/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/the emotion and mistake panels need tags/i)).toBeInTheDocument()
     expect(screen.getByText(/tag your last 20 trades/i)).toBeInTheDocument()
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
@@ -92,6 +98,30 @@ describe('CheckInOutcomes — the table', () => {
     expect(within(good).queryByText(TOO_FEW_TEXT)).not.toBeInTheDocument()
     expect(good.className).not.toMatch(/rowThin/)
     expect(TOO_FEW_TEXT).toBe('Too few trades')
+  })
+
+  it('bands on the decisive count, not the trade count: 12 trades of 11 breakevens + 1 win is greyed', () => {
+    const lopsided = {
+      ...checkIns,
+      mood: checkIns.mood.map((r) => (r.level === 3 ? level(3, 'Okay', 1, 12, 3.33, 1.0, 1) : r)),
+    }
+    render(<CheckInOutcomes checkIns={lopsided} />)
+    const okay = rowFor('Okay')
+    expect(within(okay).getByText(TOO_FEW_TEXT)).toBeInTheDocument()
+    expect(okay.className).toMatch(/rowThin/)
+    expect(within(okay).getByText('12')).toBeInTheDocument()      // the trades column is still tradeCount
+    expect(within(okay).getByText('100%')).toBeInTheDocument()
+  })
+
+  it('a thin row (10-24 decisive) shows its 95% range from sampleSize.js', () => {
+    render(<CheckInOutcomes checkIns={checkIns} />)
+    const good = within(rowFor('Good'))                                // 9 wins of 12 decisive
+    const expected = wordStat(rateStat(9, 12), (v) => `${(v * 100).toFixed(0)}%`).rangeText
+    expect(expected).toBe('47% to 91%')                                // Wilson 9/12: [0.468, 0.911]
+    expect(good.getByText(expected)).toBeInTheDocument()
+    expect(good.getByText('thin sample')).toBeInTheDocument()
+    // A too-few row carries no range, and a normal one would not either.
+    expect(within(rowFor('Great')).queryByText(/ to /)).not.toBeInTheDocument()
   })
 
   it('shows a level with no trades as dashes, never as 0% or $0', () => {

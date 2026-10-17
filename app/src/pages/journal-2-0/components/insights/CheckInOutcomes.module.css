@@ -111,14 +111,30 @@
   text-align: right;
 }
 
+/* Text inks, not the fill colours: --loss is 4.31:1 on the dark card (notebookContrast.test.js). */
 .pos {
-  color: var(--gain, #3cb868);
+  color: var(--success-ink);
 }
 
 .neg {
-  color: var(--loss, #e74c3c);
+  color: var(--danger-ink);
 }
 
-.rowThin {
-  opacity: 0.55;
+.range {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* A greyed row is MUTED INK, never opacity: opacity on already-muted text drops under 4.5:1, and
+   no stylesheet audit can see it. Every cell, the word and the signed numbers alike. */
+.rowThin .level,
+.rowThin .num,
+.rowThin .pos,
+.rowThin .neg {
+  color: var(--text-muted);
+}
+
+.rowThin .level {
+  font-weight: 600;
 }

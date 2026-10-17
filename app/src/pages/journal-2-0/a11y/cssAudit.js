@@ -56,6 +56,7 @@ function walkCss(dir, out = []) {
 export const JOURNAL_SIDE_NOTEBOOK_CSS = Object.freeze([
   'components/EntryContextCard.module.css',
   'components/WhyPrompt.module.css',
+  'components/insights/CheckInOutcomes.module.css', // P2 Tier 3 Task 5 review M6: the greyed row's ink
   'components/insights/DisciplineRecord.module.css',
   'components/insights/MyPlaybook.module.css',
   'components/trade/PlanGradeCard.module.css',

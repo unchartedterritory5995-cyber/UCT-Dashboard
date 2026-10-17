@@ -1201,10 +1201,13 @@ def _checkin_section(
       - a trade on a day with no check-in is in neither, and in no level.
 
     Each of ``mood`` / ``focus`` lists EVERY level 1..5 (so the client can grey thin ones)
-    as ``{level, word, days, tradeCount, avgPnl, winRate}``. ``avgPnl`` is the mean NET P&L
-    and ``winRate`` is wins / (wins + losses), breakevens out of the denominator, the
-    definitions ``_psychology_section`` uses. A level with no trades, or no decisive trade
-    for the win rate, reads None, never 0 (ruling R-T3-T5-R2).
+    as ``{level, word, days, tradeCount, decisiveCount, avgPnl, winRate}``. ``avgPnl`` is the
+    mean NET P&L with each trade rounded to cents FIRST, then averaged and rounded again,
+    exactly as ``_psychology_section``'s ``pnlDollarNet`` does, so the two panels never show a
+    cent apart. ``winRate`` is wins / (wins + losses), breakevens out of the denominator.
+    ``decisiveCount`` is that denominator (wins + losses): the n the rate rests on, which the
+    client's sample band keys on (ruling R-T3-T5-R4), never ``tradeCount``. A level with no
+    trades, or no decisive trade for the win rate, reads None, never 0 (ruling R-T3-T5-R2).
 
     ``rows`` are ``_fetch_trades``' rows, already scoped by account and FilterSpec.
     """
@@ -1254,7 +1257,7 @@ def _checkin_section(
         for level in _CHECKIN_LEVELS:
             days = [d for d, lv in day_level.items() if lv[dim] == level]
             trades = [t for d in days for t in trades_by_day.get(d, ())]
-            nets = [_net_pnl(t) for t in trades]
+            nets = [round(_net_pnl(t), 2) for t in trades]   # cents first, like pnlDollarNet
             wins = sum(1 for t in trades if t["result"] == "Win")
             losses = sum(1 for t in trades if t["result"] == "Loss")
             out.append({
@@ -1262,6 +1265,7 @@ def _checkin_section(
                 "word": words[level - 1],
                 "days": len(days),
                 "tradeCount": len(trades),
+                "decisiveCount": wins + losses,
                 "avgPnl": round(sum(nets) / len(nets), 2) if nets else None,
                 "winRate": wins / (wins + losses) if (wins + losses) else None,
             })

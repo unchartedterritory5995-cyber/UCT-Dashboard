@@ -136,8 +136,9 @@ export default function PsychologySection({ analytics, accountId, onStartRapidTa
       <div className={styles.head}>
         <h4 className={styles.title}>Trading psychology</h4>
         <p className={styles.sub}>
-          How your tagged emotions and mistakes show up in your P&amp;L. Everything
-          here needs tags — the more of your trades you tag, the sharper it gets.
+          How your tagged emotions and mistakes show up in your P&amp;L. The emotion
+          and mistake panels need tags — the more of your trades you tag, the sharper
+          they get.
         </p>
       </div>
 

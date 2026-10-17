@@ -7,19 +7,23 @@
  * net P&L.
  *
  * ⛔ LAZY ONLY. PsychologySection loads this through `lazyLeaf`, and only while `tier3Enabled()`,
- * so neither this file nor `checkinWords.js` rides the Notebook's first open. The switch lives in
- * PsychologySection, once; this view does not ask it again.
+ * so this file does not ride the Notebook's first open. It does not import `checkinWords.js`: the
+ * words are the payload's, pinned to that file server-side by tests/test_analytics_checkins.py.
+ * The switch lives in PsychologySection, once; this view does not ask it again.
  *
- * The sample wording comes from `lib/sampleSize.js` (ruling R3): a level whose trade count is in
- * the "too few" band is greyed with `Too few trades`, and a thin one says so. The server sends
- * every level 1..5, with avgPnl / winRate null when a level has no trades, so a zero is never
- * shown as a measured result.
+ * The sample wording comes from `lib/sampleSize.js` (ruling R3), and the band keys on the n the
+ * win rate actually rests on: `decisiveCount` (wins + losses), never `tradeCount` (ruling
+ * R-T3-T5-R4). 12 trades with 11 breakevens is a rate on ONE trade, so it is greyed with
+ * `Too few trades`; a thin row shows its 95% range from `sampleSize.js`'s own `rateStat` /
+ * `wordStat`. The trades column still shows `tradeCount`. The server sends every level 1..5,
+ * with avgPnl / winRate null when a level has no trades, so a zero is never shown as a measured
+ * result.
  *
  * Presentational, no fetching. No emoji.
  */
 
 import { useCallback, useId, useRef, useState } from 'react'
-import { band, WORDING } from '../../lib/sampleSize'
+import { band, rateStat, WORDING, wordStat } from '../../lib/sampleSize'
 import styles from './CheckInOutcomes.module.css'
 
 export const EMPTY_TEXT =
@@ -123,10 +127,17 @@ function LevelTable({ rows }) {
 
 function LevelRow({ r }) {
   const n = r.tradeCount || 0
-  const b = band(n)
+  // The rate's own n. Missing reads 0 (greyed): never fall back to tradeCount, which is the bug.
+  const decisive = typeof r.decisiveCount === 'number' ? r.decisiveCount : 0
+  const b = band(decisive)
   const tooFew = b === 'too_few'
   const avg = typeof r.avgPnl === 'number' ? r.avgPnl : null
   const winRate = typeof r.winRate === 'number' ? r.winRate : null
+  // The wins behind the rate, so sampleSize.js computes the range; rate * n is wins exactly
+  // up to float error, hence the round.
+  const rangeText = winRate === null
+    ? null
+    : wordStat(rateStat(Math.round(winRate * decisive), decisive), fmtPct).rangeText
   return (
     <tr className={tooFew ? styles.rowThin : undefined} data-band={b}>
       <th scope="row" className={styles.level}>
@@ -136,7 +147,10 @@ function LevelRow({ r }) {
       </th>
       <td className={styles.num}>{r.days || 0}</td>
       <td className={styles.num}>{n}</td>
-      <td className={styles.num}>{winRate === null ? '—' : fmtPct(winRate)}</td>
+      <td className={styles.num}>
+        <span>{winRate === null ? '—' : fmtPct(winRate)}</span>
+        {rangeText && <span className={styles.range}>{rangeText}</span>}
+      </td>
       <td
         className={`${styles.num} ${avg === null ? '' : avg >= 0 ? styles.pos : styles.neg}`}
       >
