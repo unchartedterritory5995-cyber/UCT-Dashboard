@@ -52,6 +52,7 @@ here; its tables (community.db) are not used.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import uuid
@@ -926,8 +927,42 @@ def _listed_payload(row: sqlite3.Row) -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _block_ids(payload: dict) -> list[str]:
-    return [b["block"] for b in payload.get("blocks") or [] if isinstance(b, dict) and isinstance(b.get("block"), str)]
+ADOPT_UNSUPPORTED_SENTENCE = "This style can't be adopted yet."
+
+
+def _safe_listed(payload: Any) -> dict:
+    """The listed payload in the shape the style layer expects, whatever is stored (review I1).
+
+    ⛔ `publish_style` filters blocks to the ones this server can place, but a row written before that
+    filter, or edited by hand, can hold anything, and `journal_styles._clean_blocks` keeps an UNKNOWN block id
+    verbatim. So adopt, the block-id record, the plan and the apply all read the payload through this one
+    function: `blocks` is a list of dicts naming a known block, `properties` a dict, `outlineBodyJson` a dict
+    or None, `kindId` text or None. A truthy non-list `blocks` or a list `properties` can no longer reach an
+    iteration."""
+    from api.services.journal_two import journal_styles as js
+    raw = payload if isinstance(payload, dict) else {}
+    blocks = raw.get("blocks")
+    props = raw.get("properties")
+    outline = raw.get("outlineBodyJson")
+    kind = raw.get("kindId")
+    return {
+        "kindId": kind if isinstance(kind, str) else None,
+        "blocks": [b for b in (blocks if isinstance(blocks, list) else [])
+                   if isinstance(b, dict) and isinstance(b.get("block"), str) and b["block"] in js.KNOWN_BLOCKS],
+        "properties": dict(props) if isinstance(props, dict) else {},
+        "outlineBodyJson": outline if isinstance(outline, dict) else None,
+    }
+
+
+def _block_ids(payload: Any) -> list[str]:
+    return [b["block"] for b in _safe_listed(payload)["blocks"]]
+
+
+def _outline_hash(outline: Any) -> str | None:
+    """A stable fingerprint of an outline document, or None when there is none."""
+    if not isinstance(outline, dict):
+        return None
+    return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
@@ -950,23 +985,30 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         row = _listed_style_row(conn, gallery_id)
         if row is None:
             return None
-        payload = _listed_payload(row)
-        if payload is None:
+        raw_payload = _listed_payload(row)
+        if raw_payload is None:
             raise GalleryError("That style could not be read, so it cannot be adopted.")
+        payload = _safe_listed(raw_payload)
+        from api.services.journal_two import note_kinds as nk
+        if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
+            # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
+            # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
+            raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
         try:
             style = js.create_style(user_id, {
                 "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
-                "kindId": payload.get("kindId"), "blocks": payload.get("blocks") or [],
-                "outlineBodyJson": payload.get("outlineBodyJson"),
-                "properties": payload.get("properties") or {}}, conn)
+                "kindId": payload["kindId"], "blocks": payload["blocks"],
+                "outlineBodyJson": payload["outlineBodyJson"],
+                "properties": payload["properties"]}, conn)
         except js.StyleValidationError as e:
             raise GalleryError(str(e)) from e
         version = int(row["version"] or 1)
         now = _now()
         conn.execute(
-            "UPDATE j2_journal_styles SET source_gallery_id = ?, source_version = ?, source_block_ids = ?"
-            " WHERE id = ? AND user_id = ?",
-            (row["id"], version, json.dumps(_block_ids(payload)), style["id"], user_id))
+            "UPDATE j2_journal_styles SET source_gallery_id = ?, source_version = ?, source_block_ids = ?,"
+            " source_outline_hash = ? WHERE id = ? AND user_id = ?",
+            (row["id"], version, json.dumps(_block_ids(payload)), _outline_hash(payload["outlineBodyJson"]),
+             style["id"], user_id))
         if row["user_id"] != user_id:
             conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
                          " VALUES (?, ?, ?)", (row["id"], user_id, now))
@@ -1026,25 +1068,35 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     row = _listed_style_row(conn, mine["sourceGalleryId"])
     if row is None or int(row["version"] or 1) <= int(mine.get("sourceVersion") or 0):
         return mine, row, None
-    theirs = _listed_payload(row)
-    if theirs is None:
+    raw_theirs = _listed_payload(row)
+    if raw_theirs is None:
         return mine, row, None
+    theirs = _safe_listed(raw_theirs)
     have = {b["block"] for b in mine.get("blocks") or [] if isinstance(b, dict) and "block" in b}
-    src = conn.execute("SELECT source_block_ids FROM j2_journal_styles WHERE id = ? AND user_id = ?",
-                       (style_id, user_id)).fetchone()
+    src = conn.execute("SELECT source_block_ids, source_outline_hash FROM j2_journal_styles"
+                       " WHERE id = ? AND user_id = ?", (style_id, user_id)).fetchone()
     try:
         adopted = set(json.loads((src and src["source_block_ids"]) or "[]"))
     except (TypeError, ValueError):
         adopted = set()
     add_blocks = [b for b in _block_ids(theirs) if b not in have and b not in adopted]
     mine_props = mine.get("properties") or {}
-    add_props = [p for p in (theirs.get("properties") or {}) if p not in mine_props]
-    outline_changed = (json.dumps(theirs.get("outlineBodyJson"), sort_keys=True)
-                       != json.dumps(mine.get("outlineBodyJson"), sort_keys=True))
+    add_props = [p for p in theirs["properties"] if p not in mine_props]
+    # "The author's new outline" means the author changed it since this copy was made or last updated, so
+    # it is compared with the fingerprint of the outline the copy CAME FROM, not with the member's current
+    # text (their own edits are not the author's change). A copy made before `source_outline_hash` existed
+    # has none, and falls back to the old reading: the listed outline against the copy's current one.
+    # An author with no outline has nothing to take.
+    their_hash = _outline_hash(theirs["outlineBodyJson"])
+    if their_hash is None:
+        outline_changed = False
+    else:
+        came_from = (src and src["source_outline_hash"]) or _outline_hash(mine.get("outlineBodyJson"))
+        outline_changed = their_hash != came_from
     plan = {"galleryId": row["id"], "fromVersion": int(mine.get("sourceVersion") or 0),
             "toVersion": int(row["version"] or 1), "addBlocks": add_blocks, "addProperties": add_props,
             "outlineChanged": outline_changed,
-            "newOutline": theirs.get("outlineBodyJson") if outline_changed else None}
+            "newOutline": theirs["outlineBodyJson"] if outline_changed else None}
     return mine, row, plan
 
 
@@ -1084,15 +1136,15 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
         if not isinstance(base_updated_at, str) or not base_updated_at or mine["updatedAt"] != base_updated_at:
             conn.rollback()
             raise GalleryConflict(UPDATE_STALE_SENTENCE)
-        theirs = _listed_payload(row) or {}
-        by_id = {b["block"]: b for b in theirs.get("blocks") or [] if isinstance(b, dict) and "block" in b}
+        theirs = _safe_listed(_listed_payload(row))
+        by_id = {b["block"]: b for b in theirs["blocks"]}
         patch: dict[str, Any] = {}
         if plan["addBlocks"]:
             patch["blocks"] = list(mine.get("blocks") or []) + [by_id[i] for i in plan["addBlocks"]]
         if plan["addProperties"]:
             patch["properties"] = {**(mine.get("properties") or {}),
                                    **{p: theirs["properties"][p] for p in plan["addProperties"]}}
-        if take_outline and plan["outlineChanged"] and theirs.get("outlineBodyJson"):
+        if take_outline and plan["outlineChanged"] and theirs["outlineBodyJson"]:
             # The author's outline replaces the member's, and a template link (which compose reads FIRST)
             # is let go so the outline they chose to take is the one that is used.
             patch["outlineBodyJson"] = theirs["outlineBodyJson"]
@@ -1104,8 +1156,10 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             conn.rollback()
             raise GalleryError(str(e)) from e
         conn.execute(
-            "UPDATE j2_journal_styles SET source_version = ?, source_block_ids = ? WHERE id = ? AND user_id = ?",
-            (plan["toVersion"], json.dumps(_block_ids(theirs)), style_id, user_id))
+            "UPDATE j2_journal_styles SET source_version = ?, source_block_ids = ?, source_outline_hash = ?"
+            " WHERE id = ? AND user_id = ?",
+            (plan["toVersion"], json.dumps(_block_ids(theirs)), _outline_hash(theirs["outlineBodyJson"]),
+             style_id, user_id))
         conn.commit()
         return js.get_style(user_id, style_id, conn)
     except Exception:

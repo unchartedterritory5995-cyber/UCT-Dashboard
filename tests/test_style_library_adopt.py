@@ -289,7 +289,7 @@ def test_the_watches_table_has_its_columns_and_key(conn):
 
 
 def test_a_fresh_database_has_the_source_block_ids_column(conn):
-    assert "source_block_ids" in _cols(conn, "j2_journal_styles")
+    assert {"source_block_ids", "source_outline_hash"} <= _cols(conn, "j2_journal_styles")
 
 
 def test_an_existing_styles_table_without_the_column_gains_it():
@@ -304,10 +304,11 @@ def test_an_existing_styles_table_without_the_column_gains_it():
         c.execute("INSERT INTO j2_journal_styles (id, user_id, name, kind_id, created_at, updated_at)"
                   " VALUES ('old', 'u', 'Old', 'weekend_prep', 'x', 'x')")
         c.commit()
-        assert "source_block_ids" not in _cols(c, "j2_journal_styles")            # really a legacy table
+        assert not {"source_block_ids", "source_outline_hash"} & _cols(c, "j2_journal_styles")   # really a legacy table
         jdb.ensure_schema(c)
-        assert "source_block_ids" in _cols(c, "j2_journal_styles")
-        assert c.execute("SELECT source_block_ids FROM j2_journal_styles WHERE id = 'old'").fetchone()[0] is None
+        assert {"source_block_ids", "source_outline_hash"} <= _cols(c, "j2_journal_styles")
+        old = c.execute("SELECT source_block_ids, source_outline_hash FROM j2_journal_styles WHERE id = 'old'").fetchone()
+        assert tuple(old) == (None, None)
         jdb.ensure_schema(c)                                                      # and a second pass is a no-op
         assert c.execute("SELECT COUNT(*) FROM j2_journal_styles").fetchone()[0] == 1
     finally:
@@ -559,3 +560,221 @@ def test_post_updates_style_id_refuses_a_bad_take_outline(api, conn, lib_on):
     r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": "yes", "baseUpdatedAt": mine["updatedAt"]})
     assert r.status_code == 400
     assert js.get_style("member", mine["id"], conn)["sourceVersion"] == 1
+
+
+# ── fix round 1 ──────────────────────────────────────────────────────────────────────────
+
+def _set_payload(conn, gallery_id, payload, version=None):
+    """Write the LISTED payload by hand, the way a row from before the publish-time filter (or an edited
+    one) would look. `version` moves it on so a copy made earlier is offered it as an update."""
+    raw = payload if isinstance(payload, str) else json.dumps(payload)
+    conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (raw, gallery_id))
+    if version is not None:
+        conn.execute("UPDATE j2_template_gallery SET version = ? WHERE id = ?", (version, gallery_id))
+    conn.commit()
+
+
+def _stored(conn, style_id):
+    r = conn.execute("SELECT blocks_json, source_block_ids, properties_json, kind_id FROM j2_journal_styles"
+                     " WHERE id = ?", (style_id,)).fetchone()
+    return json.loads(r["blocks_json"]), json.loads(r["source_block_ids"] or "[]"), json.loads(r["properties_json"])
+
+
+def test_adopt_drops_an_unknown_block_and_a_non_dict_block_from_a_hand_written_payload(conn, lib_on):
+    item = listed_style(conn)
+    _set_payload(conn, item["id"], {"kindId": "weekend_prep", "outlineBodyJson": _doc("Plan"), "properties": {},
+                                    "blocks": [_blk("myRules"), _blk("futureBlock", x="y"), "junk", 7, {"nope": 1}]})
+    out = gallery.adopt_style("member", item["id"], notify=False, conn=conn)
+    blocks, ids, _props = _stored(conn, out["style"]["id"])
+    assert [b["block"] for b in blocks] == ["myRules"]              # control: the known block IS kept
+    assert ids == ["myRules"]
+
+
+def test_plan_and_apply_never_offer_an_unknown_block(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    _set_payload(conn, item["id"], {"kindId": "weekend_prep", "outlineBodyJson": _doc("Plan"), "properties": {},
+                                    "blocks": [_blk("myRules"), _blk("futureBlock", x="y")]}, version=2)
+    plan = gallery.plan_update("member", mine["id"], conn=conn)
+    assert plan["addBlocks"] == ["myRules"]
+    out = gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=mine["updatedAt"], conn=conn)
+    assert [b["block"] for b in out["blocks"]] == ["myRules"]
+    blocks, ids, _props = _stored(conn, mine["id"])
+    assert [b["block"] for b in blocks] == ["myRules"] and ids == ["myRules"]
+
+
+def test_a_custom_kind_payload_cannot_be_adopted_and_nothing_is_stored(conn, lib_on):
+    from api.services.journal_two import note_kinds as nk
+    kind = nk.create_kind("member", "My scalps", conn=conn)         # the ADOPTER owns a kind of this id
+    item = listed_style(conn)
+    _set_payload(conn, item["id"], {"kindId": kind["id"], "blocks": [], "properties": {}, "outlineBodyJson": _doc("Plan")})
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.adopt_style("member", item["id"], notify=True, conn=conn)
+    assert str(e.value) == "This style can't be adopted yet." == gallery.ADOPT_UNSUPPORTED_SENTENCE
+    assert conn.execute("SELECT COUNT(*) FROM j2_journal_styles WHERE user_id = 'member'").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_watches").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery_uses").fetchone()[0] == 0
+    for bad in (None, ["weekend_prep"], 5):                          # no kind, an unhashable one, a non-text one
+        _set_payload(conn, item["id"], {"kindId": bad, "blocks": []})
+        with pytest.raises(gallery.GalleryError):
+            gallery.adopt_style("member", item["id"], notify=False, conn=conn)
+
+
+def test_a_refused_unsupported_adopt_gives_the_daily_charge_back(api, conn, lib_on):
+    item = listed_style(conn)
+    _set_payload(conn, item["id"], {"kindId": "my_custom_kind", "blocks": []})
+    _as(api, "member")
+    before = _used()
+    r = api.post(f"{URL}/{item['id']}/adopt", json={})
+    assert r.status_code == 400 and r.json()["detail"] == "This style can't be adopted yet."
+    assert _used() == before
+    _set_payload(conn, item["id"], {"kindId": "weekend_prep", "blocks": []})
+    assert api.post(f"{URL}/{item['id']}/adopt", json={}).status_code == 200      # control: a good one is charged
+    assert _used() == before + 1
+
+
+def test_malformed_payload_shapes_never_500_on_adopt_plan_or_apply(api, conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    bad_shapes = (
+        {"kindId": "weekend_prep", "blocks": 5, "properties": [1, 2], "outlineBodyJson": "text"},
+        {"kindId": "weekend_prep", "blocks": "x", "properties": "y", "outlineBodyJson": [1]},
+        {"kindId": "weekend_prep", "blocks": {"block": "myRules"}, "properties": None, "outlineBodyJson": 3},
+    )
+    _as(api, "member")
+    for n, shape in enumerate(bad_shapes, start=2):
+        _set_payload(conn, item["id"], shape, version=n)
+        r = api.get(f"{URL}/updates/{mine['id']}")
+        assert r.status_code in (200, 404), (shape, r.status_code)
+        if r.status_code == 200:
+            plan = r.json()["plan"]
+            assert plan["addBlocks"] == [] and plan["addProperties"] == [] and plan["outlineChanged"] is False
+        cur = js.get_style("member", mine["id"], conn)
+        post = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": cur["updatedAt"]})
+        assert post.status_code in (200, 404), (shape, post.status_code)
+        # adopting such a row works too (an empty style), rather than a 500
+        adopt = api.post(f"{URL}/{item['id']}/adopt", json={})
+        assert adopt.status_code == 200, (shape, adopt.text)
+        assert adopt.json()["style"]["blocks"] == [] and adopt.json()["style"]["properties"] == {}
+    # a payload that is not an object at all is unreadable: adopt refuses, the plan is not found
+    _set_payload(conn, item["id"], "[1, 2]", version=9)
+    assert gallery.plan_update("member", mine["id"], conn=conn) is None
+    assert api.get(f"{URL}/updates/{mine['id']}").status_code == 404
+    assert api.post(f"{URL}/{item['id']}/adopt", json={}).status_code == 400
+
+
+def test_a_properties_list_does_not_break_the_block_record(conn, lib_on):
+    item = listed_style(conn)
+    _set_payload(conn, item["id"], {"kindId": "weekend_prep", "blocks": [_blk("myRules")], "properties": ["x"]})
+    out = gallery.adopt_style("member", item["id"], notify=False, conn=conn)
+    assert [b["block"] for b in out["style"]["blocks"]] == ["myRules"] and out["style"]["properties"] == {}
+
+
+# "the author's new outline": the AUTHOR changed it since this copy was made or last updated (M1)
+
+def _hash_of(conn, style_id):
+    return conn.execute("SELECT source_outline_hash FROM j2_journal_styles WHERE id = ?", (style_id,)).fetchone()[0]
+
+
+def test_adopt_records_the_outline_the_copy_came_from(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    assert _hash_of(conn, mine["id"])                                                    # not NULL
+    assert "source_outline_hash" in _cols(conn, "j2_journal_styles")
+
+
+def test_the_members_own_outline_edit_is_not_the_authors_new_outline(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    js.update_style("member", mine["id"], {"outlineBodyJson": _doc("My own plan")}, conn)
+    _bump(conn, item, blocks=[_blk("myRules")])                                          # the author leaves the outline alone
+    plan = gallery.plan_update("member", mine["id"], conn=conn)
+    assert plan["addBlocks"] == ["myRules"]                                              # control: there IS an update
+    assert plan["outlineChanged"] is False and plan["newOutline"] is None
+
+
+def test_the_authors_changed_outline_is_offered(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    js.update_style("member", mine["id"], {"outlineBodyJson": _doc("My own plan")}, conn)
+    _bump(conn, item, outlineBodyJson=_doc("Author v2"))
+    plan = gallery.plan_update("member", mine["id"], conn=conn)
+    assert plan["outlineChanged"] is True and "Author v2" in json.dumps(plan["newOutline"])
+
+
+def test_a_declined_outline_is_not_offered_again_until_the_author_changes_it_again(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    _bump(conn, item, outlineBodyJson=_doc("Author v2"))
+    gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=mine["updatedAt"], conn=conn)
+    _bump(conn, item, blocks=[_blk("myRules")])                                          # v3: blocks only
+    assert gallery.plan_update("member", mine["id"], conn=conn)["outlineChanged"] is False
+    cur = js.get_style("member", mine["id"], conn)
+    gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=cur["updatedAt"], conn=conn)
+    _bump(conn, item, outlineBodyJson=_doc("Author v4"))
+    assert gallery.plan_update("member", mine["id"], conn=conn)["outlineChanged"] is True
+
+
+def test_an_author_with_no_outline_has_nothing_to_take(conn, lib_on):
+    item = listed_style(conn, outlineBodyJson=None)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    kept = js.update_style("member", mine["id"], {"outlineBodyJson": _doc("Mine")}, conn)
+    _bump(conn, item, blocks=[_blk("myRules")])
+    plan = gallery.plan_update("member", mine["id"], conn=conn)
+    assert plan["addBlocks"] == ["myRules"] and plan["outlineChanged"] is False and plan["newOutline"] is None
+    out = gallery.apply_update("member", mine["id"], take_outline=True, base_updated_at=kept["updatedAt"], conn=conn)
+    assert "Mine" in json.dumps(out["outlineBodyJson"])                                  # M2: left alone, not blanked
+
+
+def test_a_copy_with_no_outline_hash_compares_against_its_current_outline(conn, lib_on):
+    # A copy made before the column existed has NULL, and gets the old reading.
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    conn.execute("UPDATE j2_journal_styles SET source_outline_hash = NULL WHERE id = ?", (mine["id"],))
+    conn.commit()
+    _bump(conn, item, blocks=[_blk("myRules")])
+    assert gallery.plan_update("member", mine["id"], conn=conn)["outlineChanged"] is False       # unedited: same as listed
+    js.update_style("member", mine["id"], {"outlineBodyJson": _doc("Edited")}, conn)
+    assert gallery.plan_update("member", mine["id"], conn=conn)["outlineChanged"] is True        # edited: differs (old behaviour)
+
+
+# M2: taking the outline lets go of a linked template, so the outline taken is the one composed
+
+def test_taking_the_outline_clears_a_linked_outline_template(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    conn.execute("INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json, created_at,"
+                 " updated_at) VALUES ('tpl1', 'member', 'T', 'T', ?, NULL, 'x', 'x')", (json.dumps(_doc("Template")),))
+    conn.commit()
+    linked = js.update_style("member", mine["id"], {"outlineTemplateId": "tpl1"}, conn)
+    assert linked["outlineTemplateId"] == "tpl1"                                          # control: it IS linked
+    _bump(conn, item, outlineBodyJson=_doc("Author v2"))
+    out = gallery.apply_update("member", mine["id"], take_outline=True, base_updated_at=linked["updatedAt"], conn=conn)
+    assert out["outlineTemplateId"] is None and "Author v2" in json.dumps(out["outlineBodyJson"])
+    # and declining leaves the link alone
+    mine2 = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    linked2 = js.update_style("member", mine2["id"], {"outlineTemplateId": "tpl1"}, conn)
+    _bump(conn, item, outlineBodyJson=_doc("Author v3"))
+    out2 = gallery.apply_update("member", mine2["id"], take_outline=False, base_updated_at=linked2["updatedAt"], conn=conn)
+    assert out2["outlineTemplateId"] == "tpl1"
+
+
+# M4: a stranger cannot apply someone else's update
+
+def test_a_stranger_cannot_apply_another_members_update(api, conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    _bump(conn, item, blocks=[_blk("myRules")])
+    before = conn.execute("SELECT blocks_json, source_version, source_block_ids, updated_at FROM j2_journal_styles"
+                          " WHERE id = ?", (mine["id"],)).fetchone()
+    assert gallery.apply_update("stranger", mine["id"], take_outline=True,
+                                base_updated_at=mine["updatedAt"], conn=conn) is None
+    _as(api, "stranger")
+    r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": mine["updatedAt"]})
+    assert r.status_code == 404
+    after = conn.execute("SELECT blocks_json, source_version, source_block_ids, updated_at FROM j2_journal_styles"
+                         " WHERE id = ?", (mine["id"],)).fetchone()
+    assert tuple(after) == tuple(before)                                                  # nothing written
+    _as(api, "member")                                                                    # control: the owner can
+    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"]})
+    assert ok.status_code == 200

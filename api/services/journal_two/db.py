@@ -2059,6 +2059,9 @@ _PHASE_2_ALTERS = [
     # later update can tell a block the member REMOVED from one they never had. Its own ALTER, never in the
     # CREATE TABLE body above: that body never reaches a table that already exists in production.
     "ALTER TABLE j2_journal_styles ADD COLUMN source_block_ids TEXT",
+    # P3a Task 5 fix round 1: a fingerprint of the outline the copy came from (NULL on a copy made before this
+    # column), so "the author's new outline" can mean the author changed it, not the member.
+    "ALTER TABLE j2_journal_styles ADD COLUMN source_outline_hash TEXT",
     # Notebook P1: what made a note -- additive, NULL for every existing note, read as optional.
     # `kind_id` is PROVENANCE (the kind it was created as); the CURRENT kind is the
     # builtin:note_kind property (note_kinds.py docstring).
