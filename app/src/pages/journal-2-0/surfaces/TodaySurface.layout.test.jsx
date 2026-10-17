@@ -76,6 +76,11 @@ vi.mock('../components/AddPositionModal', () => ({ default: () => null }))
 
 // The four panels that existed before the layout.
 vi.mock('../components/CoachStrip', () => ({ default: () => <div data-testid="coach-strip-stub" /> }))
+// The lock notice Today shows on its own when the coach strip is hidden (ruling P4a-T9-R2). A stub that is there
+// whenever it is MOUNTED: its own test (DisciplineLockStrip.test.jsx) covers that it says nothing unless locked.
+vi.mock('../components/DisciplineLockStrip', () => ({
+  default: ({ accountId: id }) => <div data-testid="lock-strip-stub" data-account={id ?? ''} />,
+}))
 vi.mock('./today/TodayWeekStrip', () => ({ default: () => <div data-testid="today-week-strip" /> }))
 vi.mock('../components/accounts/GoalProgress', () => ({
   default: ({ account: a }) => <div data-testid="goal-progress">{a?.name}</div>,
@@ -292,6 +297,8 @@ describe('TodaySurface renders from the page layout', () => {
     expect(props.accountId).toBe('a1')
   })
 
+  // P4a final review m4: the checklist panel is shown on All Accounts (day notes belong to the member). This
+  // pins that Today hands it the null id; the panel's own test pins what it does with it.
   it('All Accounts: Goal progress is absent (it needs one account) and the checklist gets a null id', () => {
     account = null
     accountId = null
@@ -335,6 +342,49 @@ describe('TodaySurface renders from the page layout', () => {
     const after = container.querySelector(FINDERS.myRules)
     expect(after).toBe(before)
     expect(after.textContent).toBe('2')
+  })
+
+  // Ruling P4a-T9-R2: a hidden coach strip must not hide an active discipline lock. The strip carries the lock
+  // rows; with it hidden, the lock notice renders on its own, straight after the lead.
+  describe('the discipline-lock notice and the coach strip', () => {
+    const lockStub = (c) => c.querySelector('[data-testid="lock-strip-stub"]')
+
+    it('with the strip shown (the default, switch off or on) the lock notice is not mounted on its own', () => {
+      for (const on of [false, true]) {
+        flagRef.current = on
+        prefsRef.current = {}
+        const { container, unmount } = renderToday()
+        expect(container.querySelector(FINDERS.coachStrip)).not.toBeNull()
+        expect(lockStub(container)).toBeNull()
+        unmount()
+      }
+    })
+
+    it('with the strip hidden the lock notice is mounted, for the selected account, after the lead and before the panels', () => {
+      flagRef.current = true
+      prefsRef.current = {
+        [LAYOUT_PREF]: JSON.stringify(savedLayout({ market: [['coachStrip', false], ['regime', true]] })),
+      }
+      const { container } = renderToday()
+      expect(container.querySelector(FINDERS.coachStrip)).toBeNull()
+      const lock = lockStub(container)
+      expect(lock).not.toBeNull()
+      expect(lock.getAttribute('data-account')).toBe('a1')
+      const lead = container.querySelector('[data-testid="broker-hero"]')
+      const regime = container.querySelector(FINDERS.regime)
+      expect(lead.compareDocumentPosition(lock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(lock.compareDocumentPosition(regime) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('with the switch off a saved layout that hides the strip is ignored: the strip shows, no separate notice', () => {
+      flagRef.current = false
+      prefsRef.current = {
+        [LAYOUT_PREF]: JSON.stringify(savedLayout({ market: [['coachStrip', false]] })),
+      }
+      const { container } = renderToday()
+      expect(container.querySelector(FINDERS.coachStrip)).not.toBeNull()
+      expect(lockStub(container)).toBeNull()
+    })
   })
 
   // The lead is not part of the layout, so it comes first whatever the layout lists.
@@ -412,6 +462,17 @@ describe('the Customize button (P4a Task 7)', () => {
     expect(screen.queryByTestId('editor-stub')).toBeNull()
     expect(screen.getByText('Layout saved.')).toBeInTheDocument()
     expect(screen.getByText('Layout saved.').closest('[role="status"]')).not.toBeNull()
+  })
+
+  // P4a final review m5: on the zero-data experience every panel but the coach strip is suppressed, so none of
+  // the editor's choices could show. Customize is not offered there.
+  it('is not offered on the zero-data experience', () => {
+    positions = []
+    comparison = [{ id: 'a1', tradeCount: 0 }]
+    flagRef.current = true
+    renderToday()
+    expect(screen.getByTestId('today-zero-data')).toBeInTheDocument()
+    expect(customizeButton()).toBeNull()
   })
 
   it('sits beside the scope note in the header area when the scope filter is on', () => {

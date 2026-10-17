@@ -43,6 +43,7 @@ import TodayPostCloseLead from './today/TodayPostCloseLead'
 import TodayWeekStrip from './today/TodayWeekStrip'
 import TodayQuickActions from './today/TodayQuickActions'
 import CoachStrip from '../components/CoachStrip'
+import DisciplineLockStrip from '../components/DisciplineLockStrip'
 import ChecklistTodayPanel from './today/panels/ChecklistTodayPanel'
 import MyRulesPanel from './today/panels/MyRulesPanel'
 import RegimePanel from './today/panels/RegimePanel'
@@ -199,6 +200,11 @@ export default function TodaySurface() {
   // zero-data experience, whatever the layout says.
   const layout = pageLayoutsEnabled() ? normalizeLayout(prefs?.[LAYOUT_PREF]) : DEFAULT_LAYOUT
   const panels = resolvePanels(layout, 'today', session).filter((p) => p.shown)
+  // Ruling P4a-T9-R2: a hidden coach strip must not hide an active discipline lock. The strip carries the lock
+  // rows; when the member has hidden it, the lock rows (and nothing else from the strip) render on their own,
+  // straight after the lead. DisciplineLockStrip renders nothing when the account is not locked. With the
+  // layouts switch off the strip is always shown, so this never renders there.
+  const coachStripShown = panels.some((p) => p.id === 'coachStrip')
   const render = {
     // B2 — the consolidated CoachStrip: folds nudges / interventions /
     // broker-review / unviewed-EOD / discipline-lock into ONE calm,
@@ -229,8 +235,9 @@ export default function TodaySurface() {
   }
 
   // Customize sits in the header area beside the scope note, and only while the layouts switch is on. With
-  // it off the header is the scope note alone, exactly as it was.
-  const header = pageLayoutsEnabled() ? (
+  // it off the header is the scope note alone, exactly as it was. It is not offered on the zero-data
+  // experience either: every panel but the coach strip is suppressed there, so no choice in it could show.
+  const header = pageLayoutsEnabled() && !zeroData ? (
     <div className={styles.headRow}>
       {scopeNote}
       <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
@@ -245,6 +252,8 @@ export default function TodaySurface() {
       {header}
 
       {lead}
+
+      {!coachStripShown && <DisciplineLockStrip accountId={accountId} />}
 
       {panels.map((p) => render[p.id]?.())}
 
