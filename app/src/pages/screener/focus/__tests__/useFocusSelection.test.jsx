@@ -3,9 +3,9 @@ import { vi, expect, test } from 'vitest'
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: vi.fn() }))
 import { useNeighborWarm } from '../../../../hooks/useNeighborWarm'
 vi.mock('../../../../utils/prefetchBars', () => ({
-  prefetchBars: vi.fn(), prefetchBarsToIDB: vi.fn(), warmMemFromIDB: vi.fn(),
+  prefetchBars: vi.fn(), prefetchBarsToIDB: vi.fn(), warmMemFromIDB: vi.fn(), prewarmVisibleList: vi.fn(),
 }))
-import { prefetchBars, prefetchBarsToIDB, warmMemFromIDB } from '../../../../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../../utils/prefetchBars'
 import useFocusSelection from '../useFocusSelection'
 
 const rows = n => Array.from({ length: n }, (_, i) => ({ ticker: `T${i}` }))
@@ -178,7 +178,9 @@ test('warms the next 2 rows with the urgent option, and 4 ahead / 1 behind in th
   act(() => result.current.select(5))
   expect(prefetchBars).toHaveBeenLastCalledWith(['T6', 'T7'], '5', { urgent: true })
   expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], '5', { priority: true })
-  expect(warmMemFromIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], ['5'])
+  // ±6 into mem from IDB (watchlist parity); the network window stays 4 ahead / 1 behind
+  expect(warmMemFromIDB).toHaveBeenLastCalledWith(
+    ['T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T0', 'T1', 'T2', 'T3', 'T4'], ['5'])
 })
 
 test('at the list edges the window shrinks instead of wrapping', () => {
@@ -188,4 +190,10 @@ test('at the list edges the window shrinks instead of wrapping', () => {
   expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T1', 'T2', 'T3'], 'D', { priority: true })
   act(() => result.current.select(3))
   expect(prefetchBars).toHaveBeenLastCalledWith([], 'D', { urgent: true })
+})
+
+test('the whole result list is pre-warmed on the chart timeframe, like the watchlist', () => {
+  vi.clearAllMocks()
+  renderHook(() => useFocusSelection({ rows: rows(40), tf: 'W' }))
+  expect(prewarmVisibleList).toHaveBeenCalledWith(rows(40).map(r => r.ticker), { chartTf: 'W' })
 })
