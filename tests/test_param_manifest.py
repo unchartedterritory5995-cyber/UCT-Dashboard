@@ -65,7 +65,7 @@ def _definition(period_value, manifest=None, def_id=DEF_ID, extra_compute=None):
         compute["paramManifest"] = manifest
     if extra_compute:
         compute.update(extra_compute)
-    return {"id": def_id, "compute": compute}
+    return {"id": def_id, "version": 1, "compute": compute}
 
 
 def _manifest_len(value=14, min_=1, max_=200, locator_path=None):
@@ -117,14 +117,14 @@ def test_2_two_independent_parameters_change_without_disturbing_each_other(store
                           "default": 9, "min": 1, "max": 200, "step": 1, "options": None,
                           "locators": [{"treeIndex": None, "astPath": ["args", 1]}]},
     }
-    d = {"id": DEF_ID, "compute": {"kind": "ast", "ast": ast, "source": "ema(sma(close,20),9)",
+    d = {"id": DEF_ID, "version": 1, "compute": {"kind": "ast", "ast": ast, "source": "ema(sma(close,20),9)",
                                     "paramManifest": manifest}}
     svc.save(USER, DEF_ID, d)
 
     # Change ONLY len2 (the outer EMA length) — len1 must be untouched.
     ast2 = json.loads(json.dumps(ast))
     ast2["args"][1]["value"] = 15
-    d2 = {"id": DEF_ID, "compute": {"kind": "ast", "ast": ast2, "source": "ema(sma(close,20),15)",
+    d2 = {"id": DEF_ID, "version": 1, "compute": {"kind": "ast", "ast": ast2, "source": "ema(sma(close,20),15)",
                                      "paramManifest": manifest}}
     svc.save(USER, DEF_ID, d2)
     row = svc._newest(_conn(store), USER, DEF_ID)
@@ -147,12 +147,12 @@ def test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically(s
                           "locators": [{"treeIndex": None, "astPath": ["args", 0]},
                                        {"treeIndex": None, "astPath": ["args", 1]}]},
     }
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast, "source": "x", "paramManifest": manifest}})
 
     ast2 = {"type": "op", "name": "-", "args": [
         {"type": "num", "value": 21}, {"type": "num", "value": 21}]}
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast2, "source": "x", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     state = json.loads(row["definition"])["compute"]["paramState"]
@@ -169,13 +169,13 @@ def test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved
                           "locators": [{"treeIndex": None, "astPath": ["args", 0]},
                                        {"treeIndex": None, "astPath": ["args", 1]}]},
     }
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast, "source": "x", "paramManifest": manifest}})
 
     # Manually edit ONE use-site only, as a member editing text might.
     ast2 = {"type": "op", "name": "-", "args": [
         {"type": "num", "value": 21}, {"type": "num", "value": 14}]}
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast2, "source": "x", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     state = json.loads(row["definition"])["compute"]["paramState"]
@@ -189,10 +189,10 @@ def test_4_offset_window_case_the_literal_survives_a_parameter_change(store):
     # close[len] -- an offset node whose index is the adjustable parameter.
     ast = {"type": "offset", "value": 5, "args": [{"type": "series", "name": "close"}]}
     manifest = _manifest_len(value=5, locator_path=["value"])
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast, "source": "close[5]", "paramManifest": manifest}})
     ast2 = {"type": "offset", "value": 10, "args": [{"type": "series", "name": "close"}]}
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast2, "source": "close[10]", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     d = json.loads(row["definition"])
@@ -220,7 +220,7 @@ def test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save(store):
     # (as the client-side reconciliation would still carry it forward), but
     # its locator no longer resolves.
     ast = {"type": "num", "value": 42}
-    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast, "source": "42", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     d = json.loads(row["definition"])
@@ -238,7 +238,7 @@ def test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash(stor
         {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"},
                                               {"type": "series", "name": "open"}]},
     ]}
-    save_legacy(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    save_legacy(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
         "kind": "ast", "ast": ast, "source": "sma(close, close-open)", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     state = json.loads(row["definition"])["compute"]["paramState"]
@@ -307,6 +307,7 @@ def _multitree_definition(period_a, period_b, manifest):
     trees = {"scan": ast_a, "rsiPlot": ast_b}
     return {
         "id": DEF_ID,
+        "version": 1,
         "compute": {
             "kind": "ast", "ast": ast_a, "source": f"sma(close,{period_a})",
             "trees": trees,
@@ -460,7 +461,7 @@ def test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_d
         "locators": [{"treeIndex": None, "astPath": ["args", 1]}],
     }
     with pytest.raises(pms.ParamManifestRejected, match="__uct_param_2"):
-        svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+        svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
             "kind": "ast", "ast": ast2, "source": "ema(sma(close,14),999999)",
             "paramManifest": forged_manifest}})
 
@@ -554,7 +555,7 @@ def test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_pa
     ast = {"type": "call", "name": "sma", "args": [
         {"type": "series", "name": "close"}, {"type": "num", "value": True}]}
     with pytest.raises(ValueError, match="got a boolean"):
-        svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+        svc.save(USER, DEF_ID, {"id": DEF_ID, "version": 1, "compute": {
             "kind": "ast", "ast": ast, "source": "sma(close, true)", "paramManifest": manifest}})
     # And the prior, valid save is exactly what's still stored.
     row = svc._newest(_conn(store), USER, DEF_ID)

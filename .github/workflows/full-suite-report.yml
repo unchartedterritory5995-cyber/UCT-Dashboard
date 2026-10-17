@@ -154,7 +154,14 @@ jobs:
     name: vitest — all files (report-only)
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 45
+    # ⛔⛔ A0 (2026-10-13) — 45 WAS BELOW THE SUITE'S OWN WALL TIME. The last complete run
+    # (37123227661, 2026-10-03) took 2,475 s for 35,702 tests — 41 of the 45 minutes — and
+    # every run since was killed before its totals line: 99 consecutive `collected: 0`
+    # records on `ci-results`. The suite is now ~45,000 tests (~55 min at that rate), so
+    # 100 gives it room to finish. `ci_inventory.diff` now refuses a vitest record with no
+    # totals line (INVALID), so a timeout reads as RED, never as a quiet zero. ⚠️ If the
+    # suite approaches ~80 minutes, shard it (`--shard=i/n`) rather than raising this again.
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
         with:
