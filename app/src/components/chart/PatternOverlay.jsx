@@ -26,6 +26,11 @@
 //   then only the LEVELS_NEAREST levels nearest `lastPrice`; `intraday_only` rows never draw on
 //   D/W/M. `geometry.secondary` (uct_* setups) and a trusted detector's `levels.entry`
 //   (`draw_entry`) draw as bounded LevelSegments beside the primary shape.
+//
+// ⭐ THE LEARNED AUTO-DRAWER (`drawn`, admin + AUTO_STRUCTURES_ENABLED, D/W/M): its trendlines and
+//   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
+//   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
+//   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -35,6 +40,7 @@ import CandleMark from './patternShapes/CandleMark'
 import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
+import LearnedDrawn from './patternShapes/LearnedDrawn'
 import { anchorToBarTime, isDateTf } from './patternTime'
 
 const SHAPE_RENDERERS = {
@@ -60,12 +66,13 @@ function levelPrice(d) {
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
  */
-export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null } = {}) {
+export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null, suppress = null } = {}) {
   const dateTf = tf == null ? false : isDateTf(tf)
   const structures = []
   const levels = []
   for (const d of detections || []) {
     if (!d) continue
+    if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
     if (d.display_tier === 'experimental' && !showExperimental) continue
     if (dateTf && d.intraday_only) continue
@@ -95,6 +102,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   showExperimental:  draw experimental-tier detectors (admins); default true
  *   showLevels:        draw the levels layer (nearest LEVELS_NEAREST to lastPrice); default false
  *   lastPrice:         the latest close, for choosing the nearest levels
+ *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  */
 export default function PatternOverlay({
   chart,
@@ -108,6 +116,7 @@ export default function PatternOverlay({
   showExperimental = true,
   showLevels = false,
   lastPrice = null,
+  drawn = null,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -142,10 +151,13 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
-  if (!enabled || !chart || !series || !detections?.length) return null
+  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
-  const drawable = selectDrawable(detections, { tf, showExperimental, showLevels, lastPrice })
-  if (!drawable.length) return null
+  const drawable = selectDrawable(detections, {
+    tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null,
+  })
+  if (!drawable.length && !hasDrawn) return null
 
   // Coordinate helpers — lightweight-charts caches internally so re-creating these per render is cheap.
   const tToX = (t) => {
@@ -192,6 +204,7 @@ export default function PatternOverlay({
           </feMerge>
         </filter>
       </defs>
+      {hasDrawn && <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} />}
       {drawable.map((d) => {
         const shape = d?.geometry?.shape
         const Renderer = SHAPE_RENDERERS[shape]

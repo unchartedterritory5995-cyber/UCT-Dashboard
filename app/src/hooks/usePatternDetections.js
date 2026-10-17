@@ -20,7 +20,8 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
   // confirmed_only=false: the on-chart overlay needs the full rule-engine detection
   // geometry to draw shapes. The confirmed-vision surface lives on /confirmed/{sym}.
   // includeStructures (AUTO_STRUCTURES_ENABLED, admins): the server adds the current
-  // base boxes as `structures`; a member's request never carries the parameter.
+  // base boxes as `structures` and the learned auto-drawer's lines as `drawn`;
+  // a member's request never carries the parameter.
   const key =
     enabled && sym && tf
       ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}&confirmed_only=false${includeStructures ? '&include_structures=true' : ''}`
@@ -40,6 +41,9 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
   }, [data])
   return {
     detections,
+    // The learned auto-drawer (admin + AUTO_STRUCTURES_ENABLED, D/W/M): trendlines,
+    // levels and the display rules that ride with them. null whenever absent.
+    drawn: data?.drawn || null,
     count: data?.count || 0,
     isLoading,
     error,

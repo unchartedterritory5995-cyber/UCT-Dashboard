@@ -188,6 +188,17 @@ DISPLAY_INTRADAY_ONLY: frozenset = frozenset({
 #: measured best (REPORT.md: bull_flag and double_bottom entry beat O).
 DISPLAY_DRAW_ENTRY: frozenset = frozenset({"bull_flag", "double_bottom"})
 
+#: The learned auto-drawer (api/services/auto_draw.py; lab auto-draw study, model of
+#: 2026-10-16, graded against trader-drawn lines). While its `drawn` block rides the
+#: response (admin + AUTO_STRUCTURES_ENABLED), the overlay applies these two display
+#: rules; nothing here changes firing, confidence, HIST_SCORE or `confirmed_only`.
+#:   hidden by default  -- volume_profile_nodes matched drawn levels at exactly chance
+#:                         (recall and precision indistinguishable from random prices).
+#:   replaced by learned -- swing_pivots drew ~10 levels a chart at barely-above-chance
+#:                         precision; the learned top 3 of the same pivots replace it.
+DISPLAY_LEARNED_HIDES: frozenset = frozenset({"volume_profile_nodes"})
+DISPLAY_LEARNED_REPLACES: frozenset = frozenset({"swing_pivots"})
+
 
 def display_policy(pattern_id) -> dict:
     """The drawing policy for one detection (or base-box key "bc:<key>")."""

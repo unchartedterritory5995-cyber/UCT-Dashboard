@@ -802,6 +802,12 @@ def get_detections(
         from api.services import auto_structures
         if auto_structures.enabled():
             out["structures"] = auto_structures.structures_for(sym)
+            # The learned auto-drawer (display-only; same gate as the base boxes):
+            # trendlines + levels on the DAILY series, so D/W/M only.
+            if (tf or "D").upper() in ("D", "W", "M"):
+                drawn = auto_structures.drawn_for(sym)
+                if drawn is not None:
+                    out["drawn"] = drawn
     return out
 
 

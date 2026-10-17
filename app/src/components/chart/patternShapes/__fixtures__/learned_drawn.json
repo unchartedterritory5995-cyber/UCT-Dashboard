@@ -1,0 +1,18 @@
+{
+  "model": "auto_draw logistic 2026-10-16",
+  "asof_t": 20261015,
+  "last_close": 50.0,
+  "atr": 1.2,
+  "horizontals": [
+    {"source": "prior_day_high", "label": "PDH", "price": 50.6, "t_from": 20261015, "score": null},
+    {"source": "prior_day_low", "label": "PDL", "price": 49.1, "t_from": 20261015, "score": null},
+    {"source": "learned", "label": "learned", "price": 52.4, "t_from": 20260921, "score": 0.31, "why": "swing high (4 bars each side), 1.9 ATR above price"},
+    {"source": "ten_day_high", "label": "10D H", "price": 53.8, "t_from": 20261007, "score": null},
+    {"source": "ten_day_low", "label": "10D L", "price": 46.9, "t_from": 20261002, "score": null}
+  ],
+  "trendlines": [
+    {"t1": 20260902, "p1": 56.0, "t2": 20261001, "p2": 53.5, "p_now": 52.6, "score": 0.12, "why": "falling resistance through highs, 29-bar span, 2 extra touches, 2.0 ATR from price", "is_high": 1},
+    {"t1": 20260905, "p1": 44.0, "t2": 20261006, "p2": 46.2, "p_now": 47.0, "score": 0.09, "why": "rising support through lows, 31-bar span, 1 extra touches, 2.5 ATR from price", "is_high": 0}
+  ],
+  "suppress": {"volume_profile_nodes": "hidden_by_default", "swing_pivots": "replaced_by_learned"}
+}
