@@ -28,6 +28,7 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useCompassOverview from '../hooks/useCompassOverview'
 import useScope from '../hooks/useScope'
+import usePreferences from '../../../hooks/usePreferences'
 import UIcon from '../../../components/ui/UIcon'
 import ImportCsvModal from '../components/ImportCsvModal'
 import AddTradeModal from '../components/AddTradeModal'
@@ -42,6 +43,13 @@ import TodayPostCloseLead from './today/TodayPostCloseLead'
 import TodayWeekStrip from './today/TodayWeekStrip'
 import TodayQuickActions from './today/TodayQuickActions'
 import CoachStrip from '../components/CoachStrip'
+import ChecklistTodayPanel from './today/panels/ChecklistTodayPanel'
+import MyRulesPanel from './today/panels/MyRulesPanel'
+import RegimePanel from './today/panels/RegimePanel'
+import TodayNotePanel from './today/panels/TodayNotePanel'
+import NoticesPanel from './today/panels/NoticesPanel'
+import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../lib/pageLayouts'
+import { pageLayoutsEnabled } from '../lib/pageLayoutsFlag'
 import { SkeletonLine, SkeletonBlock } from '../../../components/Skeleton'
 import styles from './TodaySurface.module.css'
 
@@ -70,6 +78,7 @@ export default function TodaySurface() {
   const { accountId, account, accounts } = useJ2SelectedAccount()
   const { overview } = useCompassOverview(accountId)
   const { isActive: scopeActive } = useScope()
+  const { prefs } = usePreferences()
   const { refresh: refreshPositions } = useJ2Positions()
   const { mutate } = useSWRConfig()
 
@@ -171,32 +180,50 @@ export default function TodaySurface() {
     lead = <TodayPostCloseLead account={account} overview={overview} />
   }
 
+  // ── the panels after the lead, from the page layout (P4a) ──────────────────
+  // With the layouts switch off the list is DEFAULT_LAYOUT's, which is the fixed order Today always had
+  // (coach strip, week strip, goals, quick actions). With it on, the member's saved layout for THIS session
+  // phase decides which panels show and in what order; the phase changing is a read, never a write.
+  // The lead above is not part of the layout. Every panel except the coach strip is suppressed on the
+  // zero-data experience, whatever the layout says.
+  const layout = pageLayoutsEnabled() ? normalizeLayout(prefs?.[LAYOUT_PREF]) : DEFAULT_LAYOUT
+  const panels = resolvePanels(layout, 'today', session).filter((p) => p.shown)
+  const render = {
+    // B2 — the consolidated CoachStrip: folds nudges / interventions /
+    // broker-review / unviewed-EOD / discipline-lock into ONE calm,
+    // severity-ordered strip. Renders null when there's nothing to show.
+    coachStrip: () => <CoachStrip key="coachStrip" accountId={accountId} />,
+    // B3 — secondary modules below the lead. Suppressed on the zero-data
+    // experience (the guided checklist IS the surface; hero/goals/strip all
+    // stay hidden until there's something to show).
+    weekStrip: () => !zeroData && <TodayWeekStrip key="weekStrip" />,
+    // GoalProgress needs a CONCRETE account — hidden on All-Accounts
+    // (the all-accounts lead already carries the "pick an account"
+    // affordance, so goals aren't a blank here). P0 poller collapse:
+    // feed it the goal-progress the overview poll already carries so it
+    // drops its own 30s poller (Today lands at ≤4 recurring requests).
+    goalProgress: () => !zeroData && account && (
+      <GoalProgress key="goalProgress" account={account} progress={overview?.goal_progress} />
+    ),
+    quickActions: () => !zeroData && <TodayQuickActions key="quickActions" onLogTrade={openTrade} />,
+    // The checklist reads the day on the basis the day page reads it on, so it is handed the SAME account and
+    // account id useJ2SelectedAccount gives DayDetailPage: the basis is part of the day detail's cache key.
+    checklistToday: () => !zeroData && (
+      <ChecklistTodayPanel key="checklistToday" account={account} accountId={accountId} />
+    ),
+    myRules: () => !zeroData && <MyRulesPanel key="myRules" account={account} accountId={accountId} />,
+    regime: () => !zeroData && <RegimePanel key="regime" />,
+    todayNote: () => !zeroData && <TodayNotePanel key="todayNote" />,
+    notices: () => !zeroData && <NoticesPanel key="notices" />,
+  }
+
   return (
     <div className={styles.today} data-testid="today-surface">
       {scopeNote}
 
       {lead}
 
-      {/* B2 — the consolidated CoachStrip: folds nudges / interventions /
-          broker-review / unviewed-EOD / discipline-lock into ONE calm,
-          severity-ordered strip. Renders null when there's nothing to show. */}
-      <CoachStrip accountId={accountId} />
-
-      {/* B3 — secondary modules below the lead. Suppressed on the zero-data
-          experience (the guided checklist IS the surface; hero/goals/strip all
-          stay hidden until there's something to show). */}
-      {!zeroData && (
-        <>
-          <TodayWeekStrip />
-          {/* GoalProgress needs a CONCRETE account — hidden on All-Accounts
-              (the all-accounts lead already carries the "pick an account"
-              affordance, so goals aren't a blank here). P0 poller collapse:
-              feed it the goal-progress the overview poll already carries so it
-              drops its own 30s poller (Today lands at ≤4 recurring requests). */}
-          {account && <GoalProgress account={account} progress={overview?.goal_progress} />}
-          <TodayQuickActions onLogTrade={openTrade} />
-        </>
-      )}
+      {panels.map((p) => render[p.id]?.())}
 
       {modal === 'import' && (
         <ImportCsvModal
