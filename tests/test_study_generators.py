@@ -17,7 +17,8 @@ import pytest
 
 from api.services import study_import as si
 from api.services.study_scoring import RISK_CEILING_PCT, size_from_stop
-from scripts.study import _common, gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size, run_all
+from scripts.study import (_common, gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size, gen_walkthroughs,
+                           run_all)
 from scripts.study._common import EM_DASH, dedash
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -27,7 +28,7 @@ ID_RE = re.compile(r"^si_[0-9a-f]{12}$")
 @pytest.fixture(scope="module")
 def segments() -> dict:
     out: dict = {}
-    for mod in (gen_recall, gen_size, gen_fixtures, gen_candles):
+    for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs):
         out.update(mod.generate())
     js = gen_regime.BOTTOMS.read_text(encoding="utf-8")
     out["regime.bottoms"] = gen_regime.bottom_items(gen_regime.read_bottoms(js), gen_regime.read_signposts(js))
@@ -39,7 +40,7 @@ def segments() -> dict:
 def test_every_segment_validates_and_is_non_empty(segments):
     assert set(segments) >= {"recall.glossary", "recall.principles", "recall.bible", "recall.concepts",
                              "recall.playbooks", "size.house_rule", "spot.fixtures", "family.fixtures",
-                             "regime.bottoms", "candles.catalog"}
+                             "regime.bottoms", "candles.catalog", "walk.method"}
     for name, items in segments.items():
         assert items, name
         assert _common.validate(items) == [], name
@@ -56,9 +57,9 @@ def test_every_item_is_a_draft_with_a_citation_and_a_valid_id(segments):
 
 def test_ids_are_deterministic_across_runs(segments):
     again: dict = {}
-    for mod in (gen_recall, gen_size, gen_candles):
+    for mod in (gen_recall, gen_size, gen_candles, gen_walkthroughs):
         again.update(mod.generate())
-    for name in ("recall.glossary", "size.house_rule", "candles.catalog"):
+    for name in ("recall.glossary", "size.house_rule", "candles.catalog", "walk.method"):
         assert [i["id"] for i in segments[name]] == [i["id"] for i in again[name]], name
     assert _common.item_id("ref", "q") == _common.item_id("ref", "q") != _common.item_id("ref", "q2")
 
@@ -132,8 +133,9 @@ def test_playbook_parse_finds_nine_playbooks_with_mistakes_and_stops():
 
 def test_every_glossary_term_gets_two_items_with_distractors_from_siblings(segments):
     g = segments["recall.glossary"]
-    assert len(g) == 2 * len(gen_recall.read_glossary())
-    defs = {dedash(x["definition"]) for x in gen_recall.read_glossary()}
+    quiz = [x for x in gen_recall.read_glossary() if x["term"] not in _common.FRAMING_TERMS]
+    assert len(g) == 2 * len(quiz) == 54                        # 40 terms, 13 framing ones taught instead
+    defs = {dedash(x["definition"]) for x in quiz}
     for it in g:
         assert len(it["prompt_json"]["choices"]) == 4
         if it["prompt_json"]["q"].startswith("At the desk"):
@@ -237,6 +239,93 @@ def test_candle_items_never_key_on_direction(segments):
         assert it["prompt_json"]["subject"]
 
 
+# ── walk-throughs (§13.9 #1): the brief is taught, never quizzed ─────────────
+
+def _method_skills() -> set:
+    out = set()
+    for cur in _common.load_json(REPO / "docs" / "study" / "skill_map.json")["curricula"]:
+        for track in cur["tracks"]:
+            for unit in track["units"]:
+                out |= {s for s in unit.get("skills") or [] if not s.startswith("uct-method:")}
+    return out
+
+
+def test_no_framing_term_is_a_quiz_item(segments):
+    """Owner ruling 2026-10-17: the brief's framing terms teach; gen_recall
+    never keys, quotes or offers one. The set has ONE authority."""
+    framing = _common.FRAMING_TERMS
+    assert framing == set(gen_walkthroughs.TERM_SKILLS) and len(framing) == 13
+    glossary = {g["term"]: g["definition"] for g in gen_recall.read_glossary()}
+    assert framing <= set(glossary)                               # every one is a real brief term
+    framing_defs = {dedash(glossary[t]) for t in framing} | {dedash(t) for t in framing}
+    for name, items in segments.items():
+        if name == "walk.method":
+            continue
+        for it in items:
+            p = it["prompt_json"]
+            assert p.get("subject") not in framing, (name, it["id"])
+            assert it["answer_json"].get("answer") not in framing_defs, (name, it["id"])
+            assert p.get("quote") not in framing_defs, (name, it["id"])
+            assert not (set(p.get("choices") or []) & framing_defs), (name, it["id"])
+    taught = {it["prompt_json"]["q"] for it in segments["walk.method"]}
+    assert framing <= taught and set(gen_walkthroughs.STATIONS) <= taught
+
+
+def test_every_walkthrough_has_two_to_four_short_dedashed_steps_and_the_unscored_shape(segments):
+    items = segments["walk.method"]
+    assert len(items) == 25
+    skills = _method_skills()
+    orders = []
+    for it in items:
+        p = it["prompt_json"]
+        assert it["type"] == "walkthrough" and it["difficulty"] == 1 and it["source_kind"] == "brief"
+        assert it["answer_json"] == {"unscored": True}
+        assert it["source_ref"].startswith("docs/curriculum/uct_method_presenter_brief.json#")
+        assert it["skill_id"] in skills, it["skill_id"]
+        assert 2 <= len(p["steps"]) <= 4, (it["id"], p["steps"])
+        for st in p["steps"]:
+            assert isinstance(st, str) and st.strip() and len(st.split()) <= 22, (it["id"], st)
+            assert EM_DASH not in st and "*" not in st, (it["id"], st)
+            assert si.voice_check(st, lesson=True) == [], (it["id"], st)
+        assert it["lesson_text"] == p["steps"][-1] and it["lesson_origin"] == "source"
+        assert p["subject"] == p["q"] and isinstance(p["order"], int)
+        assert si.walkthrough_check(it) == [] and si.grounding_check(it) == []
+        assert it["reveal_json"]["quote"] and it["reveal_json"]["source"]
+        orders.append(p["order"])
+    assert orders == list(range(1, len(items) + 1))              # play order, unique, ascending
+    # a station chunked into parts keeps its parts contiguous and complete
+    by_q: dict = {}
+    for it in items:
+        p = it["prompt_json"]
+        if p.get("parts"):
+            by_q.setdefault(p["q"], []).append(p["part"])
+    for q, parts in by_q.items():
+        assert parts == list(range(1, len(parts) + 1)), (q, parts)
+    stations = [it["prompt_json"]["q"] for it in items if "station" in it["reveal_json"]]
+    assert [x for i, x in enumerate(stations) if i == 0 or stations[i - 1] != x] == list(gen_walkthroughs.STATIONS)
+
+
+def test_walkthrough_splitting_never_rewrites_a_word():
+    """Every step's words, in order, are the source's words: only a cut
+    separator may be dropped and a first letter raised."""
+    def words(text):
+        return [w.lower() for w in re.findall(r"[^\s,;:·]+", text.replace("(", " (").replace(")", ") "))]   # the cut separators
+    for it in gen_walkthroughs.generate()["walk.method"]:
+        src = dedash(gen_walkthroughs.strip_markdown(it["reveal_json"]["quote"]))
+        steps_words = [w for st in it["prompt_json"]["steps"] for w in words(st)]
+        assert " ".join(steps_words) in " ".join(words(src)), it["id"]
+    assert gen_walkthroughs.chunk_steps(["a.", "b", "c.", "d", "e."]) == [["a.", "b", "c."], ["d", "e."]]
+    assert gen_walkthroughs.chunk_steps(list("abcdefghi")) == [list("abc"), list("def"), list("ghi")]
+    assert gen_walkthroughs.split_steps("One sentence; two halves.") == ["One sentence", "Two halves."]
+    assert gen_walkthroughs.split_steps("Lead in: a, b, c.") == ["Lead in:", "A, b, c."]
+    long = ("Survivors split into an A-list (at the pivot within a day or two, alert armed at the trigger) "
+            "and a B-list (right pattern, needs time).")
+    assert gen_walkthroughs.split_steps(long) == [
+        "Survivors split into an A-list", "(at the pivot within a day or two, alert armed at the trigger)",
+        "And a B-list (right pattern, needs time).",
+    ]
+
+
 # ── the committed bank matches a fresh run ────────────────────────────────────
 
 def test_committed_bank_matches_the_generators(segments):
@@ -250,4 +339,4 @@ def test_committed_bank_matches_the_generators(segments):
 
 
 def test_run_all_lists_every_generator():
-    assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles}
+    assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs}

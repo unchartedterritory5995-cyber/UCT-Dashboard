@@ -1,9 +1,10 @@
 """gen_recall — recall items from the firm's own written sources (spec §6.3
 row 1; §13.3 C19, C20):
 
-  glossary    docs/curriculum/uct_method_presenter_brief.json (40 terms):
-              term → definition and definition → term MCQs, distractors from
-              sibling entries.
+  glossary    docs/curriculum/uct_method_presenter_brief.json (40 terms, minus
+              the 13 FRAMING terms gen_walkthroughs teaches instead): term →
+              definition and definition → term MCQs, distractors from sibling
+              entries.
   principles  api/data/voice_kb/trading_principles.json (36): "which
               principle is this" by title, the text quoted verbatim. C19:
               no number in that file is ever a key.
@@ -31,8 +32,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from scripts.study._common import (REPO, load_json, make_item, quote_lesson, rotate_pick,  # noqa: E402
-                                   shuffled_choices, write_segment)
+from scripts.study._common import (FRAMING_TERMS, REPO, load_json, make_item, quote_lesson,  # noqa: E402
+                                   rotate_pick, shuffled_choices, write_segment)
 
 BRIEF = REPO / "docs" / "curriculum" / "uct_method_presenter_brief.json"
 PRINCIPLES = REPO / "api" / "data" / "voice_kb" / "trading_principles.json"
@@ -142,6 +143,11 @@ def setup_skill(name: str) -> str:
 # ── generators ────────────────────────────────────────────────────────────────
 
 def glossary_items(glossary: list[dict]) -> list[dict]:
+    """Two recall items per glossary term, EXCEPT the framing terms
+    (`_common.FRAMING_TERMS`): those are walk-throughs (gen_walkthroughs),
+    teaching rather than a quiz (owner ruling 2026-10-17), and they feed
+    neither a key nor a distractor here."""
+    glossary = [g for g in glossary if g["term"] not in FRAMING_TERMS]
     out = []
     defs = [g["definition"] for g in glossary]
     terms = [g["term"] for g in glossary]
