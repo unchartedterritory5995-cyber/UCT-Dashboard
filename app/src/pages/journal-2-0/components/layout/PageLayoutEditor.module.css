@@ -1,6 +1,6 @@
 /* The Customize editor (P4a). Breakpoints: only 640 and 1024. Every control reaches var(--tap-min) at <=1024
    (styles/tapFloor.test.js: declared at the touch tier, which covers phone too). */
-.editor { display: flex; flex-direction: column; gap: 12px; }
+.editor { position: relative; display: flex; flex-direction: column; gap: 12px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .tab { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); cursor: pointer; }
 .tab:hover { border-color: var(--accent); }

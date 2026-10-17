@@ -56,6 +56,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
   const [saving, setSaving] = useState(false)
   const rowRefs = useRef({})
   const pendingFocus = useRef(null)
+  const savingRef = useRef(false)               // read by the dismiss paths, which can fire between a press and a render
 
   const rows = resolvePanels(draft, page, phase)
 
@@ -76,6 +77,12 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
     target.focus()
   })
 
+  // ⛔ While a save is in flight NOTHING dismisses the sheet: Cancel is disabled, and Escape, the title bar's close
+  //    button and a drag all arrive here (Sheet has no way to block dismissal, so the guard lives in the handler).
+  //    Closing mid-save would unmount the editor before it learned whether the write took, losing the failure
+  //    line and the member's draft. The save path itself closes through `onClose` directly, once it has an answer.
+  const dismiss = () => { if (savingRef.current) return; onClose() }
+
   const say = (text) => { setMoved(text); setTick((t) => t + 1) }
 
   const move = (row, dir) => {
@@ -92,7 +99,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
   const save = async () => {
     const edits = changedLists(page, draft, baseline)
     if (!edits.length) { onClose(); return }
-    setSaving(true); setError('')
+    setSaving(true); savingRef.current = true; setError('')
     let ok = false
     try {
       const answer = await setPrefMerged(LAYOUT_PREF, (prev) => withLists(normalizeLayout(prev), page, edits))
@@ -101,6 +108,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
       ok = false
     }
     if (ok) { onSaved?.(); onClose(); return }
+    savingRef.current = false
     setSaving(false)
     setError(SAVE_FAILED)
     refreshPreferences()
@@ -122,7 +130,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={reset} disabled={saving}>Reset to default</button>
         <span className={styles.spacer} />
-        <button type="button" className={styles.btn} onClick={onClose}>Cancel</button>
+        <button type="button" className={styles.btn} onClick={dismiss} disabled={saving}>Cancel</button>
         <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -131,7 +139,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
   )
 
   return (
-    <Sheet open onClose={onClose} title={TITLES[page]} footer={footer} dismissOnBackdrop={false} maxWidth={520} labelledByTitle>
+    <Sheet open onClose={dismiss} title={TITLES[page]} footer={footer} dismissOnBackdrop={false} maxWidth={520} labelledByTitle>
       <div className={styles.editor}>
         {tabs}
         <p className={styles.hint}>

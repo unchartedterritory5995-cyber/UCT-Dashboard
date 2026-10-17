@@ -184,6 +184,15 @@ describe('editing the list', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Move This week down' }))
   })
 
+  it('when a move brings the row to the bottom, focus goes to its Move up button', () => {
+    open()
+    // Today's note is second from last: Move down puts it last, where Move down is disabled.
+    fireEvent.click(screen.getByRole('button', { name: "Move Today's note down" }))
+    expect(rowNames()[rowNames().length - 1]).toBe("Show Today's note")
+    expect(screen.getByRole('button', { name: "Move Today's note down" }).disabled).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: "Move Today's note up" }))
+  })
+
   it('the first row cannot move up and the last row cannot move down', () => {
     open()
     expect(screen.getByRole('button', { name: 'Move Coach notes up' }).disabled).toBe(true)
@@ -370,6 +379,71 @@ describe('Reset to default and Cancel', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onSaved).not.toHaveBeenCalled()
     expect(posts).toHaveLength(0)
+  })
+})
+
+describe('Escape, and a save in flight', () => {
+  it('Escape closes the sheet and writes nothing, even after an edit', () => {
+    const { onClose, onSaved } = open()
+    fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(posts).toHaveLength(0)
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  // A write that has not answered yet: the test settles it by hand.
+  function holdTheWrite() {
+    let settle
+    mergedRef.impl = (key, updater) => new Promise((resolve) => {
+      settle = (answer) => {
+        if (answer.ok) posts.push({ key, value: JSON.parse(JSON.stringify(updater(JSON.parse(prefsRef.current[key])))) })
+        resolve(answer)
+      }
+    })
+    return (answer) => settle(answer)
+  }
+
+  it('while the save is in flight Cancel is disabled', () => {
+    holdTheWrite()
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
+    expect(screen.getByRole('button', { name: 'Cancel' }).disabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('button', { name: 'Cancel' }).disabled).toBe(true)
+  })
+
+  it('a close attempt during the save (Cancel, Escape, the title close button) does nothing', async () => {
+    const settle = holdTheWrite()
+    const { onClose, onSaved } = open()
+    fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+
+    // The save still finishes the normal way: one close, one "saved".
+    settle({ ok: true })
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(posts).toHaveLength(1)
+  })
+
+  it('after a FAILED save the sheet can be dismissed again', async () => {
+    const settle = holdTheWrite()
+    const { onClose } = open()
+    fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    settle({ ok: false })
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: 'Cancel' }).disabled).toBe(false)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
 
