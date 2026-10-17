@@ -265,6 +265,10 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
     "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
+    # P4a (page layouts): the Customize button on Today and the trade page, and reading a saved
+    # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
+    # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

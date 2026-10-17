@@ -273,6 +273,10 @@ NOT_REHEARSED = {
                                           "pass, its bell, card and prefill; evidence is a run-ledger "
                                           "row and a delivered notice (the fin walk's followup group); "
                                           "waits for the owner's arming (docs/notebook/t2b-arming.md)",
+    # Journal P4a. A layout editor and a saved layout, not a page read this tool can switch.
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": "dark (P4a): the Customize button on Today and the trade page and "
+                                    "reading a saved layout; off, both pages render their fixed layout; "
+                                    "no rendered on/off probe in this tool; waits for the owner's arming",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
