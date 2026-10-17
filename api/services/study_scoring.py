@@ -18,6 +18,7 @@ The dispatcher `score(item_type, answer, key)` picks the rule by item type:
   tap                                  → the tap lands in the hit region
   plan                                 → rule checks (regime first, stop before
                                           size, risk ≤ 2%, R:R ≥ 2)
+  walkthrough                          → UNSCORED: ok, score None (§13.9 #1)
 """
 from __future__ import annotations
 
@@ -34,8 +35,23 @@ SIZE_DOLLAR_TOL = 1.0
 
 class Verdict(NamedTuple):
     correct: bool
-    score: float          # 0..1
-    detail: dict          # per-part results the reveal can show
+    score: Optional[float]   # 0..1; None when `unscored`
+    detail: dict             # per-part results the reveal can show
+    unscored: bool = False   # a walk-through: seen, never graded (§13.9 #1)
+
+
+def score_walkthrough(answer: Any, key: Any) -> Verdict:
+    """walkthrough (§13.9 #1, VOICE.md §4 "A walk-through"): 2-4 sentences the
+    member taps through; there is nothing to grade. Always ok, score None,
+    `unscored=True`. The detail records how many steps the member saw so the
+    attempt row is a record of reading, not a mark."""
+    a = answer if isinstance(answer, dict) else {}
+    seen = a.get("seen")
+    try:
+        seen_i: Optional[int] = int(seen) if seen is not None else None
+    except (TypeError, ValueError):
+        seen_i = None
+    return Verdict(True, None, {"seen": seen_i, "unscored": True}, True)
 
 
 def _norm(v: Any) -> str:
@@ -301,6 +317,8 @@ def score(item_type: str, answer: Any, key: Any) -> Verdict:
     """Route by item type. Unknown types fall back to exact match so a new
     type never scores everything wrong silently — but tests pin the roster."""
     t = (item_type or "").strip().lower()
+    if t == "walkthrough":
+        return score_walkthrough(answer, key)
     if t == "match":
         return score_match(answer, key)
     if t == "size":

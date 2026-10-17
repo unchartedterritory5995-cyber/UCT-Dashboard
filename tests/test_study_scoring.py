@@ -157,3 +157,20 @@ def test_plan_each_rule_fails_on_its_own():
 
 def test_dispatcher_unknown_type_falls_back_to_exact():
     assert sc.score("mystery", "x", {"answer": "x"}).correct
+
+
+# ── walkthrough: seen, never graded (§13.9 #1) ────────────────────────────────
+
+def test_walkthrough_is_unscored_ok_with_a_null_score():
+    v = sc.score("walkthrough", {"seen": 3}, {"unscored": True})
+    assert v.correct is True and v.score is None and v.unscored is True
+    assert v.detail == {"seen": 3, "unscored": True}
+    assert sc.score("WALKTHROUGH", None, None) == sc.Verdict(True, None, {"seen": None, "unscored": True}, True)
+    assert sc.score("walkthrough", {"seen": "junk"}, {}).detail["seen"] is None
+
+
+def test_every_other_verdict_is_scored_by_default():
+    for t in ("recall", "size", "levels", "next", "tap", "plan", "match", "autopsy", "bogus"):
+        v = sc.score(t, None, {"answer": "a"})
+        assert v.unscored is False and isinstance(v.score, float), t
+    assert sc.Verdict._field_defaults == {"unscored": False}

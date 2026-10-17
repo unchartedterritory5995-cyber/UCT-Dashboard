@@ -135,3 +135,51 @@ def test_defaults_point_at_the_store(monkeypatch):
 @pytest.mark.parametrize("n", [1, 3, 7, 10, 15])
 def test_set_size_is_honoured(n):
     assert len(_compose(n=n)) == n
+
+
+# ── walk-throughs: never in the daily set, first in a unit (§13.9 #1) ────────
+
+def _bank_with_walks():
+    rows = _bank()
+    for i in range(4):
+        rows.append({"id": f"wk{i}", "type": "walkthrough", "skill_id": "m2.regime", "difficulty": 1,
+                     "has_chart": False})
+    return rows
+
+
+def test_compose_today_never_selects_a_walkthrough_even_when_due_or_weak():
+    due = [{"id": "wk0", "type": "walkthrough", "skill_id": "m2.regime", "has_chart": False},
+           {"id": "rec0", "type": "recall", "skill_id": "f1.basics", "has_chart": False}]
+    for seed in range(40):
+        ids = sel.compose_today("u1", _bank_with_walks, due_fn=lambda u, n: due, missed_fn=lambda u: {"wk1"},
+                                weak_fn=lambda u: {"m2.regime"}, rng=random.Random(seed))
+        assert len(ids) == 10 and not any(i.startswith("wk") for i in ids), ids
+        assert ids[0] == "rec0"
+    assert sel.UNSCORED_TYPES == ("walkthrough",) and sel.MAX_WALKTHROUGHS == 3
+
+
+def test_compose_unit_puts_the_walkthroughs_first_capped_at_three_then_the_scored_set():
+    walks = [{"id": "wk2", "order": 1}, {"id": "wk0", "order": 2}, {"id": "wk3", "order": 2}, {"id": "wk1", "order": 9}]
+    ids = sel.compose_unit("u1", "m2.regime", _bank_with_walks, walkthrough_query=lambda s: walks, n=5,
+                           due_fn=lambda u, n: [{"id": "rec0", "type": "recall", "skill_id": "f1.basics", "has_chart": False}],
+                           missed_fn=lambda u: set(), weak_fn=lambda u: set(), rng=random.Random(3))
+    assert ids[:3] == ["wk2", "wk0", "wk3"]            # the store's order, never re-sorted here
+    assert len(ids) == 8 and len(set(ids)) == 8
+    assert "wk1" not in ids and "rec0" not in ids       # cap of three; a unit has no due slots
+    assert not any(i.startswith("wk") for i in ids[3:])
+    # no walk-throughs: a plain scored set
+    plain = sel.compose_unit("u1", "x", _bank_with_walks, walkthrough_query=lambda s: [], n=4,
+                             due_fn=lambda u, n: [], missed_fn=lambda u: set(), weak_fn=lambda u: set(),
+                             rng=random.Random(1))
+    assert len(plain) == 4 and not any(i.startswith("wk") for i in plain)
+
+
+def test_compose_unit_defaults_to_the_stores_walkthrough_list(monkeypatch):
+    from api.services import study_store
+    seen = []
+    monkeypatch.setattr(study_store, "list_walkthroughs", lambda s: seen.append(s) or [{"id": "w1", "order": 1}])
+    monkeypatch.setattr(study_store, "list_due", lambda u, n: [])
+    monkeypatch.setattr(study_store, "missed_item_ids", lambda u: set())
+    monkeypatch.setattr(study_store, "weak_skill_ids", lambda u: set())
+    ids = sel.compose_unit("u1", "regime.bands", _bank, n=2, rng=random.Random(0))
+    assert seen == ["regime.bands"] and ids[0] == "w1" and len(ids) == 3

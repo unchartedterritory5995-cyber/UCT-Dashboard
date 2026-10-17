@@ -359,3 +359,76 @@ def test_import_path_never_touches_bars_fetch():
     assert "bars_fetch" not in src
     assert "get_bars_before" in inspect.getsource(study_router.resolve_bars)
     assert "get_bars_since" not in src and "get_bars(" not in src
+
+
+# ── walk-throughs (§13.9 #1): unit sessions and the seen attempt ─────────────
+
+def _seed_walks(store):
+    walks = [
+        {"id": "si_walk_b", "type": "walkthrough", "skill_id": "setup.vcp", "difficulty": 1,
+         "prompt_json": {"q": "VCP", "order": 2, "steps": ["Three pullbacks, each one smaller.", "Volume dries up on the last one."]},
+         "answer_json": {"unscored": True}, "source_kind": "brief", "source_ref": "brief#1", "lesson_text": "That is the tell."},
+        {"id": "si_walk_a", "type": "walkthrough", "skill_id": "setup.vcp", "difficulty": 1,
+         "prompt_json": {"q": "VCP", "order": 1, "steps": ["Here is the base.", "It tightens to the right."]},
+         "answer_json": {"unscored": True}, "source_kind": "brief", "source_ref": "brief#2", "lesson_text": "It tightens to the right."},
+        {"id": "si_walk_c", "type": "walkthrough", "skill_id": "setup.vcp", "difficulty": 1,
+         "prompt_json": {"q": "VCP", "order": 2, "steps": ["The pivot is the last high.", "Buy it there, not above."]},
+         "answer_json": {"unscored": True}, "source_kind": "brief", "source_ref": "brief#3", "lesson_text": "Buy it there, not above."},
+        {"id": "si_walk_d", "type": "walkthrough", "skill_id": "setup.vcp", "difficulty": 1,
+         "prompt_json": {"q": "VCP", "order": 3, "steps": ["A fourth one.", "Never served: the cap is three."]},
+         "answer_json": {"unscored": True}, "source_kind": "brief", "source_ref": "brief#4", "lesson_text": "A fourth one."},
+    ]
+    store.upsert_items(walks)
+    for w in walks:
+        store.approve(w["id"], "owner")
+    return walks
+
+
+def test_unit_session_serves_the_walkthroughs_first_in_order_then_the_scored_items(paid_client, store):
+    _seed(store)
+    _seed_walks(store)
+    r = paid_client.post("/api/study/sessions", json={"kind": "unit", "skill_id": "setup.vcp"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    ids = [i["id"] for i in body["items"]]
+    assert ids[:3] == ["si_walk_a", "si_walk_b", "si_walk_c"]       # order 1, then order 2 by id; the 4th is capped
+    assert set(ids[3:]) == {"si_spot1", "si_spot2"} and body["kind"] == "unit"
+    first = body["items"][0]
+    assert first["prompt_json"]["steps"] == ["Here is the base.", "It tightens to the right."]
+    assert "answer_json" not in first and "lesson_text" not in first
+    # GET /items/{id} serves the steps too
+    assert paid_client.get("/api/study/items/si_walk_a").json()["prompt_json"]["steps"][0] == "Here is the base."
+    # a unit needs a skill
+    assert paid_client.post("/api/study/sessions", json={"kind": "unit"}).status_code == 400
+
+
+def test_daily_skill_and_free_sets_never_carry_a_walkthrough(paid_client, store):
+    _seed(store)
+    _seed_walks(store)
+    today = paid_client.get("/api/study/today").json()
+    assert not any(i["type"] == "walkthrough" for i in today["items"]) and len(today["items"]) == 5
+    for kind in ("skill", "free", "refresher"):
+        s = paid_client.post("/api/study/sessions", json={"kind": kind, "skill_id": "setup.vcp"}).json()
+        assert {i["id"] for i in s["items"]} == {"si_spot1", "si_spot2"}, kind
+
+
+def test_walkthrough_attempt_is_seen_on_the_wire_no_xp_no_score(paid_client, store):
+    _seed(store)
+    _seed_walks(store)
+    sess = paid_client.post("/api/study/sessions", json={"kind": "unit", "skill_id": "setup.vcp"}).json()
+    r = paid_client.post("/api/study/attempts", json={"item_id": "si_walk_a", "answer": {"seen": 2},
+                                                     "session_id": sess["session_id"], "time_ms": 3100})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["unscored"] is True and body["correct"] is True and body["score"] is None
+    assert body["progress"]["xp_gained"] == 0 and body["progress"]["due_at"] is None
+    assert body["progress"]["weekly_xp"] == 0 and body["progress"]["streak"] == 0
+    assert body["reveal"]["detail"] == {"seen": 2, "unscored": True}
+    assert body["reveal"]["lesson"] == "It tightens to the right." and "forward_bars" not in body["reveal"]
+    assert body["skill"] == {"skill_id": "setup.vcp", "mastery": 0.0, "band": "learning", "reps": 0}
+    # the board never saw it
+    assert paid_client.get("/api/study/leaderboard").json()["you"] is None
+    # a scored answer in the same session still pays as before
+    s = paid_client.post("/api/study/attempts", json={"item_id": "si_spot1", "answer": "yes",
+                                                     "session_id": sess["session_id"]}).json()
+    assert s["unscored"] is False and s["progress"]["xp_gained"] == 30 and s["score"] == 1.0

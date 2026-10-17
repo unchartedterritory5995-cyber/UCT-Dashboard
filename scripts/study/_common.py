@@ -37,7 +37,17 @@ BANK_DIR = REPO / "docs" / "study" / "bank"
 SPEC = "docs/superpowers/specs/2026-10-17-desk-practice-interactive-education-design.md"
 
 ITEM_TYPES = ("recall", "match", "spot", "size", "regime", "call_scan", "grade", "levels", "next",
-              "family", "call_archive", "listen", "autopsy", "plan", "tap", "scenario")
+              "family", "call_archive", "listen", "autopsy", "plan", "tap", "scenario", "walkthrough")
+#: The Presenter's Brief glossary terms that FRAME the course (the loop, the
+#: card, the gates, the contracts) rather than name a market thing. Owner
+#: ruling 2026-10-17: the brief is teaching, not a quiz, so these are
+#: walk-throughs (gen_walkthroughs) and NEVER recall items (gen_recall skips
+#: them). ONE authority; both generators and the generator test read it here.
+FRAMING_TERMS = frozenset((
+    "THE LOOP", "Permission band", "Five-field card", "The four entry triggers", "Setup families",
+    "The regime × grade table", "The sizing gate", "Specialization contract", "Playbook defense",
+    "Field week", "Drawdown protocol", "Progressive exposure", "A-list / B-list",
+))
 FAMILIES = ("Bases & Breakouts", "Momentum & Trend", "Gaps & Catalysts", "Reversals & Reclaims", "Intraday")
 WIRE_WORDS = ("Aggressive", "Constructive", "Neutral", "Caution", "Defensive")
 EM_DASH = "—"
@@ -234,6 +244,8 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
                 problems.append(f"{iid}: voice ({field}): {v}")
         for tok in study_import.grounding_check(it):
             problems.append(f"{iid}: ungrounded number {tok}")
+        for v in study_import.walkthrough_check(it):
+            problems.append(f"{iid}: {v}")
     # the near-duplicate diff within the segment (§6.2 step 3), so a
     # generator cannot ask the same thing twice under one skill
     by_skill: dict = {}

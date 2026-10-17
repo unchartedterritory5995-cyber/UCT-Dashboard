@@ -17,7 +17,12 @@
   assign_review_lane(item)     deterministic (sizing arithmetic, verbatim keys)
                                · fast (agreeing provenance signals) · second_look
                                (disagreeing signals, expired / undecided
-                               outcomes) · manual (everything else).
+                               outcomes) · manual (everything else, and every
+                               walk-through).
+  walkthrough_check(item)      a walk-through's `prompt_json.steps` is 2-4
+                               strings of at most 22 words (§13.9 #1); each
+                               step is also a lesson sentence to the voice
+                               and grounding checks (via `lesson_texts`).
 
 Why the grounding corpus is answer_json + reveal_json and NOT prompt_json:
 §8.1 names those two. A lesson that restates a prompt number must carry that
@@ -184,10 +189,24 @@ def question_text(item: dict) -> str:
     return ""
 
 
+def walkthrough_steps(item: dict) -> list[str]:
+    """`prompt_json.steps` of a walk-through item as strings ([] otherwise)."""
+    if str(item.get("type") or "") != "walkthrough":
+        return []
+    p = _as_dict(item.get("prompt_json"))
+    steps = p.get("steps")
+    return [str(s) for s in steps] if isinstance(steps, list) else []
+
+
 def lesson_texts(item: dict) -> list[tuple[str, str]]:
-    """(field, text) for every prose field the checks run on: lesson_text and
-    the reveal's prose keys."""
+    """(field, text) for every prose field the checks run on: lesson_text,
+    the reveal's prose keys, and (a walk-through) every step the member
+    reads — each step is a lesson sentence, so the lesson rules and the
+    number grounding apply to it as they do to lesson_text."""
     out: list[tuple[str, str]] = []
+    for i, s in enumerate(walkthrough_steps(item)):
+        if s.strip():
+            out.append((f"prompt_json.steps[{i}]", s))
     lt = item.get("lesson_text")
     if isinstance(lt, str) and lt.strip():
         out.append(("lesson_text", lt))
@@ -252,15 +271,48 @@ def voice_check(text: str, *, question: bool = False, lesson: bool = False) -> l
 
 def dedup_text(item: dict) -> str:
     """What the near-duplicate diff compares by Jaccard: the question, the
-    quoted source text the member reads under it, and the choices. The
-    chart's identity is a HARD key (`chart_key`), not a token."""
+    quoted source text the member reads under it, the choices, and (a
+    walk-through) the steps. The chart's identity is a HARD key
+    (`chart_key`), not a token."""
     p = _as_dict(item.get("prompt_json"))
     parts = [question_text(item)]
     if isinstance(p.get("quote"), str):
         parts.append(p["quote"])
     for c in p.get("choices") or []:
         parts.append(str(c))
+    parts.extend(walkthrough_steps(item))
     return " ".join(parts)
+
+
+WALKTHROUGH_MIN_STEPS = 2
+WALKTHROUGH_MAX_STEPS = 4
+WALKTHROUGH_MAX_STEP_WORDS = MAX_QUESTION_SENTENCE_WORDS
+
+
+def walkthrough_check(item: dict) -> list[str]:
+    """The walk-through SHAPE (§13.9 #1, VOICE.md §4): `prompt_json.steps` is
+    a list of 2-4 strings, none over 22 words, none blank. Empty = pass, and
+    [] for any other type. A walk-through with no steps is flagged here and
+    the router stores it as a draft with that flag (nothing is dropped). The
+    voice rules and the number grounding on each step run through
+    `lesson_texts`, not here."""
+    if str(item.get("type") or "") != "walkthrough":
+        return []
+    p = _as_dict(item.get("prompt_json"))
+    steps = p.get("steps")
+    if not isinstance(steps, list) or not steps:
+        return ["walkthrough has no steps"]
+    out: list[str] = []
+    if len(steps) < WALKTHROUGH_MIN_STEPS or len(steps) > WALKTHROUGH_MAX_STEPS:
+        out.append(f"walkthrough needs {WALKTHROUGH_MIN_STEPS}-{WALKTHROUGH_MAX_STEPS} steps ({len(steps)})")
+    for i, s in enumerate(steps):
+        if not isinstance(s, str) or not s.strip():
+            out.append(f"walkthrough step {i} is blank")
+            continue
+        n = len(s.split())
+        if n > WALKTHROUGH_MAX_STEP_WORDS:
+            out.append(f"walkthrough step {i} over {WALKTHROUGH_MAX_STEP_WORDS} words ({n})")
+    return out
 
 
 def subject_key(item: dict) -> str:
@@ -356,6 +408,8 @@ def assign_review_lane(item: dict) -> str:
     """
     t = str(item.get("type") or "")
     r = _as_dict(item.get("reveal_json"))
+    if t == "walkthrough":
+        return "manual"                  # teaching copy: the owner reads every one
     if t == "size":
         return "deterministic"
     if t == "recall" and r.get("quote") and str(item.get("source_kind") or "") in VERBATIM_SOURCE_KINDS:
@@ -383,6 +437,7 @@ def check_item(item: dict, bank: Iterable[dict] = ()) -> dict:
     for field, text in lesson_texts(item):
         for v in voice_check(text, lesson=True):
             flags.append(f"voice ({field}): {v}")
+    flags.extend(walkthrough_check(item))
     dup = near_duplicate(item, bank)
     if dup:
         flags.append(f"near-duplicate of {dup['id']} ({dup['score']})")

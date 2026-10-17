@@ -448,3 +448,98 @@ def test_badges_and_checkpoints(store):
     cid = store.record_checkpoint("u1", "M5", True, 1.0)
     with contextlib.closing(_conn(store)) as c:
         assert c.execute("SELECT attempt_no FROM study_checkpoints WHERE id=?", (cid,)).fetchone()[0] == 2
+
+
+# ── walk-throughs (§13.9 #1): seen, never graded ─────────────────────────────
+
+def _walk(iid="si_000000000009", **over):
+    base = _item(iid, type="walkthrough", skill_id="regime.bands", difficulty=1,
+                 prompt_json={"q": "Regime", "order": 2, "steps": ["The score maps to a band.", "A band is permission."]},
+                 answer_json={"unscored": True}, source_kind="brief", lesson_text="A band is permission.")
+    base.update(over)
+    return base
+
+
+def test_item_type_rosters_agree_and_carry_walkthrough():
+    from scripts.study import _common
+    assert "walkthrough" in ss.ITEM_TYPES
+    assert tuple(_common.ITEM_TYPES) == tuple(ss.ITEM_TYPES)
+    assert set(ss.UNSCORED_TYPES) <= set(ss.ITEM_TYPES) and "walkthrough" in ss.UNSCORED_TYPES
+
+
+def test_attempts_schema_carries_scored_and_an_older_db_gains_it(store):
+    with contextlib.closing(_conn(store)) as c:
+        assert "scored" in {r[1] for r in c.execute("PRAGMA table_info(study_attempts)")}
+        c.execute("ALTER TABLE study_attempts DROP COLUMN scored")
+        c.commit()
+    store.init_db()
+    with contextlib.closing(_conn(store)) as c:
+        assert "scored" in {r[1] for r in c.execute("PRAGMA table_info(study_attempts)")}
+
+
+def test_walkthrough_attempt_is_recorded_as_seen_and_moves_nothing(store):
+    store.upsert_items([_walk(), _item()])
+    store.approve("si_000000000009", "owner")
+    store.approve("si_000000000001", "owner")
+    # a real answer first, so the profile / skill / weekly rows exist to compare against
+    before = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, session_id="ss_u", now=T0)
+    r = store.record_attempt("u1", "si_000000000009", {"seen": 2}, True, None, time_ms=4000,
+                             session_id="ss_u", now=T0, unscored=True)
+    assert r["unscored"] is True and r["xp_gained"] == 0 and r["due_at"] is None
+    assert r["xp"] == before["xp"] and r["level"] == before["level"]
+    assert r["streak"] == before["streak"] and r["weekly_xp"] == before["weekly_xp"]
+    assert r["skill"] == {"skill_id": "regime.bands", "mastery": 0.0, "band": "learning", "reps": 0}
+    with contextlib.closing(_conn(store)) as c:
+        row = c.execute("SELECT correct, score, scored, due_at, answer_json FROM study_attempts WHERE id=?",
+                        (r["attempt_id"],)).fetchone()
+        assert tuple(row) == (1, 0.0, 0, None, '{"seen":2}')
+        assert c.execute("SELECT COUNT(*) FROM study_item_state WHERE item_id='si_000000000009'").fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM study_skill WHERE skill_id='regime.bands'").fetchone()[0] == 0
+        assert c.execute("SELECT xp FROM study_profile WHERE user_id='u1'").fetchone()[0] == before["xp"]
+        assert c.execute("SELECT xp FROM study_weekly_xp WHERE user_id='u1'").fetchone()[0] == before["weekly_xp"]
+    # it counts as answered for a resume, is never due, never missed, never on the board
+    assert store.answered_item_ids("u1", "ss_u") == ["si_000000000001", "si_000000000009"]
+    assert all(d["id"] != "si_000000000009" for d in store.list_due("u1", 3, now=T0 + timedelta(days=40)))
+    assert "si_000000000009" not in store.missed_item_ids("u1")
+    week = store.week_of(store.et_day_of(T0))
+    assert store.leaderboard(week, user_id="u1")["you"]["xp"] == before["weekly_xp"]
+
+
+def test_an_unscored_type_is_never_graded_even_when_the_caller_scores_it(store):
+    """The type decides: a scorer fallback passing correct=True, score=1.0 for
+    a walk-through still writes a seen row and grants nothing."""
+    store.upsert_items([_walk()])
+    store.approve("si_000000000009", "owner")
+    r = store.record_attempt("u1", "si_000000000009", {"seen": 2}, True, 1.0, now=T0)
+    assert r["unscored"] is True and r["xp_gained"] == 0
+    with contextlib.closing(_conn(store)) as c:
+        assert tuple(c.execute("SELECT scored, score FROM study_attempts").fetchone()) == (0, 0.0)
+        assert c.execute("SELECT COUNT(*) FROM study_weekly_xp").fetchone()[0] == 0
+
+
+def test_seen_rows_never_enter_mastery(store):
+    """A seen row carries score 0; if it reached the skill's mastery average
+    it would drag a perfect member down. The mastery query keeps scored=1."""
+    store.upsert_items([_walk(skill_id="f1.basics"), _item()])
+    store.approve("si_000000000009", "owner")
+    store.approve("si_000000000001", "owner")
+    store.record_attempt("u1", "si_000000000009", {"seen": 2}, True, None, now=T0, unscored=True)
+    r = store.record_attempt("u1", "si_000000000001", "a", True, 1.0, now=T0)
+    assert r["skill"]["mastery"] == 100.0 and r["skill"]["reps"] == 1
+
+
+def test_list_walkthroughs_orders_by_prompt_order_then_id_and_serves_only_approved(store):
+    store.upsert_items([
+        _walk("si_000000000011", prompt_json={"q": "A", "order": 3, "steps": ["x y.", "z w."]}),
+        _walk("si_000000000012", prompt_json={"q": "B", "order": 1, "steps": ["x y.", "z w."]}),
+        _walk("si_000000000013", prompt_json={"q": "C", "steps": ["x y.", "z w."]}),          # no order: last
+        _walk("si_000000000010", prompt_json={"q": "D", "order": 1, "steps": ["x y.", "z w."]}),
+        _walk("si_000000000014", prompt_json={"q": "E", "order": 0, "steps": ["x y.", "z w."]}), # a draft
+        _item("si_000000000015", skill_id="regime.bands"),                                      # scored: not listed
+    ])
+    for iid in ("si_000000000011", "si_000000000012", "si_000000000013", "si_000000000010", "si_000000000015"):
+        store.approve(iid, "owner")
+    out = store.list_walkthroughs("regime.bands")
+    assert [r["id"] for r in out] == ["si_000000000010", "si_000000000012", "si_000000000011", "si_000000000013"]
+    assert out[0] == {"id": "si_000000000010", "order": 1}
+    assert store.list_walkthroughs("other.skill") == []

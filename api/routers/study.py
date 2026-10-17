@@ -3,7 +3,8 @@ T11/T17, §13.7 D6/D7/D18, §8).
 
   GET  /api/study/map                     skill map (docs/study/skill_map.json) + the member's bands
   GET  /api/study/today                   Today's Study, created lazily; prompts + visible bars inline
-  POST /api/study/sessions                {kind, skill_id} → a practice/skill/checkpoint/refresher set
+  POST /api/study/sessions                {kind, skill_id} → a practice/skill/checkpoint/refresher set;
+                                          kind 'unit' = the skill's walk-throughs first (max 3), then scored
   GET  /api/study/items/{id}              prompt only
   GET  /api/study/items/{id}/bars         visible bars; "symbol" is the item id
   POST /api/study/attempts                scores server-side; returns correct/score/reveal (+forward bars)
@@ -208,8 +209,10 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     uid = user["id"]
     if body.kind == "daily":
         return get_today(user)
-    if body.kind not in ("skill", "checkpoint", "refresher", "free"):
-        raise HTTPException(status_code=400, detail="kind must be daily|skill|checkpoint|refresher|free")
+    if body.kind not in ("skill", "checkpoint", "refresher", "free", "unit"):
+        raise HTTPException(status_code=400, detail="kind must be daily|skill|checkpoint|refresher|free|unit")
+    if body.kind == "unit" and not body.skill_id:
+        raise HTTPException(status_code=400, detail="a unit session needs a skill_id")
     n = max(1, min(30, int(body.size or study_select.SET_SIZE)))
 
     def bank():
@@ -218,8 +221,13 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
             rows = [r for r in rows if r["skill_id"] == body.skill_id]
         return rows
 
-    due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
-    ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
+    if body.kind == "unit":
+        # §13.9 #1: the unit's walk-throughs first (max 3, prompt_json.order
+        # then id), then the scored items as today composes them.
+        ids = study_select.compose_unit(uid, body.skill_id, bank, n=n)
+    else:
+        due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
+        ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
     session = study_store.create_session(uid, body.kind, ids, skill_id=body.skill_id)
     return _set_payload(uid, session)
 
@@ -252,15 +260,18 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     verdict = study_scoring.score(item["type"], body.answer, item.get("answer_json"))
     result = study_store.record_attempt(
         uid, item["id"], body.answer, verdict.correct, verdict.score,
-        time_ms=body.time_ms, session_id=body.session_id)
+        time_ms=body.time_ms, session_id=body.session_id, unscored=verdict.unscored)
     reveal = study_store.reveal_for(item)
     reveal["detail"] = verdict.detail
     if item.get("bars_ref") or item["type"] in _CHART_REVEAL_TYPES:
         fwd = study_store.get_forward_bars(item["id"])
         reveal["forward_bars"] = fwd[:REVEAL_FORWARD_BARS]
         reveal["forward_total"] = len(fwd)
+    # A walk-through (§13.9 #1) is recorded as seen: `unscored` true, `score`
+    # null, XP 0, and the player skips the reveal card on this flag.
     return {"attempt_id": result["attempt_id"], "item_id": item["id"],
-            "correct": verdict.correct, "score": verdict.score, "reveal": reveal,
+            "correct": verdict.correct, "score": verdict.score,
+            "unscored": bool(result.get("unscored")), "reveal": reveal,
             "progress": {k: result[k] for k in ("xp_gained", "xp", "level", "streak",
                                                 "streak_best", "due_at", "weekly_xp",
                                                 "daily_done")},

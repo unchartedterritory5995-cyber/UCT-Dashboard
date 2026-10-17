@@ -66,7 +66,12 @@ BANDS = ("learning", "practised", "proficient")
 #: composer uses `bars_ref` itself; this is the documented vocabulary (§6.1).
 ITEM_TYPES = ("recall", "match", "spot", "size", "regime", "call_scan", "grade",
               "levels", "next", "family", "call_archive", "listen", "autopsy",
-              "plan", "tap", "scenario")
+              "plan", "tap", "scenario", "walkthrough")
+#: Types that are TEACHING, not a quiz (§13.9 #1, owner ruling 2026-10-17: the
+#: Presenter's Brief is "more of a teach vs a quiz item"). An attempt on one is
+#: recorded as SEEN (`scored=0`): no XP, no due ladder, no mastery, no streak,
+#: no leaderboard. `scripts/study/_common.py` pins its roster to this one.
+UNSCORED_TYPES = ("walkthrough",)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS study_items (
@@ -149,7 +154,8 @@ CREATE TABLE IF NOT EXISTS study_attempts (
   score        REAL NOT NULL DEFAULT 0,
   time_ms      INTEGER,
   session_id   TEXT,
-  due_at       TEXT                                  -- P1: when this item comes back
+  due_at       TEXT,                                 -- P1: when this item comes back
+  scored       INTEGER NOT NULL DEFAULT 1            -- 0 = a walk-through seen, never a grade
 );
 CREATE INDEX IF NOT EXISTS idx_study_attempts_user_item ON study_attempts(user_id, item_id, id);
 CREATE INDEX IF NOT EXISTS idx_study_attempts_session ON study_attempts(session_id, id);
@@ -204,7 +210,7 @@ CREATE TABLE IF NOT EXISTS study_profile (
 CREATE TABLE IF NOT EXISTS study_sessions (
   id            TEXT PRIMARY KEY,
   user_id       TEXT NOT NULL,
-  kind          TEXT NOT NULL,                       -- daily | skill | checkpoint | refresher | free
+  kind          TEXT NOT NULL,                       -- daily | skill | checkpoint | refresher | free | unit
   skill_id      TEXT,
   day_et        TEXT,                                -- daily sessions: the ET day they belong to
   created_at    TEXT NOT NULL,
@@ -269,6 +275,7 @@ CREATE TABLE IF NOT EXISTS study_weekly_close (
 _ALTERS = (
     ("study_items", "import_flags", "TEXT"),
     ("study_profile", "reminder_tz", "TEXT"),
+    ("study_attempts", "scored", "INTEGER NOT NULL DEFAULT 1"),
 )
 
 _ITEM_CONTENT_FIELDS = (
@@ -547,6 +554,32 @@ def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] =
             for r in rows]
 
 
+def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[dict]:
+    """The unit's walk-throughs (§13.9 #1), in play order: `prompt_json.order`
+    ascending (a missing order sorts last), then id. Rows are {id, order};
+    never the key, never the ticker. The session route takes the first
+    `study_select.MAX_WALKTHROUGHS` of these ahead of the scored items."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, prompt_json FROM study_items WHERE skill_id=? AND review_status=? AND type IN "
+            f"({','.join('?' for _ in UNSCORED_TYPES)})",
+            (skill_id, status, *UNSCORED_TYPES)).fetchall()
+    out = []
+    for r in rows:
+        p = _loads(r["prompt_json"], {}) or {}
+        order = p.get("order")
+        try:
+            order_f = float(order)
+        except (TypeError, ValueError):
+            order_f = float("inf")
+        out.append({"id": r["id"], "order": order})
+        out[-1]["_k"] = order_f
+    out.sort(key=lambda r: (r["_k"], r["id"]))
+    for r in out:
+        r.pop("_k", None)
+    return out
+
+
 def list_drafts(*, lane: Optional[str] = None, item_type: Optional[str] = None,
                 limit: int = 150) -> list[dict]:
     """ADMIN: draft items, oldest first, optionally by lane / type. Full rows
@@ -767,27 +800,67 @@ def _streak_after(profile: sqlite3.Row, today: str) -> tuple[int, int, str, Opti
     return streak, best, today, freeze_week
 
 
-def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score: float,
+def _record_seen(c: sqlite3.Connection, user_id: str, item: sqlite3.Row, answer_json,
+                 time_ms: Optional[int], session_id: Optional[str], stamp: str, week: str) -> dict:
+    """The UNSCORED write (a walk-through, §13.9 #1): ONE study_attempts row
+    with `scored=0`, `correct=1`, `score=0`, no due_at. Nothing else moves:
+    no item state (so never due), no skill row (so no mastery, no band, no
+    freshness), no XP, no streak, no weekly XP (so no leaderboard). The
+    returned shape matches `record_attempt` so the router answers the same
+    way; the numbers are the member's CURRENT ones, unchanged."""
+    cur = c.execute(
+        "INSERT INTO study_attempts (user_id, item_id, item_version, answered_at, answer_json, "
+        "correct, score, time_ms, session_id, due_at, scored) VALUES (?,?,?,?,?,?,?,?,?,?,0)",
+        (user_id, item["id"], int(item["version"] or 1), stamp, _dumps(answer_json), 1, 0.0,
+         int(time_ms) if time_ms is not None else None, session_id, None),
+    )
+    attempt_id = int(cur.lastrowid)
+    prof = c.execute("SELECT xp, level, streak, streak_best FROM study_profile WHERE user_id=?",
+                     (user_id,)).fetchone()
+    sk = c.execute("SELECT mastery, band, reps FROM study_skill WHERE user_id=? AND skill_id=?",
+                   (user_id, item["skill_id"])).fetchone()
+    wk = c.execute("SELECT xp FROM study_weekly_xp WHERE user_id=? AND week_et=?",
+                   (user_id, week)).fetchone()
+    return {
+        "attempt_id": attempt_id, "due_at": None, "xp_gained": 0,
+        "xp": int(prof["xp"]) if prof else 0, "level": int(prof["level"]) if prof else 1,
+        "streak": int(prof["streak"]) if prof else 0, "streak_best": int(prof["streak_best"]) if prof else 0,
+        "daily_done": False, "unscored": True,
+        "skill": {"skill_id": item["skill_id"], "mastery": float(sk["mastery"]) if sk else 0.0,
+                  "band": sk["band"] if sk else "learning", "reps": int(sk["reps"]) if sk else 0},
+        "week_et": week, "weekly_xp": int(wk["xp"]) if wk else 0,
+    }
+
+
+def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score: Optional[float],
                    time_ms: Optional[int] = None, session_id: Optional[str] = None,
-                   *, now: Optional[datetime] = None) -> dict:
+                   *, now: Optional[datetime] = None, unscored: bool = False) -> dict:
     """Write the attempt and every derived row in ONE `BEGIN IMMEDIATE`:
     study_attempts (+due_at), study_item_state (ladder rung, misses),
     study_skill (mastery/band/fresh), study_profile (xp/level/streak),
     study_weekly_xp. Raises ValueError when the item does not exist.
 
+    `unscored=True` (a walk-through, or any type in UNSCORED_TYPES) writes
+    ONLY the attempt row, as "seen" — see `_record_seen`. The type decides
+    too: an item whose type is unscored is never graded whatever the caller
+    passes, so a scorer fallback cannot grant XP for reading.
+
     Returns {attempt_id, due_at, xp_gained, xp, level, streak, streak_best,
-    skill: {skill_id, mastery, band, reps}, week_et, weekly_xp}."""
+    daily_done, unscored, skill: {skill_id, mastery, band, reps}, week_et,
+    weekly_xp}."""
     now = now or _now_utc()
     stamp = _iso(now)
     today = et_day_of(now)
     week = week_of(today)
     correct_i = 1 if correct else 0
-    score_f = max(0.0, min(1.0, float(score)))
+    score_f = max(0.0, min(1.0, float(score if score is not None else 0.0)))
     with _write() as c:
-        item = c.execute("SELECT id, version, skill_id, difficulty FROM study_items WHERE id=?",
+        item = c.execute("SELECT id, version, type, skill_id, difficulty FROM study_items WHERE id=?",
                          (item_id,)).fetchone()
         if item is None:
             raise ValueError(f"unknown item {item_id}")
+        if unscored or item["type"] in UNSCORED_TYPES:
+            return _record_seen(c, user_id, item, answer_json, time_ms, session_id, stamp, week)
         difficulty = int(item["difficulty"] or 1)
 
         # 1. due ladder (P1)
@@ -825,7 +898,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
         skill_id = item["skill_id"]
         rows = c.execute(
             "SELECT a.answered_at, a.score, i.difficulty FROM study_attempts a "
-            "JOIN study_items i ON i.id = a.item_id WHERE a.user_id=? AND i.skill_id=? "
+            "JOIN study_items i ON i.id = a.item_id WHERE a.user_id=? AND i.skill_id=? AND a.scored=1 "
             "ORDER BY a.id DESC LIMIT 200", (user_id, skill_id)).fetchall()
         reps = len(rows)
         mastery = _mastery_from_attempts(rows, now)
@@ -889,6 +962,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
     return {
         "attempt_id": attempt_id, "due_at": due_at, "xp_gained": gained, "xp": xp,
         "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done,
+        "unscored": False,
         "skill": {"skill_id": skill_id, "mastery": mastery, "band": band, "reps": reps},
         "week_et": week, "weekly_xp": int(wk["xp"]) if wk else gained,
     }

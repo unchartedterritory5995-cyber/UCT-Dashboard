@@ -261,3 +261,87 @@ def test_import_accepts_embedded_fixture_bars(push_client):
 
 def test_import_flags_are_never_served_to_a_member():
     assert "import_flags" not in ss._PROMPT_FIELDS
+
+
+# ── walk-throughs (§13.9 #1): 2-4 steps, 22 words, voice, grounding, manual ──
+
+def _walk(**over):
+    base = {"id": "si_walk0000001", "type": "walkthrough", "skill_id": "regime.bands",
+            "prompt_json": {"q": "Permission band", "order": 1,
+                            "steps": ["The GREEN / YELLOW / ORANGE state the Exposure Rating maps to.",
+                                      "It authorizes what you may do.",
+                                      "It does not predict market direction."]},
+            "answer_json": {"unscored": True},
+            "reveal_json": {"term": "Permission band",
+                            "quote": "The GREEN / YELLOW / ORANGE state the Exposure Rating maps to — it authorizes what you may do, and explicitly does not predict market direction.",
+                            "source": "brief#glossary"},
+            "lesson_text": "It does not predict market direction."}
+    base.update(over)
+    return base
+
+
+def test_walkthrough_steps_are_lesson_texts_and_the_lane_is_manual():
+    it = _walk()
+    fields = [f for f, _ in si.lesson_texts(it)]
+    assert fields == ["prompt_json.steps[0]", "prompt_json.steps[1]", "prompt_json.steps[2]", "lesson_text"]
+    assert si.walkthrough_steps(it) == it["prompt_json"]["steps"]
+    assert si.walkthrough_steps(_item()) == [] and si.lesson_texts(_item())[0][0] == "lesson_text"
+    assert si.assign_review_lane(it) == "manual"
+    assert si.assign_review_lane(_walk(reveal_json={"signals": [{"verdict": "yes"}, {"verdict": "yes"}]})) == "manual"
+    out = si.check_item(it)
+    assert out["flags"] == [] and out["lane"] == "manual"
+
+
+def test_walkthrough_shape_two_to_four_steps_each_at_most_22_words():
+    assert si.walkthrough_check(_walk()) == []
+    assert si.walkthrough_check(_item()) == []
+    assert si.walkthrough_check(_walk(prompt_json={"q": "x"})) == ["walkthrough has no steps"]
+    assert si.walkthrough_check(_walk(prompt_json={"q": "x", "steps": []})) == ["walkthrough has no steps"]
+    assert si.walkthrough_check(_walk(prompt_json={"q": "x", "steps": ["Only one step here."]})) == \
+        ["walkthrough needs 2-4 steps (1)"]
+    five = {"q": "x", "steps": ["A b.", "C d.", "E f.", "G h.", "I j."]}
+    assert si.walkthrough_check(_walk(prompt_json=five)) == ["walkthrough needs 2-4 steps (5)"]
+    long_step = " ".join(["word"] * 23) + "."
+    assert si.walkthrough_check(_walk(prompt_json={"q": "x", "steps": ["Short one.", long_step, "  "]})) == \
+        ["walkthrough step 1 over 22 words (23)", "walkthrough step 2 is blank"]
+    assert si.walkthrough_check(_walk(prompt_json={"q": "x", "steps": ["Short one.", " ".join(["w"] * 22)]})) == []
+
+
+def test_walkthrough_steps_face_the_lesson_voice_rules_and_the_number_grounding():
+    it = _walk(prompt_json={"q": "Permission band", "steps": ["Why does it matter? Because.",
+                                                              "Stop first — size last.",
+                                                              "A 7-day count is the tell."]})
+    flags = si.check_item(it)["flags"]
+    assert "voice (prompt_json.steps[0]): rhetorical question in a lesson" in flags
+    assert "voice (prompt_json.steps[1]): em-dash" in flags
+    assert "ungrounded number (prompt_json.steps[2]: 7)" in flags
+    # a number the reveal's verbatim quote carries is grounded
+    ok = _walk(prompt_json={"q": "Drawdown protocol",
+                            "steps": ["Halve new sizes at −5% of equity.", "Pilot-or-paper only at −10%."]},
+               reveal_json={"quote": "The pre-committed de-risking rules: halve new sizes at −5% of equity, pilot-or-paper only at −10%."},
+               lesson_text="Pilot-or-paper only at −10%.")
+    assert si.grounding_check(ok) == []
+
+
+def test_near_duplicate_reads_the_steps():
+    a = _walk(id="si_a")
+    b = _walk(id="si_b", prompt_json={**a["prompt_json"], "steps": ["Pilot, then half, then full.", "Each rung is earned."]})
+    assert si.near_duplicate(a, [b]) is None
+    assert si.near_duplicate(a, [{**b, "prompt_json": dict(a["prompt_json"])}]) == {"id": "si_b", "score": 1.0}
+    assert "It authorizes what you may do." in si.dedup_text(a)
+
+
+def test_import_stores_a_stepless_walkthrough_as_a_flagged_draft(push_client):
+    good = _walk(id="si_wgood")
+    bare = _walk(id="si_wbare", prompt_json={"q": "Field week", "order": 2}, lesson_text=None,
+                 reveal_json={"term": "Field week", "quote": "x"})
+    out = push_client.post("/api/study/import", json={"items": [good, bare]}).json()
+    assert out["inserted"] == 2
+    assert out["flagged"] == [{"id": "si_wbare", "flags": ["walkthrough has no steps"]}]
+    row = ss.get_item_full("si_wbare")
+    assert row["review_status"] == "draft" and row["review_lane"] == "manual"
+    assert row["import_flags"] == ["walkthrough has no steps"]
+    g = ss.get_item_full("si_wgood")
+    assert g["review_lane"] == "manual" and g["import_flags"] is None
+    ss.approve("si_wgood", "owner")
+    assert ss.get_item_prompt("si_wgood")["prompt_json"]["steps"] == good["prompt_json"]["steps"]
