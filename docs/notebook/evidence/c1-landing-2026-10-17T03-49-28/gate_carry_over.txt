@@ -1,0 +1,13 @@
+  RE-GATE — could not evaluate: C2
+    ok   C1
+    ???? C2
+    ok   C3
+  ⛔ C4 is still owed by the caller — run exactly:
+      cd app && npx vitest run src/components/chart/ChartToolbar.autoStructures.test.jsx src/components/chart/PatternOverlay.learned.test.jsx src/pages/admin/GoldReview.test.jsx src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx src/pages/screener/focus/__tests__/phoneSheet.test.jsx
+      python -m pytest tests/pattern_engine/detectors/test_uct_pullback_ma_v5.py tests/pattern_engine/detectors/test_uct_pullback_ma_v5_parity.py tests/test_auto_structures.py tests/test_drawing_geometry_v2.py tests/test_pattern_gold_set.py -q
+  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. It gates the
+     PROMOTION of `production`, which is what `web` deploys from -- so a red
+     workflow means no member-facing deploy and an immediate report.
+     ⚠️ It runs FIVE FAST CHECKS, not the full suite (measured 2026-09-20), and
+     the five non-web services deploy from master regardless. The local gate is
+     the only full-suite verification a landing gets -- when in doubt, re-gate.
