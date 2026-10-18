@@ -97,6 +97,28 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     label: 'Compass can read your notes',
     line: 'Ask Compass in chat about something you wrote and it searches your notes. Find Compass in the Journal navigation.',
   },
+  // P5 Task 8: journal styles and the community library, each on its own switch. Held to the code
+  // (capabilityList.test.js pins both word for word):
+  //   * journal-styles: a note created with a kind starts from that kind's style (the member's default or
+  //     the built-in), whose outline and blocks the composer writes into the body
+  //     (api/services/journal_two/journal_styles.py create path -> default_style_for_kind, compose). The
+  //     built-in Trade plan carries the pre-entry checklist and position sizing.
+  //   * style-library: Adopt makes the member's own copy (template_gallery.adopt_style), and the update
+  //     notice is OPT-IN ("Notify me when the author updates", StyleLibraryCard.jsx, off by default), rung
+  //     when the author's newer version is approved (_ring_update_watchers). Hence "ask to be told", and
+  //     no "in a click": Adopt opens an inline confirm first.
+  {
+    id: 'journal-styles',
+    flag: 'notebook_journal_styles_enabled',
+    label: 'Journal styles',
+    line: 'Pick a kind of note and a style, and every new note starts with your checklist, sizing and outline.',
+  },
+  {
+    id: 'style-library',
+    flag: 'notebook_style_library_enabled',
+    label: 'Community library',
+    line: 'Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.',
+  },
 ])
 
 export const PREVIEW_COPY = Object.freeze({

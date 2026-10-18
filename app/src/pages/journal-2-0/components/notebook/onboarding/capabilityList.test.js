@@ -79,6 +79,21 @@ describe('capabilityList -- the list', () => {
     expect(c.line).toBe('Ask Compass in chat about something you wrote and it searches your notes. Find Compass in the Journal navigation.')
   })
 
+  // P5 Task 8: styles and the library. The library line says "ask to be told" because the update notice
+  // is opt-in (StyleLibraryCard's "Notify me when the author updates", off by default).
+  it('journal styles and the community library: each on its own switch, with its line', () => {
+    const s = CAPABILITY_PREVIEW.find((c) => c.id === 'journal-styles')
+    expect(s, 'journal-styles must be in the list').toBeTruthy()
+    expect(s.flag).toBe('notebook_journal_styles_enabled')
+    expect(s.label).toBe('Journal styles')
+    expect(s.line).toBe('Pick a kind of note and a style, and every new note starts with your checklist, sizing and outline.')
+    const l = CAPABILITY_PREVIEW.find((c) => c.id === 'style-library')
+    expect(l, 'style-library must be in the list').toBeTruthy()
+    expect(l.flag).toBe('notebook_style_library_enabled')
+    expect(l.label).toBe('Community library')
+    expect(l.line).toBe('Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.')
+  })
+
   it('the compass gate has a client fallback that is OFF (an unarmed tab never names it)', () => {
     expect(Object.prototype.hasOwnProperty.call(FLAG_FALLBACKS, 'compass_notes_tool_enabled')).toBe(true)
     expect(FLAG_FALLBACKS.compass_notes_tool_enabled).toBe(false)
