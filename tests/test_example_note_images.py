@@ -168,7 +168,7 @@ def test_pending_example_images_are_not_public(api, conn, ex_on, ocr, att):
 
 
 def test_an_approved_example_image_serves_to_any_paid_member_with_every_public_header(api, conn, ex_on, ocr, att):
-    sid = _shared_style(conn)
+    sid = _shared_style(conn, approve=True)   # P3b-T6-R6: an example is public only while the style it shows is listed
     nid = _note_with_files(conn, att, files=(("a.png", b"listed-bytes"), ("b.webp", b"webp")))
     gid = _publish(api, nid, sid, [_src("author", nid, "a.png"), _src("author", nid, "b.webp")]).json()["template"]["id"]
     _approve(conn, gid)

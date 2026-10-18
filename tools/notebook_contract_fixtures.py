@@ -2289,6 +2289,10 @@ def example_notes(w: World) -> None:
     seen = w.client.get(f"{base}/{gid}").json()["template"]["updatedAt"]
     approved = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
     assert approved.status_code == 200, f"setup: approving the example answered {approved.status_code}"
+    # P3b-T6-R6: an example is public only while the style it shows is listed, so the style is approved here too.
+    style_seen = w.client.get(f"{base}/{sid}").json()["template"]["updatedAt"]
+    listed = w.client.patch(f"{base}/admin/items/{sid}", json={"action": "approve", "reviewedUpdatedAt": style_seen})
+    assert listed.status_code == 200, f"setup: approving the style answered {listed.status_code}"
     w.as_user(MEMBER)
     w.record("template-gallery.examples.image", "GET", f"{base}/{gid}/images/0", case="success", expect=200,
              note="An approved example's image COPY (never the author's attachment), with every public header and "
@@ -2296,13 +2300,8 @@ def example_notes(w: World) -> None:
     w.record("template-gallery.examples.image.not-found", "GET", f"{base}/{gid}/images/7", case="error",
              expect=404, note="No copy with that number: the one 404.")
     # P3b Task 6 (LAST, so nothing above moved): the style's "In use" section as a member reads it, and a reviewer's
-    # read of the example with a HELD revision. The style is approved first (a member may not read a pending one);
+    # read of the example with a HELD revision. The style is listed above (a member may not read a pending one);
     # then the author edits the note and publishes it again, which holds the new version beside the listed one.
-    w.as_user(ADMIN)
-    style_seen = w.client.get(f"{base}/{sid}").json()["template"]["updatedAt"]
-    listed = w.client.patch(f"{base}/admin/items/{sid}", json={"action": "approve", "reviewedUpdatedAt": style_seen})
-    assert listed.status_code == 200, f"setup: approving the style answered {listed.status_code}"
-    w.as_user(MEMBER)
     w.record("template-gallery.examples.style-item", "GET", f"{base}/{sid}", case="success", expect=200,
              note="A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest "
                   "first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its "

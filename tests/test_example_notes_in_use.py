@@ -176,8 +176,63 @@ def test_an_example_read_names_its_linked_style_for_whoever_may_see_it(api, conn
 
 
 def test_a_style_the_reader_may_not_see_is_never_named(api, conn, ex_on, ocr):
+    """P3b-T6-R6: an example of a style a member may not see (here: still pending) is itself absent for them. The
+    author and an admin still read it, with the style named."""
     sid = _shared_style(conn, approve=False)                                # the style is still waiting for review
     gid, _ = _example(conn, sid, title="Plan")                              # its example is approved
-    assert _item(api, gid)["linkedStyle"] is None                           # a member may not see a pending style
+    _as(api, "reader")
+    assert api.get(f"{URL}/{gid}").status_code == 404                       # absent, as a pending style is
     title = conn.execute("SELECT title FROM j2_template_gallery WHERE id = ?", (sid,)).fetchone()[0]
-    assert _item(api, gid, "admin", "admin")["linkedStyle"] == {"id": sid, "title": title}
+    for who, role in (("admin", "admin"), ("author", "member")):
+        out = _item(api, gid, who, role)
+        assert out["linkedStyle"] == {"id": sid, "title": title}, who
+        assert out["payload"]["linkedItemId"] == sid, who                   # R7: seen style, seen id
+
+
+# ── P3b-T6-R6: hiding the style hides what shows it in use ────────────────────────────────
+
+def test_hiding_the_style_hides_its_examples_read_and_images_from_other_members(api, conn, ex_on, ocr):
+    sid = _shared_style(conn, approve=True)
+    gid, _ = _example(conn, sid, title="Plan", images=("a.png",))
+    _as(api, "reader")
+    assert api.get(f"{URL}/{gid}").status_code == 200                       # control: listed style, both public
+    assert api.get(f"{URL}/{gid}/images/0").status_code == 200
+    missing = api.get(f"{URL}/nope").json()
+    gallery.admin_act("admin", sid, "hide", conn=conn)
+    read, image = api.get(f"{URL}/{gid}"), api.get(f"{URL}/{gid}/images/0")
+    assert (read.status_code, image.status_code) == (404, 404)
+    assert read.json() == missing                                           # the same 404 as no such item
+    assert image.json() == api.get(f"{URL}/nope/images/0").json()
+    for who, role in (("author", "member"), ("admin", "admin")):
+        _as(api, who, role=role)
+        assert api.get(f"{URL}/{gid}").status_code == 200, who
+        assert api.get(f"{URL}/{gid}/images/0").status_code == 200, who
+    gallery.admin_act("admin", sid, "unhide", conn=conn)
+    _as(api, "reader")
+    assert api.get(f"{URL}/{gid}").status_code == 200                       # unhidden: back as it was
+    assert api.get(f"{URL}/{gid}/images/0").status_code == 200
+
+
+def test_an_example_whose_style_is_gone_is_absent_for_members(api, conn, ex_on, ocr):
+    sid = _shared_style(conn, approve=True)
+    gid, _ = _example(conn, sid, title="Plan", images=("a.png",))
+    conn.execute("DELETE FROM j2_template_gallery WHERE id = ?", (sid,))     # a style row that is no longer there
+    conn.commit()
+    _as(api, "reader")
+    assert api.get(f"{URL}/{gid}").status_code == 404
+    assert api.get(f"{URL}/{gid}/images/0").status_code == 404
+
+
+# ── P3b-T6-R7: the style's id travels only with a style the reader may see ─────────────────
+
+def test_the_linked_style_id_is_left_out_for_a_reader_who_may_not_see_the_style(api, conn, ex_on, ocr):
+    sid = _shared_style(conn, approve=True)
+    gid, _ = _example(conn, sid, title="Plan")
+    assert _item(api, gid)["payload"]["linkedItemId"] == sid                 # seen style: the id is there
+    conn.execute("DELETE FROM j2_template_gallery WHERE id = ?", (sid,))
+    conn.commit()
+    for who, role in (("author", "member"), ("admin", "admin")):            # they still read the example ...
+        out = _item(api, gid, who, role)
+        assert out["linkedStyle"] is None, who
+        assert "linkedItemId" not in out["payload"], who                     # ... but no id of a style they can't see
+        assert sid not in json.dumps(out), who

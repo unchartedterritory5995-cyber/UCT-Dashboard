@@ -355,7 +355,7 @@
 
 /* P3b Task 6: a style's Preview (styles/StyleItemPreview.jsx; its sheet rules mirror TemplatePreview's) and its
    examples, "In use" (styles/ExamplesInUse.jsx). HERE, not a module of their own: this sheet is already in the lazy
-   gallery's shared chunk, and a new stylesheet would add a file to the eager chunk's preload list (+35 B). */
+   gallery's shared chunk, and a new stylesheet would add a file to the eager chunk's preload list. */
 .spWrap {
   display: flex;
   flex-direction: column;

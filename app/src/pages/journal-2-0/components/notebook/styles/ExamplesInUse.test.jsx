@@ -119,6 +119,10 @@ describe('In use, in the style\'s Preview', () => {
     expect(img.getAttribute('src').startsWith(exampleImagePrefix(EXAMPLES[0].id))).toBe(true)
     expect(img.getAttribute('src')).not.toMatch(/rev=/)
     expect(img.getAttribute('src')).not.toMatch(/\/api\/j2\/notes\/attachments\//)
+    // the author's alt text, as the reduction stored it (P3b-T2-R4): never decorative to a screen reader
+    const alt = EXAMPLES[0].bodyJson.content.find((n) => n.type === 'image').attrs.alt
+    expect(alt).toBeTruthy()
+    expect(img).toHaveAttribute('alt', alt)
   })
 
   it('no section with no examples', async () => {

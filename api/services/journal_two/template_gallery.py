@@ -744,12 +744,31 @@ def _library_hides(row: sqlite3.Row) -> bool:
     return row["item_type"] == "style" and not library_enabled()
 
 
-def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool) -> bool:
+def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool, conn: sqlite3.Connection) -> bool:
+    """THE visibility rule for one gallery row: the author and an admin always; anyone else only when it is approved
+    and not hidden. `conn` is required because of the clause below: no caller can skip it by omission.
+
+    P3b-T6-R6: an EXAMPLE note is also only shown to anyone else while the style it shows is shown (approved, not
+    hidden, its own author's). A moderator who hides a style hides what shows it in use: the example's read and its
+    image route answer their one 404, while its author and an admin still see it. Stored, never touched: unhiding the
+    style brings it back."""
     if row is None or _library_hides(row):
         return False
     if is_admin or (viewer_id and row["user_id"] == viewer_id):
         return True
-    return row["status"] == "approved" and not row["hidden"]
+    if not (row["status"] == "approved" and not row["hidden"]):
+        return False
+    return row["item_type"] != EXAMPLE_ITEM or _example_style_shown(conn, row)
+
+
+def _example_style_shown(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
+    """Is the style an example row shows visible to every member (approved, not hidden, the example's own author's)?"""
+    link = _safe_example(_listed_payload(row))["linkedItemId"]
+    if not link:
+        return False
+    style = conn.execute("SELECT id, user_id, item_type, status, hidden FROM j2_template_gallery"
+                         " WHERE id = ? AND item_type = 'style'", (link,)).fetchone()
+    return style is not None and style["user_id"] == row["user_id"] and _can_see(style, "", False, conn)
 
 
 def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
@@ -760,7 +779,7 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, viewer_id)
-        if not _can_see(row, viewer_id, is_admin):
+        if not _can_see(row, viewer_id, is_admin, conn):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
         out["bodyJson"] = _stored_body(row)
@@ -792,6 +811,10 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
             # P3b Task 6: the style it shows, by title, for whoever may see THAT style (the reviewer's "linked
             # style's title"); None when the reader may not see it (a pending one, say), never a hint it exists.
             out["linkedStyle"] = _linked_style(conn, out["payload"]["linkedItemId"], viewer_id, is_admin)
+            # P3b-T6-R7: the style's id travels under the SAME gate as its title -- a reader who may not see the style
+            # (it is gone, say) gets neither, never the id one key away from a carefully withheld title.
+            if out["linkedStyle"] is None:
+                out["payload"].pop("linkedItemId", None)
         return out
     finally:
         if owned:
@@ -825,7 +848,7 @@ def _linked_style(conn: sqlite3.Connection, style_id: Any, viewer_id: str, is_ad
         return None
     row = conn.execute("SELECT id, user_id, title, item_type, status, hidden FROM j2_template_gallery"
                        " WHERE id = ? AND item_type = 'style'", (style_id,)).fetchone()
-    if not _can_see(row, viewer_id, is_admin):
+    if not _can_see(row, viewer_id, is_admin, conn):
         return None
     return {"id": row["id"], "title": row["title"]}
 
@@ -1631,13 +1654,13 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute("SELECT id, user_id, item_type, status, hidden, version, pending_json"
+        row = conn.execute("SELECT id, user_id, item_type, status, hidden, version, pending_json, payload_json"
                            " FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
+        visible = row is not None and row["item_type"] == EXAMPLE_ITEM and _can_see(row, viewer_id, is_admin, conn)
     finally:
         if owned:
             conn.close()
-    if (row is None or row["item_type"] != EXAMPLE_ITEM or not _can_see(row, viewer_id, is_admin)
-            or not _ITEM_ID_SEGMENT.fullmatch(str(row["id"]))):
+    if not visible or not _ITEM_ID_SEGMENT.fullmatch(str(row["id"])):
         return None
     if rev == REV_PENDING:
         if not (is_admin or (viewer_id and row["user_id"] == viewer_id)) or not row["pending_json"]:
@@ -1815,7 +1838,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     try:
         row = _row(conn, gallery_id, user_id)
         # An example note is a snapshot of another member's note shown on their style, never a template to copy.
-        if not _can_see(row, user_id, False) or row["item_type"] == EXAMPLE_ITEM:
+        if not _can_see(row, user_id, False, conn) or row["item_type"] == EXAMPLE_ITEM:
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),
@@ -2194,7 +2217,7 @@ def set_helpful(user_id: str, gallery_id: Any, on: bool,
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if (not _can_see(row, user_id, False) or row["status"] != "approved" or row["hidden"]
+        if (not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]
                 or row["user_id"] == user_id):
             return None
         if on:

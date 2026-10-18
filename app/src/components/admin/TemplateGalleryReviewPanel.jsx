@@ -43,7 +43,18 @@ export const revisionLine = (version) =>
   `Update to version ${version} of a listed style. Approving lists it; the current version stays until then.`
 export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
 export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
-const reviewCardKey = (item) => ['gallery-review-style', item.id, item.updatedAt]
+const reviewCardKey = (item) => ['gallery-review-card', item.id, item.updatedAt]
+
+/** P3a-T10-R7, ONCE (ruling P3b-T6-R5): a details card's single read of its item, keyed on the queue row's
+ *  `updatedAt` (so a resubmission is read afresh, and `openPreview` can put a newer read into the card through the
+ *  same key), and the handoff of THAT read's `updatedAt` up as the approve token. Approve can therefore only ever
+ *  send the version the card shows. Every card with details (a style's, an example's) uses this one hook. */
+function useReviewCardRead(item, onRead) {
+  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
+    { revalidateOnFocus: false, shouldRetryOnError: false })
+  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  return { data, error }
+}
 const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id)?.name || 'A kind of note this version does not know'
 
 /** What a reviewer is approving: for a held revision the admin-only `pendingRevision`, else the item itself.
@@ -63,9 +74,7 @@ export function underReview(item, full) {
  *  all from ONE read. Keyed on the row's `updatedAt`, so an author's resubmission is read afresh. `onRead` hands
  *  the read's `updatedAt` up as the approve token. */
 function StyleReviewDetails({ item, onRead }) {
-  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
-    { revalidateOnFocus: false, shouldRetryOnError: false })
-  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  const { data, error } = useReviewCardRead(item, onRead)
   const shown = underReview(item, data)
   const blocks = (shown?.payload?.blocks || []).map((b) => blockLabel(b.block))
   return (
@@ -111,9 +120,7 @@ export function exampleUnderReview(item, full) {
 /** An example's style and, for a held revision, its line and its own title, from ONE read keyed on the row's
  *  `updatedAt` (the style rows' rule). `onRead` hands the read's `updatedAt` up as the approve token. */
 function ExampleReviewDetails({ item, onRead }) {
-  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
-    { revalidateOnFocus: false, shouldRetryOnError: false })
-  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  const { data, error } = useReviewCardRead(item, onRead)
   const shown = exampleUnderReview(item, data)
   return (
     <div data-gallery-review-example={item.id}>
