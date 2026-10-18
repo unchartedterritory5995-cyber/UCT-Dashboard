@@ -118,7 +118,9 @@ test('A→B→C quickly with B answering last-but-one: B is never listed, and un
   expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
-  expect(scanBodies().at(-1).filters).toEqual([])
+  // Undo restores the earlier screen; since 2026-10-17 its answer comes from this mount's
+  // kept answers, so no request has to go out. The unfiltered screen is what is shown.
+  expect(screen.getByRole('button', { name: 'Filters, 0 active' })).toBeInTheDocument()
 })
 
 test('row actions do nothing while the new screen is pending: Enter does not leave for the chart', async () => {
@@ -199,7 +201,9 @@ test('undo survives a 0→0 step and still goes back to the last screen with row
   expect(screen.getByText(/took the list from 2 to 0/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
-  expect(scanBodies().at(-1).filters).toEqual([])
+  // Undo restores the earlier screen; since 2026-10-17 its answer comes from this mount's
+  // kept answers, so no request has to go out. The unfiltered screen is what is shown.
+  expect(screen.getByRole('button', { name: 'Filters, 0 active' })).toBeInTheDocument()
 })
 
 const STARTERS = [{ id: 'starter_momentum_leaders', name: 'Momentum leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 90 }] } }]

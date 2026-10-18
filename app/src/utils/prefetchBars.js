@@ -131,13 +131,17 @@ let _kick = null
 // `_warmIntentNow` does. Filling only the `&warm=1` SWR key would leave the next
 // row cold, because StockChart never reads that key.
 const _urgent = new Map() // chart-key URL -> { sym, tf }
+const _urgentRunning = new Set() // `${sym}_${tf}` of urgent jobs in flight
 export const URGENT_MAX_PER_CALL = 2
 function _startFetch(url) {
   _active++
   const meta = _urgent.get(url)
   _urgent.delete(url)
+  const running = meta ? `${meta.sym}_${meta.tf}` : null
+  if (running) _urgentRunning.add(running)
   const job = meta ? _fillUrgent(url, meta.sym, meta.tf) : Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult)
   job.catch(() => { /* best-effort */ }).finally(() => {
+    if (running) _urgentRunning.delete(running)
     _active--
     _pump()
   })
@@ -522,6 +526,10 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // meanwhile fetches its ONE chart via SWR. Warming resumes when the hold lifts.
     // A `visible` row is held only by the server's backoff (_holdJob).
     if (_holdJob({ visible })) return
+    // An urgent job for this symbol is queued or running under the chart's own key, and it lands
+    // the bars in mem AND IDB: fetching them again under `&warm=1` downloads the same bars twice
+    // (measured on production 2026-10-17: the first three rows of every screener open).
+    if (_urgent.has(_url(sym, tf, false)) || _urgentRunning.has(`${sym}_${tf}`)) return
     const json = _noteWarmResult(await preload(_url(sym, tf), warmFetcher))
     if (json?.bars?.length && !json.delta) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
