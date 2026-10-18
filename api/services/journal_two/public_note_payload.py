@@ -42,6 +42,18 @@ What each mode does (the rows below are the authority; this is the summary):
     copy has no publication to link into), every market-data node is the neutral line whatever
     its vendor, task items are UNCHECKED (a template starts undone), and an email address --
     written as text or as a `mailto:` link -- becomes the words "email address".
+  * example only (Notebook P3b, Task 2: an author's note attached to a style they share, as an
+    EXAMPLE NOTE other members see) -- gallery's rules, through the SAME code path (ruling P3b-R3:
+    `node_action` falls back to the gallery column for every row), except a DECLARED override set,
+    `EXAMPLE_OVERRIDES`: an image the author switched on (`images_on`) is kept with its src
+    rewritten by `image_src_for`, one left off goes; a figure follows its image; a kept caption's
+    text is scrubbed. On top of gallery's realisation: a trader block (`trader_blocks.BLOCK_IDS`)
+    is reset to its builder's NO-READ empty params, a private embed (vendor "private" and not a
+    block: the member's notes, alerts) is dropped, a financial fact is the words "your value here",
+    and every text -- a text node, and the attribute text a node keeps -- loses its money
+    amounts, P&L figures and broker names (`example_sanitize`). `report=` collects one change
+    entry per replacement, `{kind, before, after, path}`; its `before` is the author's own text
+    and is returned only, never stored or logged.
 """
 from __future__ import annotations
 
@@ -49,8 +61,10 @@ import copy
 import json
 import re
 import unicodedata
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlsplit
+
+from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -134,7 +148,14 @@ def client_key(request: Any) -> str:
 #: The public keys of a NOTE, exactly (rail: tests/test_share_publish_authorization.py).
 PUBLIC_NOTE_KEYS = ("title", "subtitle", "bodyJson", "heroImageUrl", "updatedAt")
 
-MODES = ("share", "publish", "gallery")
+#: The modes that are a COLUMN of `NODE_POLICY` (and of `ATTR_POLICY`).
+BASE_MODES = ("share", "publish", "gallery")
+#: Every mode `reduce` takes. `example` has no column: `node_action` derives it from gallery's.
+MODES = BASE_MODES + ("example",)
+#: The modes that take the gallery rules in the code paths below (the address SHAPE rule, the
+#: email scrub, gallery's attribute table, the link card's image). One set, read in each place, so
+#: "gallery's rule" for an example note is the same branch, never a copy of it.
+_GALLERY_RULES = frozenset({"gallery", "example"})
 
 #: What an email address becomes in a gallery copy (wave 12, lane 12A).
 EMAIL_TEXT = "email address"
@@ -313,6 +334,27 @@ NODE_POLICY: dict[str, dict[str, str]] = {
     "link": {"share": "link-mark", "publish": "link-mark", "gallery": "link-mark"},
 }
 
+#: ⛔ THE EXAMPLE OVERRIDE SET (ruling P3b-R3), and the ONLY rows whose example decision is not
+#: gallery's. An example note may show the pictures its author switched on; a template never does.
+#:   opt-in-image  kept, src rewritten by `image_src_for`, when its ORIGINAL src is in `images_on`;
+#:                 otherwise dropped, with an `image_off` change entry
+#:   figure        (the share/publish action) dropped when its image was dropped
+#:   keep          a caption stays, and its text is scrubbed like every text node
+#: Rail: tests/test_example_reduce.py derives the rows from NODE_POLICY and fails on any row
+#: whose example decision differs from gallery's outside this set, or on a copied example column.
+EXAMPLE_OVERRIDES: dict[str, str] = {"image": "opt-in-image", "imageFigure": "figure", "imageCaption": "keep"}
+
+
+def node_action(type_: Any, mode: str) -> str | None:
+    """The ONE lookup of a node or mark type's action in a mode: its `NODE_POLICY` column, and in
+    `example` mode gallery's column unless the type is in `EXAMPLE_OVERRIDES`. None: no row."""
+    row = NODE_POLICY.get(type_) if isinstance(type_, str) else None
+    if row is None:
+        return None
+    if mode == "example":
+        return EXAMPLE_OVERRIDES.get(type_, row["gallery"])
+    return row[mode]
+
 #: The widgetEmbed attributes a public copy keeps -- exactly what the archived render reads
 #: (`WidgetEmbedView.jsx` ArchivedImage / PlaceholderChip / the frame): the image, the
 #: frame's size, the caption the member wrote, and what `embedAutoCaption` needs for the alt
@@ -337,6 +379,12 @@ EMBED_KEPT_ATTRS = ("v", "widgetId", "mode", "capturedAt", "fallback", "frozen",
 ATTR_POLICY: dict[str, dict[str, str]] = {
     "widgetEmbed.ta": {"share": "drop", "publish": "drop", "gallery": "drop"},
 }
+
+
+def attr_decision(row: str, mode: str) -> str:
+    """An attribute row's decision in a mode; `example` reads gallery's (the `node_action` rule)."""
+    decision = ATTR_POLICY[row]
+    return decision["gallery"] if mode == "example" else decision[mode]
 EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
 }
@@ -428,25 +476,37 @@ def _in_app_shape(href: Any) -> bool:
     return parts.path.startswith(_IN_APP_PATHS) or bool(_NOTE_QUERY.search(parts.query or ""))
 
 
-def _scrub_in_app_addresses(text: str, strict: bool = False) -> str:
+def _scrub_in_app_addresses(text: str, strict: bool = False, changes: list | None = None) -> str:
     """`text` with every in-app address replaced by `IN_APP_LINK_TEXT`; an external address and
     a public page's own address stay. `strict` (gallery mode) also replaces an address that has
-    an in-app SHAPE on any host (`_in_app_shape`)."""
+    an in-app SHAPE on any host (`_in_app_shape`). `changes` (example mode) collects one entry
+    per replaced address; the replacement is the same either way."""
     def repl(m: "re.Match[str]") -> str:
         s = m.group(0)
         core = s.rstrip(_TRAILING_PUNCT)
         tail = s[len(core):]
-        if core and _internal_href(core) and not _is_public_address(core):
-            return IN_APP_LINK_TEXT + tail
-        if core and strict and _in_app_shape(core) and not _is_public_address(core):
+        if core and not _is_public_address(core) and (_internal_href(core) or (strict and _in_app_shape(core))):
+            if changes is not None:
+                kind = "trade_link" if "/trade" in core.lower() else "dropped"
+                changes.append({"kind": kind, "before": core[:example_sanitize.BEFORE_MAX],
+                                "after": IN_APP_LINK_TEXT})
             return IN_APP_LINK_TEXT + tail
         return s
     return _ADDRESS_IN_TEXT.sub(repl, text)
 
 
-def scrub_emails(text: str) -> str:
-    """`text` with every email address replaced by `EMAIL_TEXT` (gallery mode)."""
-    return _EMAIL_IN_TEXT.sub(EMAIL_TEXT, text) if isinstance(text, str) else text
+def scrub_emails(text: str, changes: list | None = None) -> str:
+    """`text` with every email address replaced by `EMAIL_TEXT` (gallery and example modes).
+    `changes` (example mode) collects one entry per address; the replacement is the same."""
+    if not isinstance(text, str):
+        return text
+    if changes is None:
+        return _EMAIL_IN_TEXT.sub(EMAIL_TEXT, text)
+
+    def repl(m: "re.Match[str]") -> str:
+        changes.append({"kind": "email", "before": m.group(0)[:example_sanitize.BEFORE_MAX], "after": EMAIL_TEXT})
+        return EMAIL_TEXT
+    return _EMAIL_IN_TEXT.sub(repl, text)
 
 
 def scrub_gallery_text(text: Any) -> str:
@@ -761,8 +821,10 @@ _CELL_ATTRS = {
 }
 
 
-def _attr_policy(*, gallery: bool) -> dict[str, dict[str, Any]]:
-    scrub = scrub_gallery_text if gallery else _scrub_public_text
+def _attr_policy(*, gallery: bool, scrub: Callable[[str], str] | None = None) -> dict[str, dict[str, Any]]:
+    """The attribute table. `scrub` replaces the attribute-text scrub (example mode passes
+    gallery's scrub followed by the example text patterns); every row is the same."""
+    scrub = scrub or (scrub_gallery_text if gallery else _scrub_public_text)
     return {
         # ── nodes ──
         "heading": {"level": _int_in(1, 6)},
@@ -817,6 +879,14 @@ ATTR_POLICY_BY_MODE: dict[str, dict[str, dict[str, Any]]] = {
     "gallery": GALLERY_ATTR_POLICY, "share": PUBLIC_ATTR_POLICY, "publish": PUBLIC_ATTR_POLICY,
 }
 
+#: The one row an example note's table has that gallery's has not: the image (P3b-R3's override
+#: set). Its address is the gallery image route `image_src_for` built; the author's alt text and
+#: title do not travel (they are prose nobody scrubbed for a picture's sake).
+EXAMPLE_IMAGE_ATTRS: dict[str, Any] = {
+    "src": _v_src, "width": _v_number(1, 10_000), "height": _v_number(1, 10_000),
+    "align": _one_of(None, "left", "center", "right", "full"),
+}
+
 #: What a public link always carries, whatever the stored mark said.
 GALLERY_LINK_FIXED = {"target": "_blank", "rel": "noreferrer"}
 
@@ -839,9 +909,9 @@ def _kept_attrs(policy: dict, type_name: Any, attrs: Any) -> Any:
     return kept
 
 
-def _clean_mark(mark: dict, mode: str) -> dict | None:
+def _clean_mark(mark: dict, mode: str, policy: dict | None = None) -> dict | None:
     """One kept mark, reduced to its named attributes; None when nothing of it is left."""
-    policy = ATTR_POLICY_BY_MODE[mode]
+    policy = policy if policy is not None else ATTR_POLICY_BY_MODE[mode]
     t = mark.get("type")
     attrs = _kept_attrs(policy, t, mark.get("attrs"))
     if t == "link":
@@ -858,9 +928,9 @@ def _clean_mark(mark: dict, mode: str) -> dict | None:
     return out
 
 
-def _clean_node(out: dict, mode: str) -> dict | None:
+def _clean_node(out: dict, mode: str, policy: dict | None = None) -> dict | None:
     """One kept node, reduced to the keys and attributes a public copy carries. None drops it."""
-    policy = ATTR_POLICY_BY_MODE[mode]
+    policy = policy if policy is not None else ATTR_POLICY_BY_MODE[mode]
     t = out.get("type")
     attrs = _kept_attrs(policy, t, out.get("attrs"))
     if attrs is _DROP_NODE:
@@ -906,11 +976,57 @@ def _public_image_src(src: Any, attachment_base: str) -> str | None:
 
 class _Ctx:
     def __init__(self, mode: str, facts: Mapping[str, Mapping[str, Any]],
-                 note_links: Mapping[str, tuple[str, str]], attachment_base: str = ""):
+                 note_links: Mapping[str, tuple[str, str]], attachment_base: str = "", *,
+                 images_on: frozenset = frozenset(), brokers: tuple[str, ...] = (),
+                 image_src_for: Callable[[str], str] | None = None, report: list | None = None):
         self.mode = mode
         self.facts = facts
         self.note_links = note_links
         self.attachment_base = attachment_base
+        self.strict = mode in _GALLERY_RULES          # gallery's rules (example takes them too)
+        self.example = mode == "example"
+        self.images_on = frozenset(images_on or ()) if self.example else frozenset()
+        self.image_src_for = image_src_for if self.example else None
+        #: example mode always scrubs the house list, whatever the caller passed (fail closed)
+        self.brokers = (tuple(example_sanitize.BROKER_NAMES) + tuple(brokers or ())) if self.example else ()
+        self.report = report if self.example and isinstance(report, list) else None
+        self.path: list[int] = []                     # child indices from the doc root (change entries)
+        self.attr_policy = _example_attr_policy(self) if self.example else ATTR_POLICY_BY_MODE[mode]
+
+    def recording(self) -> list | None:
+        """A fresh list to collect a helper's change entries into, or None when nothing is reported."""
+        return [] if self.report is not None else None
+
+    def note(self, kind: str, before: Any = "", after: str = "") -> None:
+        """One change entry at the current path (example mode with a report only)."""
+        if self.report is not None:
+            self.report.append({"kind": kind, "before": str(before or "")[:example_sanitize.BEFORE_MAX],
+                                "after": after, "path": list(self.path)})
+
+    def extend(self, entries: list | None) -> None:
+        """A helper's collected entries, stamped with the current path."""
+        if self.report is not None and entries:
+            for e in entries:
+                self.report.append({**e, "path": list(self.path)})
+
+    def scrub_text(self, text: str) -> str:
+        """Example mode's own text patterns, after gallery's (money, P&L figures, broker names)."""
+        got = self.recording()
+        out = example_sanitize.scrub_text(text, self.brokers, got)
+        self.extend(got)
+        return out
+
+
+def _example_attr_policy(ctx: "_Ctx") -> dict[str, dict[str, Any]]:
+    """An example note's attribute table: gallery's rows (`_attr_policy(gallery=True)`, the same
+    builder) with attribute text scrubbed by gallery's rule AND the example patterns, plus the one
+    override row, the image."""
+    def scrub(text: str) -> str:
+        got = ctx.recording()
+        out = scrub_emails(_scrub_in_app_addresses(text, strict=True, changes=got), got)
+        ctx.extend(got)
+        return ctx.scrub_text(out)
+    return {**_attr_policy(gallery=True, scrub=scrub), "image": EXAMPLE_IMAGE_ATTRS}
 
 
 def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
@@ -925,16 +1041,19 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         `{provider, ref}` on render (webEmbeds.js), never from this string."""
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     if t == "linkPreview":
-        if _internal_href(attrs.get("url")) or (ctx.mode == "gallery" and _in_app_shape(attrs.get("url"))):
+        if _internal_href(attrs.get("url")) or (ctx.strict and _in_app_shape(attrs.get("url"))):
+            ctx.note("dropped", attrs.get("url"))
             return None
-        if ctx.mode == "gallery" and attrs.get("image") is not None:
+        if ctx.strict and attrs.get("image") is not None:
+            ctx.note("dropped", attrs.get("image"))
             return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
         if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
             node = {**node, "attrs": {**attrs, "image": None}}
         return node
     if t == "webEmbed":
         url = attrs.get("url")
-        if url is not None and (_internal_href(url) or (ctx.mode == "gallery" and _in_app_shape(url))):
+        if url is not None and (_internal_href(url) or (ctx.strict and _in_app_shape(url))):
+            ctx.note("dropped", url)
             node = {**node, "attrs": {**attrs, "url": None}}
         return node
     return node
@@ -949,9 +1068,10 @@ def _is_neutral(node: Any) -> bool:
             and node.get("content") == [{"type": "text", "text": NEUTRAL_LINE}])
 
 
-def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
+def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
     if not isinstance(marks, list):
         return None
+    note = ctx.note if ctx is not None else (lambda *a: None)
     out = []
     for m in marks:
         if not isinstance(m, dict):
@@ -959,15 +1079,18 @@ def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
         policy = NODE_POLICY.get(m.get("type"))
         if policy is None:
             continue                                 # an unknown mark: its text stays, it goes
-        action = policy["share"]                     # marks read the same in both modes
+        action = policy["share"]                     # marks read the same in every mode
         if action == "link-mark":
             href = (m.get("attrs") or {}).get("href")
             if _internal_href(href):
+                note("trade_link" if "/trade" in str(href).lower() else "dropped", href)
                 continue
-            if mode == "gallery" and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
-                continue                             # gallery: an address is personal; the words stay
+            if mode in _GALLERY_RULES and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
+                mailto = str(href).strip().lower().startswith("mailto:")
+                note("email" if mailto else "dropped", str(href).strip()[7:] if mailto else href)
+                continue                            # gallery: an address is personal; the words stay
         if action in ("mark", "link-mark"):
-            m = _clean_mark(m, mode)                 # the attribute table, every mode (I-4)
+            m = _clean_mark(m, mode, ctx.attr_policy if ctx is not None else None)   # the attribute table, every mode (I-4)
             if m is None:
                 continue
             out.append(m)
@@ -1045,12 +1168,79 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
 
 def _reduce_children(children: Any, ctx: _Ctx) -> list:
     out: list = []
-    for child in children or []:
-        for reduced in _reduce_node(child, ctx):
-            if _is_neutral(reduced) and out and _is_neutral(out[-1]):
-                continue                             # ONE neutral line for a run of them
-            out.append(reduced)
+    for i, child in enumerate(children or []):
+        ctx.path.append(i)
+        try:
+            for reduced in _reduce_node(child, ctx):
+                if _is_neutral(reduced) and out and _is_neutral(out[-1]):
+                    continue                         # ONE neutral line for a run of them
+                out.append(reduced)
+        finally:
+            ctx.path.pop()
     return out
+
+
+# ── the example mode's realisation of gallery's `neutral` (plan R-P3b-3) ─────────────────
+#
+# The DECISION for a widgetEmbed, a financialFact, a documentExcerpt and a tradeCanvas is
+# gallery's `neutral` (node_action). What that decision makes of the node in an example note
+# follows the plan's table row by row:
+#   * a trader block -> the same block with its builder's NO-READ empty params (ruling P3b-R10:
+#     the builder in "update" mode, with no member, which reads nothing and stamps nothing);
+#   * a private embed (vendor "private" and not a block: the member's other notes, their alerts)
+#     -> dropped;
+#   * a financial fact -> the words VALUE_TEXT;
+#   * anything else (market data of any vendor, marketcontext among it) -> the neutral line,
+#     exactly as gallery.
+
+#: The block a reset builds is built at this instant, and then UN-stamped (no capturedAt, no
+#: embedId): an example never carries the author's instance or a time.
+_RESET_NOW_UTC = (1970, 1, 1)
+
+
+def _reset_block(attrs: dict, ctx: _Ctx) -> list:
+    """A trader block reset through its builder's NO-READ output."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import trader_blocks
+    widget_id = attrs.get("widgetId")
+    builder = trader_blocks.BUILDERS.get(widget_id)
+    if builder is None:
+        ctx.note("dropped", widget_id)
+        return []                                    # no builder: nothing safe to show
+    built, _ = builder({"settings": {}}, {"now": datetime(*_RESET_NOW_UTC, tzinfo=timezone.utc),
+                                          "mode": "update"})
+    if not isinstance(built, dict) or not isinstance(built.get("attrs"), dict):
+        ctx.note("dropped", widget_id)
+        return []
+    reset = {**copy.deepcopy(built["attrs"]), "embedId": None, "capturedAt": None}
+    if attrs.get("tradeRef") or attrs.get("tradeRefType"):
+        ctx.note("trade_link", attrs.get("tradeRef") or attrs.get("tradeRefType"))
+    before = attrs.get("params") if isinstance(attrs.get("params"), dict) else {}
+    if before != reset.get("params"):
+        ctx.note("block_reset", json.dumps(before, sort_keys=False, default=str),
+                 json.dumps(reset.get("params"), default=str))
+    return [{"type": "widgetEmbed", "attrs": reset}]
+
+
+def _example_neutral(node: dict, ctx: _Ctx) -> list:
+    t = node.get("type")
+    attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    if t == "widgetEmbed":
+        from api.services.journal_two import trader_blocks
+        widget_id = attrs.get("widgetId")
+        if widget_id in trader_blocks.BLOCK_IDS:
+            return _reset_block(attrs, ctx)
+        if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "private":
+            ctx.note("dropped", widget_id)
+            return []
+        ctx.note("market_data", widget_id)
+        return [_neutral()]
+    if t == "financialFact":
+        fact = ctx.facts.get(str(attrs.get("factId") or ""))
+        ctx.note("fact", _format_fact_value(fact) if fact else "", example_sanitize.VALUE_TEXT)
+        return [{"type": "paragraph", "content": [{"type": "text", "text": example_sanitize.VALUE_TEXT}]}]
+    ctx.note("market_data", t)
+    return [_neutral()]
 
 
 def _reduce_node(node: Any, ctx: _Ctx) -> list:
@@ -1058,14 +1248,15 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
     if not isinstance(node, dict):
         return []
     t = node.get("type")
-    policy = NODE_POLICY.get(t)
-    if policy is None:
+    action = node_action(t, ctx.mode)               # ⛔ the ONE lookup (P3b-R3)
+    if action is None:
+        ctx.note("dropped", t)
         return []                                    # ⛔ unknown type: fail closed
-    action = policy[ctx.mode]
     if action == "drop":
+        ctx.note("dropped", t)
         return []
     if action == "neutral":
-        return [_neutral()]
+        return _example_neutral(node, ctx) if ctx.example else [_neutral()]
     if action == "market-data":
         return _market_data(node, ctx)
     if action == "linked-note":
@@ -1074,6 +1265,7 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
             href, title = ctx.note_links[target]
             return [{"type": "text", "text": title or "Untitled",
                      "marks": [{"type": "link", "attrs": {"href": href}}]}]
+        ctx.note("dropped", t, LINKED_NOTE_TEXT)
         return [{"type": "text", "text": LINKED_NOTE_TEXT}]
     if action == "citation-n":
         attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
@@ -1084,6 +1276,15 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         src = (node.get("attrs") or {}).get("src")
         if _public_image_src(src, ctx.attachment_base) is None:
             return []                                # another note's image, or an in-app address
+    if action == "opt-in-image":                     # example mode: the author's switch (P3b-R3)
+        attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+        src = attrs.get("src")
+        public = ctx.image_src_for(src) if (isinstance(src, str) and src in ctx.images_on
+                                            and ctx.image_src_for is not None) else None
+        if not isinstance(public, str) or _v_src(public) in (_OMIT, None):
+            ctx.note("image_off", str(src or "").rsplit("/", 1)[-1])
+            return []
+        node = {**node, "attrs": {**attrs, "src": public}}
     if t in ("linkPreview", "webEmbed"):
         kept = _kept_urls(t, node, ctx)
         if kept is None:
@@ -1094,21 +1295,28 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
         out["attrs"] = {**attrs, "checked": False}
     if t == "text" and isinstance(out.get("text"), str):
-        out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.mode == "gallery")  # walk W3
-        if ctx.mode == "gallery":
-            out["text"] = scrub_emails(out["text"])
-    cleaned = _clean_node(out, ctx.mode)             # the attribute table, every mode (I-4)
+        got = ctx.recording()
+        out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.strict, changes=got)  # walk W3
+        if ctx.strict:
+            out["text"] = scrub_emails(out["text"], got)
+        ctx.extend(got)
+        if ctx.example:
+            out["text"] = ctx.scrub_text(out["text"])   # after the email scrub (Task 2 Step 3)
+    cleaned = _clean_node(out, ctx.mode, ctx.attr_policy)   # the attribute table, every mode (I-4)
     if cleaned is None:
         return []
     out = cleaned
     if "marks" in node:
-        marks = _reduce_marks(node.get("marks"), ctx.mode)
+        marks = _reduce_marks(node.get("marks"), ctx.mode, ctx)
         if marks is not None and (marks or not node.get("marks")):
             out["marks"] = marks                     # an empty list stays empty; an emptied one goes
     if "content" in node:
         had = bool(node.get("content"))
+        mark = len(ctx.report) if ctx.report is not None else 0
         content = _reduce_children(node.get("content"), ctx)
         if action == "figure" and not any(c.get("type") == "image" for c in content):
+            if ctx.report is not None:               # the caption that goes with it reports nothing
+                ctx.report[mark:] = [e for e in ctx.report[mark:] if e["kind"] == "image_off"]
             return []                                # a figure whose image was dropped
         if had and not content and t in _BLOCK_CONTAINERS:
             content = [{"type": "paragraph"}]
@@ -1125,6 +1333,10 @@ def reduce(
     attachment_base: str,
     facts: Mapping[str, Mapping[str, Any]] | None = None,
     note_links: Mapping[str, tuple[str, str]] | None = None,
+    images_on: frozenset[str] = frozenset(),
+    brokers: tuple[str, ...] = (),
+    image_src_for: Callable[[str], str] | None = None,
+    report: list | None = None,
 ) -> dict:
     """The public copy of one note's body.
 
@@ -1132,12 +1344,24 @@ def reduce(
     publish proxy, ending in "/"). `facts` maps this note's fact ids to their rows
     (`public_facts`). `note_links` (publish only) maps a target note id to
     `(public href, title)` for targets inside the same publication.
+
+    Example mode only (the other modes ignore these four): `images_on` holds the ORIGINAL `src`
+    of each image the author switched on; `image_src_for(src)` returns its rewritten public
+    address; `brokers` is the author's own institution names (the house `BROKER_NAMES` are always
+    added); `report`, when a list, receives one `{kind, before, after, path}` change entry per
+    replacement -- `path` is the node's child indices from the doc root in the AUTHOR'S body, and
+    `before` (at most 60 characters of the author's text) is for the author's preview only.
     """
     if mode not in MODES:
         raise ValueError(f"unknown public mode {mode!r}")
     doc = body if isinstance(body, dict) and body.get("type") == "doc" else {"type": "doc", "content": []}
-    raw = json.dumps(doc).replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
-    ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base)
+    raw = json.dumps(doc)
+    if mode != "example":
+        # an example's images are switched on by their ORIGINAL src and rewritten by image_src_for,
+        # never through this note's share/publish proxy
+        raw = raw.replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
+    ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base, images_on=images_on, brokers=brokers,
+               image_src_for=image_src_for, report=report)
     reduced = _reduce_node(json.loads(raw), ctx)
     if not reduced or reduced[0].get("type") != "doc":
         return {"type": "doc", "content": [{"type": "paragraph"}]}
@@ -1234,7 +1458,8 @@ __all__ = [
     "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
     "PUBLIC_ATTR_POLICY", "ATTR_POLICY_BY_MODE", "PUBLIC_FONT_SIZE_BOUNDS", "safe_font_family", "safe_font_size",
-    "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
+    "SHOWN", "NEUTRAL", "MODES", "BASE_MODES", "EXAMPLE_OVERRIDES", "EXAMPLE_IMAGE_ATTRS", "node_action",
+    "attr_decision", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
     "read_public_note", "walk_types",
 ]
