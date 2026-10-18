@@ -37,7 +37,27 @@
 
 .navBtns {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* Customize (page layouts): a text button in the top bar's action group, ahead of Previous / Next. */
+.customizeBtn {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  border: 1px solid var(--border, #2a2a2e);
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+.customizeBtn:hover { border-color: var(--accent, #dcbb5e); }
+@media (max-width: 1024px) {
+  .customizeBtn { min-height: var(--tap-min); }
 }
 
 .navBtn {
