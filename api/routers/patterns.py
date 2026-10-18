@@ -809,9 +809,10 @@ def get_detections(
     # both read per request): a non-admin's chart toggle asks with include_structures=true,
     # and gets ONLY the member set (registry.DISPLAY_MEMBER_SET: the types that passed the
     # blind check as drawn), filtered HERE, never by the client: member-set rows, on D/W/M
-    # member-set base boxes (`structures`, none today) and the learned drawer's levels +
-    # trendlines (`drawn`). bull_flag, bc:flat-base, bc:cup-with-handle, the levels layer and
-    # every other tier stay admin-only. With the member flag off the payload is as before.
+    # member-set base boxes (`structures`: bc:flat-base, pivot line only, box off) and the
+    # learned drawer's levels + trendlines (`drawn`). bull_flag, bc:cup-with-handle, the
+    # levels layer and every other tier stay admin-only. With the member flag off the
+    # payload is as before.
     if include_structures and not is_admin:
         from api.services import auto_structures
         if auto_structures.members_enabled():
