@@ -129,7 +129,17 @@ def read_playbooks(js: str | None = None) -> list[dict]:
         sm = re.search(r"label: 'Stop',\s*accent: 'stop',\s*body:\s*((?:\s*'(?:[^'\\]|\\.)*'\s*\+?)+)", block)
         if sm:
             stop = "".join(re.findall(r"'((?:[^'\\]|\\.)*)'", sm.group(1))).replace("\\'", "'")
-        out.append({"name": h.group(1), "mistakes": mistakes, "stop": stop})
+        # the playbook's own RULES: the first sentence of the intro and of every
+        # section body, verbatim. They are the distractors for a "which is the
+        # mistake" item (owner 2026-10-18: a mistake from another playbook is
+        # not clearly wrong, "all of these have right and some wrong in them").
+        rules: list[str] = []
+        for bm in re.finditer(r"(?:intro|body):\s*((?:\s*'(?:[^'\\]|\\.)*'\s*\+?)+)", block):
+            text = "".join(re.findall(r"'((?:[^'\\]|\\.)*)'", bm.group(1))).replace("\\'", "'").strip()
+            first = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0].strip()
+            if first and first not in rules and len(first.split()) <= 40:
+                rules.append(first)
+        out.append({"name": h.group(1), "mistakes": mistakes, "stop": stop, "rules": rules})
     return out
 
 
@@ -239,13 +249,20 @@ def playbook_items(playbooks: list[dict]) -> list[dict]:
         skill = setup_skill(p["name"])
         for m in p["mistakes"]:
             ref = f"{SOURCE_PLAYBOOKS}#{p['name']}#mistake"
-            others = [x for n, x in all_mistakes if n != p["name"]]
-            d = rotate_pick(others, 3, ref + m)
+            # distractors are the SAME playbook's own rules, so the one mistake
+            # is the one line that contradicts the playbook; a mistake lifted
+            # from another setup is not clearly wrong (owner, 2026-10-18)
+            d = rotate_pick(p.get("rules") or [], 3, ref + m)
+            if len(d) < 3:
+                others = [x for n, x in all_mistakes if n != p["name"]]
+                d += rotate_pick(others, 3 - len(d), ref + m + "|fallback")
             out.append(make_item(type="recall", skill_id=skill,
-                                 q=f"Which is a named mistake in the firm's {p['name']} playbook?",
+                                 q=f"Three of these are rules from the firm's {p['name']} playbook. Which one is the named mistake?",
                                  answer=m, choices=shuffled_choices(m, d, ref + m),
-                                 prompt_extra={"subject": f"{p['name']} mistake: {m[:40]}"},
-                                 reveal={"setup": p["name"], "quote": m, "source": ref},
+                                 prompt_extra={"subject": f"{p['name']} mistake: {m[:40]}",
+                                               "note": "The other three are the playbook's own rules."},
+                                 reveal={"setup": p["name"], "quote": m, "source": ref,
+                                         "rules": list(p.get("rules") or [])},
                                  source_kind="playbook", source_ref=ref + "#" + m[:40], difficulty=2,
                                  lesson_text=quote_lesson(m)))
         if p.get("stop"):

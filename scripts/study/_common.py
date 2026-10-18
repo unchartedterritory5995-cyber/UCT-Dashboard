@@ -101,7 +101,14 @@ def make_item(*, type: str, skill_id: str, q: str, answer: Any, source_kind: str
             answer_json["accept"] = [dedash(x) for x in accept]
     lesson_text = dedash(lesson_text)
     it = {
-        "id": item_id(source_ref, q + "\n" + json.dumps(prompt_extra or {}, sort_keys=True)),
+        # the id is stable across presentational changes: when the prompt declares
+        # a `subject`, the id comes from source_ref + question + subject only, so
+        # a note, a chart spec or a reworded distractor never orphans the owner's
+        # verdict on the item (docs/study/corrections keys on the id)
+        "id": item_id(source_ref, q + "\n" + (
+            f"{(prompt_extra or {}).get('subject')}#part{(prompt_extra or {}).get('part', '')}"
+            if (prompt_extra or {}).get("subject")
+            else json.dumps(prompt_extra or {}, sort_keys=True))),
         "version": 1,
         "type": type,
         "skill_id": skill_id,

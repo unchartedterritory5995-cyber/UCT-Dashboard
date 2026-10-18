@@ -4,7 +4,7 @@
    "answer": "Fixed-fractional position sizing"
   },
   "difficulty": 2,
-  "id": "si_fd70b4b65108",
+  "id": "si_4ecb84ae36ab",
   "lesson_origin": "source",
   "lesson_text": "Risk a fixed percentage of account equity per trade, typically 0.5-2%. Position size = (account × risk_pct) / (entry - stop). Adjust for volatility: in higher-vol regimes (VIX above 20-25) reduce risk by 30-50%. Never risk more than 1% per trade after a 5% drawdown from peak, drawdowns compound; cutting size halts the spiral.",
   "module": null,
@@ -38,7 +38,7 @@
    "answer": "Kelly criterion and fractional Kelly"
   },
   "difficulty": 2,
-  "id": "si_45ed9c398fe3",
+  "id": "si_456bb86f6b3a",
   "lesson_origin": "source",
   "lesson_text": "Full Kelly maximizes long-run growth: f = (win_rate × avg_win - loss_rate × avg_loss) / avg_win. But full Kelly has 50% drawdown distributions; serious traders use half-Kelly or quarter-Kelly. Anything above 1.0 Kelly is destructive. For most discretionary equity setups with 55-65% hit rates and 1.5-2R averages, quarter-Kelly maps to roughly 0.5-1% risk per trade.",
   "module": null,
@@ -72,7 +72,7 @@
    "answer": "Volatility-adjusted sizing (ATR-based)"
   },
   "difficulty": 2,
-  "id": "si_73a3b2cab731",
+  "id": "si_c98f98aaf61d",
   "lesson_origin": "source",
   "lesson_text": "Set position size so that 1 ATR of adverse movement = a fixed dollar loss. shares = (account × risk_pct) / (k × ATR), where k is your stop distance in ATRs (usually 1-2). This automatically scales you smaller in volatile names and larger in quiet ones, it's the right way to size across the cap spectrum from large-cap to small-cap names.",
   "module": null,
@@ -106,7 +106,7 @@
    "answer": "Correlation-adjusted total exposure"
   },
   "difficulty": 2,
-  "id": "si_1b908adcae20",
+  "id": "si_99956e481849",
   "lesson_origin": "source",
   "lesson_text": "If 5 positions are all semiconductor longs, you don't have 5 trades, you have one large sector bet. Cap total exposure to any single sector at 2x your per-trade risk. Cap total long exposure in a falling-VIX bullish regime at 100% of equity, but cut to 60% when McClellan is below -100 or breadth deteriorates.",
   "module": null,
@@ -140,7 +140,7 @@
    "answer": "Scaling rules, adds and trims"
   },
   "difficulty": 2,
-  "id": "si_9fa79291fe78",
+  "id": "si_4e23e3dc6f14",
   "lesson_origin": "source",
   "lesson_text": "Add only into strength (price extends in your favor past a confirmation level), never add to a loser ('averaging down' destroys discipline). Initial entry should be 60-70% of intended size; reserve 30-40% for an add on confirmation. Trim 1/3 to 1/2 at 1R, move stop to entry; let the rest run to 2-3R+.",
   "module": null,
@@ -174,7 +174,7 @@
    "answer": "High Tight Flag (Powerplay)"
   },
   "difficulty": 2,
-  "id": "si_1984a2848f63",
+  "id": "si_993eb4fc927a",
   "lesson_origin": "source",
   "lesson_text": "Stock rises 90-100%+ in 4-8 weeks, then forms a tight 10-25% consolidation lasting 3-5 weeks with declining volume. The flag should be ORDERLY, no wide-range panic bars. Buy on volume breakout of the flag high. Stop below flag low or 50% retrace of flag. Failure rate is high (40%+) but winners can double-triple. Best in trending bull markets only.",
   "module": null,
@@ -208,7 +208,7 @@
    "answer": "VCP (Volatility Contraction Pattern)"
   },
   "difficulty": 2,
-  "id": "si_65449d9368f5",
+  "id": "si_953f5a192e8a",
   "lesson_origin": "source",
   "lesson_text": "Stock makes a deep base (25-50% from prior high), then a series of progressively tighter pullbacks, each lower in depth and on lower volume than the last (e.g. -25%, -15%, -8%). Volume dries up at the apex. Buy on volume expansion through the highest pivot. Best for liquid mid-large caps. Failure: price falls below the last tight area within 1-2 days.",
   "module": null,
@@ -242,7 +242,7 @@
    "answer": "Classic flag pullback to rising MA"
   },
   "difficulty": 2,
-  "id": "si_652594ad722b",
+  "id": "si_6fb892bf12f8",
   "lesson_origin": "source",
   "lesson_text": "Strong uptrend (above rising 50-day MA, RS line making highs), then 3-8 day pullback to the 10/20-day EMA or 50-day SMA on declining volume. Look for a 'kiss' of the MA + inside bar + close in upper third of range. Entry: above the high of the kiss bar. Stop: below the kiss bar low or below 50-day SMA. Target: prior high + measured move of the pole.",
   "module": null,
@@ -276,7 +276,7 @@
    "answer": "Episodic pivot (PEAD / earnings gap)"
   },
   "difficulty": 2,
-  "id": "si_7d92553c255e",
+  "id": "si_0170f12c5228",
   "lesson_origin": "source",
   "lesson_text": "Stock gaps 8-20% on earnings with massive volume, and the gap doesn't fill in the first 30 minutes. Look for opening-range-high break on the morning of the gap or first close above the high-of-day on day 2. The setup works best when the stock was NOT extended before earnings (in a base, not 50%+ in 3 months). Stops are tight: low of the gap day or breakout bar.",
   "module": null,
@@ -310,7 +310,7 @@
    "answer": "Stage 2 launch (Weinstein / Minervini)"
   },
   "difficulty": 2,
-  "id": "si_b271acd6342e",
+  "id": "si_cf005c5b5aac",
   "lesson_origin": "source",
   "lesson_text": "Stock has been in a long stage-1 base (months to years) below a flattening 30-week MA. Then: 30-week MA flips up, stock breaks above resistance on volume 1.5-2x average, RS line confirms with a new high. This is the highest-probability long entry there is. Best in major bottoming environments. Position can be held for months. Stop: below the 30-week MA.",
   "module": null,
@@ -344,7 +344,7 @@
    "answer": "Parabolic short (failed parabolic)"
   },
   "difficulty": 2,
-  "id": "si_b5bbe3f75c25",
+  "id": "si_f46fcbab529f",
   "lesson_origin": "source",
   "lesson_text": "Stock has run 100-500% in 1-3 months with accelerating slope. First sign of failure: largest down-volume bar of the move, OR break of the 9 EMA on closing basis after riding it tight, OR a key reversal day (gap up, close near lows on volume). Short the lower-high after the first crack, with stop above the recent pivot high. Targets: 21 EMA, then 50 SMA. NOT a short for the actual top, wait for confirmation.",
   "module": null,
@@ -378,7 +378,7 @@
    "answer": "ORB (Opening Range Breakout) intraday"
   },
   "difficulty": 2,
-  "id": "si_bd4511bf8a5d",
+  "id": "si_c46e743b4ff6",
   "lesson_origin": "source",
   "lesson_text": "Mark high/low of first 5 or 15 minutes after the open. Buy a break of the high (or short the break of the low) on volume expansion. Stop below the opposite end of the range. Best with gap-up names in strong markets, or with stocks reporting fresh news. Avoid on choppy days or right before major macro events. Win rate is regime-dependent: 55-65% in trend, 35-45% in chop.",
   "module": null,
@@ -412,7 +412,7 @@
    "answer": "U&R (Undercut and Rally)"
   },
   "difficulty": 2,
-  "id": "si_c380dc34bf4d",
+  "id": "si_35551ea13810",
   "lesson_origin": "source",
   "lesson_text": "Stock undercuts a key recent low (1-3% below) intraday, then closes back above it. This shakes out weak hands and traps shorts. Buy the next day's open or on a close above the undercut bar's high. Stop: below the undercut low. Works because the failed breakdown signals exhausted selling. Best after a clean basing pattern, not after free-fall.",
   "module": null,
@@ -446,7 +446,7 @@
    "answer": "Power Earnings Gap (PEG)"
   },
   "difficulty": 2,
-  "id": "si_9536ef2937e1",
+  "id": "si_ff2c53364bc6",
   "lesson_origin": "source",
   "lesson_text": "Earnings beats both top and bottom line, raises guidance, gaps up 5%+ on 3x+ average volume, and is in a strong group with bullish RS. The gap holds for the first hour. Buy intraday pullbacks to VWAP or the lower half of the gap range. Hold for days to weeks. Best in early stages of a stock's uptrend, not at all-time highs after months of running.",
   "module": null,
@@ -480,7 +480,7 @@
    "answer": "Wedge pop (rising wedge breakdown OR falling wedge breakout)"
   },
   "difficulty": 2,
-  "id": "si_5b8ad88e2a36",
+  "id": "si_fe5633958fab",
   "lesson_origin": "source",
   "lesson_text": "Falling wedge: lower lows and lower highs converge toward an apex with decreasing volume, buy the break above the upper trendline on volume expansion. Rising wedge inverse: short the break below the lower trendline. Wedges work because volume dries up as participants leave; the break is on fresh participation. Failure if price re-enters the wedge within 2-3 bars.",
   "module": null,
@@ -514,7 +514,7 @@
    "answer": "Loss aversion and the urge to be 'right'"
   },
   "difficulty": 2,
-  "id": "si_736c62fd3767",
+  "id": "si_ac7de7eaeb1e",
   "lesson_origin": "source",
   "lesson_text": "Losses feel ~2x more painful than equivalent gains feel good. This makes traders hold losers (hoping to break even) and cut winners (locking in 'being right'). Antidote: pre-define exits on entry. Treat 'I was wrong' as information, not identity. The PnL doesn't care about your ego.",
   "module": null,
@@ -548,7 +548,7 @@
    "answer": "FOMO and the chase reflex"
   },
   "difficulty": 2,
-  "id": "si_172a682ff96e",
+  "id": "si_1cbce3067688",
   "lesson_origin": "source",
   "lesson_text": "Watching a stock rip without you triggers the same neural circuits as physical pain. The urge to chase is strongest 3-5% after the breakout, exactly where stops should be wide and risk-reward is worst. Rule: never chase past 5% from the proper pivot. If you missed it, the second base (a tight pullback after the initial move) is often higher-probability anyway.",
   "module": null,
@@ -582,7 +582,7 @@
    "answer": "Revenge trading after a loss"
   },
   "difficulty": 2,
-  "id": "si_afb25af86129",
+  "id": "si_65ecb7f39dd8",
   "lesson_origin": "source",
   "lesson_text": "After a loss, the brain wants to 'win it back' immediately. The next setup looks better than it is. Antidote: after a stop-out, the next trade must be 50% smaller, OR a 15-minute mandatory break before next entry. The data is clear, trades placed within 5 minutes of a loss have a 30% lower win rate.",
   "module": null,
@@ -616,7 +616,7 @@
    "answer": "Overtrading in chop"
   },
   "difficulty": 2,
-  "id": "si_b70698eae118",
+  "id": "si_de2f9d283617",
   "lesson_origin": "source",
   "lesson_text": "Trending markets reward action; choppy markets punish it. The hardest discipline is sitting in cash when nothing is working. If your last 5 trades are all stop-outs with similar setups, the regime has changed, STOP, not adjust. Trade count per day should compress in chop and expand in trend.",
   "module": null,
@@ -650,7 +650,7 @@
    "answer": "Anchoring to entry price"
   },
   "difficulty": 2,
-  "id": "si_3450332b37d2",
+  "id": "si_4466a148207e",
   "lesson_origin": "source",
   "lesson_text": "Traders anchor to where they got in and refuse to exit at a loss until 'breakeven'. The market doesn't know your entry. Decisions should be based ONLY on whether the current price action invalidates the thesis, not on the unrealized PnL. If you wouldn't enter the trade at the current price, you shouldn't be holding it.",
   "module": null,
@@ -684,7 +684,7 @@
    "answer": "Confirmation bias in news/charts"
   },
   "difficulty": 2,
-  "id": "si_b450b0fb7bbf",
+  "id": "si_0e9da3805116",
   "lesson_origin": "source",
   "lesson_text": "Once you've taken a position, you'll find evidence that supports it everywhere. Antidote: before entering, write down what would invalidate the thesis. If you can't articulate the failure case, you don't really have a thesis. Review the failure case daily during the trade.",
   "module": null,
@@ -718,7 +718,7 @@
    "answer": "Recency bias in regime calls"
   },
   "difficulty": 2,
-  "id": "si_da51ea002b9f",
+  "id": "si_16620a297943",
   "lesson_origin": "source",
   "lesson_text": "After 5 winning trend trades, traders assume trend works forever; after 3 chop losses, they assume the regime has flipped. Real regime changes are slow and visible in breadth + advance-decline + new high/low data, not in your last 8 trades. Use the breadth dashboard and McClellan, not your PnL, to assess regime.",
   "module": null,
@@ -752,7 +752,7 @@
    "answer": "Cutting winners early (the 'I made some' trap)"
   },
   "difficulty": 2,
-  "id": "si_568f88894377",
+  "id": "si_0ff32b3657e4",
   "lesson_origin": "source",
   "lesson_text": "The pain of 'giving back' an open profit can be sharper than the pleasure of holding for the larger gain. Rule: define your trim levels in advance (1R partial, 2R partial, trail rest). Once you trim 1R, the rest is house money, the psychology eases. Never trim more than 50% before 2R unless the thesis breaks.",
   "module": null,
@@ -786,7 +786,7 @@
    "answer": "Bull trend regime, breadth strong, VIX low, indexes above rising 50-day"
   },
   "difficulty": 2,
-  "id": "si_3cb6ad2216d1",
+  "id": "si_01c6213058a6",
   "lesson_origin": "source",
   "lesson_text": "Posture: long-only, aggressive. Buy pullbacks to rising MAs, breakouts of tight bases. Position sizes can run 0.75-1.5% risk. Hold winners longer; trail wider. Exposure can run 100%+ on margin in late stages of the trend. Watch for distribution days (>4 in a month) as the first sign of regime change.",
   "module": null,
@@ -820,7 +820,7 @@
    "answer": "Bull correction (10-15% from highs, breadth thrust possible)"
   },
   "difficulty": 2,
-  "id": "si_988e5fdb26bf",
+  "id": "si_ce1be4d67d5e",
   "lesson_origin": "source",
   "lesson_text": "Posture: cautious longs only at oversold extremes (RSI < 30 on indexes, VIX > 25, panic in put/call). Best longs are quality names that pulled in 20%+ but held above 200-day. Risk per trade 0.3-0.5%. Don't catch falling knives, wait for a 2-3 day reversal pattern. If you must short, only at logical resistance levels with stops above swing high.",
   "module": null,
@@ -854,7 +854,7 @@
    "answer": "Bear trend (below 200-day, McClellan < -200)"
   },
   "difficulty": 2,
-  "id": "si_26368bfca1cf",
+  "id": "si_25acf242bf47",
   "lesson_origin": "source",
   "lesson_text": "Posture: defensive. No longs except at extreme oversold reversal points. Short failed rallies into supply (50-day, broken support). Position sizes smaller (0.5%). Cash is a position. Most accounts get destroyed in bear markets not by single losses but by repeatedly trying to call bottoms. The first 1-2 oversold bounces fail.",
   "module": null,
@@ -888,7 +888,7 @@
    "answer": "Distribution / topping regime (highs but breadth diverging)"
   },
   "difficulty": 2,
-  "id": "si_3769a8702935",
+  "id": "si_7e84b6f6acde",
   "lesson_origin": "source",
   "lesson_text": "Indexes near highs but: new highs < new lows, % above 50-day declining, McClellan negative, leadership rotating defensive (utilities, staples leading). Posture: tighten stops on every long, take profits aggressively, reduce position sizes by 30%, no new positions in extended names. This is the highest-cost regime to ignore.",
   "module": null,
@@ -922,7 +922,7 @@
    "answer": "Chop regime, indexes range-bound, daily reversals common"
   },
   "difficulty": 2,
-  "id": "si_75f0ad250884",
+  "id": "si_14d136d3503c",
   "lesson_origin": "source",
   "lesson_text": "Mean reversion works; breakouts fail. Posture: cut trade frequency in half, wait for clean range extremes for entries, take 1-2R partials fast. The wrong move is to keep trying breakouts hoping the trend resumes, chop chews up account equity in slow death. Win rate drops 15-20% in chop vs trend.",
   "module": null,
@@ -956,7 +956,7 @@
    "answer": "Open: first 30 minutes are usually noise"
   },
   "difficulty": 2,
-  "id": "si_4146e2e937fe",
+  "id": "si_d60ae463534e",
   "lesson_origin": "source",
   "lesson_text": "Opening 30 min sees the highest volume and the widest spreads of the day. Patterns often reverse 30-60 minutes in as overnight orders clear. Best entry windows for swing setups: 10:00-11:30 ET (after the opening drive) and 14:30-15:30 ET (pre-close trend day continuation). Avoid 11:30-14:00 lunchtime chop unless you have a specific intraday strategy.",
   "module": null,
@@ -990,7 +990,7 @@
    "answer": "VWAP as institutional fair value"
   },
   "difficulty": 2,
-  "id": "si_3fd2e8040a94",
+  "id": "si_2a02af7989e5",
   "lesson_origin": "source",
   "lesson_text": "Volume-weighted average price is the benchmark institutions use for execution. Stocks holding above session VWAP are being accumulated; below VWAP they're being distributed. Best long entries on pullbacks to VWAP that hold; best short entries on rejections of VWAP from below. AVWAP from an earnings event or breakout pivot is even more powerful, it marks the price level where smart money started buying.",
   "module": null,
@@ -1024,7 +1024,7 @@
    "answer": "Spread and slippage on small caps"
   },
   "difficulty": 2,
-  "id": "si_977030543d76",
+  "id": "si_50052c384894",
   "lesson_origin": "source",
   "lesson_text": "On sub-$2B market cap names with <500k average daily volume, slippage on market orders can eat 0.5-1.5% per round-trip. Use limit orders for entries; use marketable limits (limit 0.5% through best bid/offer) for exits when speed matters. Account for slippage in your reward-to-risk math, a setup with 2R reward on small caps is closer to 1.5R real.",
   "module": null,
@@ -1058,7 +1058,7 @@
    "answer": "Friday / month-end / quarter-end position behavior"
   },
   "difficulty": 2,
-  "id": "si_7d91a6d0f138",
+  "id": "si_22eefebab7a4",
   "lesson_origin": "source",
   "lesson_text": "Fridays often see institutional risk reduction in the afternoon (don't want weekend gap risk). Month-end can see window-dressing buying in already-strong leaders. Quarter-end (especially Q4) sees mechanical rebalancing flow. Best to avoid initiating fresh trades on Friday afternoon unless conviction is high; tighten stops instead.",
   "module": null,
@@ -1092,7 +1092,7 @@
    "answer": "Options dealer flow and gamma squeezes"
   },
   "difficulty": 2,
-  "id": "si_7273c6f48a10",
+  "id": "si_430a8156a6bd",
   "lesson_origin": "source",
   "lesson_text": "When stocks have heavy call open interest at a price just above current, market makers are short gamma, they must buy more stock as price rises to stay hedged. This amplifies moves above large call strikes. Watch for max-pain levels and key strike clusters in front-month options on stocks that have run sharply. Pin risk near OPEX (3rd Friday) is real.",
   "module": null,
@@ -1126,7 +1126,7 @@
    "answer": "After-hours and pre-market liquidity"
   },
   "difficulty": 2,
-  "id": "si_0b3d74bae9f0",
+  "id": "si_c046a88ed5d8",
   "lesson_origin": "source",
   "lesson_text": "Spreads in AH/PM can be 3-10x wider than RTH. Stops triggered in extended hours can fill far from the level. Best practice: use 'day' time-in-force on stops (not GTC) so they only fire 9:30-16:00 ET unless you intentionally want extended-hours exits. AH/PM moves often reverse partially or fully at the regular open.",
   "module": null,
@@ -1160,7 +1160,7 @@
    "answer": "Trading is a probabilistic game, not a certainty game"
   },
   "difficulty": 2,
-  "id": "si_d7b164cea6ab",
+  "id": "si_cb25f071d99f",
   "lesson_origin": "source",
   "lesson_text": "No setup is 100%. The edge is in: positive expectancy (avg_win × win_rate > avg_loss × loss_rate), large sample sizes (50+ trades per setup before judging), consistent process. Single trades are noise; quarterly results are signal. Focus on executing your plan, not on the outcome of any single trade.",
   "module": null,
@@ -1194,7 +1194,7 @@
    "answer": "The market doesn't owe you anything"
   },
   "difficulty": 2,
-  "id": "si_83c7d572fa13",
+  "id": "si_2ae917d8df5a",
   "lesson_origin": "source",
   "lesson_text": "There's no rule that says good analysis must be rewarded, or that trends must continue because they 'should'. The market only rewards traders who adapt to what IS, not what should be. Be willing to be wrong, be quick to cut, and never marry a thesis. Conviction is for losers; flexibility is for survivors.",
   "module": null,

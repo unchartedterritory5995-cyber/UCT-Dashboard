@@ -4,7 +4,7 @@
    "answer": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)"
   },
   "difficulty": 3,
-  "id": "si_790d37b796b7",
+  "id": "si_44c9f68808b7",
   "lesson_origin": "source",
   "lesson_text": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
   "module": "M6",
@@ -39,7 +39,7 @@
    "answer": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)"
   },
   "difficulty": 3,
-  "id": "si_45d74da3957b",
+  "id": "si_e66030749c7e",
   "lesson_origin": "source",
   "lesson_text": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
   "module": "M6",
@@ -74,7 +74,7 @@
    "answer": "rs_rank >= 80"
   },
   "difficulty": 3,
-  "id": "si_406f04e07a4d",
+  "id": "si_a9506f79b3dd",
   "lesson_origin": "source",
   "lesson_text": "rs_rank >= 80",
   "module": "M6",
@@ -109,7 +109,7 @@
    "answer": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
   },
   "difficulty": 3,
-  "id": "si_3f2849ec29f1",
+  "id": "si_230c241fbb50",
   "lesson_origin": "source",
   "lesson_text": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
   "module": "M6",
@@ -145,7 +145,7 @@
    "answer": "tight_consolidation"
   },
   "difficulty": 3,
-  "id": "si_0a9551afc08a",
+  "id": "si_b2ad9f977d7a",
   "lesson_origin": "source",
   "lesson_text": "tight_consolidation",
   "module": "M6",
@@ -181,7 +181,7 @@
    "answer": "rs_rank >= 80 && tight_consolidation"
   },
   "difficulty": 3,
-  "id": "si_e771873b960c",
+  "id": "si_541597cb6c60",
   "lesson_origin": "source",
   "lesson_text": "rs_rank >= 80 && tight_consolidation",
   "module": "M6",
@@ -216,7 +216,7 @@
    "answer": "rsi14 <= 30"
   },
   "difficulty": 3,
-  "id": "si_54e994105e3e",
+  "id": "si_4591e299d308",
   "lesson_origin": "source",
   "lesson_text": "rsi14 <= 30",
   "module": "M6",
@@ -251,7 +251,7 @@
    "answer": "rsi14 >= 70"
   },
   "difficulty": 3,
-  "id": "si_5f05ea22d103",
+  "id": "si_71d1c74e46b2",
   "lesson_origin": "source",
   "lesson_text": "rsi14 >= 70",
   "module": "M6",
@@ -286,7 +286,7 @@
    "answer": "vol_ratio >= 2"
   },
   "difficulty": 3,
-  "id": "si_993642c2d239",
+  "id": "si_f30fa4abdc39",
   "lesson_origin": "source",
   "lesson_text": "vol_ratio >= 2",
   "module": "M6",
@@ -321,7 +321,7 @@
    "answer": "avg_volume_30d >= 1000000"
   },
   "difficulty": 3,
-  "id": "si_71c2840d8ab8",
+  "id": "si_22b3d822fc6c",
   "lesson_origin": "source",
   "lesson_text": "avg_volume_30d >= 1000000",
   "module": "M6",
@@ -356,7 +356,7 @@
    "answer": "gap_pct >= 3"
   },
   "difficulty": 3,
-  "id": "si_993a08a340ac",
+  "id": "si_272b3b7c4f3b",
   "lesson_origin": "source",
   "lesson_text": "gap_pct >= 3",
   "module": "M6",
@@ -391,7 +391,7 @@
    "answer": "gap_pct <= -3"
   },
   "difficulty": 3,
-  "id": "si_f30f505f9cbb",
+  "id": "si_1818346e66b8",
   "lesson_origin": "source",
   "lesson_text": "gap_pct <= -3",
   "module": "M6",
@@ -426,7 +426,7 @@
    "answer": "dist_52w_high_pct >= -5"
   },
   "difficulty": 3,
-  "id": "si_2276b09ff0e9",
+  "id": "si_1ea6579ddcc5",
   "lesson_origin": "source",
   "lesson_text": "dist_52w_high_pct >= -5",
   "module": "M6",
@@ -461,7 +461,7 @@
    "answer": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2"
   },
   "difficulty": 3,
-  "id": "si_584ea1b60595",
+  "id": "si_3194daf507e5",
   "lesson_origin": "source",
   "lesson_text": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
   "module": "M6",
@@ -496,7 +496,7 @@
    "answer": "pullback_depth_pct <= 5"
   },
   "difficulty": 3,
-  "id": "si_2e93f007073d",
+  "id": "si_c1265eaadd08",
   "lesson_origin": "source",
   "lesson_text": "pullback_depth_pct <= 5",
   "module": "M6",
@@ -531,7 +531,7 @@
    "answer": "pullback_depth_pct >= 20"
   },
   "difficulty": 3,
-  "id": "si_361d6cdc7f81",
+  "id": "si_32fb9ac26e52",
   "lesson_origin": "source",
   "lesson_text": "pullback_depth_pct >= 20",
   "module": "M6",
@@ -566,7 +566,7 @@
    "answer": "higher_lows_run >= 3"
   },
   "difficulty": 3,
-  "id": "si_04efe3773588",
+  "id": "si_76abf3f715a1",
   "lesson_origin": "source",
   "lesson_text": "higher_lows_run >= 3",
   "module": "M6",
@@ -601,7 +601,7 @@
    "answer": "close_position >= 0.66"
   },
   "difficulty": 3,
-  "id": "si_f5970991120f",
+  "id": "si_eba88bef872e",
   "lesson_origin": "source",
   "lesson_text": "close_position >= 0.66",
   "module": "M6",
@@ -636,7 +636,7 @@
    "answer": "new_52w_high"
   },
   "difficulty": 3,
-  "id": "si_262a27ae6e9e",
+  "id": "si_f2222bc3dac5",
   "lesson_origin": "source",
   "lesson_text": "new_52w_high",
   "module": "M6",
@@ -671,7 +671,7 @@
    "answer": "market_cap >= 10000000000"
   },
   "difficulty": 3,
-  "id": "si_cf68df4e9586",
+  "id": "si_11bef080d60f",
   "lesson_origin": "source",
   "lesson_text": "market_cap >= 10000000000",
   "module": "M6",
@@ -706,7 +706,7 @@
    "answer": "market_cap >= 200000000000"
   },
   "difficulty": 3,
-  "id": "si_45769dcc81b8",
+  "id": "si_dba4f8a3982e",
   "lesson_origin": "source",
   "lesson_text": "market_cap >= 200000000000",
   "module": "M6",
@@ -741,7 +741,7 @@
    "answer": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000"
   },
   "difficulty": 3,
-  "id": "si_c465516c0726",
+  "id": "si_cdd726be8fd5",
   "lesson_origin": "source",
   "lesson_text": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
   "module": "M6",

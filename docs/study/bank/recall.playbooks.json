@@ -4,22 +4,32 @@
    "answer": "Buying the flagpole instead of waiting for the flag and breakout."
   },
   "difficulty": 2,
-  "id": "si_1291bfa801ba",
+  "id": "si_7c9ccde4c1f9",
   "lesson_origin": "source",
   "lesson_text": "Buying the flagpole instead of waiting for the flag and breakout.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Taking the breakout when it is not also a high-of-day break.",
+    "Below the low of the flag.",
     "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Selling the entire position into the first day or two and missing the multi-week trend.",
-    "Impatience, entering before the moving averages have tightened to the breakout level."
+    "A sharp flagpole advance, then a shallow consolidation that drifts slightly lower or sideways, typically retracing only one-third to one-half of the pole.",
+    "Breakout above the upper boundary (downtrend line) of the flag, ideally on a pickup in volume."
    ],
-   "q": "Which is a named mistake in the firm's Bull Flag playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Bull Flag playbook. Which one is the named mistake?",
    "subject": "Bull Flag mistake: Buying the flagpole instead of waiting f"
   },
   "reveal_json": {
    "quote": "Buying the flagpole instead of waiting for the flag and breakout.",
+   "rules": [
+    "The Bull Flag is one of the most reliable continuation patterns in a trending stock.",
+    "Best taken in a confirmed market uptrend with the stock already in a clear uptrend of its own.",
+    "A sharp flagpole advance, then a shallow consolidation that drifts slightly lower or sideways — typically retracing only one-third to one-half of the pole.",
+    "Breakout above the upper boundary (downtrend line) of the flag, ideally on a pickup in volume.",
+    "Below the low of the flag.",
+    "Measured move: project the height of the flagpole up from the breakout point for a first target.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "Bull Flag",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Bull Flag#mistake"
   },
@@ -35,22 +45,32 @@
    "answer": "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
   },
   "difficulty": 2,
-  "id": "si_3c5db16b61c0",
+  "id": "si_b40dd7fbb75b",
   "lesson_origin": "source",
   "lesson_text": "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Selling the entire position into the first day or two and missing the multi-week trend.",
+    "Standard fixed-dollar risk ÷ stop distance.",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
-    "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge, move on)."
+    "Below the low of the flag.",
+    "Measured move: project the height of the flagpole up from the breakout point for a first target."
    ],
-   "q": "Which is a named mistake in the firm's Bull Flag playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Bull Flag playbook. Which one is the named mistake?",
    "subject": "Bull Flag mistake: Tolerating a loose or deep “flag” that i"
   },
   "reveal_json": {
    "quote": "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+   "rules": [
+    "The Bull Flag is one of the most reliable continuation patterns in a trending stock.",
+    "Best taken in a confirmed market uptrend with the stock already in a clear uptrend of its own.",
+    "A sharp flagpole advance, then a shallow consolidation that drifts slightly lower or sideways — typically retracing only one-third to one-half of the pole.",
+    "Breakout above the upper boundary (downtrend line) of the flag, ideally on a pickup in volume.",
+    "Below the low of the flag.",
+    "Measured move: project the height of the flagpole up from the breakout point for a first target.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "Bull Flag",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Bull Flag#mistake"
   },
@@ -66,22 +86,32 @@
    "answer": "Chasing well past the breakout instead of entering near the pivot."
   },
   "difficulty": 2,
-  "id": "si_1a0a1a1d15e5",
+  "id": "si_e8a49b692e14",
   "lesson_origin": "source",
   "lesson_text": "Chasing well past the breakout instead of entering near the pivot.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the pullback before a candle actually holds the 20-EMA.",
-    "Using the setup on a stock whose daily chart is not bullish.",
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "Standard fixed-dollar risk ÷ stop distance.",
+    "The Bull Flag is one of the most reliable continuation patterns in a trending stock.",
+    "Best taken in a confirmed market uptrend with the stock already in a clear uptrend of its own.",
     "Chasing well past the breakout instead of entering near the pivot."
    ],
-   "q": "Which is a named mistake in the firm's Bull Flag playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Bull Flag playbook. Which one is the named mistake?",
    "subject": "Bull Flag mistake: Chasing well past the breakout instead o"
   },
   "reveal_json": {
    "quote": "Chasing well past the breakout instead of entering near the pivot.",
+   "rules": [
+    "The Bull Flag is one of the most reliable continuation patterns in a trending stock.",
+    "Best taken in a confirmed market uptrend with the stock already in a clear uptrend of its own.",
+    "A sharp flagpole advance, then a shallow consolidation that drifts slightly lower or sideways — typically retracing only one-third to one-half of the pole.",
+    "Breakout above the upper boundary (downtrend line) of the flag, ideally on a pickup in volume.",
+    "Below the low of the flag.",
+    "Measured move: project the height of the flagpole up from the breakout point for a first target.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "Bull Flag",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Bull Flag#mistake"
   },
@@ -97,7 +127,7 @@
    "answer": "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis."
   },
   "difficulty": 3,
-  "id": "si_2c23be448f3c",
+  "id": "si_71bc8f080434",
   "lesson_origin": "source",
   "lesson_text": "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
   "module": null,
@@ -128,22 +158,31 @@
    "answer": "Impatience, entering before the moving averages have tightened to the breakout level."
   },
   "difficulty": 2,
-  "id": "si_1576ae30bd28",
+  "id": "si_9b32ca450d20",
   "lesson_origin": "source",
   "lesson_text": "Impatience, entering before the moving averages have tightened to the breakout level.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Entering inside the wedge before the pop confirms.",
+    "One of the most common and effective continuation patterns the community trades.",
     "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
-    "Short: shorting into the averages before a rejection candle confirms."
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+    "Scale out into strength against 30-minute and intraday support/resistance levels and on 2:1+; trail the stop up behind the nearest support."
    ],
-   "q": "Which is a named mistake in the firm's Flat Base Breakout playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Flat Base Breakout playbook. Which one is the named mistake?",
    "subject": "Flat Base Breakout mistake: Impatience, entering before the moving "
   },
   "reveal_json": {
    "quote": "Impatience — entering before the moving averages have tightened to the breakout level.",
+   "rules": [
+    "One of the most common and effective continuation patterns the community trades.",
+    "Strongest with timeframe alignment — a bullish daily/weekly structure underneath the intraday flat top.",
+    "A clearly defined horizontal resistance level tested multiple times (the “taps”) with continuous higher lows into it.",
+    "Breakout above the flat-top resistance, taken as a high-of-day break.",
+    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Scale out into strength against 30-minute and intraday support/resistance levels and on 2:1+; trail the stop up behind the nearest support."
+   ],
    "setup": "Flat Base Breakout",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Flat Base Breakout#mistake"
   },
@@ -159,22 +198,31 @@
    "answer": "Taking the breakout when it is not also a high-of-day break."
   },
   "difficulty": 2,
-  "id": "si_7b51f9a4284c",
+  "id": "si_149048d0284d",
   "lesson_origin": "source",
   "lesson_text": "Taking the breakout when it is not also a high-of-day break.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Widening the stop to survive the base’s depth and blowing the risk budget.",
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+    "Scale out into strength against 30-minute and intraday support/resistance levels and on 2:1+; trail the stop up behind the nearest support.",
+    "One of the most common and effective continuation patterns the community trades.",
     "Taking the breakout when it is not also a high-of-day break."
    ],
-   "q": "Which is a named mistake in the firm's Flat Base Breakout playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Flat Base Breakout playbook. Which one is the named mistake?",
    "subject": "Flat Base Breakout mistake: Taking the breakout when it is not also "
   },
   "reveal_json": {
    "quote": "Taking the breakout when it is not also a high-of-day break.",
+   "rules": [
+    "One of the most common and effective continuation patterns the community trades.",
+    "Strongest with timeframe alignment — a bullish daily/weekly structure underneath the intraday flat top.",
+    "A clearly defined horizontal resistance level tested multiple times (the “taps”) with continuous higher lows into it.",
+    "Breakout above the flat-top resistance, taken as a high-of-day break.",
+    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Scale out into strength against 30-minute and intraday support/resistance levels and on 2:1+; trail the stop up behind the nearest support."
+   ],
    "setup": "Flat Base Breakout",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Flat Base Breakout#mistake"
   },
@@ -190,7 +238,7 @@
    "answer": "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop."
   },
   "difficulty": 3,
-  "id": "si_76e1dd752b9e",
+  "id": "si_accc4bef22b8",
   "lesson_origin": "source",
   "lesson_text": "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
   "module": null,
@@ -221,22 +269,32 @@
    "answer": "Buying the first wild swings before any real base has formed."
   },
   "difficulty": 2,
-  "id": "si_61b9cf7250ef",
+  "id": "si_bd5617906024",
   "lesson_origin": "source",
   "lesson_text": "Buying the first wild swings before any real base has formed.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Buying the first wild swings before any real base has formed.",
-    "Taking the breakout when it is not also a high-of-day break.",
-    "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+    "Confirmed market uptrend with a genuine appetite for new issues, IPO bases fail in hostile tape.",
+    "The stock’s first base, typically within the first 3–12 months of trading; the earliest bases tend to be the most powerful.",
+    "Breakout above the base high + a small buffer on expanding volume."
    ],
-   "q": "Which is a named mistake in the firm's IPO Base playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's IPO Base playbook. Which one is the named mistake?",
    "subject": "IPO Base mistake: Buying the first wild swings before any "
   },
   "reveal_json": {
    "quote": "Buying the first wild swings before any real base has formed.",
+   "rules": [
+    "A newly public stock’s first real consolidation.",
+    "Confirmed market uptrend with a genuine appetite for new issues — IPO bases fail in hostile tape.",
+    "The stock’s first base, typically within the first 3–12 months of trading; the earliest bases tend to be the most powerful.",
+    "Breakout above the base high + a small buffer on expanding volume.",
+    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA.",
+    "Trim into a 20–25% gain; invoke the 8-week hold rule when the breakout runs 20%+ within three weeks — these first bases are often the year’s big winners.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "IPO Base",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#IPO Base#mistake"
   },
@@ -252,22 +310,32 @@
    "answer": "Widening the stop to survive the base’s depth and blowing the risk budget."
   },
   "difficulty": 2,
-  "id": "si_92081676a991",
+  "id": "si_75af61fb8bef",
   "lesson_origin": "source",
   "lesson_text": "Widening the stop to survive the base’s depth and blowing the risk budget.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Widening the stop to survive the base’s depth and blowing the risk budget.",
-    "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Taking the breakout when it is not also a high-of-day break."
+    "Trim into a 20–25% gain; invoke the 8-week hold rule when the breakout runs 20%+ within three weeks, these first bases are often the year’s big winners.",
+    "Standard fixed-dollar risk ÷ stop distance.",
+    "A newly public stock’s first real consolidation."
    ],
-   "q": "Which is a named mistake in the firm's IPO Base playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's IPO Base playbook. Which one is the named mistake?",
    "subject": "IPO Base mistake: Widening the stop to survive the base’s "
   },
   "reveal_json": {
    "quote": "Widening the stop to survive the base’s depth and blowing the risk budget.",
+   "rules": [
+    "A newly public stock’s first real consolidation.",
+    "Confirmed market uptrend with a genuine appetite for new issues — IPO bases fail in hostile tape.",
+    "The stock’s first base, typically within the first 3–12 months of trading; the earliest bases tend to be the most powerful.",
+    "Breakout above the base high + a small buffer on expanding volume.",
+    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA.",
+    "Trim into a 20–25% gain; invoke the 8-week hold rule when the breakout runs 20%+ within three weeks — these first bases are often the year’s big winners.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "IPO Base",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#IPO Base#mistake"
   },
@@ -283,22 +351,32 @@
    "answer": "Forcing IPO breakouts in a weak market where new issues fail."
   },
   "difficulty": 2,
-  "id": "si_00e17aa587d4",
+  "id": "si_8d882b52b2eb",
   "lesson_origin": "source",
   "lesson_text": "Forcing IPO breakouts in a weak market where new issues fail.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Selling the entire position into the first day or two and missing the multi-week trend.",
-    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "A newly public stock’s first real consolidation.",
+    "Confirmed market uptrend with a genuine appetite for new issues, IPO bases fail in hostile tape.",
     "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Chasing when the opening-range high does not break (no edge, move on)."
+    "Standard fixed-dollar risk ÷ stop distance."
    ],
-   "q": "Which is a named mistake in the firm's IPO Base playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's IPO Base playbook. Which one is the named mistake?",
    "subject": "IPO Base mistake: Forcing IPO breakouts in a weak market w"
   },
   "reveal_json": {
    "quote": "Forcing IPO breakouts in a weak market where new issues fail.",
+   "rules": [
+    "A newly public stock’s first real consolidation.",
+    "Confirmed market uptrend with a genuine appetite for new issues — IPO bases fail in hostile tape.",
+    "The stock’s first base, typically within the first 3–12 months of trading; the earliest bases tend to be the most powerful.",
+    "Breakout above the base high + a small buffer on expanding volume.",
+    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA.",
+    "Trim into a 20–25% gain; invoke the 8-week hold rule when the breakout runs 20%+ within three weeks — these first bases are often the year’s big winners.",
+    "Standard fixed-dollar risk ÷ stop distance."
+   ],
    "setup": "IPO Base",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#IPO Base#mistake"
   },
@@ -314,7 +392,7 @@
    "answer": "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry."
   },
   "difficulty": 3,
-  "id": "si_8c28ce7baa7f",
+  "id": "si_acff4c0499c9",
   "lesson_origin": "source",
   "lesson_text": "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
   "module": null,
@@ -345,22 +423,31 @@
    "answer": "Forcing the trade before the moving averages have actually converged."
   },
   "difficulty": 2,
-  "id": "si_c12bebe4618c",
+  "id": "si_f6a7a2d4cf37",
   "lesson_origin": "source",
   "lesson_text": "Forcing the trade before the moving averages have actually converged.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Taking the breakout when it is not also a high-of-day break.",
+    "The 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together and stacked in order, with price consolidating across them.",
+    "Break of the consolidation in the direction of the trend resumption.",
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
     "Forcing the trade before the moving averages have actually converged."
    ],
-   "q": "Which is a named mistake in the firm's Launchpad playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Launchpad playbook. Which one is the named mistake?",
    "subject": "Launchpad mistake: Forcing the trade before the moving aver"
   },
   "reveal_json": {
    "quote": "Forcing the trade before the moving averages have actually converged.",
+   "rules": [
+    "The consolidation that follows a bear market or correction, when multiple moving averages converge into a tight bundle and the stock is coiled to break out in either direction.",
+    "Best at the transition out of a bear phase or correction — the broader market should be in a basing pattern, with the stock in its own basing pattern in front of it.",
+    "The 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together and stacked in order, with price consolidating across them.",
+    "Break of the consolidation in the direction of the trend resumption.",
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "Trail the short-term moving averages as the new trend develops; scale into strength on reward-to-risk."
+   ],
    "setup": "Launchpad",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Launchpad#mistake"
   },
@@ -376,22 +463,31 @@
    "answer": "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
   },
   "difficulty": 2,
-  "id": "si_b990776242e4",
+  "id": "si_16c26f37e334",
   "lesson_origin": "source",
   "lesson_text": "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "The consolidation that follows a bear market or correction, when multiple moving averages converge into a tight bundle and the stock is coiled to break out in either direction.",
     "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
-    "Chasing when the opening-range high does not break (no edge, move on).",
-    "Selling the entire position into the first day or two and missing the multi-week trend."
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "Trail the short-term moving averages as the new trend develops; scale into strength on reward-to-risk."
    ],
-   "q": "Which is a named mistake in the firm's Launchpad playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Launchpad playbook. Which one is the named mistake?",
    "subject": "Launchpad mistake: Ignoring direction, the setup is symmet"
   },
   "reveal_json": {
    "quote": "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+   "rules": [
+    "The consolidation that follows a bear market or correction, when multiple moving averages converge into a tight bundle and the stock is coiled to break out in either direction.",
+    "Best at the transition out of a bear phase or correction — the broader market should be in a basing pattern, with the stock in its own basing pattern in front of it.",
+    "The 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together and stacked in order, with price consolidating across them.",
+    "Break of the consolidation in the direction of the trend resumption.",
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "Trail the short-term moving averages as the new trend develops; scale into strength on reward-to-risk."
+   ],
    "setup": "Launchpad",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Launchpad#mistake"
   },
@@ -407,7 +503,7 @@
    "answer": "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version)."
   },
   "difficulty": 3,
-  "id": "si_70c36bf02077",
+  "id": "si_4b722b874e33",
   "lesson_origin": "source",
   "lesson_text": "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
   "module": null,
@@ -438,22 +534,31 @@
    "answer": "Buying the pullback before a candle actually holds the 20-EMA."
   },
   "difficulty": 2,
-  "id": "si_de891a29f2eb",
+  "id": "si_e32f205415b0",
   "lesson_origin": "source",
   "lesson_text": "Buying the pullback before a candle actually holds the 20-EMA.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Selling the entire position into the first day or two and missing the multi-week trend.",
+    "Scale into new highs or on reward-to-risk; a useful exit is into the 15-minute opening-range-breakout buyers who step in near the highs.",
     "Buying the pullback before a candle actually holds the 20-EMA.",
-    "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge, move on)."
+    "A green candle holds at the 20-EMA; entry is taken as the next candle breaks that holding candle’s high and price remounts the 9-EMA.",
+    "Below the lower wick / low of the candle that held the 20-EMA."
    ],
-   "q": "Which is a named mistake in the firm's 20 EMA Pullback playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's 20 EMA Pullback playbook. Which one is the named mistake?",
    "subject": "20 EMA Pullback mistake: Buying the pullback before a candle actu"
   },
   "reveal_json": {
    "quote": "Buying the pullback before a candle actually holds the 20-EMA.",
+   "rules": [
+    "A core continuation entry: a stock in a bullish daily trend, or gapping up on a catalyst, pulls back intraday to the 20-EMA, and is bought as it stabilises and turns back up.",
+    "On stocks with bullish daily charts or a fresh catalyst plus sector strength.",
+    "The stock gaps up or thrusts, then retraces in an orderly way to the 20-EMA — often printing a clear lower wick that tags the 20-EMA — on diminishing momentum.",
+    "A green candle holds at the 20-EMA; entry is taken as the next candle breaks that holding candle’s high and price remounts the 9-EMA.",
+    "Below the lower wick / low of the candle that held the 20-EMA.",
+    "Scale into new highs or on reward-to-risk; a useful exit is into the 15-minute opening-range-breakout buyers who step in near the highs."
+   ],
    "setup": "20 EMA Pullback",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#20 EMA Pullback#mistake"
   },
@@ -469,22 +574,31 @@
    "answer": "Using the setup on a stock whose daily chart is not bullish."
   },
   "difficulty": 2,
-  "id": "si_b22048958536",
+  "id": "si_4b3a09c56f3b",
   "lesson_origin": "source",
   "lesson_text": "Using the setup on a stock whose daily chart is not bullish.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
+    "The stock gaps up or thrusts, then retraces in an orderly way to the 20-EMA, often printing a clear lower wick that tags the 20-EMA, on diminishing momentum.",
+    "A green candle holds at the 20-EMA; entry is taken as the next candle breaks that holding candle’s high and price remounts the 9-EMA.",
     "Using the setup on a stock whose daily chart is not bullish.",
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
+    "On stocks with bullish daily charts or a fresh catalyst plus sector strength."
    ],
-   "q": "Which is a named mistake in the firm's 20 EMA Pullback playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's 20 EMA Pullback playbook. Which one is the named mistake?",
    "subject": "20 EMA Pullback mistake: Using the setup on a stock whose daily c"
   },
   "reveal_json": {
    "quote": "Using the setup on a stock whose daily chart is not bullish.",
+   "rules": [
+    "A core continuation entry: a stock in a bullish daily trend, or gapping up on a catalyst, pulls back intraday to the 20-EMA, and is bought as it stabilises and turns back up.",
+    "On stocks with bullish daily charts or a fresh catalyst plus sector strength.",
+    "The stock gaps up or thrusts, then retraces in an orderly way to the 20-EMA — often printing a clear lower wick that tags the 20-EMA — on diminishing momentum.",
+    "A green candle holds at the 20-EMA; entry is taken as the next candle breaks that holding candle’s high and price remounts the 9-EMA.",
+    "Below the lower wick / low of the candle that held the 20-EMA.",
+    "Scale into new highs or on reward-to-risk; a useful exit is into the 15-minute opening-range-breakout buyers who step in near the highs."
+   ],
    "setup": "20 EMA Pullback",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#20 EMA Pullback#mistake"
   },
@@ -500,7 +614,7 @@
    "answer": "Below the lower wick / low of the candle that held the 20-EMA."
   },
   "difficulty": 3,
-  "id": "si_01c6e11d0592",
+  "id": "si_592fa3b62e60",
   "lesson_origin": "source",
   "lesson_text": "Below the lower wick / low of the candle that held the 20-EMA.",
   "module": null,
@@ -531,22 +645,31 @@
    "answer": "Long: anticipating the reclaim before price actually crosses back above the averages."
   },
   "difficulty": 2,
-  "id": "si_a7c1965acfaf",
+  "id": "si_5f008cb3d88e",
   "lesson_origin": "source",
   "lesson_text": "Long: anticipating the reclaim before price actually crosses back above the averages.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Long: anticipating the reclaim before price actually crosses back above the averages.",
-    "Widening the stop to survive the base’s depth and blowing the risk budget.",
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged."
+    "Another Oliver Kell cycle concept, traded both long and short.",
+    "Long version: a stock resuming an uptrend after a pullback, or an early reversal starting a fresh trend.",
+    "Long: price crosses back down to the 9/20-EMA, the 9-EMA crosses the 20-EMA, price tightens and then remounts both."
    ],
-   "q": "Which is a named mistake in the firm's EMA Crossback playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's EMA Crossback playbook. Which one is the named mistake?",
    "subject": "EMA Crossback mistake: Long: anticipating the reclaim before pr"
   },
   "reveal_json": {
    "quote": "Long: anticipating the reclaim before price actually crosses back above the averages.",
+   "rules": [
+    "Another Oliver Kell cycle concept, traded both long and short.",
+    "Long version: a stock resuming an uptrend after a pullback, or an early reversal starting a fresh trend.",
+    "Long: price crosses back down to the 9/20-EMA, the 9-EMA crosses the 20-EMA, price tightens and then remounts both.",
+    "Long: as price holds and remounts the averages, or breaks the high of the candle that held them.",
+    "Long: below the candle that held the averages.",
+    "Long: trail the 9/20-EMA into the new trend."
+   ],
    "setup": "EMA Crossback",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#EMA Crossback#mistake"
   },
@@ -562,22 +685,31 @@
    "answer": "Short: shorting into the averages before a rejection candle confirms."
   },
   "difficulty": 2,
-  "id": "si_95abb99a2e4f",
+  "id": "si_63725fff09da",
   "lesson_origin": "source",
   "lesson_text": "Short: shorting into the averages before a rejection candle confirms.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Using the setup on a stock whose daily chart is not bullish.",
-    "Entering inside the wedge before the pop confirms.",
+    "Long: trail the 9/20-EMA into the new trend.",
+    "Another Oliver Kell cycle concept, traded both long and short.",
     "Short: shorting into the averages before a rejection candle confirms.",
-    "Buying the pullback before a candle actually holds the 20-EMA."
+    "Long: below the candle that held the averages."
    ],
-   "q": "Which is a named mistake in the firm's EMA Crossback playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's EMA Crossback playbook. Which one is the named mistake?",
    "subject": "EMA Crossback mistake: Short: shorting into the averages before"
   },
   "reveal_json": {
    "quote": "Short: shorting into the averages before a rejection candle confirms.",
+   "rules": [
+    "Another Oliver Kell cycle concept, traded both long and short.",
+    "Long version: a stock resuming an uptrend after a pullback, or an early reversal starting a fresh trend.",
+    "Long: price crosses back down to the 9/20-EMA, the 9-EMA crosses the 20-EMA, price tightens and then remounts both.",
+    "Long: as price holds and remounts the averages, or breaks the high of the candle that held them.",
+    "Long: below the candle that held the averages.",
+    "Long: trail the 9/20-EMA into the new trend."
+   ],
    "setup": "EMA Crossback",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#EMA Crossback#mistake"
   },
@@ -593,7 +725,7 @@
    "answer": "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
   },
   "difficulty": 3,
-  "id": "si_1c99635e7152",
+  "id": "si_185addabc7b1",
   "lesson_origin": "source",
   "lesson_text": "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average.",
   "module": null,
@@ -624,22 +756,31 @@
    "answer": "Entering inside the wedge before the pop confirms."
   },
   "difficulty": 2,
-  "id": "si_497b5ef62530",
+  "id": "si_019a24c362c8",
   "lesson_origin": "source",
   "lesson_text": "Entering inside the wedge before the pop confirms.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "The cycle stage immediately following a reversal: after price has stopped going down, it coils into a wedge, often beneath the moving averages, and then “pops” out the top, reclaiming the averages and confirming a new up-cycle.",
     "Entering inside the wedge before the pop confirms.",
-    "Buying the pullback before a candle actually holds the 20-EMA.",
-    "Using the setup on a stock whose daily chart is not bullish."
+    "Below the wedge / consolidation low.",
+    "Trail the 9/20-EMA as the new trend develops; scale into strength on reward-to-risk."
    ],
-   "q": "Which is a named mistake in the firm's Wedge Pop playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Wedge Pop playbook. Which one is the named mistake?",
    "subject": "Wedge Pop mistake: Entering inside the wedge before the pop"
   },
   "reveal_json": {
    "quote": "Entering inside the wedge before the pop confirms.",
+   "rules": [
+    "The cycle stage immediately following a reversal: after price has stopped going down, it coils into a wedge — often beneath the moving averages — and then “pops” out the top, reclaiming the averages and confirming a new up-cycle.",
+    "At the transition from down-cycle to up-cycle — after a Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a wedge (converging range, contracting volatility) after a reversal off lows, frequently still below the 9/20-EMA.",
+    "Break of the wedge’s upper trendline together with the reclaim of the 9/20-EMA; on earnings, the gap-up that pops the wedge with a strong close.",
+    "Below the wedge / consolidation low.",
+    "Trail the 9/20-EMA as the new trend develops; scale into strength on reward-to-risk."
+   ],
    "setup": "Wedge Pop",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Wedge Pop#mistake"
   },
@@ -655,22 +796,31 @@
    "answer": "Ignoring whether volume actually dried up through the coil."
   },
   "difficulty": 2,
-  "id": "si_f66a351f5675",
+  "id": "si_e95dc3aaa827",
   "lesson_origin": "source",
   "lesson_text": "Ignoring whether volume actually dried up through the coil.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Widening the stop to survive the base’s depth and blowing the risk budget.",
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged.",
+    "The cycle stage immediately following a reversal: after price has stopped going down, it coils into a wedge, often beneath the moving averages, and then “pops” out the top, reclaiming the averages and confirming a new up-cycle.",
+    "At the transition from down-cycle to up-cycle, after a Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a wedge (converging range, contracting volatility) after a reversal off lows, frequently still below the 9/20-EMA.",
     "Ignoring whether volume actually dried up through the coil."
    ],
-   "q": "Which is a named mistake in the firm's Wedge Pop playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Wedge Pop playbook. Which one is the named mistake?",
    "subject": "Wedge Pop mistake: Ignoring whether volume actually dried u"
   },
   "reveal_json": {
    "quote": "Ignoring whether volume actually dried up through the coil.",
+   "rules": [
+    "The cycle stage immediately following a reversal: after price has stopped going down, it coils into a wedge — often beneath the moving averages — and then “pops” out the top, reclaiming the averages and confirming a new up-cycle.",
+    "At the transition from down-cycle to up-cycle — after a Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a wedge (converging range, contracting volatility) after a reversal off lows, frequently still below the 9/20-EMA.",
+    "Break of the wedge’s upper trendline together with the reclaim of the 9/20-EMA; on earnings, the gap-up that pops the wedge with a strong close.",
+    "Below the wedge / consolidation low.",
+    "Trail the 9/20-EMA as the new trend develops; scale into strength on reward-to-risk."
+   ],
    "setup": "Wedge Pop",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Wedge Pop#mistake"
   },
@@ -686,7 +836,7 @@
    "answer": "Below the wedge / consolidation low."
   },
   "difficulty": 3,
-  "id": "si_0c695b781fe8",
+  "id": "si_5774bf05944e",
   "lesson_origin": "source",
   "lesson_text": "Below the wedge / consolidation low.",
   "module": null,
@@ -717,22 +867,30 @@
    "answer": "Entering inside the wedge before the drop confirms."
   },
   "difficulty": 2,
-  "id": "si_23cb685801cc",
+  "id": "si_259ad7458e27",
   "lesson_origin": "source",
   "lesson_text": "Entering inside the wedge before the drop confirms.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Entering inside the wedge before the drop confirms.",
-    "Widening the stop to survive the base’s depth and blowing the risk budget.",
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged."
+    "Trail the 9/20-EMA as the new downtrend develops; cover into weakness on reward-to-risk.",
+    "At the transition from up-cycle to down-cycle, after a topping move or Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a rising wedge (converging range, contracting volatility) after a bounce off the highs, frequently stalling just below the 9/20-EMA."
    ],
-   "q": "Which is a named mistake in the firm's Wedge Drop playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Wedge Drop playbook. Which one is the named mistake?",
    "subject": "Wedge Drop mistake: Entering inside the wedge before the dro"
   },
   "reveal_json": {
    "quote": "Entering inside the wedge before the drop confirms.",
+   "rules": [
+    "At the transition from up-cycle to down-cycle — after a topping move or Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a rising wedge (converging range, contracting volatility) after a bounce off the highs, frequently stalling just below the 9/20-EMA.",
+    "Break of the wedge’s lower trendline together with the loss of the 9/20-EMA; on earnings, the gap-down that breaks the wedge with a weak close.",
+    "Above the wedge / consolidation high.",
+    "Trail the 9/20-EMA as the new downtrend develops; cover into weakness on reward-to-risk."
+   ],
    "setup": "Wedge Drop",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Wedge Drop#mistake"
   },
@@ -748,22 +906,30 @@
    "answer": "Ignoring whether volume actually dried up through the coil."
   },
   "difficulty": 2,
-  "id": "si_2e0ca083eae1",
+  "id": "si_e55a33c0a0e5",
   "lesson_origin": "source",
   "lesson_text": "Ignoring whether volume actually dried up through the coil.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Ignoring whether volume actually dried up through the coil.",
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
-    "Short: shorting into the averages before a rejection candle confirms.",
-    "Entering inside the wedge before the pop confirms."
+    "Above the wedge / consolidation high.",
+    "Trail the 9/20-EMA as the new downtrend develops; cover into weakness on reward-to-risk.",
+    "At the transition from up-cycle to down-cycle, after a topping move or Reversal Extension, as the change of character is confirmed."
    ],
-   "q": "Which is a named mistake in the firm's Wedge Drop playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Wedge Drop playbook. Which one is the named mistake?",
    "subject": "Wedge Drop mistake: Ignoring whether volume actually dried u"
   },
   "reveal_json": {
    "quote": "Ignoring whether volume actually dried up through the coil.",
+   "rules": [
+    "At the transition from up-cycle to down-cycle — after a topping move or Reversal Extension, as the change of character is confirmed.",
+    "Price tightens into a rising wedge (converging range, contracting volatility) after a bounce off the highs, frequently stalling just below the 9/20-EMA.",
+    "Break of the wedge’s lower trendline together with the loss of the 9/20-EMA; on earnings, the gap-down that breaks the wedge with a weak close.",
+    "Above the wedge / consolidation high.",
+    "Trail the 9/20-EMA as the new downtrend develops; cover into weakness on reward-to-risk."
+   ],
    "setup": "Wedge Drop",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Wedge Drop#mistake"
   },
@@ -779,7 +945,7 @@
    "answer": "Above the wedge / consolidation high."
   },
   "difficulty": 3,
-  "id": "si_f92a575e6f4d",
+  "id": "si_fc99852e67c4",
   "lesson_origin": "source",
   "lesson_text": "Above the wedge / consolidation high.",
   "module": null,
@@ -810,22 +976,31 @@
    "answer": "Chasing when the opening-range high does not break (no edge, move on)."
   },
   "difficulty": 2,
-  "id": "si_9fb2fe63d47f",
+  "id": "si_d54e20947105",
   "lesson_origin": "source",
   "lesson_text": "Chasing when the opening-range high does not break (no edge, move on).",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Chasing well past the breakout instead of entering near the pivot.",
+    "A significant gap up (community example ~50%; Qullamaggie’s qualifying gaps are large and on the highest volume) on volume far above average, ideally closing in the top 25% of the range.",
     "Chasing when the opening-range high does not break (no edge, move on).",
-    "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
+    "The Episodic Pivot (EP) is a neglected or forgotten stock that gaps up powerfully on a major catalyst, most often earnings, on massive volume, beginning a sustained new trend.",
+    "A confirmed market uptrend strongly preferred."
    ],
-   "q": "Which is a named mistake in the firm's Episodic Pivot playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Episodic Pivot playbook. Which one is the named mistake?",
    "subject": "Episodic Pivot mistake: Chasing when the opening-range high does"
   },
   "reveal_json": {
    "quote": "Chasing when the opening-range high does not break (no edge — move on).",
+   "rules": [
+    "The Episodic Pivot (EP) is a neglected or forgotten stock that gaps up powerfully on a major catalyst — most often earnings — on massive volume, beginning a sustained new trend.",
+    "A confirmed market uptrend strongly preferred.",
+    "A significant gap up (community example ~50%; Qullamaggie’s qualifying gaps are large and on the highest volume) on volume far above average, ideally closing in the top 25% of the range.",
+    "Two documented entries.",
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
+    "EPs are meant to be held — trail the daily 9-EMA."
+   ],
    "setup": "Episodic Pivot",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Episodic Pivot#mistake"
   },
@@ -841,22 +1016,31 @@
    "answer": "Selling the entire position into the first day or two and missing the multi-week trend."
   },
   "difficulty": 2,
-  "id": "si_10e19e5abc93",
+  "id": "si_4f8c5001c419",
   "lesson_origin": "source",
   "lesson_text": "Selling the entire position into the first day or two and missing the multi-week trend.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "A confirmed market uptrend strongly preferred.",
+    "A significant gap up (community example ~50%; Qullamaggie’s qualifying gaps are large and on the highest volume) on volume far above average, ideally closing in the top 25% of the range.",
+    "Two documented entries.",
     "Selling the entire position into the first day or two and missing the multi-week trend."
    ],
-   "q": "Which is a named mistake in the firm's Episodic Pivot playbook?",
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Episodic Pivot playbook. Which one is the named mistake?",
    "subject": "Episodic Pivot mistake: Selling the entire position into the fir"
   },
   "reveal_json": {
    "quote": "Selling the entire position into the first day or two and missing the multi-week trend.",
+   "rules": [
+    "The Episodic Pivot (EP) is a neglected or forgotten stock that gaps up powerfully on a major catalyst — most often earnings — on massive volume, beginning a sustained new trend.",
+    "A confirmed market uptrend strongly preferred.",
+    "A significant gap up (community example ~50%; Qullamaggie’s qualifying gaps are large and on the highest volume) on volume far above average, ideally closing in the top 25% of the range.",
+    "Two documented entries.",
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
+    "EPs are meant to be held — trail the daily 9-EMA."
+   ],
    "setup": "Episodic Pivot",
    "source": "app/src/pages/modelbook/setupPlaybooks.js#Episodic Pivot#mistake"
   },
@@ -872,7 +1056,7 @@
    "answer": "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
   },
   "difficulty": 3,
-  "id": "si_0658b3c53c40",
+  "id": "si_7c21da253e76",
   "lesson_origin": "source",
   "lesson_text": "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
   "module": null,

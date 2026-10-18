@@ -4,7 +4,7 @@
    "answer": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission."
   },
   "difficulty": 1,
-  "id": "si_96d26b75b32b",
+  "id": "si_f2a5dbcf1885",
   "lesson_origin": "source",
   "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
   "module": null,
@@ -35,7 +35,7 @@
    "answer": "UCT Exposure Rating"
   },
   "difficulty": 2,
-  "id": "si_c2a6f14863e8",
+  "id": "si_7fafef315901",
   "lesson_origin": "source",
   "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
   "module": null,
@@ -67,7 +67,7 @@
    "answer": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
   },
   "difficulty": 1,
-  "id": "si_2c863b842865",
+  "id": "si_6602cc3e3003",
   "lesson_origin": "source",
   "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
   "module": null,
@@ -98,7 +98,7 @@
    "answer": "Distribution day"
   },
   "difficulty": 2,
-  "id": "si_91a3fabbdabd",
+  "id": "si_244773c72a0d",
   "lesson_origin": "source",
   "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
   "module": null,
@@ -130,7 +130,7 @@
    "answer": "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."
   },
   "difficulty": 1,
-  "id": "si_b9170997bd11",
+  "id": "si_65124ebfdbb4",
   "lesson_origin": "source",
   "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
   "module": null,
@@ -161,7 +161,7 @@
    "answer": "Follow-through day"
   },
   "difficulty": 2,
-  "id": "si_4a43f72f2cc9",
+  "id": "si_21096a735a4a",
   "lesson_origin": "source",
   "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
   "module": null,
@@ -193,7 +193,7 @@
    "answer": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."
   },
   "difficulty": 1,
-  "id": "si_ad60dfb0b00f",
+  "id": "si_4d2ef9399e05",
   "lesson_origin": "source",
   "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
   "module": null,
@@ -224,7 +224,7 @@
    "answer": "Stage 2"
   },
   "difficulty": 2,
-  "id": "si_c9f2c6846f71",
+  "id": "si_d3bb1b229169",
   "lesson_origin": "source",
   "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
   "module": null,
@@ -256,7 +256,7 @@
    "answer": "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
   },
   "difficulty": 1,
-  "id": "si_5b7ba7863628",
+  "id": "si_947ebd54d6e0",
   "lesson_origin": "source",
   "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
   "module": null,
@@ -287,7 +287,7 @@
    "answer": "ADR%"
   },
   "difficulty": 2,
-  "id": "si_91307ce0c988",
+  "id": "si_b5c21fae463d",
   "lesson_origin": "source",
   "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
   "module": null,
@@ -319,7 +319,7 @@
    "answer": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."
   },
   "difficulty": 1,
-  "id": "si_3635524c9dc5",
+  "id": "si_23a0fe67d039",
   "lesson_origin": "source",
   "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
   "module": null,
@@ -350,7 +350,7 @@
    "answer": "RS line"
   },
   "difficulty": 2,
-  "id": "si_836d703b3584",
+  "id": "si_8bb1f221d693",
   "lesson_origin": "source",
   "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
   "module": null,
@@ -382,7 +382,7 @@
    "answer": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable."
   },
   "difficulty": 1,
-  "id": "si_e2d31c256498",
+  "id": "si_2324677f72fa",
   "lesson_origin": "source",
   "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
   "module": null,
@@ -413,7 +413,7 @@
    "answer": "R / R-multiple"
   },
   "difficulty": 2,
-  "id": "si_f5233d8c65b5",
+  "id": "si_c9b186f6c102",
   "lesson_origin": "source",
   "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
   "module": null,
@@ -445,7 +445,7 @@
    "answer": "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
   },
   "difficulty": 1,
-  "id": "si_18a9d22f2a6e",
+  "id": "si_a3375fc56d73",
   "lesson_origin": "source",
   "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
   "module": null,
@@ -476,7 +476,7 @@
    "answer": "Expectancy"
   },
   "difficulty": 2,
-  "id": "si_dac3034778d9",
+  "id": "si_24ea7cb316e2",
   "lesson_origin": "source",
   "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
   "module": null,
@@ -508,7 +508,7 @@
    "answer": "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%."
   },
   "difficulty": 1,
-  "id": "si_5d4e5f0d67ad",
+  "id": "si_1718caca9bbc",
   "lesson_origin": "source",
   "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
   "module": null,
@@ -539,7 +539,7 @@
    "answer": "Account Risk %"
   },
   "difficulty": 2,
-  "id": "si_4061341bd874",
+  "id": "si_e854e60154f5",
   "lesson_origin": "source",
   "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
   "module": null,
@@ -571,7 +571,7 @@
    "answer": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
   },
   "difficulty": 1,
-  "id": "si_bbf7e570acde",
+  "id": "si_4946598b9aae",
   "lesson_origin": "source",
   "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
   "module": null,
@@ -602,7 +602,7 @@
    "answer": "Portfolio heat"
   },
   "difficulty": 2,
-  "id": "si_1b00b99b3e0d",
+  "id": "si_641197627e0f",
   "lesson_origin": "source",
   "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
   "module": null,
@@ -634,7 +634,7 @@
    "answer": "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."
   },
   "difficulty": 1,
-  "id": "si_1dcc64ae3c60",
+  "id": "si_2f65cfa44fab",
   "lesson_origin": "source",
   "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
   "module": null,
@@ -665,7 +665,7 @@
    "answer": "Episodic Pivot (EP)"
   },
   "difficulty": 2,
-  "id": "si_64bc7b14493a",
+  "id": "si_c0457731fc62",
   "lesson_origin": "source",
   "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
   "module": null,
@@ -697,7 +697,7 @@
    "answer": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."
   },
   "difficulty": 1,
-  "id": "si_7f203f129c03",
+  "id": "si_2b0b868c69b1",
   "lesson_origin": "source",
   "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
   "module": null,
@@ -728,7 +728,7 @@
    "answer": "Power Earnings Gap (PEG)"
   },
   "difficulty": 2,
-  "id": "si_a1f9fbea9e05",
+  "id": "si_dc73d76ac779",
   "lesson_origin": "source",
   "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
   "module": null,
@@ -760,7 +760,7 @@
    "answer": "The prior up-gap zone that price must defend on a pullback, the level the tape remembers."
   },
   "difficulty": 1,
-  "id": "si_c75feb20f062",
+  "id": "si_83a511c154da",
   "lesson_origin": "source",
   "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
   "module": null,
@@ -791,7 +791,7 @@
    "answer": "Gap support"
   },
   "difficulty": 2,
-  "id": "si_f8d0ff28059a",
+  "id": "si_ec9b47c1d208",
   "lesson_origin": "source",
   "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
   "module": null,
@@ -823,7 +823,7 @@
    "answer": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."
   },
   "difficulty": 1,
-  "id": "si_891231c4016b",
+  "id": "si_6a58afbc1174",
   "lesson_origin": "source",
   "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
   "module": null,
@@ -854,7 +854,7 @@
    "answer": "High Volume Edge (HVC)"
   },
   "difficulty": 2,
-  "id": "si_b875abceb7cf",
+  "id": "si_d33bf1b956a3",
   "lesson_origin": "source",
   "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
   "module": null,
@@ -886,7 +886,7 @@
    "answer": "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
   },
   "difficulty": 1,
-  "id": "si_d65a240d549a",
+  "id": "si_26085f1e9fda",
   "lesson_origin": "source",
   "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
   "module": null,
@@ -917,7 +917,7 @@
    "answer": "U&R (Undercut & Rally)"
   },
   "difficulty": 2,
-  "id": "si_1b79392d7c34",
+  "id": "si_360bb1e5e0ec",
   "lesson_origin": "source",
   "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
   "module": null,
@@ -949,7 +949,7 @@
    "answer": "A shakeout below a key line followed by retaking it with authority."
   },
   "difficulty": 1,
-  "id": "si_9900a81acdcf",
+  "id": "si_c3e3a9da02fa",
   "lesson_origin": "source",
   "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
   "module": null,
@@ -980,7 +980,7 @@
    "answer": "Remount"
   },
   "difficulty": 2,
-  "id": "si_e1e3492ddf89",
+  "id": "si_1bf278156193",
   "lesson_origin": "source",
   "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
   "module": null,
@@ -1012,7 +1012,7 @@
    "answer": "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low."
   },
   "difficulty": 1,
-  "id": "si_22a374e20d67",
+  "id": "si_6b22331a0410",
   "lesson_origin": "source",
   "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
   "module": null,
@@ -1043,7 +1043,7 @@
    "answer": "Slingshot"
   },
   "difficulty": 2,
-  "id": "si_2d38b4b7c7de",
+  "id": "si_20859c2e7bf4",
   "lesson_origin": "source",
   "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
   "module": null,
@@ -1075,7 +1075,7 @@
    "answer": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
   },
   "difficulty": 1,
-  "id": "si_bc3f4011f657",
+  "id": "si_37a28a376722",
   "lesson_origin": "source",
   "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
   "module": null,
@@ -1106,7 +1106,7 @@
    "answer": "2B Reversal / Oops"
   },
   "difficulty": 2,
-  "id": "si_6481a2f4d651",
+  "id": "si_b09c26135b0d",
   "lesson_origin": "source",
   "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
   "module": null,
@@ -1138,7 +1138,7 @@
    "answer": "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
   },
   "difficulty": 1,
-  "id": "si_3124a7cc8eb2",
+  "id": "si_98dfe5951957",
   "lesson_origin": "source",
   "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
   "module": null,
@@ -1169,7 +1169,7 @@
    "answer": "Go Signal"
   },
   "difficulty": 2,
-  "id": "si_39cd172621be",
+  "id": "si_eff45912f4a1",
   "lesson_origin": "source",
   "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
   "module": null,
@@ -1201,7 +1201,7 @@
    "answer": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching."
   },
   "difficulty": 1,
-  "id": "si_2b9b589b98f9",
+  "id": "si_c0389d04c5e6",
   "lesson_origin": "source",
   "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
   "module": null,
@@ -1232,7 +1232,7 @@
    "answer": "Launchpad"
   },
   "difficulty": 2,
-  "id": "si_a34e5beed668",
+  "id": "si_ea1c65d0a404",
   "lesson_origin": "source",
   "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
   "module": null,
@@ -1264,7 +1264,7 @@
    "answer": "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open."
   },
   "difficulty": 1,
-  "id": "si_c11f63723eba",
+  "id": "si_7b05a3f0b4d2",
   "lesson_origin": "source",
   "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
   "module": null,
@@ -1295,7 +1295,7 @@
    "answer": "Wedge Pop / Wedge Drop"
   },
   "difficulty": 2,
-  "id": "si_df1f1be19469",
+  "id": "si_8a53969674e8",
   "lesson_origin": "source",
   "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
   "module": null,
@@ -1327,7 +1327,7 @@
    "answer": "The trap that closes above the prior day's high, flipping the short-term control."
   },
   "difficulty": 1,
-  "id": "si_327a10b2bdb1",
+  "id": "si_a37372af6124",
   "lesson_origin": "source",
   "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
   "module": null,
@@ -1358,7 +1358,7 @@
    "answer": "Kicker candle"
   },
   "difficulty": 2,
-  "id": "si_900cc5bc9ae4",
+  "id": "si_80d74ccc0837",
   "lesson_origin": "source",
   "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
   "module": null,
@@ -1390,7 +1390,7 @@
    "answer": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
   },
   "difficulty": 1,
-  "id": "si_e8e60327ee35",
+  "id": "si_ac0108051fce",
   "lesson_origin": "source",
   "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
   "module": null,
@@ -1421,7 +1421,7 @@
    "answer": "Morning Wire"
   },
   "difficulty": 2,
-  "id": "si_dfd123bd457a",
+  "id": "si_2b522e72492f",
   "lesson_origin": "source",
   "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
   "module": null,
@@ -1453,7 +1453,7 @@
    "answer": "The firm's weekend scan publication, the weekly deep pass over the universe."
   },
   "difficulty": 1,
-  "id": "si_d317dbccced1",
+  "id": "si_2a2dd26742b5",
   "lesson_origin": "source",
   "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
   "module": null,
@@ -1484,7 +1484,7 @@
    "answer": "Sunday Scans"
   },
   "difficulty": 2,
-  "id": "si_0a0abc6b2d8f",
+  "id": "si_a37a533b6310",
   "lesson_origin": "source",
   "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
   "module": null,
@@ -1516,7 +1516,7 @@
    "answer": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run."
   },
   "difficulty": 1,
-  "id": "si_cbd790001064",
+  "id": "si_25f05f89df8a",
   "lesson_origin": "source",
   "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
   "module": null,
@@ -1547,7 +1547,7 @@
    "answer": "UCT 20"
   },
   "difficulty": 2,
-  "id": "si_352a165a90c9",
+  "id": "si_230f76e548bd",
   "lesson_origin": "source",
   "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
   "module": null,
@@ -1579,7 +1579,7 @@
    "answer": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
   },
   "difficulty": 1,
-  "id": "si_30329e5d18a5",
+  "id": "si_1cf86a2d3d0e",
   "lesson_origin": "source",
   "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
   "module": null,
@@ -1610,7 +1610,7 @@
    "answer": "Compass"
   },
   "difficulty": 2,
-  "id": "si_551c542b306a",
+  "id": "si_ba47fef1fbf5",
   "lesson_origin": "source",
   "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
   "module": null,
@@ -1642,7 +1642,7 @@
    "answer": "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples."
   },
   "difficulty": 1,
-  "id": "si_82908479c007",
+  "id": "si_cadbcaa31d48",
   "lesson_origin": "source",
   "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
   "module": null,
@@ -1673,7 +1673,7 @@
    "answer": "Model Book"
   },
   "difficulty": 2,
-  "id": "si_3d0c096ac319",
+  "id": "si_bf95efd92868",
   "lesson_origin": "source",
   "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
   "module": null,

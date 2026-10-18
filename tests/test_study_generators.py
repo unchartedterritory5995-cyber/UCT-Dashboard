@@ -374,7 +374,20 @@ def test_every_committed_verdict_names_a_known_segment_and_verdict():
         assert r["verdict"] in corrections.VERDICTS
         assert r.get("owner_words"), r
         if r["verdict"] == "fix":
-            assert r.get("field") and "after" in r and r.get("status") in ("proposed", "confirmed"), r
+            assert r.get("field") and "after" in r and r.get("status") in ("proposed", "confirmed", "withdrawn"), r
+
+
+def test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors(segments):
+    pbs = {p["name"]: p for p in gen_recall.read_playbooks()}
+    assert pbs["Bull Flag"]["rules"] and len(pbs["Bull Flag"]["rules"]) >= 3
+    for it in segments["recall.playbooks"]:
+        if "#mistake" not in it["source_ref"]:
+            continue
+        p = pbs[it["reveal_json"]["setup"]]
+        wrong = [c for c in it["prompt_json"]["choices"] if c != it["answer_json"]["answer"]]
+        rules = {dedash(r) for r in p["rules"]}
+        assert all(c in rules for c in wrong), it["id"]           # never another setup's mistake
+        assert it["prompt_json"]["note"].startswith("The other three")
 
 
 def test_run_all_lists_every_generator():

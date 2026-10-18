@@ -13,7 +13,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_4ddfcbe6ec8b",
+  "id": "si_2ee13fc208f1",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: Breadth Washout fired here. Count the signposts, not the days. Percent of S&P stocks above their 200-day collapsed into single digits.",
   "module": "M3",
@@ -99,7 +99,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_0f99a397b246",
+  "id": "si_7f26d3ea3d74",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: Volatility Peak fired here. Count the signposts, not the days. VIX pressed into the mid-30s as the second leg down accelerated.",
   "module": "M3",
@@ -185,7 +185,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_7e5b380473cc",
+  "id": "si_c2c8c906e852",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: News Failure fired here. Count the signposts, not the days. Hot CPI gapped the market to new lows, then reversed +5% intraday, sellers exhausted.",
   "module": "M3",
@@ -271,7 +271,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_ddd039c8f5c3",
+  "id": "si_8824aded5eb6",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: The Follow-Through Day fired here. Count the signposts, not the days. A soft CPI print drove a thrust day on heavy volume confirming the turn.",
   "module": "M3",
@@ -357,7 +357,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_44c143400a33",
+  "id": "si_f5caf9304056",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: Leadership Emerges fired here. Count the signposts, not the days. Mega-cap tech (NVDA, META) reclaimed and led; AI became the new-cycle theme.",
   "module": "M3",
@@ -434,7 +434,7 @@
    "answer": "-25%"
   },
   "difficulty": 2,
-  "id": "si_41e97328f80c",
+  "id": "si_8a2c93d413b3",
   "lesson_origin": "template",
   "lesson_text": "The 2022 Rate Bear: the S&P 500 fell -25% from the peak to the low.",
   "module": "M3",
@@ -510,7 +510,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_89fa8f2c4f7e",
+  "id": "si_553b9a890157",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: Capitulation fired here. Count the signposts, not the days. A -9.5% day; circuit breakers tripped repeatedly through mid-March on record volume.",
   "module": "M3",
@@ -596,7 +596,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_03dbe6dd5f91",
+  "id": "si_6ce02e088018",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: Volatility Peak fired here. Count the signposts, not the days. VIX closed at 82.69, an all-time record high, exceeding 2008.",
   "module": "M3",
@@ -682,7 +682,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_ba87c1a20aff",
+  "id": "si_e5b4c30e2c31",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: News Failure fired here. Count the signposts, not the days. Climactic low printed into peak fear, the day before the Fed went \"unlimited.\"",
   "module": "M3",
@@ -768,7 +768,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_41ebc49b22f6",
+  "id": "si_94495d8da54e",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: The Follow-Through Day fired here. Count the signposts, not the days. Three powerful up days, the last on expanding volume, confirmed the rally.",
   "module": "M3",
@@ -854,7 +854,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_45d8c793e698",
+  "id": "si_de464060f58c",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: Leadership Emerges fired here. Count the signposts, not the days. ZM, NVDA, SHOP, DOCU, AMD broke out first, the digital / WFH cohort led.",
   "module": "M3",
@@ -931,7 +931,7 @@
    "answer": "-34%"
   },
   "difficulty": 2,
-  "id": "si_2d3a78f7a802",
+  "id": "si_2bbc4193c5fc",
   "lesson_origin": "template",
   "lesson_text": "The COVID Crash: the S&P 500 fell -34% from the peak to the low.",
   "module": "M3",
@@ -1007,7 +1007,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_c9902d356786",
+  "id": "si_e1c2559e50cb",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: Capitulation fired here. Count the signposts, not the days. Quad-witching dumped the market on record December volume.",
   "module": "M3",
@@ -1093,7 +1093,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_d3fc7e44d833",
+  "id": "si_32ab45ea72c1",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: Breadth Washout fired here. Count the signposts, not the days. New 52-week lows surged; under-the-surface damage was far worse than the index -20%.",
   "module": "M3",
@@ -1179,7 +1179,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_3ce5ac4c2968",
+  "id": "si_df56e767e22f",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: News Failure fired here. Count the signposts, not the days. A +5% reversal day, the largest Dow point gain ever at the time, off the low.",
   "module": "M3",
@@ -1265,7 +1265,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_db236c40eb21",
+  "id": "si_a37391a802da",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: The Follow-Through Day fired here. Count the signposts, not the days. A strong jobs number + Powell \"patient\" pivot drove a volume thrust.",
   "module": "M3",
@@ -1351,7 +1351,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_15ad37a93cb6",
+  "id": "si_ff78e762b1f9",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: Leadership Emerges fired here. Count the signposts, not the days. Software (TTD, COUP, AYX) and chips led the new advance.",
   "module": "M3",
@@ -1428,7 +1428,7 @@
    "answer": "-20%"
   },
   "difficulty": 2,
-  "id": "si_11b4ce1781e5",
+  "id": "si_96a3f53ddbef",
   "lesson_origin": "template",
   "lesson_text": "The Christmas Eve Low: the S&P 500 fell -20% from the peak to the low.",
   "module": "M3",
@@ -1504,7 +1504,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_bb0ef14b9c10",
+  "id": "si_9d2e9f0dbbbf",
   "lesson_origin": "template",
   "lesson_text": "The 2016 Double Bottom: Capitulation fired here. Count the signposts, not the days. A capitulation flush as WTI crude broke $27 and dragged risk assets down.",
   "module": "M3",
@@ -1593,7 +1593,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_1ba8ba7f83c0",
+  "id": "si_85520092d6ac",
   "lesson_origin": "template",
   "lesson_text": "The 2016 Double Bottom: News Failure fired here. Count the signposts, not the days. Price undercut the January low intraday, reversed, and held, the double bottom completed.",
   "module": "M3",
@@ -1684,7 +1684,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_3db0baca2a22",
+  "id": "si_e8febf0f81b0",
   "lesson_origin": "template",
   "lesson_text": "The 2016 Double Bottom: The Follow-Through Day fired here. Count the signposts, not the days. A breadth thrust off the low confirmed; the McClellan surged.",
   "module": "M3",
@@ -1770,7 +1770,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_a1d458c62592",
+  "id": "si_adc7d4780c8a",
   "lesson_origin": "template",
   "lesson_text": "The 2016 Double Bottom: Leadership Emerges fired here. Count the signposts, not the days. FANG (FB, AMZN, NFLX, GOOGL) and NVDA reasserted leadership.",
   "module": "M3",
@@ -1847,7 +1847,7 @@
    "answer": "-15%"
   },
   "difficulty": 2,
-  "id": "si_e33686a1b9cd",
+  "id": "si_8f25c1a8e15c",
   "lesson_origin": "template",
   "lesson_text": "The 2016 Double Bottom: the S&P 500 fell -15% from the peak to the low.",
   "module": "M3",
@@ -1926,7 +1926,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_1a0d65bb736b",
+  "id": "si_f57df1bb386c",
   "lesson_origin": "template",
   "lesson_text": "The 2011 Crisis Low: Capitulation fired here. Count the signposts, not the days. A -6.7% day after the S&P downgraded US debt; volume spiked to a climax.",
   "module": "M3",
@@ -2017,7 +2017,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_bcdb977f7c2f",
+  "id": "si_7f5d712143b3",
   "lesson_origin": "template",
   "lesson_text": "The 2011 Crisis Low: News Failure fired here. Count the signposts, not the days. Price undercut the August low intraday, then reversed +4% to close green.",
   "module": "M3",
@@ -2103,7 +2103,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_a144563c98c1",
+  "id": "si_28c4e2396923",
   "lesson_origin": "template",
   "lesson_text": "The 2011 Crisis Low: The Follow-Through Day fired here. Count the signposts, not the days. A thrust day on heavy volume confirmed the October double-bottom low.",
   "module": "M3",
@@ -2189,7 +2189,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_a192ac79f990",
+  "id": "si_230eb19f8042",
   "lesson_origin": "template",
   "lesson_text": "The 2011 Crisis Low: Leadership Emerges fired here. Count the signposts, not the days. AAPL and consumer leaders broke out to lead the 2012 advance.",
   "module": "M3",
@@ -2266,7 +2266,7 @@
    "answer": "-19%"
   },
   "difficulty": 2,
-  "id": "si_3c74ec27131b",
+  "id": "si_38cd1c8524b8",
   "lesson_origin": "template",
   "lesson_text": "The 2011 Crisis Low: the S&P 500 fell -19% from the peak to the low.",
   "module": "M3",
@@ -2345,7 +2345,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_c042081ce4fd",
+  "id": "si_07141dea361c",
   "lesson_origin": "template",
   "lesson_text": "The Generational Low: Capitulation fired here. Count the signposts, not the days. A climactic November flush on record volume set the first low.",
   "module": "M3",
@@ -2436,7 +2436,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_0603f47d314a",
+  "id": "si_93fd1ef89b1b",
   "lesson_origin": "template",
   "lesson_text": "The Generational Low: Breadth Washout fired here. Count the signposts, not the days. The March low came on POSITIVE breadth divergence, fewer new lows than November.",
   "module": "M3",
@@ -2522,7 +2522,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_7fbc28192de8",
+  "id": "si_2f527b374a59",
   "lesson_origin": "template",
   "lesson_text": "The Generational Low: The Follow-Through Day fired here. Count the signposts, not the days. A powerful thrust on expanding volume confirmed the rally attempt.",
   "module": "M3",
@@ -2608,7 +2608,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_48749349cb74",
+  "id": "si_ce815e25338a",
   "lesson_origin": "template",
   "lesson_text": "The Generational Low: Leadership Emerges fired here. Count the signposts, not the days. AMZN, AAPL, FFIV, GMCR and high-beta names broke out to lead.",
   "module": "M3",
@@ -2685,7 +2685,7 @@
    "answer": "-57%"
   },
   "difficulty": 2,
-  "id": "si_07b8c5ccbb9c",
+  "id": "si_e0fdc026ee72",
   "lesson_origin": "template",
   "lesson_text": "The Generational Low: the S&P 500 fell -57% from the peak to the low.",
   "module": "M3",
@@ -2761,7 +2761,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_c90d4d764780",
+  "id": "si_3b80b6bc1543",
   "lesson_origin": "template",
   "lesson_text": "The Dot-Com Bottom: Capitulation fired here. Count the signposts, not the days. A washout flush set the first low on heavy capitulation volume.",
   "module": "M3",
@@ -2850,7 +2850,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_d7d8aa723e17",
+  "id": "si_24d4b19957f4",
   "lesson_origin": "template",
   "lesson_text": "The Dot-Com Bottom: News Failure fired here. Count the signposts, not the days. Price undercut the July low and reversed, the double bottom completed.",
   "module": "M3",
@@ -2941,7 +2941,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_1768033c88e3",
+  "id": "si_2c5cf5fe2b7e",
   "lesson_origin": "template",
   "lesson_text": "The Dot-Com Bottom: The Follow-Through Day fired here. Count the signposts, not the days. A +4% thrust on heavy volume confirmed the rally attempt.",
   "module": "M3",
@@ -3027,7 +3027,7 @@
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_1a6378bf97b0",
+  "id": "si_a1d20dfdeb3f",
   "lesson_origin": "template",
   "lesson_text": "The Dot-Com Bottom: Leadership Emerges fired here. Count the signposts, not the days. Homebuilders, energy, and a re-basing AAPL led the new cycle.",
   "module": "M3",
@@ -3104,7 +3104,7 @@
    "answer": "-78%"
   },
   "difficulty": 2,
-  "id": "si_5a80e4dd1e81",
+  "id": "si_c282cba75951",
   "lesson_origin": "template",
   "lesson_text": "The Dot-Com Bottom: the Nasdaq Composite fell -78% from the peak to the low.",
   "module": "M3",
@@ -3173,7 +3173,7 @@
   },
   "asof": "1987-10-19",
   "difficulty": 3,
-  "id": "si_0d439c3d0254",
+  "id": "si_87edcd93bfab",
   "lesson_origin": "template",
   "lesson_text": "Black Monday: Capitulation fired here. Count the signposts, not the days. Black Monday: -22.6% in one day, the climactic, all-at-once capitulation.",
   "module": "M3",
@@ -3242,7 +3242,7 @@
   },
   "asof": "1987-10-20",
   "difficulty": 3,
-  "id": "si_bbbed65cd64d",
+  "id": "si_e9557dfe8a82",
   "lesson_origin": "template",
   "lesson_text": "Black Monday: Volatility Peak fired here. Count the signposts, not the days. Volatility hit an extreme never seen before or matched until 2008/2020.",
   "module": "M3",
@@ -3311,7 +3311,7 @@
   },
   "asof": "1987-12-04",
   "difficulty": 3,
-  "id": "si_400d9c04dee8",
+  "id": "si_48e07bc89a04",
   "lesson_origin": "template",
   "lesson_text": "Black Monday: News Failure fired here. Count the signposts, not the days. A December retest held above the crash low, selling was spent.",
   "module": "M3",
@@ -3380,7 +3380,7 @@
   },
   "asof": "1987-12-08",
   "difficulty": 3,
-  "id": "si_3998a245dca6",
+  "id": "si_40b7b36c5867",
   "lesson_origin": "template",
   "lesson_text": "Black Monday: The Follow-Through Day fired here. Count the signposts, not the days. A thrust off the December low confirmed the base.",
   "module": "M3",
@@ -3447,7 +3447,7 @@
    "answer": "-34%"
   },
   "difficulty": 2,
-  "id": "si_fe475e1567dd",
+  "id": "si_928fd509b992",
   "lesson_origin": "template",
   "lesson_text": "Black Monday: the S&P 500 fell -34% from the peak to the low.",
   "module": "M3",
@@ -3510,7 +3510,7 @@
   },
   "asof": "1974-09-13",
   "difficulty": 3,
-  "id": "si_c5882c1a478c",
+  "id": "si_1ba062459c8b",
   "lesson_origin": "template",
   "lesson_text": "The 1974 Secular Low: Volatility Peak fired here. Count the signposts, not the days. Fear and realized volatility peaked into the autumn lows.",
   "module": "M3",
@@ -3579,7 +3579,7 @@
   },
   "asof": "1974-10-03",
   "difficulty": 3,
-  "id": "si_653b5be2e467",
+  "id": "si_66a609b9e7e7",
   "lesson_origin": "template",
   "lesson_text": "The 1974 Secular Low: Capitulation fired here. Count the signposts, not the days. A final washout into deep-value territory; pessimism was total.",
   "module": "M3",
@@ -3648,7 +3648,7 @@
   },
   "asof": "1974-12-06",
   "difficulty": 3,
-  "id": "si_a2594a00ae8e",
+  "id": "si_7f662d199d05",
   "lesson_origin": "template",
   "lesson_text": "The 1974 Secular Low: News Failure fired here. Count the signposts, not the days. A December retest held; bad news could no longer push price to new lows.",
   "module": "M3",
@@ -3717,7 +3717,7 @@
   },
   "asof": "1975-01-02",
   "difficulty": 3,
-  "id": "si_3e2e9e7cbb52",
+  "id": "si_cd8f88b08fae",
   "lesson_origin": "template",
   "lesson_text": "The 1974 Secular Low: The Follow-Through Day fired here. Count the signposts, not the days. A powerful January thrust launched a +30% rally in months.",
   "module": "M3",
@@ -3784,7 +3784,7 @@
    "answer": "-48%"
   },
   "difficulty": 2,
-  "id": "si_a3390e5b747a",
+  "id": "si_b2185c256176",
   "lesson_origin": "template",
   "lesson_text": "The 1974 Secular Low: the S&P 500 fell -48% from the peak to the low.",
   "module": "M3",

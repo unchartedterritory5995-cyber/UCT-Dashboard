@@ -4,7 +4,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_4895d3451879",
+  "id": "si_381c8a77159b",
   "lesson_origin": "source",
   "lesson_text": "The score maps to a permission band: GREEN / YELLOW / ORANGE.",
   "module": "M1",
@@ -37,7 +37,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_b5340c99ecc7",
+  "id": "si_93d146958810",
   "lesson_origin": "source",
   "lesson_text": "Say it that way every time.",
   "module": "M1",
@@ -71,7 +71,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_00e21acceffb",
+  "id": "si_b634de8fc2f2",
   "lesson_origin": "source",
   "lesson_text": "Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening.",
   "module": "M6",
@@ -103,7 +103,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_a07a9dfc1239",
+  "id": "si_bcab7caa9445",
   "lesson_origin": "source",
   "lesson_text": "And a B-list (right pattern, needs time).",
   "module": "M6",
@@ -136,7 +136,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_7978cc700d1c",
+  "id": "si_0733552ec419",
   "lesson_origin": "source",
   "lesson_text": "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims.",
   "module": "M7",
@@ -168,7 +168,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_4795a80116e2",
+  "id": "si_cb1d7a93ac58",
   "lesson_origin": "source",
   "lesson_text": "Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode.",
   "module": "M7",
@@ -201,7 +201,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_57f0df05ad9d",
+  "id": "si_1dbe2e21d004",
   "lesson_origin": "source",
   "lesson_text": "With a 2% hard maximum per trade and a stated preference for under 1%.",
   "module": "M5",
@@ -234,7 +234,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_2868a1c0abd3",
+  "id": "si_5986239beed7",
   "lesson_origin": "source",
   "lesson_text": "ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip.",
   "module": "M5",
@@ -268,7 +268,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_e8dc0cf54b3e",
+  "id": "si_f8256f64f3e1",
   "lesson_origin": "source",
   "lesson_text": "Is capped at 10%, and no new buy goes on above the cap.",
   "module": "M5",
@@ -300,7 +300,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_8cb3be0bc267",
+  "id": "si_ed0eb3084741",
   "lesson_origin": "source",
   "lesson_text": "First third off at 2-3R into strength.",
   "module": "M12",
@@ -333,7 +333,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_270a325386d2",
+  "id": "si_9db07bbf682b",
   "lesson_origin": "source",
   "lesson_text": "Never add to a loser.",
   "module": "M12",
@@ -366,7 +366,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_b1f0cb6714a0",
+  "id": "si_58bc17fa3bde",
   "lesson_origin": "source",
   "lesson_text": "Daily tag, weekly stats, monthly audit.",
   "module": "M12",
@@ -398,7 +398,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_7d2e381c89f2",
+  "id": "si_5c78fcebb179",
   "lesson_origin": "source",
   "lesson_text": "That every trade and every lesson maps onto.",
   "module": "M1",
@@ -428,7 +428,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_912f10ba160d",
+  "id": "si_3bdcf5963593",
   "lesson_origin": "source",
   "lesson_text": "It authorizes what you may do, and explicitly does not predict market direction.",
   "module": "M1",
@@ -458,7 +458,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_d5e03b054be1",
+  "id": "si_23fcaaa0abc5",
   "lesson_origin": "source",
   "lesson_text": "Filled once per setup studied and once per live candidate.",
   "module": "M7",
@@ -488,7 +488,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_76fcf9d9983e",
+  "id": "si_b86983610fb1",
   "lesson_origin": "source",
   "lesson_text": "BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, RED TO GREEN.",
   "module": "M7",
@@ -518,7 +518,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_47b92560241a",
+  "id": "si_862760e8a238",
   "lesson_origin": "source",
   "lesson_text": "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims.",
   "module": "M2",
@@ -548,7 +548,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_fb4781e580ed",
+  "id": "si_d41ded89f5ed",
   "lesson_origin": "source",
   "lesson_text": "GREEN+A+ 20-25%, YELLOW+A+ 15%, ORANGE+A+ 8%, B-in-ORANGE = skip.",
   "module": "M13",
@@ -578,7 +578,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_1459abe1cfa4",
+  "id": "si_3fee7a67d83b",
   "lesson_origin": "source",
   "lesson_text": "Nothing trades live until it clears.",
   "module": "M5",
@@ -608,7 +608,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_e2f3b17d5097",
+  "id": "si_93ba89c7e8bd",
   "lesson_origin": "source",
   "lesson_text": "Chosen from the member's own drill and field-week data.",
   "module": "M16",
@@ -638,7 +638,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_2247b8e87e7b",
+  "id": "si_d603a34b5a21",
   "lesson_origin": "source",
   "lesson_text": "Scored against a six-row rubric where every row must pass.",
   "module": "M16",
@@ -668,7 +668,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_d8cb2d77da78",
+  "id": "si_8c3ac349419b",
   "lesson_origin": "source",
   "lesson_text": "Scan nightly, card 2-3 live candidates of that family, log them, grade against plan.",
   "module": "M7",
@@ -698,7 +698,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_2a23f8a6965a",
+  "id": "si_85653544c775",
   "lesson_origin": "source",
   "lesson_text": "Halve new sizes at −5% of equity, pilot-or-paper only at −10%.",
   "module": "M13",
@@ -728,7 +728,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_c7718ec3618d",
+  "id": "si_12ba2e0ce6b7",
   "lesson_origin": "source",
   "lesson_text": "Where each rung is earned by the performance of the last.",
   "module": "M13",
@@ -758,7 +758,7 @@
    "unscored": true
   },
   "difficulty": 1,
-  "id": "si_628ef3169c57",
+  "id": "si_fdb90a4a4f6a",
   "lesson_origin": "source",
   "lesson_text": "B-list = right pattern, needs more time.",
   "module": "M6",

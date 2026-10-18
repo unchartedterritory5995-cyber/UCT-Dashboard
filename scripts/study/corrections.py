@@ -8,7 +8,7 @@ The owner reviews items in chat, one at a time. Each verdict is appended to
    "owner_words": "<verbatim>",            # what the owner actually said
    "field": "answer" | "q" | "lesson_text" | "choices" | "reveal.<key>",   # fix only
    "after": <new value>,                    # fix only
-   "status": "proposed" | "confirmed"}      # a fix is applied only once confirmed
+   "status": "proposed" | "confirmed" | "withdrawn"}   # applied only once confirmed
 
 `apply(items)` runs after a generator builds a segment and before it is
 written, so the committed bank always equals a fresh run plus the verdicts:
