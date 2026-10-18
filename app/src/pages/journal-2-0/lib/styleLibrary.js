@@ -254,6 +254,15 @@ export async function previewExample({ noteId, imagesOn = [], title }) {
   })
 }
 
+/** P3b-F2-R2: the typed title ALONE, as other members would see it: `{title}`. The server scrubs the title and
+ *  reduces nothing of the note, and this is not charged to the preview limit, so typing never spends it. */
+export async function previewExampleTitle({ noteId, title }) {
+  return call(`${GALLERY_KEY}/examples/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ noteId, title, titleOnly: true }),
+  })
+}
+
 /** Submit the note for review as an example of the style: `{template}`. ⛔ The body is exactly these four keys:
  *  the SERVER reads and reduces the note itself, so no body of the note ever leaves this file. */
 export async function publishExample({ noteId, styleItemId, imagesOn = [], title }) {

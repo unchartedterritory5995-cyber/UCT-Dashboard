@@ -11,6 +11,9 @@
 //   * Bottom: the title (the note's, as the server scrubbed it) and Submit for review / Cancel. P3b-F-R5: a title
 //     the author types is previewed too, a moment after they stop typing, and the server's answer -- the title
 //     members will see -- is shown under the field. Submit waits for that answer, as it waits for an image switch.
+//     P3b-F2-R2: that title preview is TITLE-ONLY (previewExampleTitle): the server scrubs the title and reduces
+//     nothing, and it is not charged to the hourly preview limit. A full preview (an image switch) that answers
+//     429 says so, puts the switches back as the preview on screen was made, and leaves Submit on for that preview.
 // ⛔ Lazy-only: AddExampleNoteDoor.jsx imports this, and that door is loaded on demand from the lazy styles chunk
 //    and the lazy gallery.
 // ⛔ The body is NEVER sent: publishExample's body is exactly {noteId, styleItemId, imagesOn, title}; the server
@@ -25,7 +28,7 @@ import Sheet from '../../../../../components/mobile/Sheet'
 import { DocBody } from '../TemplatePreview'
 import {
   EXAMPLE_IMAGE_COUNT_SENTENCE, EXAMPLE_IMAGE_EXTENSIONS, EXAMPLE_IMAGE_SIZE_SENTENCE, EXAMPLE_IMAGE_TYPE_SENTENCE,
-  EXAMPLE_MAX_IMAGES, previewExample, publishExample,
+  EXAMPLE_MAX_IMAGES, previewExample, previewExampleTitle, publishExample,
 } from '../../../lib/styleLibrary'
 import { libraryError } from './styleErrors'
 import styles from './ExampleNote.module.css'
@@ -240,41 +243,75 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
   const [shownTitle, setShownTitle] = useState(null)       // the server's title for it: what members will see
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState(null)
+  const [rateError, setRateError] = useState(null)     // a full re-run the hourly limit refused (P3b-F2-R2)
+  const [titleError, setTitleError] = useState(null)   // a title-only preview that failed
   const seq = useRef(0)
-  const imagesOnNow = useRef(imagesOn)
-  imagesOnNow.current = imagesOn
+  const titleSeq = useRef(0)
+  const titleNow = useRef(title)
+  titleNow.current = title
+  const appliedOnNow = useRef(appliedOn)
+  appliedOnNow.current = appliedOn
+  const hasPreview = useRef(false)
 
-  // `typed`: the title text to preview, or undefined for the note's own (the first run, before the field holds one).
+  // The FULL preview: the reduced body, counts and images. `typed`: the title text to preview with it, or undefined
+  // for the note's own (the first run, before the field holds one).
   const run = useCallback(async (on, typed) => {
     const mine = ++seq.current
     setLoading(true)
+    setRateError(null)
     try {
       const out = await previewExample({ noteId: note?.id, imagesOn: on, title: typed })
       if (mine !== seq.current) return
       const prefill = String(out?.title || note?.title || '').slice(0, MAX_TITLE)
+      hasPreview.current = true
       setPreview(out)
       setAppliedOn(on)
       setRevision((r) => r + 1)
       setLoadError(null)
       setTitle((t) => (t == null ? prefill : t))
-      setAppliedTitle(typeof typed === 'string' ? typed : prefill)
-      setShownTitle(String(out?.title || ''))
+      // the title on screen moves only when this answer is for the title the field still holds
+      if (typeof typed !== 'string' || typed === titleNow.current) {
+        setAppliedTitle(typeof typed === 'string' ? typed : prefill)
+        setShownTitle(String(out?.title || ''))
+      }
     } catch (err) {
       if (mine !== seq.current) return
-      setLoadError(exampleError(err, PREVIEW_FAILED))
+      if (err?.status === 429 && hasPreview.current) {
+        // P3b-F2-R2: the preview on screen still stands, so the switches go back to what it was made from and
+        // Submit sends that preview; the limit's own sentence says why the switch did not take.
+        setRateError(exampleError(err, PREVIEW_FAILED))
+        if (Array.isArray(appliedOnNow.current)) setImagesOn(appliedOnNow.current)
+      } else {
+        setLoadError(exampleError(err, PREVIEW_FAILED))
+      }
     } finally {
       if (mine === seq.current) setLoading(false)
     }
   }, [note?.id, note?.title])
 
+  // P3b-F2-R2: a typed title alone. Nothing of the note is reduced and the hourly limit is not spent.
+  const runTitle = useCallback(async (typed) => {
+    const mine = ++titleSeq.current
+    try {
+      const out = await previewExampleTitle({ noteId: note?.id, title: typed })
+      if (mine !== titleSeq.current) return
+      setTitleError(null)
+      setAppliedTitle(typed)
+      setShownTitle(String(out?.title || ''))
+    } catch (err) {
+      if (mine !== titleSeq.current) return
+      setTitleError(exampleError(err, PREVIEW_FAILED))
+    }
+  }, [note?.id])
+
   useEffect(() => { run([]) }, [run])
 
-  // P3b-F-R5: a typed title is previewed once the author pauses, with the images as they are switched now.
+  // P3b-F-R5: a typed title is previewed once the author pauses.
   useEffect(() => {
     if (title == null || appliedTitle == null || title === appliedTitle) return undefined
-    const timer = setTimeout(() => run(imagesOnNow.current, title), TITLE_PREVIEW_DELAY_MS)
+    const timer = setTimeout(() => runTitle(title), TITLE_PREVIEW_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [title, appliedTitle, run])
+  }, [title, appliedTitle, runTitle])
 
   const describedBy = useCallback((kind) => `${uid}-kind-${CHANGE_KINDS[kind] ? kind : 'other'}`, [uid])
 
@@ -330,6 +367,8 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
               </p>
             )}
           </div>
+          {titleError && <p className={styles.error} role="alert" data-example-title-error="">{titleError}</p>}
+          {rateError && <p className={styles.error} role="alert" data-example-rate-error="">{rateError}</p>}
           {sendError && <p className={styles.error} role="alert">{sendError}</p>}
           <div className={styles.actions}>
             <button type="button" className={styles.btn} onClick={onClose}>Cancel</button>

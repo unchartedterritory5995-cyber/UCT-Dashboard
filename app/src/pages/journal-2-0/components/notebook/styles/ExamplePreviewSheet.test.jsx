@@ -46,6 +46,7 @@ const visibleText = (el) => {
 
 let calls
 let previewAnswer
+let titleAnswer
 let publishAnswer
 function installFetch() {
   calls = []
@@ -56,7 +57,9 @@ function installFetch() {
     const body = init.body ? JSON.parse(init.body) : undefined
     calls.push({ method, path, body })
     let out = [404, { detail: 'Not found' }]
-    if (method === 'POST' && path === '/api/j2/template-gallery/examples/preview') {
+    if (method === 'POST' && path === '/api/j2/template-gallery/examples/preview' && body?.titleOnly === true) {
+      out = typeof titleAnswer === 'function' ? titleAnswer(body) : titleAnswer           // P3b-F2-R2: {title}
+    } else if (method === 'POST' && path === '/api/j2/template-gallery/examples/preview') {
       out = typeof previewAnswer === 'function' ? previewAnswer(body) : previewAnswer
     } else if (method === 'POST' && path === '/api/j2/template-gallery/examples') {
       out = publishAnswer
@@ -69,12 +72,19 @@ function installFetch() {
 }
 const posted = (path) => calls.filter((c) => c.method === 'POST' && c.path === path)
 const PREVIEW_PATH = '/api/j2/template-gallery/examples/preview'
+const TITLE_ONLY = contract('template-gallery.examples.preview.title-only')
+/** The full preview's per-member limit sentence, read from the router that says it (one fact, one file). */
+const PREVIEW_RATE_SENTENCE = (() => {
+  const m = readRepo('api/routers/notebook_template_gallery.py').match(/^PREVIEW_RATE_SENTENCE = "([^"]+)"/m)
+  return m ? m[1] : null
+})()
 const PUBLISH_PATH = '/api/j2/template-gallery/examples'
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn()
   // Like the server: a switched-on image is in the body, a switched-off one is not.
   previewAnswer = (body) => ((body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW))
+  titleAnswer = (body) => ({ title: body?.title })
   publishAnswer = PUBLISHED
   installFetch()
 })
@@ -306,7 +316,7 @@ describe('the preview sheet', () => {
   it('F-R5: a typed title is previewed once the author pauses, and the SERVER\'s title is shown under the field', async () => {
     const TYPED = 'Made $1,240 at Schwab'
     const SERVER_TITLE = 'Made your value here at your broker (as the server scrubbed it)'   // no client could make this
-    previewAnswer = (body) => ({ ...withoutImages(PREVIEW), title: body?.title === TYPED ? SERVER_TITLE : PREVIEW.title })
+    titleAnswer = (body) => ({ title: body?.title === TYPED ? SERVER_TITLE : PREVIEW.title })
     open()
     const dialog = await sheet()
     const field = await within(dialog).findByLabelText('Title in the library')
@@ -317,7 +327,9 @@ describe('the preview sheet', () => {
     expect(submit).toBeDisabled()
     expect(posted(PREVIEW_PATH)).toHaveLength(1)                                   // nothing sent while typing
     await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2), { timeout: TITLE_PREVIEW_DELAY_MS + 2000 })
-    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, imagesOn: [], title: TYPED })   // one, the last
+    // P3b-F2-R2: one request, the last, and TITLE-ONLY: the note is not reduced again for a typed title
+    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, title: TYPED, titleOnly: true })
+    expect(Object.keys(posted(PREVIEW_PATH)[1].body).sort()).toEqual(Object.keys(TITLE_ONLY._contract.requestBody).sort())
     const shown = await within(dialog).findByText(shownTitleSentence(SERVER_TITLE))
     expect(shown).toHaveAttribute('data-example-shown-title')
     expect(field).toHaveAccessibleDescription(shownTitleSentence(SERVER_TITLE))
@@ -326,6 +338,50 @@ describe('the preview sheet', () => {
     fireEvent.click(submit)
     await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
     expect(posted(PUBLISH_PATH)[0].body.title).toBe(TYPED)
+  })
+
+  it('F2-R2: the recorded title-only answer is just the title, and a failed one keeps Submit off with a sentence', async () => {
+    expect(Object.keys(TITLE_ONLY.body)).toEqual(['title'])                        // non-vacuity: the server's shape
+    expect(TITLE_ONLY._contract.requestBody.titleOnly).toBe(true)
+    titleAnswer = [400, { detail: 'A title can be at most 2,000 characters.' }]
+    open()
+    const dialog = await sheet()
+    const field = await within(dialog).findByLabelText('Title in the library')
+    await waitFor(() => expect(field).toHaveValue(PREVIEW.title))
+    fireEvent.change(field, { target: { value: 'Another title' } })
+    const alert = await within(dialog).findByRole('alert', {}, { timeout: TITLE_PREVIEW_DELAY_MS + 2000 })
+    expect(alert).toHaveTextContent('A title can be at most 2,000 characters.')
+    expect(within(dialog).getByRole('button', { name: 'Submit for review' })).toBeDisabled()
+    expect(within(dialog).getByText(shownTitleSentence(PREVIEW.title))).toBeInTheDocument()   // the old one stands
+  })
+
+  it('F2-R2: a full preview the hourly limit refuses says so, puts the switch back, and Submit sends the preview on screen', async () => {
+    expect(PREVIEW_RATE_SENTENCE).toBe("You've previewed a lot of example notes. Try again later.")   // read, not typed
+    previewAnswer = (body) => {
+      if ((body?.imagesOn || []).length) return [429, { detail: PREVIEW_RATE_SENTENCE }]
+      return { ...withoutImages(PREVIEW), images: PREVIEW.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+    }
+    open()
+    const dialog = await sheet()
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    const sw = within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })
+    fireEvent.click(sw)
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(PREVIEW_RATE_SENTENCE)
+    await waitFor(() => expect(sw).toHaveAttribute('aria-checked', 'false'))       // back to the preview on screen
+    expect(dialog.querySelector('[data-template-preview-body]')).not.toBeNull()    // the preview still stands
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(submit)
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    expect(posted(PUBLISH_PATH)[0].body.imagesOn).toEqual([])
+  })
+
+  it('F2-R2: a FIRST preview the limit refuses shows the sentence and offers no Submit', async () => {
+    previewAnswer = [429, { detail: PREVIEW_RATE_SENTENCE }]
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(PREVIEW_RATE_SENTENCE)
+    expect(within(dialog).getByRole('button', { name: 'Submit for review' })).toBeDisabled()
   })
 
   it('7. a failed submit keeps the sheet open with the server\'s sentence', async () => {
