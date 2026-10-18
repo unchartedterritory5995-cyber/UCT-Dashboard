@@ -49,7 +49,7 @@ def store(tmp_path, monkeypatch):
 
 
 def _doc(compute, def_id=DEF_ID):
-    return {"id": def_id, "compute": copy.deepcopy(compute)}
+    return {"id": def_id, "version": 1, "compute": copy.deepcopy(compute)}
 
 
 def _stored(def_id=DEF_ID):
