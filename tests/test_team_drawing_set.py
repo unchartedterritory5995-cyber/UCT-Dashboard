@@ -206,7 +206,7 @@ ROWS = [{"id": "a", "pattern_id": "bull_flag"}, {"id": "b", "pattern_id": "uct_p
 URL = "/api/patterns/ZZZ?tf=D&confirmed_only=false&include_structures=true"
 
 
-def test_member_gets_the_team_set_but_never_the_internal_pullback(monkeypatch):
+def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_the_team_set(monkeypatch):
     monkeypatch.setenv("AUTO_STRUCTURES_ENABLED", "1")
     monkeypatch.setenv("AUTO_STRUCTURES_MEMBERS_ENABLED", "1")
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [
@@ -215,8 +215,10 @@ def test_member_gets_the_team_set_but_never_the_internal_pullback(monkeypatch):
     monkeypatch.setattr(auto_structures, "drawn_for",
                         lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
     body = _client(PAID_MEMBER, monkeypatch, ROWS).get(URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
-    assert [r["pattern_id"] for r in body["structures"]] == ["bc:flat-base"]
+    # registry.DISPLAY_MEMBER_SET (blind-confirmed): the pullback is served to a member through
+    # the member set only; bull_flag and the bc:flat-base box are team set, admin-only.
+    assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
+    assert "structures" not in body
     assert "drawn" in body
     admin = _client(ADMIN, monkeypatch, ROWS).get(URL).json()
     assert [r["pattern_id"] for r in admin["detections"]] == [r["pattern_id"] for r in ROWS]

@@ -198,7 +198,7 @@ def list_public_pattern_ids() -> list[str]:
 #:                  failed AS DRAWN in v2 (bull_flag 1.50, pullback_to_10ema
 #:                  1.90, holy_grail 1.80) and the RSI divergences, which never
 #:                  rendered (no verdicts). Drawn for admins, visually distinct.
-#: Members (later flip) see `trusted` only (since 2026-10-17: the team set below).
+#: Members (behind AUTO_STRUCTURES_MEMBERS_ENABLED) see DISPLAY_MEMBER_SET only (below).
 #:
 #: v3 re-judge (lab/geometry_eval REPORT_TIERS_V3.md, 2026-10-17): the same
 #: blind rule over 13 detectors whose DRAWING changed, n=10 fresh charts each.
@@ -227,16 +227,29 @@ def list_public_pattern_ids() -> list[str]:
 #:                  the rows, not a pattern id.
 #: Donchian / rectangle are NOT what the team uses: they left the trusted set
 #: and draw as experimental (admins' "show all"). DISPLAY_TRUSTED IS this set.
-#: Member exposure WAITS ON A BLIND CHECK of the set as drawn: members were
-#: switched off (AUTO_STRUCTURES_MEMBERS_ENABLED=0 at 2026-10-17T17:07:28Z) and
-#: stay off until it passes. uct_pullback_ma_v5 is also INTERNAL
-#: (INTERNAL_PATTERN_IDS), so no member path serves it whatever its tier.
+#: Members do NOT get this whole set: they get DISPLAY_MEMBER_SET below, the
+#: types that passed the blind check as drawn. uct_pullback_ma_v5 is INTERNAL
+#: (INTERNAL_PATTERN_IDS); the member set is the only path that serves it.
 DISPLAY_TEAM_SET: frozenset = frozenset({
     "bull_flag",
     "flat_base", "bc:flat-base", "bc:cup-with-handle",
     "uct_pullback_ma_v5",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
+#: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
+#: is drawn while AUTO_STRUCTURES_MEMBERS_ENABLED is on. Each type here passed two
+#: independent blind packets at 331774fc5a (lab/geometry_eval
+#: REPORT_TEAM_SET_R4_CONFIRM.md, _R5.md, _R5_CONFIRM.md): flat_base and the MA
+#: pullback v5 (as drawn: the tagged MA curve, tag-bar marker and stop). The learned
+#: drawer's levels + trendlines (`drawn`, auto_draw.py) passed the same check; they
+#: are served beside the rows, not as a pattern id, so they are not listed here.
+#: NOT confirmed, so admin-only (Team/All) and never served to a member: bull_flag,
+#: bc:flat-base, bc:cup-with-handle, every other id. Admins' tiers are unchanged:
+#: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
+#: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
+#: rows ONLY through this set (api/routers/patterns.py, member branch).
+DISPLAY_MEMBER_SET: frozenset = frozenset({"flat_base", "uct_pullback_ma_v5"})
+assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
     "double_bottom", "double_top", "head_shoulders", "vcp",
