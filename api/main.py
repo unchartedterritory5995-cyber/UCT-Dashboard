@@ -162,6 +162,9 @@ from api.routers import notebook_playbook as notebook_playbook_router
 # P2 Tier 3 Task 6: Checklist from my winners (/api/j2/insights/checklist-suggestions), dark
 # behind JOURNAL_TIER3_ENABLED (router-level 404), with its own paid gate.
 from api.routers import notebook_winners_checklist as notebook_winners_checklist_router
+# P2 Tier 3 Task 7: Your trading year (/api/j2/wrapped/{year}), dark behind JOURNAL_TIER3_ENABLED
+# (router-level 404), with its own paid gate.
+from api.routers import notebook_wrapped as notebook_wrapped_router
 # Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), dark behind
 # NOTEBOOK_REVIEW_DRAFTS_ENABLED (router-level 404).
 from api.routers import notebook_review_drafts as notebook_review_drafts_router
@@ -9919,6 +9922,9 @@ app.include_router(notebook_playbook_router.router)
 # P2 Tier 3 Task 6: nothing in journal_two lives under /api/j2/insights/ (the only other /insights
 # routes are voice's /api/voice/insights*), so mount order against journal_two does not matter.
 app.include_router(notebook_winners_checklist_router.router)
+# P2 Tier 3 Task 7: nothing in journal_two lives under /api/j2/wrapped/, so mount order against
+# journal_two does not matter. Inside this router, Task 8's /years must sit above /{year}.
+app.include_router(notebook_wrapped_router.router)
 # Wave 13 lane 13F: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_review_drafts_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
