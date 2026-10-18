@@ -243,12 +243,18 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: pullback v5 (as drawn: the tagged MA curve, tag-bar marker and stop). The learned
 #: drawer's levels + trendlines (`drawn`, auto_draw.py) passed the same check; they
 #: are served beside the rows, not as a pattern id, so they are not listed here.
+#: bc:flat-base (owner-approved 2026-10-17) passed its own two blind packets AS
+#: DRAWN -- the PIVOT LINE ONLY, box off (auto_structures._team_pivot): R5c 2.40
+#: [2.10, 2.67] at 331774fc5a and bcflat-c2 2.30 [2.03, 2.57] at 1dccf110ff
+#: (lab/geometry_eval REPORT_BCFLAT_C2.md). It reaches a member as a base box in
+#: `structures`, and auto_structures.member_rows serves it only while it carries
+#: that pivot line with the box off, so a member is drawn exactly what was judged.
 #: NOT confirmed, so admin-only (Team/All) and never served to a member: bull_flag,
-#: bc:flat-base, bc:cup-with-handle, every other id. Admins' tiers are unchanged:
+#: bc:cup-with-handle, every other id. Admins' tiers are unchanged:
 #: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
 #: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
 #: rows ONLY through this set (api/routers/patterns.py, member branch).
-DISPLAY_MEMBER_SET: frozenset = frozenset({"flat_base", "uct_pullback_ma_v5"})
+DISPLAY_MEMBER_SET: frozenset = frozenset({"flat_base", "uct_pullback_ma_v5", "bc:flat-base"})
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
