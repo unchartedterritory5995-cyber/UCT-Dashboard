@@ -1195,6 +1195,20 @@ def _question_for(msg: dict) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+_MENTION_OR_TAG = re.compile(r"<[^<>]*>")
+_URL = re.compile(r"https?://\S+")
+
+
+def clean_title(text: str) -> str:
+    """A caption made fit to be a title: no mentions or custom emoji
+    (`<@&...>`, `<:name:id>`), no links, no square brackets (they break a
+    markdown link), whitespace collapsed and stray punctuation trimmed."""
+    out = _URL.sub(" ", _MENTION_OR_TAG.sub(" ", str(text or "")))
+    out = out.replace("[", " ").replace("]", " ")
+    out = re.sub(r"\s+", " ", out).strip().strip(" -–—·:|,;").strip()
+    return out
+
+
 def as_clip(recap: dict, row: dict, caption: str, title: str = "") -> dict:
     """A recap for a video that is not a full lesson: whatever the model wrote,
     with a plain title and description filled in where it wrote nothing, and
@@ -1202,8 +1216,8 @@ def as_clip(recap: dict, row: dict, caption: str, title: str = "") -> dict:
     posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc).astimezone(_ET)
     day = f"{posted:%b} {posted.day}, {posted.year}"
     text = re.sub(r"\s+", " ", caption).strip()
-    title = (recap.get("title") or title
-             or (text[:80].rstrip() if text else f"Quick clip, {day}"))
+    title = (clean_title(recap.get("title") or title) or clean_title(text)[:80].rstrip()
+             or f"Quick clip, {day}")
     body = recap.get("recap") or (
         text[:600] if text else
         f"A short clip {speaker_name(row)} shared in #{source_name(row)} on {day}, "
@@ -2294,6 +2308,7 @@ _INDEX_TOTAL_MAX = 5800          # Discord: 6,000 characters across a message's 
 _INDEX_DESC_MAX = 4000
 _INDEX_TITLE_CHARS = 48
 _INDEX_MAX_EMBEDS = 9
+_CLIPS_INDEX_MAX = 12            # the Clips header sits at the bottom of the channel: keep it short
 
 
 def run_level_backfill(*, deadline: float, limit: int = 15) -> dict:
@@ -2328,12 +2343,14 @@ def thread_index_embeds(key: str, name: str, blurb: str, rows: list[dict]) -> li
     """The header post's embeds: the section's blurb, then one embed per level
     (clips: one list), each lesson a link to its recap, newest first. Stops at
     Discord's size limit and says how many more are in the thread."""
-    head = {"title": name, "color": _EMBED_COLOR,
+    what = "clips" if key == "clips" else "lessons"
+    head = {"title": f"{name} · {len(rows)} {what}" if rows else name, "color": _EMBED_COLOR,
             "description": (f"{blurb}\n\nEvery lesson in this section is in the thread "
                             "below. Click a title to jump to its recap and video.")}
-    embeds, used, more = [head], len(name) + len(head["description"]), 0
+    embeds, used, more = [head], len(head["title"]) + len(head["description"]), 0
     if key == "clips":
-        groups = [("Newest first", rows)]
+        groups = [("Newest first", rows[:_CLIPS_INDEX_MAX])]
+        more += max(0, len(rows) - _CLIPS_INDEX_MAX)
     else:
         groups = [(f"{_LEVEL_EMOJI[lvl]} {lvl.capitalize()}",
                    [r for r in rows if r.get("level") == lvl]) for lvl in LEVELS]
@@ -2342,7 +2359,7 @@ def thread_index_embeds(key: str, name: str, blurb: str, rows: list[dict]) -> li
         lines = []
         for r in items:
             day = datetime.fromtimestamp(int(r["posted_at"]), tz=timezone.utc).astimezone(_ET)
-            short = str(r["title"] or "").strip()
+            short = clean_title(r["title"]) or "Clip"
             if len(short) > _INDEX_TITLE_CHARS:
                 short = short[:_INDEX_TITLE_CHARS - 1].rstrip() + "…"
             line = f"• [{short}]({lesson_url(r)}) · {day:%b} {day.day}"

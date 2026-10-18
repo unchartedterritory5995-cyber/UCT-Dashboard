@@ -1706,7 +1706,7 @@ def test_the_header_posts_become_a_level_grouped_index(monkeypatch):
     monkeypatch.setattr(tl, "_discord", fake)
     assert tl.refresh_thread_index() == {"updated": len(tl.SECTIONS)}
     setups = patched["setups"]["embeds"]
-    assert setups[0]["title"] == "Setups & Entries" and "Click a title" in setups[0]["description"]
+    assert setups[0]["title"] == "Setups & Entries · 3 lessons" and "Click a title" in setups[0]["description"]
     assert [e["title"] for e in setups[1:]] == ["🌱 Beginner", "🏔️ Advanced", "More lessons"]
     assert setups[1]["description"] == (
         f"• [First principles of risk](https://discord.com/channels/{GUILD}/t-setups/msg-h1) · Mar 1")
@@ -1715,6 +1715,7 @@ def test_the_header_posts_become_a_level_grouped_index(monkeypatch):
     clips = patched["clips"]["embeds"]
     assert clips[1]["title"] == "Newest first" and "[Quick NVDA look]" in clips[1]["description"]
     assert patched["market"]["embeds"] == [patched["market"]["embeds"][0]]        # blurb only
+    assert patched["market"]["embeds"][0]["title"] == "Market Read"                # no count when empty
     assert tl.get_state("index_dirty") == "0"
     assert tl.refresh_thread_index() == {"updated": 0}                             # clean
     # too many lessons for one post: the rest is counted, not dropped silently
@@ -1768,3 +1769,26 @@ def test_a_pencil_on_a_thread_post_rewrites_it_and_see_also_refreshes_in_the_thr
     tl._update("tp2", related_at=1)
     assert tl.run_related_refresh(deadline=9e12)["refreshed"] == 1
     assert "[Lesson tp3](https://discord.com/channels/" in patched[0]["embeds"][0]["description"]
+
+
+def test_caption_titles_are_cleaned_of_mentions_links_and_brackets():
+    raw = "<@&1216780250286002297> https://open.substack.com/pub/x/p/y?r=1 [Patrick] Morning plan:"
+    assert tl.clean_title(raw) == "Patrick Morning plan"
+    assert tl.clean_title("<:fire:123> Watch NVDA here https://t.co/abc") == "Watch NVDA here"
+    assert tl.clean_title("https://youtu.be/abc") == ""
+    row = {"posted_at": 1767225600, "author_id": PATRICK, "channel_id": TSDR}
+    assert tl.as_clip({}, row, raw)["title"] == "Patrick Morning plan"
+    assert tl.as_clip({}, row, "https://youtu.be/abc")["title"].startswith("Quick clip, ")
+    assert tl.as_clip({"title": "[Live] <@&1> NVDA"}, row, "")["title"] == "Live NVDA"
+
+
+def test_the_clips_header_shows_only_the_newest_dozen_and_counts_the_rest():
+    rows = [{"title": f"<@&1> Clip {i} https://x.y/{i}", "level": None, "posted_at": 1700000000 + i,
+             "post_channel_id": "t-clips", "discord_post_id": str(10 ** 18 + i)}
+            for i in range(30, 0, -1)]
+    embeds = tl.thread_index_embeds("clips", "Clips & Quick Takes", "Blurb.", rows)
+    assert embeds[0]["title"] == "Clips & Quick Takes · 30 clips"
+    lines = embeds[1]["description"].split("\n")
+    assert lines[0].startswith("• [Clip 30](") and len([l for l in lines if l.startswith("• [")]) == tl._CLIPS_INDEX_MAX
+    assert lines[-1] == "… and 18 more in the thread"
+    assert "https://x.y" not in embeds[1]["description"].split("](")[0]
