@@ -13,7 +13,7 @@
  * Mirrors PositionDetailPage's structure, hooks, skeleton + CSS conventions.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import ShareToFloor from '../../../../components/community/ShareToFloor'
 import useSWR from 'swr'
@@ -43,8 +43,13 @@ import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import EntryContextCard from '../EntryContextCard'
 import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import usePreferences from '../../../../hooks/usePreferences'
+import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../../lib/pageLayouts'
+import { pageLayoutsEnabled } from '../../lib/pageLayoutsFlag'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
+// The Customize editor loads only when the button is pressed (its slot holds the lazy import).
+import PageLayoutEditorSlot from '../layout/PageLayoutEditorSlot'
 import styles from './TradeDetailPage.module.css'
 import { sectionFetcher } from '../../../../components/research/sections/sectionFetch'
 
@@ -52,6 +57,9 @@ import { sectionFetcher } from '../../../../components/research/sections/section
 // around the holding period itself (±5 sessions) so "save this trade" shows
 // the setup, not whatever the market is doing today (Wave 1, P1-1: tradeRef).
 const DAY_SECONDS = 86400
+
+// The toast chip is absolutely positioned for a widget header; here it floats at the corner of the viewport.
+const LAYOUT_TOAST_STYLE = { position: 'fixed', top: 72, right: 16 }
 function tradeChartWindow(trade) {
   const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
   const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
@@ -344,6 +352,10 @@ export default function TradeDetailPage() {
   const [stopInput, setStopInput] = useState('')
   const [patchError, setPatchError] = useState(null)
   const notesRef = useRef(null)
+  // The Customize editor (P4a). The toast host is HERE, on the page, because the sheet that raises "Layout
+  // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
+  const [customizing, setCustomizing] = useState(false)
+  const [layoutMsg, setLayoutMsg] = useJournalToast()
 
   const { data, error: loadError, isLoading, mutate } = useSWR(
     id ? `/api/j2/trades/${encodeURIComponent(id)}` : null,
@@ -357,6 +369,7 @@ export default function TradeDetailPage() {
   const { accountId } = useJ2SelectedAccount()
   const { settings } = useJ2Settings()
   const isPaid = useIsPaid()
+  const { prefs } = usePreferences()
 
   // Deterministic AI-suggested tags (P6-4). Skip the fetch when the flag is off.
   const tagSuggestOn = useFeatureFlag('tagSuggest')
@@ -415,8 +428,12 @@ export default function TradeDetailPage() {
 
   // Keyboard: j/ArrowRight → next, k/ArrowLeft → prev, Esc → back. Skips while
   // typing (input/textarea/select/contentEditable) — MiniMonthNav.jsx pattern.
+  // P4a m6: and does nothing at all while the Customize sheet is open. An arrow key on the sheet's Move up /
+  // Move down buttons is what a keyboard user reaches for in that list; it must not change the trade under the
+  // sheet (the sheet handles its own Escape).
   useEffect(() => {
     const onKey = (e) => {
+      if (customizing) return
       const tag = (e.target?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return
       if (e.key === 'Escape') { navigate(-1); return }
@@ -425,7 +442,7 @@ export default function TradeDetailPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [prevId, nextId, go, navigate])
+  }, [prevId, nextId, go, navigate, customizing])
 
   // Optimistic PATCH: write local override immediately, reconcile from the
   // server's recomputed trade, roll back to server truth on error (mirrors
@@ -564,80 +581,51 @@ export default function TradeDetailPage() {
     setAddingStop(false)
   }
 
-  return (
-    <div className={styles.page}>
-      {/* Top bar: back link + prev/next */}
-      <div className={styles.topBar}>
-        <Link to={backTo} className={styles.back}>← Trade Journal</Link>
-        <div className={styles.navBtns}>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => go(prevId)}
-            disabled={!prevId}
-            aria-label="Previous trade"
-          >‹</button>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => go(nextId)}
-            disabled={!nextId}
-            aria-label="Next trade"
-          >›</button>
-        </div>
-      </div>
+  // The sections after the identity header, from the page layout (P4a). With the layouts switch off the list
+  // is DEFAULT_LAYOUT's, which is the order the page always had; with it on, the member's saved trade layout
+  // decides which sections show and in what order. Each entry below is the JSX that used to sit in the
+  // return, moved unchanged with its own condition, and closes over the page's state, so no state moves.
+  const layout = pageLayoutsEnabled() ? normalizeLayout(prefs?.[LAYOUT_PREF]) : DEFAULT_LAYOUT
+  const panels = resolvePanels(layout, 'trade').filter((p) => p.shown)
+  // The chart card's "Add context in notes" button scrolls to and focuses the notes field, which lives INSIDE
+  // the story section. With the story hidden there is nothing to go to, so the button is not rendered.
+  const storyShown = panels.some((p) => p.id === 'story')
+  // Ruling P4a-T9-R1: the save-error line goes back where it was. Most saves that can fail are made inside the
+  // story (the setup select, the tags, the notes blur-save), so the line sits just above the story: before it
+  // was a P4a change, it sat between the chart card and the before-and-after card, which comes straight before
+  // the story. So it renders ahead of the story, or ahead of the before-and-after card when that card is the
+  // panel straight before the story (the default layout, where this is exactly its old slot, switch off or on).
+  // With the story hidden it renders straight after the identity header, so an error is still seen.
+  const storyAt = panels.findIndex((p) => p.id === 'story')
+  const errorAt = storyAt > 0 && panels[storyAt - 1].id === 'beforeAfter' ? storyAt - 1 : storyAt
+  const errorLine = patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>
+  const render = {
+    linkedNotes: () => trade.id != null && (
+      <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
+    ),
 
-      {/* ── 1. Outcome header ─────────────────────────────────────────── */}
-      <header className={styles.identityRow}>
-        {/* Lane KEYS3 (Q6): where keyboard focus lands after a move to this page
-            (lib/routeFocus.jsx). The page's actions are the next stops; the back link and
-            Previous / Next are behind it. Focusable by script only. */}
-        <h1 className={styles.sym} tabIndex={-1} data-route-landing="">{trade.symbol}</h1>
-        <span className={`${styles.sideBadge} ${isLong ? styles.long : styles.short}`}>
-          {(trade.side || '').toUpperCase()}
-        </span>
-        {trade.result && (
-          <span className={`${styles.resultBadge} ${
-            trade.result === 'Win' ? styles.resWin
-              : trade.result === 'Loss' ? styles.resLoss : styles.resBe
-          }`}>
-            {trade.result}
-          </span>
-        )}
-        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
-        <span className={styles.headActions}>
-          <ReplayButton trade={trade} />
-          <SaveToNotebookButton trade={trade} tf={tf} />
-          <TradeCardActions trade={trade} />
-          <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
-          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
-        </span>
-      </header>
+    /* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
+        position page showed (the backend key is symbol + entry day, not an id), so the card
+        stays after the trade closes. Dark behind notebook_entry_context_enabled. */
+    entryContext: () => trade.id != null && <EntryContextCard kind="trade" id={trade.id} />,
 
-      {trade.id != null && (
-        <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
-      )}
-      {/* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
-          position page showed (the backend key is symbol + entry day, not an id), so the card
-          stays after the trade closes. Dark behind notebook_entry_context_enabled. */}
-      {trade.id != null && <EntryContextCard kind="trade" id={trade.id} />}
+    /* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
+        renders nothing while off). The setup chip writes through the same PATCH.
+        P0.16: it sits straight after the entry-context card, ABOVE the outcome grid. It was
+        far below the fold (about 1176 px on a desktop, 1501 on a phone), under the numbers it
+        is the verdict on. The props are unchanged; only the position moved. */
+    planGrade: () => planGradingEnabled() && (
+      <Suspense fallback={null}>
+        <PlanGradeCard
+          tradeId={trade.id}
+          trade={trade}
+          onTagSetup={(setup) => patchTrade({ setup }, { setup })}
+          onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
+        />
+      </Suspense>
+    ),
 
-      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
-          renders nothing while off). The setup chip writes through the same PATCH.
-          P0.16: it sits straight after the entry-context card, ABOVE the outcome grid. It was
-          far below the fold (about 1176 px on a desktop, 1501 on a phone), under the numbers it
-          is the verdict on. The props are unchanged; only the position moved. */}
-      {planGradingEnabled() && (
-        <Suspense fallback={null}>
-          <PlanGradeCard
-            tradeId={trade.id}
-            trade={trade}
-            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
-            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
-          />
-        </Suspense>
-      )}
-
+    outcome: () => (
       <div className={styles.outcomeGrid} data-testid="trade-outcome-grid">
         <div className={styles.outcomeCell}>
           <div className={styles.outcomeLabel}>Net P&amp;L</div>
@@ -741,8 +729,10 @@ export default function TradeDetailPage() {
           )}
         </div>
       </div>
+    ),
 
-      {/* ── 2. Chart card ─────────────────────────────────────────────── */}
+    /* ── 2. Chart card ─────────────────────────────────────────────── */
+    chart: () => (
       <div className={styles.chartCard}>
         <div className={styles.chartWrap}>
           {/* ChartPane is the SAME chart /charts renders — identity row, session
@@ -778,31 +768,36 @@ export default function TradeDetailPage() {
           <span className={styles.legendHint} title={legendHint.title}>{legendHint.text}</span>
           {isDateOnly && (
             <span className={styles.caption}>
-              Daily chart — no execution times logged.{' '}
-              <button
-                type="button"
-                className={styles.captionLink}
-                onClick={() => {
-                  notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  notesRef.current?.focus()
-                }}
-              >
-                Add context in notes ↓
-              </button>
+              Daily chart — no execution times logged.
+              {storyShown && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className={styles.captionLink}
+                    onClick={() => {
+                      notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      notesRef.current?.focus()
+                    }}
+                  >
+                    Add context in notes ↓
+                  </button>
+                </>
+              )}
             </span>
           )}
         </div>
       </div>
+    ),
 
-      {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+    beforeAfter: () => notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
+      <Suspense fallback={null}>
+        <TradeBeforeAfter tradeId={trade.id} />
+      </Suspense>
+    ),
 
-      {notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
-        <Suspense fallback={null}>
-          <TradeBeforeAfter tradeId={trade.id} />
-        </Suspense>
-      )}
-
-      {/* ── 3. The story ──────────────────────────────────────────────── */}
+    /* ── 3. The story ──────────────────────────────────────────────── */
+    story: () => (
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>The story</h2>
 
@@ -887,8 +882,10 @@ export default function TradeDetailPage() {
           <TradeScreenshots tradeId={id} />
         </div>
       </section>
+    ),
 
-      {/* ── 4. Executions ─────────────────────────────────────────────── */}
+    /* ── 4. Executions ─────────────────────────────────────────────── */
+    executions: () => (
       <details className={styles.execDetails}>
         <summary className={styles.execSummary}>Executions</summary>
         {isBroker && brokerActivities.length > 0 ? (
@@ -934,32 +931,106 @@ export default function TradeDetailPage() {
           </table>
         )}
       </details>
+    ),
 
-      {/* ── 5. Compass post-mortem (paid-gated) ───────────────────────── */}
-      {isPaid && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Compass post-mortem</h2>
-          <TradeReviewCard
-            review={review}
-            isLoading={reviewLoading}
-            onFeedback={(v) => review && reviewFeedback(review.id, v)}
-            onRegenerate={() => review && regenerateReview(review.id)}
-            onForget={() => review && forgetReview(review.id)}
-          />
-          {reviewError && <div className={styles.errorLine}>{reviewError}</div>}
-          {!review && !reviewLoading && (
-            <button
-              type="button"
-              className={styles.compassBtn}
-              onClick={() => trade.id && generateReview(trade.id)}
-              disabled={!trade.id}
-            >
-              <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
-              Tell me about this trade
+    /* ── 5. Compass post-mortem (paid-gated) ───────────────────────── */
+    review: () => isPaid && (
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Compass post-mortem</h2>
+        <TradeReviewCard
+          review={review}
+          isLoading={reviewLoading}
+          onFeedback={(v) => review && reviewFeedback(review.id, v)}
+          onRegenerate={() => review && regenerateReview(review.id)}
+          onForget={() => review && forgetReview(review.id)}
+        />
+        {reviewError && <div className={styles.errorLine}>{reviewError}</div>}
+        {!review && !reviewLoading && (
+          <button
+            type="button"
+            className={styles.compassBtn}
+            onClick={() => trade.id && generateReview(trade.id)}
+            disabled={!trade.id}
+          >
+            <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+            Tell me about this trade
+          </button>
+        )}
+      </section>
+    ),
+  }
+
+  return (
+    <div className={styles.page}>
+      {/* Top bar: back link + prev/next */}
+      <div className={styles.topBar}>
+        <Link to={backTo} className={styles.back}>← Trade Journal</Link>
+        <div className={styles.navBtns}>
+          {pageLayoutsEnabled() && (
+            <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+              <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              Customize
             </button>
           )}
-        </section>
+          <button
+            type="button"
+            className={styles.navBtn}
+            onClick={() => go(prevId)}
+            disabled={!prevId}
+            aria-label="Previous trade"
+          >‹</button>
+          <button
+            type="button"
+            className={styles.navBtn}
+            onClick={() => go(nextId)}
+            disabled={!nextId}
+            aria-label="Next trade"
+          >›</button>
+        </div>
+      </div>
+
+      {/* ── 1. Outcome header ─────────────────────────────────────────── */}
+      <header className={styles.identityRow}>
+        {/* Lane KEYS3 (Q6): where keyboard focus lands after a move to this page
+            (lib/routeFocus.jsx). The page's actions are the next stops; the back link and
+            Previous / Next are behind it. Focusable by script only. */}
+        <h1 className={styles.sym} tabIndex={-1} data-route-landing="">{trade.symbol}</h1>
+        <span className={`${styles.sideBadge} ${isLong ? styles.long : styles.short}`}>
+          {(trade.side || '').toUpperCase()}
+        </span>
+        {trade.result && (
+          <span className={`${styles.resultBadge} ${
+            trade.result === 'Win' ? styles.resWin
+              : trade.result === 'Loss' ? styles.resLoss : styles.resBe
+          }`}>
+            {trade.result}
+          </span>
+        )}
+        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
+        <span className={styles.headActions}>
+          <ReplayButton trade={trade} />
+          <SaveToNotebookButton trade={trade} tf={tf} />
+          <TradeCardActions trade={trade} />
+          <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
+          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
+        </span>
+      </header>
+
+      {/* The save error is not a panel. With the story hidden it sits straight after the header; otherwise it
+          rides in front of the panel `errorAt` names (see above). Inside that panel's Fragment it holds a slot of
+          its own, so its arriving or going never remounts the panel. */}
+      {storyAt < 0 && errorLine}
+
+      {panels.map((p, i) => <Fragment key={p.id}>{i === errorAt && errorLine}{render[p.id]?.()}</Fragment>)}
+
+      {customizing && (
+        <PageLayoutEditorSlot
+          page="trade"
+          onClose={() => setCustomizing(false)}
+          onSaved={() => setLayoutMsg('Layout saved.')}
+        />
       )}
+      <JournalToast msg={layoutMsg} style={LAYOUT_TOAST_STYLE} />
     </div>
   )
 }
