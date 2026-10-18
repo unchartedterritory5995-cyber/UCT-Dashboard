@@ -13,6 +13,8 @@
 // Deliberately plain module state (not React context) so any component can use
 // useLivePrices with zero provider wiring, exactly as before.
 
+import { sessionState } from '../lib/marketClock/marketClock'
+
 // Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
 // (400) any request over this count rather than truncating it. The union here is
 // browser-wide (every mounted widget's tickers combined), so it can exceed this on
@@ -52,7 +54,22 @@ export function setUnauthorizedHandler(fn) {
 const _isMobile =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 640)
-const _intervalMs = () => (_isMobile ? 4000 : 2000) // mirrors useMobileSWR ×2 on mobile
+// While the market is fully CLOSED (overnight 20:00–04:00 ET, weekends, holidays) nothing
+// trades, and the server holds each price for 15 s anyway, so a 2 s poll re-reads the same
+// answer. Measured on production 2026-10-17 (a Saturday): one idle screener tab sent 31
+// /api/live-prices requests a minute. Pre-market and after hours keep the fast cadence (ext
+// prices move then). The cadence is re-read before every poll, so a tab left open overnight
+// speeds back up at 04:00 without a reload.
+export const CLOSED_INTERVAL_MS = 30000
+function _marketClosed() {
+  try {
+    const s = sessionState(new Date())
+    return !(s.isOpen || s.isPremarket || s.isExtended)
+  } catch {
+    return false // an unreadable clock never slows a live market
+  }
+}
+const _intervalMs = () => (_marketClosed() ? CLOSED_INTERVAL_MS : _isMobile ? 4000 : 2000) // mobile ×2, as useMobileSWR
 
 function _union() {
   return [...new Set(_refcounts.keys())].filter(Boolean).sort()
@@ -168,15 +185,25 @@ async function _poll() {
   }
 }
 
+// A self-rescheduling timeout rather than a fixed setInterval, so each wait reads the
+// session's cadence afresh (see CLOSED_INTERVAL_MS).
+function _schedule() {
+  _timer = setTimeout(() => {
+    _timer = null
+    _poll()
+    if (_refcounts.size > 0) _schedule()
+  }, _intervalMs())
+}
+
 function _startTimer() {
   if (_timer != null) return
   _unauthorizedFired = false // re-arm: a fresh subscriber set / tab refocus deserves its own check
-  _timer = setInterval(_poll, _intervalMs())
+  _schedule()
 }
 
 function _stopTimer() {
   if (_timer != null) {
-    clearInterval(_timer)
+    clearTimeout(_timer)
     _timer = null
   }
 }
