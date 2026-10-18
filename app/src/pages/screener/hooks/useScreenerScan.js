@@ -12,6 +12,15 @@ import { useEffect, useRef, useState } from 'react'
 // once when no request is waiting on the debounce, then debounce only the rapid edits
 // that follow inside the window. A first load or a deliberate screen switch then
 // costs no 300 ms wait.
+//
+// REVISITS ARE INSTANT (2026-10-17). Each mount keeps the last page-1 answers it received, by
+// spec. Coming back to a screen shows its last answer at once, with the spec the caller holds
+// now (so `answeredSpec` is the caller's current object), and asks again only if that answer
+// is more than ANSWER_FRESH_MS old -- the fresh answer then replaces it as usual. Before, every
+// switch back waited ~230 ms (measured on production) for an answer the page already had.
+export const ANSWER_FRESH_MS = 15_000
+const ANSWER_KEEP_MS = 10 * 60_000
+const ANSWER_MAX = 24
 export default function useScreenerScan(spec, { debounce = 300, leading = false } = {}) {
   const [answer, setAnswer] = useState({ result: null, spec: null })
   const [isLoading, setLoading] = useState(false)
@@ -20,6 +29,7 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
   const seq = useRef(0) // guards against out-of-order responses
   const firedKey = useRef(null)
   const trailing = useRef(false) // leading mode: the pending timer will fire a request
+  const kept = useRef(new Map()) // key -> { result, at }: this mount's page-1 answers
   const key = spec ? JSON.stringify(spec) : null
 
   const run = async (asked, askedKey) => {
@@ -44,6 +54,11 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
         throw err
       }
       const json = await r.json()
+      if (json && (json.page == null || json.page === 1)) {
+        kept.current.delete(askedKey)
+        kept.current.set(askedKey, { result: json, at: Date.now() })
+        while (kept.current.size > ANSWER_MAX) kept.current.delete(kept.current.keys().next().value)
+      }
       if (mySeq !== seq.current) return
       setAnswer({ result: json, spec: asked })
     } catch (e) {
@@ -58,6 +73,19 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
       // Leading mode keeps its timer across key changes, so a queued edit is dropped here.
       if (leading) { clearTimeout(timer.current); timer.current = null; trailing.current = false }
       return undefined
+    }
+    const hit = kept.current.get(key)
+    const age = hit ? Date.now() - hit.at : Infinity
+    if (age < ANSWER_KEEP_MS) {
+      ++seq.current // an answer still in flight for an earlier spec no longer replaces this one
+      setAnswer({ result: hit.result, spec })
+      setLoading(false)
+      if (age < ANSWER_FRESH_MS) {
+        clearTimeout(timer.current)
+        if (leading) { timer.current = null; trailing.current = false }
+        firedKey.current = key
+        return undefined
+      }
     }
     if (!leading) {
       clearTimeout(timer.current)
