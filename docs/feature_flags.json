@@ -1892,25 +1892,25 @@
         "label": "Journal page layouts",
         "where": "Journal"
       },
-      "status": "dark",
+      "status": "armed",
       "since": "2026-10-17",
       "where": ["web"],
-      "note": "P4a. Gates the Customize button on Today and the trade page and reading a saved layout. Off: both pages render their fixed layout. Payload key journal_page_layouts_enabled. Arm: railway variables --service web --set JOURNAL_PAGE_LAYOUTS_ENABLED=1 (the owner's). Rollback: 0; saved layouts stay stored and unread."
+      "note": "ARMED on web 2026-10-18 10:08 CT (=1), owner's go: one --set (15:08:54Z), web auto-redeployed (deploy created 15:08:58Z, SUCCESS), the running process read '1' over railway ssh, the smoke account's payload read journal_page_layouts_enabled true, Today rendered with no page errors (the smoke account's zero-data Today offers no Customize, by design; Customize and the trade page cannot be exercised on an account with no trades), hub_nav_smoke --auth PASS. P4a. Gates the Customize button on Today and the trade page and reading a saved layout. Off: both pages render their fixed layout. Payload key journal_page_layouts_enabled. Arm: railway variables --service web --set JOURNAL_PAGE_LAYOUTS_ENABLED=1 (the owner's). Rollback: 0; saved layouts stay stored and unread."
     },
     "NOTEBOOK_STYLE_LIBRARY_ENABLED": {
       "member_facing": { "label": "Community style library", "where": "Notebook" },
-      "status": "dark",
+      "status": "armed",
       "where": ["web"],
-      "note": "P3a. Gates sharing journal styles to the community gallery, adopting them, Helpful, author pages, follow and the feed. Off: the gallery lists outline items only and every style route answers 404. Payload key notebook_style_library_enabled. Adopt also needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Arm: railway variables --service web --set NOTEBOOK_STYLE_LIBRARY_ENABLED=1 (the owner's). Rollback: set it to 0; adopted styles stay as ordinary styles."
+      "note": "ARMED on web 2026-10-18 10:17 CT (=1), owner's go: one --set (15:17:53Z), new boot at about 15:20Z, the running process read the library switch and both preconditions '1', the smoke account's payload read notebook_style_library_enabled true, and the smoke account made a style, shared it, approved it, saw it listed, adopted it and saw the copy, then deleted the copy, unpublished the listing and deleted the source (all 200), hub_nav_smoke --auth PASS. P3a. Gates sharing journal styles to the community gallery, adopting them, Helpful, author pages, follow and the feed. Off: the gallery lists outline items only and every style route answers 404. Payload key notebook_style_library_enabled. Adopt also needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Arm: railway variables --service web --set NOTEBOOK_STYLE_LIBRARY_ENABLED=1 (the owner's). Rollback: set it to 0; adopted styles stay as ordinary styles."
     },
     "JOURNAL_TIER3_ENABLED": {
       "member_facing": {
         "label": "Journal Tier 3 (check-in, winners checklist, trading year)",
         "where": "Notebook"
       },
-      "status": "dark",
-      "where": [],
-      "note": "P2 Tier 3. Gates creating the mood check-in block, the By check-in psychology view, Checklist from my winners and the Your trading year door. Off: none is offered; an existing check-in block still renders. Payload key journal_tier3_enabled. Arm: railway variables --service web --set JOURNAL_TIER3_ENABLED=1 (the owner's). Rollback: 0; check-ins already stored stay stored and unread."
+      "status": "armed",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-18 11:01 CT (=1), owner's go: one --set (16:01:23Z), web auto-redeployed (deploy created 16:01:27Z, SUCCESS, production fe2d5fae5e), the running process read '1', the smoke account's payload read journal_tier3_enabled true; a note with a check-in moved By check-in checkInDays 0 to 1, checklist-suggestions and wrapped/2025 answered 200 (no_trades), trashing the note brought checkInDays back to 0, hub_nav_smoke --auth PASS. P2 Tier 3. Gates creating the mood check-in block, the By check-in psychology view, Checklist from my winners and the Your trading year door. Off: none is offered; an existing check-in block still renders. Payload key journal_tier3_enabled. Arm: railway variables --service web --set JOURNAL_TIER3_ENABLED=1 (the owner's). Rollback: 0; check-ins already stored stay stored and unread."
     },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
@@ -2795,6 +2795,12 @@
       "since": "2026-10-16",
       "where": [],
       "note": "Regroup stage of #tsdr video lessons (owner design 2026-10-16), default OFF, read per call in api/services/tsdr_lessons.py (== '1'): lessons go to their section's thread as a recap embed plus a forward of the original message, and lessons already posted to the channel are moved into the threads (run_regroup). SERVICE: web. Declared here by the wisdom-archive session because #354 shipped the gate without a ledger entry and test_every_off_by_default_gate_is_declared went red on master."
+    },
+    "TSDR_LESSONS_FORUM_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-18",
+      "where": [],
+      "note": "Library v2 of the #tsdr video lessons (owner decisions 2026-10-18; spec docs/superpowers/specs/2026-10-18-tsdr-lessons-library-v2-design.md), default OFF, read per call in api/services/tsdr_lessons.py::forum_enabled(). SERVICE: web. What it arms: a FORUM channel (#lesson-library, TSDR_LESSONS_FORUM_NAME / TSDR_LESSONS_FORUM_CHANNEL_ID) under EDUCATION replaces the five section threads - one post per lesson tagged with section, level and speaker, the video inside the post, a See-also line, a pinned Index post, and a pencil reaction from a speaker (TSDR_LESSONS_REVIEWER_IDS) = rewrite. Lessons already in the threads are moved over oldest first, TSDR_LESSONS_FORUM_MIGRATE_PER_TICK (10) per tick; the old #video-lessons channel is left for the owner to delete. Needs Manage Channels to create the forum and its tags; without it the owner creates a Forum channel named lesson-library by hand and the bot finds it by name. MEMBER-VISIBLE: a new forum channel. REVERSAL: unset it; the forum and its posts stay, new lessons go back to the threads."
     },
     "TSDR_LESSONS_YOUTUBE_ENABLED": {
       "status": "pending",

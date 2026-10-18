@@ -30,6 +30,18 @@ Owner design, 2026-10-15:
     on Desk > Videos; a video that repeats an earlier talk by the same speaker
     is recorded as a DUPLICATE and not posted; clips that are not lessons never
     reach the website shelf.
+  * Behind TSDR_LESSONS_FORUM_ENABLED a FORUM channel (#lesson-library) replaces
+    the five threads: one post per lesson tagged with its section, level and
+    speaker, the video inside the post, a "See also" line of related lessons,
+    a pinned Index post listing every lesson by section, and a ✏️ reaction from
+    a speaker on a post = rewrite it. Lessons already in the threads are moved
+    over oldest first (run_forum_migration); the old channel is left for the
+    owner to delete.
+  * Desk > Videos mirrors the sections: one shelf per section ("TSDR Lessons ·
+    Setups & Entries", ...), the section and level as tags for the Filters
+    chips, the recap + key moments as the description, the moments as
+    chapters; rows already on the website move over once
+    (move_library_rows_to_sections), and a rewrite updates its row.
 
 Stages, each run by `tick()` every 15 minutes on the web pod:
   1. scan     — REST-poll the source channels (forward + resumable backfill),
@@ -121,6 +133,11 @@ def is_enabled() -> bool:
 
 def youtube_enabled() -> bool:
     return os.environ.get("TSDR_LESSONS_YOUTUBE_ENABLED", "") == "1"
+
+
+def forum_enabled() -> bool:
+    """The Forum channel replaces the five threads (owner, 2026-10-18)."""
+    return os.environ.get("TSDR_LESSONS_FORUM_ENABLED", "") == "1"
 
 
 def threads_enabled() -> bool:
@@ -272,7 +289,12 @@ _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
                   # offsets (JSON [[start_s, text], ...]) and, for a repeat of
                   # an earlier video, the lesson it duplicates
                   ("level", "TEXT"), ("moments", "TEXT"), ("segments", "TEXT"),
-                  ("duplicate_of", "TEXT"))
+                  ("duplicate_of", "TEXT"),
+                  # the Forum channel (TSDR_LESSONS_FORUM_ENABLED): the lesson's
+                  # post, its "See also" lessons (JSON [{title, post}]) and when
+                  # they were last worked out, and when its reactions were read
+                  ("forum_post_id", "TEXT"), ("related", "TEXT"), ("related_at", "INTEGER"),
+                  ("reaction_checked_at", "INTEGER"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -1053,11 +1075,13 @@ def _shingles(text: str) -> set:
     return {" ".join(w[i:i + _SHINGLE]) for i in range(max(0, len(w) - _SHINGLE + 1))}
 
 
-def find_duplicate(transcript: str, author_id: str, exclude: str) -> Optional[str]:
+def find_duplicate(transcript: str, author_id: str, exclude: str, *,
+                   in_forum: bool = False) -> Optional[str]:
     """The attachment id of an earlier POSTED lesson by the same speaker whose
     transcript is the same talk (word 5-gram Jaccard >= 0.8), else None. A
     transcript under MIN_WORDS is never a duplicate: there is nothing to match,
-    and two silent clips would otherwise look identical."""
+    and two silent clips would otherwise look identical. `in_forum` looks only
+    at lessons already in the forum (the migration's question)."""
     if len(_norm_words(transcript)) < MIN_WORDS:
         return None
     mine = _shingles(transcript)
@@ -1067,7 +1091,8 @@ def find_duplicate(transcript: str, author_id: str, exclude: str) -> Optional[st
         rows = c.execute(
             "SELECT attachment_id, transcript FROM tsdr_lessons WHERE status = 'posted' "
             "AND author_id = ? AND attachment_id != ? AND transcript IS NOT NULL "
-            "AND transcript != '' ORDER BY posted_at",
+            "AND transcript != '' " + ("AND forum_post_id IS NOT NULL " if in_forum else "")
+            + "ORDER BY posted_at",
             (str(author_id), str(exclude))).fetchall()
     for r in rows:
         theirs = _shingles(r["transcript"])
@@ -1111,6 +1136,11 @@ def build_embed(lesson: dict, link: str) -> dict:
     lines = moments_lines(lesson)
     if lines:
         body += "\n\n**Key moments**\n" + "\n".join(lines)
+    related = [r for r in _json_list(lesson.get("related"))
+               if isinstance(r, dict) and r.get("post") and r.get("title")]
+    if related:
+        body += "\n\n**See also:** " + " · ".join(
+            f"[{str(r['title'])[:60]}]({post_url(r['post'])})" for r in related[:3])
     links = f"[▶ Watch the video]({link})"
     if lesson.get("youtube_id"):
         links += f"  ·  [Watch on UCT]({website_link(lesson['youtube_id'])})"
@@ -1196,13 +1226,18 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         if not msg or not att:
             _update(aid, status="skipped", last_error="message or video was deleted")
             return "skipped"
-        work = Path(tempfile.mkdtemp(prefix="tsdr-lesson-"))
-        try:
-            video = work / ("video" + (Path(str(att.get("filename") or "")).suffix or ".mp4"))
-            download(str(att.get("url") or att.get("proxy_url")), video)
-            transcript, seconds, segments = transcribe(video, work)
-        finally:
-            shutil.rmtree(work, ignore_errors=True)
+        if (row.get("transcript") or "").strip():
+            # a lesson sent back for a rewrite: the words are already here
+            transcript = row["transcript"]
+            seconds, segments = row.get("duration_s"), _json_list(row.get("segments"))
+        else:
+            work = Path(tempfile.mkdtemp(prefix="tsdr-lesson-"))
+            try:
+                video = work / ("video" + (Path(str(att.get("filename") or "")).suffix or ".mp4"))
+                download(str(att.get("url") or att.get("proxy_url")), video)
+                transcript, seconds, segments = transcribe(video, work)
+            finally:
+                shutil.rmtree(work, ignore_errors=True)
     twin = find_duplicate(transcript, row["author_id"], aid)
     if twin:
         # the same talk, posted again (or shared as a link after the file):
@@ -1229,7 +1264,19 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
             tags=json.dumps(recap["tags"]), level=recap.get("level") or None,
             moments=json.dumps(moments))
     lesson = {**row, **recap, "duration_s": seconds, "moments": moments}
+    if row.get("edu_video_id"):
+        sync_library_row({**lesson, "section": section_for(lesson)})   # a rewrite
     link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+    if forum_enabled():
+        related = related_lessons(lesson)
+        placed = post_to_forum({**lesson, "related": related}, link)
+        now = int(time.time())
+        _update(aid, status="posted", forum_post_id=placed["post"], discord_post_id=placed["post"],
+                post_channel_id=placed["post"], forward_post_id=placed["video"],
+                section=section_for(lesson), related=json.dumps(related), related_at=now,
+                lesson_posted_at=now, last_error=None)
+        _mark_index_dirty()
+        return "posted"
     if threads_enabled():
         placed = post_to_section(lesson, link)
         _update(aid, status="posted", discord_post_id=placed["post_id"],
@@ -1326,6 +1373,8 @@ def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
     recap in the thread every tick for a file Discord would never forward;
     run_youtube uploads these lessons first, so each waits at most a day."""
     out = {"refilled": 0, "waiting": 0, "errors": 0}
+    if forum_enabled():
+        return _refill_forum_posts(deadline=deadline, limit=limit, out=out)
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND section IN "
@@ -1371,6 +1420,33 @@ def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
     return out
 
 
+def _refill_forum_posts(*, deadline: float, limit: int, out: dict) -> dict:
+    """A forum post whose video forward was refused gets its YouTube copy
+    posted inside the post once that copy exists. Nothing is re-posted."""
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "AND (forward_post_id IS NULL OR forward_post_id = '') AND youtube_id IS NOT NULL "
+            "ORDER BY posted_at LIMIT ?", (int(limit),)).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        pid = row["forum_post_id"]
+        try:
+            sent = _in_thread("POST", pid, f"/channels/{pid}/messages", youtube_video_body(row)) or {}
+        except DiscordError as e:
+            if e.status == 404:
+                _update(row["attachment_id"], status="removed")
+                _mark_index_dirty()
+                continue
+            log.warning("[tsdr-lessons] could not add the video to post %s: %s", pid, e)
+            out["errors"] += 1
+            continue
+        _update(row["attachment_id"], forward_post_id=str(sent.get("id") or ""))
+        out["refilled"] += 1
+    return out
+
+
 # ── YouTube + Desk Videos ────────────────────────────────────────────────────
 
 def _yt_quota_left(now: Optional[datetime] = None) -> int:
@@ -1406,6 +1482,75 @@ def youtube_description(lesson: dict) -> str:
     return text.replace("<", "").replace(">", "")[:4900]
 
 
+def library_category_for(lesson: dict) -> str:
+    """The Desk > Videos shelf a lesson sits on: one per section ("TSDR Lessons
+    · Setups & Entries"), so the website mirrors the forum (owner, 2026-10-18).
+    A lesson without a section keeps the plain shelf."""
+    names = {k: n for k, n, _ in SECTIONS}
+    section = lesson.get("section")
+    if section in names and section != "clips":
+        return f"{library_category()} · {names[section]}"
+    return library_category()
+
+
+def library_tags(lesson: dict) -> list[str]:
+    """The website row's tags: the topic tags, then the section and the level
+    in words, so the Videos page's Filters chips can narrow by either."""
+    tags = [str(t) for t in _json_list(lesson.get("tags")) if t and t != CLIP_TAG]
+    names = {k: n for k, n, _ in SECTIONS}
+    section = lesson.get("section")
+    if section in names and section != "clips":
+        tags.append(names[section].lower())
+    if lesson.get("level") in LEVELS:
+        tags.append(str(lesson["level"]))
+    return tags
+
+
+def sync_library_row(lesson: dict) -> bool:
+    """Bring a lesson's Desk > Videos row up to date with the lesson: shelf,
+    title, description, tags, recap and chapters. Best effort; False when the
+    row could not be written."""
+    from api.services import education_service
+
+    vid = lesson.get("edu_video_id")
+    if not vid:
+        return False
+    try:
+        cat = library_category_for(lesson)
+        education_service.register_category_if_missing(cat, kind="library")
+        education_service.update_video(int(vid), {"title": lesson["title"], "category": cat,
+                                                  "description": youtube_description(lesson)})
+        education_service.set_video_tags(int(vid), library_tags(lesson))
+        chapters = [{"t": m["t"], "title": m["label"]} for m in located_moments(lesson)]
+        education_service.set_video_insights(
+            int(vid), headline=lesson["title"], summary=split_sentences(lesson["recap"]),
+            chapters=chapters or None)
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("[tsdr-lessons] could not update the website row for %s: %s",
+                    lesson.get("attachment_id"), e)
+        return False
+
+
+_LIBRARY_SECTIONS_KEY = "library_rows_on_section_shelves"
+
+
+def move_library_rows_to_sections() -> int:
+    """Once (owner, 2026-10-18): every lesson already on the website moves to
+    its section's shelf, with section and level tags, the recap-and-moments
+    description and chapters. Marked done only when every row went."""
+    if get_state(_LIBRARY_SECTIONS_KEY):
+        return 0
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND edu_video_id IS NOT NULL "
+            "ORDER BY posted_at").fetchall()]
+    done = [sync_library_row(r) for r in rows]
+    if all(done):
+        set_state(_LIBRARY_SECTIONS_KEY, "1")
+    return sum(1 for d in done if d)
+
+
 def upload_lesson(row: dict, yt_client=None) -> str:
     from api.services import education_service
     from api.services.youtube_client import YouTubeClient
@@ -1432,7 +1577,7 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     _update(aid, youtube_id=vid, yt_error=None)
-    cat = library_category()
+    cat = library_category_for(row)
     try:
         education_service.register_category_if_missing(cat, kind="library")
     except Exception:
@@ -1448,7 +1593,7 @@ def upload_lesson(row: dict, yt_client=None) -> str:
         int(created["id"]), transcript=row.get("transcript") or "",
         headline=row["title"], summary=split_sentences(row["recap"]),
         chapters=chapters or None)
-    tags = _json_list(row.get("tags"))
+    tags = library_tags(row)
     if tags:
         education_service.set_video_tags(int(created["id"]), tags)
     _update(aid, edu_video_id=int(created["id"]))
@@ -1579,15 +1724,8 @@ def run_link_redo(*, deadline: float, limit: int = 20) -> dict:
     for row in rows:
         if time.time() > deadline:
             break
-        where = row.get("post_channel_id") or ""
         try:
-            for mid in (row.get("discord_post_id"), row.get("forward_post_id")):
-                if where and mid:
-                    try:
-                        _in_thread("DELETE", where, f"/channels/{where}/messages/{mid}", None)
-                    except DiscordError as e:
-                        if e.status != 404:
-                            raise
+            take_down_post(row)
         except Exception as e:  # noqa: BLE001 — try again next tick
             log.warning("[tsdr-lessons] could not take down %s for its rewrite: %s",
                         row["attachment_id"], e)
@@ -1595,9 +1733,31 @@ def run_link_redo(*, deadline: float, limit: int = 20) -> dict:
             continue
         _update(row["attachment_id"], status="new", attempts=0, redo=0, last_error=None,
                 discord_post_id=None, forward_post_id=None, post_channel_id=None,
-                section=None)
+                section=None, forum_post_id=None, related=None)
         out["requeued"] += 1
     return out
+
+
+def take_down_post(row: dict) -> None:
+    """Remove a lesson's Discord presence before it is written again: the
+    whole forum post when it has one, else the recap and video messages in
+    its thread. A post or message already gone is fine."""
+    if row.get("forum_post_id"):
+        try:
+            _discord("DELETE", f"/channels/{row['forum_post_id']}")
+        except DiscordError as e:
+            if e.status != 404:
+                raise
+        _mark_index_dirty()
+        return
+    where = row.get("post_channel_id") or ""
+    for mid in (row.get("discord_post_id"), row.get("forward_post_id")):
+        if where and mid:
+            try:
+                _in_thread("DELETE", where, f"/channels/{where}/messages/{mid}", None)
+            except DiscordError as e:
+                if e.status != 404:
+                    raise
 
 
 _LINK_RESCAN_KEY = "rescanned_for_youtube_links"
@@ -1635,6 +1795,454 @@ def reopen_skipped_clips() -> int:
         c.commit()
     set_state(_REOPEN_DONE_KEY, "1")
     return n
+
+
+# ── library v2: the Forum channel ────────────────────────────────────────────
+# One forum post per lesson, tagged with its section, level and speaker, so
+# Discord's own tag filter and sort do the browsing. A pinned "Index" post
+# lists every lesson by section. Owner decisions 2026-10-18.
+
+_FORUM = 15                                  # channel type GUILD_FORUM
+_PINNED = 1 << 1                             # thread flag
+_SORT_BY_CREATION = 1
+_LIST_LAYOUT = 1
+_MAX_FORUM_TAGS = 20
+_SECTION_EMOJI = {"setups": "📐", "management": "🧭", "market": "🌐", "mindset": "🧠",
+                  "clips": "🎬"}
+_LEVEL_EMOJI = {"beginner": "🌱", "intermediate": "📈", "advanced": "🏔️"}
+SPEAKER_TAGS = tuple(label for _, label in AUTHOR_NAMES.values())
+INDEX_NAME = "Index"
+_INDEX_EMBED_MAX = 3900
+RELATED_MAX = 3
+RELATED_REFRESH_S = 30 * 24 * 3600
+_PENCIL = "%E2%9C%8F%EF%B8%8F"              # ✏️, as Discord's reaction routes want it
+FORUM_GUIDELINES = (
+    "Every video lesson Patrick and Bracco share in #tsdr and #bracco, one post each: "
+    "the recap, the key moments and the video. Filter by tag — the section (Setups & "
+    "Entries, Trade Management, Market Read, Mindset & Process, Clips & Quick Takes), the "
+    "level (Beginner, Intermediate, Advanced) or the speaker — or open the pinned Index "
+    "for every lesson by section.")
+
+
+def forum_name() -> str:
+    return _env("TSDR_LESSONS_FORUM_NAME", "lesson-library")
+
+
+def reviewer_ids() -> set[str]:
+    """Who may mark a post ✏️ for a rewrite: the two speakers unless told otherwise."""
+    return set(_csv_env("TSDR_LESSONS_REVIEWER_IDS", ",".join(AUTHOR_NAMES)))
+
+
+def post_url(post_id: str) -> str:
+    return f"https://discord.com/channels/{guild_id()}/{post_id}"
+
+
+def _mark_index_dirty() -> None:
+    set_state("index_dirty", "1")
+
+
+def forum_tag_specs() -> list[dict]:
+    """The tags the forum carries, in order: sections, levels, speakers."""
+    specs = [{"name": name, "moderated": False, "emoji_name": _SECTION_EMOJI[key]}
+             for key, name, _ in SECTIONS]
+    specs += [{"name": lvl.capitalize(), "moderated": False, "emoji_name": _LEVEL_EMOJI[lvl]}
+              for lvl in LEVELS]
+    specs += [{"name": label, "moderated": False} for label in SPEAKER_TAGS]
+    return specs
+
+
+# The forum overwrite ladder adds the in-post reply bit for the bot first (a
+# forum post's video goes up as a reply inside the post); the shared ladder
+# then drops bits until Discord accepts one.
+_FORUM_OVERWRITE_LADDER = (
+    {"bot_bits": _VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS | _READ_HISTORY
+     | _SEND_IN_THREADS},
+) + _OVERWRITE_LADDER
+
+
+def ensure_forum() -> str:
+    """The forum channel: TSDR_LESSONS_FORUM_CHANNEL_ID, else the one this
+    module made (remembered), else one with the forum's name in the guild,
+    else created under the EDUCATION category, members read-only. Raises
+    DiscordError (403 = no Manage Channels: make a Forum channel called
+    `lesson-library` by hand and the bot finds it)."""
+    override = _env("TSDR_LESSONS_FORUM_CHANNEL_ID", "")
+    if override:
+        return override
+    known = get_state("forum_channel_id")
+    if known:
+        return known
+    guild = guild_id()
+    channels = _discord("GET", f"/guilds/{guild}/channels") or []
+    name = forum_name().lower()
+    existing = next((c for c in channels if c.get("type") == _FORUM
+                     and str(c.get("name") or "").lower() == name), None)
+    if existing:
+        set_state("forum_channel_id", str(existing["id"]))
+        return str(existing["id"])
+    category = next((c for c in channels if c.get("type") == 4
+                     and str(c.get("name") or "").lower() == category_name().lower()), None)
+    if not category:
+        category = _discord("POST", f"/guilds/{guild}/channels",
+                            body={"name": category_name(), "type": 4})
+    me = _discord("GET", "/users/@me") or {}
+    source = _discord("GET", f"/channels/{source_channels()[0]}") or {}
+    created, last_error = None, None
+    for step in _FORUM_OVERWRITE_LADDER:
+        body = {"name": forum_name(), "type": _FORUM, "parent_id": str(category["id"]),
+                "topic": FORUM_GUIDELINES, "default_sort_order": _SORT_BY_CREATION,
+                "default_forum_layout": _LIST_LAYOUT, "available_tags": forum_tag_specs(),
+                "permission_overwrites": _read_only_overwrites(
+                    source.get("permission_overwrites") or [], str(me.get("id") or ""),
+                    guild, **step)}
+        try:
+            created = _discord("POST", f"/guilds/{guild}/channels", body=body)
+            break
+        except DiscordError as e:
+            if e.status != 403:
+                raise
+            last_error = e
+    if created is None:
+        log.warning("[tsdr-lessons] cannot create the forum (%s): make a Forum channel named "
+                    "#%s under %s by hand; the bot finds it by name", last_error, forum_name(),
+                    category_name())
+        raise last_error
+    set_state("forum_channel_id", str(created["id"]))
+    log.info("[tsdr-lessons] created the #%s forum (%s)", forum_name(), created["id"])
+    return str(created["id"])
+
+
+def forum_tags() -> dict:
+    """{tag name: tag id} for the forum. Tags the forum lacks are added (the
+    ones it has are kept as they are); a bot that may not edit the channel
+    uses what is there and says which to add by hand."""
+    forum = ensure_forum()
+    cached = get_state("forum_tags")
+    if cached:
+        tags = json.loads(cached)
+        if all(spec["name"] in tags for spec in forum_tag_specs()):
+            return tags
+    channel = _discord("GET", f"/channels/{forum}") or {}
+    have = list(channel.get("available_tags") or [])
+    names = {str(t.get("name")) for t in have}
+    missing = [spec for spec in forum_tag_specs() if spec["name"] not in names]
+    if missing and len(have) + len(missing) <= _MAX_FORUM_TAGS:
+        try:
+            channel = _discord("PATCH", f"/channels/{forum}",
+                               body={"available_tags": have + missing}) or channel
+            have = list(channel.get("available_tags") or have)
+        except DiscordError as e:
+            log.warning("[tsdr-lessons] could not add forum tags %s (%s): add them by hand",
+                        [m["name"] for m in missing], e)
+    tags = {str(t.get("name")): str(t.get("id")) for t in have if t.get("id")}
+    set_state("forum_tags", json.dumps(tags))
+    return tags
+
+
+def applied_tags(lesson: dict, tags: dict) -> list[str]:
+    """The post's tags: its section, its level (when it has one), its speaker."""
+    names = [dict((k, n) for k, n, _ in SECTIONS)[section_for(lesson)]]
+    if lesson.get("level") in LEVELS:
+        names.append(str(lesson["level"]).capitalize())
+    names.append(speaker_label(lesson))
+    return [tags[n] for n in names if n in tags][:5]
+
+
+def post_to_forum(lesson: dict, link: str) -> dict:
+    """One forum post for a lesson: the recap embed as the starter message,
+    then the video (a forward, or the YouTube link) inside the post. Returns
+    {post, video}; `video` is "" when Discord refused the forward and there is
+    no YouTube copy yet (the refill adds it later)."""
+    forum = ensure_forum()
+    body = {"name": str(lesson["title"])[:100], "auto_archive_duration": _THREAD_ARCHIVE_MINUTES,
+            "applied_tags": applied_tags(lesson, forum_tags()), "message": _lesson_body(lesson, link)}
+    post = _discord("POST", f"/channels/{forum}/threads", body=body) or {}
+    pid = str(post["id"])
+    video_id = ""
+    try:
+        sent = _in_thread("POST", pid, f"/channels/{pid}/messages",
+                          youtube_video_body(lesson) if link_video_id(lesson)
+                          else forward_body(lesson)) or {}
+        video_id = str(sent.get("id") or "")
+    except DiscordError as e:
+        log.warning("[tsdr-lessons] could not put the video in post %s: %s", pid, e)
+        if lesson.get("youtube_id"):
+            try:
+                sent = _in_thread("POST", pid, f"/channels/{pid}/messages",
+                                  youtube_video_body(lesson)) or {}
+                video_id = str(sent.get("id") or "")
+            except DiscordError as e2:
+                log.warning("[tsdr-lessons] could not post the YouTube copy in %s: %s", pid, e2)
+    return {"post": pid, "video": video_id}
+
+
+def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
+    """Up to `limit` other forum lessons, closest first: 3 points per shared
+    ticker, 2 per shared tag, 1 for the same section; newer wins a tie. Clips
+    are never related to anything, in either direction."""
+    if section_for(lesson) == "clips":
+        return []
+    mine_t = set(_json_list(lesson.get("tickers")))
+    mine_tags = set(_json_list(lesson.get("tags")))
+    mine_sec = section_for(lesson)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at "
+            "FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "AND attachment_id != ? AND (section IS NULL OR section != 'clips')",
+            (str(lesson.get("attachment_id") or ""),)).fetchall()
+    scored = []
+    for r in rows:
+        score = (3 * len(mine_t & set(_json_list(r["tickers"])))
+                 + 2 * len(mine_tags & set(_json_list(r["tags"])))
+                 + (1 if r["section"] == mine_sec else 0))
+        if score > 0:
+            scored.append((-score, -int(r["posted_at"] or 0), r))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [{"title": r["title"], "post": r["forum_post_id"]} for _, _, r in scored[:limit]]
+
+
+_LEVEL_SYS = (
+    "You sort trading lessons by who they are for. Answer with ONE word only: beginner "
+    "(a first principle every new member needs), advanced (assumes the member already "
+    "trades these setups and manages positions), or intermediate (everything else)."
+)
+
+
+def classify_level(title: str, recap: str) -> str:
+    """The level of a lesson written before levels existed, from its title and
+    recap; intermediate when the model is unavailable or unclear."""
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client().with_options(timeout=60.0)
+        msg = client.messages.create(
+            model=_model(), max_tokens=10, system=_LEVEL_SYS,
+            messages=[{"role": "user", "content": f"TITLE: {title}\nRECAP: {recap}"}],
+            extra_headers={"anthropic-beta": "server-side-fallback-2026-07-01"},
+            extra_body={"fallbacks": "default", "output_config": {"effort": "low"}})
+        text = "".join(getattr(b, "text", "") for b in msg.content
+                       if getattr(b, "type", "") == "text").strip().lower()
+        word = re.sub(r"[^a-z]", "", text.split()[0]) if text.split() else ""
+        return word if word in LEVELS else "intermediate"
+    except Exception as e:  # noqa: BLE001
+        log.info("[tsdr-lessons] could not classify a level: %s", e)
+        return "intermediate"
+
+
+def run_forum_migration(*, deadline: float, limit: Optional[int] = None) -> dict:
+    """Lessons posted before the forum, oldest first, N per tick: each becomes
+    a forum post (with a level worked out if it has none, and its related
+    lessons). A lesson whose old post the owner deleted is not moved; one
+    that repeats a lesson already in the forum is recorded as a duplicate.
+    The old posts are left where they are (the owner deletes the channel)."""
+    limit = limit or _int_env("TSDR_LESSONS_FORUM_MIGRATE_PER_TICK", 10)
+    out = {"moved": 0, "duplicate": 0, "removed": 0, "errors": 0, "left": 0}
+    where = (f"WHERE status = 'posted' AND forum_post_id IS NULL "
+             f"AND (section IS NULL OR section != '{REMOVED}')")
+    with contextlib.closing(_connect()) as c:
+        total = int(c.execute(f"SELECT COUNT(*) FROM tsdr_lessons {where}").fetchone()[0])
+        rows = [dict(r) for r in c.execute(
+            f"SELECT * FROM tsdr_lessons {where} ORDER BY posted_at LIMIT ?",
+            (int(limit),)).fetchall()]
+    if not rows:
+        return out
+    for row in rows:
+        if time.time() > deadline:
+            break
+        aid = row["attachment_id"]
+        try:
+            if row.get("discord_post_id") and row.get("post_channel_id") and \
+                    not lesson_post_exists(row["post_channel_id"], row["discord_post_id"]):
+                _update(aid, status="removed")        # "not this one"
+                out["removed"] += 1
+                continue
+            twin = find_duplicate(row.get("transcript") or "", row["author_id"], aid,
+                                  in_forum=True)
+            if twin:
+                _update(aid, status="duplicate", duplicate_of=twin)
+                out["duplicate"] += 1
+                continue
+            level = row.get("level") or ""
+            if level not in LEVELS and section_for(row) != "clips":
+                level = classify_level(row.get("title") or "", row.get("recap") or "")
+                _update(aid, level=level)
+            lesson = {**row, "level": level or None}
+            related = related_lessons(lesson)
+            placed = post_to_forum({**lesson, "related": related},
+                                   jump_link(guild_id(), row["channel_id"], row["message_id"]))
+            _update(aid, forum_post_id=placed["post"], discord_post_id=placed["post"],
+                    post_channel_id=placed["post"], forward_post_id=placed["video"],
+                    section=section_for(row), related=json.dumps(related),
+                    related_at=int(time.time()))
+            _mark_index_dirty()
+            out["moved"] += 1
+        except Exception as e:  # noqa: BLE001 — retried on the next tick
+            log.warning("[tsdr-lessons] could not move %s into the forum: %s", aid, e)
+            out["errors"] += 1
+        _sleep(1.5)
+    out["left"] = max(0, total - out["moved"] - out["duplicate"] - out["removed"])
+    return out
+
+
+def run_related_refresh(*, deadline: float, limit: int = 5) -> dict:
+    """Posts whose "See also" is older than RELATED_REFRESH_S (or missing)
+    are worked out again and edited in place, so early posts gain links as
+    the library grows."""
+    out = {"refreshed": 0, "errors": 0}
+    cutoff = int(time.time()) - RELATED_REFRESH_S
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "AND (related_at IS NULL OR related_at < ?) ORDER BY related_at LIMIT ?",
+            (cutoff, int(limit))).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        pid = row["forum_post_id"]
+        try:
+            related = related_lessons(row)
+            if json.dumps(related) != (row.get("related") or "[]"):
+                link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+                _in_thread("PATCH", pid, f"/channels/{pid}/messages/{pid}",
+                           _lesson_body({**row, "related": related}, link))
+            _update(row["attachment_id"], related=json.dumps(related), related_at=int(time.time()))
+            out["refreshed"] += 1
+        except DiscordError as e:
+            if e.status == 404:
+                _update(row["attachment_id"], status="removed")
+                _mark_index_dirty()
+                continue
+            log.warning("[tsdr-lessons] could not refresh See also on %s: %s", pid, e)
+            out["errors"] += 1
+    return out
+
+
+def run_rewrite_requests(*, deadline: float, limit: int = 25) -> dict:
+    """A ✏️ reaction from a reviewer on a forum post asks for a rewrite: the
+    post comes down and the lesson goes back in the queue (its transcript is
+    kept, so no download). Posts are read a slice per tick, least recently
+    read first, so every post is looked at within a couple of hours. A post
+    that is gone was deleted by hand: the lesson stays out."""
+    out = {"checked": 0, "rewriting": 0, "removed": 0, "errors": 0}
+    reviewers = reviewer_ids()
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "ORDER BY COALESCE(reaction_checked_at, 0), posted_at LIMIT ?",
+            (int(limit),)).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        aid, pid = row["attachment_id"], row["forum_post_id"]
+        try:
+            users = _discord("GET", f"/channels/{pid}/messages/{pid}/reactions/{_PENCIL}",
+                             params={"limit": 100}) or []
+        except DiscordError as e:
+            if e.status == 404:
+                _update(aid, status="removed")
+                _mark_index_dirty()
+                out["removed"] += 1
+                continue
+            log.warning("[tsdr-lessons] could not read reactions on %s: %s", pid, e)
+            out["errors"] += 1
+            continue
+        _update(aid, reaction_checked_at=int(time.time()))
+        out["checked"] += 1
+        if not any(str(u.get("id")) in reviewers for u in users if isinstance(u, dict)):
+            continue
+        try:
+            take_down_post(row)
+        except DiscordError as e:
+            log.warning("[tsdr-lessons] could not take down %s for its rewrite: %s", pid, e)
+            out["errors"] += 1
+            continue
+        _update(aid, status="new", attempts=0, redo=0, last_error=None, forum_post_id=None,
+                discord_post_id=None, post_channel_id=None, forward_post_id=None,
+                section=None, related=None)
+        out["rewriting"] += 1
+    return out
+
+
+def _index_lines(section_key: str) -> list[str]:
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT title, forum_post_id, posted_at FROM tsdr_lessons WHERE status = 'posted' "
+            "AND forum_post_id IS NOT NULL AND section = ? ORDER BY posted_at",
+            (section_key,)).fetchall()
+    out = []
+    for r in rows:
+        day = datetime.fromtimestamp(int(r["posted_at"]), tz=timezone.utc).astimezone(_ET)
+        out.append(f"• [{str(r['title'])[:80]}]({post_url(r['forum_post_id'])}) · "
+                   f"{day:%b} {day.day}, {day.year}")
+    return out
+
+
+def _pack(lines: list[str], limit: int = _INDEX_EMBED_MAX) -> list[str]:
+    chunks, cur = [], ""
+    for line in lines:
+        if cur and len(cur) + 1 + len(line) > limit:
+            chunks.append(cur)
+            cur = ""
+        cur = f"{cur}\n{line}" if cur else line
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def refresh_index(*, force: bool = False) -> dict:
+    """The pinned Index post: one embed per section in its thread, every
+    lesson as a link, edited in place whenever a lesson was added, rewritten
+    or removed since the last run (the dirty mark). A section past one embed's
+    worth continues in the next message; messages no longer needed go."""
+    if not force and get_state("index_dirty") != "1":
+        return {"updated": 0}
+    forum = ensure_forum()
+    post = get_state("index_post_id")
+    if not post:
+        intro = {"embeds": [{"title": "How to use this library", "color": _EMBED_COLOR,
+                             "description": FORUM_GUIDELINES}],
+                 "allowed_mentions": {"parse": []}}
+        created = _discord("POST", f"/channels/{forum}/threads",
+                           body={"name": INDEX_NAME, "auto_archive_duration": _THREAD_ARCHIVE_MINUTES,
+                                 "message": intro}) or {}
+        post = str(created["id"])
+        set_state("index_post_id", post)
+        try:
+            _discord("PATCH", f"/channels/{post}", body={"flags": _PINNED})
+        except DiscordError as e:
+            log.info("[tsdr-lessons] could not pin the index: %s", e)
+    msgs = json.loads(get_state("index_messages") or "{}")
+    updated = 0
+    for key, name, _ in SECTIONS:
+        chunks = _pack(_index_lines(key)) or ["Nothing here yet."]
+        ids, kept = list(msgs.get(key) or []), []
+        for i, chunk in enumerate(chunks):
+            body = {"embeds": [{"title": name if i == 0 else f"{name} (continued)",
+                                "description": chunk, "color": _EMBED_COLOR}],
+                    "allowed_mentions": {"parse": []}}
+            mid = ids[i] if i < len(ids) else ""
+            if mid:
+                try:
+                    _in_thread("PATCH", post, f"/channels/{post}/messages/{mid}", body)
+                except DiscordError as e:
+                    if e.status != 404:
+                        raise
+                    mid = ""
+            if not mid:
+                sent = _in_thread("POST", post, f"/channels/{post}/messages", body) or {}
+                mid = str(sent.get("id") or "")
+            kept.append(mid)
+            updated += 1
+        for extra in ids[len(chunks):]:
+            try:
+                _in_thread("DELETE", post, f"/channels/{post}/messages/{extra}", None)
+            except DiscordError as e:
+                if e.status != 404:
+                    log.warning("[tsdr-lessons] could not drop index message %s: %s", extra, e)
+        msgs[key] = kept
+    set_state("index_messages", json.dumps(msgs))
+    set_state("index_dirty", "0")
+    return {"updated": updated}
 
 
 # ── the scheduled entry point ────────────────────────────────────────────────
@@ -1677,17 +2285,37 @@ def tick() -> dict:
         except Exception as e:  # noqa: BLE001 — e.g. the channel could not be created
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}
-        if threads_enabled():
+        if threads_enabled() and not forum_enabled():
             try:
                 out["regroup"] = run_regroup(deadline=deadline)
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] regroup stage failed: %s", e)
                 out["regroup"] = {"error": str(e)[:200]}
+        if forum_enabled():
+            for name, stage in (("forum_migration", run_forum_migration),
+                                ("rewrites", run_rewrite_requests),
+                                ("related", run_related_refresh)):
+                try:
+                    result = stage(deadline=deadline)
+                    if any(result.values()):
+                        out[name] = result
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[tsdr-lessons] %s stage failed: %s", name, e)
+                    out[name] = {"error": str(e)[:200]}
+        if threads_enabled() or forum_enabled():
             try:
                 out["refill"] = run_video_refill(deadline=deadline)
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] video refill stage failed: %s", e)
                 out["refill"] = {"error": str(e)[:200]}
+        if forum_enabled():
+            try:
+                index = refresh_index()
+                if index["updated"]:
+                    out["index"] = index
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] index stage failed: %s", e)
+                out["index"] = {"error": str(e)[:200]}
         if youtube_enabled():
             try:
                 gone = remove_clips_from_library()
@@ -1695,6 +2323,12 @@ def tick() -> dict:
                     out["clips_off_shelf"] = gone
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] could not take clips off the shelf: %s", e)
+            try:
+                moved = move_library_rows_to_sections()
+                if moved:
+                    out["shelved_by_section"] = moved
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] could not move library rows to their shelves: %s", e)
             try:
                 out["youtube"] = run_youtube(deadline=deadline)
             except Exception as e:  # noqa: BLE001
