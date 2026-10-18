@@ -108,7 +108,7 @@ which is where the rest of the per-member alert state already lives.
 
 import os
 import time
-import uuid
+import secrets
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -425,7 +425,9 @@ def add_alert(
         # copy was silently dropped: their notice lived only in the in-memory cache and was gone at the next
         # deploy. No reader parses this id's shape (checked 2026-10-17: only `startswith` on the S7 prefix and
         # equality lookups), so the `type_<ms>` prefix is kept and a short random suffix makes it unique.
-        "id": f"{alert_type}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}",
+        # `secrets`, not `uuid.uuid4`: the contract-fixture freeze draws every uuid4 from one counter, and an
+        # extra draw here would shift every later recorded id (tools/notebook_contract_fixtures.py `_freeze`).
+        "id": f"{alert_type}_{int(time.time() * 1000)}_{secrets.token_hex(4)}",
         "type": alert_type,
         "severity": severity or _TYPE_SEVERITY.get(alert_type, SEVERITY_INFO),
         "title": title,
