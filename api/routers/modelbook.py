@@ -290,6 +290,29 @@ def all_stocks(_user: dict = Depends(require_paid)):
                        for s in svc.get_all_stocks()]}
 
 
+@router.get("/catalog")
+def catalog(_user: dict = Depends(require_paid)):
+    """Every year's gallery list, gain stats and stored recap in ONE answer (2026-10-17).
+
+    The page used to warm these per year on open: /stocks + /year-stats for every year at
+    once, then /year-recap trickled for each -- ~100 requests, and the year the member
+    landed on waited up to 8 s behind them (measured on production). Each part is exactly
+    the per-year endpoint's answer, so the page files them under those keys. A recap that
+    is not stored yet is left out: /year-recap still generates it on hover."""
+    years = svc.list_years()
+    by_year = {}
+    for y in years:
+        stocks = svc.get_stocks_for_year(y)
+        by_year[str(y)] = {"stocks": {"year": y, "stocks": stocks},
+                           "stats": _year_stats_payload(y, stocks)}
+    try:
+        stored = svc.list_year_recaps()
+    except Exception:  # noqa: BLE001 - a recap is decoration; never fail the catalog
+        stored = []
+    recaps = {str(r["year"]): _recap_out(r) for r in stored if r.get("recap")}
+    return {"years": years, "by_year": by_year, "recaps": recaps}
+
+
 @router.get("/appearances/{symbol}")
 def get_appearances(symbol: str, _user: dict = Depends(require_paid)):
     """Every curated Model Book appearance for one symbol, across all years
@@ -502,7 +525,12 @@ def year_stats(year: int = Query(...), _user: dict = Depends(require_paid)):
     read). Anything not yet computed comes back null and is filled by a deduped
     background warm — the frontend polls until it lands, then it's persisted
     permanently (closed-year stats never change)."""
-    stocks = svc.get_stocks_for_year(year)
+    return _year_stats_payload(year)
+
+
+def _year_stats_payload(year: int, stocks: list | None = None) -> dict:
+    """The /year-stats answer; also one part of /catalog, so the two can never differ."""
+    stocks = svc.get_stocks_for_year(year) if stocks is None else stocks
     final = _is_final_year(year)
     out = {}
     needWarm = False
