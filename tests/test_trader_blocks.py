@@ -28,7 +28,8 @@ CTX = {"ticker": None, "now": NOW, "memo": {}, "mode": "create", "user_id": "u1"
 def test_every_trader_block_has_a_catalog_row_and_a_builder():
     from api.services.journal_two import journal_styles as js, trader_blocks as tb
     assert tb.BLOCK_IDS == ("preEntryChecklist", "priceStamps", "positionSizing",
-                            "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
+                            "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+                            "moodCheckIn")
     assert set(tb.BLOCK_IDS) <= js.KNOWN_BLOCKS
     assert set(js.BLOCK_BUILDERS) == js.KNOWN_BLOCKS
     for bid in tb.BLOCK_IDS:
@@ -36,7 +37,8 @@ def test_every_trader_block_has_a_catalog_row_and_a_builder():
 
 
 @pytest.mark.parametrize("bid", ["preEntryChecklist", "priceStamps", "positionSizing",
-                                 "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview"])
+                                 "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+                                 "moodCheckIn"])
 def test_each_builder_makes_a_body_the_editor_can_build(bid, monkeypatch, db_path):
     from api.services.journal_two import journal_styles as js, notes, regime
     monkeypatch.setattr(regime, "_read_exposure", lambda: None)          # hermetic: no wire read
@@ -47,6 +49,21 @@ def test_each_builder_makes_a_body_the_editor_can_build(bid, monkeypatch, db_pat
     assert node["attrs"]["searchText"] == kind["search"]
     body = notes._validate_body_json({"type": "doc", "content": [node]})
     notes._refuse_unbuildable(body)                                      # raises if the editor could not build it
+
+
+def test_the_mood_checkin_builder_makes_the_empty_triple():
+    """P2 Tier 3 Task 3: a style builds the check-in UNPICKED -- the member picks, and the day is the first
+    pick's ET day (R-T3-2), so a builder never guesses a mood and never stamps a day."""
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    node, reason = tb.BUILDERS["moodCheckIn"]({"block": "moodCheckIn", "enabled": True, "settings": {}}, dict(CTX))
+    assert reason is None
+    assert node["attrs"]["widgetId"] == "moodCheckIn"
+    assert node["attrs"]["searchText"] == "[mood and focus check-in]"
+    assert node["attrs"]["params"] == {"mood": "", "focus": "", "day": ""}
+    assert js.BLOCK_BUILDERS["moodCheckIn"] is tb.BUILDERS["moodCheckIn"]
+    # two builds share nothing (params changed in one note cannot reach the next)
+    again, _ = tb.BUILDERS["moodCheckIn"]({"block": "moodCheckIn"}, dict(CTX))
+    assert again["attrs"]["params"] is not node["attrs"]["params"]
 
 
 def test_settings_flow_into_params():

@@ -15,6 +15,7 @@ import {
 import { money } from '../../../lib/journal-2-0'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
+import WrappedDoor from './WrappedDoor'
 import styles from './ReportPage.module.css'
 
 const fetcher = (url) =>
@@ -76,6 +77,7 @@ export default function ReportPage() {
   return (
     <div className={styles.wrap}>
       <div className={styles.noPrint}>
+        <WrappedDoor accountId={accountId} />
         <button type="button" className={styles.printBtn} onClick={() => window.print()}>
           <UIcon name="document" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Print / Save as PDF
         </button>

@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**102 tables** (93 direct by `user_id`, 3 direct by another member key, 6 indirect).
+**103 tables** (94 direct by `user_id`, 3 direct by another member key, 6 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -81,6 +81,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_folders` | `user_id` | Direct | `DELETE FROM j2_note_folders WHERE user_id = ?` |
 | `j2_note_embeds` | `user_id` | Direct | `DELETE FROM j2_note_embeds WHERE user_id = ?` |
 | `j2_note_mentions` | `user_id` | Direct | `DELETE FROM j2_note_mentions WHERE user_id = ?` |
+| `j2_note_checkins` | `user_id` | Direct | `DELETE FROM j2_note_checkins WHERE user_id = ?` |
 | `j2_note_favorites` | `user_id` | Direct | `DELETE FROM j2_note_favorites WHERE user_id = ?` |
 | `j2_note_recents` | `user_id` | Direct | `DELETE FROM j2_note_recents WHERE user_id = ?` |
 | `j2_note_versions` | `user_id` | Direct | `DELETE FROM j2_note_versions WHERE user_id = ?` |

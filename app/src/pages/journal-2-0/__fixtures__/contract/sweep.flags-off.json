@@ -91,6 +91,12 @@
       },
       "status": 404
     },
+    "GET /api/j2/insights/checklist-suggestions": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "GET /api/j2/journal-styles": {
       "body": {
         "detail": "Not found"
@@ -314,6 +320,18 @@
       "status": 404
     },
     "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/wrapped/years": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/wrapped/{year}": {
       "body": {
         "detail": "Not found"
       },

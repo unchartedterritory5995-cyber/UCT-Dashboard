@@ -65,7 +65,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import adherence_store, excursions_store, sample_size
-from api.services.journal_two.filters import FilterSpec, trades_where
+from api.services.journal_two.filters import ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
@@ -106,6 +106,7 @@ def get_playbook_stats(
     spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
     with_trades: bool = False,
+    analytics_included: bool = False,
 ) -> list[dict[str, Any]]:
     """All-setups Playbook aggregate, sorted by total P&L (desc).
 
@@ -113,6 +114,10 @@ def get_playbook_stats(
     mirroring analytics/list_trades_for_user); a passed `spec` splices the full
     FilterSpec WHERE fragment (date spine + symbol/sides/setups/tags via
     ``trades_where``) after it. Blank-setup trades are excluded at the SQL level.
+
+    `analytics_included=True` (ruling R-T3-T7-R3) also splices `ANALYTICS_INCLUDED_SQL`, so an
+    `analytics_excluded` trade counts nowhere. Opt-in: only Your trading year (`wrapped`) passes it;
+    every other reader keeps today's behaviour, byte for byte.
     """
     owned = conn is None
     conn = conn or get_connection()
@@ -129,6 +134,8 @@ def get_playbook_stats(
         if account_id:
             sql += " AND account_id = ?"
             params.append(account_id)
+        if analytics_included:
+            sql += " " + ANALYTICS_INCLUDED_SQL
         if spec is not None:
             frag, filter_params = trades_where(spec)
             if frag:

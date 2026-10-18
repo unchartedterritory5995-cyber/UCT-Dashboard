@@ -1,0 +1,46 @@
+/* P2 Tier 3, Task 8 — the Report page's door to Your <year> in trading. It sits in the report's
+ * screen-only bar and never prints. Every control is a finger target at every width. */
+.door {
+  margin-right: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.current,
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min, 44px);
+  padding: 0 12px;
+  box-sizing: border-box;
+  /* R-T3-FIN-2 (WCAG 1.4.11, 3:1 on the #fff paper): the year picker's value, #767676 (4.54:1). The
+   * old #dcbb5e was about 1.86:1. Railed by WrappedDoor.contrast.test.js. */
+  border: 1px solid #767676;
+  border-radius: var(--radius-lg);
+  color: #7a5c16;
+  font-weight: 600;
+  text-decoration: none;
+}
+.current:hover,
+.open:hover { background: #dcbb5e22; }
+.icon { flex: none; }
+.picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.label { color: #555; }
+.select {
+  min-height: var(--tap-min, 44px);
+  padding: 0 8px;
+  font: inherit;
+  /* WCAG 1.4.11: a control's boundary needs 3:1 on what it sits on. The Report page's paper (`.wrap`)
+   * is #fff in every theme and has no border token, so a literal: #767676 is 4.54:1 there (#ccc was
+   * about 1.6:1). Railed by WrappedDoor.contrast.test.js. */
+  border: 1px solid #767676;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  color: #1a1a1a;
+}
+@media print {
+  .door { display: none !important; }
+}

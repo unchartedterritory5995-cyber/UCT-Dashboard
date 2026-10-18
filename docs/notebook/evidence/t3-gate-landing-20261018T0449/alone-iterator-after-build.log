@@ -1,0 +1,10 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-t3-gate/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 04:52:31
+[2m   Duration [22m 751ms[2m (transform 80ms, setup 189ms, import 8ms, tests 65ms, environment 391ms)[22m
+

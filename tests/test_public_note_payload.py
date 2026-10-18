@@ -806,6 +806,23 @@ def test_ta_never_reaches_a_stranger_in_any_mode(mode, widget_id):
     assert '"ta"' not in blob and "Breakout" not in blob, (mode, widget_id, blob[:400])
 
 
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+def test_a_mood_checkin_never_reaches_a_stranger(mode):
+    """P2 Tier 3 Task 3: the check-in is the member's own mood and focus, so its vendor row is
+    "private" -- a public copy carries the neutral line and nothing of the node: no level, no word, no
+    day. (Its searchText is the fixed catalog line, which names no mood either.)"""
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", "moodCheckIn")] == "private"
+    node = {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "moodCheckIn", "embedId": "e-mood", "mode": "snapshot",
+        "params": {"mood": "4", "focus": "5", "day": "2026-10-17"},
+        "searchText": "[mood and focus check-in]", "capturedAt": "2026-10-17T13:00:00Z"}}
+    out = reduce(doc(p(t("before")), node, p(t("after"))), mode)
+    assert texts_in(out) == ["before", NEUTRAL, "after"]
+    blob = json.dumps(out)
+    for leak in ("moodCheckIn", "2026-10-17", '"mood"', '"focus"', "Good", "Great", "Locked in", "e-mood"):
+        assert leak not in blob, (mode, leak)
+
+
 @pytest.mark.parametrize("mode", ["share", "publish"])
 def test_facts_render_by_vendor(mode):
     body = doc(*[{"type": "financialFact", "attrs": {"factId": f}} for f in (

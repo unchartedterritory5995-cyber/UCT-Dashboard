@@ -1,0 +1,117 @@
+/* P2 Tier 3, Task 8 — Your <year> in trading. One column. Tokens as My Playbook uses them.
+ * Every control is a finger target at every width (tapFloor.test.js), not only on touch. */
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+  color: var(--text, #e8e6e1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.back {
+  color: var(--accent, #dcbb5e);
+  font-size: 13px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--tap-min, 44px);
+}
+.back:hover { text-decoration: underline; }
+.header { display: flex; flex-direction: column; gap: 4px; }
+.title { margin: 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.titleIcon { flex: none; }
+.meta { margin: 0; font-size: 13px; color: var(--text-muted, #8a8a8a); }
+.sentence { margin: 8px 0; font-size: 14px; color: var(--text-muted, #8a8a8a); line-height: 1.5; }
+.nothing { margin: 0; font-size: 13px; color: var(--text-muted, #8a8a8a); }
+.tile { min-width: 0; }
+
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0 4px;
+  font: inherit;
+  color: var(--accent, #dcbb5e);
+  cursor: pointer;
+  text-decoration: underline;
+  min-height: var(--tap-min, 44px);
+}
+
+/* Best setups */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th, .table td { padding: 6px 8px; border-top: 1px solid var(--border, #2a2a2e); text-align: left; vertical-align: top; }
+.table thead th { border-top: 0; color: var(--text-muted, #8a8a8a); font-weight: 500; }
+.setup { font-weight: 600; overflow-wrap: anywhere; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table .num { text-align: right; }
+.sample { white-space: normal; }
+.n { color: var(--text-muted, #8a8a8a); font-variant-numeric: tabular-nums; }
+.word { color: var(--warn, #dcbb5e); }
+.unranked { color: var(--text-muted, #8a8a8a); font-style: italic; }
+.reveal { display: inline-block; text-align: right; }
+.summary {
+  cursor: pointer;
+  color: var(--text-muted, #8a8a8a);
+  min-height: var(--tap-min, 44px);
+  line-height: var(--tap-min, 44px);
+}
+
+/* Most-written tickers */
+.scope { margin: 0 0 8px; font-size: 12px; color: var(--text-muted, #8a8a8a); }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  background: var(--bg-surface, #101013);
+  color: var(--text, #e8e6e1);
+  text-decoration: none;
+}
+.chip:hover { border-color: var(--accent, #dcbb5e); }
+.chipSym { font-weight: 600; color: var(--accent, #dcbb5e); letter-spacing: 0.5px; }
+.chipCount { font-size: 12px; color: var(--text-muted, #8a8a8a); font-variant-numeric: tabular-nums; }
+
+/* Discipline trend */
+.months { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.month {
+  display: grid;
+  /* Final fix I2: the value column fits the "too few to judge" reveal; the record count sits on its
+   * own line under the bar. */
+  grid-template-columns: 6.5em minmax(60px, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  font-size: 13px;
+}
+.monthName { color: var(--text-muted, #8a8a8a); }
+.bar { height: 8px; border-radius: 4px; background: var(--border, #2a2a2e); overflow: hidden; }
+.fill { display: block; height: 100%; background: var(--accent, #dcbb5e); }
+.pct { text-align: right; font-variant-numeric: tabular-nums; }
+.records { grid-column: 2 / -1; color: var(--text-muted, #8a8a8a); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Lessons */
+.lessons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border, #2a2a2e);
+  font-size: 13px;
+}
+.lesson:first-child { border-top: 0; }
+.lessonLabel { font-weight: 600; overflow-wrap: anywhere; }
+.lessonMeta { color: var(--text-muted, #8a8a8a); font-size: 12px; }
+.lessonNote { color: var(--text-muted, #8a8a8a); font-style: italic; overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .month { grid-template-columns: 5.5em minmax(40px, 1fr) auto; column-gap: 6px; }
+  .table th, .table td { padding: 6px 4px; }
+}

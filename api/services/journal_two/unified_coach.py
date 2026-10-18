@@ -18,6 +18,15 @@ from api.services.auth_db import get_connection
 UNIFIED_ACCOUNT_ID = "_all_"
 
 
+def plain_account_id(account_id: str | None) -> str | None:
+    """The ONE spelling of "All Accounts" for readers that take a plain account id (ruling
+    R-T3-T7-R6): the picker's sentinel `'_all_'`, an empty value and None all become None, which
+    those readers (`playbook_stats`, `verdict_scorecard`, `checklist_suggestions`, `wrapped`) read
+    as every account. Any other id passes through unchanged. Without this, `'_all_'` reaches a
+    plain reader as an account id that matches nothing."""
+    return None if not account_id or account_id == UNIFIED_ACCOUNT_ID else account_id
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 

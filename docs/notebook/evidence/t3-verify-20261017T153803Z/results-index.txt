@@ -1,0 +1,45 @@
+pytest-test_journal_styles_store.log                         26 passed, 1509 warnings in 11.23s
+pytest-test_journal_two_account_purge.log                    7 passed, 588 warnings in 4.22s
+pytest-test_notebook_flag_parse.log                          2 failed, 279 passed, 929 warnings in 37.60s
+pytest-test_notebook_flags.log                               61 passed, 817 warnings in 1.49s
+pytest-test_notebook_sample_size.log                         24 passed, 753 warnings in 0.81s
+pytest-test_public_note_payload.log                          391 passed, 3242 warnings in 1.95s
+pytest-test_trader_blocks.log                                23 passed, 822 warnings in 6.60s
+pytest-test_trader_blocks_market_context.log                 70 passed, 2309 warnings in 3.41s
+pytest-test_trader_blocks_no_note_door.log                   7 passed, 400 warnings in 1.90s
+pytest-test_trader_blocks_pre_entry.log                      29 passed, 6351 warnings in 15.84s
+pytest-test_trader_blocks_prep.log                           41 passed, 1873 warnings in 5.66s
+pytest-test_trader_blocks_price_stamp.log                    39 passed, 2379 warnings in 9.55s
+pytest-test_trader_blocks_review.log                         12 passed, 919 warnings in 5.89s
+vitest-BlockNodeView.test.jsx.log                            Files 1 passed (1) | Tests 10 passed (10)
+vitest-DisciplineRecord.test.jsx.log                         Files 1 passed (1) | Tests 10 passed (10)
+vitest-EdgeScoreCard.test.jsx.log                            Files 1 passed (1) | Tests 11 passed (11)
+vitest-InsightsHub.test.jsx.log                              Files 1 passed (1) | Tests 18 passed (18)
+vitest-MakeRuleButton.test.jsx.log                           Files 1 passed (1) | Tests 6 passed (6)
+vitest-MyPlaybook.focus.test.jsx.log                         Files 1 passed (1) | Tests 9 passed (9)
+vitest-MyPlaybook.test.jsx.log                               Files 1 passed (1) | Tests 13 passed (13)
+vitest-MyRulesBlock.cache.test.jsx.log                       Files 1 passed (1) | Tests 2 passed (2)
+vitest-MyRulesBlock.test.jsx.log                             Files 1 passed (1) | Tests 17 passed (17)
+vitest-MyRulesList.test.jsx.log                              Files 1 passed (1) | Tests 6 passed (6)
+vitest-PlaybookSection.test.jsx.log                          Files 1 passed (1) | Tests 15 passed (15)
+vitest-PositionSizingBlock.test.jsx.log                      Files 1 passed (1) | Tests 26 passed (26)
+vitest-PreEntryChecklistBlock.test.jsx.log                   Files 1 passed (1) | Tests 36 passed (36)
+vitest-PrepBlocks.test.jsx.log                               Files 1 passed (1) | Tests 30 passed (30)
+vitest-PriceStampsBlock.lifecycle.test.jsx.log               Files 1 passed (1) | Tests 8 passed (8)
+vitest-PriceStampsBlock.test.jsx.log                         Files 1 passed (1) | Tests 11 passed (11)
+vitest-PsychologySection.test.jsx.log                        Files 1 passed (1) | Tests 14 passed (14)
+vitest-RegimeSection.test.jsx.log                            Files 1 passed (1) | Tests 11 passed (11)
+vitest-RiskBlock.test.jsx.log                                Files 1 passed (1) | Tests 8 passed (8)
+vitest-RuleBeforeAfterCard.test.jsx.log                      Files 1 passed (1) | Tests 7 passed (7)
+vitest-SlashMenu.blocks.test.jsx.log                         Files 1 passed (1) | Tests 29 passed (29)
+vitest-SlashMenu.chartPlan.test.jsx.log                      Files 1 passed (1) | Tests 10 passed (10)
+vitest-SlashMenu.items.test.jsx.log                          Files 1 passed (1) | Tests 51 passed (51)
+vitest-SlashMenu.style.test.jsx.log                          Files 1 passed (1) | Tests 3 passed (3)
+vitest-TradeReviewBlock.test.jsx.log                         Files 1 passed (1) | Tests 28 passed (28)
+vitest-VerdictScorecard.test.jsx.log                         Files 1 passed (1) | Tests 7 passed (7)
+vitest-blockDoors.test.js.log                                Files 1 passed (1) | Tests 21 passed (21)
+vitest-blockParams.test.jsx.log                              Files 1 passed (1) | Tests 6 passed (6)
+vitest-reachable.test.js.log                                 Files 1 passed (1) | Tests 17 passed (17)
+vitest-registry.test.js.log                                  Files 1 passed (1) | Tests 43 passed (43)
+vitest-tapFloor.test.js.log                                  Files 1 passed (1) | Tests 5 passed (5)
+vitest-traderBlocks.a11y.test.jsx.log                        Files 1 passed (1) | Tests 3 passed (3)

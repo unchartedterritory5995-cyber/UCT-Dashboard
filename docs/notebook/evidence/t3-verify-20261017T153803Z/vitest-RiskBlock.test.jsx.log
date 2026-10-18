@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/RiskBlock.test.jsx (8 tests) 90ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  10:45:43
+   Duration  1.02s (transform 187ms, setup 234ms, import 120ms, tests 90ms, environment 463ms)
+

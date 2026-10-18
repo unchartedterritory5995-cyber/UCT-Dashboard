@@ -1,0 +1,8 @@
+tree: 42394619e7 (product code = 4f50a8ba72; 42394619e7 adds only the bytes evidence)
+instrument: tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60, port 8083, a fresh data dir per run (C:\data-t3typing-<name>)
+--with-blocks: every trader block incl. moodCheckIn, plus the market context stamp (TRADER_BLOCK_KINDS)
+runs, in order: b1 (blocks), p1 (plain), b2, b3 (blocks), then the A/B interleave abA1 abB1 abA2 abB2
+  arm A = ab-arm-a-wrapper.py: the same harness with moodCheckIn removed from the seed (10 nodes)
+  arm B = the harness as committed (11 nodes)
+sandbox env: JOURNAL_TIER3_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1
+box: box-readings.txt (gate_box_sampler load+background, available MB, CPU 3x2s) before and after every run

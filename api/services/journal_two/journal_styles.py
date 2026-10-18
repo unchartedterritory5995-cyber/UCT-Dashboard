@@ -69,6 +69,8 @@ BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "prepMovers", "search": "[my movers]", "settings": ()},
     {"id": "prepLevels", "search": "[key levels from my plans]", "settings": ()},
     {"id": "tradeReview", "search": "[post-trade review]", "settings": ()},
+    # P2 Tier 3 Task 3: the mood and focus check-in. No settings (R-T3-V1); its builder makes it unpicked.
+    {"id": "moodCheckIn", "search": "[mood and focus check-in]", "settings": ()},
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
@@ -751,6 +753,16 @@ BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]
 #: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
 CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID})
 
+
+def _switched_off(block_id: str) -> bool:
+    """P2 Tier 3 final fix M1: is this a Tier 3 block while JOURNAL_TIER3_ENABLED is off? Such a block is
+    DROPPED from a build (no node, no skip line), exactly as the slash menu and the style editor hide it,
+    so a style made while the switch was on creates nothing once it is off. Read per call."""
+    if block_id not in _tb.TIER3_BLOCK_IDS:
+        return False
+    from api.services.journal_two import checklist_suggestions   # the module that declares the switch
+    return not checklist_suggestions.enabled()
+
 #: A builder's `ctx["mode"]` (IR-S11, integrator ruling R-RC-1): "create" when it serves a NEW note
 #: (a market context captures), "update" when it offers a block to a note already written (it
 #: arrives uncaptured). An EMPTY note switched to a style is create-equivalent. Every caller of
@@ -779,7 +791,9 @@ def _after_first_heading(content: list) -> int:
 
 def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
     """A COPY of the outline to compose into: the linked member template when it still exists,
-    else the style's inline outline, else an empty doc (never a failed create)."""
+    else the style's inline outline, else an empty doc (never a failed create).
+    P2 Tier 3 final fix I1: a member's outline is copied into a new note, so its check-ins start
+    unpicked (`_tb.unpick_checkins`, which copies). A built-in outline holds none."""
     if style.get("builtin"):
         return copy.deepcopy(BUILTIN_STYLES[style["kindId"]]["outline"])
     tid = style.get("outlineTemplateId")
@@ -790,12 +804,12 @@ def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
             try:
                 body = json.loads(r["body_json"])
                 if isinstance(body, dict) and body.get("type") == "doc":
-                    return body
+                    return _tb.unpick_checkins(body)
             except (TypeError, ValueError):
                 pass
     body = style.get("outlineBodyJson")
     if isinstance(body, dict) and body.get("type") == "doc":
-        return copy.deepcopy(body)
+        return _tb.unpick_checkins(body)
     return {"type": "doc", "content": []}
 
 
@@ -831,6 +845,8 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                 skipped.append({"block": bid, "reason": reason})
 
         def build(b: dict) -> list[dict]:
+            if _switched_off(b["block"]):
+                return []                                   # M1: hidden, as the insert menu hides it
             builder = BLOCK_BUILDERS.get(b["block"])
             if builder is None:
                 note_skip(b["block"], "unknown-block")
@@ -844,6 +860,9 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         def walk(content: list, top: bool) -> list:
             out = []
             for node in content:
+                if (isinstance(node, dict) and node.get("type") == "widgetEmbed"
+                        and _switched_off((node.get("attrs") or {}).get("widgetId"))):
+                    continue                                # R-T3-FIN-4: an outline's own Tier 3 node, dropped like a built one
                 bid = _placeholder_kind(node)
                 if bid is not None and bid not in enabled and bid not in disabled:
                     # Review M-5: a placeholder for a block the style does not list is the member's
@@ -1102,8 +1121,8 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
            "user_id": user_id}
     built, skipped = [], []
     for b in style["blocks"]:
-        if not b.get("enabled") or b["block"] in have:
-            continue
+        if not b.get("enabled") or b["block"] in have or _switched_off(b["block"]):
+            continue                                        # M1: a switched-off block is never offered
         if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
             # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,
             # and _present cannot see a task. Update layout neither offers nor lists it -- but an EMPTY

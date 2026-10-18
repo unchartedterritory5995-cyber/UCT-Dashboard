@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/SlashMenu.chartPlan.test.jsx (10 tests) 23ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  10:44:40
+   Duration  1.22s (transform 298ms, setup 247ms, import 314ms, tests 23ms, environment 497ms)
+

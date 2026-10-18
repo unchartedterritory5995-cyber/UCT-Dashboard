@@ -288,6 +288,13 @@ NOT_REHEARSED = {
                                       "and tests/test_style_library_social.py, the ..._404_for_everyone_while_"
                                       "the_library_is_off tests); evidence is tools/notebook_style_library_walk.py "
                                       "in a sandbox and those tests, not a rendered probe; waits for the owner's arming",
+    # P2 Tier 3. Gates CREATING a mood check-in block and offering three views/doors; an existing
+    # block still renders when it is off. Not rehearsed in this tool; the fin walk's Tier 3 group
+    # (Task 10) is its evidence.
+    "JOURNAL_TIER3_ENABLED": "dark (P2 Tier 3): the mood check-in block, the By check-in view, "
+                             "Checklist from my winners and the Your trading year door; creating "
+                             "only (an existing check-in block still renders); evidence is the fin "
+                             "walk's Tier 3 group (Task 10); waits for the owner's arming",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "

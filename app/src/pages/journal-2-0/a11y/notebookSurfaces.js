@@ -215,6 +215,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PrepLevelsBlock.jsx': { recipe: 'trader-block-prep' },
   'components/notebook/blocks/PrepCapture.jsx': { coveredBy: 'trader-block-prep' },
   'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
+  // P2 Tier 3 Task 3: the mood and focus check-in (rail a11y/traderBlockCheckin.a11y.test.jsx).
+  'components/notebook/blocks/MoodCheckInBlock.jsx': { recipe: 'trader-block-checkin' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
@@ -357,4 +359,11 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ShareStyleForm.jsx': { recipe: 'style-library-share-form', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryUpdateSheet.jsx': { recipe: 'style-library-update-sheet', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryDoor.jsx': { recipe: 'style-library-door', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
+  // Checklist from my winners, the Your trading year page and its Report page door; rail
+  // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).
+  'components/insights/CheckInOutcomes.jsx': { recipe: 'checkin-outcomes', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/insights/ChecklistFromWinners.jsx': { recipe: 'checklist-from-winners', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'surfaces/WrappedSurface.jsx': { recipe: 'wrapped-surface', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/WrappedDoor.jsx': { recipe: 'wrapped-door', railFile: 'a11y/tier3.a11y.test.jsx' },
 })

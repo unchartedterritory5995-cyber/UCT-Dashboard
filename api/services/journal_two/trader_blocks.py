@@ -11,6 +11,7 @@ write or any call to a notes write function.
 from __future__ import annotations
 
 import contextvars
+import copy
 import math
 import time
 import uuid
@@ -18,10 +19,11 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 #: The trader blocks (`block: true` in the client registry, bound in BLOCK_COMPONENTS): part a's three,
-#: then part b's six. The market context is NOT one: it is the existing `marketcontext` capture widget
-#: (Task 3, IR-S6).
+#: then part b's six, then Tier 3's mood and focus check-in. The market context is NOT one: it is the
+#: existing `marketcontext` capture widget (Task 3, IR-S6).
 BLOCK_IDS = ("preEntryChecklist", "priceStamps", "positionSizing",
-             "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
+             "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+             "moodCheckIn")
 
 #: The regime ids regime.classify_regime answers (journal_two/regime.py), in severity order.
 REGIME_IDS = ("green", "amber", "orange", "red")
@@ -159,6 +161,48 @@ BUILDERS.update({
     "myRules": build_my_rules,
     "tradeReview": _empty("tradeReview", {"tradeId": ""}),
 })
+
+# P2 Tier 3 Task 3: a style builds the check-in UNPICKED. The member picks; `day` is the first pick's ET
+# date, set by the client's one rule (lib/blocks/checkinWords.js, R-T3-2), never guessed here.
+CHECKIN_ID = "moodCheckIn"
+#: The unpicked check-in. A style builds it, and every COPY of a body resets its check-ins to it.
+CHECKIN_UNPICKED = {"mood": "", "focus": "", "day": ""}
+BUILDERS[CHECKIN_ID] = _empty(CHECKIN_ID, CHECKIN_UNPICKED)
+
+#: P2 Tier 3 final fix M1: the blocks the Tier 3 switch gates (journal_styles drops them from a build
+#: while it is off). ⛔ ONE FACT IN TWO FILES: the client's TIER3_BLOCK_IDS in
+#: app/src/pages/journal-2-0/lib/tier3Flag.js; tests/test_tier3_style_gate.py reads that file and fails
+#: when the two lists differ.
+TIER3_BLOCK_IDS = (CHECKIN_ID,)
+
+
+def unpick_checkins(body: Any) -> Any:
+    """A copy of `body` with every check-in back to CHECKIN_UNPICKED: no picks and no `day`.
+
+    P2 Tier 3 final fix I1. A pick keeps the block's `day` (R-T3-2), so a check-in that travels with a
+    copied body would record every later pick on the copy against the source's day. THE ONE HELPER every
+    copy door calls: Duplicate note (`notes.create_note` with `isCopy`), Save as template
+    (`note_templates.create_from_note`), every read of a template (`note_templates.get_template`, so
+    creating a note from one, by the picker or the daily note), and a style's outline
+    (`journal_styles._outline_doc`). Other params are kept. `body` itself is never changed."""
+    if not isinstance(body, dict):
+        return body
+    out = copy.deepcopy(body)
+
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        attrs = node.get("attrs")
+        if node.get("type") == "widgetEmbed" and isinstance(attrs, dict) and attrs.get("widgetId") == CHECKIN_ID:
+            params = attrs.get("params")
+            attrs["params"] = {**(params if isinstance(params, dict) else {}), **CHECKIN_UNPICKED}
+        content = node.get("content")
+        if isinstance(content, list):
+            for child in content:
+                walk(child)
+
+    walk(out)
+    return out
 
 
 # ── The market context stamp (spec §P2 item 3) on the EXISTING marketcontext widget (IR-S6) ─────

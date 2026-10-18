@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/PreEntryChecklistBlock.test.jsx (36 tests) 514ms
+
+ Test Files  1 passed (1)
+      Tests  36 passed (36)
+   Start at  10:44:05
+   Duration  1.39s (transform 162ms, setup 214ms, import 97ms, tests 514ms, environment 455ms)
+

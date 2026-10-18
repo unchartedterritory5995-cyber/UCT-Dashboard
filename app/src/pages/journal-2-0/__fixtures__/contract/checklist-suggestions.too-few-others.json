@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/insights/checklist-suggestions",
+    "note": "Eleven winners and one other trade: too few others to compare with (restSample too_few), so nothing is suggested.",
+    "path": "/api/j2/insights/checklist-suggestions",
+    "status": 200
+  },
+  "body": {
+    "bestCount": 11,
+    "restCount": 1,
+    "restSample": "too_few",
+    "status": "ok",
+    "suggestions": [],
+    "winnerCount": 11
+  }
+}

@@ -103,6 +103,9 @@ export const MANIFEST = [
   { path: "/journal-2-0/position/:sym", pathKind: "literal", element: "J2PositionDetailPage", kind: "detail", order: null },
   { path: "/journal-2-0/trade/:id", pathKind: "literal", element: "J2TradeDetailPage", kind: "detail", order: null },
   { path: "/journal-2-0/playbook", pathKind: "literal", element: "J2MyPlaybook", kind: "surface", order: null },
+  // P2 Tier 3 Task 8: Your <year> in trading. A detail page (one year), reached from the Report
+  // page's door; not a sidebar entry, so `order` is null.
+  { path: "/journal-2-0/wrapped/:year", pathKind: "literal", element: "J2WrappedSurface", kind: "detail", order: null },
   { path: "/support", pathKind: "literal", element: "Support", kind: "surface", order: null },
   { path: "/settings", pathKind: "literal", element: "Settings", kind: "surface", order: 11 },
   { path: "/admin", pathKind: "literal", element: "Admin", kind: "admin", order: null },

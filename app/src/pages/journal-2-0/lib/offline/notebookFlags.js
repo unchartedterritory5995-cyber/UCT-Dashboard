@@ -79,6 +79,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_earnings_followup_enabled: false, // Tier 2 part B: the earnings follow-up card and job — absent ⇒ OFF
   journal_page_layouts_enabled: false, // P4a: page layouts (Customize on Today and the trade page) — absent ⇒ OFF
   notebook_style_library_enabled: false, // P3a: the community style library (share, adopt, helpful, follow) — absent ⇒ OFF
+  journal_tier3_enabled: false, // P2 Tier 3: mood check-in, By check-in view, winners checklist, trading year — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

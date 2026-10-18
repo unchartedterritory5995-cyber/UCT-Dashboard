@@ -4392,6 +4392,8 @@ export default function NoteEditorPage({
         ticker: note.ticker || undefined,
         folderId: note.folderId || undefined,
         properties: note.propertiesJson || undefined,
+        // P2 Tier 3 final fix I1: a copy, so the server starts its check-ins unpicked.
+        isCopy: true,
       })
       // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
       // sidebar's note lists (All notes/Recents/per-folder) are OTHER

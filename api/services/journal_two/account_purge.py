@@ -55,6 +55,8 @@ _DIRECT_USER_TABLES = (
     "j2_note_folders",
     "j2_note_embeds",
     "j2_note_mentions",
+    # P2 Tier 3 -- the member's mood and focus check-ins, a sidecar of their notes.
+    "j2_note_checkins",
     "j2_note_favorites",
     "j2_note_recents",
     "j2_note_versions",

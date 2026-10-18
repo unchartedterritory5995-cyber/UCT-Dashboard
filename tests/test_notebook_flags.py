@@ -90,6 +90,9 @@ NOTEBOOK_KEYS = [
     "journal_page_layouts_enabled",
     # P3a: the community style library (share, adopt, helpful, follow) — an enablement gate.
     "notebook_style_library_enabled",
+    # P2 Tier 3: the mood check-in block, the By check-in view, Checklist from my winners and the
+    # Your trading year door — an enablement gate (env JOURNAL_TIER3_ENABLED, no NOTEBOOK_ prefix).
+    "journal_tier3_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.

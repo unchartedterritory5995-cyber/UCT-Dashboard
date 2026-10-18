@@ -172,6 +172,9 @@ def _server_gates() -> dict:
         "JOURNAL_PAGE_LAYOUTS_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_PAGE_LAYOUTS_ENABLED", False),
         # P3a: the style library's own gate function (Task 3 replaced the placeholder lambda).
         "NOTEBOOK_STYLE_LIBRARY_ENABLED": template_gallery.library_enabled,
+        # P2 Tier 3: no service module exists yet, so the row is the neighbours' own flag_on parse.
+        # Task 6 or 7 swaps it for the service's enabled() once one is built.
+        "JOURNAL_TIER3_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_TIER3_ENABLED", False),
     }
 
 
