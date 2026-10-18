@@ -42,6 +42,14 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (scripts/study/corrections.py; docs/study/corrections/*.jsonl; owner-approved items import approved).
   Integrator re-ran lane W: backend 6 files 177 passed; WalkthroughDrill 5, DrillPlayer 9,
   useStudySession 12, CoursesSection 14. Bank now 660 (walk.method 25).
+- **2026-10-18 HOLD (owner):** item 2 in its third shape was still "improper": "these are very nuanced".
+  Quiz items built from playbook PROSE (rules / named mistakes) are on hold: the prose does not carry
+  the owner's real rules (he buys ahead of a HOD break, buys under the 20 EMA on an undercut). Proposal
+  put to him: prose sources (playbooks, principles, brief, concepts) = teaching material; judgment
+  items only from rules he states himself (per-setup workshop in chat, verbatim into
+  docs/study/sources/owner/<setup>.md) with `accept` lists for nuance, or from chart ground truth
+  (fixtures, recorded calls, outcomes). Quiz stays valid for textbook facts (candles, O'Neil's rules
+  attributed to O'Neil), sizing math, and recorded data. Awaiting his choice.
 - **Owner review position:** item 1 (THE LOOP) rejected -> became a walk-through; item 2 (Bull Flag
   named mistake, si_1291bfa801ba) = a FIX in the owner's words, logged as `proposed` in
   docs/study/corrections/recall.playbooks.jsonl; awaiting his confirmation of the exact wording and
