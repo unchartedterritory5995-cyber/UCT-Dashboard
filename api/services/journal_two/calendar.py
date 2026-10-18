@@ -1209,6 +1209,12 @@ def upsert_day_notes(
     blanked prep, mid-day and recap. Tabs still holding that bundle keep
     sending three keys until they reload, which is why the guard lives here
     and not only in the client.
+
+    The read that supplies the kept values and the write are ONE transaction,
+    taken with BEGIN IMMEDIATE before the SELECT (the note-write pattern, #204).
+    Two saves that each leave out different keys would otherwise both read the
+    same row, and the second write would put back the value the first had just
+    changed.
     """
     notes = _validate_narrative(payload, "notes")
     prep_notes = _validate_narrative(payload, "prepNotes")
@@ -1219,7 +1225,13 @@ def upsert_day_notes(
 
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        # The write lock is taken BEFORE the read, so a second save waits for this one's commit and then
+        # reads the row this one wrote.
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+            began = True
         now = _now_iso()
         existing = conn.execute(
             "SELECT id, created_at, notes, prep_notes, mid_day_notes, recap_notes,"
@@ -1281,6 +1293,10 @@ def upsert_day_notes(
             "rules": rules,
             "updatedAt": now,
         }
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()

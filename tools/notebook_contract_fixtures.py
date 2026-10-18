@@ -83,6 +83,8 @@ FLAGS = (
     "NOTEBOOK_SMART_CHIPS_ENABLED",
     # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # Journal P4a: page layouts (Customize on Today and the trade page, reading a saved layout).
+    "JOURNAL_PAGE_LAYOUTS_ENABLED",
 )
 
 
