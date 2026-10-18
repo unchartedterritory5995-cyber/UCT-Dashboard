@@ -35,6 +35,22 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   c534a8dd25 generators + first bank (661 drafts) · lane F3: 5cacb84001/7e077a3e64 StudyReview admin card
   (PatternReview `?mode=study`, 20 tests) · 5a14ade449 every item has a lesson, no em-dash in member copy ·
   052aae57e4 drills read the bank's shape (`q`, `quote` block, free-text `format: fill`).
+- Later 2026-10-17: lane W walk-throughs 74d40640b2/869cf54739/b169f6547a (type `walkthrough`, unscored
+  "seen" attempts, unit sessions `POST /sessions {kind:'unit', skill_id}`, WalkthroughDrill, 25 items in
+  walk.method from the brief; 13 framing terms left the glossary quiz, 80 -> 54) · 3f76d0bb61 research
+  lane (docs/study/research: 77 cited definitions, candle + bottoms coverage) · corrections overlay
+  (scripts/study/corrections.py; docs/study/corrections/*.jsonl; owner-approved items import approved).
+  Integrator re-ran lane W: backend 6 files 177 passed; WalkthroughDrill 5, DrillPlayer 9,
+  useStudySession 12, CoursesSection 14. Bank now 660 (walk.method 25).
+- **Owner review position:** item 1 (THE LOOP) rejected -> became a walk-through; item 2 (Bull Flag
+  named mistake, si_1291bfa801ba) = a FIX in the owner's words, logged as `proposed` in
+  docs/study/corrections/recall.playbooks.jsonl; awaiting his confirmation of the exact wording and
+  whether setupPlaybooks.js (the Setup Library source) gets the same wording. Next item after that:
+  recall.playbooks #2.
+- Research follow-ups (docs/study/research/coverage.md): StockCharts unreachable from this box; IBD
+  paywalled past the lead; candle catalog has 66 records, ~35 Bulkowski names missing, 10 textbook
+  biases flip in Bulkowski's data (kept classic by owner decision 2026-08-24); BOTTOMS lacks 1990,
+  1998 and the April 2025 low. `reveal_json.depth` wiring (summary + sources under the reveal) not built yet.
 - Early-merge branch `fix/wire-archive-market-call` in worktree `C:\Users\pgosz\uct-worktrees\wire-call`
   (from origin/master d0c406824d): 8f5a530f72 (cherry-pick of ad2f95cbf9) + 0dbadeef29 (scans copy script +
   test). 38 tests pass there. NOT pushed (AI push blocked). Owner: push it, open the PR, after merge run
