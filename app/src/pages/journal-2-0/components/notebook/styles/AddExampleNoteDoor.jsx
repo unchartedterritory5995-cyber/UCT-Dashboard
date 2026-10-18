@@ -5,10 +5,11 @@
 // `isLinkableStyleItem`: the author's own, pending or approved, not hidden; the server re-checks under its lock).
 // The door is the button, then the picker (ExampleNotePicker), then the preview (ExamplePreviewSheet). It stays
 // mounted through all three, so the sentence after Submit is said by something that outlives the sheet that closed.
-// ⛔ LOADED ON DEMAND: both hosts take this file through `lazyChunk(() => import('./AddExampleNoteDoor'))`, so its
+// ⛔ LOADED ON DEMAND: both hosts take this file through `lazyChunk` and a dynamic import of this file, so its
 //    chunk (and the picker's, the sheet's and their stylesheet) is named only inside the lazy chunks that open it,
 //    never in the Notebook's first open -- a STATIC import from two lazy chunks made a shared chunk whose name rode
-//    in the eager chunk's preload list (+53 B, measured). P3b-R9: +0 B.
+//    in the eager chunk's preload list (+53 B, measured; +91 B re-measured at P3b-T9-G2). P3b-R9: +0 B. Both
+//    imports are named in NoteEditorPage.styleChunks.test.js's allowlist, with the reason (ruling P3b-T9-G2).
 // ⛔ There is no door in the note editor (eager), by design (R-P3b-9).
 import { useRef, useState } from 'react'
 import ExampleNotePicker from './ExampleNotePicker'
