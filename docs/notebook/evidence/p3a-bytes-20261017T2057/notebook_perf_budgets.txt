@@ -1,0 +1,6 @@
+tree: 0ab35eb6692afb0f715e21199b6598e8056de363 + Task 11 working changes (committed together with this file)
+command: cd app && npm run build; python tools/notebook_perf_budgets.py --dist app/dist
+ceiling (R-P3-5, Task 1 V16 + 400 B): 2,260,316 B; before Task 11: 2,260,074 B
+--- tool output, verbatim ---
+bytes.notebook_first_open: 2,260,251 B across 61 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked

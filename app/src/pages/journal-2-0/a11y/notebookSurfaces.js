@@ -335,4 +335,12 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
+  // Notebook P3a Task 11: the community style library's doors under components/notebook/styles/ (outside the
+  // derived population; dark behind notebook_style_library_enabled, so no styles-manager recipe renders them):
+  // sharing a style, reviewing an author's update to an adopted copy, and the door that opens the library at
+  // Styles. Rail a11y/styleLibrary.a11y.test.jsx, with the switch on. (StyleLibraryCard and AuthorView are in the
+  // population and carry their recipes above.)
+  'components/notebook/styles/ShareStyleForm.jsx': { recipe: 'style-library-share-form', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  'components/notebook/styles/LibraryUpdateSheet.jsx': { recipe: 'style-library-update-sheet', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  'components/notebook/styles/LibraryDoor.jsx': { recipe: 'style-library-door', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
 })

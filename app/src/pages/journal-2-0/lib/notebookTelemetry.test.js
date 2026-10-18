@@ -7,6 +7,7 @@ import {
 } from './notebookTelemetry'
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
+import { ITEM_TYPES } from './styleLibrary'
 
 const QUERY = 'nvda earnings gap'
 const TITLE = 'My NVDA thesis for Q4'
@@ -18,11 +19,11 @@ function fakeFetch() {
 }
 
 describe('the event set', () => {
-  it('is the core Notebook actions (the seven of wave 6 + the R-16 eight of wave 10), each with a schema', () => {
+  it('is the core Notebook actions (the seven of wave 6, the R-16 eight of wave 10, and the two of P3a), each with a schema', () => {
     expect(Object.values(NOTEBOOK_EVENTS).sort()).toEqual([
       'ask_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
-      'import_used', 'note_open_ms', 'publish_used', 'save_failed', 'save_success', 'search_used',
-      'share_used', 'switcher_used', 'writing_help_used',
+      'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'save_failed', 'save_success', 'search_used',
+      'share_used', 'style_adopted', 'switcher_used', 'writing_help_used',
     ])
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
@@ -116,6 +117,20 @@ describe('R-16 — every core action has an event that fires on its success', ()
 
   it('import_used.source is exactly the adapter ids of the importer registry (read, not typed)', () => {
     expect([...EVENT_SCHEMAS.import_used.source.values].sort()).toEqual(ADAPTERS.map((a) => a.id).sort())
+  })
+
+  it('P3a: the two library events carry no id, title or handle', () => {
+    expect(Object.keys(EVENT_SCHEMAS.library_viewed).sort()).toEqual(['type', 'view'])
+    expect(Object.keys(EVENT_SCHEMAS.style_adopted)).toEqual(['notify'])
+    // a caller that tried to send the item would send nothing of it
+    expect(sanitizeProps('style_adopted', { notify: true, id: 'gal_1', title: TITLE, author: 'anon-7' }))
+      .toEqual({ notify: true })
+    expect(sanitizeProps('library_viewed', { type: 'style', view: TITLE, handle: 'anon-7' }))
+      .toEqual({ type: 'style', view: 'other' })
+  })
+
+  it('library_viewed.type is "all" plus exactly the ITEM_TYPES keys of the library (read, not typed)', () => {
+    expect([...EVENT_SCHEMAS.library_viewed.type.values].sort()).toEqual(['all', ...ITEM_TYPES.map((t) => t.key)].sort())
   })
 
   it('export_used.format covers every EXPORT_FORMATS id, plus png and print', () => {

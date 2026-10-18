@@ -35,6 +35,7 @@ import {
   ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
 import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
 import AuthorView from './AuthorView'
@@ -282,6 +283,17 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
       .find((el) => el.getAttribute('data-author-door') === handle)
     ;(door || headingRef.current)?.focus()
   }, [author])
+
+  // P3a Task 11: `library_viewed`, once per view change while the switch is on. The view is the one on screen
+  // (an author's page over Browse or Following reads 'author'); 'Your submissions' and the review queue are not
+  // library views and send nothing. Changing the type chip changes what the view shows, so it counts as a change.
+  // ⛔ Enums only: never the author's handle, a query or an item.
+  const libraryView = !libraryOn ? null : author ? 'author' : view === 'browse' || view === 'following' ? view : null
+  const libraryType = itemType || 'all'
+  // The dependency list IS the "once per change": a re-render that moves neither sends nothing.
+  useEffect(() => {
+    if (libraryView) trackNotebookEvent(NOTEBOOK_EVENTS.LIBRARY_VIEWED, { type: libraryType, view: libraryView })
+  }, [libraryView, libraryType])
 
   const filters = libraryOn ? { q: query, category, sort, type: itemType, tradingStyle } : { q: query, category, sort }
   // Both hooks are one useSWR call over the gallery's list URL; with the switch off it is today's hook.

@@ -193,6 +193,47 @@ describe('the review queue for a style item', () => {
     expect(patches()[0].body.reviewedUpdatedAt).toBe(RESUBMITTED_STAMP)          // the version the card renders
   })
 
+  // Task 11 (review N-4): the refreshed line used to stay for as long as the row stayed pending.
+  const refreshCard = async () => {
+    const row = await rowOf(PENDING_STYLE.id)
+    await within(row).findByText(/^Blocks: /)
+    pendingRead = RESUBMITTED
+    fireEvent.click(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` }))
+    const preview = await screen.findByRole('dialog', { name: PENDING_STYLE.title })
+    expect(await within(row).findByText(CARD_REFRESHED_LINE)).toBeInTheDocument()
+    fireEvent.click(within(preview).getAllByRole('button', { name: 'Close' })[0])
+    await within(row).findByText('Blocks: none')
+    return row
+  }
+
+  it('N-4: the refreshed line clears when the reviewer acts on the row (Approve)', async () => {
+    renderPanel()
+    const row = await refreshCard()
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    await waitFor(() => expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull())
+    expect(within(row).getByText('Blocks: none')).toBeInTheDocument()            // the card itself is untouched
+  })
+
+  it('N-4: the refreshed line clears when the reviewer acts on the row (Reject)', async () => {
+    renderPanel()
+    const row = await refreshCard()
+    fireEvent.click(within(row).getByRole('button', { name: `Reject ${PENDING_STYLE.title}` }))
+    expect(await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })).toBeInTheDocument()
+    expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull()
+  })
+
+  it('N-4: the refreshed line clears when the reviewer reopens a card that is now current', async () => {
+    renderPanel()
+    const row = await refreshCard()
+    fireEvent.click(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` }))
+    const again = await screen.findByRole('dialog', { name: PENDING_STYLE.title })
+    await within(again).findByText(textOf(RESUBMITTED.bodyJson))
+    await waitFor(() => expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull())
+    // CONTROL: a reopened card is cleared, not a card the reviewer never refreshed
+    expect(within(row).getByText('Blocks: none')).toBeInTheDocument()
+  })
+
   it('an outline row still approves with its queue token (unchanged)', async () => {
     renderPanel()
     const row = await rowOf(QUEUE.pending[0].id)

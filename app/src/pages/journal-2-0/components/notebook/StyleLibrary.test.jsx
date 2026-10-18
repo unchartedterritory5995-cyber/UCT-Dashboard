@@ -267,6 +267,86 @@ describe('Helpful', () => {
   })
 })
 
+// ⭐ P3a Task 11: the library's two telemetry events, asserted at their doors (the parity scorecard's clause 15b
+// reads these rails: tools/parity_scorecard.py TELEMETRY_RAILS). Each is read off the fake server's own log of
+// what was POSTed to the J2 telemetry door, never off a spy on the helper.
+const sentEvents = (event) => calls.filter((c) => c.path === '/api/j2/telemetry' && c.method === 'POST' && c.body?.event === event)
+  .map((c) => c.body.props)
+
+describe('telemetry: style_adopted', () => {
+  it('fires once after an adopt the server accepted, with the member’s notify choice and nothing of the item', async () => {
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    const confirm = screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })
+    await user.click(within(confirm).getByRole('checkbox', { name: 'Notify me when the author updates' }))
+    expect(sentEvents('style_adopted')).toEqual([])                            // the confirm alone sends nothing
+    await user.click(within(confirm).getByRole('button', { name: 'Adopt' }))
+    await screen.findByText(/to your styles\./)
+    expect(sentEvents('style_adopted')).toEqual([{ notify: true }])
+    const sent = JSON.stringify(sentEvents('style_adopted'))
+    for (const leaked of [STYLE.id, STYLE.title, STYLE.author]) expect(sent).not.toContain(leaked)
+  })
+
+  it('sends notify: false when the box was left unticked', async () => {
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
+    await screen.findByText(/to your styles\./)
+    expect(sentEvents('style_adopted')).toEqual([{ notify: false }])
+  })
+
+  it('sends nothing when the server refused the adopt', async () => {
+    flags()
+    server.adoptAnswer = 'template-gallery.adopt.styles-off'
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
+    await screen.findByRole('alert')
+    expect(sentEvents('style_adopted')).toEqual([])
+  })
+})
+
+describe('telemetry: library_viewed', () => {
+  it('fires once per view change while the switch is on, and never for Your submissions', async () => {
+    flags()
+    const user = await openStyles()                                            // Browse · All, then Browse · Styles
+    await waitFor(() => expect(sentEvents('library_viewed')).toEqual([
+      { type: 'all', view: 'browse' }, { type: 'style', view: 'browse' }]))
+    // a re-render that changes no view (typing a search) sends nothing
+    await user.type(screen.getByRole('searchbox'), 'sw')
+    await user.click(within(styleCard()).getByRole('button', { name: `See styles by ${STYLE.author}` }))
+    await screen.findByRole('heading', { name: AUTHOR_PAGE.author.label })
+    await user.click(screen.getByRole('button', { name: 'Back to the library' }))
+    await screen.findByRole('heading', { name: STYLE.title })
+    await user.click(screen.getByRole('button', { name: 'Following' }))
+    await screen.findByRole('heading', { name: FEED[0].title })
+    await user.click(screen.getByRole('button', { name: 'Your submissions' }))
+    await user.click(screen.getByRole('button', { name: 'Browse' }))
+    await screen.findByRole('heading', { name: STYLE.title })
+    await waitFor(() => expect(sentEvents('library_viewed')).toEqual([
+      { type: 'all', view: 'browse' }, { type: 'style', view: 'browse' },
+      { type: 'style', view: 'author' }, { type: 'style', view: 'browse' },
+      { type: 'style', view: 'following' },
+      { type: 'style', view: 'browse' },                                       // back from Your submissions
+    ]))
+    // ⛔ never a handle, a query or an item
+    const sent = JSON.stringify(sentEvents('library_viewed'))
+    for (const leaked of [AUTHOR_PAGE.author.handle, STYLE.title, 'sw']) expect(sent).not.toContain(leaked)
+  })
+
+  it('sends nothing with the switch off (the gallery is today’s)', async () => {
+    flags({ library: false })
+    await openGallery()
+    await screen.findByRole('region', { name: 'UCT picks' })
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(sentEvents('library_viewed')).toEqual([])
+    // CONTROL: the same door with the switch on does send (so the empty list above is the switch, not the read)
+    expect(calls.some((c) => c.path === '/api/j2/template-gallery')).toBe(true)
+  })
+})
+
 describe('an author’s page', () => {
   it('opens from the author name; Follow flips to Following; Back returns to the list with the filters kept', async () => {
     flags()

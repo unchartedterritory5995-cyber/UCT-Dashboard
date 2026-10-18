@@ -13,6 +13,7 @@
 import { useId, useRef, useState } from 'react'
 import { adoptStyle, markHelpful, tradingStyleLabel } from '../../lib/styleLibrary'
 import { categoryLabel } from '../../lib/templateGallery'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
@@ -57,6 +58,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
     setAdopting(true)
     try {
       const out = await adoptStyle(item.id, { notify })
+      // P3a Task 11: counted only once the server made the copy; the choice, never the item.
+      trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_ADOPTED, { notify })
       const name = out?.style?.name || item.title
       const credit = typeof out?.credit === 'string' && out.credit.trim() ? ` ${withStop(out.credit.trim())}` : ''
       onMessage?.({ tone: 'ok', text: `Added "${name}" to your styles.${credit}` })

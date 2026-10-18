@@ -273,12 +273,15 @@ NOT_REHEARSED = {
                                           "pass, its bell, card and prefill; evidence is a run-ledger "
                                           "row and a delivered notice (the fin walk's followup group); "
                                           "waits for the owner's arming (docs/notebook/t2b-arming.md)",
-    # Notebook P3a. Its evidence is a share / adopt / helpful / follow round trip through the
-    # library routes (a stored row and a 404 while off), not a page read.
+    # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
+    # update and a withdraw, read off the rendered pages in a sandbox) and the recorded flags-off sweep,
+    # where every library route answers 404 -- not a rendered probe here. (Task 11 reworded this: it used
+    # to cite a fin-walk library group and 404 routes that did not exist yet.)
     "NOTEBOOK_STYLE_LIBRARY_ENABLED": "dark (P3a): the community style library -- sharing a style, adopting "
-                                      "one, Helpful, author pages, follow and the feed; every style route "
-                                      "answers 404 while off; evidence is a stored row and that 404 (the fin "
-                                      "walk's library group), not a rendered probe; waits for the owner's arming",
+                                      "one, Helpful, author pages, follow and the feed; every library route "
+                                      "answers 404 while off (the contract fixtures' sweep.flags-off.json "
+                                      "records it); evidence is tools/notebook_style_library_walk.py in a "
+                                      "sandbox and that sweep, not a rendered probe; waits for the owner's arming",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "

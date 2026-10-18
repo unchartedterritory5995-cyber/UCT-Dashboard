@@ -143,7 +143,16 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
   }
 
   const markSeen = useCallback((id, updatedAt) => setSeen((prev) => (prev[id] === updatedAt ? prev : { ...prev, [id]: updatedAt })), [])
-  const [refreshed, setRefreshed] = useState({})        // style rows whose card a Preview brought up to date
+  // Style rows whose card a Preview brought up to date: { [id]: the row's updatedAt when it happened }. The line
+  // says so until the reviewer acts on the row (Approve, Reject), reopens a card that is now current, or the queue
+  // brings the row back with another updatedAt (Task 11, review N-4: it used to stay for as long as the row did).
+  const [refreshed, setRefreshed] = useState({})
+  const clearRefreshed = useCallback((id) => setRefreshed((prev) => {
+    if (!(id in prev)) return prev
+    const next = { ...prev }
+    delete next[id]
+    return next
+  }), [])
   const { mutate: mutateCache } = useSWRConfig()
 
   const openPreview = async (item) => {
@@ -157,7 +166,9 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
       else if (seen[item.id] && full.updatedAt !== seen[item.id]) {
         // A newer version than the card shows: the card takes this read (and the token follows it, via onRead).
         mutateCache(reviewCardKey(item), full, { revalidate: false })
-        setRefreshed((prev) => ({ ...prev, [item.id]: true }))
+        setRefreshed((prev) => ({ ...prev, [item.id]: item.updatedAt }))
+      } else {
+        clearRefreshed(item.id)                         // the card the reviewer reopened is the current version
       }
       if (style && item.hasRevision) {
         const shown = underReview(item, full)
@@ -186,14 +197,14 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <span className={styles.meta}>by {item.author} · {categoryLabel(item.category)}</span>
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
             {item.itemType === 'style' && <StyleReviewDetails item={item} onRead={markSeen} />}
-            {refreshed[item.id] && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
+            {refreshed[item.id] === item.updatedAt && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => openPreview(item)}
                 aria-label={`Preview ${item.title}`}>Preview</button>
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
-                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt), `Approved “${item.title}”. It is listed now.`)}
+                onClick={() => { clearRefreshed(item.id); act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt), `Approved “${item.title}”. It is listed now.`) }}
                 aria-label={`Approve ${item.title}`}>Approve</button>
-              <button type="button" className={styles.btn} onClick={() => setRejecting(item.id)}
+              <button type="button" className={styles.btn} onClick={() => { clearRefreshed(item.id); setRejecting(item.id) }}
                 aria-label={`Reject ${item.title}`}>Reject…</button>
             </div>
             {rejecting === item.id && (
