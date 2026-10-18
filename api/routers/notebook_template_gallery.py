@@ -179,8 +179,9 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
     queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
-    `?trading_style=` are the library's chips; the service refuses both style filters while the
-    library is off (R-P3-10), so a library-off pod answers what it answered before."""
+    `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
+    library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
+    either while the switch is off, so a member sees today's gallery (final review M-13, item 4)."""
     try:
         items = gallery.list_gallery(user["id"], q=q, category=category or None, sort=sort,
                                      section=section, item_type=item_type or None,
