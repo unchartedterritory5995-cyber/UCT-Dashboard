@@ -332,4 +332,11 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
+  // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
+  // Checklist from my winners, the Your trading year page and its Report page door; rail
+  // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).
+  'components/insights/CheckInOutcomes.jsx': { recipe: 'checkin-outcomes', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/insights/ChecklistFromWinners.jsx': { recipe: 'checklist-from-winners', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'surfaces/WrappedSurface.jsx': { recipe: 'wrapped-surface', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/WrappedDoor.jsx': { recipe: 'wrapped-door', railFile: 'a11y/tier3.a11y.test.jsx' },
 })
