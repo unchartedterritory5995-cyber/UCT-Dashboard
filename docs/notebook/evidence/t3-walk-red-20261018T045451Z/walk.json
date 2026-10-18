@@ -1,0 +1,431 @@
+{
+ "tool": {
+  "path": "tools/journal_tier3_walk.py",
+  "sha256": "63903f652706ee2a95d714eaa86557fd82de4631b1e5693fc281a183f314ea52",
+  "git_status": "M tools/journal_tier3_walk.py",
+  "sha256_at_head": "d36ca169d708f81e3680f796b167f9da6383a1a262d37917ba6a2c0ee3dc6be3"
+ },
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "insert the check-in from the slash menu, Good and Focused, leave within 1.5 s, reopen",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "left the note within 1.5 s of the second pick: the route changed and the note's editor unmounted",
+     "ok": true,
+     "read": "{\"dispatched_after_ms\": 3.5, \"editor_gone_after_ms\": 58.0, \"url\": \"/journal/notebook?view=all\", \"editors\": 0}"
+    },
+    {
+     "what": "the save carrying both picks landed (HTTP 2xx) after leaving",
+     "ok": false,
+     "read": "{\"save_landed_after_ms\": null, \"puts\": [{\"t\": 62.2, \"status\": null, \"ok\": false, \"both\": true, \"failure\": \"net::ERR_FAILED\"}, {\"t\": 1072.0, \"status\": null, \"ok\": false, \"both\": true, \"failure\": \"net::ERR_FAILED\"}, {\"t\": 3086.7, \"status\": null, \"ok\": false, \"both\": true, \"failure\": \"net::ERR_FAILED\"}, {\"t\": 7095.3, \"status\": null, \"ok\": false, \"both\": true, \"failure\": \"net::ERR_FAILED\"}, {\"t\": 15109.0, \"status\": null, \"ok\": false, \"both\": true, \"failure\": \"net::ERR_FAILED\"}], \"dropped_by_injection\": 5}"
+    },
+    {
+     "what": "reopened: Good is picked",
+     "ok": true,
+     "read": "Mood: Good aria-pressed=true"
+    },
+    {
+     "what": "reopened: Focused is picked",
+     "ok": true,
+     "read": "Focus: Focused aria-pressed=true"
+    },
+    {
+     "what": "the server's copy holds one check-in, mood 4 and focus 4, for today ET",
+     "ok": false,
+     "read": "{\"blocks\": 1, \"params\": {\"mood\": \"\", \"focus\": \"\", \"day\": \"\"}, \"today_et\": \"2026-10-18\"}"
+    },
+    {
+     "what": "no conflicted copy appeared",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "slash option",
+     "text": "Mood and focus check-in\nHow you feel and how focused you are today"
+    },
+    {
+     "what": "the inserted block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nPick how you feel and how focused you are."
+    },
+    {
+     "what": "the reopened block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nChecked in for Oct 18"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+     "console": "Failed to load resource: net::ERR_FAILED"
+    }
+   ],
+   "page_text": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nT3 walk 1280\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$101,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nT3 walk check-in 1280\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n0\n+ New folder\nT3 walk check-in 1280\nEditor toolbar\nSaved in this browser · waiting to sync\nCouldn't reach the server — your note is unchanged, retrying automatically.\nAsk this note\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\nCheck-in note for 1280.\n\nMood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nChecked in for Oct 18\n\n\n\n\n?\n◉\n⋮"
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "Insights > Psychology > By check-in shows the day",
+   "checks": [
+    {
+     "what": "it counts the one check-in day",
+     "ok": false,
+     "read": "By check-in\n\nAdd a check-in block to your daily note to see how mood and focus line up with your trading."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "By check-in",
+     "text": "By check-in\n\nAdd a check-in block to your daily note to see how mood and focus line up with your trading."
+    }
+   ],
+   "verdict": "FAIL",
+   "error": "TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"section\").filter(has=get_by_role(\"heading\", name=\"By check-in\", exact=True)).first.locator(\"tbody tr\").filter(has=locator(\"th\").filter(has_text=re.compile(r\"^Good\"))).first to be visible\n",
+   "traceback": "ate=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"section\").filter(has=get_by_role(\"heading\", name=\"By check-in\", exact=True)).first.locator(\"tbody tr\").filter(has=locator(\"th\").filter(has_text=re.compile(r\"^Good\"))).first to be visible\n\n",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ],
+   "page_text": "Skip to main content\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nT3 walk 1280\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$101,800.00\n▾\nInsights\nAnalytics\n\nDetailed performance analysis across 30 trades\n\nAll Accounts\nDefault\nFrom\nTo\nToday\nWeek\nMonth\nYTD\nAll\nLong\nShort\nSetup\nTag\nExport CSV\nExport JSON\nPlaybook\nExit Quality\nEdge\nPsychology\nRegime\nCoach\nDiscipline\nReviews\nChecklist from my winners\nTrading psychology\n\nHow your tagged emotions and mistakes show up in your P&L. The emotion and mistake panels need tags — the more of your trades you tag, the sharper they get.\n\nEmotion × outcome\n\nMean net P&L per emotion you tagged. Win rate is grayed on fewer than 10 trades; emotions on fewer than 3 are a thin sample.\n\nPatient\nWIN RATE\n100%\nAvg P&L +$100.00\n22 trades\nFomo\nWIN RATE\n0%\nAvg P&L -$50.00\n8 trades\nCost of mistakes\n\nNo mistakes tagged yet. Tag a mistake on a losing trade — FOMO, chasing, no stop — and this adds up what each one is costing you.\n\nRevenge & tilt\n\nRe-entering the same symbol within an hour of a loss on it — the classic tilt tell. Not every re-entry is revenge; dismiss any that wasn't.\n\nRevenge detection needs execution times — your trades are date-only, so there's no way to tell a fast re-entry from a next-day one. Add entry/exit times (or connect a broker) and this lights up.\n\nTurn a recurring mistake into a rule above.\n\nBy check-in\n\nAdd a check-in block to your daily note to see how mood and focus line up with your trading.\n\nMY METRICS\n+ Add card…\nSharpe / Sortino / Calmar\nRisk per Trade\nPeriod Comparison\nFees Drag\nPerformance by Size\nMonte Carlo Projection\nDividends & Interest\n30 trades in scope\nCONSISTENCY\nScope\n30D\n90D\nYTD\nAll\n↑\n↓\n✕\nPROFITABLE DAYS\n77.8%\nDAILY STDEV\n$70.97\nBEST-DAY SHARE\n7.1%\nTOP-3-DAY SHARE\n20.9%\nBEST DAY\n$150 (2025-11-11)\nWORST DAY\n-$100 (2026-10-18)\nPAYOFF & KELLY\nScope\n30D\n90D\nYTD\nAll\n↑\n↓\n✕\nWIN RATE\n73.3%\nAVG WIN\n$100\nAVG LOSS\n$50\nPAYOFF\n2.00\nKELLY\n60.0%\nHALF-KELLY\n30.0%\nTIME INTELLIGENCE\nScope\n30D\n90D\nYTD\nAll\n↑\n↓\n✕\nBY HOUR (ET)\nHOUR\tP&L\tTRADES\tWIN %\n\n30 trades without an hour stamp\n\nBY WEEKDAY\nDAY\tP&L\tTRADES\tWIN %\nMon\t$210\t3\t67%\nTue\t$360\t5\t80%\nWed\t$230\t"
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "Checklist from my winners: a suggestion, accept it, a new trade plan's checklist lists it",
+   "checks": [
+    {
+     "what": "the patient suggestion's share line is the seed's (best trades and the rest)",
+     "ok": true,
+     "read": "{\"read\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\", \"want\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\"}"
+    },
+    {
+     "what": "its evidence lists every best trade carrying the tag",
+     "ok": true,
+     "read": "{\"links\": 20, \"want\": 20}"
+    },
+    {
+     "what": "the rule is pre-filled as R-T3-6 says",
+     "ok": true,
+     "read": "Before entry: am I patient?"
+    },
+    {
+     "what": "the account holds the rule, marked before entry (the rules read)",
+     "ok": true,
+     "read": "[{\"id\": \"0810d25e08ab47ca9122793bc4f8210d\", \"accountId\": \"a51ad5d0-ff81-4fe3-873b-33808e0e9587\", \"label\": \"Before entry: am I patient?\", \"evidence\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\", \"sourceType\": \"psychology\", \"sourceId\": \"winners:patient\", \"status\": \"active\", \"createdAt\": \"2026-10-18T04:57:38.572851+00:00\", \"updatedAt\": \"2026-10-18T04:57:38.626996+00:00\", \"beforeEn"
+    },
+    {
+     "what": "the pre-entry checklist lists the accepted rule",
+     "ok": true,
+     "read": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Checklist from my winners",
+     "text": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, 2026 · +2.40R\nTSLA · Aug 11, 2025 · +2.40R\nTSLA · Oct 3, 2026 · +2.20R\nAMD · Jul 10, 2025 · +2.20R\nAMD · Oct 7, 2026 · +2.00R\nNVDA · Jun 12, 2025 · +2.00R\nNVDA · Oct 11, 2026 · +1.80R\nMSFT · May 11, 2025 · +1.80R\nNVDA · Sep 1, 2026 · +1.60R\nAAPL · Apr 10, 2025 · +1.60R\nMSFT · Sep 5, 2026 · +1.40R\nTSLA · Mar 12, 2025 · +1.40R\nAAPL · Sep 9, 2026 · +1.20R\nAMD · Feb 11, 2025 · +1.20R\nAdd to my checklist"
+    },
+    {
+     "what": "the confirm",
+     "text": "YOUR RULE\n\nOn 20 of your 20 best trades (100%) · on 20% of the rest\n\nCancel\nSave rule\n[Your rule] Before entry: am I patient?"
+    },
+    {
+     "what": "status",
+     "text": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the new trade plan",
+     "text": "The setup\n‹\nMore\n\nWhat is the pattern, and why now?\n\nAdd a ticker to this note, then type /chart to add the chart.\n\nEntry, stop and target\n\nEntry:\n\nStop:\n\nTarget:\n\nSize and risk\n\nHow much am I risking, and is it within my rules?"
+    },
+    {
+     "what": "the pre-entry checklist",
+     "text": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "Report > Your year in trading shows four sections",
+   "checks": [
+    {
+     "what": "Earlier years offers 2025",
+     "ok": true,
+     "read": "[\"2025\"]"
+    },
+    {
+     "what": "the header counts the year's closed trades",
+     "ok": true,
+     "read": "{\"read\": \"All Accounts \\u00b7 14 closed trades\", \"want_trades\": 14}"
+    },
+    {
+     "what": "Best setups lists the year's setups with their trade counts",
+     "ok": true,
+     "read": "{\"read\": {\"VCP\": [\"9\", \"too few to judge\", \"n=9 Too few trades to rank\"], \"Breakout\": [\"5\", \"too few to judge\", \"n=5 Too few trades to rank\"]}, \"want\": {\"Breakout\": 5, \"VCP\": 9}}"
+    },
+    {
+     "what": "Discipline trend: twelve months, each with the seed's trade count and no adherence (a dash)",
+     "ok": true,
+     "read": "{\"read\": [\"January \\u2014 2 trades\", \"February \\u2014 2 trades\", \"March \\u2014 1 trade\", \"April \\u2014 1 trade\", \"May \\u2014 1 trade\", \"June \\u2014 1 trade\", \"July \\u2014 1 trade\", \"August \\u2014 1 trade\", \"September \\u2014 1 trade\", \"October \\u2014 1 trade\", \"November \\u2014 1 trade\", \"December \\u2014 1 trade\"], \"want\": [2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}"
+    },
+    {
+     "what": "Most-written tickers and Lessons are empty for that year (no note, no rule change in it)",
+     "ok": true,
+     "read": "{\"Most-written tickers\": \"MOST-WRITTEN TICKERS\\n\\nThese counts cover all your notes, not just this account.\\n\\nNothing here yet.\", \"Lessons you wrote into your rules\": \"LESSONS YOU WROTE INTO YOUR RULES\\n\\nNothing here yet.\"}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the door",
+     "text": "Earlier years\n2025\nYour 2025 in trading"
+    },
+    {
+     "what": "the header",
+     "text": "All Accounts · 14 closed trades"
+    },
+    {
+     "what": "section: Best setups",
+     "text": "BEST SETUPS\nSetup\tTrades\tExpectancy\tSample\nVCP\t9\t\ntoo few to judge\n\tn=9 Too few trades to rank\nBreakout\t5\t\ntoo few to judge\n\tn=5 Too few trades to rank"
+    },
+    {
+     "what": "section: Most-written tickers",
+     "text": "MOST-WRITTEN TICKERS\n\nThese counts cover all your notes, not just this account.\n\nNothing here yet."
+    },
+    {
+     "what": "section: Discipline trend",
+     "text": "DISCIPLINE TREND\n\nNo adherence recorded this year.\n\nJanuary\n—\n2 trades\nFebruary\n—\n2 trades\nMarch\n—\n1 trade\nApril\n—\n1 trade\nMay\n—\n1 trade\nJune\n—\n1 trade\nJuly\n—\n1 trade\nAugust\n—\n1 trade\nSeptember\n—\n1 trade\nOctober\n—\n1 trade\nNovember\n—\n1 trade\nDecember\n—\n1 trade"
+    },
+    {
+     "what": "section: Lessons you wrote into your rules",
+     "text": "LESSONS YOU WROTE INTO YOUR RULES\n\nNothing here yet."
+    }
+   ],
+   "verdict": "PASS",
+   "events": []
+  }
+ ],
+ "setup": [
+  {
+   "viewport": "1280",
+   "account": "t3walk-1280@local.dev",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "journal_tier3_enabled": true,
+   "notebook_journal_styles_enabled": true,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "1280",
+   "what": "30 closed trades with emotion tags, setups VCP and Breakout",
+   "trade_posts": [
+    200
+   ],
+   "trades_listed": 30,
+   "account": "a51ad5d0-ff81-4fe3-873b-33808e0e9587",
+   "settings_put": 200,
+   "verdict": "INFO"
+  }
+ ],
+ "fault_injection": "drop-save (walk-only; this run is the RED path, never a green result)",
+ "tip": "4f50a8ba72",
+ "tool_tree": "c90e2ddf0825175b4f0c3a5373e458e7adf89b94",
+ "head": "c90e2ddf0825175b4f0c3a5373e458e7adf89b94",
+ "head_tree": "1b44b48ddf873b8fbf811bbd2e4db611b797f6aa",
+ "base": "http://127.0.0.1:8081",
+ "data_dir": "C:\\data-t3walk-red",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "JOURNAL_TIER3_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "today_et": "2026-10-18",
+ "started": "2026-10-18T04:54:52+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8081 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-t3\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T23-54-54.md (identity 099fc370d859..., data dir C:\\data-t3walk-red)"
+ },
+ "viewports": {
+  "1280": {
+   "checkin_note": "eba0c0dda1c14350afdfdf495b31cf44",
+   "dropped_puts": 9,
+   "puts": [
+    {
+     "t": 62.2,
+     "status": null,
+     "ok": false,
+     "both": true,
+     "failure": "net::ERR_FAILED"
+    },
+    {
+     "t": 1072.0,
+     "status": null,
+     "ok": false,
+     "both": true,
+     "failure": "net::ERR_FAILED"
+    },
+    {
+     "t": 3086.7,
+     "status": null,
+     "ok": false,
+     "both": true,
+     "failure": "net::ERR_FAILED"
+    },
+    {
+     "t": 7095.3,
+     "status": null,
+     "ok": false,
+     "both": true,
+     "failure": "net::ERR_FAILED"
+    },
+    {
+     "t": 15109.0,
+     "status": null,
+     "ok": false,
+     "both": true,
+     "failure": "net::ERR_FAILED"
+    }
+   ],
+   "rule_label": "Before entry: am I patient?"
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\t3-walk-red-20261018T045451Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-17 23:54:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-17 23:55:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-17 23:57:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-17 23:58:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-t3\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T23-54-54.md",
+  "byte_identical": true
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\t3-walk-red-20261018T045451Z\\integrity.md",
+ "driver_imported_api": [],
+ "today_et_at_finish": "2026-10-18",
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 2,
+  "FAIL": 2,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-18T04:58:42+00:00"
+}
