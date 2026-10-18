@@ -31,7 +31,10 @@
   min-height: var(--tap-min, 44px);
   padding: 0 8px;
   font: inherit;
-  border: 1px solid #ccc;
+  /* WCAG 1.4.11: a control's boundary needs 3:1 on what it sits on. The Report page's paper (`.wrap`)
+   * is #fff in every theme and has no border token, so a literal: #767676 is 4.54:1 there (#ccc was
+   * about 1.6:1). Railed by WrappedDoor.contrast.test.js. */
+  border: 1px solid #767676;
   border-radius: var(--radius-lg);
   background: #fff;
   color: #1a1a1a;
