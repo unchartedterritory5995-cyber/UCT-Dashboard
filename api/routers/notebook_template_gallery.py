@@ -15,6 +15,7 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
   member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt-layout  paid  the listed layout of a shared page (P4b; 404 while layout sharing is off; adopt budget)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
   member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
   member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
@@ -406,6 +407,26 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
     return out
 
 
+def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
+    """THE adopt budget, for a style and a layout alike (R-P3-11, F16): 30/hour in-process plus a durable 50/day,
+    and the day's charge given back on every refusal (a `GalleryError`, 400 or 409), on a None (404) and on an
+    exception. ONE copy: both adopt routes call this, never a block of their own."""
+    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+    try:
+        out = adopt()
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise
+    if out is None:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise public.not_found()
+    return out
+
+
 @router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
 def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
                    user: dict = Depends(require_paid)) -> dict[str, Any]:
@@ -417,20 +438,24 @@ def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
         notify = False
     if not isinstance(notify, bool):
         raise HTTPException(status_code=400, detail="notify must be true or false")
-    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
-    try:
-        out = gallery.adopt_style(user["id"], gallery_id, notify=notify)
-    except gallery.GalleryError as e:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise _bad(e)
-    except Exception:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise
-    if out is None:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise public.not_found()
-    return out
+    return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
+
+
+LAYOUT_VERSION_SENTENCE = "Say which version you previewed: version must be a whole number."
+
+
+@router.post("/{gallery_id}/adopt-layout", dependencies=[Depends(_require_layout_sharing)])
+def adopt_layout_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+                          user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{version: int}` -> `{layout, version, credit}`: the LISTED layout of a shared page, for the client to apply
+    and save through the member's own preference door (R-P4b-8: the server writes no preference). 404 for everyone
+    while layout sharing is off (`_require_layout_sharing`, before the plan and the body); 409 when a newer version
+    is listed than the one previewed; 400 when `version` is not a whole number (a bool is not one), before any
+    charge. It spends the adopt budget exactly as `POST /{id}/adopt` does (F16, `_spend_adopt`)."""
+    version = body.get("version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise HTTPException(status_code=400, detail=LAYOUT_VERSION_SENTENCE)
+    return _spend_adopt(user, lambda: gallery.adopt_layout(user["id"], gallery_id, version=version))
 
 
 @router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])

@@ -1242,7 +1242,9 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if not _can_see(row, user_id, False):
+        # P4b-R-X8: a layout is not a template. Copying one would write an empty note template under its title
+        # and count a use; it reads exactly like an item `/use` cannot see.
+        if not _can_see(row, user_id, False) or row["item_type"] == LAYOUT_ITEM:
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),
@@ -1258,11 +1260,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)",
             (new_id, user_id, name, row["title"] or "", json.dumps(_stored_body(row)), now, now),
         )
-        if row["user_id"] != user_id:
-            conn.execute(
-                "INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                " VALUES (?, ?, ?)", (gallery_id, user_id, now),
-            )
+        _record_use(conn, row, user_id, now)
         conn.commit()
         result: dict[str, list[str]] = {"added": [], "existing": [], "skipped": []}
         for d in json.loads(row["property_defs_json"]) if row["property_defs_json"] else []:
@@ -1282,14 +1280,30 @@ UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the
                          "Look again.")
 
 
-def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
-    """The row of a style a member may adopt: a style item that is approved and not hidden."""
+def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str) -> sqlite3.Row | None:
+    """The row of an item a member may adopt: one of `item_type`, approved and not hidden, and of a type that is
+    not absent right now (`_library_hides`, the one rule). Shared by adopting a style and adopting a layout, so
+    "listed" means one thing for both."""
     if not isinstance(gallery_id, str) or not gallery_id:
         return None
     row = _row(conn, gallery_id)             # no viewer: adopt and update read the item, not the member's vote
-    if row is None or row["item_type"] != "style" or row["status"] != "approved" or row["hidden"]:
+    if (row is None or _library_hides(row) or row["item_type"] != item_type or row["status"] != "approved"
+            or row["hidden"]):
         return None
     return row
+
+
+def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
+    """The row of a style a member may adopt: a style item that is approved and not hidden."""
+    return _listed_row(conn, gallery_id, "style")
+
+
+def _record_use(conn: sqlite3.Connection, row: sqlite3.Row, user_id: str, now: str) -> None:
+    """Count one member's use of an item, once ever (the primary key), and never the author's own. Uncommitted:
+    the caller commits it with the rest of its transaction. ONE copy for use, adopt-a-style and adopt-a-layout."""
+    if row["user_id"] != user_id:
+        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
 
 
 def _listed_payload(row: sqlite3.Row) -> dict | None:
@@ -1392,9 +1406,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
             if conn.in_transaction:
                 conn.rollback()
             raise GalleryError(str(e)) from e
-        if row["user_id"] != user_id:
-            conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                         " VALUES (?, ?, ?)", (row["id"], user_id, now))
+        _record_use(conn, row, user_id, now)
         if notify:
             conn.execute(
                 "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
@@ -1404,6 +1416,52 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         conn.commit()
         return {"style": js.get_style(user_id, style["id"], conn),
                 "notify": bool(notify),
+                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── adopting a shared page layout (P4b Task 5) ─────────────────────────────────────────────
+
+LAYOUT_MOVED_SENTENCE = "The author listed a newer version since you opened it. Nothing was changed. Look again."
+LAYOUT_UNSUPPORTED_SENTENCE = "This layout can't be used yet."
+
+
+def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
+                 conn: sqlite3.Connection | None = None) -> dict | None:
+    """The LISTED layout of a shared page, for the member's own client to apply (R-P4b-8).
+
+    None while layout sharing is off or when the item is not a listed `page_layout` (`_listed_row`: the one rule,
+    approved, not hidden). `version` must be the whole number the member previewed and equal the listed version,
+    else `GalleryConflict(LAYOUT_MOVED_SENTENCE)` and nothing is written. A stored payload `safe_layout` cannot
+    read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`.
+
+    Otherwise the one write is the use record (`_record_use`: once per member, never the author), committed, and
+    the answer is `{layout, version, credit}`. ⛔ It writes NO preference: the member's `journal_page_layout` is
+    theirs, saved by their own client through the preference door, so withdrawing or hiding the item later
+    changes nothing they adopted."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _listed_row(conn, gallery_id, LAYOUT_ITEM)
+        if row is None:
+            return None
+        listed = int(row["version"] or 1)
+        if isinstance(version, bool) or not isinstance(version, int) or version != listed:
+            raise GalleryConflict(LAYOUT_MOVED_SENTENCE)
+        # ⛔ `payload_json` through `_listed_payload` (never `pending_json`), then `safe_layout`: whatever is
+        # stored leaves as registry ids in `{id, shown}` entries, so an unknown panel never reaches an adopter.
+        layout = pls.safe_layout(_listed_payload(row))
+        if layout is None or not any(layout["lists"].values()):
+            raise GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)
+        _record_use(conn, row, user_id, _now())
+        conn.commit()
+        return {"layout": layout, "version": listed,
                 "credit": f"Based on {_author_label(row)}'s {row['title']}"}
     except Exception:
         if conn.in_transaction:
