@@ -99,3 +99,22 @@ def test_anonymous_caller_is_refused():
     app.dependency_overrides.pop(get_current_user_with_plan, None)
     r = TestClient(app, raise_server_exceptions=False).get("/api/modelbook/catalog")
     assert r.status_code in (401, 403)
+
+
+def test_the_lists_carry_the_gallery_not_the_write_ups(client_as):
+    """The catalog was 589 KB on production because every year's list shipped each stock's
+    full write-up (thesis, what the company does, why it ran). The gallery never reads them;
+    the detail panel reads them from /stock/{id}, which still carries every one."""
+    _seed()
+    sid = svc.get_stocks_for_year(2020)[0]["id"]
+    svc.update_stock(sid, {"company_desc": "d" * 400, "run_story": "s" * 2000})
+    c = client_as(PAID_USER)
+    cat = c.get("/api/modelbook/catalog").json()
+    listed = [s for part in cat["by_year"].values() for s in part["stocks"]["stocks"]]
+    listed += c.get("/api/modelbook/stocks?year=2020").json()["stocks"]
+    assert listed
+    for s in listed:
+        assert not {"thesis", "company_desc", "run_story"} & set(s), s
+        assert {"id", "year", "symbol", "company", "gain_pct", "setup_count"} <= set(s)
+    detail = c.get(f"/api/modelbook/stock/{sid}").json()
+    assert detail["thesis"] == "t" and detail["run_story"] == "s" * 2000
