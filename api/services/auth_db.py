@@ -5,6 +5,7 @@ Uses /data/auth.db on Railway (persistent volume) or local ./data/auth.db.
 
 import os
 import sqlite3
+import threading
 import time
 
 _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
@@ -524,11 +525,106 @@ def get_connection() -> sqlite3.Connection:
     # threadpool-starvation class behind the 2026-07-01 524 outage (bars.db
     # runs 2s on web for the same reason). WAL keeps reads lock-free; 3s is
     # generous headroom for the (throttled) session writes.
-    conn = sqlite3.connect(_DB_PATH, timeout=3)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn = _checkout(_DB_PATH)
+    if conn is None:
+        conn = sqlite3.connect(_DB_PATH, timeout=3, factory=_PooledConnection,
+                               check_same_thread=False)
+        conn._path = _DB_PATH
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+# ⭐ REUSED CONNECTIONS (2026-10-17). auth.db carries 522 tables and indexes (84 KB of
+# schema), and SQLite reads ALL of it on a new connection's first statement. Measured on the
+# real schema: open + pragmas + one indexed read + close 5.1 ms; the same read on a reused
+# connection 0.006 ms. Every authenticated request opens auth.db at least twice (session,
+# then plan), and a page load fires ~20 of them at once into one process, so the schema
+# parse alone was ~10 ms of every request and the main reason a burst queued.
+#
+# `close()` on a connection from here returns it to a small per-file pool instead of closing
+# it, in the state a fresh connection starts in. A caller cannot tell the difference:
+#   * an open transaction is ROLLED BACK, exactly as a real close discards it;
+#   * row_factory / text_factory and the callbacks are reset, and foreign_keys and
+#     busy_timeout are re-applied on every checkout;
+#   * anything not reset is refused: a changed isolation level, an ATTACHed database or a
+#     TEMP object makes close() a real close;
+#   * a second close() of the same connection is a no-op, never a second pool entry.
+# ⛔ Off under pytest (PYTEST_CURRENT_TEST): tests point _DB_PATH at a fresh temp file per
+# test, and an idle handle would stop Windows deleting it. tests/test_auth_db_pool.py turns
+# it on explicitly and drains it.
+_POOL_MAX = 8
+_POOL: dict[str, list] = {}
+_POOL_LOCK = threading.Lock()
+
+
+def _pooling() -> bool:
+    return not os.environ.get("PYTEST_CURRENT_TEST")
+
+
+def _checkout(path: str):
+    if not _pooling():
+        return None
+    with _POOL_LOCK:
+        idle = _POOL.get(path)
+        conn = idle.pop() if idle else None
+    if conn is not None:
+        conn._idle = False
+        conn.execute("PRAGMA busy_timeout=3000")
+    return conn
+
+
+def _drain_pool() -> None:
+    """Close every idle connection (tests; never needed in a running process)."""
+    with _POOL_LOCK:
+        idle = [c for conns in _POOL.values() for c in conns]
+        _POOL.clear()
+    for c in idle:
+        try:
+            sqlite3.Connection.close(c)
+        except sqlite3.Error:
+            pass
+
+
+class _PooledConnection(sqlite3.Connection):
+    _idle = False
+    _path = None
+
+    def close(self):
+        if self._idle:
+            return
+        if not (_pooling() and self._path and self._reset_for_reuse()):
+            sqlite3.Connection.close(self)
+            return
+        with _POOL_LOCK:
+            idle = _POOL.setdefault(self._path, [])
+            if len(idle) < _POOL_MAX:
+                self._idle = True
+                idle.append(self)
+                return
+        sqlite3.Connection.close(self)
+
+    def _reset_for_reuse(self) -> bool:
+        try:
+            if self.in_transaction:
+                self.rollback()
+            if self.isolation_level != "":
+                return False
+            # `temp` appears here once anything touches it (the check below does), so only a
+            # name other than main/temp is an ATTACHed database.
+            if any(r[1] not in ("main", "temp") for r in self.execute("PRAGMA database_list")):
+                return False
+            if self.execute("SELECT 1 FROM temp.sqlite_master LIMIT 1").fetchone():
+                return False                     # a TEMP table, view or trigger
+            self.row_factory = sqlite3.Row
+            self.text_factory = str
+            self.set_trace_callback(None)
+            self.set_authorizer(None)
+            self.set_progress_handler(None, 0)
+            return True
+        except sqlite3.Error:
+            return False
 
 
 def execute_with_retry(sql: str, params: tuple = (), tries: int = 2, backoff: float = 0.15) -> None:
