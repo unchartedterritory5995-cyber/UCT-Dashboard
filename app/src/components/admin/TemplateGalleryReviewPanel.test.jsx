@@ -26,8 +26,10 @@ const textOf = (doc) => doc.content[0].content[0].text
 // The recorded revision, made to differ from the listed version where the panel could confuse the two.
 const REVISED_OUTLINE = { ...REV_ITEM.payload.outlineBodyJson, content: [{ ...REV_ITEM.payload.outlineBodyJson.content[0],
   content: [{ ...REV_ITEM.payload.outlineBodyJson.content[0].content[0], text: `Revised: ${textOf(REV_ITEM.payload.outlineBodyJson)}` }] }] }
+// Final review M-10: the read's `pendingRevision.version` is moved OFF "listed + 1", so a panel that restated the
+// server's arithmetic from the queue row (`item.version + 1`) would print a different number than one that reads it.
 const REVISION_READ = { ...REV_ITEM, pendingRevision: { ...REV_ITEM.pendingRevision, tradingStyle: 'day',
-  description: 'Now with a rules block.', category: 'review',
+  description: 'Now with a rules block.', category: 'review', version: REV_ITEM.pendingRevision.version + 1,
   payload: { ...REV_ITEM.pendingRevision.payload, outlineBodyJson: REVISED_OUTLINE } } }
 // A first submission waiting for review, and a held revision of a LISTED style (approved, with pending_at set).
 const PENDING_STYLE = { ...SHARED, id: 'style_pending', openReports: 0, updatedAt: QUEUE_STAMP }
@@ -111,9 +113,13 @@ describe('the review queue for a style item', () => {
     renderPanel()
     const row = await rowOf(REVISION.id)
     const rev = REVISION_READ.pendingRevision
-    expect(within(row).getByText(revisionLine(REVISION.version))).toBeInTheDocument()
-    expect(revisionLine(REVISION.version)).toBe(
-      `Update to a listed style (version ${REVISION.version}). Approving lists it; the current version stays until then.`)
+    // The server's version for the update (M-10), never the listed one and never the queue row's + 1
+    expect(await within(row).findByText(revisionLine(rev.version))).toBeInTheDocument()
+    expect(revisionLine(rev.version)).toBe(
+      `Update to version ${rev.version} of a listed style. Approving lists it; the current version stays until then.`)
+    expect(new Set([rev.version, REVISION.version, REVISION.version + 1]).size).toBe(3)        // non-vacuity
+    expect(within(row).queryByText(revisionLine(REVISION.version))).toBeNull()
+    expect(within(row).queryByText(revisionLine(REVISION.version + 1))).toBeNull()
     expect(await within(row).findByText(`Title in this update: ${rev.title}`)).toBeInTheDocument()
     expect(within(row).getByText(`Description in this update: ${rev.description}`)).toBeInTheDocument()
     expect(within(row).getByText(`Category in this update: ${categoryLabel(rev.category)}`)).toBeInTheDocument()
@@ -140,7 +146,11 @@ describe('the review queue for a style item', () => {
     const preview = await screen.findByRole('dialog', { name: REVISION.title })
     expect(await within(preview).findByText(textOf(REVISED_OUTLINE))).toBeInTheDocument()
     expect(within(preview).queryByText(textOf(REV_ITEM.bodyJson))).toBeNull()
-    expect(within(preview).getByText(new RegExp(`the update’s outline \\(version ${REVISION.version + 1}\\)`))).toBeInTheDocument()
+    // ONE number for one revision: the subtitle names the same version as the card line (M-10)
+    const v = REVISION_READ.pendingRevision.version
+    expect(await within(preview).findByText(new RegExp(`the update’s outline \\(version ${v}\\)`))).toBeInTheDocument()
+    expect(within(row).getByText(revisionLine(v))).toBeInTheDocument()
+    expect(within(preview).queryByText(new RegExp(`\\(version ${REVISION.version + 1}\\)`))).toBeNull()
   })
 
   it('Preview shows a first submission\'s outline', async () => {
@@ -215,12 +225,35 @@ describe('the review queue for a style item', () => {
     expect(within(row).getByText('Blocks: none')).toBeInTheDocument()            // the card itself is untouched
   })
 
-  it('N-4: the refreshed line clears when the reviewer acts on the row (Reject)', async () => {
+  it('N-4: the refreshed line clears when the reviewer acts on the row (Reject sent), not when Reject… opens', async () => {
     renderPanel()
     const row = await refreshCard()
     fireEvent.click(within(row).getByRole('button', { name: `Reject ${PENDING_STYLE.title}` }))
-    expect(await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })).toBeInTheDocument()
-    expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull()
+    const form = await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })
+    expect(within(row).getByText(CARD_REFRESHED_LINE)).toBeInTheDocument()       // M-1: opening is an intent
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }))
+    expect(within(row).getByText(CARD_REFRESHED_LINE)).toBeInTheDocument()       // and Cancel did nothing
+    fireEvent.click(within(row).getByRole('button', { name: `Reject ${PENDING_STYLE.title}` }))
+    const again = await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })
+    fireEvent.change(within(again).getByRole('textbox'), { target: { value: 'Too thin yet.' } })
+    fireEvent.click(within(again).getByRole('button', { name: 'Reject' }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    await waitFor(() => expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull())
+  })
+
+  it('M-1: an Approve the server refuses (409) leaves the refreshed line where it was', async () => {
+    renderPanel()
+    const row = await refreshCard()
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn((input, init = {}) => {
+      if ((init.method || '').toUpperCase() !== 'PATCH') return real(input, init)
+      calls.push({ method: 'PATCH', path: String(input), body: JSON.parse(init.body) })
+      return Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({ detail: 'This changed since you looked.' }) })
+    })
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    await waitFor(() => expect(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` })).not.toBeDisabled())
+    expect(within(row).getByText(CARD_REFRESHED_LINE)).toBeInTheDocument()
   })
 
   it('N-4: the refreshed line clears when the reviewer reopens a card that is now current', async () => {

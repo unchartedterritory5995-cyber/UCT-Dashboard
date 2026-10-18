@@ -224,6 +224,21 @@ describe('adopt', () => {
     expect(screen.queryByText(/Added "/)).not.toBeInTheDocument()
   })
 
+  it('a body-less 429 (a proxy’s own page) is our fixed sentence, never "request failed (429)" (final review M-7)', async () => {
+    flags()
+    server.adoptAnswer = null
+    const real = global.fetch
+    global.fetch = vi.fn(async (url, init) => (String(url).endsWith(`/${STYLE.id}/adopt`)
+      ? { ok: false, status: 429, json: async () => { throw new SyntaxError('Unexpected token <') } }
+      : real(url, init)))
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't add "${STYLE.title}" to your styles. Nothing was changed.`)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/request failed/)
+    expect(global.fetch.mock.calls.some(([u]) => String(u).endsWith(`/${STYLE.id}/adopt`))).toBe(true)  // non-vacuity
+  })
+
   it('a missing item is our own fixed sentence, never the server’s bare "Not found"', async () => {
     flags()
     server.adoptAnswer = 'template-gallery.adopt.not-found'
@@ -327,7 +342,7 @@ describe('telemetry: library_viewed', () => {
     await screen.findByRole('heading', { name: STYLE.title })
     await waitFor(() => expect(sentEvents('library_viewed')).toEqual([
       { type: 'all', view: 'browse' }, { type: 'style', view: 'browse' },
-      { type: 'style', view: 'author' }, { type: 'style', view: 'browse' },
+      { type: 'all', view: 'author' }, { type: 'style', view: 'browse' },     // an author's page lists every type (M-2)
       { type: 'style', view: 'following' },
       { type: 'style', view: 'browse' },                                       // back from Your submissions
     ]))
@@ -342,7 +357,8 @@ describe('telemetry: library_viewed', () => {
     await screen.findByRole('region', { name: 'UCT picks' })
     await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
     expect(sentEvents('library_viewed')).toEqual([])
-    // CONTROL: the same door with the switch on does send (so the empty list above is the switch, not the read)
+    // Non-vacuity: the gallery WAS read, so the empty list above is the switch, not a door that never opened. (The
+    // control that the same door with the switch ON does send is the preceding test.)
     expect(calls.some((c) => c.path === '/api/j2/template-gallery')).toBe(true)
   })
 })

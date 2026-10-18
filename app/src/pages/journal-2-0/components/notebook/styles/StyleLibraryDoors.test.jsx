@@ -10,6 +10,8 @@
 // a fixture object, never a retyped shape.
 // ⛔ Fix round 1, M-2: the copy carries its OWN `updatedAt`, distinct from every other fixture timestamp, so a
 //    sheet that sent the wrong base (the plan's, the gallery item's, a re-read one) cannot pass.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { useEffect } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, waitFor, fireEvent, act } from '@testing-library/react'
@@ -495,13 +497,26 @@ describe('reviewing an author\'s update', () => {
   })
 })
 
+// ⛔ Final review M-9: the deep link is the SERVER's (template_gallery.py `LIBRARY_UPDATE_PATH`), read off the
+// source the way lib/notices.test.js reads it, never typed here. A rename there now reds this file too, where
+// before the manager silently stopped opening the sheet from the bell while every test stayed green.
+const SERVER_LINK = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two',
+  'template_gallery.py'), 'utf8').match(/^LIBRARY_UPDATE_PATH = "(.+)"$/m)?.[1]
+const linkTo = (id) => `${SERVER_LINK}${id}`
+const LINK_PARAM = SERVER_LINK ? [...new URLSearchParams(SERVER_LINK.split('?')[1]).keys()].pop() : null
+
 describe('the bell notice\'s deep link', () => {
+  it('reads the server\'s link (non-vacuity)', () => {
+    expect(SERVER_LINK).toMatch(/^\/journal\/notebook\?/)
+    expect(LINK_PARAM).toBeTruthy()
+  })
+
   it('?styles=1&libraryUpdate=<id> opens the update sheet for that copy, then leaves the URL clean', async () => {
     flags()
-    openManager(`/journal/notebook?styles=1&libraryUpdate=${COPY.id}`)
+    openManager(linkTo(COPY.id))
     const dialog = await screen.findByRole('dialog', { name: `Update ${COPY.name}` })
     expect(await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))).toBeInTheDocument()
-    await waitFor(() => expect(new URLSearchParams(lastLocation.search).get('libraryUpdate')).toBeNull())
+    await waitFor(() => expect(new URLSearchParams(lastLocation.search).get(LINK_PARAM)).toBeNull())
     expect(new URLSearchParams(lastLocation.search).get('styles')).toBe('1')     // only its own param is taken
   })
 
@@ -515,14 +530,14 @@ describe('the bell notice\'s deep link', () => {
     await act(async () => {})
     first.unmount()
     updatesAnswer = UPDATES                                                    // an admin approved; the bell rang
-    openManager(`/journal/notebook?styles=1&libraryUpdate=${COPY.id}`, cache)
+    openManager(linkTo(COPY.id), cache)
     const dialog = await screen.findByRole('dialog', { name: `Update ${COPY.name}` })
     expect(await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))).toBeInTheDocument()
   })
 
   it('a dismissed deep-linked sheet does not open again', async () => {
     flags()
-    openManager(`/journal/notebook?styles=1&libraryUpdate=${COPY.id}`)
+    openManager(linkTo(COPY.id))
     const dialog = await screen.findByRole('dialog', { name: `Update ${COPY.name}` })
     await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Not now' }))
@@ -535,10 +550,10 @@ describe('the bell notice\'s deep link', () => {
 
   it('a style id that is not this member\'s opens nothing and shows nothing broken', async () => {
     flags()
-    openManager('/journal/notebook?styles=1&libraryUpdate=s_not_mine')
+    openManager(linkTo('s_not_mine'))
     await memberRow()
     await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
-    await waitFor(() => expect(new URLSearchParams(lastLocation.search).get('libraryUpdate')).toBeNull())
+    await waitFor(() => expect(new URLSearchParams(lastLocation.search).get(LINK_PARAM)).toBeNull())
     await act(async () => {})
     expect(screen.queryByRole('dialog', { name: /^Update / })).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()

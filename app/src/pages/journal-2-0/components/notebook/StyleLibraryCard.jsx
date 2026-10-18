@@ -16,14 +16,15 @@ import { categoryLabel } from '../../lib/templateGallery'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
+import { libraryError } from './styles/styleErrors'
 import styles from './TemplateGallery.module.css'
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
- *  "Not found" and a 5xx say nothing a member can act on. */
+ *  "Not found" and a 5xx say nothing a member can act on. ⛔ ONE rule, `libraryError`'s (final review M-7):
+ *  this was a second copy of it without its guard, so a body-less 429 ("request failed (429)", a proxy's own
+ *  page) reached a member's card as written. */
 export function refusalSentence(err, fallback) {
-  const s = err?.status
-  const spoken = s === 400 || s === 402 || s === 409 || s === 429
-  return spoken && err?.message ? err.message : fallback
+  return libraryError(err, fallback)
 }
 
 const withStop = (s) => (/[.!?]$/.test(s) ? s : `${s}.`)

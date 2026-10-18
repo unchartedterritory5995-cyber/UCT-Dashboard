@@ -261,6 +261,32 @@ describe('publishing and your submissions', () => {
     expect(await screen.findByText(new RegExp(`Unpublished “${waiting.title}”\\.`))).toBeInTheDocument()
     expect(sentTo(`/api/j2/template-gallery/${waiting.id}`, 'DELETE')).toHaveLength(1)
   })
+
+  it('tells the author about a held update and a declined one on a listed item (final review I-1)', async () => {
+    // The recorded listed row, as the server sends it after a revision was declined (status stays
+    // approved, `reviewNote` set) and after a new one was shared (`hasRevision`).
+    const listed = mineWith('approved')
+    expect(listed.reviewNote).toBe('')                                  // non-vacuity: the recorded row has none
+    expect(listed).toHaveProperty('hasRevision', false)                 // and the key IS in the recorded shape
+    server.mine = [
+      { ...listed, id: 'declined', title: 'Declined update', reviewNote: 'Remove the broker name from the outline.' },
+      { ...listed, id: 'held', title: 'Held update', hasRevision: true },
+    ]
+    gateOn()
+    const { user } = await openGallery()
+    await user.click(screen.getByRole('button', { name: 'Your submissions' }))
+    const list = await screen.findByRole('list', { name: 'Your submissions' })
+    const declined = list.querySelector('[data-gallery-row="declined"]')
+    const held = list.querySelector('[data-gallery-row="held"]')
+    expect(within(declined).getByText('Listed')).toBeInTheDocument()
+    expect(within(declined).getByText('Your last update was not approved. The listed version is unchanged.'))
+      .toBeInTheDocument()
+    expect(within(declined).getByText('Reviewer: Remove the broker name from the outline.')).toBeInTheDocument()
+    expect(within(held).getByText('An update is waiting for review. The listed version stays until then.'))
+      .toBeInTheDocument()
+    expect(within(held).queryByText(/Reviewer:/)).not.toBeInTheDocument()
+    expect(within(declined).queryByText(/An update is waiting/)).not.toBeInTheDocument()
+  })
 })
 
 describe('the style library switch (P3a), off', () => {

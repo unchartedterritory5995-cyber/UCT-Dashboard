@@ -11,7 +11,7 @@
 // P3a Task 10: a STYLE item (`itemType === 'style'`, only while the library switch is on: the server's queue
 // holds outline rows alone otherwise) also shows its kind, its blocks and its trading style, read from the
 // item's `payload` (getGalleryTemplate, admin-visible while pending); Preview shows its outline. A held revision
-// of a listed style says so ("Update to a listed style (version N) ...") with the revision's own title.
+// of a listed style says so ("Update to version N of a listed style ...") with the revision's own title.
 // ⛔ Fix round 1 (ruling P3a-T10-R1): for a held REVISION every detail shown is the revision's own, read from the
 //    admin-only `pendingRevision` on the same single-item read (title, description, category, trading style,
 //    kind, blocks, and the outline Preview shows). The queue row's own fields are the LISTED version's, so they
@@ -35,8 +35,10 @@ import styles from '../../pages/journal-2-0/components/notebook/TemplateGallery.
 
 const reasonLabel = (key) => REPORT_REASONS.find((r) => r.key === key)?.label || key
 
+// ⛔ `version` is the server's `pendingRevision.version` (final review M-10): the panel never restates the server's
+// "listed + 1" arithmetic, so the card line and the Preview subtitle cannot name two numbers for one revision.
 export const revisionLine = (version) =>
-  `Update to a listed style (version ${version}). Approving lists it; the current version stays until then.`
+  `Update to version ${version} of a listed style. Approving lists it; the current version stays until then.`
 export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
 export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
 const reviewCardKey = (item) => ['gallery-review-style', item.id, item.updatedAt]
@@ -66,7 +68,7 @@ function StyleReviewDetails({ item, onRead }) {
   const blocks = (shown?.payload?.blocks || []).map((b) => blockLabel(b.block))
   return (
     <div data-gallery-review-style={item.id}>
-      {item.hasRevision && <p className={styles.note}>{revisionLine(item.version)}</p>}
+      {item.hasRevision && shown?.version != null && <p className={styles.note}>{revisionLine(shown.version)}</p>}
       {error && <p className={styles.error} role="alert">Couldn't load this style's kind and blocks.</p>}
       {!error && !data && <p className={styles.note}>Loading the style…</p>}
       {data && !shown && <p className={styles.error} role="alert">{REVISION_UNREADABLE_LINE}</p>}
@@ -127,10 +129,11 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
   // when the author has published again since.
   const [seen, setSeen] = useState({})
 
-  const act = async (fn, okText) => {
+  const act = async (fn, okText, onDone) => {
     setWorking(true)
     try {
       await fn()
+      onDone?.()
       onMessage({ tone: 'ok', text: okText })
       refresh()
     } catch (err) {
@@ -144,7 +147,8 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
 
   const markSeen = useCallback((id, updatedAt) => setSeen((prev) => (prev[id] === updatedAt ? prev : { ...prev, [id]: updatedAt })), [])
   // Style rows whose card a Preview brought up to date: { [id]: the row's updatedAt when it happened }. The line
-  // says so until the reviewer acts on the row (Approve, Reject), reopens a card that is now current, or the queue
+  // says so until the reviewer ACTS on the row (an Approve that landed, a Reject that was sent -- never opening
+  // Reject… or an Approve the server refused, final review M-1), reopens a card that is now current, or the queue
   // brings the row back with another updatedAt (Task 11, review N-4: it used to stay for as long as the row did).
   const [refreshed, setRefreshed] = useState({})
   const clearRefreshed = useCallback((id) => setRefreshed((prev) => {
@@ -157,7 +161,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
 
   const openPreview = async (item) => {
     const style = item.itemType === 'style'
-    const what = !style ? '' : item.hasRevision ? ` · the update’s outline (version ${item.version + 1})` : ' · the style’s outline'
+    const what = !style ? '' : item.hasRevision ? ' · the update’s outline' : ' · the style’s outline'
     const base = { label: item.title, subtitle: `by ${item.author} · ${categoryLabel(item.category)}${what}` }
     setPreview({ ...base, loading: true })
     try {
@@ -173,7 +177,8 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
       if (style && item.hasRevision) {
         const shown = underReview(item, full)
         if (!shown) { setPreview({ ...base, loadError: REVISION_UNREADABLE_LINE }); return }
-        setPreview({ ...base, body: shown.outline || { type: 'doc', content: [] } })
+        setPreview({ ...base, subtitle: `${base.subtitle} (version ${shown.version})`,
+          body: shown.outline || { type: 'doc', content: [] } })
       } else {
         setPreview({ ...base, body: full.bodyJson })
       }
@@ -202,14 +207,15 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
               <button type="button" className={styles.btn} onClick={() => openPreview(item)}
                 aria-label={`Preview ${item.title}`}>Preview</button>
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
-                onClick={() => { clearRefreshed(item.id); act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt), `Approved “${item.title}”. It is listed now.`) }}
+                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt),
+                  `Approved “${item.title}”. It is listed now.`, () => clearRefreshed(item.id))}
                 aria-label={`Approve ${item.title}`}>Approve</button>
-              <button type="button" className={styles.btn} onClick={() => { clearRefreshed(item.id); setRejecting(item.id) }}
+              <button type="button" className={styles.btn} onClick={() => setRejecting(item.id)}
                 aria-label={`Reject ${item.title}`}>Reject…</button>
             </div>
             {rejecting === item.id && (
               <RejectForm item={item} onCancel={() => setRejecting(null)}
-                onDone={(text) => { setRejecting(null); onMessage({ tone: 'ok', text }); refresh() }} />
+                onDone={(text) => { clearRefreshed(item.id); setRejecting(null); onMessage({ tone: 'ok', text }); refresh() }} />
             )}
           </div>
         ))}

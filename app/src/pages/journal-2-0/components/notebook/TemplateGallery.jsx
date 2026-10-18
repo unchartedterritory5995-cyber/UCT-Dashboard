@@ -233,8 +233,16 @@ function MySubmissions({ onMessage }) {
               {statusText(item)}
             </span>
           </div>
-          {item.status === 'rejected' && item.reviewNote && (
+          {/* R-P3-3's client half (final review I-1). An APPROVED row carries a note only after a declined
+              update (approve and a new share both clear it), so the author reads why; a held update is said too. */}
+          {item.status === 'approved' && item.reviewNote && (
+            <p className={styles.note}>Your last update was not approved. The listed version is unchanged.</p>
+          )}
+          {(item.status === 'rejected' || item.status === 'approved') && item.reviewNote && (
             <p className={styles.cardDesc}>Reviewer: {item.reviewNote}</p>
+          )}
+          {item.status === 'approved' && item.hasRevision && (
+            <p className={styles.note}>An update is waiting for review. The listed version stays until then.</p>
           )}
           {confirm === item.id ? (
             <div className={styles.actions} role="group" aria-label={`Unpublish ${item.title}?`}>
@@ -288,8 +296,11 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   // (an author's page over Browse or Following reads 'author'); 'Your submissions' and the review queue are not
   // library views and send nothing. Changing the type chip changes what the view shows, so it counts as a change.
   // ⛔ Enums only: never the author's handle, a query or an item.
+  // An author's page lists every type whatever chip Browse had on, so it reads type 'all' (final review M-2).
+  // ⚠️ Every open of the gallery counts ONE 'browse', whatever the member opened it for (Your submissions, the
+  // review queue): the door lands on Browse first. Read the browse count as "gallery opens", not "browsing".
   const libraryView = !libraryOn ? null : author ? 'author' : view === 'browse' || view === 'following' ? view : null
-  const libraryType = itemType || 'all'
+  const libraryType = libraryView === 'author' ? 'all' : (itemType || 'all')
   // The dependency list IS the "once per change": a re-render that moves neither sends nothing.
   useEffect(() => {
     if (libraryView) trackNotebookEvent(NOTEBOOK_EVENTS.LIBRARY_VIEWED, { type: libraryType, view: libraryView })
