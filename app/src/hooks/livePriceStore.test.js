@@ -172,3 +172,61 @@ describe('livePriceStore', () => {
     expect(getSnapshot()).toEqual({}) // last ref gone → cleared
   })
 })
+
+describe('livePriceStore cadence follows the session (2026-10-17)', () => {
+  beforeEach(() => {
+    __resetForTest()
+    vi.useFakeTimers()
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 1 } }) }))
+  })
+  afterEach(() => {
+    __resetForTest()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+  const pollsOver = async (ms) => {
+    registerTickers(['AAPL'])
+    const first = global.fetch.mock.calls.length          // the immediate first poll
+    await vi.advanceTimersByTimeAsync(ms)
+    return global.fetch.mock.calls.length - first
+  }
+
+  it('a closed market (Saturday) polls every 30 s, not every 2 s', async () => {
+    vi.setSystemTime(new Date('2026-10-17T16:00:00Z'))    // Sat 12:00 ET
+    expect(await pollsOver(59_000)).toBe(1)
+  })
+
+  it('overnight (23:00 ET on a weekday) is closed too', async () => {
+    vi.setSystemTime(new Date('2026-10-20T03:00:00Z'))    // Mon 23:00 ET
+    expect(await pollsOver(59_000)).toBe(1)
+  })
+
+  it('CONTROL: the regular session keeps the fast cadence', async () => {
+    vi.setSystemTime(new Date('2026-10-19T15:00:00Z'))    // Mon 11:00 ET
+    expect(await pollsOver(20_000)).toBeGreaterThanOrEqual(5)
+  })
+
+  it('CONTROL: pre-market keeps the fast cadence (extended prices move)', async () => {
+    vi.setSystemTime(new Date('2026-10-19T12:00:00Z'))    // Mon 08:00 ET
+    expect(await pollsOver(20_000)).toBeGreaterThanOrEqual(5)
+  })
+
+  it('a tab open overnight speeds back up at 04:00 without a reload', async () => {
+    vi.setSystemTime(new Date('2026-10-19T07:59:00Z'))    // Mon 03:59 ET, closed
+    registerTickers(['AAPL'])
+    await vi.advanceTimersByTimeAsync(91_000)             // past 04:00 ET and one slow wait
+    const at = global.fetch.mock.calls.length
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(global.fetch.mock.calls.length - at).toBeGreaterThanOrEqual(5)
+  })
+
+  it('stops polling when the last subscriber leaves', async () => {
+    vi.setSystemTime(new Date('2026-10-19T15:00:00Z'))
+    const off = registerTickers(['AAPL'])
+    await vi.advanceTimersByTimeAsync(4_100)
+    off()
+    const at = global.fetch.mock.calls.length
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(global.fetch.mock.calls.length).toBe(at)
+  })
+})

@@ -160,12 +160,21 @@ def run(now: Optional[datetime] = None, morning: bool = False, post=None,
     res["sentiment"] = check_sentiment(now)
     stamp = now.date().isoformat() + (":am" if morning else ":pm")
     sent = {}
-    for cls, title in (("stale", "Breadth charts are behind"), ("gaps", "Breadth charts have missing days"),
-                       ("values", "Breadth charts have impossible values"),
-                       ("sentiment", "Breadth sentiment inputs are stale")):
+    for cls, title, ok_title in (
+            ("stale", "Breadth charts are behind", "Breadth charts are current again"),
+            ("gaps", "Breadth charts have missing days", "Breadth charts have no missing days again"),
+            ("values", "Breadth charts have impossible values", "Breadth chart values are valid again"),
+            ("sentiment", "Breadth sentiment inputs are stale", "Breadth sentiment inputs are current again")):
         items = res.get(cls) or []
         if not items:
-            breadth_alerts.clear(f"health:{cls}")
+            # (2026-10-17) say the recovery, once, only if it had alerted. ⛔ A pass that checked
+            # NO series (all cold) saw nothing, so it cannot vouch for the charts: key left alone.
+            if cls == "sentiment" or res.get("checked"):
+                lines = ([f"{res['checked']} checked, none affected"] if cls != "sentiment"
+                         else ["AAII, NAAIM and put/call are current"])
+                r = breadth_alerts.resolve(f"health:{cls}", f"{ok_title} ({stamp})", lines, post=post)
+                if r.get("sent"):
+                    sent[cls] = r
             continue
         lines = [f"{len(items)} affected" + (f" of {res['checked']} checked" if cls != "sentiment" else ""),
                  *items[:12]]
