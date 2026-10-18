@@ -1,0 +1,787 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4a-gate/app[39m
+
+ [31m❯[39m src/components/chart/engine/__tests__/lwcHazards.test.js [2m([22m[2m28 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 18[2mms[22m[39m
+     [32m✓[39m the sweep can see the codebase at all[32m 1[2mms[22m[39m
+[31m     [31m×[31m ⛔ every call site that passes an object literal names lineStyle[39m[32m 7[2mms[22m[39m
+     [32m✓[39m THE CONTROL: the sweep catches a call site that omits it[32m 1[2mms[22m[39m
+     [32m✓[39m THE CONTROL: and passes one that names it, even with nested braces[32m 0[2mms[22m[39m
+     [32m✓[39m the default really is Dashed, and the map still says so[32m 1[2mms[22m[39m
+     [32m✓[39m refuses to leave the style to LWC, and says what the default would be[32m 1[2mms[22m[39m
+     [32m✓[39m accepts an explicit style and keeps it[32m 0[2mms[22m[39m
+     [32m✓[39m defaults axisLabelVisible to false, because Pine hlines draw no label[32m 0[2mms[22m[39m
+     [32m✓[39m clamps Pine's unbounded width into the native four[32m 0[2mms[22m[39m
+     [32m✓[39m names an unknown style rather than passing it through[32m 0[2mms[22m[39m
+     [32m✓[39m is exactly 1|2|3|4[32m 0[2mms[22m[39m
+     [32m✓[39m clamps out-of-range widths and says it clamped[32m 0[2mms[22m[39m
+     [32m✓[39m ⚠️ the module says the clamp is native-only[32m 0[2mms[22m[39m
+     [32m✓[39m a one-bar box has inclusive length 1 and gap-corrected length 0[32m 1[2mms[22m[39m
+     [32m✓[39m a ten-bar span is 11 inclusive, which is the trap[32m 0[2mms[22m[39m
+     [32m✓[39m normalises a reversed span[32m 0[2mms[22m[39m
+     [32m✓[39m refuses a non-finite index[32m 0[2mms[22m[39m
+     [32m✓[39m is 10000 back and 500 forward[32m 0[2mms[22m[39m
+     [32m✓[39m accepts the edges and rejects just outside them[32m 0[2mms[22m[39m
+     [32m✓[39m reports rather than clamps[32m 0[2mms[22m[39m
+     [32m✓[39m knows the polyline budget[32m 0[2mms[22m[39m
+     [32m✓[39m says to cull when the point count exceeds the visible range[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ 500 boxes are ONE primitive, not 500[32m 0[2mms[22m[39m
+     [32m✓[39m hides the series AND removes it from autoscale[32m 0[2mms[22m[39m
+     [32m✓[39m the capability map still specifies both halves[32m 0[2mms[22m[39m
+     [32m✓[39m every registered hazard is named by a describe block in this file[32m 1[2mms[22m[39m
+     [32m✓[39m THE CONTROL: the register check can spot an uncovered hazard[32m 0[2mms[22m[39m
+     [32m✓[39m names seven hazards[32m 0[2mms[22m[39m
+ [31m❯[39m src/pages/terminal/themeColours.rail.test.js [2m([22m[2m6 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 159[2mms[22m[39m
+     [32m✓[39m CONTROL: the scope is the real terminal import graph, not an empty walk[32m 4[2mms[22m[39m
+     [32m✓[39m CONTROL: the detector sees a literal, and only the sanctioned forms pass[32m 4[2mms[22m[39m
+     [32m✓[39m CONTROL: the verdict reds on a new literal and on a ledger that was not lowered[32m 1[2mms[22m[39m
+[31m     [31m×[31m ⛔ no terminal-mounted file gains a hardcoded colour (fix it with a token, not the ledger)[39m[32m 146[2mms[22m[39m
+     [32m✓[39m ⛔ the ledger only shrinks: a count that dropped is lowered in the same commit[32m 0[2mms[22m[39m
+     [32m✓[39m every ledger entry carries a reason, and no file is in both halves[32m 1[2mms[22m[39m
+ [31m❯[39m src/pages/terminal/a11y/terminalReachableContrast.test.js [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 217[2mms[22m[39m
+     [32m✓[39m walked the reachable stylesheets (non-vacuity)[32m 2[2mms[22m[39m
+     [32m✓[39m no var(--loss)/var(--gain) as text colour in any reachable stylesheet[32m 139[2mms[22m[39m
+[31m     [31m×[31m no inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses[39m[32m 69[2mms[22m[39m
+     [32m✓[39m every other failing text rule is in the shrink-only baseline, file by file[32m 1[2mms[22m[39m
+     [32m✓[39m every baseline entry carries a reason[32m 2[2mms[22m[39m
+     [32m✓[39m CONTROL: the text check SEES --loss/--gain as text (plain and with a fallback) and ignores fills/borders[32m 1[2mms[22m[39m
+     [32m✓[39m CONTROL: the contrast audit SEES a failing rule and records an unreadable one instead of throwing[32m 1[2mms[22m[39m
+ [31m❯[39m src/pages/command/keyListenerCensus.test.js [2m([22m[2m7 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 5920[2mms[22m[39m
+     [32m✓[39m CONTROL: a comment or prose mention is not a listener; a real call is[32m 7[2mms[22m[39m
+     [32m✓[39m CONTROL: a dynamic registration and a wrapper hook are caught as orphans[32m 2[2mms[22m[39m
+     [32m✓[39m CONTROL: dispatching a key event is not listening for one[32m 1[2mms[22m[39m
+     [33m[2m✓[22m[39m NON-VACUITY: it walks the whole tree, parses every file, and finds the registry [33m 5900[2mms[22m[39m
+[31m     [31m×[31m no file holds MORE raw key listeners than its baseline (new ones go through the registry)[39m[32m 6[2mms[22m[39m
+     [32m✓[39m no baseline row is STALE (a migrated listener must leave the baseline in the same commit)[32m 0[2mms[22m[39m
+[31m     [31m×[31m the baseline sits at or under the stated CEILING, and the CEILING is tight[39m[32m 1[2mms[22m[39m
+ [31m❯[39m src/components/chart/engine/__tests__/enumerationSites.test.js [2m([22m[2m41 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 4778[2mms[22m[39m
+     [32m✓[39m holds 17 live sites, and every one of them is still where it says it is[32m 16[2mms[22m[39m
+     [32m✓[39m exempts NO row from the anchor check — the one fuse has fired[32m 0[2mms[22m[39m
+     [32m✓[39m every B4 region is retired — 2 to C, 5 kept, and NO B4, B5 or phase key[32m 0[2mms[22m[39m
+     [32m✓[39m every site names its own fate, so a permutation cannot pass[32m 1[2mms[22m[39m
+     [32m✓[39m the closed-table manifest is on the ledger the moment it exists[32m 0[2mms[22m[39m
+     [32m✓[39m the ledger names the file that will hold the closed table, and says why[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity[32m 2[2mms[22m[39m
+     [32m✓[39m the two sites this task retired are GONE, not merely unlisted[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ and the settings-row list B4 Task 6 retired is GONE too[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ and the toolbar's fifteen indicator rows — and the three helpers that kept them honest — are GONE[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ and the voice bus no longer hand-lists indicators[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐ and the alert dropdown's five-part twin of INDICATOR_FUNCS is GONE[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ and the legend's three-part indicator enumeration is GONE — all of it[32m 55[2mms[22m[39m
+     [32m✓[39m ⛔ the three regions RETIRED_BY_B5_TASK9 took are GONE, and the allow-list DESTROYS[32m 7[2mms[22m[39m
+     [32m✓[39m ⛔ the four regions RETIRED_BY_B5_TASK8 took are GONE, not merely unlisted[32m 33[2mms[22m[39m
+     [32m✓[39m ⛔ StockChart imports no compute function at all — the lane is the ENGINE lane[32m 86[2mms[22m[39m
+     [32m✓[39m ⛔ …and every definition still resolves a compute — the exports are NOT dead[32m 27[2mms[22m[39m
+     [32m✓[39m ⭐ and the share link no longer hand-lists the four pilots[32m 8[2mms[22m[39m
+     [32m✓[39m ⭐ and the four keyboard regions B4 Task 4 retired are GONE too[32m 10[2mms[22m[39m
+     [33m[2m✓[22m[39m names every shipped module that hand-lists four or more indicators [33m 2182[2mms[22m[39m
+[31m     [31m×[31m names every shipped Python module that hand-lists four or more indicators[39m[33m 2188[2mms[22m[39m
+     [32m✓[39m ⭐ the two Python address tables are the size the ledger says — 28 addresses, and NO `sar` alias[32m 5[2mms[22m[39m
+     [32m✓[39m ⭐ the scan reads CODE, not prose — and still reads code[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ the PYTHON scan reads CODE, not prose — and still reads code[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ the two tables COVER the flip set — a missing row is a silent no-op[32m 64[2mms[22m[39m
+     [32m✓[39m declares no series ref and creates no series for a flipped id[32m 21[2mms[22m[39m
+     [32m✓[39m runs no second computation for a flipped id — the engine computes it once[32m 3[2mms[22m[39m
+     [32m✓[39m ⛔ and the STRIPPER is load-bearing, not decorative — measured on ichimoku[32m 1[2mms[22m[39m
+     [32m✓[39m keeps no Flip-A guard for a flipped id — the block should be GONE, not guarded[32m 6[2mms[22m[39m
+     [32m✓[39m creates no migrated-but-un-flipped definition while the settings migration is open[32m 3[2mms[22m[39m
+     [32m✓[39m ⭐ the repaint badge is a shared DEFAULT, and this record says so — the biconditional[32m 5[2mms[22m[39m
+     [32m✓[39m ⭐ every test title the decision record cites verbatim is a title that exists[32m 33[2mms[22m[39m
+     [32m✓[39m listIndicators() contains no migrated definition, by id or by settings path[32m 1[2mms[22m[39m
+     [32m✓[39m and the engine-owned rows hand-write no field — they are derived[32m 2[2mms[22m[39m
+     [32m✓[39m a price overlay reserves no vertical space — adjudication A6, at its new address[32m 0[2mms[22m[39m
+     [32m✓[39m every settings section has an engine definition, or is a named exemption[32m 0[2mms[22m[39m
+     [32m✓[39m every definition is REACHABLE from a v1 blob that names it[32m 3[2mms[22m[39m
+     [32m✓[39m pins exactly which declared inputs the toolbar cannot reach[32m 3[2mms[22m[39m
+     [32m✓[39m every declared input of every definition is reachable from the generated dialog[32m 1[2mms[22m[39m
+     [32m✓[39m MACD's two colours have a control now — the gap B3 measured and could not close[32m 1[2mms[22m[39m
+     [32m✓[39m and nothing was silently dropped: every migrated id's toolbar gap is named above[32m 3[2mms[22m[39m
+[90mstdout[2m | src/components/provenance/panelAdoption.ratchet.test.js[2m > [22m[2m⭐⭐ the ratchet — adoption may not go backwards[2m > [22m[2mprints the population, the frontier, and the labels
+[22m[39m
+════ PROVENANCE ADOPTION RATCHET ══════════════════════════════════════
+  the four primitives : Provenance.jsx · FreshnessBadge.jsx · CoverageLine.jsx · Cited.jsx
+  re-export aliases   : (none)
+  reachable modules   : 2344 tracked non-test under app/src
+  of those, with JSX  : 1053
+
+  POPULATION (32) — every reachable module that adopts, derived:
+      app/src/components/calendar/CallRecapSection.jsx
+      app/src/components/chart/builder/EvidenceTab.jsx
+      app/src/components/research/fmpDepth/SourceLine.jsx
+      app/src/components/screener/ScanResults.jsx
+      app/src/components/tiles/CatalystTable.jsx
+      app/src/pages/Breadth.jsx
+      app/src/pages/ProvenanceDemo.jsx
+      app/src/pages/breadth/views/TheReadStrip.jsx
+      app/src/pages/charts/widgets/AiSearchWidget.jsx
+      app/src/pages/charts/widgets/DockFinancials.jsx
+      app/src/pages/charts/widgets/PeriodSortResults.jsx
+      app/src/pages/charts/widgets/ScannerResults.jsx
+      app/src/pages/charts/widgets/VolumeScanWidget.jsx
+      app/src/pages/cot/PositioningRail.jsx
+      app/src/pages/journal-2-0/components/notebook/AskPanel.jsx
+      app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx
+      app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+      app/src/pages/research/ResearchComparePage.jsx
+      app/src/pages/research/components/ComparisonAskAi.jsx
+      app/src/pages/research/tabs/AnalystRatingsTab.jsx
+      app/src/pages/research/tabs/AskAiTab.jsx
+      app/src/pages/research/tabs/CatalystsTab.jsx
+      app/src/pages/research/tabs/DecisionRecordTab.jsx
+      app/src/pages/research/tabs/FlowTab.jsx
+      app/src/pages/research/tabs/NewsTab.jsx
+      app/src/pages/research/tabs/OwnershipTab.jsx
+      app/src/pages/screener/focus/DataReceipt.jsx
+      app/src/pages/screener/options/OptionsScreener.jsx
+      app/src/pages/screener/shell/ScannerShell.jsx
+      app/src/pages/terminal/TerminalShell.jsx
+      app/src/pages/terminal/panels/BreakoutPanel.jsx
+      app/src/pages/terminal/panels/MoversPanel.jsx
+
+  baseline records 32  ·  observed 32  ·  lost 0  ·  unbanked 0
+  baseline file : app/src/components/provenance/panelAdoption.baseline.json
+
+  ⭐ ADOPTING ONLY THROUGH A DERIVED ALIAS (0) — a naive import scan
+     would call each of these NOT-adopting and the shim a fifth implementation:
+      (none)
+
+  adopters without JSX (0) — the gap between this population and the
+     census's JSX-filtered D-ALL adopting set, derived rather than assumed. Empty
+     means the two coincide today, which is why the census's number can be read
+     straight across:
+      (none)
+
+── THE FRONTIER — where the number can go up ───────────────────────────
+   ⭐ directories that already show provenance, adopting / with-JSX:
+         7 / 29    pages/research/tabs
+         5 / 55    pages/charts/widgets
+         2 / 61    pages
+         2 / 129   pages/journal-2-0/components/notebook
+         2 / 33    pages/terminal/panels
+         1 / 7     components/calendar
+         1 / 11    components/chart/builder
+         1 / 4     components/research/fmpDepth
+         1 / 4     components/screener
+         1 / 12    components/tiles
+         1 / 20    pages/breadth/views
+         1 / 1     pages/cot
+         1 / 10    pages/optionsAnalytics
+         1 / 11    pages/research
+         1 / 1     pages/research/components
+         1 / 18    pages/screener/focus
+         1 / 1     pages/screener/options
+         1 / 17    pages/screener/shell
+         1 / 7     pages/terminal
+
+── THE LARGEST ZERO-ADOPTION DIRECTORIES ───────────────────────────────
+   ⛔ derived, printed, and asserted over by NOTHING. The top row is why the
+      population above is the adopter set and not `pages/**`: a rail scoped
+      there is a Notebook rail wearing a provenance label. No literal in this
+      file names it — it is absent from the population because it has no
+      adopters, so the day it gains one this rail protects that gain instead.
+        66  pages/journal-2-0/components
+        35  components/chart
+        29  components
+        22  floor2
+        17  components/voice
+        17  hub
+
+── PARTNER-OWNED, LABELLED NOT FILTERED ────────────────────────────────
+      app/src/pages/OptionsFlow.jsx   adopting=false   (Ravi — ack before any edit)
+
+═══════════════════════════════════════════════════════════════════════
+
+
+[90mstdout[2m | src/components/provenance/panelAdoption.ratchet.test.js[2m > [22m[2mTERM-047 — CoverageLine on every result surface[2m > [22m[2mprints the derived set, how each routes, and the exemptions by kind
+[22m[39m
+════ TERM-047 — CoverageLine ON EVERY RESULT SURFACE ═════════════════════
+  route-family stems : scan · screen   (A9 Screening & Discovery)
+  CoverageLine doors : app/src/components/provenance/CoverageLine.jsx
+  RESULT SURFACES (25), derived:
+      routes direct                app/src/components/chart/builder/EvidenceTab.jsx
+                                   /api/screener/backtest  /api/scans/definition-record
+      VIOLATION                    app/src/components/chart/pane/ChartPane.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      EXEMPT                       app/src/components/screener/MethodologyPanel.jsx
+                                   /api/screener/methodology
+      EXEMPT                       app/src/components/screener/RunNowButton.jsx
+                                   /api/scans/run  useScreenerMeta.js→/api/screener/meta
+      routes direct                app/src/components/screener/ScanResults.jsx
+                                   /api/scans/definition-results
+      EXEMPT                       app/src/components/screener/StructureProvenance.jsx
+                                   /api/screener/structures
+      EXEMPT                       app/src/components/settings/StandingAlertsPanel.jsx
+                                   /api/screener/spec-alerts  /api/screener/spec-alerts/
+      VIOLATION                    app/src/components/terminal/SecurityHeadline.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      VIOLATION                    app/src/pages/Watchlists.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      EXEMPT                       app/src/pages/charts/widgets/ListSubscription.jsx
+                                   /api/screener/saved-screens
+      routes direct                app/src/pages/charts/widgets/PeriodSortResults.jsx
+                                   /api/scans/period-change?start=  /api/scans/period-change-groups?start=
+      routes direct                app/src/pages/charts/widgets/ScannerResults.jsx
+                                   /api/scans/highest-volume-1y  /api/scans/highest-volume-ever  /api/scans/ipo-1y  /api/scans/top-gainers-30d  /api/scans/top-gainers-60d  /api/scans/top-gainers-90d
+      routes direct                app/src/pages/charts/widgets/VolumeScanWidget.jsx
+                                   /api/volume-scan/live?show_all=1&limit=300&min_rvol=
+      routes direct                app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+                                   /api/options-screener/strategies  /api/options-screener/strategy/  /api/options-screener/more-strategies  /api/options-screener/more/  /api/options-screener/multi-leg  /api/options-screener/sizzle
+      EXEMPT                       app/src/pages/screener/ScreensManager.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/  useScreenAlerts.js→/api/screener/alerts  useScreenAlerts.js→/api/screener/alerts/
+      EXEMPT                       app/src/pages/screener/focus/FocusScreener.jsx
+                                   useScreenerMeta.js→/api/screener/meta  useScreenerScan.js→/api/screener/scan  useScreenerCount.js→/api/screener/count  useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/  useScreenSpec.js→/api/screener/saved-screens  useNewToday.js→/api/screener/membership-diff  useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      EXEMPT                       app/src/pages/screener/focus/FocusStates.jsx
+                                   useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      VIOLATION                    app/src/pages/screener/focus/ResultList.jsx
+                                   useSparks.js→/api/screener/sparks?tickers=
+      EXEMPT                       app/src/pages/screener/focus/ScreenMenu.jsx
+                                   useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      routes direct                app/src/pages/screener/options/OptionsScreener.jsx
+                                   /api/options-screener/screen  /api/options-screener/unusual-volume  /api/options-screener/iv-percentile
+      EXEMPT                       app/src/pages/screener/shell/PresetChips.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      EXEMPT                       app/src/pages/screener/shell/ResultCards.jsx
+                                   useScreenSpec.js→/api/screener/saved-screens
+      EXEMPT                       app/src/pages/screener/shell/SaveScanButton.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      routes direct                app/src/pages/screener/shell/ScannerShell.jsx
+                                   useScreenerMeta.js→/api/screener/meta  useScreenerScan.js→/api/screener/scan  useScreenerCount.js→/api/screener/count  useScreenSpec.js→/api/screener/saved-screens
+      routes direct                app/src/pages/terminal/panels/BreakoutPanel.jsx
+                                   /api/screener/scan
+
+  routing 9  ·  exempt 12  ·  violations 4  ·  stale exemptions 0
+
+── EXEMPTIONS BY KIND — the follow-up list ─────────────────────────────
+   not-a-result-set: 9
+      app/src/components/screener/MethodologyPanel.jsx
+         not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count
+      app/src/components/screener/StructureProvenance.jsx
+         not-a-result-set: renders the structure-library catalogue from /api/screener/structures (criteria and their sources), not symbols a screen matched
+      app/src/components/settings/StandingAlertsPanel.jsx
+         not-a-result-set: Settings list of the member's standing spec-alert SUBSCRIPTIONS from /api/screener/spec-alerts (what each watches + a suspend action); it shows no symbols a screen matched
+      app/src/pages/charts/widgets/ListSubscription.jsx
+         not-a-result-set: its /api/screener/saved-screens door lists the member's saved screen DEFINITIONS to pick a list source (COV-10); the subscribed members come from /api/charts/list-sources, not an A9 route
+      app/src/pages/screener/focus/FocusStates.jsx
+         not-a-result-set: the empty state shows, for each remove-one pill, the COUNT that removal would bring back from /api/screener/count/batch; it lists no symbols, and the screen it returns to carries its receipt through DataReceipt.jsx
+      app/src/pages/screener/focus/ScreenMenu.jsx
+         not-a-result-set: the screen picker shows each preset's match COUNT from /api/screener/count[/batch] to help choose a screen; it lists no symbols, and the chosen screen's rows carry their receipt through DataReceipt.jsx
+      app/src/pages/screener/shell/PresetChips.jsx
+         not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results
+      app/src/pages/screener/shell/ResultCards.jsx
+         not-a-result-set: reaches /api/screener/saved-screens only through useScreenSpec's savedScreen= door (build D, 2026-09-30), which loads a saved SPEC to apply, never a result set; the screener's results carry their own CoverageLine
+      app/src/pages/screener/shell/SaveScanButton.jsx
+         not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results
+   no-counts: 0
+   delegates: 3
+      app/src/components/screener/RunNowButton.jsx
+         delegates: hands the finished run to its parent via onResult(toScanResultsPayload(run)); app/src/components/screener/ScanResults.jsx renders that run's four counts
+      app/src/pages/screener/ScreensManager.jsx
+         delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts
+      app/src/pages/screener/focus/FocusScreener.jsx
+         delegates: the Focus layout's scan result carries its four counts into app/src/pages/screener/focus/DataReceipt.jsx (the top bar's data receipt), which renders them through <CoverageLine>
+═══════════════════════════════════════════════════════════════════════
+
+
+ [31m❯[39m src/components/provenance/panelAdoption.ratchet.test.js [2m([22m[2m26 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 709[2mms[22m[39m
+     [32m✓[39m ⛔⛔ the transcribed census layer is byte-identical to panelAdoption.measure.test.js[32m 4[2mms[22m[39m
+     [32m✓[39m ⛔ the transcribed resolver reaches through to components/screener/reachable.test.js[32m 2[2mms[22m[39m
+     [32m✓[39m ⛔ the graph walk found a real graph and the population is non-empty[32m 3[2mms[22m[39m
+     [32m✓[39m ⛔⛔ the detector can SEE a planted import, and can tell an absent one[32m 3[2mms[22m[39m
+     [32m✓[39m ⛔ the file-reading predicate and the source predicate are the SAME predicate[32m 179[2mms[22m[39m
+     [32m✓[39m ⛔ a RE-EXPORT SHIM resolves to the primitive it fronts, and the alias set is load-bearing[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ a KNOWN adopter is in the population AND in the baseline, BY NAME[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔⛔ MUTATION, PERMANENT: strip a real adopter's imports and the ratchet names it[32m 8[2mms[22m[39m
+     [32m✓[39m ⛔ the ratchet verdict can FAIL — table cases, with a discriminator[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ a missing adopter is DIAGNOSED, not just named — and the branches differ[32m 4[2mms[22m[39m
+     [32m✓[39m ⛔ the committed baseline is byte-exactly what the writer produces[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐⭐ every adopter the baseline records STILL ADOPTS — failing BY NAME[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ the baseline is CURRENT — a new adopter is banked in the same commit[32m 0[2mms[22m[39m
+     [33m[2m✓[22m[39m prints the population, the frontier, and the labels [33m 407[2mms[22m[39m
+     [32m✓[39m the derivation is not vacuous: a known member BY NAME, and it discriminates[32m 2[2mms[22m[39m
+     [32m✓[39m THE HOOK HOP IS LOAD-BEARING: the screener shell is a surface only through its hooks[32m 25[2mms[22m[39m
+     [32m✓[39m the classifier: a route stem, a template head, a hook, and prose are told apart[32m 2[2mms[22m[39m
+     [32m✓[39m every exemption has a KIND and a one-line reason, and the map is sorted[32m 1[2mms[22m[39m
+     [32m✓[39m a `delegates:` exemption names its delegate, and the delegate RENDERS the line[32m 26[2mms[22m[39m
+[31m     [31m×[31m every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME[39m[32m 14[2mms[22m[39m
+     [32m✓[39m the exemption list can only SHRINK — an entry outliving its gap fails by name[32m 0[2mms[22m[39m
+     [32m✓[39m PLANTED VIOLATION: a new result surface with no receipt is NAMED[32m 3[2mms[22m[39m
+     [32m✓[39m MUTATION, PERMANENT: strip ScanResults' CoverageLine import and the rail names it[32m 14[2mms[22m[39m
+     [32m✓[39m an IMPORT is not a RENDER, and a NAMED import is not the component[32m 1[2mms[22m[39m
+     [32m✓[39m the verdict can FAIL both ways — table cases, with a discriminator[32m 1[2mms[22m[39m
+     [32m✓[39m prints the derived set, how each routes, and the exemptions by kind[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 7 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/provenance/panelAdoption.ratchet.test.js[2m > [22mTERM-047 — CoverageLine on every result surface[2m > [22mevery result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME
+[31m[1mAssertionError[22m: RESULT SURFACES WITHOUT A COVERAGE RECEIPT. Each of these shows the answer to a screen (an A9 route) and renders no <CoverageLine> — so a screen that silently loses symbols reads as a quiet market. Render <CoverageLine coverage={…}/> from the BACKEND's four counts, or — if the backend returns none, or this is not a result set — add a one-line reason to coverage_line_exempt in app/src/components/provenance/panelAdoption.baseline.json (not-a-result-set: no-counts: delegates:).: expected [ …(4) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "app/src/components/chart/pane/ChartPane.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",[39m
+[31m+   "app/src/components/terminal/SecurityHeadline.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",[39m
+[31m+   "app/src/pages/Watchlists.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",[39m
+[31m+   "app/src/pages/screener/focus/ResultList.jsx   doors: /api/screener/sparks?tickers=",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/components/provenance/panelAdoption.ratchet.test.js:[2m1412:8[22m[39m
+    [90m1410| [39m      + `or — if the backend returns none, or this is not a result set…
+    [90m1411| [39m      + `coverage_line_exempt in ${key(BASELINE_FILE)} (${EXEMPT_KINDS…
+    [90m1412| [39m      [33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m       [31m^[39m
+    [90m1413| [39m  }[33m,[39m [34m600000[39m)
+    [90m1414| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/command/keyListenerCensus.test.js[2m > [22mTERM-063 — the raw key-listener ratchet[2m > [22mno file holds MORE raw key listeners than its baseline (new ones go through the registry)
+[31m[1mAssertionError[22m[39m: RAW KEY LISTENER ADDED OUTSIDE THE REGISTRY. Declare the binding in app/src/pages/command/shortcutRegistry.js and bind it with registerShortcuts(). Current census, for reference:
+{
+ "app/src/components/chart/BoardsToolButton.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/builder/editor/CodeEditor.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartContextMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartDrawingOverlay.jsx": {
+  "literal": 2
+ },
+ "app/src/components/chart/ChartSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartThemesModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/EarningsMarkerPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/KeyboardHelpOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/keyboardShortcuts.js": {
+  "literal": 1
+ },
+ "app/src/components/chart/PatternSidePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/SymbolSearch.jsx": {
+  "literal": 1
+ },
+ "app/src/components/IntradayDayPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/intro/IntroAnimation.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/ContextPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/Sheet.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/useFocusTrap.js": {
+  "literal": 1
+ },
+ "app/src/components/research/EarningsResearchModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/research-kit/InfoTip.jsx": {
+  "literal": 1
+ },
+ "app/src/components/StockChart.jsx": {
+  "literal": 2
+ },
+ "app/src/components/TickerPopup.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AgentPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AudioPlayerBar.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/VisionAttachButton.jsx": {
+  "literal": 1
+ },
+ "app/src/lib/todayPackClient.js": {
+  "orphan": 1
+ },
+ "app/src/pages/admin/GoldReview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Admin.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/breadth/BreadthDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViews.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViewsCustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/CustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/drill/BreadthDrillModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/PresetRow.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/CalendarHeader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/DayDetailDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Calendar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/ChartsWorkspace.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/CompareSymbolsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/grid/MultiChartGrid.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/LayoutDock.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/placement/GhostPreview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/popout/PopoutWindow.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/WidgetHeader.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/widgets/BreadthSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/BreadthWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/LeverageInverseControl.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NewsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlUniverseMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ScatterWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/TimeframeMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/community/components/ProfileCard.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/DarkPool.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/ArticleReader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/VideosSection.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/DeleteAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/NewAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddTradeModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/calendar/MiniMonthNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ClosePositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ColumnsPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ConfirmModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/DeleteAllModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/EditPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/GenerateReportModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ImportCsvModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/CaptureHost.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/UnsentTrashDialog.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/AddOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/CloseOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/scope/ScopeBar.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeDetailPage.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeScreenshots.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/TradeDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/blockHandle.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/calloutNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/codeBlockNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/mathNodes.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/tabs/NotebookTab.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/Landing.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/LiveFlowMassive.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/modelbook/SetupsView.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/ModelBook.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/OptionsFlow_admin.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ColumnDesc.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/FilterRail.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ScreenerReviewOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Settings.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/ThemeTrackerPage.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/traderArchive/ArchiveThumbs.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/watchlist/WatchlistSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Watchlists.jsx": {
+  "literal": 2
+ }
+}: expected [ …(2) ] to deeply equal []
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "app/src/pages/admin/GoldReview.jsx: literal 1 > baseline 0",[39m
+[31m+   "app/src/pages/traderArchive/ArchiveThumbs.jsx: literal 1 > baseline 0",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/pages/command/keyListenerCensus.test.js:[2m324:13[22m[39m
+    [90m322| [39m        + 'app/src/pages/command/shortcutRegistry.js and bind it with …
+    [90m323| [39m        + `Current census, for reference:\n${JSON.stringify(Object.fro…
+    [90m324| [39m      [33m:[39m [32m''[39m)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m            [31m^[39m
+    [90m325| [39m  })
+    [90m326| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/command/keyListenerCensus.test.js[2m > [22mTERM-063 — the raw key-listener ratchet[2m > [22mthe baseline sits at or under the stated CEILING, and the CEILING is tight
+[31m[1mAssertionError[22m: expected 113 to be 111 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 111[39m
+[31m+ 113[39m
+
+[36m [2m❯[22m src/pages/command/keyListenerCensus.test.js:[2m343:34[22m[39m
+    [90m341| [39m      s [33m+[39m (r[33m.[39mliteral [33m||[39m [34m0[39m) [33m+[39m (r[33m.[39monprop [33m||[39m [34m0[39m) [33m+[39m (r[33m.[39morphan [33m||[39m [34m0[39m)[33m,[39m [34m0[39m)
+    [90m342| [39m    [34mexpect[39m(sum)[33m.[39m[34mtoBeLessThanOrEqual[39m([33mCEILING[39m)
+    [90m343| [39m    [34mexpect[39m([34mtotal[39m([34mcensus[39m()[33m.[39mrows))[33m.[39m[34mtoBe[39m([33mCEILING[39m)
+    [90m   | [39m                                 [31m^[39m
+    [90m344| [39m  })
+    [90m345| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/terminal/themeColours.rail.test.js[2m > [22mterminal theme rail — hardcoded colours[2m > [22m⛔ no terminal-mounted file gains a hardcoded colour (fix it with a token, not the ledger)
+[31m[1mAssertionError[22m: hardcoded colours in terminal-mounted code:
+utils/traderArchive.js: 3 colour literal(s), ledger allows 0
+    utils/traderArchive.js:48  #c9a84c
+    utils/traderArchive.js:49  #60a5fa
+    utils/traderArchive.js:50  #f87171
+Use a token (var(--…) / color-mix(…)) or, on a canvas, lib/theme useThemeInk.: expected [ Array(1) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "utils/traderArchive.js: 3 colour literal(s), ledger allows 0[39m
+[31m+     utils/traderArchive.js:48  #c9a84c[39m
+[31m+     utils/traderArchive.js:49  #60a5fa[39m
+[31m+     utils/traderArchive.js:50  #f87171",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/pages/terminal/themeColours.rail.test.js:[2m122:90[22m[39m
+    [90m120| [39m    })
+    [90m121| [39m    expect(detail, `hardcoded colours in terminal-mounted code:\n${det…
+    [90m122| [39m      + 'Use a token (var(--…) / color-mix(…)) or, on a canvas, lib/th…
+    [90m   | [39m                                                                                         [31m^[39m
+    [90m123| [39m  })
+    [90m124| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/terminal/a11y/terminalReachableContrast.test.js[2m > [22mterminal-reachable stylesheets — text contrast in every theme[2m > [22mno inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses
+[31m[1mAssertionError[22m: a new inline --loss/--gain beside color/fill: if it is text use --danger-ink/--success-ink; if it is a fill/border/series, declare it in JS_NOT_TEXT with its reason: expected { 'components/Sparkline.jsx': 1, …(4) } to deeply equal { …(4) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[31m+   "components/Sparkline.jsx": 1,[39m
+[2m    "components/TickerPopup.jsx": 1,[22m
+[2m    "components/calendar/CallRecapSection.jsx": 2,[22m
+[2m    "components/tiles/MARelationship.jsx": 1,[22m
+[2m    "pages/optionsAnalytics/VolSkewPanels.jsx": 1,[22m
+[2m  }[22m
+
+[36m [2m❯[22m src/pages/terminal/a11y/terminalReachableContrast.test.js:[2m63:185[22m[39m
+    [90m 61| [39m    }
+    [90m 62| [39m    const want = Object.fromEntries(Object.entries(JS_NOT_TEXT).map(([…
+    [90m 63| [39m    expect(got, 'a new inline --loss/--gain beside color/fill: if it i…
+    [90m   | [39m                                                                                                                                                                                        [31m^[39m
+    [90m 64| [39m  })
+    [90m 65| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/__tests__/enumerationSites.test.js[2m > [22mthe enumeration ledger — the count is a test, not a comment[2m > [22mnames every shipped Python module that hand-lists four or more indicators
+[31m[1mAssertionError[22m: a PYTHON module hand-lists four or more indicators and is not on the ledger. Either it is a new enumeration site (add it, and raise SITE_COUNT), or it reads the registry and the scan is over-matching (say which, in the ledger).: expected [ 'api/services/screener/filters.py' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "api/services/screener/filters.py",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/components/chart/engine/__tests__/enumerationSites.test.js:[2m2336:7[22m[39m
+    [90m2334| [39m      'Either it is a new enumeration site (add it, and raise SITE_COU…
+    [90m2335| [39m      'the registry and the scan is over-matching (say which, in the l…
+    [90m2336| [39m    ).toEqual([])
+    [90m   | [39m      [31m^[39m
+    [90m2337| [39m
+    [90m2338| [39m    // ⛔⭐⭐ PHASE D TASK 15 — THE WHOLE-SET PIN, ADDED BECAUSE THE LEDG…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/__tests__/lwcHazards.test.js[2m > [22mH1 — createPriceLine must always name lineStyle[2m > [22m⛔ every call site that passes an object literal names lineStyle
+[31m[1mAssertionError[22m: expected [ 'components\StockChart.jsx:3337' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "components\\StockChart.jsx:3337",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/components/chart/engine/__tests__/lwcHazards.test.js:[2m96:57[22m[39m
+    [90m 94| [39m    [35mconst[39m literals [33m=[39m sites[33m.[39m[34mfilter[39m((s) [33m=>[39m s[33m.[39margs[33m.[39m[34mincludes[39m([32m':'[39m))
+    [90m 95| [39m    [35mconst[39m offenders [33m=[39m literals[33m.[39m[34mfilter[39m((s) [33m=>[39m [33m![39ms[33m.[39mnamesLineStyle)
+    [90m 96| [39m    [34mexpect[39m(offenders[33m.[39m[34mmap[39m((o) [33m=>[39m [32m`[39m[36m${[39mo[33m.[39mfile[36m}[39m[32m:[39m[36m${[39mo[33m.[39mline[36m}[39m[32m`[39m))[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                                                        [31m^[39m
+    [90m 97| [39m    expect(literals.length).toBeGreaterThan(0)     // the filter must …
+    [90m 98| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m6 failed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m108 passed[39m[22m[90m (115)[39m
+[2m   Start at [22m 13:59:42
+[2m   Duration [22m 24.83s[2m (transform 7.39s, setup 1.64s, import 35.02s, tests 11.80s, environment 3.57s)[22m
+

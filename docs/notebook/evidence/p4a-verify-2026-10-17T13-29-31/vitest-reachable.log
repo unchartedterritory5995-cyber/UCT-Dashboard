@@ -1,0 +1,15 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4a/app[39m
+
+ [32m✓[39m src/components/screener/reachable.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 38391[2mms[22m[39m
+     [33m[2m✓[22m[39m PLANTED CUT: remove the mount's import and ScanResults goes unreachable [33m 10434[2mms[22m[39m
+     [33m[2m✓[22m[39m THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page [33m 5809[2mms[22m[39m
+     [33m[2m✓[22m[39m THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed [33m 10672[2mms[22m[39m
+     [33m[2m✓[22m[39m THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one [33m 5628[2mms[22m[39m
+     [33m[2m✓[22m[39m THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught [33m 5831[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 08:31:55
+[2m   Duration [22m 44.97s[2m (transform 166ms, setup 269ms, import 5.68s, tests 38.39s, environment 486ms)[22m
+

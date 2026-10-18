@@ -9,7 +9,22 @@ export { onWorkspaceConflict } from '../lib/workspaceConflict'
 // TERM-021 read-new: every preferences response says whether the versioned workspace
 // document is armed (the `X-Workspace-Doc` header, absent while dark). Recording it here
 // costs nothing — no request, and the body is read exactly as before.
-const fetcher = url => fetch(url).then(r => { noteWorkspaceDocResponse(r); noteRevision(r, false); return r.ok ? r.json() : {} })
+//
+// Whether the last read of the preferences answered. A refused read (a 502 during a pod swap) is served as `{}`
+// below, so every consumer sees the defaults, and that is right for a consumer that only READS. A consumer that
+// merges a WRITE onto the cached value is not served by it: it would be merging onto nothing, and its write would
+// replace whatever the server holds with defaults. The hook returns this as `readFailed` so such a writer can
+// refuse (P4a m1: the page-layout editor). null = no read has answered yet.
+let _lastReadOk = null
+const readFailedOnce = () => { _lastReadOk = false }
+const fetcher = url => fetch(url).then(
+  r => {
+    noteWorkspaceDocResponse(r); noteRevision(r, false)
+    if (!r.ok) { readFailedOnce(); return {} }
+    return r.json().then(j => { _lastReadOk = true; return j }, err => { readFailedOnce(); throw err })
+  },
+  err => { readFailedOnce(); throw err },
+)
 
 const DEFAULTS = {
   default_chart_tf: 'D',
@@ -99,7 +114,7 @@ export function whenWritesSettle(keys) {
 
 /** Tests only. */
 export function __resetRevisionStateForTests() {
-  _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear()
+  _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
 }
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
@@ -205,6 +220,7 @@ export async function refreshPreferences() {
     return null
   }
   if (!data || typeof data !== 'object') return null
+  _lastReadOk = true
   await mutateGlobal(PREFS_URL, data, { revalidate: false })
   return { ...DEFAULTS, ...data }
 }
@@ -382,5 +398,7 @@ export default function usePreferences(enabled = true) {
     })
   }, [mutate])
 
-  return { prefs, setPref, setPrefMerged, loading: isLoading }
+  // `readFailed`: the last read of the preferences was refused or never arrived, so the cached value is NOT the
+  // server's (see `_lastReadOk`). Read at render; every read that answers re-renders the consumers.
+  return { prefs, setPref, setPrefMerged, loading: isLoading, readFailed: _lastReadOk === false }
 }

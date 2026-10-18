@@ -66,24 +66,48 @@ def test_an_unreadable_finalized_store_is_unknown_never_fine():
     assert {r["stage"] for r in res["sessions"] if r["date"] <= "2026-10-09"} == {"unknown"}
 
 
-def test_check_sends_one_alert_per_stuck_stage_and_clears(monkeypatch, tmp_path):
-    from api.services import breadth_alerts
+def _alerting(monkeypatch, tmp_path):
     monkeypatch.setenv("BREADTH_ALERTS_STATE", str(tmp_path / "s.json"))
     monkeypatch.setenv("DISCORD_BREADTH_WEBHOOK_URL", "https://discord.test/b")
     posts = []
 
     class R:
         status_code = 204
-    post = lambda url, **k: posts.append(k["json"]["content"]) or R()   # noqa: E731
+    return posts, (lambda url, **k: posts.append(k["json"]["content"]) or R())
+
+
+def test_check_sends_one_alert_per_stuck_stage_and_ONE_resolution_when_it_recovers(monkeypatch, tmp_path):
+    """⚰️ This asserted the recovery was cleared SILENTLY (no post). Changed on purpose 2026-10-17
+    (owner): the 10-12..10-15 incident recovered on a Friday night and the channel's last word
+    stayed "not finalized" all weekend. A recovery is now said, once."""
+    from api.services import breadth_alerts
+    posts, post = _alerting(monkeypatch, tmp_path)
     raw = dict(RAW, **{"2026-10-12": "2026-10-12 20:25:00"})
     bp.check(datetime(2026, 10, 13, 9, 45, tzinfo=ET), post=post, sessions=5, raw=raw,
              finalized=_fin(FIN_THROUGH_8))
     assert len(posts) == 1 and "not finalized" in posts[0]
-    cleared = []
-    monkeypatch.setattr(breadth_alerts, "clear", lambda k: cleared.append(k))
     bp.check(datetime(2026, 10, 13, 9, 45, tzinfo=ET), post=post, sessions=5, raw=raw,
              finalized=_fin(FIN_THROUGH_8 + ["2026-10-09"]))
-    assert "pipeline:finalization" in cleared and len(posts) == 1
+    assert len(posts) == 2 and posts[1].startswith("✅") and "finalized again" in posts[1]
+    assert "US 2026-10-09" in posts[1] and "NASDAQ 2026-10-09" in posts[1]
+    assert breadth_alerts.signature("pipeline:finalization") is None and \
+        not breadth_alerts._load().get("pipeline:finalization")
+    bp.check(datetime(2026, 10, 13, 21, 30, tzinfo=ET), post=post, sessions=5, raw=raw,
+             finalized=_fin(FIN_THROUGH_8 + ["2026-10-09"]))
+    assert len(posts) == 2                                       # one resolution, then silence
+
+
+def test_an_unreadable_finalized_store_neither_alerts_nor_resolves(monkeypatch, tmp_path):
+    """⛔ "unknown" is not "recovered": a blind check must not announce a recovery it cannot see."""
+    from api.services import breadth_alerts
+    posts, post = _alerting(monkeypatch, tmp_path)
+    raw = dict(RAW, **{"2026-10-12": "2026-10-12 20:25:00"})
+    bp.check(datetime(2026, 10, 13, 9, 45, tzinfo=ET), post=post, sessions=5, raw=raw,
+             finalized=_fin(FIN_THROUGH_8))
+    assert len(posts) == 1
+    bp.check(datetime(2026, 10, 13, 9, 50, tzinfo=ET), post=post, sessions=5, raw=raw,
+             finalized={"us": None, "nyse": None, "nasdaq": None})
+    assert len(posts) == 1 and breadth_alerts._load().get("pipeline:finalization")
 
 
 # ── present-tense reading ────────────────────────────────────────────────────
