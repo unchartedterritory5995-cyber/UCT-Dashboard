@@ -443,6 +443,16 @@ SPIKE_RIM_BARS = 5
 #: every threshold 1.2-1.9 removes the same 11 judged cups (four 1s, seven 2s).
 PRIOR_PEAK_BARS = 20
 PRIOR_PEAK_REACH_ATR = 1.5
+# -- Cup round 8 (lab REPORT_CUP_R7.md, 2026-10-17). Calibrated on the 92 bc:cup-with-handle cases judged in
+# team rounds 1-7.  Round 7 found the cause the display rules could not reach: the base catalog's cup start
+# (cup.cup_with_handle_state -> base_geometry) can fall 1-3 bars AFTER the real left peak, so the lip drawn
+# is a lower secondary high on the decline (R7 684 / 858, R6 975 / 989, all judged 1).  The judges asked for the
+# rim on the true peak; RAISING the line onto it is the opposite of bc:flat-base round 6's lowered line.
+#: cup_true_start: the DRAWN cup starts at the highest high in the CUP_START_LOOKBACK_BARS bars before the
+#: detector's cup start when that high is above the detector's lip (the highest high from its start to the
+#: cup's low); the lip and rim then sit on it, and every later cup rule (prior_peak, short_of_rim, the handle)
+#: reads the moved start.  Display only: the detector's state, firing, pivot and levels are untouched.
+CUP_START_LOOKBACK_BARS = 1
 
 
 def _index(bars) -> dict:
@@ -1599,6 +1609,30 @@ def flag_pause_verdict(bars: list, pos: dict, d: dict):
         if pole_h > 0 and ((uR + lR) - (uL + lL)) / 2.0 > FLAG_RISE_TOL * pole_h:
             return False, "rising_channel"
     return True, None
+
+
+def cup_true_start(bars: list, cup_start_t, cup_end_t):
+    """Round 8 (lab REPORT_CUP_R7.md): the `t` the DRAWN cup starts at. The detector's cup start can fall a
+    few bars after the real left peak, so its lip (the highest high from the start to the cup's low) is a
+    lower high on the decline. When the highest high in the CUP_START_LOOKBACK_BARS bars before the start
+    (ties keep the earliest bar) is ABOVE that lip, the cup starts there instead and the lip becomes that
+    peak; otherwise -- and when a span is unknown -- `cup_start_t` unchanged. One step, never chained: the
+    move reaches at most CUP_START_LOOKBACK_BARS bars back. Display only."""
+    pos = _index(bars)
+    s, e = pos.get(cup_start_t), pos.get(cup_end_t)
+    n = int(CUP_START_LOOKBACK_BARS)
+    if s is None or e is None or s > e or s <= 0 or n <= 0:
+        return cup_start_t
+    low_j = s
+    for j in range(s, e + 1):
+        if bars[j]["l"] < bars[low_j]["l"]:
+            low_j = j
+    lip = max(float(bars[j]["h"]) for j in range(s, low_j + 1))
+    pk = max(0, s - n)
+    for j in range(pk, s):
+        if float(bars[j]["h"]) > float(bars[pk]["h"]):
+            pk = j
+    return bars[pk]["t"] if float(bars[pk]["h"]) > lip else cup_start_t
 
 
 def cup_rim_line(bars: list, cup_start_t, cup_end_t, end_t):
