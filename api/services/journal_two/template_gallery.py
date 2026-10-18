@@ -957,6 +957,54 @@ def _clean_trading_style(raw: Any) -> str | None:
     return raw
 
 
+_HELD_KEY_COLUMNS = ("source_style_id", "source_page")
+
+
+def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any,
+                            item_type: str, title: str, description: str, category: str,
+                            trading_style: str | None, body: dict, preview: list, payload: dict) -> str:
+    """R-P3-3's ONE authority over a member item's (re)submission write, shared by `publish_style` and
+    `publish_layout`. Keyed on (author, `key_column` = `key`, `item_type`): the first publish INSERTs a PENDING
+    item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED the new
+    version is HELD in `pending_json` and the approved one stays listed. Returns the item id; the caller commits.
+    `key_column` is interpolated, so it is held to a closed set."""
+    if key_column not in _HELD_KEY_COLUMNS:
+        raise ValueError(f"not a gallery key column: {key_column!r}")
+    now = _now()
+    payload_json = json.dumps(payload)
+    body_json = json.dumps(body)
+    preview_json = json.dumps(preview)
+    existing = conn.execute(
+        f"SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND {key_column} = ? AND item_type = ?",
+        (user_id, key, item_type)).fetchone()
+    if existing and existing["status"] == "approved":
+        revision = {"title": title, "description": description, "category": category,
+                    "tradingStyle": trading_style, "payload": payload, "preview": preview}
+        conn.execute(
+            "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+            " updated_at = ? WHERE id = ?",
+            (json.dumps(revision), now, now, existing["id"]))
+        return existing["id"]
+    if existing:
+        conn.execute(
+            "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
+            " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+            " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
+            " pending_json = NULL, pending_at = NULL WHERE id = ?",
+            (title, description, category, trading_style, body_json, payload_json, now,
+             preview_json, existing["id"]))
+        return existing["id"]
+    gid = uuid.uuid4().hex
+    conn.execute(
+        f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
+        " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+        " payload_json, version, trading_style)"
+        " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+        (gid, user_id, key, title, description, category, body_json, now, now,
+         preview_json, item_type, payload_json, trading_style))
+    return gid
+
+
 def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, category: Any,
                   trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
     """Submit (or resubmit) one of the member's own styles. None when the library is off
@@ -984,36 +1032,10 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
         body = payload["outlineBodyJson"] or {"type": "doc", "content": []}
         preview_json = json.dumps(preview_lines(body))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
-        now = _now()
-        existing = conn.execute(
-            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_style_id = ?",
-            (user_id, style_id)).fetchone()
-        if existing and existing["status"] == "approved":
-            revision = {"title": clean_title, "description": clean_desc, "category": clean_cat,
-                        "tradingStyle": clean_ts, "payload": payload, "preview": json.loads(preview_json)}
-            conn.execute(
-                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
-                " updated_at = ? WHERE id = ?",
-                (json.dumps(revision), now, now, existing["id"]))
-            gid = existing["id"]
-        elif existing:
-            conn.execute(
-                "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
-                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
-                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
-                " pending_json = NULL, pending_at = NULL WHERE id = ?",
-                (clean_title, clean_desc, clean_cat, clean_ts, json.dumps(body), payload_json, now,
-                 preview_json, existing["id"]))
-            gid = existing["id"]
-        else:
-            gid = uuid.uuid4().hex
-            conn.execute(
-                "INSERT INTO j2_template_gallery (id, user_id, source_style_id, kind, title, description,"
-                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
-                " payload_json, version, trading_style)"
-                " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, 'style', ?, 1, ?)",
-                (gid, user_id, style_id, clean_title, clean_desc, clean_cat, json.dumps(body), now, now,
-                 preview_json, payload_json, clean_ts))
+        gid = _write_held_or_replaced(
+            conn, user_id=user_id, key_column="source_style_id", key=style_id, item_type="style",
+            title=clean_title, description=clean_desc, category=clean_cat, trading_style=clean_ts,
+            body=body, preview=json.loads(preview_json), payload=payload)
         conn.commit()
         out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedProperties"] = dropped
@@ -1038,12 +1060,14 @@ def publish_layout(user_id: str, page: Any, *, title: Any, description: Any, cat
     `validate_layout_payload`, the write door, runs on that payload immediately before the write (R-P4b-6a). A
     refusal is a `GalleryError` carrying one of the three sentences (the door's own words never reach a member).
 
-    The item is written exactly as `publish_style` writes a style, keyed on (author, page): the first share is a
+    The item is written by `_write_held_or_replaced`, the one write `publish_style` uses too, keyed on (author, page): the first share is a
     PENDING item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED
     the new version is HELD in `pending_json` and the approved one stays listed. The body is an empty document
     and the preview is empty: a layout has neither. Returns the author's summary plus `droppedPanels`."""
     if not layout_sharing_enabled():
         return None
+    if page not in LAYOUT_PAGES:        # the page first, before any field is cleaned (review Minor 2)
+        raise GalleryError(pls.PAGE_SENTENCE)
     clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
     clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
     clean_cat = _clean_category(category)
@@ -1055,38 +1079,11 @@ def publish_layout(user_id: str, page: Any, *, title: Any, description: Any, cat
                             (user_id, pls.LAYOUT_PREF)).fetchone()
         payload, dropped = pls.layout_payload(pref["pref_value"] if pref else None, page)
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
-        now = _now()
-        body_json = json.dumps(_LAYOUT_EMPTY_BODY)
-        existing = conn.execute(
-            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_page = ?",
-            (user_id, page)).fetchone()
         pls.validate_layout_payload(payload)      # ⛔ THE WRITE DOOR, immediately before the write (R-P4b-6a)
-        payload_json = json.dumps(payload)
-        if existing and existing["status"] == "approved":
-            revision = {"title": clean_title, "description": clean_desc, "category": clean_cat,
-                        "tradingStyle": clean_ts, "payload": payload, "preview": []}
-            conn.execute(
-                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
-                " updated_at = ? WHERE id = ?",
-                (json.dumps(revision), now, now, existing["id"]))
-            gid = existing["id"]
-        elif existing:
-            conn.execute(
-                "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
-                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
-                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = '[]',"
-                " pending_json = NULL, pending_at = NULL WHERE id = ?",
-                (clean_title, clean_desc, clean_cat, clean_ts, body_json, payload_json, now, existing["id"]))
-            gid = existing["id"]
-        else:
-            gid = uuid.uuid4().hex
-            conn.execute(
-                "INSERT INTO j2_template_gallery (id, user_id, source_page, kind, title, description,"
-                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
-                " payload_json, version, trading_style)"
-                " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, '[]', ?, ?, 1, ?)",
-                (gid, user_id, page, clean_title, clean_desc, clean_cat, body_json, now, now, LAYOUT_ITEM,
-                 payload_json, clean_ts))
+        gid = _write_held_or_replaced(
+            conn, user_id=user_id, key_column="source_page", key=page, item_type=LAYOUT_ITEM,
+            title=clean_title, description=clean_desc, category=clean_cat, trading_style=clean_ts,
+            body=_LAYOUT_EMPTY_BODY, preview=[], payload=payload)
         conn.commit()
         out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedPanels"] = dropped

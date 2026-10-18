@@ -276,6 +276,37 @@ def test_publish_layout_is_none_while_sharing_is_off(conn, monkeypatch):
     assert gallery.layout_status("author", conn=conn) is None
 
 
+def test_the_page_is_checked_before_any_field_is_cleaned(conn, sharing_on):
+    # Task 4 review Minor 2: a bad page answers PAGE_SENTENCE even when the title is empty too.
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    with pytest.raises(gallery.GalleryError) as e:
+        _publish(conn, page="sidebar", title="")
+    assert str(e.value) == pls.PAGE_SENTENCE
+    with pytest.raises(gallery.GalleryError) as e:              # control: a good page reaches the title check
+        _publish(conn, page="trade", title="")
+    assert str(e.value) != pls.PAGE_SENTENCE
+
+
+def test_the_existing_lookup_is_keyed_on_the_item_type_too(conn, sharing_on):
+    # Task 4 review Minor 4: a row of another type that carries the same source_page is never the layout's
+    # existing item, so it is never replaced or given a held revision. (Today no other type writes
+    # source_page; the unique index on (user_id, source_page) then refuses the second row, which is the
+    # loud outcome. A future type that reuses the column needs item_type in that index.)
+    import sqlite3
+    other = _row(conn, item_type="outline", user_id="author", title="Not a layout", source_page="trade")
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    with pytest.raises(sqlite3.IntegrityError):
+        _publish(conn)
+    conn.rollback()
+    row = conn.execute("SELECT title, item_type, pending_json, payload_json FROM j2_template_gallery WHERE id = ?",
+                       (other,)).fetchone()
+    assert (row["title"], row["item_type"], row["pending_json"], row["payload_json"]) == \
+        ("Not a layout", "outline", None, None)
+    conn.execute("DELETE FROM j2_template_gallery WHERE id = ?", (other,))
+    conn.commit()
+    assert _publish(conn)["itemType"] == "page_layout"          # control: the same publish, without the foreign row
+
+
 # ── Task 4: the build, entry by entry ──────────────────────────────────────────────────────────────
 
 def test_the_build_takes_only_the_shared_pages_lists_and_counts_only_its_drops():
