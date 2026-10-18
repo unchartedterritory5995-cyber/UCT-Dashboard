@@ -37,6 +37,12 @@ Owner design, 2026-10-15:
     a speaker on a post = rewrite it. Lessons already in the threads are moved
     over oldest first (run_forum_migration); the old channel is left for the
     owner to delete.
+  * The owner chose the threads over the forum (2026-10-18), so the same
+    organisation lives in #video-lessons itself: each section's header post is
+    edited into a live, level-grouped table of contents (refresh_thread_index),
+    every post carries its level and a "See also" line, a speaker's ✏️ on a
+    post rewrites it, and lessons from before levels get one
+    (run_level_backfill).
   * Desk > Videos mirrors the sections: one shelf per section ("TSDR Lessons ·
     Setups & Entries", ...), the section and level as tags for the Filters
     chips, the recap + key moments as the description, the moments as
@@ -1118,7 +1124,10 @@ def website_link(youtube_id: str) -> str:
 def search_line(lesson: dict) -> str:
     """The plain-text line above the embed: tags and $tickers, so Discord's search
     bar finds a lesson by topic or symbol."""
-    parts = [t.capitalize() for t in _json_list(lesson.get("tags"))]
+    parts = []
+    if lesson.get("level") in LEVELS:
+        parts.append(str(lesson["level"]).capitalize())
+    parts += [t.capitalize() for t in _json_list(lesson.get("tags"))]
     tickers = " ".join(f"${t}" for t in _json_list(lesson.get("tickers")))
     if tickers:
         parts.append(tickers)
@@ -1137,10 +1146,11 @@ def build_embed(lesson: dict, link: str) -> dict:
     if lines:
         body += "\n\n**Key moments**\n" + "\n".join(lines)
     related = [r for r in _json_list(lesson.get("related"))
-               if isinstance(r, dict) and r.get("post") and r.get("title")]
+               if isinstance(r, dict) and (r.get("post") or r.get("url")) and r.get("title")]
     if related:
         body += "\n\n**See also:** " + " · ".join(
-            f"[{str(r['title'])[:60]}]({post_url(r['post'])})" for r in related[:3])
+            f"[{str(r['title'])[:60]}]({r.get('url') or post_url(r['post'])})"
+            for r in related[:3])
     links = f"[▶ Watch the video]({link})"
     if lesson.get("youtube_id"):
         links += f"  ·  [Watch on UCT]({website_link(lesson['youtube_id'])})"
@@ -1278,11 +1288,13 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         _mark_index_dirty()
         return "posted"
     if threads_enabled():
-        placed = post_to_section(lesson, link)
+        related = related_lessons(lesson)
+        placed = post_to_section({**lesson, "related": related}, link)
         _update(aid, status="posted", discord_post_id=placed["post_id"],
                 post_channel_id=placed["thread"], forward_post_id=placed["forward_id"],
                 section=placed["section"], lesson_posted_at=int(time.time()),
-                last_error=None)
+                related=json.dumps(related), related_at=int(time.time()), last_error=None)
+        _mark_index_dirty()
         return "posted"
     post_id = post_lesson(lesson_channel, lesson, link)
     _update(aid, status="posted", discord_post_id=post_id, post_channel_id=lesson_channel,
@@ -1348,6 +1360,7 @@ def run_regroup(*, deadline: float, limit: int = 60) -> dict:
             placed = post_to_section(row, link)
             _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
                     forward_post_id=placed["forward_id"], section=placed["section"])
+            _mark_index_dirty()
             out["moved"] += 1
         except Exception as e:  # noqa: BLE001 — retried on the next tick
             log.warning("[tsdr-lessons] could not move %s into its thread: %s", aid, e)
@@ -1409,6 +1422,7 @@ def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
             continue
         _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
                 forward_post_id=placed["forward_id"], section=placed["section"])
+        _mark_index_dirty()
         if old_post:
             try:
                 _in_thread("DELETE", thread, f"/channels/{thread}/messages/{old_post}", None)
@@ -1976,30 +1990,51 @@ def post_to_forum(lesson: dict, link: str) -> dict:
     return {"post": pid, "video": video_id}
 
 
+def lesson_url(row: dict) -> str:
+    """Where a posted lesson lives: its forum post, else its recap message in
+    its section thread; "" when it is not posted anywhere."""
+    if row.get("forum_post_id"):
+        return post_url(row["forum_post_id"])
+    if row.get("post_channel_id") and row.get("discord_post_id"):
+        return jump_link(guild_id(), row["post_channel_id"], row["discord_post_id"])
+    return ""
+
+
 def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
-    """Up to `limit` other forum lessons, closest first: 3 points per shared
+    """Up to `limit` other posted lessons, closest first: 3 points per shared
     ticker, 2 per shared tag, 1 for the same section; newer wins a tie. Clips
-    are never related to anything, in either direction."""
+    are never related to anything, in either direction. With the forum on,
+    only forum lessons count (the threads are being emptied); each entry is
+    {title, post} for a forum lesson and {title, url} for a thread one."""
     if section_for(lesson) == "clips":
         return []
     mine_t = set(_json_list(lesson.get("tickers")))
     mine_tags = set(_json_list(lesson.get("tags")))
     mine_sec = section_for(lesson)
+    scope = "AND forum_post_id IS NOT NULL " if forum_enabled() else ""
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at "
-            "FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at, "
+            "discord_post_id, post_channel_id FROM tsdr_lessons WHERE status = 'posted' "
+            f"AND discord_post_id IS NOT NULL {scope}"
             "AND attachment_id != ? AND (section IS NULL OR section != 'clips')",
             (str(lesson.get("attachment_id") or ""),)).fetchall()
+        rows = [dict(r) for r in rows]
     scored = []
     for r in rows:
         score = (3 * len(mine_t & set(_json_list(r["tickers"])))
                  + 2 * len(mine_tags & set(_json_list(r["tags"])))
                  + (1 if r["section"] == mine_sec else 0))
-        if score > 0:
+        if score > 0 and lesson_url(r):
             scored.append((-score, -int(r["posted_at"] or 0), r))
     scored.sort(key=lambda x: (x[0], x[1]))
-    return [{"title": r["title"], "post": r["forum_post_id"]} for _, _, r in scored[:limit]]
+    out = []
+    for _, _, r in scored[:limit]:
+        if r["forum_post_id"]:
+            out.append({"title": r["title"], "post": r["forum_post_id"]})
+        else:
+            out.append({"title": r["title"], "url": lesson_url(r)})
+    return out
 
 
 _LEVEL_SYS = (
@@ -2090,20 +2125,22 @@ def run_related_refresh(*, deadline: float, limit: int = 5) -> dict:
     the library grows."""
     out = {"refreshed": 0, "errors": 0}
     cutoff = int(time.time()) - RELATED_REFRESH_S
+    scope = "AND forum_post_id IS NOT NULL " if forum_enabled() else ""
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
-            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND discord_post_id IS NOT NULL "
+            f"AND post_channel_id IS NOT NULL {scope}"
             "AND (related_at IS NULL OR related_at < ?) ORDER BY related_at LIMIT ?",
             (cutoff, int(limit))).fetchall()]
     for row in rows:
         if time.time() > deadline:
             break
-        pid = row["forum_post_id"]
+        where, mid = row["post_channel_id"], row["discord_post_id"]
         try:
             related = related_lessons(row)
             if json.dumps(related) != (row.get("related") or "[]"):
                 link = jump_link(guild_id(), row["channel_id"], row["message_id"])
-                _in_thread("PATCH", pid, f"/channels/{pid}/messages/{pid}",
+                _in_thread("PATCH", where, f"/channels/{where}/messages/{mid}",
                            _lesson_body({**row, "related": related}, link))
             _update(row["attachment_id"], related=json.dumps(related), related_at=int(time.time()))
             out["refreshed"] += 1
@@ -2112,7 +2149,7 @@ def run_related_refresh(*, deadline: float, limit: int = 5) -> dict:
                 _update(row["attachment_id"], status="removed")
                 _mark_index_dirty()
                 continue
-            log.warning("[tsdr-lessons] could not refresh See also on %s: %s", pid, e)
+            log.warning("[tsdr-lessons] could not refresh See also on %s: %s", mid, e)
             out["errors"] += 1
     return out
 
@@ -2125,17 +2162,19 @@ def run_rewrite_requests(*, deadline: float, limit: int = 25) -> dict:
     that is gone was deleted by hand: the lesson stays out."""
     out = {"checked": 0, "rewriting": 0, "removed": 0, "errors": 0}
     reviewers = reviewer_ids()
+    scope = "AND forum_post_id IS NOT NULL " if forum_enabled() else ""
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
-            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND forum_post_id IS NOT NULL "
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND discord_post_id IS NOT NULL "
+            f"AND post_channel_id IS NOT NULL {scope}"
             "ORDER BY COALESCE(reaction_checked_at, 0), posted_at LIMIT ?",
             (int(limit),)).fetchall()]
     for row in rows:
         if time.time() > deadline:
             break
-        aid, pid = row["attachment_id"], row["forum_post_id"]
+        aid, where, pid = row["attachment_id"], row["post_channel_id"], row["discord_post_id"]
         try:
-            users = _discord("GET", f"/channels/{pid}/messages/{pid}/reactions/{_PENCIL}",
+            users = _discord("GET", f"/channels/{where}/messages/{pid}/reactions/{_PENCIL}",
                              params={"limit": 100}) or []
         except DiscordError as e:
             if e.status == 404:
@@ -2245,6 +2284,111 @@ def refresh_index(*, force: bool = False) -> dict:
     return {"updated": updated}
 
 
+# ── library v2 in the threads: levels for old lessons, the header index ──────
+# Without the forum (the owner's choice, 2026-10-18), the five section header
+# posts in #video-lessons ARE the table of contents: each is edited into a
+# live, level-grouped list of its thread's lessons, newest first, with a jump
+# link to every recap.
+
+_INDEX_TOTAL_MAX = 5800          # Discord: 6,000 characters across a message's embeds
+_INDEX_DESC_MAX = 4000
+_INDEX_TITLE_CHARS = 48
+_INDEX_MAX_EMBEDS = 9
+
+
+def run_level_backfill(*, deadline: float, limit: int = 15) -> dict:
+    """Lessons written before levels existed get one from their title and recap,
+    a few per tick; clips have no level."""
+    out = {"classified": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT attachment_id, title, recap FROM tsdr_lessons WHERE status = 'posted' "
+            "AND (level IS NULL OR level = '') AND (section IS NULL OR section != 'clips') "
+            "AND title IS NOT NULL ORDER BY posted_at DESC LIMIT ?", (int(limit),)).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        _update(row["attachment_id"], level=classify_level(row["title"], row.get("recap") or ""))
+        out["classified"] += 1
+    if out["classified"]:
+        _mark_index_dirty()
+    return out
+
+
+def _index_rows(section_key: str) -> list[dict]:
+    with contextlib.closing(_connect()) as c:
+        return [dict(r) for r in c.execute(
+            "SELECT title, level, posted_at, forum_post_id, post_channel_id, discord_post_id "
+            "FROM tsdr_lessons WHERE status = 'posted' AND section = ? AND discord_post_id "
+            "IS NOT NULL AND post_channel_id IS NOT NULL ORDER BY posted_at DESC",
+            (section_key,)).fetchall()]
+
+
+def thread_index_embeds(key: str, name: str, blurb: str, rows: list[dict]) -> list[dict]:
+    """The header post's embeds: the section's blurb, then one embed per level
+    (clips: one list), each lesson a link to its recap, newest first. Stops at
+    Discord's size limit and says how many more are in the thread."""
+    head = {"title": name, "color": _EMBED_COLOR,
+            "description": (f"{blurb}\n\nEvery lesson in this section is in the thread "
+                            "below. Click a title to jump to its recap and video.")}
+    embeds, used, more = [head], len(name) + len(head["description"]), 0
+    if key == "clips":
+        groups = [("Newest first", rows)]
+    else:
+        groups = [(f"{_LEVEL_EMOJI[lvl]} {lvl.capitalize()}",
+                   [r for r in rows if r.get("level") == lvl]) for lvl in LEVELS]
+        groups.append(("More lessons", [r for r in rows if r.get("level") not in LEVELS]))
+    for title, items in groups:
+        lines = []
+        for r in items:
+            day = datetime.fromtimestamp(int(r["posted_at"]), tz=timezone.utc).astimezone(_ET)
+            short = str(r["title"] or "").strip()
+            if len(short) > _INDEX_TITLE_CHARS:
+                short = short[:_INDEX_TITLE_CHARS - 1].rstrip() + "…"
+            line = f"• [{short}]({lesson_url(r)}) · {day:%b} {day.day}"
+            room = (used + len(title) + len(line) + 1 <= _INDEX_TOTAL_MAX
+                    and len("\n".join(lines + [line])) <= _INDEX_DESC_MAX
+                    and len(embeds) < _INDEX_MAX_EMBEDS)
+            if not room:
+                more += 1
+                continue
+            lines.append(line)
+            used += len(line) + 1
+        if lines:
+            embeds.append({"title": title, "description": "\n".join(lines), "color": _EMBED_COLOR})
+            used += len(title)
+    if more:
+        embeds[-1]["description"] += f"\n… and {more} more in the thread"
+    return embeds
+
+
+def refresh_thread_index(*, force: bool = False) -> dict:
+    """Edit each section's header post into its table of contents whenever a
+    lesson was added, moved, rewritten or removed (the dirty mark; a header
+    never written counts as dirty). A header the owner deleted is skipped."""
+    if not force and get_state("index_dirty") == "0":
+        return {"updated": 0}
+    channel = ensure_lesson_channel()
+    threads = ensure_section_threads()
+    updated = 0
+    for key, name, blurb in SECTIONS:
+        header = threads.get(key)       # a thread started from a message shares its id
+        if not header:
+            continue
+        body = {"embeds": thread_index_embeds(key, name, blurb, _index_rows(key)),
+                "allowed_mentions": {"parse": []}}
+        try:
+            _in_thread("PATCH", header, f"/channels/{channel}/messages/{header}", body)
+        except DiscordError as e:
+            if e.status != 404:
+                raise
+            log.info("[tsdr-lessons] the %s header post is gone; no index for it", name)
+            continue
+        updated += 1
+    set_state("index_dirty", "0")
+    return {"updated": updated}
+
+
 # ── the scheduled entry point ────────────────────────────────────────────────
 
 def tick() -> dict:
@@ -2286,6 +2430,16 @@ def tick() -> dict:
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}
         if threads_enabled() and not forum_enabled():
+            for name, stage in (("levels", run_level_backfill),
+                                ("rewrites", run_rewrite_requests),
+                                ("related", run_related_refresh)):
+                try:
+                    result = stage(deadline=deadline)
+                    if any(result.values()):
+                        out[name] = result
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[tsdr-lessons] %s stage failed: %s", name, e)
+                    out[name] = {"error": str(e)[:200]}
             try:
                 out["regroup"] = run_regroup(deadline=deadline)
             except Exception as e:  # noqa: BLE001
@@ -2308,9 +2462,9 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] video refill stage failed: %s", e)
                 out["refill"] = {"error": str(e)[:200]}
-        if forum_enabled():
+        if forum_enabled() or threads_enabled():
             try:
-                index = refresh_index()
+                index = refresh_index() if forum_enabled() else refresh_thread_index()
                 if index["updated"]:
                     out["index"] = index
             except Exception as e:  # noqa: BLE001

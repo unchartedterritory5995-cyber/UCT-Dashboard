@@ -1376,7 +1376,7 @@ def test_with_the_forum_on_a_lesson_is_one_tagged_post_with_the_video_inside(mon
     assert posts[0]["name"] == RECAP["title"]
     assert posts[0]["applied_tags"] == [TAG_IDS["Setups & Entries"], TAG_IDS["Beginner"], TAG_IDS["TSDR"]]
     assert posts[0]["message"]["embeds"][0]["title"] == RECAP["title"]
-    assert posts[0]["message"]["content"] == "Entries · Setups · $NVDA $AMD"
+    assert posts[0]["message"]["content"] == "Beginner · Entries · Setups · $NVDA $AMD"
     assert "message_reference" in sent["p1"][0]                           # the video, inside the post
     row = tl.get_lesson("f1")
     assert row["forum_post_id"] == "p1" and row["discord_post_id"] == "p1"
@@ -1565,16 +1565,18 @@ def test_the_forum_stages_run_only_with_the_flag_and_regroup_steps_aside(monkeyp
     monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
     ran = []
     for name in ("run_regroup", "run_forum_migration", "run_rewrite_requests", "run_related_refresh",
-                 "run_video_refill"):
+                 "run_video_refill", "run_level_backfill"):
         monkeypatch.setattr(tl, name, lambda deadline, _n=name: ran.append(_n) or {})
     monkeypatch.setattr(tl, "refresh_index", lambda: ran.append("refresh_index") or {"updated": 0})
+    monkeypatch.setattr(tl, "refresh_thread_index", lambda: ran.append("refresh_thread_index") or {"updated": 0})
     monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
     monkeypatch.setattr(tl, "run_lessons", lambda limit, deadline: {})
     monkeypatch.setattr(tl, "run_link_redo", lambda deadline: {"requeued": 0, "errors": 0})
     tl.set_state(tl._LINK_RESCAN_KEY, "1")
     tl.set_state(tl._REOPEN_DONE_KEY, "1")
     tl.tick()
-    assert ran == ["run_regroup", "run_video_refill"]
+    assert ran == ["run_level_backfill", "run_rewrite_requests", "run_related_refresh",
+                   "run_regroup", "run_video_refill", "refresh_thread_index"]
     ran.clear()
     monkeypatch.setenv("TSDR_LESSONS_FORUM_ENABLED", "1")
     tl.tick()
@@ -1656,3 +1658,113 @@ def test_a_rewrite_updates_the_lessons_website_row(monkeypatch):
     assert writes["vid"] == 701 and writes["title"] == writes["headline"] == "Better title"
     assert writes["category"] == "TSDR Lessons · Setups & Entries"
     assert writes["tags"] == ["entries", "setups", "setups & entries", "beginner"]
+
+
+# ── library v2 in the threads: levels, See also, pencil, the header index ────
+
+def _thread_lesson(aid, day, *, title=None, section="setups", level="intermediate",
+                   tags=("setups",), tickers=("NVDA",), transcript="the words " * 30):
+    m = msg(sf(2026, 3, day), attachments=[video(aid)])
+    tl.record_message(m, TSDR)
+    tl._update(aid, status="posted", title=title or f"Lesson {aid}", recap="A. B. C. D.",
+               tags=json.dumps(list(tags)), tickers=json.dumps(list(tickers)), section=section,
+               level=level, transcript=transcript, discord_post_id=f"msg-{aid}",
+               post_channel_id=f"t-{section}")
+    return m
+
+
+def test_a_thread_lesson_carries_its_level_and_see_also_links(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _seed_threads()
+    _thread_lesson("sa1", 1, tickers=("NVDA",))
+    m = msg(sf(2026, 10, 15), attachments=[video("sa2")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m, recap={**RECAP, "level": "advanced"})
+    sent = []
+    fake.routes[("POST", "/channels/t-setups/messages")] = lambda p, b: sent.append(b) or {"id": f"n{len(sent)}"}
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert sent[0]["content"] == "Advanced · Entries · Setups · $NVDA $AMD"
+    link = f"https://discord.com/channels/{GUILD}/t-setups/msg-sa1"
+    assert f"**See also:** [Lesson sa1]({link})" in sent[0]["embeds"][0]["description"]
+    row = tl.get_lesson("sa2")
+    assert json.loads(row["related"]) == [{"title": "Lesson sa1", "url": link}]
+    assert tl.get_state("index_dirty") == "1"
+
+
+def test_the_header_posts_become_a_level_grouped_index(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    _seed_threads()
+    _thread_lesson("h1", 1, title="First principles of risk", level="beginner")
+    _thread_lesson("h2", 2, title="A much longer lesson title that will certainly be shortened for the index",
+                   level="advanced")
+    _thread_lesson("h3", 3, title="Levelled later", level=None)
+    _thread_lesson("c1", 4, title="Quick NVDA look", section="clips", level=None)
+    patched = {}
+    fake = FakeDiscord({("PATCH", f"/channels/lessons/messages/t-{k}"): (lambda key: lambda p, b: patched.update({key: b}) or {})(k)
+                        for k, _, _ in tl.SECTIONS})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.refresh_thread_index() == {"updated": len(tl.SECTIONS)}
+    setups = patched["setups"]["embeds"]
+    assert setups[0]["title"] == "Setups & Entries" and "Click a title" in setups[0]["description"]
+    assert [e["title"] for e in setups[1:]] == ["🌱 Beginner", "🏔️ Advanced", "More lessons"]
+    assert setups[1]["description"] == (
+        f"• [First principles of risk](https://discord.com/channels/{GUILD}/t-setups/msg-h1) · Mar 1")
+    assert setups[2]["description"].startswith("• [A much longer lesson title that will certainly…](")
+    assert "[Levelled later]" in setups[3]["description"]
+    clips = patched["clips"]["embeds"]
+    assert clips[1]["title"] == "Newest first" and "[Quick NVDA look]" in clips[1]["description"]
+    assert patched["market"]["embeds"] == [patched["market"]["embeds"][0]]        # blurb only
+    assert tl.get_state("index_dirty") == "0"
+    assert tl.refresh_thread_index() == {"updated": 0}                             # clean
+    # too many lessons for one post: the rest is counted, not dropped silently
+    rows = [{"title": f"Lesson {i}", "level": "beginner", "posted_at": 1700000000 + i,
+             "post_channel_id": "t-setups", "discord_post_id": str(10 ** 18 + i)} for i in range(120)]
+    embeds = tl.thread_index_embeds("setups", "Setups & Entries", "Blurb.", rows)
+    total = sum(len(e["title"]) + len(e["description"]) for e in embeds)
+    assert total <= 6000 and embeds[-1]["description"].endswith("more in the thread")
+    assert sum(e["description"].count("• [") for e in embeds[1:]) + int(
+        embeds[-1]["description"].rsplit("and ", 1)[1].split()[0]) == 120
+
+
+def test_old_lessons_get_a_level_a_few_per_tick_and_clips_do_not(monkeypatch):
+    _thread_lesson("l1", 1, level=None)
+    _thread_lesson("l2", 2, level=None)
+    _thread_lesson("l3", 3, level="beginner")
+    _thread_lesson("lc", 4, level=None, section="clips")
+    monkeypatch.setattr(tl, "classify_level", lambda title, recap: "advanced")
+    assert tl.run_level_backfill(deadline=9e12, limit=1) == {"classified": 1}
+    assert tl.run_level_backfill(deadline=9e12) == {"classified": 1}
+    assert tl.get_lesson("l1")["level"] == tl.get_lesson("l2")["level"] == "advanced"
+    assert tl.get_lesson("l3")["level"] == "beginner" and tl.get_lesson("lc")["level"] is None
+    assert tl.run_level_backfill(deadline=9e12) == {"classified": 0}
+    assert tl.get_state("index_dirty") == "1"
+
+
+def test_a_pencil_on_a_thread_post_rewrites_it_and_see_also_refreshes_in_the_thread(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _thread_lesson("tp1", 1, transcript="rewrite me " * 30)
+    _thread_lesson("tp2", 2, transcript="leave me " * 30)
+    tl._update("tp1", forward_post_id="vid-tp1")
+    tl._update("tp2", related="[]", related_at=1)
+    deleted, patched = [], []
+    fake = FakeDiscord({
+        ("GET", f"/channels/t-setups/messages/msg-tp1/reactions/{tl._PENCIL}"): [{"id": tl.BRACCO_USER_ID}],
+        ("GET", f"/channels/t-setups/messages/msg-tp2/reactions/{tl._PENCIL}"): [],
+        ("DELETE", "/channels/t-setups/messages/msg-tp1"): lambda p, b: deleted.append("msg-tp1"),
+        ("DELETE", "/channels/t-setups/messages/vid-tp1"): lambda p, b: deleted.append("vid-tp1"),
+        ("PATCH", "/channels/t-setups/messages/msg-tp2"): lambda p, b: patched.append(b) or {},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 0, "errors": 0}
+    assert deleted == ["msg-tp1", "vid-tp1"]
+    row = tl.get_lesson("tp1")
+    assert row["status"] == "new" and row["discord_post_id"] is None and row["transcript"]
+    # tp2's See also was empty; tp1 is no longer posted, so it stays empty and nothing is edited
+    assert tl.run_related_refresh(deadline=9e12) == {"refreshed": 1, "errors": 0}
+    assert patched == []
+    _thread_lesson("tp3", 3, tickers=("NVDA",))
+    tl._update("tp3", related_at=int(__import__("time").time()))             # fresh: only tp2 is due
+    tl._update("tp2", related_at=1)
+    assert tl.run_related_refresh(deadline=9e12)["refreshed"] == 1
+    assert "[Lesson tp3](https://discord.com/channels/" in patched[0]["embeds"][0]["description"]
