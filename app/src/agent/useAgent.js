@@ -94,6 +94,7 @@ function rememberChange(memory, host, ops) {
     const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
+    memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
     memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym })
     // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt
     const t = takeIndicatorTouch()
@@ -104,6 +105,8 @@ function rememberChange(memory, host, ops) {
 const CORRECTION = /^(?:no|nope|nah|not that|not those|wrong|that's wrong|that is wrong|actually,? i meant|i meant|i said|i asked for)\b/i
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
+// How many times a layout has been opened in this tab (null for hosts without layouts).
+const visitOf = (host) => (typeof host?.boardVisit === 'function' ? host.boardVisit() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
 const boardEpoch = (host, ops) => (kindsOf(ops).some(k => getTargetKind(k)?.boardScoped !== false) ? epochOf(host) : null)
 // ⛔ F6 — what an approval binds to: each target kind may SEAL its planned change (the M3 Save
@@ -1024,6 +1027,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // a question or an authoring answer is waiting (those words answer THAT). A reference that cannot hold
       // is said plainly (`say`); one it cannot read goes on to the instant path / the model as before.
       const epochNow = epochOf(host)
+      memoryRef.current.seeBoard(visitOf(host))     // a layout opened since the last turn drops the board's refs
       // GATE C: the member CORRECTING the Agent ("no, I meant the weekly", "not that one") — kept as context
       // for the model (session memory → conversation_memory.recent_corrections); never acted on by itself
       if (CORRECTION.test(text)) memoryRef.current.noteCorrection(text)

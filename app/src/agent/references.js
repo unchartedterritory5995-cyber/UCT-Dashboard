@@ -41,14 +41,15 @@ function ordinalOf(m, offset) {
   return n > 0 ? n : null
 }
 
-/** The chart a follow-up means, from the live board: one chart → it; else the conversation's subject chart
- *  if it is still on THIS board; else the chart the member clicked; else null (the panel asks). */
+/** The chart a follow-up means, from the live board: one chart → it; else the chart the member clicked;
+ *  else the conversation's subject chart if it is still on THIS board; else null (the panel asks).
+ *  ⛔ Memory never overrides a click (GATE-C.md §2) — the same order as `subjectTarget` below. */
 export function subjectChart(host, memory, epoch) {
   const charts = chartsOf(host)
   if (charts.length === 1) return charts[0]
+  try { const sel = host?.charts?.selected?.(); const hit = charts.find(c => c.ref === sel); if (hit) return hit } catch { /* no selection */ }
   const s = memory?.subject('chart', epoch)
   if (s) { const hit = charts.find(c => c.ref === s.ref); if (hit) return hit }
-  try { const sel = host?.charts?.selected?.(); const hit = charts.find(c => c.ref === sel); if (hit) return hit } catch { /* no selection */ }
   return null
 }
 
