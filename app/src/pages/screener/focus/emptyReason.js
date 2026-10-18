@@ -53,8 +53,8 @@ export function emptyReason({ spec, meta, presence = {}, coverage = null, liveOn
   if (keys.some(k => presence[k] === undefined)) return undefined
   const absent = keys.filter(k => presence[k] === 0)
   const label = k => defs.get(k)?.label || k
-  // A pre-market column (meta `premarket_only`, from the sweep's own declaration) fills only
-  // 04:00-09:30 ET, so its zero is told apart from the regular live tier's.
+  // An extended-hours column (meta `premarket_only`, from the sweep's own declaration) is blank
+  // during the session, so its zero is told apart from the regular live tier's.
   const pre = absent.filter(k => defs.get(k)?.premarket_only)
   if (pre.length) return { kind: 'premarket', labels: pre.map(label) }
   const live = absent.filter(k => defs.get(k)?.live_only)
@@ -72,10 +72,10 @@ export function usePresence(keys, enabled) {
 }
 
 // The one place the words live, so the menu row and the empty state cannot drift apart.
-export const REASON_SHORT = { live: 'live during the session', premarket: 'fills 4:00 to 9:30 ET', missing: 'not available yet' }
+export const REASON_SHORT = { live: 'live during the session', premarket: 'fills outside the session', missing: 'not available yet' }
 
 export function reasonHead(reason) {
-  if (reason?.kind === 'premarket') return 'Pre-market screens fill from 4:00 to 9:30 ET'
+  if (reason?.kind === 'premarket') return 'Extended-hours screens fill before the open and after the close'
   if (reason?.kind === 'live') return 'Not available yet: this screen is live during the session'
   if (reason?.kind === 'missing') return 'Not available yet'
   return null
@@ -84,8 +84,8 @@ export function reasonHead(reason) {
 export function reasonBody(reason, coverage = null) {
   const list = labels => labels.join(', ')
   if (reason?.kind === 'premarket') {
-    return `${list(reason.labels)} comes from the last pre-market trade and is blank outside 4:00 to 9:30 ET, `
-      + 'so this screen returns nothing until the next pre-market. No pre-market volume is available. '
+    return `${list(reason.labels)} comes from the last pre-market or after-hours trade and is blank during the session, `
+      + 'so this screen returns nothing until the close (or before the open). No extended-hours volume is available. '
       + 'That is a gap in the data, not a quiet market.'
   }
   if (reason?.kind === 'live') {

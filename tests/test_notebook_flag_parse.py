@@ -167,6 +167,9 @@ def _server_gates() -> dict:
         "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
         # Tier 2 part B: the earnings follow-up service's own gate function.
         "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": earnings_followup.enabled,
+        # P4a: no service module yet, so the gate IS the one-parse call (the truth-table half of (b)
+        # keeps the comparison from being a mirror), as for publish and onboarding above.
+        "JOURNAL_PAGE_LAYOUTS_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_PAGE_LAYOUTS_ENABLED", False),
         # P3a: the style library's own gate function (Task 3 replaced the placeholder lambda).
         "NOTEBOOK_STYLE_LIBRARY_ENABLED": template_gallery.library_enabled,
     }

@@ -743,7 +743,14 @@ function FocusList({ onMode }) {
 
   const drops = []
   if (coverageHasDrop(listed?.coverage)) {
-    drops.push(`${fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))} stocks could not be checked against every filter. They are left out of this list.`)
+    // Said as the ordinary fact it usually is. RS Rank exists only for stocks over ~$300M
+    // (rs_ranking's universe), so on any RS screen thousands of smaller names have no value
+    // to compare; "could not be checked" read as broken data on the first screen a member
+    // opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
+    const n = fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))
+    drops.push(s.filters?.rs_rank
+      ? `${n} smaller stocks are not in this list: RS Rank covers stocks over about $300M in market cap.`
+      : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
   for (const r of scanReceipts) {
     if (coverageHasDrop(r.latest)) drops.push(`The scan filter ${r.label} could not check ${fmtN((r.latest.dropped || 0) + (r.latest.not_computable || 0))} stocks in its last run.`)

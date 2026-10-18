@@ -86,6 +86,8 @@ NOTEBOOK_KEYS = [
     "notebook_smart_chips_enabled",
     # Tier 2 part B: the earnings follow-up notice and card — an enablement gate.
     "notebook_earnings_followup_enabled",
+    # P4a: page layouts (Customize on Today and the trade page) — an enablement gate.
+    "journal_page_layouts_enabled",
     # P3a: the community style library (share, adopt, helpful, follow) — an enablement gate.
     "notebook_style_library_enabled",
 ]

@@ -101,13 +101,16 @@ def _today() -> date:
 def aged_before(today: Optional[date] = None) -> str:
     """The latest posted DATE that is aged, as YYYY-MM-DD — for SQL `posted <= ?` prefilters.
 
-    Walks back session by session, so it agrees with `is_aged` by construction."""
-    from api.services.wisdom.core import timeutil
-
-    d = today or _today()
-    for _ in range(PRICE_AGE_SESSIONS):
-        d = timeutil.previous_session(d)
-    return (d - timedelta(days=1)).isoformat()
+    Walks back day by day asking `is_aged` itself, so the two agree by construction on every
+    day of the week. (A session-stepping walk disagreed on weekends and holidays: stepping back
+    from a non-session `today` spent one of the twenty steps on a day `sessions_since` never counts.)"""
+    t = today or _today()
+    d = t
+    for _ in range(PRICE_AGE_SESSIONS * 3 + 30):
+        if is_aged(d, t):
+            return d.isoformat()
+        d -= timedelta(days=1)
+    return d.isoformat()
 
 
 # ── reads ────────────────────────────────────────────────────────────────────

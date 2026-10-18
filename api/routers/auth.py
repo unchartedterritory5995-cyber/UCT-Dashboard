@@ -265,6 +265,10 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
     "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
+    # P4a (page layouts): the Customize button on Today and the trade page, and reading a saved
+    # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
+    # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
     "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
 }
 
@@ -547,6 +551,17 @@ def _ticker_history_enabled() -> bool:
     try:
         from api.services import ticker_history
         return bool(ticker_history.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
+def _wisdom_ticker_history_enabled() -> bool:
+    """The chart's "Team history" panel switch -- the SAME reader the route's dark gate uses
+    (archive/team_history.enabled: WISDOM_TICKER_HISTORY_ENABLED and WISDOM_ARCHIVE_ENABLED).
+    Never raises."""
+    try:
+        from api.services.wisdom.archive import team_history
+        return bool(team_history.enabled())
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return False
 
@@ -840,6 +855,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         "decision_record_enabled": _decision_record_enabled(),
         # TERM-049: the Research "History" tab. Same one-authority rule as above.
         "ticker_history_enabled": _ticker_history_enabled(),
+        # The chart's Team history panel (TSDR archive). Same one-authority rule.
+        "wisdom_ticker_history_enabled": _wisdom_ticker_history_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
         "options_vol_surface_enabled": _options_vol_surface_enabled(),
@@ -2840,6 +2857,9 @@ _PREFERENCE_KEYS = {
     "indicator_templates": "indicator_templates",
     "j2_calendar_pnl_basis": _PREF_OPAQUE,
     "j2_custom_dashboard": _PREF_OPAQUE,
+    # P4a (2026-10-17): a member's Today / trade page panel layout, written by Customize layout.
+    # Named schema: the SHAPE is checked (`_validate_page_layout`), never the panel ids (R-P4-7).
+    "journal_page_layout": "journal_page_layout",
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
@@ -3114,6 +3134,86 @@ def _validate_indicator_templates(raw) -> None:
                 refuse("indicators need a defId")
 
 
+# ── journal_page_layout (P4a, R-P4-7) ─────────────────────────────────────────────
+# The client's ceilings, pinned equal to `journal-2-0/lib/pageLayouts.js` by
+# `tests/test_page_layout_preference.py` (which READS the JS constants), so a layout the client
+# writes is never a 400. The server checks the blob's SHAPE only: panel ids are a client fact, a
+# server copy of that registry would be a second authority, and an id a newer build writes must
+# survive an older server. Unknown fields and unknown ids are CARRIED.
+_PAGE_LAYOUT_VERSION = 1
+_PAGE_LAYOUT_MAX_BYTES = 16384
+_PAGE_LAYOUT_MAX_ENTRIES = 40
+_PAGE_LAYOUT_ID_MAX = 40
+# The model nests four levels (object > today > list > entry). The depth is bounded after the parse by
+# an iterative walk, so a hostile blob is a 400 on every Python version: CPython 3.12 raises
+# RecursionError from the parser itself at ~1,000 levels, while 3.14 parses 8,000.
+_PAGE_LAYOUT_MAX_DEPTH = 8
+_PAGE_LAYOUT_REFUSAL = "That page layout could not be saved. Reset it and try again."
+
+
+def _validate_page_layout(raw) -> None:
+    """Raise HTTPException(400) unless `raw` is a layout blob the client could have saved:
+    a JSON object with `version == 1`, at most 16 KB (UTF-8 bytes), whose `today.<phase>` lists and
+    `trade` list hold at most 40 `{id: str of 1..40 characters, shown: bool}` entries each. No value
+    nests deeper than 8 levels, and NaN / Infinity are refused. Whatever is wrong, the answer is the
+    one 400: a lone surrogate, a parser RecursionError and a non-finite number included.
+    "" and None are the client's "cleared" write."""
+    if raw == "" or raw is None:
+        return
+
+    def refuse():
+        raise HTTPException(status_code=400, detail=_PAGE_LAYOUT_REFUSAL)
+
+    def check_list(entries):
+        if not isinstance(entries, list) or len(entries) > _PAGE_LAYOUT_MAX_ENTRIES:
+            refuse()
+        for e in entries:
+            if not isinstance(e, dict):
+                refuse()
+            eid, shown = e.get("id"), e.get("shown")
+            if not isinstance(eid, str) or not eid or len(eid) > _PAGE_LAYOUT_ID_MAX:
+                refuse()
+            if not isinstance(shown, bool):
+                refuse()
+
+    def no_constant(name):
+        raise ValueError(name)  # NaN, Infinity, -Infinity: not JSON, and the browser cannot parse them
+
+    if not isinstance(raw, str):
+        refuse()
+    try:
+        size = len(raw.encode("utf-8"))  # a lone surrogate (JSON "\ud800") cannot be encoded
+    except UnicodeEncodeError:
+        refuse()
+    if size > _PAGE_LAYOUT_MAX_BYTES:
+        refuse()
+    try:
+        blob = json.loads(raw, parse_constant=no_constant)
+    except (ValueError, TypeError, RecursionError):
+        refuse()
+    stack = [(blob, 1)]
+    while stack:  # iterative, so the walk itself cannot recurse
+        node, depth = stack.pop()
+        if isinstance(node, (dict, list)):
+            if depth > _PAGE_LAYOUT_MAX_DEPTH:
+                refuse()
+            children = node.values() if isinstance(node, dict) else node
+            stack.extend((child, depth + 1) for child in children)
+    if not isinstance(blob, dict):
+        refuse()
+    version = blob.get("version")
+    if isinstance(version, bool) or version != _PAGE_LAYOUT_VERSION:
+        refuse()
+    if "today" in blob:
+        today = blob["today"]
+        if not isinstance(today, dict):
+            refuse()
+        for entries in today.values():
+            check_list(entries)
+    if "trade" in blob:
+        check_list(blob["trade"])
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3126,6 +3226,8 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_joystick_hub(value)
     elif schema == "indicator_templates":
         _validate_indicator_templates(value)
+    elif schema == "journal_page_layout":
+        _validate_page_layout(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 

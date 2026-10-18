@@ -6132,6 +6132,28 @@ export const PINE_TRANSLATE_MAX_STEPS = 5000000
  *  script and far below where the host stack actually breaks. */
 export const PINE_TRANSLATE_MAX_DEPTH = 400
 
+/** The depth bound's refusal — ONE sentence whether the 400th level or the host
+ *  stack got there first, so which one did cannot change what the member reads. */
+function depthRefusalOf(name, maxDepth, sourcePath, tok) {
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — resolving \`${name || 'an expression'}\` nested past `
+    + `${maxDepth} levels${sourcePath ? ` in ${sourcePath}` : ''}. `
+    + 'That is a translator defect, not a limit on the script: this door expands a '
+    + 'variable by re-reading its definition, and a definition that reaches its own '
+    + 'previous bar can be re-entered without end. The deepest legitimate script '
+    + 'measured needs 20 levels.',
+    locate(tok))
+}
+
+/** A V8 stack overflow — and ONLY that: a `RangeError` for a bad array length or
+ *  an out-of-range `toFixed` is a real defect and must keep propagating.
+ *  ⛔ NO REGEX HERE. With the stack nearly gone V8 cannot compile one, and it
+ *  throws `SyntaxError: Invalid regular expression: …: Maximum call stack size
+ *  exceeded` — which is also how ANY regex in this file reports an overflow, so
+ *  both constructors are accepted (measured 2026-10-17 at `--stack-size=300`). */
+const isStackOverflow = (err) => (err instanceof RangeError || err instanceof SyntaxError)
+  && typeof err.message === 'string' && err.message.includes('Maximum call stack size exceeded')
+
 /**
  * ⭐⭐ THE SAME DEADLINE, REACHABLE FROM THE NON-CLASS HELPERS.
  *
@@ -6849,18 +6871,24 @@ export class Resolver {
     // reporting an overflow reports nothing at all.
     if (bound && this.maxDepth > 0 && (this.depthTripped || this.depth >= this.maxDepth)) {
       this.depthTripped = true
-      throw new PineRefusal('pine:timeout',
-        `${REFUSALS['pine:timeout']} — resolving \`${name || 'an expression'}\` nested past `
-        + `${this.maxDepth} levels${this.sourcePath ? ` in ${this.sourcePath}` : ''}. `
-        + 'That is a translator defect, not a limit on the script: this door expands a '
-        + 'variable by re-reading its definition, and a definition that reaches its own '
-        + 'previous bar can be re-entered without end. The deepest legitimate script '
-        + 'measured needs 20 levels.',
-        locate(tok))
+      throw depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
     }
     this.depth += 1
     if (this.depth > this.peakDepth) this.peakDepth = this.depth
     try { return this.resolveBindingInner(bound, tok, name) } catch (err) {
+      // ⛔⛔ THE HOST STACK CAN RUN OUT BEFORE THE BOUND DOES, AND THEN IT IS THE
+      // BOUND. ⚰️ MEASURED 2026-10-17: on Node 20.19.0 (the CI image) a cold JIT's
+      // frames are large enough that `cc-yata` overflows at 321-339 levels, never
+      // reaching 400. The `RangeError` was swallowed by the probes (`constIntOf`,
+      // `constantBranchOf`), which retried it ~255,000 times until the WALL CLOCK
+      // ran out, and the outputs after that point were never read — so the inputs
+      // only they read (`Both Mode`) were never minted. Pass or fail depended on
+      // runner speed. Tripping the same sticky bound here gives the same refusal
+      // the 400th level would have, so the reply is a property of the script again.
+      if (bound && this.maxDepth > 0 && isStackOverflow(err)) {
+        this.depthTripped = true
+        throw depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
+      }
       // ⭐ C31 — a refusal reached THROUGH a binding made below a stepped-over
       // loop says so (`markAfterLoop`); only the object lane's `rtAdmits` reads it.
       if (bound && bound.afterLoop && err && typeof err === 'object') err.afterLoop = true
@@ -7428,11 +7456,13 @@ export class Resolver {
     if (!node) return null
     const direct = litInt(node)
     if (direct !== null) return direct
+    // ⛔ BUT NEVER A STACK OVERFLOW: swallowed here it is retried by the caller
+    // instead of reaching the depth bound in `resolveBinding` (2026-10-17).
     let folded = null
     if (probed) {
-      try { folded = this.resolveProbed(node, probed) } catch { return null }
+      try { folded = this.resolveProbed(node, probed) } catch (e) { if (isStackOverflow(e)) throw e; return null }
     } else {
-      try { folded = this.resolve(node) } catch { return null }
+      try { folded = this.resolve(node) } catch (e) { if (isStackOverflow(e)) throw e; return null }
     }
     if (!folded || folded.type !== 'num') return null
     const v = Number(folded.value)
@@ -10761,6 +10791,8 @@ export class Resolver {
     try {
       test = this.resolve(node.test)
     } catch (err) {
+      // ⛔ A stack overflow goes on to the depth bound — see `constIntOf`.
+      if (isStackOverflow(err)) throw err
       return null
     }
     // A folded constant is a `num`; anything per-bar resolves to `series`/`op`

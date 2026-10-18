@@ -252,10 +252,13 @@ def test_registered_internal_and_kept_out_of_the_member_catalog():
     assert [r["pattern_id"] for r in registry.drop_internal(rows)] == ["bull_flag"]
 
 
-def test_draws_as_experimental():
+def test_draws_in_the_team_set():
+    """Owner direction 2026-10-17: MA pullbacks are in the team drawing set (trusted tier).
+    It stays INTERNAL, so no member path serves it whatever its tier."""
     pol = registry.display_policy(_ID)
-    assert pol["display_tier"] == "experimental" and pol["display_layer"] == "structures"
-    assert _ID not in registry.DISPLAY_TRUSTED and _ID not in registry.DISPLAY_HIDDEN
+    assert pol["display_tier"] == "trusted" and pol["display_layer"] == "structures"
+    assert _ID in registry.DISPLAY_TEAM_SET and _ID not in registry.DISPLAY_HIDDEN
+    assert registry.is_internal(_ID)
 
 
 def test_the_universe_scan_computes_it():

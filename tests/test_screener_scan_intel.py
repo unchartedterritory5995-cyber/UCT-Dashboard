@@ -106,10 +106,29 @@ def test_the_new_live_starters_match_the_row_they_describe(snap):
              dollar_vol_30d=3e7, gap_pct=4.0, dist_20d_high_pct=-1.0),
         _row("NOLIVE", security_type="Stock", rvol_live=None, vol_ratio=9.0, chg_from_open_pct=1.0,
              above_50sma=1, dollar_vol_30d=3e7, gap_pct=4.0, dist_20d_high_pct=-1.0),
+        # live volume present and LOW: yesterday's heavy volume must not vouch for today
+        _row("LIVELOW", security_type="Stock", rvol_live=1.0, vol_ratio=9.0, chg_from_open_pct=1.0,
+             above_50sma=1, dollar_vol_30d=3e7, gap_pct=4.0, dist_20d_high_pct=-1.0),
     ])
     for sid in ("starter_volume_surge_now", "starter_gap_up_volume", "starter_near_20d_high_volume"):
-        # outside the session (no rvol_live) these return nothing, by design
-        assert _tickers(_by_id(sid)["spec"]) == ["HIT"], sid
+        # 2026-10-17: after hours and on weekends (no rvol_live) they read the LAST
+        # SESSION'S full-day volume, so they still answer when members scan; in the
+        # session a live value always decides.
+        assert _tickers(_by_id(sid)["spec"]) == ["HIT", "NOLIVE"], sid
+
+
+def test_volume_by_now_sorts_on_last_sessions_volume_when_blank(snap):
+    """Off-hours rvol_live is blank everywhere; ticker order is not an answer."""
+    db.upsert_rows([_row("AAA", rvol_live=None, vol_ratio=2.0), _row("BBB", rvol_live=None, vol_ratio=5.0),
+                    _row("CCC", rvol_live=None, vol_ratio=3.0)])
+    rows = Q.run_scan({"filters": [], "sort": {"key": "rvol_live", "dir": "desc"}, "page_size": 10})["rows"]
+    assert [r["ticker"] for r in rows] == ["BBB", "CCC", "AAA"]
+
+
+def test_CONTROL_a_live_value_still_wins_the_sort(snap):
+    db.upsert_rows([_row("AAA", rvol_live=4.0, vol_ratio=1.0), _row("BBB", rvol_live=1.0, vol_ratio=9.0)])
+    rows = Q.run_scan({"filters": [], "sort": {"key": "rvol_live", "dir": "desc"}, "page_size": 10})["rows"]
+    assert [r["ticker"] for r in rows] == ["AAA", "BBB"]
 
 
 def test_gapping_up_on_volume_starts_at_a_2_pct_gap(snap):
@@ -189,3 +208,26 @@ def test_a_starter_citation_reads_the_logic_group_too():
     from api.services import concept_vocabulary as cv
     got = cv._resolve_starter_screen({"screen": "starter_52w_breakout"})
     assert "vol_ratio" in got["keys"] and 1.5 in got["values"]
+
+
+# ── 4. the coverage note does not count a blank the screen itself decides ───
+
+def test_coverage_does_not_count_a_blank_live_volume_the_fallback_decides(snap):
+    """Off-hours every rvol_live is blank and the group reads vol_ratio instead, so
+    those rows were decided, not lost. Member walk 2026-10-17: '11,179 stocks have
+    no value for one of these filters' over a screen that answered 12."""
+    db.upsert_rows([_row("AAA", rvol_live=None, vol_ratio=3.0), _row("BBB", rvol_live=None, vol_ratio=0.5),
+                    _row("NONE", rvol_live=None, vol_ratio=None)])
+    cov = Q.coverage_for({"filters": [], "logic": SS._live_volume_or_nightly(2)})
+    # only NONE has no volume at all: nothing in the group can decide it
+    assert cov["not_computable"] == 1
+    assert [d["ticker"] for d in cov["dropped_symbols"]] == ["NONE"]
+
+
+def test_CONTROL_a_blank_the_screen_does_not_handle_is_still_counted(snap):
+    db.upsert_rows([_row("AAA", rvol_live=None, vol_ratio=3.0), _row("BBB", rvol_live=2.5, vol_ratio=3.0)])
+    cov = Q.coverage_for({"filters": [], "logic": {"all": [{"key": "rvol_live", "op": "gte", "min": 2}]}})
+    assert cov["not_computable"] == 1
+    # and a flat filter on the column is counted even when the tree guards it
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "logic": SS._live_volume_or_nightly(2)}
+    assert Q.coverage_for(spec)["not_computable"] == 1

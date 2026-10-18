@@ -1,6 +1,7 @@
 fastapi==0.115.6
 uvicorn==0.41.0
 httpx==0.28.1
+youtube-transcript-api==1.2.2  # tsdr_lessons: captions of YouTube links shared in #tsdr / #bracco
 PyNaCl==1.6.2
 PyYAML>=6.0  # tests/test_promotion_control.py and tests/test_range_scan_states.py import yaml directly
 python-dotenv==1.2.1

@@ -273,6 +273,10 @@ NOT_REHEARSED = {
                                           "pass, its bell, card and prefill; evidence is a run-ledger "
                                           "row and a delivered notice (the fin walk's followup group); "
                                           "waits for the owner's arming (docs/notebook/t2b-arming.md)",
+    # Journal P4a. A layout editor and a saved layout, not a page read this tool can switch.
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": "dark (P4a): the Customize button on Today and the trade page and "
+                                    "reading a saved layout; off, both pages render their fixed layout; "
+                                    "no rendered on/off probe in this tool; waits for the owner's arming",
     # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
     # update and a withdraw, read off the rendered pages in a sandbox) and the route-off tests -- not a
     # rendered probe here. (Task 11 reworded this from a fin-walk library group that did not exist; the final

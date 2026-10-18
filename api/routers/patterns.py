@@ -144,6 +144,15 @@ from api.services.pattern_engine.detectors.uct import uct_go_signal as _uct_go_s
 from api.services.pattern_engine.detectors.uct import uct_undercut_reclaim as _uct_undercut_reclaim  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_ep_v2 as _uct_ep_v2  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as _uct_pullback_ma_v5  # noqa: F401
+# Team setup recognition rules (inside day, flat-top breakout): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_inside_day as _uct_inside_day  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as _uct_flat_top_breakout  # noqa: F401
+# Team setup recognition rules, second pair (flag + guard, MA reclaim): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_flag_htf as _uct_flag_htf  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as _uct_ma_reclaim  # noqa: F401
+# Team setup recognition rules, third port (trendline break on a frozen drawer line, launch pad v4): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_trendline_break as _uct_trendline_break  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as _uct_launch_pad_v4  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 
@@ -744,7 +753,7 @@ def get_detections(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
     confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
-    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets trusted-tier rows only"),
+    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets the member set only (registry.DISPLAY_MEMBER_SET)"),
 ):
     """Return detections for a symbol.
 
@@ -798,14 +807,36 @@ def get_detections(
     out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
     # Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED + AUTO_STRUCTURES_ENABLED,
     # both read per request): a non-admin's chart toggle asks with include_structures=true,
-    # and gets ONLY trusted-tier rows (registry.DISPLAY_TRUSTED), filtered HERE, never by
-    # the client. No `structures` / `drawn` key: base boxes, the levels layer and the
-    # learned drawer stay admin-only. With the member flag off the payload is as before.
+    # and gets ONLY the member set (registry.DISPLAY_MEMBER_SET: the types that passed the
+    # blind check as drawn), filtered HERE, never by the client: member-set rows, on D/W/M
+    # member-set base boxes (`structures`: bc:flat-base, pivot line only, box off) and the
+    # learned drawer's levels + trendlines (`drawn`), and bull_flag rows only as the
+    # confirmed round-9 drawing code stamped them (never stale). bc:cup-with-handle, the
+    # levels layer and every other tier stay admin-only. With the member flag off the
+    # payload is as before.
     if include_structures and not is_admin:
         from api.services import auto_structures
         if auto_structures.members_enabled():
-            rows = auto_structures.member_rows(rows)
-            return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+            # The member set holds one INTERNAL id (uct_pullback_ma_v5), which the query
+            # above excluded. Re-read ONLY the member-set ids with internal rows allowed,
+            # so no other internal id can reach a member. An empty id list must not reach
+            # get_active_detections: there it means "no filter".
+            wanted = sorted(auto_structures.member_ids()
+                            & (set(pattern_ids) if pattern_ids else auto_structures.member_ids()))
+            member_raw = (memory.get_active_detections(sym.upper(), tf, pattern_ids=wanted,
+                                                       min_conf=min_conf, include_internal=True)
+                          if wanted else [])
+            rows = auto_structures.member_rows(
+                [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in member_raw])
+            mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+            if (tf or "D").upper() in ("D", "W", "M"):
+                boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                if boxes:
+                    mout["structures"] = boxes
+                drawn = auto_structures.drawn_for(sym)
+                if drawn is not None:
+                    mout["drawn"] = drawn
+            return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
     if include_structures and is_admin:

@@ -31,7 +31,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
-import UIcon from '../../../components/ui/UIcon'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2UnviewedEOD from '../hooks/useJ2UnviewedEOD'
 import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
@@ -39,6 +38,10 @@ import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import useCompassOverview from '../hooks/useCompassOverview'
 import { compassScope } from '../hooks/compassScope'
 import { useFeatureFlag } from '../featureFlags'
+// The lock rows and the row markup are shared with DisciplineLockStrip, which Today shows when this strip is
+// hidden (ruling P4a-T9-R2): one builder, one renderer, so the two can never read differently.
+import CoachRows from './CoachRows'
+import { lockItems, COMPASS_ROUTE } from './coachLock'
 import styles from './CoachStrip.module.css'
 
 // Nudge snooze — SHARE the exact localStorage key family NudgesBanner uses so a
@@ -49,7 +52,7 @@ const NUDGE_SNOOZE_PREFIX = 'uct.j2.nudges.dismissed.'
 // Deep-link routes (new 5-surface shell — A2).
 const TRADES_CLOSED = '/journal/trades?seg=closed'
 const TRADES_OPEN = '/journal/trades?seg=open'
-const COMPASS = '/journal/compass'
+const COMPASS = COMPASS_ROUTE
 const ACCOUNTS = '/journal/accounts'
 
 const INTERVENTION_ICON = { danger: 'noEntry', warning: 'warning', info: 'sparkle' }
@@ -75,16 +78,6 @@ function writeSnoozed(accountId, map) {
   } catch {
     /* ignore quota errors */
   }
-}
-
-function fmtCountdown(unlockAt) {
-  if (!unlockAt) return null
-  const ms = new Date(unlockAt).getTime() - Date.now()
-  if (ms <= 0) return null
-  const totalSec = Math.floor(ms / 1000)
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return `${m}m ${s.toString().padStart(2, '0')}s`
 }
 
 export default function CoachStrip({ accountId: accountIdProp }) {
@@ -176,21 +169,7 @@ export default function CoachStrip({ accountId: accountIdProp }) {
     const out = []
 
     // 1. discipline lock (most urgent) — one row per active reason.
-    if (disciplineState?.locked && Array.isArray(disciplineState.reasons)) {
-      disciplineState.reasons.forEach((r, i) => {
-        const countdown = fmtCountdown(r.unlockAt)
-        out.push({
-          key: `lock-${r.type || i}`,
-          kind: 'lock',
-          sev: 'danger',
-          icon: 'noEntry',
-          label: 'Trade entry locked',
-          message: countdown ? `${r.message} — unlocks in ${countdown}` : r.message,
-          to: COMPASS,
-          openLabel: 'Open Compass',
-        })
-      })
-    }
+    out.push(...lockItems(disciplineState))
 
     // 2. active interventions — danger → warning → info.
     if (Array.isArray(interventions)) {
@@ -343,41 +322,7 @@ export default function CoachStrip({ accountId: accountIdProp }) {
 
   return (
     <div className={styles.strip} data-testid="coach-strip" role="region" aria-label="Coach">
-      {items.map((it) => (
-        <div
-          key={it.key}
-          className={`${styles.row} ${styles[it.sev] || ''}`}
-          data-testid="coach-row"
-          data-kind={it.kind}
-          role="status"
-        >
-          <span className={styles.icon} aria-hidden="true"><UIcon name={it.icon} size={15} /></span>
-          <div className={styles.body}>
-            {it.label && <div className={styles.label}>{it.label}</div>}
-            <div className={styles.msg}>{it.message}</div>
-          </div>
-          {it.to && (
-            <button
-              type="button"
-              className={styles.openBtn}
-              onClick={() => openTo(it.to, it.onOpen)}
-            >
-              {it.openLabel}
-              <UIcon name="chevronRight" size={13} style={{ verticalAlign: '-2px', marginLeft: 3 }} />
-            </button>
-          )}
-          {it.action && (
-            <button
-              type="button"
-              className={styles.actionBtn}
-              onClick={it.action.onClick}
-              aria-label={it.action.ariaLabel}
-            >
-              {it.action.label}
-            </button>
-          )}
-        </div>
-      ))}
+      <CoachRows items={items} onOpen={openTo} />
     </div>
   )
 }

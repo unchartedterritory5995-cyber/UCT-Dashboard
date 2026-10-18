@@ -63,7 +63,10 @@ def _speaker(author_id: Optional[str]) -> str:
         return str(author_id or "Unknown")
 
 
-def format_hit(h: dict) -> str:
+def format_hit(h: dict, watch: Optional[dict] = None) -> str:
+    """One hit line. `watch` ({(record_id, TICKER, posted): [link, ...]}, from
+    call_moments.lookup_by_record) appends 'watch m:ss <url>' to a call discussed in a Desk
+    session; None (the gate off) leaves the line exactly as before."""
     calls = []
     for c in h.get("calls") or []:
         o = c.get("outcome") or {}
@@ -71,10 +74,19 @@ def format_hit(h: dict) -> str:
         r20 = _pct(o.get("r20"))
         if r20:
             bits.append(f"r20 {r20}")
-        calls.append(" ".join(b for b in bits if b))
+        text = " ".join(b for b in bits if b)
+        if watch:
+            from api.services.wisdom.archive import call_moments
+
+            text += call_moments.watch_text(watch.get(_watch_key(h, c)) or [])
+        calls.append(text)
     tail = f" (calls: {'; '.join(calls)})" if calls else ""
     return f"[{_speaker(h.get('author_id'))} · {h.get('stated_date') or 'undated'} · {h.get('record_id')}] " \
            f"{h.get('excerpt') or ''}{tail}"
+
+
+def _watch_key(h: dict, c: dict) -> tuple:
+    return (h.get("record_id"), str(c.get("ticker") or "").strip().upper(), c.get("posted"))
 
 
 def _num(v) -> Optional[float]:
@@ -137,6 +149,28 @@ def format_playbook(pb: dict, market_state: Optional[str] = None) -> tuple[str, 
     return text, cites
 
 
+def _watch_for(conn, hits: list) -> Optional[dict]:
+    """Session-moment links for the hits' calls, or None when the call-moments gate is off (no
+    table is read, and every line and citation stays exactly as it was)."""
+    from api.services.wisdom.archive import call_moments
+
+    if not hits or not call_moments.enabled():
+        return None
+    return call_moments.lookup_by_record(conn, [h.get("record_id") for h in hits])
+
+
+def _hit_watches(h: dict, watch: Optional[dict]) -> list:
+    """[{ticker, url, at, ...}] the best link of each of a hit's calls that has one."""
+    if not watch:
+        return []
+    out = []
+    for c in h.get("calls") or []:
+        links = watch.get(_watch_key(h, c)) or []
+        if links:
+            out.append({"ticker": c.get("ticker"), "posted": c.get("posted"), **links[0]})
+    return out
+
+
 #: A question about what is setting up today gets ONE bounded "this rhymes" line: today's scanner
 #: hits beside the archive's precedent (archive/rhymes.py). Display only, cited, never a level.
 RHYMES_KIND = "trader_archive_rhymes"
@@ -183,10 +217,16 @@ def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = (),
         with store.read() as conn:
             hits = service.retrieval_hits(conn, query or "", tickers=list(query_tickers or ()),
                                           limit=MAX_HITS, excerpt_chars=EXCERPT_CHARS)
+            watch = _watch_for(conn, hits)
             pb = None
             for sid in (service.match_setups(conn, query or "", limit=1) if playbook else ()):
                 pb = service.playbook(conn, sid)
-        parts, cites, used = [], [], len(HEADER)
+        header = HEADER
+        if watch and any(_hit_watches(h, watch) for h in hits):
+            from api.services.wisdom.archive import call_moments
+
+            header = HEADER.rstrip(": ") + "." + call_moments.WATCH_NOTE + ": "
+        parts, cites, used = [], [], len(header)
         if asks_for_rhymes(query):
             rline, rcites = rhymes_line()
             if rline:
@@ -204,16 +244,20 @@ def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = (),
         if not hits and not parts:
             return "", []
         for h in hits:
-            line = format_hit(h)
+            line = format_hit(h, watch)
             if used + len(line) + 3 > MAX_BLOCK_CHARS:
                 break
             parts.append(line)
             used += len(line) + 3
-            cites.append({"record_id": h["record_id"], "trader": _speaker(h.get("author_id")),
-                          "date": h.get("stated_date"), "kind": "trader_archive", "flag_env": FLAG_ENV})
+            cite = {"record_id": h["record_id"], "trader": _speaker(h.get("author_id")),
+                    "date": h.get("stated_date"), "kind": "trader_archive", "flag_env": FLAG_ENV}
+            links = _hit_watches(h, watch)
+            if links:
+                cite["watch"] = links
+            cites.append(cite)
         if not parts:
             return "", []
-        return HEADER + " | ".join(parts), cites
+        return header + " | ".join(parts), cites
     except Exception:
         log.exception("[wisdom] Ask-AI trader-archive block failed; answering without it")
         return "", []
