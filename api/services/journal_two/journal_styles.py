@@ -816,6 +816,9 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         def walk(content: list, top: bool) -> list:
             out = []
             for node in content:
+                if (isinstance(node, dict) and node.get("type") == "widgetEmbed"
+                        and _switched_off((node.get("attrs") or {}).get("widgetId"))):
+                    continue                                # R-T3-FIN-4: an outline's own Tier 3 node, dropped like a built one
                 bid = _placeholder_kind(node)
                 if bid is not None and bid not in enabled and bid not in disabled:
                     # Review M-5: a placeholder for a block the style does not list is the member's

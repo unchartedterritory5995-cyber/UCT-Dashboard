@@ -42,6 +42,7 @@ import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import useJournalRules from '../../hooks/useJournalRules'
 import { editRule } from '../../lib/blocks/rulesApi'
+import { wordStat } from '../../lib/sampleSize'
 import styles from './ChecklistFromWinners.module.css'
 
 export const TITLE = 'Checklist from my winners'
@@ -68,7 +69,7 @@ const fetcher = (url) =>
     return r.json()
   })
 
-const DAY =new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 const fmtDay = (day) => {
   const d = new Date(`${day}T00:00:00Z`)
   return Number.isNaN(d.getTime()) ? day : DAY.format(d)
@@ -181,6 +182,9 @@ export default function ChecklistFromWinners({ accountId }) {
 
   const bestCount = data?.bestCount || 0
   const restCount = data?.restCount || 0
+  // R-T3-FIN-5: a THIN rest (sample_size's 10 to 24) is worded beside each comparison, with the year
+  // page's own words (sampleSize.js through wordStat); a normal rest is shown plainly.
+  const restWord = data?.restSample === 'thin' ? wordStat({ band: 'thin', n: restCount }).label : null
   const listed = data?.suggestions || []
   const visible = listed.filter((s) => !done.has(`${scope}|${s.tag}`))
   const mine = pending.filter((p) => p.scope === scope)
@@ -208,6 +212,7 @@ export default function ChecklistFromWinners({ accountId }) {
                 <div className={styles.itemHead}>
                   <span className={styles.tag}>{s.tag}</span>
                   <span className={styles.share}>{line}</span>
+                  {restWord && <span className={styles.share}>{restWord}</span>}
                 </div>
                 <ul className={styles.evidence} aria-label={`Best trades tagged ${s.tag}`}>
                   {s.evidence.map((e) => (
@@ -257,7 +262,7 @@ export default function ChecklistFromWinners({ accountId }) {
                         autoFocus
                       />
                     </div>
-                    <p className={styles.evidenceLine}>{line}</p>
+                    <p className={styles.evidenceLine}>{line}{restWord ? ` · ${restWord}` : ''}</p>
                     <div className={styles.actions}>
                       <button type="button" className={styles.cancel} onClick={close}>
                         Cancel

@@ -252,8 +252,9 @@ def test_door_todays_daily_note_from_a_template_starts_unpicked(db_path):
 
 # ── door 5: a style's outline ────────────────────────────────────────────────
 
-def test_door_a_style_outline_from_a_template_composes_unpicked(conn):
+def test_door_a_style_outline_from_a_template_composes_unpicked(conn, monkeypatch):
     from api.services.journal_two import journal_styles as js
+    monkeypatch.setenv("JOURNAL_TIER3_ENABLED", "true")   # the switch on: off drops the node (R-T3-FIN-4)
     conn.execute("INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json,"
                  " created_at, updated_at) VALUES ('t-old', 'u1', 'Daily', 'Daily', ?, NULL, 'x', 'x')",
                  (json.dumps(_picked_doc()),))
@@ -265,13 +266,34 @@ def test_door_a_style_outline_from_a_template_composes_unpicked(conn):
     assert _checkins_in(stored)[0] == {"mood": "4", "focus": "3", "day": DAY}
 
 
-def test_door_a_style_inline_outline_composes_unpicked(conn):
+def test_door_a_style_inline_outline_composes_unpicked(conn, monkeypatch):
     from api.services.journal_two import journal_styles as js
+    monkeypatch.setenv("JOURNAL_TIER3_ENABLED", "true")   # the switch on: off drops the node (R-T3-FIN-4)
     style = {"id": "s1", "version": 1, "kindId": "daily", "outlineTemplateId": None,
              "outlineBodyJson": _picked_doc(), "blocks": [], "properties": {}}
     composed = js.compose("u1", style, ticker=None, conn=conn, mode="update")
     assert _checkins_in(composed["bodyJson"]) == [UNPICKED, UNPICKED]
     assert _checkins_in(style["outlineBodyJson"])[0] == {"mood": "4", "focus": "3", "day": DAY}
+
+
+# ── import: a RESTORE, so it KEEPS the picks (ruling R-T3-FIN-3) ─────────────
+
+def test_import_is_a_restore_and_keeps_the_check_in_picks_and_day(client):
+    """The JSON export round trip (lib/importer/uctJson.js) brings `bodyJson` back verbatim. A member
+    restoring a backup expects their days back, as the conflicted copies keep theirs, so import never
+    unpicks: the imported note's sidecar records the same days and levels."""
+    src = _source(client)
+    r = client.post("/api/j2/notes/import/confirm", json={"source": "uct-json", "notes": [
+        {"importKey": "uct:backup-1", "title": "Oct 16", "bodyJson": src["bodyJson"], "tags": []}]})
+    assert r.status_code == 200, r.text
+    created = r.json()["created"]
+    assert len(created) == 1
+    new_id = created[0]["id"] if isinstance(created[0], dict) else created[0]
+    assert new_id != src["id"]
+    assert _sidecar(new_id) == SOURCE_ROWS
+    assert _checkins_in(_stored_body("j2_notes", new_id)) == [
+        {"mood": "4", "focus": "3", "day": DAY}, {"mood": "2", "focus": "5", "day": DAY}]
+    _assert_source_unchanged(src["id"])
 
 
 # ── door 6: the community gallery ────────────────────────────────────────────

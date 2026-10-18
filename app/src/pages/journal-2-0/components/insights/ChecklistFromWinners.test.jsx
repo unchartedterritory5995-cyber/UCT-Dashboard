@@ -8,6 +8,7 @@ import ChecklistFromWinners, {
   PENDING_MARK_TEXT, TOO_FEW_REST_TEXT, TOO_FEW_TEXT, shareLine,
 } from './ChecklistFromWinners'
 import { DISMISSED_SENTENCE } from '../../lib/blocks/rulesApi'
+import { WORDING } from '../../lib/sampleSize'
 
 // The payload shape checklist_suggestions.suggest builds (tests/test_checklist_suggestions.py).
 const ev = (i, r) => ({ tradeRef: `id:t${i}`, tradeId: `t${i}`, symbol: `SYM${i}`, exitDate: `2026-10-${String(10 + i).padStart(2, '0')}`, r })
@@ -318,6 +319,22 @@ describe('ChecklistFromWinners — fix round 1', () => {
     expect(TOO_FEW_REST_TEXT).toBe('There are too few other trades to compare your best trades with yet.')
     expect(screen.queryByText(NONE_TEXT)).not.toBeInTheDocument()
     expect(screen.queryByText(NO_REST_TEXT)).not.toBeInTheDocument()
+  })
+})
+
+describe('ChecklistFromWinners — a thin rest is worded (R-T3-FIN-5)', () => {
+  it('a thin rest carries the year page wording ("thin sample") beside each share line; a normal one does not', async () => {
+    globalThis.fetch = fakeFetch({ suggestions: { ...OK, restCount: 12, restSample: 'thin' } })
+    const { unmount } = renderPanel()
+    const patient = within(await screen.findByText('patient', { selector: 'span' }).then((n) => n.closest('li')))
+    expect(patient.getByText('On 9 of your 20 best trades · on 4 of 12 other trades')).toBeInTheDocument()
+    expect(patient.getByText(WORDING.thin)).toBeInTheDocument()
+    expect(WORDING.thin).toBe('thin sample')
+    unmount()
+    globalThis.fetch = fakeFetch()                                    // control: OK's rest is normal (31)
+    renderPanel()
+    const normal = within(await screen.findByText('patient', { selector: 'span' }).then((n) => n.closest('li')))
+    expect(normal.queryByText(WORDING.thin)).not.toBeInTheDocument()
   })
 })
 

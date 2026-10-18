@@ -474,13 +474,18 @@ def test_every_vocabulary_tag_is_decided_one_way_or_the_other():
     (tag_suggest) AND both client lists; every emotion must sit in exactly one of the two declared
     sets, and every mistake is never suggested."""
     from api.services.journal_two import tag_suggest
-    emotions = set(tag_suggest.STANDARD_EMOTIONS)
-    mistakes = set(tag_suggest.STANDARD_MISTAKES)
+    # R-T3-FIN-6: non-vacuity is checked on EACH source list ON ITS OWN, never on the union: a client list
+    # reformatted out of this parser (double quotes, a spread, an import) would read as [] and hide behind
+    # the others while a tag added to it was never decided.
+    sources = [("tag_suggest.py", list(tag_suggest.STANDARD_EMOTIONS), list(tag_suggest.STANDARD_MISTAKES))]
     for path in _CLIENT_VOCAB:
-        emotions |= set(_client_list(path, "STANDARD_EMOTIONS"))
-        mistakes |= set(_client_list(path, "STANDARD_MISTAKES"))
-    # Non-vacuity: the lists were read, and they hold what the product offers.
-    assert {"patient", "euphoric"} <= emotions and {"FOMO", "chasing"} <= mistakes
+        sources.append((path, _client_list(path, "STANDARD_EMOTIONS"), _client_list(path, "STANDARD_MISTAKES")))
+    emotions, mistakes = set(), set()
+    for where, emo, mis in sources:
+        assert {"patient", "euphoric"} <= set(emo), f"{where}: STANDARD_EMOTIONS did not parse ({emo})"
+        assert {"FOMO", "chasing"} <= set(mis), f"{where}: STANDARD_MISTAKES did not parse ({mis})"
+        emotions |= set(emo)
+        mistakes |= set(mis)
     assert not (cs.SUGGESTIBLE_EMOTIONS & cs.NEVER_SUGGESTED), "a tag cannot be both"
     undecided = sorted(t for t in emotions if t.lower() not in cs.SUGGESTIBLE_EMOTIONS | cs.NEVER_SUGGESTED)
     assert undecided == [], f"decide each new emotion tag: {undecided}"

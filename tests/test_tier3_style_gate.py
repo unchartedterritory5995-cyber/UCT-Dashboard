@@ -81,6 +81,28 @@ def test_compose_drops_a_placed_check_in_placeholder_with_the_switch_off(conn, m
     assert out["skipped"] == []
 
 
+def test_a_check_in_node_already_in_the_outline_is_dropped_with_the_switch_off(conn, monkeypatch):
+    """Ruling R-T3-FIN-4 (completes M1): an outline (a member template, or the style's own) can already
+    HOLD a check-in node, at the top level or inside a container. With the switch off it is dropped
+    like a built block; the rest of the outline survives."""
+    from api.services.journal_two import journal_styles as js
+    node = {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "moodCheckIn", "embedId": "ci-o",
+                                              "params": {"mood": "", "focus": "", "day": ""}}}
+    outline = {"type": "doc", "content": [
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Today"}]},
+        node,
+        {"type": "columns", "content": [{"type": "column", "content": [
+            node, {"type": "paragraph", "content": [{"type": "text", "text": "kept"}]}]}]}]}
+    monkeypatch.setenv(cs.FLAG, "false")
+    off = js.compose("u1", _style([], outline), ticker=None, conn=conn, mode="create")
+    assert _block_ids(off["bodyJson"]) == []
+    assert "kept" in json.dumps(off["bodyJson"]) and "Today" in json.dumps(off["bodyJson"])
+    assert off["skipped"] == []
+    monkeypatch.setenv(cs.FLAG, "true")                # control: kept with the switch on
+    on = js.compose("u1", _style([], outline), ticker=None, conn=conn, mode="create")
+    assert _block_ids(on["bodyJson"]) == ["moodCheckIn", "moodCheckIn"]
+
+
 def test_update_layout_neither_offers_nor_adds_the_check_in_with_the_switch_off(conn, monkeypatch):
     from api.services.journal_two import journal_styles as js
     from api.services.journal_two import notes as notes_service
