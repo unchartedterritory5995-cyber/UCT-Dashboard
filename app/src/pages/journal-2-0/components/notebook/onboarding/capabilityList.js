@@ -101,8 +101,9 @@ export const CAPABILITY_PREVIEW = Object.freeze([
   // (capabilityList.test.js pins both word for word):
   //   * journal-styles: a note created with a kind starts from that kind's style (the member's default or
   //     the built-in), whose outline and blocks the composer writes into the body
-  //     (api/services/journal_two/journal_styles.py create path -> default_style_for_kind, compose). The
-  //     built-in Trade plan carries the pre-entry checklist and position sizing.
+  //     (api/services/journal_two/journal_styles.py create path -> default_style_for_kind, compose). Fix
+  //     round 1: "of that kind" and "outline and blocks", because a style applies only to a note made with
+  //     a kind, and checklist and sizing are blocks of the built-in Trade plan, not of every style.
   //   * style-library: Adopt makes the member's own copy (template_gallery.adopt_style), and the update
   //     notice is OPT-IN ("Notify me when the author updates", StyleLibraryCard.jsx, off by default), rung
   //     when the author's newer version is approved (_ring_update_watchers). Hence "ask to be told", and
@@ -111,7 +112,7 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     id: 'journal-styles',
     flag: 'notebook_journal_styles_enabled',
     label: 'Journal styles',
-    line: 'Pick a kind of note and a style, and every new note starts with your checklist, sizing and outline.',
+    line: 'Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.',
   },
   {
     id: 'style-library',

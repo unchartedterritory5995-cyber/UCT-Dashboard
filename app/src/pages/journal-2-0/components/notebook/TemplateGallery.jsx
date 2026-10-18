@@ -28,7 +28,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
-  copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate, reviewGalleryTemplate,
+  copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate,
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
@@ -38,6 +38,7 @@ import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
 import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
+import GalleryAdminActions from './GalleryAdminActions'
 import AuthorView from './AuthorView'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
@@ -105,24 +106,10 @@ export function ReportForm({ item, onDone, onCancel }) {
 export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
   const uid = useId()
   const [reporting, setReporting] = useState(false)
-  const [working, setWorking] = useState(false)
   // FIN-A11Y (review R4, M-4): closing the Report form removes the control that had focus;
   // the Report button is still there, so focus goes back to it.
   const reportBtnRef = useRef(null)
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
-  const admin = async (action) => {
-    setWorking(true)
-    try {
-      await reviewGalleryTemplate(item.id, action)
-      onMessage({ tone: 'ok', text: action === 'hide' ? `Hid “${item.title}”. It is still in the Review queue.`
-        : action === 'feature' ? `“${item.title}” is now a UCT pick.` : `“${item.title}” is no longer a UCT pick.` })
-      onChanged()
-    } catch (err) {
-      onMessage({ tone: 'error', text: err?.message || "Couldn't update that template." })
-    } finally {
-      setWorking(false)
-    }
-  }
   return (
     <li className={styles.card} data-gallery-card="" data-gallery-id={item.id}>
       <div className={styles.cardHead}>
@@ -150,19 +137,7 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
             Report
           </button>
         )}
-        {isAdmin && (
-          <>
-            <button type="button" className={styles.btn} disabled={working}
-              onClick={() => admin(item.featured ? 'unfeature' : 'feature')}
-              aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${item.title}`}>
-              {item.featured ? 'Unfeature' : 'Feature'}
-            </button>
-            <button type="button" className={styles.btn} disabled={working} onClick={() => admin('hide')}
-              aria-label={`Hide ${item.title}`}>
-              Hide
-            </button>
-          </>
-        )}
+        {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
       {reporting && (
         <ReportForm
@@ -397,6 +372,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
       onPreview={openStylePreview}
       onOpenAuthor={openAuthor}
       onMessage={setMessage}
+      isAdmin={isAdmin}
+      onChanged={refresh}
     />
   ) : outlineCard(item))
   // No `onAdopted` refresh here: adoptStyle already revalidates every library view once

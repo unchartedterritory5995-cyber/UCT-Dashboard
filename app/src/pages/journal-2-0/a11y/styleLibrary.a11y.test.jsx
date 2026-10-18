@@ -6,6 +6,7 @@
 // that would be untrue. Each recipe proves the state it is about rendered before axe runs:
 //   * style-library-card   -- the Styles view: a style card with its Adopt confirm open;
 //   * style-library-author -- an author's page with its Follow toggle and their items.
+//   * style-library-card-admin -- P5 fix round 1: a style card as an admin sees it, with Feature and Hide.
 // Task 11 adds the library's member-facing surfaces under components/notebook/styles/ (outside the derived
 // population, so they are OUTSIDE_POPULATION_SURFACES in notebookSurfaces.js), each with the switch on:
 //   * style-library-share-form   -- "Share to community" for one of the member's styles, filled in;
@@ -34,13 +35,16 @@ const json = (body, status = 200) => Promise.resolve({ ok: status < 400, status,
 const STYLES = contractBody('template-gallery.list.styles').templates.filter((t) => !t.firm)
 const STYLE = STYLES[0]
 const PAGE = contractBody('template-gallery.authors.page')
+// The viewer the fake server reports; stub() resets it, one recipe turns it on.
+let adminView = false
 
 function stub() {
+  adminView = false
   global.fetch = vi.fn((url) => {
     const u = new URL(String(url), 'http://x')
     if (u.pathname === '/api/j2/template-gallery') {
       const picks = u.searchParams.get('section') === 'picks'
-      return json({ templates: STYLES.filter((t) => !picks || t.featured), viewer: { admin: false } })
+      return json({ templates: STYLES.filter((t) => !picks || t.featured), viewer: { admin: adminView } })
     }
     if (u.pathname === `/api/j2/template-gallery/authors/${PAGE.author.handle}`) return json(PAGE)
     return json({ detail: 'Not found' }, 404)
@@ -72,6 +76,15 @@ describe('P3a surfaces (community style library)', () => {
     await user.click(screen.getByRole('button', { name: `Adopt ${STYLE.title}` }))
     within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` }))
       .getByRole('checkbox', { name: 'Notify me when the author updates' })
+    await settle()
+  })
+
+  axeSurface('style-library-card-admin', async () => {
+    adminView = true
+    renderGallery()
+    await screen.findByRole('heading', { name: STYLE.title })
+    await screen.findByRole('button', { name: `Feature ${STYLE.title}` })
+    screen.getByRole('button', { name: `Hide ${STYLE.title}` })
     await settle()
   })
 

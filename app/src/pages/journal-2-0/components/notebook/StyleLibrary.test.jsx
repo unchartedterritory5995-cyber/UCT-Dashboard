@@ -45,14 +45,14 @@ const composedText = (doc) => (doc?.content || []).filter((n) => n.type === 'par
 let server
 let calls
 beforeEach(() => {
-  server = { library: true, following: false, feedEmpty: false, adoptAnswer: 'template-gallery.adopt', styleMine: false }
+  server = { library: true, following: false, feedEmpty: false, adoptAnswer: 'template-gallery.adopt', styleMine: false, admin: false, styleFeatured: null }
   calls = []
   global.fetch = vi.fn(async (url, init = {}) => {
     const u = new URL(String(url), 'http://x')
     const method = init.method || 'GET'
     const body = init.body ? JSON.parse(init.body) : null
     calls.push({ path: u.pathname, search: u.search, method, body })
-    const styles = MEMBER_SWING.map((t) => ({ ...t, mine: server.styleMine }))
+    const styles = MEMBER_SWING.map((t) => ({ ...t, mine: server.styleMine, ...(server.styleFeatured === null ? {} : { featured: server.styleFeatured }) }))
     if (u.pathname === '/api/j2/note-templates') return json({ templates: [{ id: 't1', name: 'Swing plan', title: 'Swing plan', createdAt: '1' }] })
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
       const type = u.searchParams.get('type') || ''
@@ -62,7 +62,7 @@ beforeEach(() => {
         : type === 'style' ? styles : type === 'outline' ? OUTLINES : [...OUTLINES, ...styles]
       if (ts) list = list.filter((t) => t.tradingStyle === ts)
       if (section === 'picks') list = list.filter((t) => t.featured)
-      return json({ templates: list, viewer: { admin: false } })
+      return json({ templates: list, viewer: { admin: server.admin } })
     }
     if (u.pathname === '/api/j2/journal-styles/preview' && method === 'POST') return answer('template-gallery.styles.preview')
     if (u.pathname === '/api/j2/template-gallery/feed') return answer(server.feedEmpty ? 'template-gallery.feed.empty' : 'template-gallery.feed')
@@ -77,6 +77,8 @@ beforeEach(() => {
       const page = contractBody('template-gallery.authors.page')
       return json({ ...page, author: { ...page.author, following: server.following } })
     }
+    m = u.pathname.match(/^\/api\/j2\/template-gallery\/admin\/items\/([\w-]+)$/)
+    if (m && method === 'PATCH') return answer('template-gallery.admin.hide')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt$/)
     if (m) return answer(server.adoptAnswer)
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
@@ -566,5 +568,59 @@ describe('fix round 1: the card', () => {
     rerender(card(newer))
     expect(btn()).toHaveAttribute('aria-pressed', String(newer.helpedByMe))
     expect(screen.getByText(`${newer.helpfulCount} found this helpful`)).toBeInTheDocument()
+  })
+})
+
+// P5 fix round 1 (ruling P5-T9-R1): an admin can feature, unfeature and hide a STYLE card, through the same
+// PATCH the outline cards use (GalleryAdminActions, the one copy). A member never sees the controls.
+describe('fix round 1 (P5): admin controls on a style card', () => {
+  const adminPatches = () => calls.filter((c) => c.path === `/api/j2/template-gallery/admin/items/${STYLE.id}` && c.method === 'PATCH')
+
+  it('a member sees no Feature, Unfeature or Hide on a style card', async () => {
+    flags()
+    await openStyles()
+    const card = styleCard()
+    expect(within(card).getByRole('button', { name: `Adopt ${STYLE.title}` })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: `Feature ${STYLE.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Unfeature ${STYLE.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Hide ${STYLE.title}` })).toBeNull()
+  })
+
+  it('an admin features a style: the button reads Feature, the PATCH says feature, and the sentence says so', async () => {
+    server.admin = true
+    server.styleFeatured = false
+    flags()
+    const user = await openStyles()
+    const card = styleCard()
+    const btn = within(card).getByRole('button', { name: `Feature ${STYLE.title}` })
+    expect(btn).toHaveTextContent(/^Feature$/)
+    expect(within(card).getByRole('button', { name: `Hide ${STYLE.title}` })).toHaveTextContent(/^Hide$/)
+    const before = listCalls().length
+    await user.click(btn)
+    expect(await screen.findByText(`“${STYLE.title}” is now a UCT pick.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'feature', note: '' }])
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(before))
+  })
+
+  it('an admin unfeatures a featured style: the button reads Unfeature and the PATCH says unfeature', async () => {
+    server.admin = true
+    server.styleFeatured = true
+    flags()
+    const user = await openStyles()
+    const btn = within(styleCard()).getByRole('button', { name: `Unfeature ${STYLE.title}` })
+    expect(btn).toHaveTextContent(/^Unfeature$/)
+    await user.click(btn)
+    expect(await screen.findByText(`“${STYLE.title}” is no longer a UCT pick.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'unfeature', note: '' }])
+  })
+
+  it('an admin hides a style: the PATCH says hide and the sentence says it stays in the Review queue', async () => {
+    server.admin = true
+    server.styleFeatured = false
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Hide ${STYLE.title}` }))
+    expect(await screen.findByText(`Hid “${STYLE.title}”. It is still in the Review queue.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'hide', note: '' }])
   })
 })

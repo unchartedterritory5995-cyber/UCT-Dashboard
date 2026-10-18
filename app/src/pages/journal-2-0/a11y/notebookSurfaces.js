@@ -56,6 +56,9 @@ export const SURFACES = Object.freeze({
   // notebook_style_library_enabled, so community-gallery-browse never renders them); rail
   // a11y/styleLibrary.a11y.test.jsx.
   'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
+  // P5 fix round 1: the admin Feature/Unfeature + Hide pair, shared by outline and style cards; rail
+  // a11y/styleLibrary.a11y.test.jsx renders it on a style card for an admin.
+  'components/notebook/GalleryAdminActions.jsx': { recipe: 'style-library-card-admin' },
   'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
 
   // ── the editor's popups, each opened through its own door ──────────────────

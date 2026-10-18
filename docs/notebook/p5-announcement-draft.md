@@ -3,7 +3,7 @@
 This is a draft. Nothing here is posted or sent anywhere by an agent. The owner edits it, picks the channel and posts it.
 
 Post it only after these switches are on for members, or it points at doors they cannot open:
-`NOTEBOOK_JOURNAL_STYLES_ENABLED`, `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, `NOTEBOOK_STYLE_LIBRARY_ENABLED` and `NOTEBOOK_STARTER_PACKS_ENABLED`.
+`NOTEBOOK_JOURNAL_STYLES_ENABLED`, `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, `NOTEBOOK_STYLE_LIBRARY_ENABLED` and `NOTEBOOK_STARTER_PACKS_ENABLED`, plus the two switches behind the Learn menu the post points to, `NOTEBOOK_ONBOARDING_ENABLED` and `NOTEBOOK_GETTING_STARTED_ENABLED` (their payload keys are `notebook_onboarding_enabled` and `notebook_getting_started_enabled`).
 
 ## Draft (164 words)
 
@@ -30,6 +30,6 @@ Start with New note, then From a style, or open the Learn menu.
 | "How do you trade?", five packs, three styles each | `StarterPackOffer.jsx` (`OFFER_TITLE`, `OFFER_LINE`), `lib/starterPacks.js` `PACKS`, `template_gallery_style_seed.json` |
 | Starter packs button | `StylesManager.jsx`, beside New style and Community |
 | New note, then From a style | `NewNoteMenu.jsx` |
-| Learn menu | `onboarding/learnMenuCopy.js` (`button: 'Learn'`) |
+| Learn menu | `onboarding/learnMenuCopy.js` (`button: 'Learn'`); shown only while `notebook_onboarding_enabled` and `notebook_getting_started_enabled` are both on (`learnMenuEnabled` in `onboarding/learnMenuCopy.js`, via `gettingStartedPref.js`) |
 
 No performance claims and no numbers about members. The word count covers the heading and the body.
