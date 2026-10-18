@@ -3353,7 +3353,10 @@ def create_note(
     `captured_properties` is INTERNAL: `keep` only from the journal styles composer, the one
     writer of a captured built-in (IR-S1); every other caller's `drop` ignores one.
     `style_stamp` is INTERNAL too (journal styles, P1): `(style_id, style_version, kind_id)`
-    written in the same insert."""
+    written in the same insert.
+    `isCopy` (exactly `true`, from `payload`) says the body is ANOTHER note's (Duplicate note): every
+    check-in in it starts unpicked, through `trader_blocks.unpick_checkins` (P2 Tier 3 final fix I1). A
+    conflicted copy never sends it: it holds the member's own unsent version of the same note."""
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -3366,6 +3369,9 @@ def create_note(
         if subtitle and len(subtitle) > MAX_SUBTITLE_CHARS:
             raise NoteValidationError("subtitle too long")
     body_json = _validate_body_json(payload.get("bodyJson"))
+    if payload.get("isCopy") is True:
+        from api.services.journal_two import trader_blocks
+        body_json = trader_blocks.unpick_checkins(body_json)
     # ⛔ Wave 10 (10C): never CREATE a note the editor would open locked.
     _refuse_unbuildable(body_json)
     body_plain = extract_plain_text(body_json)

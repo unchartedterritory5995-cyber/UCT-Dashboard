@@ -737,7 +737,9 @@ def _after_first_heading(content: list) -> int:
 
 def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
     """A COPY of the outline to compose into: the linked member template when it still exists,
-    else the style's inline outline, else an empty doc (never a failed create)."""
+    else the style's inline outline, else an empty doc (never a failed create).
+    P2 Tier 3 final fix I1: a member's outline is copied into a new note, so its check-ins start
+    unpicked (`_tb.unpick_checkins`, which copies). A built-in outline holds none."""
     if style.get("builtin"):
         return copy.deepcopy(BUILTIN_STYLES[style["kindId"]]["outline"])
     tid = style.get("outlineTemplateId")
@@ -748,12 +750,12 @@ def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
             try:
                 body = json.loads(r["body_json"])
                 if isinstance(body, dict) and body.get("type") == "doc":
-                    return body
+                    return _tb.unpick_checkins(body)
             except (TypeError, ValueError):
                 pass
     body = style.get("outlineBodyJson")
     if isinstance(body, dict) and body.get("type") == "doc":
-        return copy.deepcopy(body)
+        return _tb.unpick_checkins(body)
     return {"type": "doc", "content": []}
 
 

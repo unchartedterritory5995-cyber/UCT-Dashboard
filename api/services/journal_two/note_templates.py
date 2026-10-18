@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import trader_blocks
 
 MAX_TEMPLATES_PER_MEMBER = 200
 MAX_TEMPLATE_NAME_CHARS = 80
@@ -121,7 +122,10 @@ def get_template(user_id: str, template_id: str, conn: sqlite3.Connection | None
         if row is None:
             return None
         out = _summary(row)
-        out["bodyJson"] = json.loads(row["body_json"] or '{"type":"doc","content":[]}')
+        # P2 Tier 3 final fix I1: every note made from a template (the picker, today's daily note) is a
+        # copy, so its check-ins start unpicked. Read here, so a template saved before the fix is clean too.
+        out["bodyJson"] = trader_blocks.unpick_checkins(
+            json.loads(row["body_json"] or '{"type":"doc","content":[]}'))
         out["properties"] = _still_valid_properties(user_id, row["properties_json"], conn)
         return out
     finally:
@@ -158,7 +162,9 @@ def create_from_note(
         conn.execute(
             "INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json,"
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (new_id, user_id, clean, note.get("title") or "", json.dumps(note.get("bodyJson") or {}),
+            # P2 Tier 3 final fix I1: a template is a copy, so its check-ins are stored unpicked.
+            (new_id, user_id, clean, note.get("title") or "",
+             json.dumps(trader_blocks.unpick_checkins(note.get("bodyJson") or {})),
              json.dumps(props) if props else None, now, now),
         )
         conn.commit()
