@@ -283,6 +283,12 @@
       },
       "status": 401
     },
+    "GET /api/j2/template-gallery/{gallery_id}/images/{n}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/trader-blocks/market-context": {
       "body": {
         "detail": "Not authenticated"

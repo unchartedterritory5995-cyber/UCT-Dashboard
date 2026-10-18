@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/0",
+    "note": "An approved example's image COPY (never the author's attachment), with every public header and the image CSP. The body is the file's bytes.",
+    "path": "/api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/0",
+    "status": 200
+  },
+  "body": {
+    "_notJson": "contract fixture image"
+  }
+}

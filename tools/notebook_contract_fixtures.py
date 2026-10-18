@@ -2223,8 +2223,12 @@ def style_library(w: World) -> None:
 def example_notes(w: World) -> None:
     """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). LAST, so adding it moved no
     earlier builder's ids. A member of its own shares a style, then previews and publishes one of their notes as
-    an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`."""
+    an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`.
+
+    P3b Task 4: the note's image is a real file on the (sandboxed) attachment root, because a publish now COPIES each
+    switched-on image; the image route is recorded hidden while the example is pending, and served once approved."""
     from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.attachment_root import attachment_root
     base = "/api/j2/template-gallery"
     author = w.member("exampler", "Erin Example")
     c = w.conn()
@@ -2233,6 +2237,11 @@ def example_notes(w: World) -> None:
                                          "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
         note = create_note(c, author, "My weekend plan", doc(para("x")))
         image = f"/api/j2/notes/attachments/{author}/{note['id']}/inline/chart.png"
+        folder = attachment_root() / author / "notes" / note["id"] / "inline"
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = folder / ".chart.png.tmp"                   # temp, then os.replace: never open the final path
+        tmp.write_bytes(b"contract fixture image")
+        os.replace(tmp, folder / "chart.png")
         body = doc(para("made $1,240 on NVDA, up 3.2R, at Schwab. Watching 132.40 on Monday."),
                    {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
         c.execute("UPDATE j2_notes SET body_json = ?, properties_json = ? WHERE id = ?",
@@ -2257,14 +2266,29 @@ def example_notes(w: World) -> None:
              note="Not the caller's live note (or the sample notebook's): the one 404.")
     w.record("template-gallery.examples.preview.bad-images", "POST", f"{base}/examples/preview", case="error",
              expect=400, json_body={"noteId": note["id"], "imagesOn": "chart.png"})
-    w.record("template-gallery.examples.publish", "POST", f"{base}/examples", case="success", expect=200,
-             json_body={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image], "title": "My weekend plan"},
-             note="A PENDING example note linked to the style, reduced by the server from the note itself.")
+    published = w.record("template-gallery.examples.publish", "POST", f"{base}/examples", case="success",
+                         expect=200,
+                         json_body={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                    "title": "My weekend plan"},
+                         note="A PENDING example note linked to the style, reduced by the server from the note itself.")
     w.record("template-gallery.examples.publish.not-my-style", "POST", f"{base}/examples", case="error",
              expect=400, json_body={"noteId": note["id"], "styleItemId": "nope", "title": "My weekend plan"})
     w.record("template-gallery.examples.publish.other-kind", "POST", f"{base}/examples", case="error",
              expect=400, json_body={"noteId": other["id"], "styleItemId": sid, "title": "A thesis"})
+    gid = published["template"]["id"]
     w.as_user(MEMBER)
+    w.record("template-gallery.examples.image.pending-hidden", "GET", f"{base}/{gid}/images/0", case="error",
+             expect=404, note="A pending example's image copy is its author's and an admin's only: the one 404.")
+    w.as_user(ADMIN)
+    seen = w.client.get(f"{base}/{gid}").json()["template"]["updatedAt"]
+    approved = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+    assert approved.status_code == 200, f"setup: approving the example answered {approved.status_code}"
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.image", "GET", f"{base}/{gid}/images/0", case="success", expect=200,
+             note="An approved example's image COPY (never the author's attachment), with every public header and "
+                  "the image CSP. The body is the file's bytes.")
+    w.record("template-gallery.examples.image.not-found", "GET", f"{base}/{gid}/images/7", case="error",
+             expect=404, note="No copy with that number: the one 404.")
 
 
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────

@@ -49,11 +49,32 @@ def _para(text):
     return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
 
 
-def _note(conn, user="author", *, kind="weekend_prep", text=SENTENCE, images=(), title="Weekend plan"):
+@pytest.fixture(autouse=True)
+def _attachments(monkeypatch, tmp_path):
+    """P3b Task 4: a publish now COPIES each switched-on image, so the images `_note` names must exist on disk. A
+    throwaway attachment root per test (`attachment_root()` reads the variable per call), never the shared one."""
+    root = tmp_path / "attachments"
+    root.mkdir()
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(root))
+    return root
+
+
+def _note(conn, user="author", *, kind="weekend_prep", text=SENTENCE, images=(), title="Weekend plan",
+          write_files=True):
     """A live note of `kind` holding one paragraph and one image per name in `images` (this note's own
-    attachments). Created through the notes service; its kind and body are then set on the row."""
+    attachments). Created through the notes service; its kind and body are then set on the row. Each image is
+    written to the note's own attachment folder under the CURRENT attachment root (a test's tmp root), unless
+    `write_files` is False."""
     from api.services.journal_two import notes
+    from api.services.journal_two.attachment_root import attachment_root
     nid = notes.create_note(user, {"title": title}, conn)["id"]
+    if write_files and images:
+        folder = attachment_root() / user / "notes" / nid / "inline"
+        folder.mkdir(parents=True, exist_ok=True)
+        for name in images:
+            tmp = folder / f".{name}.tmp"                 # temp, then os.replace: never open the final path
+            tmp.write_bytes(f"image {name}".encode())
+            os.replace(tmp, folder / name)
     body = {"type": "doc", "content": [_para(text)] + [
         {"type": "image", "attrs": {"src": _src(user, nid, name), "alt": "chart"}} for name in images]}
     props = json.dumps({"builtin:note_kind": kind}) if kind else None

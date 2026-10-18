@@ -55,6 +55,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import secrets
 import sqlite3
 import uuid
@@ -138,6 +139,11 @@ class GalleryError(ValueError):
 
 class GalleryConflict(GalleryError):
     """A request that conflicts with the current state -- answered 409."""
+
+
+class GalleryServerError(Exception):
+    """A failure the member cannot fix (P3b Task 4: an example's image copy) -- answered 500 with this sentence.
+    Deliberately NOT a `GalleryError`: that one is a 400, a request the member can change."""
 
 
 def enabled() -> bool:
@@ -1077,12 +1083,27 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             "DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id),
         )
-        if cur.rowcount:
-            conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,))
+        # P3b Task 4: withdrawing a STYLE withdraws its example notes the same way (they show that style, R-P3b-2,
+        # and nothing else may list them), and withdrawing anything removes its image copies. The examples are
+        # the author's own (a style links only its author's examples), read whatever the switches say: taking your
+        # own content down is always possible. Read AFTER the delete above, which holds the write lock, so an
+        # example published at the same moment is either committed and found here, or refused by its own in-lock
+        # re-check of the style (P3b-T3-R6).
+        examples = [] if not cur.rowcount or item is None or item["item_type"] != "style" else [
+            r["id"] for r in conn.execute(
+                "SELECT id FROM j2_template_gallery WHERE user_id = ? AND kind = 'member' AND item_type = ?"
+                " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
+                (user_id, EXAMPLE_ITEM, gallery_id)).fetchall()]
+        removed = [gallery_id] + examples if cur.rowcount else []
+        for gid in removed:
+            if gid != gallery_id:
+                conn.execute("DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ?", (gid, user_id))
+            conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gid,))
         conn.commit()
+        remove_example_images(removed)                # after the commit: a copy is never gone while its row is not
         if cur.rowcount:
             for watcher in watchers:
                 _ring(watcher, item["title"], WITHDRAW_NOTICE.format(title=item["title"]), {"galleryId": gallery_id})
@@ -1346,6 +1367,253 @@ def _bind_images(body: dict, draft_id: str, item_id: str) -> dict:
     return body
 
 
+# ── example notes: the image copies (P3b Task 4) ───────────────────────────────────────────────
+#
+# Ruling P3b-R14. An example never points at the author's own attachment: each switched-on image the reduction
+# keeps is COPIED at publish, so a later edit or delete of the note's image never reaches the example, and the
+# copy is served by the gallery's own route to whoever may see the item.
+#   * approved (or pending, never approved) copies: `<attachment_root>/gallery/<item_id>/<n>.<ext>`;
+#   * a HELD revision's copies:                     `<attachment_root>/gallery/<item_id>/v<version>/<n>.<ext>`,
+#     `version` being the one members will see once it is approved (the listed version + 1);
+#   * the stored src stays `/api/j2/template-gallery/<item_id>/images/<n>` (no version): `?rev=pending` asks for
+#     the held copy, and only the author or an admin gets it.
+# Approval moves the held copies into place and deletes the old; rejection deletes the held ones; withdrawing an
+# example (or the style it shows) and the author's account deletion delete the item's whole directory.
+#
+# ⛔ ALL OR NOTHING. The copies are made into a STAGING directory before the write lock is taken (a copy is disk
+# I/O, never held under auth.db's lock); under the lock the staged directory is RENAMED into place (cheap) and the
+# row written; a failure anywhere undoes the renames and removes the staging directory, so no row ever names a
+# copy that is not there and no copy outlives a write that failed. The old copies are deleted only after commit.
+
+EXAMPLE_MAX_IMAGES = 6
+EXAMPLE_MAX_IMAGE_BYTES = 2 * 1024 * 1024
+#: The stored extensions an example may show (R-P3b-7, the extension the attachment root records), and the one
+#: each copy is stored under. A GIF, or anything else, is refused.
+EXAMPLE_IMAGE_EXTENSIONS = {".png": ".png", ".jpg": ".jpg", ".jpeg": ".jpg", ".webp": ".webp"}
+_COPY_EXTENSIONS = tuple(sorted(set(EXAMPLE_IMAGE_EXTENSIONS.values())))
+EXAMPLE_IMAGE_COUNT_SENTENCE = "An example can show up to 6 images."
+EXAMPLE_IMAGE_TYPE_SENTENCE = "Only PNG, JPEG or WebP images can be shared."
+EXAMPLE_IMAGE_SIZE_SENTENCE = "An image in an example can be at most 2 MB."
+EXAMPLE_COPY_SENTENCE = "Couldn't copy an image. Nothing was shared."
+EXAMPLE_MOVE_SENTENCE = "Couldn't move the example's images into place. Nothing was listed."
+#: The directory under the attachment root the copies live in (R-P3b-7). A member's own tree is
+#: `<root>/<user_id>/...`; this one is shared by every author and is never one member's.
+GALLERY_IMAGE_DIR = "gallery"
+#: The `rev` the image route accepts besides none: the held revision's copy (author or admin only).
+REV_PENDING = "pending"
+
+
+def _gallery_root() -> Path:
+    """Where the copies live, read PER CALL through the one attachment-root authority."""
+    from api.services.journal_two.attachment_root import attachment_root
+    return attachment_root() / GALLERY_IMAGE_DIR
+
+
+_ITEM_ID_SEGMENT = re.compile(r"^[A-Za-z0-9_-]{1,64}$")      # the id shape `public.EXAMPLE_IMAGE_ROUTE` admits
+
+
+def _item_dir(item_id: str, version: int | None = None) -> Path:
+    """An item's copy directory. The id is always a database row's, and must still be ONE plain path segment: a
+    value that could climb, or name the gallery root itself, raises instead of resolving."""
+    if not isinstance(item_id, str) or not _ITEM_ID_SEGMENT.match(item_id):
+        raise ValueError("not an item id")
+    base = _gallery_root() / item_id
+    return base / f"v{int(version)}" if version is not None else base
+
+
+def _rename(src: Path, dst: Path) -> None:
+    """The one rename every move here goes through (a seam the tests fail on purpose)."""
+    os.replace(src, dst)
+
+
+def _copy_image(src: Path, dest: Path) -> None:
+    """One copy, written to a temp file beside `dest` and then renamed onto it: `dest` is never opened for writing."""
+    import shutil
+    tmp = dest.with_name(f".{dest.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, dest)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _remove_dir(path: Path) -> bool:
+    """Delete a copy directory, best-effort (an old copy left behind is served by nothing). True when one was there."""
+    import shutil
+    if not path.is_dir():
+        return False
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"[template-gallery] could not remove {path.name} under the gallery image directory")
+    return True
+
+
+def _example_sources(kept: list[str], user_id: str, note_id: str) -> list[tuple[Path, str]]:
+    """`(file, stored extension)` for each image the reduction kept, in its `n` order, through the ONE attachment
+    resolver (ruling P3b-R8: `notes.serve_note_image_path`, root-anchored, after the URL shape `notes_export`
+    owns). `GalleryError` for too many, a GIF (or any type but PNG, JPEG, WebP) and a file over 2 MB;
+    `GalleryServerError` for one the attachment root does not hold (a copy cannot be made of it)."""
+    if len(kept) > EXAMPLE_MAX_IMAGES:
+        raise GalleryError(EXAMPLE_IMAGE_COUNT_SENTENCE)
+    from api.services.journal_two import notes as notes_service
+    from api.services.journal_two.notes_export import _ATTACHMENT_URL_RE
+    out: list[tuple[Path, str]] = []
+    for src in kept:
+        m = _ATTACHMENT_URL_RE.match(src) if isinstance(src, str) else None
+        if not m or m.group(1) != user_id or m.group(2) != note_id:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE)     # the reducer keeps only this note's own; fail closed
+        ext = EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower())
+        if ext is None:
+            raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+        path = notes_service.serve_note_image_path(m.group(1), m.group(2), m.group(3), m.group(4))
+        if path is None:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE)
+        try:
+            size = path.stat().st_size
+        except OSError as e:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+        if size > EXAMPLE_MAX_IMAGE_BYTES:
+            raise GalleryError(EXAMPLE_IMAGE_SIZE_SENTENCE)
+        out.append((path, ext))
+    return out
+
+
+def _stage_images(sources: list[tuple[Path, str]]) -> Path | None:
+    """Copy every source into a fresh staging directory as `<n>.<ext>`. None when there is nothing to copy. On any
+    failure the staging directory is removed and `GalleryServerError(EXAMPLE_COPY_SENTENCE)` raised."""
+    if not sources:
+        return None
+    stage = _gallery_root() / f".stage-{uuid.uuid4().hex}"
+    try:
+        stage.mkdir(parents=True)
+        for n, (path, ext) in enumerate(sources):
+            _copy_image(path, stage / f"{n}{ext}")
+    except Exception as e:  # noqa: BLE001 -- any failed copy is the one sentence, and nothing is left behind
+        _remove_dir(stage)
+        print(f"[template-gallery] example image copy failed: {type(e).__name__}")
+        raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+    return stage
+
+
+class _DirMoves:
+    """The directory renames made inside one write transaction: `undo()` reverses them (the transaction failed),
+    `finish()` deletes what they set aside (it committed). Every rename goes through `_rename`."""
+
+    def __init__(self, sentence: str):
+        self._sentence = sentence
+        self._done: list[tuple[Path, Path]] = []
+        self._trash: list[Path] = []
+
+    @property
+    def active(self) -> bool:
+        """True while a move has been made and neither undone nor finished."""
+        return bool(self._done)
+
+    def _move(self, src: Path, dst: Path) -> None:
+        try:
+            _rename(src, dst)
+        except OSError as e:
+            print(f"[template-gallery] example image move failed: {type(e).__name__}")
+            raise GalleryServerError(self._sentence) from e
+        self._done.append((src, dst))
+
+    def _set_aside(self, path: Path) -> Path:
+        trash = _gallery_root() / f".trash-{uuid.uuid4().hex}"
+        self._move(path, trash)
+        self._trash.append(trash)
+        return trash
+
+    def put(self, stage: Path | None, dest: Path) -> None:
+        """Make `dest` hold exactly the staged copies (none when `stage` is None); its old copies are set aside."""
+        if dest.exists():
+            self._set_aside(dest)
+        if stage is not None:
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise GalleryServerError(self._sentence) from e
+            self._move(stage, dest)
+
+    def promote(self, item_id: str, version: int) -> None:
+        """Approval of a held revision: the item's directory becomes what `v<version>` held, and the old copies
+        (with the rest of the old directory) are set aside."""
+        base = _item_dir(item_id)
+        if not base.exists():
+            return
+        trash = self._set_aside(base)
+        held = trash / f"v{int(version)}"
+        if held.is_dir():
+            self._move(held, base)
+
+    def undo(self) -> None:
+        for src, dst in reversed(self._done):
+            try:
+                _rename(dst, src)
+            except OSError as e:
+                print(f"[template-gallery] example image move could not be undone: {type(e).__name__}")
+        self._done.clear()
+        self._trash.clear()
+
+    def finish(self) -> None:
+        for trash in self._trash:
+            _remove_dir(trash)
+        self._done.clear()
+        self._trash.clear()
+
+
+def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool = False, rev: Any = None,
+                       conn: sqlite3.Connection | None = None) -> Path | None:
+    """The file `GET /{item_id}/images/{n}` serves, or None (the route's one 404).
+
+    The item must be an example note the viewer may see -- approved and not hidden, or the viewer is its author or
+    an admin (`_can_see`, the one visibility rule, which also hides it while the switch is off). `rev` "pending" asks
+    for the HELD revision's copy: only the author or an admin, and only while a revision is held. Any other `rev`,
+    or a number that is not a plain small integer, is None."""
+    if rev not in (None, "", REV_PENDING):
+        return None
+    if not isinstance(item_id, str) or not item_id or not isinstance(n, str) or not n.isdigit() or len(n) > 3:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute("SELECT id, user_id, item_type, status, hidden, version, pending_json"
+                           " FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
+    finally:
+        if owned:
+            conn.close()
+    if (row is None or row["item_type"] != EXAMPLE_ITEM or not _can_see(row, viewer_id, is_admin)
+            or not _ITEM_ID_SEGMENT.match(str(row["id"]))):
+        return None
+    if rev == REV_PENDING:
+        if not (is_admin or (viewer_id and row["user_id"] == viewer_id)) or not row["pending_json"]:
+            return None
+        folder = _item_dir(row["id"], int(row["version"] or 1) + 1)
+    else:
+        folder = _item_dir(row["id"])
+    for ext in _COPY_EXTENSIONS:
+        path = folder / f"{int(n)}{ext}"   # `n` is digits and `folder` an id-checked directory: nothing can climb
+        if path.is_file():
+            return path
+    return None
+
+
+def example_image_ids(conn: sqlite3.Connection, user_id: str) -> list[str]:
+    """The ids of a member's example notes, for the account purge to remove their copy directories (read BEFORE the
+    rows are deleted). Empty when the table does not exist yet."""
+    try:
+        return [r[0] for r in conn.execute("SELECT id FROM j2_template_gallery WHERE user_id = ? AND item_type = ?",
+                                           (user_id, EXAMPLE_ITEM)).fetchall()]
+    except sqlite3.OperationalError:
+        return []
+
+
+def remove_example_images(item_ids: Any) -> int:
+    """Delete each item's copy directory (best-effort); returns how many there were."""
+    return sum(1 for gid in item_ids or ()
+               if isinstance(gid, str) and _ITEM_ID_SEGMENT.match(gid) and _remove_dir(_item_dir(gid)))
+
+
 def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, style_item_id: Any,
                     images_on: Any, title: Any) -> dict | None:
     """Submit (or resubmit) one of the member's own notes as an example of one of their shared styles.
@@ -1370,6 +1638,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         raise ValueError("publish_example needs a connection with no open transaction")
     owned = conn is None
     conn = conn or get_connection()
+    moves, stage = _DirMoves(EXAMPLE_COPY_SENTENCE), None
     try:
         note = _example_note(conn, user_id, note_id)
         if note is None:
@@ -1381,28 +1650,38 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         brokers = _author_brokers(conn, user_id)
         clean_title = _example_title(title, brokers)
         draft_id = uuid.uuid4().hex                  # the new row's id, if the lookup below finds none
-        body, _kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
-                                      brokers=brokers, item_id=draft_id, report=None)
+        body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                     brokers=brokers, item_id=draft_id, report=None)
+        sources = _example_sources(kept, user_id, note["id"])   # R-P3b-7: at most 6, PNG/JPEG/WebP, 2 MB each
         stored = json.dumps({"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind})
         if len(stored.encode("utf-8")) > MAX_BODY_BYTES:
             raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
         preview = json.dumps(preview_lines(body))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
+        # P3b Task 4: the copies are made HERE, before the write lock, into a staging directory. A failed copy is
+        # 500 `EXAMPLE_COPY_SENTENCE` with nothing left behind; under the lock the staged directory is renamed in.
+        stage = _stage_images(sources)
         if not conn.in_transaction:                  # P3b-T3-R3 (M-8 refuses a caller's open transaction above)
             conn.execute("BEGIN IMMEDIATE")          # the lookup and the write cannot interleave with a twin
         # P3b-T3-R6: the style is linkable AGAIN, under the lock, just before the write -- one withdrawn, hidden
         # or rejected while the note was being reduced is the same sentence, and nothing is written.
         style = _linkable_style(conn, user_id, style["id"])
         existing = conn.execute(
-            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ? AND item_type = ?"
+            "SELECT id, status, version FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ?"
+            " AND item_type = ?"
             " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
             (user_id, note["id"], EXAMPLE_ITEM, style["id"])).fetchone()
         gid = existing["id"] if existing else draft_id
         body = _bind_images(body, draft_id, gid)
+        # P3b-R14: a held revision's copies go beside the listed ones, under the version members will see once it
+        # is approved; anything else (a new row, a pending or rejected one replaced in place) owns the item's
+        # directory. What was there before is set aside, and deleted only after the commit.
+        held = bool(existing) and existing["status"] == "approved"
+        moves.put(stage, _item_dir(gid, int(existing["version"] or 1) + 1 if held else None))
         payload = {"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind}
         payload_json = json.dumps(payload)
         now = _now()
-        if existing and existing["status"] == "approved":
+        if held:
             revision = {"title": clean_title, "description": "", "category": style["category"],
                         "tradingStyle": style["trading_style"], "payload": payload, "preview": json.loads(preview)}
             conn.execute(
@@ -1425,10 +1704,14 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
                 (gid, user_id, note["id"], clean_title, style["category"], json.dumps(body), now, now,
                  preview, EXAMPLE_ITEM, payload_json, style["trading_style"]))
         conn.commit()
+        moves.finish()                               # committed: the set-aside copies go, and nothing can undo it
         return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
     except Exception:
         if conn.in_transaction:
             conn.rollback()                          # only ever this function's own transaction (M-8)
+        moves.undo()                                 # the old copies back where they were (a no-op once finished)
+        if stage is not None:
+            _remove_dir(stage)                       # the staged copies, renamed back by undo (or never moved)
         raise
     finally:
         if owned:
@@ -2023,12 +2306,17 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
     owned = conn is None
     conn = conn or get_connection()
+    # P3b Task 4 (ruling P3b-R14): approving an example's held revision moves its copies into place inside the same
+    # transaction; a failure to move them undoes the move AND the listing (`EXAMPLE_MOVE_SENTENCE`, nothing listed).
+    moves = _DirMoves(EXAMPLE_MOVE_SENTENCE)
     try:
         row = conn.execute("SELECT * FROM j2_template_gallery WHERE id = ?", (gallery_id,)).fetchone()
         # R-T4-3 (R-P3-10): a style row is absent while the library is off, for a reviewer who knows its id
         # as much as for a member. The queue and `get_item` already hide it; this is the write door.
         if row is None or _library_hides(row):
             return None
+        is_example = row["item_type"] == EXAMPLE_ITEM
+        held_version = int(row["version"] or 1) + 1     # the version a held revision becomes, and its copies' folder
         now = _now()
         if action == "approve":
             if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
@@ -2062,6 +2350,8 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             if cur.rowcount != 1:
                 conn.rollback()
                 raise GalleryConflict(APPROVE_STALE_SENTENCE)
+            if row["pending_json"] and is_example:
+                moves.promote(gallery_id, held_version)  # the held copies become the listed ones; the old set aside
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")
@@ -2073,6 +2363,8 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                     " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
                     (clean_note, admin_id, now, now, gallery_id))
                 conn.commit()
+                if is_example:
+                    _remove_dir(_item_dir(gallery_id, held_version))   # P3b-R14: the declined revision's copies
                 return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
             conn.execute(
                 "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
@@ -2093,6 +2385,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             conn.execute("UPDATE j2_template_gallery SET featured = ? WHERE id = ?",
                          (1 if action == "feature" else 0, gallery_id))
         conn.commit()
+        moves.finish()                                  # committed: the old copies go, and nothing can undo it
         # P3a Task 7: AFTER the review has committed, so a notice can never undo it. An approved revision
         # bumps the version, so its watchers are behind; any later review action retries a failed delivery.
         if action in _RING_ACTIONS and row["item_type"] == "style":
@@ -2102,6 +2395,14 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                 conn.rollback()      # only the current watcher's uncommitted mark; earlier ones are committed
                 print(f"[template-gallery] update notices for {gallery_id} stopped: {type(e).__name__}: {e}")
         return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
+    except Exception as e:
+        # Only a failure that touched the copies rolls back here (the listing must not stand without them); every
+        # other refusal keeps today's behaviour, so a caller's own transaction is never rolled back for a 400.
+        if isinstance(e, GalleryServerError) or moves.active:
+            if conn.in_transaction:
+                conn.rollback()
+            moves.undo()
+        raise
     finally:
         if owned:
             conn.close()

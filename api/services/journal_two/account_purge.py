@@ -248,6 +248,15 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
                 "total_rows_deleted": 0, "attachment_dirs_removed": 0,
                 "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
 
+    # P3b Task 4: the member's example notes keep their image COPIES under `attachment_root()/gallery/<item_id>`,
+    # outside the per-member tree below, so their ids are read BEFORE the rows go and the directories removed after.
+    example_ids: list[str] = []
+    try:
+        from api.services.journal_two import template_gallery
+        example_ids = template_gallery.example_image_ids(conn, user_id)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        log.warning("journal_two example image lookup failed for %s: %s", user_id, e)
+
     report = purge_user_rows(user_id, conn)
     errors = report["errors"]
 
@@ -272,6 +281,14 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
 
+    example_dirs = 0
+    try:
+        from api.services.journal_two import template_gallery
+        example_dirs = template_gallery.remove_example_images(example_ids)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"example images: {e}")
+        log.warning("journal_two example image purge failed for %s: %s", user_id, e)
+
     # Wave 11 lane 11A: a voice note still on its way to a transcript holds the
     # member's AUDIO (and the transcript so far) in this process's temp directory
     # and memory -- never a table, so it is not in the manifest above. It goes now,
@@ -291,6 +308,7 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         **report,
         "ok": not errors,
         "attachment_dirs_removed": freed_dirs,
+        "example_image_dirs_removed": example_dirs,
         "voice_jobs_removed": voice_jobs,
         "errors": errors,
         "tombstone": tomb,

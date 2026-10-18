@@ -5,6 +5,8 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
 
   member  GET    /api/j2/template-gallery                     paid     browse (?q ?category ?sort ?section)
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
+  member  GET    /api/j2/template-gallery/{gallery_id}/images/{n}  paid  an example note's image copy (P3b; ?rev=pending
+                                                                       for the held revision's, author or admin only)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
   member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
   member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b; 404 while its switch is off)
@@ -182,6 +184,11 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
     return HTTPException(status_code=409 if isinstance(e, gallery.GalleryConflict) else 400, detail=str(e))
 
 
+def _server_error(e: gallery.GalleryServerError) -> HTTPException:
+    """P3b Task 4: a failure the member cannot fix (an example's image copy or move), answered 500 with its sentence."""
+    return HTTPException(status_code=500, detail=str(e))
+
+
 def _charged_publish(user: dict, publish: Any) -> Any:
     """ONE charge rule for every publish route -- an outline, a style, an example note (P3b review M-7): the
     in-process 10/hour, then one durable charge for today, then `publish()`. A refusal of any kind gives the day's
@@ -194,6 +201,9 @@ def _charged_publish(user: dict, publish: Any) -> Any:
     except gallery.GalleryError as e:
         _give_back(day, DAILY_PUBLISH_SCOPE, user)
         raise _bad(e)
+    except gallery.GalleryServerError as e:          # P3b Task 4: `Couldn't copy an image. Nothing was shared.`
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _server_error(e)
     except Exception:
         _give_back(day, DAILY_PUBLISH_SCOPE, user)
         raise
@@ -394,6 +404,18 @@ def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> di
     return {"template": item}
 
 
+@router.get("/{gallery_id}/images/{n}", dependencies=[Depends(_require_example)])
+def example_image_endpoint(gallery_id: str, n: str, rev: str = "", user: dict = Depends(require_paid)) -> Any:
+    """An example note's image copy (P3b Task 4, R-P3b-7), with `PUBLIC_HEADERS` and the image CSP
+    (`public.public_file`). Served when the item is approved and not hidden, or to its author or an admin;
+    `?rev=pending` is the held revision's copy, for the author or an admin only (ruling P3b-R14). Anything else is the
+    one 404, and so is every route here while the example switch is off (`_require_example`, before the plan check)."""
+    path = gallery.example_image_path(user["id"], gallery_id, n, is_admin=_is_admin(user), rev=rev or None)
+    if path is None:
+        raise public.not_found()
+    return public.public_file(path)
+
+
 @router.post("")
 def publish_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{templateId, title, description?, category}` -> a PENDING submission (or the same
@@ -505,6 +527,8 @@ def admin_item_endpoint(gallery_id: str, body: dict[str, Any] = Depends(admin_bo
                                  reviewed_updated_at=body.get("reviewedUpdatedAt"))
     except gallery.GalleryError as e:
         raise _bad(e)
+    except gallery.GalleryServerError as e:          # P3b Task 4: an example's held copies could not be moved
+        raise _server_error(e)
     if item is None:
         raise public.not_found()
     return {"template": item}
