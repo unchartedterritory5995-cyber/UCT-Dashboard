@@ -27,6 +27,7 @@ import { COLUMN_DEFS } from '../columnDefs'
 import { nextSort } from '../../../lib/presentation/dataGrid/gridSort'
 import { exportQuota, downloadExport } from '../../../lib/dataExport'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
+import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useFlagged } from '../../../hooks/useFlagged'
 import { prefetchBars } from '../../../utils/prefetchBars'
@@ -271,6 +272,10 @@ function FocusList({ mode, onMode }) {
   pendingRef.current = pending
 
   const liveTickers = useMemo(() => rows.slice(0, LIVE_WINDOW).map(r => r.ticker), [rows])
+  // Each loaded stock's primary theme, in ONE batched read per list (cached 30 min), never one
+  // per step: the pane names the selected stock's theme beside its setup.
+  const themeTickers = useMemo(() => rows.map(r => r.ticker), [rows])
+  const { themeData } = useWatchlistThemes(themeTickers)
   const { prices = {} } = useRealtimePrices(liveTickers) || {}
   useEffect(() => { if (rows.length) prefetchBars(rows.slice(0, 30).map(r => r.ticker), 'D') }, [rows])
   const [liveSortOn, setLiveSortOn] = useState(false)
@@ -775,7 +780,9 @@ function FocusList({ mode, onMode }) {
   // With no list on screen (a scan error, an empty screen) there is nothing to step: close.
   const listShowing = !error && !!result && total !== 0
   useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
-  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag,
+  // B5-style primitive: the pane gets the selected row's theme NAME, so a step re-renders only it.
+  const selTheme = selected ? themeData[selected.ticker] || null : null
+  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag, theme: selTheme,
     isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey,
     structures, busy: pending }
 

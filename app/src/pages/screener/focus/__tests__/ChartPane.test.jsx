@@ -144,3 +144,10 @@ test('P8: earnings reads a date and a countdown, amber within a week', () => {
   expect(near.className).toMatch(/paneEarnSoon/)
   expect(screen.queryByText(/2026-10-19/)).toBeNull()
 })
+test('the theme the stock belongs to is named beside its setup, and nothing is shown without one', () => {
+  const { rerender } = render(<ChartPane row={row} why={why} theme="Memory & Storage" onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('pane-theme')).toHaveTextContent('Memory & Storage')
+  expect(screen.getByTestId('pane-theme')).toHaveAttribute('title', 'Theme: Memory & Storage')
+  rerender(<ChartPane row={row} why={why} theme={null} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.queryByTestId('pane-theme')).toBeNull()
+})
