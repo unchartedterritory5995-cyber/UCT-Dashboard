@@ -297,6 +297,13 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
             box, why = _display.pullback_handle(bars, cup.get("start_t"), cup.get("end_t"), rim)
             if box:
                 extras["draw_handle"] = box
+                # round 10 (display.handle_pivot_in_reach): a right side within reach that still sits more
+                # than HANDLE_PIVOT_EPS_ATR under the rim pivots at the HANDLE HIGH; the rim stays as a faint
+                # reference (round 9's two-line drawing)
+                hp, _hwhy = _display.handle_pivot_in_reach(bars, cup.get("start_t"), cup.get("end_t"), rim, box)
+                if hp:
+                    extras["draw_pivot"] = hp
+                    extras["draw_rim_ref"] = rim
             else:
                 extras["handle_reason"] = why
         extras["draw_box"] = False

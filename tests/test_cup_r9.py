@@ -68,7 +68,9 @@ def test_a_right_side_stalled_inside_the_band_draws_its_pivot_at_the_handle_high
 
 
 def test_within_rim_reach_nothing_changes_the_rim_is_the_pivot():
-    ex = _extras(99.9)                                          # 0.6 ATR under the rim
+    # round 10 (tests/test_cup_r10.py) pivots a right side within reach at the handle high when it sits more than
+    # HANDLE_PIVOT_EPS_ATR under the rim; a right side that reached the rim keeps the rim as the pivot
+    ex = _extras(100.45)                                        # 0.05 ATR under the rim
     assert not ex.get("stale"), ex
     assert ex["draw_pivot"]["price"] == RIM
     assert "draw_rim_ref" not in ex

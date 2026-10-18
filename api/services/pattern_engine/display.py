@@ -462,6 +462,15 @@ CUP_START_LOOKBACK_BARS = 1
 #: right side 0.80-1.12 ATR short scored 1-2 (858 / 103 / 665 1, 883 / 544 2); every one further short scored
 #: 0-1 (936 1.21, 748 1.38, 975 1.68, 728 1.80, 740 2.63). Any value in [1.12, 1.21) keeps the same judged set.
 HANDLE_PIVOT_REACH_ATR = 1.15
+# -- Cup round 10 (lab REPORT_CUP_R9.md, 2026-10-18). Calibrated on the 122 bc:cup-with-handle cases judged in
+# team rounds 1-9 (lab out_cup_r10/judged_r9code.json).
+#: in-reach handle pivot: a cup the rim rules DRAW (its right side within RIM_REACH_ATR of the rim) whose right side's
+#: highest high since the cup's low sits MORE than HANDLE_PIVOT_EPS_ATR ATR(14) under the rim, and that has a handle
+#: (`pullback_handle`), draws its PIVOT at the handle high and keeps the rim as a faint reference -- the R7-R9 judges
+#: asked for exactly this (R7 571 / 707 / 788 / 789, R8 750 / 816 / 821, R9 116 / 407; 0.14-0.77 ATR short). A right
+#: side within the epsilon reached the rim: both reads of R9 839 (0.107 ATR short) said the rim is "matched" /
+#: "reached"; R8 821 (0.138) is on the asked list. Any value in (0.107, 0.138) keeps the same judged set.
+HANDLE_PIVOT_EPS_ATR = 0.12
 
 
 def _index(bars) -> dict:
@@ -1135,6 +1144,36 @@ def handle_pivot(bars: list, cup_start_t, cup_end_t, rim):
         return None, None, "short_of_rim"
     return ({"start_t": box["start_t"], "end_t": rim.get("end_t", bars[last]["t"]), "price": float(box["top"])},
             box, None)
+
+
+def handle_pivot_in_reach(bars: list, cup_start_t, cup_end_t, rim, box):
+    """Round 10 (lab REPORT_CUP_R9.md: the judges keep asking for a handle-high pivot on cups WITHIN reach): (pivot,
+    reason) for a cup the rim rules draw and `pullback_handle` boxed (`box`). When the right side's highest high
+    since the cup's low sits more than HANDLE_PIVOT_EPS_ATR ATR(14) under the rim, the pivot is {start_t, end_t,
+    price} at the HANDLE HIGH (the box's top: the right side's latest peak), from the handle's first bar to the
+    rim's end. (None, reason) otherwise:
+      no_handle  no handle box -- the rim stays the pivot;
+      at_rim     the right side reached the rim (within the epsilon) or went over it -- the rim is the pivot;
+      unknown    a span, the rim or the ATR is unknown.
+    Display only."""
+    if not box or box.get("top") is None:
+        return None, "no_handle"
+    pos = _index(bars)
+    cs, ce = pos.get(cup_start_t), pos.get(cup_end_t)
+    rim_p = (rim or {}).get("price")
+    at = atr14(bars)
+    last = len(bars) - 1
+    if cs is None or ce is None or rim_p is None or not at:
+        return None, "unknown"
+    if cs > ce:
+        cs, ce = ce, cs
+    low_j = min(range(cs, ce + 1), key=lambda j: float(bars[j]["l"]))
+    if low_j >= last:
+        return None, "unknown"
+    short = float(rim_p) - max(float(b["h"]) for b in bars[low_j + 1:last + 1])
+    if short <= HANDLE_PIVOT_EPS_ATR * at:
+        return None, "at_rim"
+    return {"start_t": box["start_t"], "end_t": rim.get("end_t", bars[last]["t"]), "price": float(box["top"])}, None
 
 
 def flat_top_verdict(bars: list, start_t, end_t, price):

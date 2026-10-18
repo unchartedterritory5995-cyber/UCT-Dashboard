@@ -97,7 +97,10 @@ def test_pullback_handle_unknown_span_or_rim():
 def test_box_to_detection_draws_the_pullback_not_the_detectors_sub_box():
     ex = auto_structures.box_to_detection("ZZZ", _cup_box(23), _cup_bars([98, 97.5, 97, 97.5]))["geometry"]["extras"]
     assert not ex.get("stale"), ex
-    assert ex["draw_pivot"]["price"] == 100.5                          # the rim stays on the left lip
+    # round 10 (tests/test_cup_r10.py): the right side stalled under the rim (99.5 < 100.5) with a boxed handle, so
+    # the pivot is the handle high and the rim on the left lip stays as the faint reference
+    assert ex["draw_rim_ref"]["price"] == 100.5                        # the rim stays on the left lip
+    assert ex["draw_pivot"]["price"] == 99.5
     assert ex["draw_handle"] == {"start_t": ymd_t(19), "end_t": ymd_t(23), "top": 99.5, "floor": 95.5}
     # the detector's own handle sub-box (bars 20-23) is untouched
     assert ex["sub_boxes"][1]["start_t"] == ymd_t(20)
