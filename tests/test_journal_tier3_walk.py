@@ -70,3 +70,33 @@ def test_the_seed_carries_what_the_steps_read():
     # the suggested habit is on the winners and not on the losers
     assert all(r["emotionTags"] == ["patient"] for r in winners)
     assert all("patient" not in r["emotionTags"] for r in rows if r not in winners)
+
+
+def test_a_run_refuses_to_start_near_et_midnight_and_not_otherwise():
+    import journal_tier3_walk as t3
+    from datetime import datetime
+
+    et = t3.ET
+    assert t3.near_et_midnight(datetime(2026, 10, 17, 23, 50, tzinfo=et)) is True
+    assert t3.near_et_midnight(datetime(2026, 10, 17, 23, 40, tzinfo=et)) is True       # exactly the margin
+    assert t3.near_et_midnight(datetime(2026, 10, 17, 23, 39, tzinfo=et)) is False
+    assert t3.near_et_midnight(datetime(2026, 10, 18, 0, 5, tzinfo=et)) is False       # just after: a fresh day
+
+
+def test_the_expected_values_are_derived_from_the_seed():
+    import journal_tier3_walk as t3
+
+    s = t3.expected_suggestion()
+    assert s == {"share": "On 20 of your 20 best trades (100%) · on 20% of the rest", "evidence": 20}
+    y = t3.expected_year()
+    assert y["trades"] == 14 and sum(y["months"]) == 14 and len(y["months"]) == 12
+    assert y["setups"] == {"VCP": 9, "Breakout": 5}
+
+
+def test_the_fault_injection_is_a_flag_and_off_by_default():
+    import journal_tier3_walk as t3
+
+    assert t3.INJECT_DROP_SAVE is False
+    src = TOOL.read_text(encoding="utf-8")
+    assert '"--inject-drop-save"' in src and "route.abort(" in src
+    assert '"fault_injection"' in src

@@ -30,6 +30,19 @@ THE STEPS, once per viewport (1280, 820, 390), each on that viewport's own membe
   4. Report -> Your <year> in trading (the door's Earlier years picker; the current year opens December 1)
      shows its four sections.
 
+Step 1's "left" is measured, not assumed: after the in-app navigation the route must have lost `?note=` AND the
+note's editor must have unmounted, inside 1.5 s of the second pick. A save that never lands is a measured FAIL
+("the save carrying both picks landed" reads false, and the reopen and the server copy are still read), never
+an INCONCLUSIVE. `--inject-drop-save` is the walk-only fault injection that proves it: every PUT of the note
+carrying the second pick is aborted in the browser (Playwright route) for the rest of step 1, never a product
+edit, and the run records `fault_injection` so it can never pass for a green one; step 1 must then read FAIL.
+
+The ET "today" is frozen once when main() starts. The browser stamps the check-in's day from its own clock at
+the pick, which no frozen value reaches, so the run REFUSES to start within MIDNIGHT_MARGIN_MIN minutes of ET
+midnight, and it records the ET day at the finish beside the frozen one. The run's sandbox integrity log is
+MOVED (byte-identical) into --out as integrity.md; the tip, HEAD and HEAD's tree go in tip.txt; walk.json
+records the sha256 of this file and its git status.
+
 Every step records PASS, FAIL or INCONCLUSIVE with the rendered text it read. PASS needs every check to have
 read the product's answer and found it right; FAIL is a product answer that was wrong; INCONCLUSIVE is a step
 the driver could not read to its end. INCONCLUSIVE is never a pass. R-RAW: walk.json is rewritten after every
@@ -68,8 +81,17 @@ TIER3_FLAGS = ["NOTEBOOK_JOURNAL_STYLES_ENABLED", "JOURNAL_TIER3_ENABLED"]
 PW = "LocalTest2026!"          # sandbox seed (throwaway data dir only; the walk tools' shared sandbox password)
 T = 30000
 SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
-TODAY_ET = datetime.now(ZoneInfo("America/New_York")).date()
+ET = ZoneInfo("America/New_York")
+# The walk's ET "today", FROZEN once when main() starts and read everywhere after (the seed's today-trades,
+# the expected check-in day). The import-time value only serves a reader that never calls main() (the rails).
+TODAY_ET = datetime.now(ET).date()
 LAST_YEAR = TODAY_ET.year - 1
+#: A run must not start this close to ET midnight: the browser stamps the check-in's day from its own clock
+#: at the pick, which a frozen value cannot reach, so a run that crossed midnight would compare two days.
+#: A full run takes about 6 minutes (walk.json, 2026-10-18: 04:20:38Z to 04:25:46Z) plus the boot.
+MIDNIGHT_MARGIN_MIN = 20
+#: --inject-drop-save: the walk-only fault injection that proves step 1 reads FAIL on a dropped save.
+INJECT_DROP_SAVE = False
 
 REC: dict = {"tool": "tools/journal_tier3_walk.py", "steps": [], "setup": []}
 OUT: Path | None = None
@@ -196,6 +218,32 @@ def trade_rows() -> list[dict]:
     return rows
 
 
+def expected_suggestion() -> dict:
+    """What Checklist from my winners must say about "patient" for this seed (R-T3-5): the best
+    min(20, winners) winners by R, every one tagged; the rest is every other closed trade."""
+    rows = trade_rows()
+
+    def r_of(t):
+        return (t["exitPrice"] - t["entryPrice"]) / (t["entryPrice"] - t["originalStop"])
+    winners = sorted((t for t in rows if r_of(t) > 0), key=lambda t: (r_of(t), t["exitDate"]), reverse=True)
+    best = winners[:20]
+    rest = [t for t in rows if t not in best]
+    k = sum("patient" in t["emotionTags"] for t in best)
+    rk = sum("patient" in t["emotionTags"] for t in rest)
+    return {"share": f"On {k} of your {len(best)} best trades ({round(100 * k / len(best))}%) · "
+                     f"on {round(100 * rk / len(rest))}% of the rest", "evidence": k}
+
+
+def expected_year() -> dict:
+    """What Your LAST_YEAR in trading must count for this seed: trades, per-setup trades, per-month trades."""
+    rows = [t for t in trade_rows() if t["exitDate"].startswith(str(LAST_YEAR))]
+    setups: dict = {}
+    for t in rows:
+        setups[t["setup"]] = setups.get(t["setup"], 0) + 1
+    months = [sum(t["exitDate"][5:7] == f"{m:02d}" for t in rows) for m in range(1, 13)]
+    return {"trades": len(rows), "setups": setups, "months": months}
+
+
 def provision(browser, base: str, vp: str) -> dict:
     """The admin (promoted from ADMIN_EMAILS) and this viewport's member: comped, verified, seeded."""
     admin = browser.new_context()
@@ -293,22 +341,74 @@ def walk_viewport(browser, base: str, vp: str) -> None:
         st.read("the inserted block", pg.get_by_role("group", name="Mood").first.inner_text())
         path = re.compile(rf"/api/j2/notes/{re.escape(nid)}(\?|$)")
         timing: dict = {}
+        puts: list[dict] = []       # every PUT to this note from here on, with when it answered
 
-        def landing(resp):
-            body = resp.request.post_data or ""
-            return (resp.request.method == "PUT" and bool(path.search(resp.url)) and resp.ok
-                    and '"mood":"4"' in body and '"focus":"4"' in body)
-        with pg.expect_response(landing, timeout=20000) as got:
-            good.click(timeout=T)
-            focused.click(timeout=T)
-            t_pick = time.monotonic()
-            # An in-app navigation (the router hears popstate): the member leaving the note at once.
-            pg.evaluate("() => { history.pushState({}, '', '/journal/notebook?view=all');"
-                        " window.dispatchEvent(new PopStateEvent('popstate')) }")
-            timing["left_after_ms"] = round((time.monotonic() - t_pick) * 1000, 1)
-        st.check("left the note within 1.5 s of the second pick", timing["left_after_ms"] < 1500,
-                 f"{timing['left_after_ms']} ms")
-        st.check("the save carrying both picks landed (HTTP 2xx)", got.value.ok, f"HTTP {got.value.status}")
+        def carries_both(body: str) -> bool:
+            return '"mood":"4"' in body and '"focus":"4"' in body
+
+        def on_response(resp):
+            if resp.request.method == "PUT" and path.search(resp.url):
+                body = resp.request.post_data or ""
+                puts.append({"t": time.monotonic(), "status": resp.status, "ok": resp.ok, "both": carries_both(body)})
+
+        def on_failed(req):
+            if req.method == "PUT" and path.search(req.url):
+                puts.append({"t": time.monotonic(), "status": None, "ok": False, "both": carries_both(req.post_data or ""),
+                             "failure": req.failure})
+        pg.on("response", on_response)
+        pg.on("requestfailed", on_failed)
+        if INJECT_DROP_SAVE:
+            # FAULT INJECTION (walk-only, --inject-drop-save; never a product edit): every PUT of this note that
+            # carries the second pick is aborted before it reaches the server, for the rest of this step. The
+            # step must then read FAIL.
+            def drop(route):
+                if route.request.method == "PUT" and '"focus":"4"' in (route.request.post_data or ""):
+                    S.setdefault("dropped_puts", 0)
+                    S["dropped_puts"] += 1
+                    route.abort("failed")
+                else:
+                    route.continue_()
+            pg.route(path, drop)
+        good.click(timeout=T)
+        focused.click(timeout=T)
+        t_pick = time.monotonic()
+        # An in-app navigation (the router hears popstate): the member leaving the note at once.
+        pg.evaluate("() => { history.pushState({}, '', '/journal/notebook?view=all');"
+                    " window.dispatchEvent(new PopStateEvent('popstate')) }")
+        timing["dispatched_after_ms"] = round((time.monotonic() - t_pick) * 1000, 1)
+        # The navigation must actually have HAPPENED: the route changed and this note's editor unmounted.
+        left = True
+        try:
+            pg.wait_for_function("() => location.pathname.startsWith('/journal/notebook') && "
+                                 "!new URLSearchParams(location.search).get('note')", timeout=1500)
+            pg.locator(".ProseMirror").first.wait_for(state="detached", timeout=1500)
+        except Exception as e:  # noqa: BLE001 -- the product did not leave the note inside 1.5 s
+            left = False
+            timing["leave_error"] = f"{type(e).__name__}: {str(e)[:160]}"
+        timing["editor_gone_after_ms"] = round((time.monotonic() - t_pick) * 1000, 1) if left else None
+        url_now = pg.evaluate("() => location.pathname + location.search")
+        st.check("left the note within 1.5 s of the second pick: the route changed and the note's editor unmounted",
+                 left and timing["editor_gone_after_ms"] < 1500,
+                 json.dumps({**timing, "url": url_now, "editors": pg.locator(".ProseMirror").count()}))
+
+        def landed():
+            return next((p for p in puts if p["ok"] and p["both"]), None)
+        if landed() is None:
+            try:
+                pg.wait_for_event("response", predicate=lambda r: r.request.method == "PUT" and bool(path.search(r.url))
+                                  and r.ok and carries_both(r.request.post_data or ""), timeout=20000)
+            except Exception:  # noqa: BLE001 -- a save that never lands is a measured answer, read below
+                pass
+        hit = landed()
+        timing["save_landed_after_ms"] = round((hit["t"] - t_pick) * 1000, 1) if hit else None
+        S["puts"] = [{**p, "t": round((p["t"] - t_pick) * 1000, 1)} for p in puts]
+        st.check("the save carrying both picks landed (HTTP 2xx) after leaving",
+                 hit is not None, json.dumps({"save_landed_after_ms": timing["save_landed_after_ms"], "puts": S["puts"],
+                                              "dropped_by_injection": S.get("dropped_puts", 0)}))
+        pg.remove_listener("response", on_response)
+        pg.remove_listener("requestfailed", on_failed)
+        # (an injected drop stays in force through the reopen and the server read below, so a retry the
+        # outbox makes later cannot turn the dropped save into a pass; it is lifted at the end of the step)
         goto(pg, base, f"/journal/notebook?note={nid}", wait=".ProseMirror")
         good = pg.get_by_role("button", name="Mood: Good", exact=True)
         focused = pg.get_by_role("button", name="Focus: Focused", exact=True)
@@ -328,6 +428,8 @@ def walk_viewport(browser, base: str, vp: str) -> None:
                  json.dumps({"blocks": len(blocks), "params": params, "today_et": TODAY_ET.isoformat()}))
         bad = conflicted(ctx, base)
         st.check("no conflicted copy appeared", not bad, json.dumps(bad))
+        if INJECT_DROP_SAVE:
+            pg.unroute(path)
 
     def s2(st):
         goto(pg, base, "/journal/insights?ins=psychology")
@@ -353,18 +455,25 @@ def walk_viewport(browser, base: str, vp: str) -> None:
         goto(pg, base, "/journal/insights?ins=winners")
         tag = pg.locator("li").filter(has=pg.locator("span", has_text=re.compile(r"^patient$"))).first
         tag.wait_for(timeout=60000)
-        panel = st.read("Checklist from my winners", pg.locator("section").filter(
+        st.read("Checklist from my winners", pg.locator("section").filter(
             has=pg.get_by_role("heading", name="Checklist from my winners")).first.inner_text())
-        st.check("at least one suggestion is shown (patient)", "patient" in panel, panel[:400])
+        want = expected_suggestion()
+        share = tag.locator("span").nth(1).inner_text().strip()
+        st.check("the patient suggestion's share line is the seed's (best trades and the rest)",
+                 share == want["share"], json.dumps({"read": share, "want": want["share"]}))
+        links = tag.get_by_role("list", name="Best trades tagged patient").get_by_role("link")
+        st.check("its evidence lists every best trade carrying the tag", links.count() == want["evidence"],
+                 json.dumps({"links": links.count(), "want": want["evidence"]}))
         tag.get_by_role("button", name=re.compile("add to my checklist", re.I)).click(timeout=T)
         dlg = pg.get_by_role("dialog", name='Add "patient" to your checklist')
         dlg.wait_for(timeout=T)
         label = dlg.get_by_label("Your rule").input_value()
         st.read("the confirm", dlg.inner_text() + f"\n[Your rule] {label}")
+        st.check("the rule is pre-filled as R-T3-6 says", label == "Before entry: am I patient?", label)
         dlg.get_by_role("button", name="Save rule").click(timeout=T)
-        status = pg.get_by_text(ADDED, exact=True)
-        status.wait_for(timeout=T)
-        st.check("the panel says it was added", True, st.read("status", status.inner_text()))
+        status = pg.get_by_role("status").filter(has_text=ADDED)
+        status.first.wait_for(timeout=T)
+        st.read("status", status.first.inner_text())
         rules = ctx.request.get(base + f"/api/j2/accounts/{who['account']}/rules").json()
         rules = rules.get("rules", rules) if isinstance(rules, dict) else rules
         mine = [r for r in rules if isinstance(r, dict) and r.get("label") == label]
@@ -410,14 +519,37 @@ def walk_viewport(browser, base: str, vp: str) -> None:
         picker.select_option(str(LAST_YEAR))
         door.get_by_role("link", name=f"Your {LAST_YEAR} in trading").click(timeout=T)
         pg.get_by_role("heading", level=1, name=f"Your {LAST_YEAR} in trading").wait_for(timeout=T)
-        st.read("the header", pg.get_by_test_id("wrapped-scope").inner_text())
-        seen = []
+        want = expected_year()
+        scope = pg.get_by_test_id("wrapped-scope")
+        try:
+            scope.filter(has_text=re.compile(r"closed trades?$")).wait_for(timeout=T)
+        except Exception:  # noqa: BLE001 -- read and judged below either way
+            pass
+        head = st.read("the header", scope.inner_text())
+        st.check("the header counts the year's closed trades", head.endswith(f"· {want['trades']} closed trades"),
+                 json.dumps({"read": head, "want_trades": want["trades"]}))
+        regs = {}
         for name in WRAPPED_SECTIONS:
-            reg = pg.get_by_role("region", name=name, exact=True)
-            reg.first.wait_for(timeout=T)
-            seen.append(name)
-            st.read(f"section: {name}", reg.first.inner_text())
-        st.check("the page shows its four sections", seen == list(WRAPPED_SECTIONS), json.dumps(seen))
+            reg = pg.get_by_role("region", name=name, exact=True).first
+            reg.wait_for(timeout=T)
+            regs[name] = reg
+            st.read(f"section: {name}", reg.inner_text())
+        rows = {}
+        for th in regs["Best setups"].get_by_role("rowheader").all():
+            tr = th.locator("xpath=ancestor::tr[1]")
+            rows[th.inner_text().strip()] = [c.inner_text().strip() for c in tr.locator("td").all()]
+        trades_col = {k: (v[0] if v else None) for k, v in rows.items()}
+        st.check("Best setups lists the year's setups with their trade counts",
+                 trades_col == {k: str(n) for k, n in want["setups"].items()},
+                 json.dumps({"read": rows, "want": want["setups"]}))
+        months = [" ".join(li.inner_text().split()) for li in regs["Discipline trend"].get_by_role("listitem").all()]
+        counts = [re.search(r"(\d+) trades?$", m) for m in months]
+        st.check("Discipline trend: twelve months, each with the seed's trade count and no adherence (a dash)",
+                 len(months) == 12 and [int(c.group(1)) if c else None for c in counts] == want["months"]
+                 and all("—" in m for m in months), json.dumps({"read": months, "want": want["months"]}))
+        empty = {k: regs[k].inner_text()[:200] for k in ("Most-written tickers", "Lessons you wrote into your rules")}
+        st.check("Most-written tickers and Lessons are empty for that year (no note, no rule change in it)",
+                 all("Nothing here yet." in v for v in empty.values()), json.dumps(empty))
 
     try:
         for n, title, fn in ((1, "insert the check-in from the slash menu, Good and Focused, leave within 1.5 s, reopen", s1),
@@ -446,15 +578,36 @@ def set_env(fs: dict) -> list[str]:
     return on
 
 
+def near_et_midnight(now_et: datetime, margin_min: int = MIDNIGHT_MARGIN_MIN) -> bool:
+    """True when an ET wall clock is within `margin_min` minutes BEFORE ET midnight."""
+    nxt = datetime.combine(now_et.date() + timedelta(days=1), datetime.min.time(), tzinfo=now_et.tzinfo)
+    return (nxt - now_et) <= timedelta(minutes=margin_min)
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def main(argv=None) -> int:
-    global OUT
+    global OUT, TODAY_ET, LAST_YEAR, INJECT_DROP_SAVE
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", required=True)
     ap.add_argument("--port", type=int, default=8081)
     ap.add_argument("--tip", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--viewports", default="1280,820,390")
+    ap.add_argument("--inject-drop-save", action="store_true",
+                    help="FAULT INJECTION (walk-only): abort the save carrying the second pick; step 1 must read FAIL")
     args = ap.parse_args(argv)
+    INJECT_DROP_SAVE = bool(args.inject_drop_save)
+    now_et = datetime.now(ET)
+    if near_et_midnight(now_et):
+        print(f"REFUSED: {now_et.isoformat(timespec='minutes')} is within {MIDNIGHT_MARGIN_MIN} minutes of ET midnight;"
+              " a run that crosses it would compare two days")
+        return 3
+    TODAY_ET = now_et.date()
+    LAST_YEAR = TODAY_ET.year - 1
     why = h.refuse_shared_root(args.data_dir)
     if why:
         print(f"REFUSED: {why}")
@@ -470,10 +623,21 @@ def main(argv=None) -> int:
     OUT = Path(args.out)
     OUT.mkdir(parents=True, exist_ok=True)
     tree = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True).stdout.strip()
+    git_tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=str(REPO), capture_output=True, text=True).stdout.strip()
+    tool = Path(__file__).resolve()
+    tool_rel = tool.relative_to(REPO).as_posix()
+    tool_state = subprocess.run(["git", "status", "--porcelain", "--", tool_rel], cwd=str(REPO), capture_output=True,
+                                text=True).stdout.strip()
+    committed = subprocess.run(["git", "cat-file", "blob", f"HEAD:{tool_rel}"], cwd=str(REPO), capture_output=True)
     fs = fw.flag_sets()
     on = set_env(fs)
     base = f"http://127.0.0.1:{args.port}"
-    REC.update({"tip": args.tip, "tool_tree": tree, "base": base, "data_dir": str(data_dir), "flags_on": on,
+    import hashlib
+    REC.update({"fault_injection": "drop-save (walk-only; this run is the RED path, never a green result)"
+                if INJECT_DROP_SAVE else None,
+                "tool": {"path": tool_rel, "sha256": _sha256(tool), "git_status": tool_state or "clean",
+                         "sha256_at_head": hashlib.sha256(committed.stdout).hexdigest() if committed.returncode == 0 else None},
+                "tip": args.tip, "tool_tree": tree, "head": tree, "head_tree": git_tree, "base": base, "data_dir": str(data_dir), "flags_on": on,
                 "today_et": TODAY_ET.isoformat(), "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "status": "INCOMPLETE (run did not finish)"})
     flush()
@@ -510,15 +674,24 @@ def main(argv=None) -> int:
     integ = h.read_integrity(sb.integrity_path(), [h.PRE_BOOT, h.POST_BOOT, h.PREWARM, h.SHUTDOWN])
     ipath = sb.integrity_path()
     if ipath and Path(ipath).is_file():
+        # MOVED, byte-identical (notebook_perf_harness._keep_integrity_log's pattern): the run's own log leaves
+        # docs/plans/joystick/sandbox-runs/ and lands beside the run; the tip goes in a file of its own.
+        import shutil
+        src = Path(ipath)
+        before = _sha256(src)
         kept = OUT / "integrity.md"
-        kept.write_text(f"tip under test: {args.tip}\n\n" + Path(ipath).read_text(encoding="utf-8", errors="replace"),
-                        encoding="utf-8", newline="\n")
+        shutil.move(str(src), str(kept))
         integ["path"] = str(kept)
+        integ["moved_from"] = str(src)
+        integ["byte_identical"] = _sha256(kept) == before and not src.exists()
+        (OUT / "tip.txt").write_text(f"tip under test: {args.tip}\nhead: {tree}\nhead tree: {git_tree}\n",
+                                     encoding="utf-8", newline="\n")
     REC["integrity"] = integ
     REC["first_line"] = h.integrity_line(integ, f"stop: {sb.stop_how}", not_run=not_run)
     print(REC["first_line"])
     REC["driver_imported_api"] = sorted(m for m in sys.modules if m == "api" or m.startswith("api."))
     counts = {v: sum(1 for s in REC["steps"] if s["verdict"] == v) for v in ("PASS", "FAIL", "INCONCLUSIVE")}
+    REC["today_et_at_finish"] = datetime.now(ET).date().isoformat()
     REC.update({"not_run": not_run, "failure": failure, "counts": counts, "port_free_after": not h.port_busy(args.port),
                 "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "status": "COMPLETE" if not (not_run or failure) else "NOT COMPLETE"})
