@@ -49,11 +49,15 @@ Live for every member the moment the PR merges. None of it renders a member-visi
 10. **Notices:** `lib/notices.js` gains the `library` branch. Inert until a library alert exists.
 11. **No scheduler job is added** (`api/main.py` is untouched).
 
-Note: `tools/flow_worker_watch_coverage.py` reports red for this branch (flow-worker runs `alerts.py`, the gallery and
-journal-style services, `auth.py` and `journal_two.py`, and watches none of them). That is the review gate the
-deploy-windows runbook describes, not a block: no watched file is touched, so flow-worker does not redeploy and the
-tape is not bounced. Flow-worker keeps minting `type_<ms>` alert ids until its next deploy; that changes nothing it
-does today.
+Note: `tools/flow_worker_watch_coverage.py` reports red for this branch: flow-worker's import closure reaches files this
+branch changes (among them `alerts.py`, the gallery and journal-style services, `auth.py` and `journal_two.py`) and
+watches none of them. Classified an INERT strand (final re-review, `final-rereview.md` in the P3a ledger), so no
+flow-worker redeploy is needed and none should be forced:
+- flow-worker reaches `alerts.py` only through `flow_worker_main` -> `auth_surface_check` -> `alert_destination` ->
+  `alert_routing`, and no flow-worker code path calls `add_alert`, so it mints no alert ids at all, old-style or new;
+- its alert cache and `auth.db` are its own, not web's, so nothing it holds can collide with an id web mints;
+- the gallery and style code is reached only through `auth_db.init_db`, which flow-worker never runs.
+No watched file is touched, so flow-worker does not redeploy and the options tape is not bounced.
 
 ## Dark until the switch is armed
 
@@ -84,8 +88,10 @@ the body; ruling R-T4-2). An author can still unpublish their own item while the
 
 ## Preconditions
 
-- `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` and `NOTEBOOK_JOURNAL_STYLES_ENABLED` are armed (both are today). Adopt also
-  needs the journal styles switch; without it adopt answers 409 with its own sentence.
+- `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` and `NOTEBOOK_JOURNAL_STYLES_ENABLED` are armed. The flag ledger records both as
+  armed on web (`docs/feature_flags.json`: the gallery 2026-10-08 ~00:30 CT, journal styles 2026-10-14T02:23:41Z), and
+  check 2 below reads both in the running process. Adopt also needs the journal styles switch; without it adopt
+  answers 409 with its own sentence.
 - OI-P3a-1 is in this PR (item 2 above), so no separate hotfix has to land first.
 
 ## Arm
@@ -100,7 +106,9 @@ No other switch is needed.
 
 1. A NEW boot: a startup line stamped after the `--set`. No boot within ~3 minutes:
    `! railway redeploy --service web --yes`.
-2. The value in the running process (over `railway ssh` with `/opt/venv/bin/python`), never from `--kv`.
+2. The value in the running process (over `railway ssh` with `/opt/venv/bin/python`), never from `--kv`: read
+   `NOTEBOOK_STYLE_LIBRARY_ENABLED`, and the two preconditions `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` and
+   `NOTEBOOK_JOURNAL_STYLES_ENABLED`, in the same call.
 3. `/api/auth/me` for the smoke account carries `notebook_style_library_enabled: true`.
 4. The Styles chip and the trading-style chips render in the community gallery, as the smoke account, in its own
    Playwright context (never the owner's Chrome).
