@@ -12,6 +12,9 @@ TSDR = tl.TSDR_CHANNEL_ID
 GUILD = tl.DEFAULT_GUILD_ID
 
 
+_REAL_VIDEO_GONE = tl.youtube_video_gone
+
+
 @pytest.fixture(autouse=True)
 def _env(tmp_path, monkeypatch):
     monkeypatch.setenv("TSDR_LESSONS_DB_PATH", str(tmp_path / "lessons.db"))
@@ -22,6 +25,8 @@ def _env(tmp_path, monkeypatch):
               "TSDR_LESSONS_FORUM_CHANNEL_ID", "TSDR_LESSONS_REVIEWER_IDS"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(tl, "_sleep", lambda s: None)
+    # no test asks YouTube whether a video exists: present unless a test says otherwise
+    monkeypatch.setattr(tl, "youtube_video_gone", lambda vid: False)
 
 
 def sf(year, month, day, n=0):
@@ -1508,7 +1513,7 @@ def test_a_pencil_from_a_speaker_rewrites_the_lesson_without_a_download(monkeypa
         ("DELETE", "/channels/p-w1"): lambda p, b: deleted.append("p-w1"),
     })
     monkeypatch.setattr(tl, "_discord", fake)
-    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 1, "errors": 0}
+    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 1, "gone": 0, "errors": 0}
     assert deleted == ["p-w1"]
     w1 = tl.get_lesson("w1")
     assert w1["status"] == "new" and w1["forum_post_id"] is None and w1["transcript"]
@@ -1757,7 +1762,7 @@ def test_a_pencil_on_a_thread_post_rewrites_it_and_see_also_refreshes_in_the_thr
         ("PATCH", "/channels/t-setups/messages/msg-tp2"): lambda p, b: patched.append(b) or {},
     })
     monkeypatch.setattr(tl, "_discord", fake)
-    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 0, "errors": 0}
+    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 0, "gone": 0, "errors": 0}
     assert deleted == ["msg-tp1", "vid-tp1"]
     row = tl.get_lesson("tp1")
     assert row["status"] == "new" and row["discord_post_id"] is None and row["transcript"]
@@ -1792,3 +1797,71 @@ def test_the_clips_header_shows_only_the_newest_dozen_and_counts_the_rest():
     assert lines[0].startswith("• [Clip 30](") and len([l for l in lines if l.startswith("• [")]) == tl._CLIPS_INDEX_MAX
     assert lines[-1] == "… and 18 more in the thread"
     assert "https://x.y" not in embeds[1]["description"].split("](")[0]
+
+
+def test_a_linked_lesson_whose_video_left_youtube_comes_down_and_stays_out(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    _seed_threads()
+    dead, alive = f"{tl.LINK_PREFIX}A2py58scpYI", f"{tl.LINK_PREFIX}dQw4w9WgXcQ"
+    for aid, day in ((dead, 3), (alive, 4)):
+        m = msg(sf(2026, 5, day), content=f"https://youtu.be/{aid[len(tl.LINK_PREFIX):]}")
+        tl.record_message(m, TSDR)
+        tl._update(aid, status="posted", title="https://youtu.be/x", recap="A clip.", section="clips",
+                   tags=json.dumps(["clip"]), discord_post_id=f"msg-{aid}", forward_post_id=f"vid-{aid}",
+                   post_channel_id="t-clips")
+    _thread_lesson("att1", 5)                                              # an attachment: YouTube is never asked
+    asked, deleted = [], []
+    monkeypatch.setattr(tl, "youtube_video_gone", lambda v: asked.append(v) or v == "A2py58scpYI")
+    routes = {("GET", f"/channels/t-clips/messages/msg-{a}/reactions/{tl._PENCIL}"): [] for a in (dead, alive)}
+    routes[("GET", f"/channels/t-setups/messages/msg-att1/reactions/{tl._PENCIL}")] = []
+    routes[("DELETE", f"/channels/t-clips/messages/msg-{dead}")] = lambda p, b: deleted.append("post")
+    routes[("DELETE", f"/channels/t-clips/messages/vid-{dead}")] = lambda p, b: deleted.append("video")
+    fake = FakeDiscord(routes)
+    monkeypatch.setattr(tl, "_discord", fake)
+    tl.set_state("index_dirty", "")
+    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 3, "rewriting": 0, "removed": 0, "gone": 1, "errors": 0}
+    assert asked == ["A2py58scpYI", "dQw4w9WgXcQ"] and deleted == ["post", "video"]
+    row = tl.get_lesson(dead)
+    assert row["status"] == "skipped" and row["last_error"] == tl.GONE_FROM_YOUTUBE
+    assert row["discord_post_id"] is None and row["post_channel_id"] is None
+    assert tl.get_lesson(alive)["status"] == "posted"
+    assert tl.get_state("index_dirty") == "1"
+    assert [r["discord_post_id"] for r in tl._index_rows("clips")] == [f"msg-{alive}"]
+    # a skipped dead link is not reopened or re-posted: the queue ignores it
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 0
+    assert tl.get_lesson(dead)["status"] == "skipped"
+
+
+def test_a_new_link_to_a_video_youtube_no_longer_has_is_never_posted(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 16), content="https://youtu.be/rC4J8QA7hM0")
+    tl.record_message(m, TSDR)
+    aid = f"{tl.LINK_PREFIX}rC4J8QA7hM0"
+    assert tl.get_lesson(aid)["status"] == "new"
+    monkeypatch.setattr(tl, "fetch_message", lambda ch, mid: m)
+    monkeypatch.setattr(tl, "youtube_video_gone", lambda v: True)
+    monkeypatch.setattr(tl, "youtube_transcript", lambda v: (_ for _ in ()).throw(AssertionError("not asked")))
+    assert tl.process_lesson(tl.get_lesson(aid), "lessons") == "skipped"
+    row = tl.get_lesson(aid)
+    assert row["status"] == "skipped" and row["last_error"] == tl.GONE_FROM_YOUTUBE
+
+
+def test_youtube_video_gone_only_on_a_definite_404(monkeypatch):
+    import httpx
+
+    class R:
+        def __init__(self, code):
+            self.status_code = code
+    gone = _REAL_VIDEO_GONE                                  # the fixture stubs the module's copy
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: R(404))
+    assert gone("x") is True
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: R(401))                 # private: not gone
+    assert gone("x") is False
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: R(200))
+    assert gone("x") is False
+
+    def boom(*a, **k):
+        raise httpx.ConnectError("offline")
+    monkeypatch.setattr(httpx, "get", boom)
+    assert gone("x") is False
