@@ -216,8 +216,12 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
         for k in ("skill_id", "prompt_json", "answer_json", "source_kind", "source_ref"):
             if not it.get(k):
                 problems.append(f"{iid}: missing {k}")
-        if it.get("review_status") != "draft":
-            problems.append(f"{iid}: review_status must be draft")
+        status = it.get("review_status")
+        if status == "approved":
+            if (it.get("reviewed") or {}).get("by") != "owner":
+                problems.append(f"{iid}: approved without an owner verdict (docs/study/corrections)")
+        elif status != "draft":
+            problems.append(f"{iid}: review_status must be draft|approved")
         if it.get("lesson_origin") not in ("template", "source"):
             problems.append(f"{iid}: lesson_origin must be template|source")
         if not (isinstance(it.get("lesson_text"), str) and it["lesson_text"].strip()):
@@ -259,7 +263,10 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
 
 
 def write_segment(name: str, items: list[dict]) -> pathlib.Path:
-    """docs/study/bank/<name>.json, after validation (raises on a problem)."""
+    """docs/study/bank/<name>.json, after the owner's verdicts
+    (scripts/study/corrections.py) and validation (raises on a problem)."""
+    from scripts.study import corrections
+    items = corrections.apply(items)
     problems = validate(items)
     if problems:
         raise ValueError(f"{name}: {len(problems)} problem(s):\n  " + "\n  ".join(problems[:40]))

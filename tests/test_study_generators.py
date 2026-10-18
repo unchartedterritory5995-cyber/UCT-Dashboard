@@ -338,5 +338,44 @@ def test_committed_bank_matches_the_generators(segments):
         assert on_disk == json.loads(json.dumps(items, sort_keys=True)), name
 
 
+def test_corrections_overlay_rejects_fixes_and_approves_by_item_id():
+    from scripts.study import corrections
+    items = [
+        {"id": "si_a", "prompt_json": {"q": "Q?", "choices": ["old key", "x", "y"]}, "answer_json": {"answer": "old key"},
+         "reveal_json": {}, "review_status": "draft", "lesson_text": "l", "lesson_origin": "template"},
+        {"id": "si_b", "prompt_json": {"q": "Q?"}, "answer_json": {"answer": "k"}, "reveal_json": {}, "review_status": "draft"},
+        {"id": "si_c", "prompt_json": {"q": "Q?"}, "answer_json": {"answer": "k"}, "reveal_json": {}, "review_status": "draft"},
+    ]
+    recs = [
+        {"item_id": "si_a", "verdict": "fix", "field": "answer", "after": "new key", "status": "confirmed"},
+        {"item_id": "si_a", "verdict": "fix", "field": "lesson_text", "after": "ignored", "status": "proposed"},
+        {"item_id": "si_a", "verdict": "approve", "ts": "2026-10-17", "owner_words": "yes"},
+        {"item_id": "si_b", "verdict": "reject", "owner_words": "never heard of it"},
+        {"item_id": "si_zz", "verdict": "source_ruling"},
+    ]
+    out = corrections.apply(items, recs)
+    assert [i["id"] for i in out] == ["si_a", "si_c"]
+    a = out[0]
+    assert a["answer_json"]["answer"] == "new key" and "new key" in a["prompt_json"]["choices"]
+    assert "old key" not in a["prompt_json"]["choices"]
+    assert a["lesson_text"] == "l"                                       # a proposed fix is not applied
+    assert a["review_status"] == "approved" and a["reviewed"]["by"] == "owner"
+    assert out[1]["review_status"] == "draft"
+    # validate: an approved item needs the owner record
+    assert any("approved without an owner verdict" in p for p in _common.validate([
+        {**items[2], "id": "si_abcdefabcdef", "type": "recall", "skill_id": "s", "source_kind": "k",
+         "source_ref": "r", "review_status": "approved", "lesson_text": "l", "lesson_origin": "template"}]))
+
+
+def test_every_committed_verdict_names_a_known_segment_and_verdict():
+    from scripts.study import corrections
+    recs = corrections.load()
+    for r in recs:
+        assert r["verdict"] in corrections.VERDICTS
+        assert r.get("owner_words"), r
+        if r["verdict"] == "fix":
+            assert r.get("field") and "after" in r and r.get("status") in ("proposed", "confirmed"), r
+
+
 def test_run_all_lists_every_generator():
     assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs}

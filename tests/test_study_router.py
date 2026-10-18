@@ -347,6 +347,21 @@ def test_import_rejects_a_sha_mismatch_and_accepts_a_matching_one(push_client, s
     assert r.json()["inserted"] == 1
 
 
+def test_import_stores_an_owner_reviewed_item_as_approved_and_anything_else_as_draft(push_client, store):
+    base = {"type": "recall", "skill_id": "vocab.method", "prompt_json": {"q": "Which term?", "choices": ["a", "b"]},
+            "answer_json": {"answer": "a"}, "reveal_json": {}, "source_kind": "glossary", "source_ref": "x",
+            "lesson_text": "A is the word.", "lesson_origin": "source"}
+    owner_ok = {**base, "id": "si_ownerok0001", "review_status": "approved",
+                "reviewed": {"by": "owner", "ts": "2026-10-17", "words": "approve"}}
+    no_record = {**base, "id": "si_norecord001", "review_status": "approved"}
+    wrong_by = {**base, "id": "si_wrongby0001", "review_status": "approved", "reviewed": {"by": "model"}}
+    r = push_client.post("/api/study/import", json={"items": [owner_ok, no_record, wrong_by]})
+    assert r.status_code == 200, r.text
+    assert store.get_item_full("si_ownerok0001")["review_status"] == "approved"
+    assert store.get_item_full("si_norecord001")["review_status"] == "draft"
+    assert store.get_item_full("si_wrongby0001")["review_status"] == "draft"
+
+
 def test_import_validation_error_is_a_400(push_client):
     r = push_client.post("/api/study/import", json={"items": [{"id": "bad", "type": "recall"}]})
     assert r.status_code == 400

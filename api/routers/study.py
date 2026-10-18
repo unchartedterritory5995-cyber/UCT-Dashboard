@@ -438,7 +438,13 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
         embed = it.pop("bars_embed", None)
         iid = it.get("id") or study_store.new_item_id()
         it["id"] = iid
-        it.pop("review_status", None)            # §8.8: nothing goes live unreviewed
+        # §8.8: nothing goes live unreviewed. The one exception is an item the
+        # owner approved in the chat review (docs/study/corrections): it carries
+        # `reviewed.by == "owner"` and arrives as approved.
+        reviewed = it.pop("reviewed", None)
+        if not (it.get("review_status") == "approved" and isinstance(reviewed, dict)
+                and reviewed.get("by") == "owner"):
+            it.pop("review_status", None)
         chk = study_import.check_item(it, dup_bank)
         it["import_flags"] = chk["flags"] or None
         it["review_lane"] = it.get("review_lane") or chk["lane"]
