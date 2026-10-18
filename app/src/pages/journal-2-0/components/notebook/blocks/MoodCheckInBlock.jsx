@@ -47,7 +47,10 @@ export default function MoodCheckInBlock({ params, setParams, editable }) {
     return <p className={own.words}>{words || 'No check-in yet.'}</p>
   }
   const pick = (key, value) => {
-    const ok = typeof setParams === 'function' && setParams(nextCheckinParams(p, key, value, todayET()))
+    // Final fix M2: through useBlockParams's latest-value merge, as a function of the LATEST params, so
+    // a second pick before the node re-renders builds on the first instead of the stale props.
+    const today = todayET()
+    const ok = typeof setParams === 'function' && setParams((latest) => nextCheckinParams(latest, key, value, today))
     setNotSaved(ok === false)
   }
   const day = checkinDayText(p.day)

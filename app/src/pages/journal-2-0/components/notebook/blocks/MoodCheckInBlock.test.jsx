@@ -2,14 +2,22 @@
 //
 // P2 Tier 3 Task 3: the mood and focus check-in body. Its ONE write is the setter BlockNodeView hands it
 // (useBlockParams's return, one editor transaction per press); it reads nothing and fetches nothing.
+// Final fix M2: the block hands the setter a FUNCTION of the latest params (useBlockParams's
+// latest-value merge), so `sent` resolves a call the way the hook does.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 vi.mock('../../../lib/calendar', async (orig) => ({ ...(await orig()), todayET: () => '2026-10-17' }))
 import MoodCheckInBlock from './MoodCheckInBlock'
+import { useBlockParams } from './useBlockParams'
 
 const EMPTY = { mood: '', focus: '', day: '' }
+/** What call `i` of a mocked setter would write, given the params it is resolved against. */
+const sent = (setParams, i, base) => {
+  const arg = setParams.mock.calls[i][0]
+  return typeof arg === 'function' ? arg(base) : arg
+}
 let fetchSpy
 
 beforeEach(() => { fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => { throw new Error('no fetch') }) })
@@ -21,7 +29,7 @@ describe('MoodCheckInBlock', () => {
     render(<MoodCheckInBlock params={EMPTY} setParams={setParams} editable />)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Mood: Good' }))
     expect(setParams).toHaveBeenCalledTimes(1)
-    expect(setParams).toHaveBeenCalledWith({ mood: '4', focus: '', day: '2026-10-17' })
+    expect(sent(setParams, 0, EMPTY)).toEqual({ mood: '4', focus: '', day: '2026-10-17' })
   })
 
   it('pressing Good again clears it (and the day, since focus is unpicked)', async () => {
@@ -31,14 +39,14 @@ describe('MoodCheckInBlock', () => {
     expect(good.getAttribute('aria-pressed')).toBe('true')
     await userEvent.setup().click(good)
     expect(setParams).toHaveBeenCalledTimes(1)
-    expect(setParams).toHaveBeenCalledWith({ mood: '', focus: '', day: '' })
+    expect(sent(setParams, 0, { mood: '4', focus: '', day: '2026-10-16' })).toEqual({ mood: '', focus: '', day: '' })
   })
 
   it('a focus pick after a mood pick keeps the first day', async () => {
     const setParams = vi.fn(() => true)
     render(<MoodCheckInBlock params={{ mood: '2', focus: '', day: '2026-10-16' }} setParams={setParams} editable />)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Focus: Steady' }))
-    expect(setParams).toHaveBeenCalledWith({ mood: '2', focus: '3', day: '2026-10-16' })
+    expect(sent(setParams, 0, { mood: '2', focus: '', day: '2026-10-16' })).toEqual({ mood: '2', focus: '3', day: '2026-10-16' })
   })
 
   it('no fetch is ever called: not on mount, not on a press', async () => {
@@ -89,5 +97,28 @@ describe('MoodCheckInBlock', () => {
     render(<MoodCheckInBlock params={EMPTY} setParams={vi.fn(() => false)} editable />)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Mood: Low' }))
     expect(screen.getByRole('status').textContent).toBe("That choice couldn't be saved. Nothing was changed.")
+  })
+})
+
+// Final fix M2. The node may not re-render between two writes (two picks inside one event, or before the
+// editor hands the NodeView its new attrs). useBlockParams merges each write onto the value it wrote
+// last; the block must write THROUGH that merge, or its second pick, computed from the stale props,
+// overwrites the first.
+describe('MoodCheckInBlock writes through the latest-value merge (M2)', () => {
+  const ATTRS = { widgetId: 'moodCheckIn', params: EMPTY }      // the node never re-renders with new attrs
+  function Harness({ updateAttributes }) {
+    const setParams = useBlockParams({ attrs: ATTRS, updateAttributes, editable: true })
+    return <MoodCheckInBlock params={ATTRS.params} setParams={setParams} editable />
+  }
+
+  it('two picks before a re-render keep both', async () => {
+    const updateAttributes = vi.fn()
+    render(<Harness updateAttributes={updateAttributes} />)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Mood: Good' }))
+    await user.click(screen.getByRole('button', { name: 'Focus: Focused' }))
+    expect(updateAttributes).toHaveBeenCalledTimes(2)
+    expect(updateAttributes.mock.calls[0][0].params).toEqual({ mood: '4', focus: '', day: '2026-10-17' })
+    expect(updateAttributes.mock.calls[1][0].params).toEqual({ mood: '4', focus: '4', day: '2026-10-17' })
   })
 })
