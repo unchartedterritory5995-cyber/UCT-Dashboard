@@ -242,7 +242,7 @@ def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen
     })
     monkeypatch.setattr(tl, "_discord", fake)
     monkeypatch.setattr(tl, "download", lambda url, dest: dest.write_bytes(b"x") or 1)
-    monkeypatch.setattr(tl, "transcribe", lambda v, w: (transcript, 125.0))
+    monkeypatch.setattr(tl, "transcribe", lambda v, w: (transcript, 125.0, []))
 
     def gen(**kw):
         if seen is not None:
@@ -1083,3 +1083,158 @@ def test_the_transcript_routes_take_the_push_secret_and_nothing_else(monkeypatch
     assert r.json() == {"result": "queued"}
     assert client.post("/api/tsdr-lessons/link-transcript", headers=ok,
                        json={"video_id": "AbCdEfGhIjK", "transcript": "w"}).status_code == 404
+
+
+# ── library v2: level, key moments, duplicates, clips off the shelf ─────────
+
+def test_transcribe_keeps_each_parts_offset(monkeypatch, tmp_path):
+    from api.services.journal_two import voice_notes as vn
+    monkeypatch.setattr(vn, "probe_duration", lambda p: 650.0)
+    monkeypatch.setattr(vn, "split_audio", lambda src, out, duration=None: ["p0", "p1", "p2"])
+    monkeypatch.setattr(vn, "transcribe_part", lambda p, i: ["first part", "", "third part"][i])
+    text, seconds, segments = tl.transcribe(tmp_path / "v.mp4", tmp_path)
+    assert text == "first part third part" and seconds == 650.0
+    assert segments == [[0, "first part"], [2 * vn.CHUNK_SECONDS, "third part"]]
+
+
+def test_key_moments_are_timed_from_part_offsets_then_proportionally():
+    # part one is slow speech (100 words in 300 s), part two fast (300 words in
+    # 300 s), so a position along the whole transcript and a part-anchored time
+    # DISAGREE - which is what makes the part offsets worth keeping
+    words_a = " ".join(f"a{i}" for i in range(100))          # part 1: 0-300 s
+    words_b = "Here is the entry trigger on NVDA " + " ".join(f"b{i}" for i in range(293))
+    transcript = words_a + " " + words_b
+    segments = [[0, words_a], [300, words_b]]
+    moments = [{"quote": "here is the ENTRY trigger, on NVDA!", "label": "The entry trigger"},
+               {"quote": "a50 a51 a52 a53", "label": "Halfway through part one"},
+               {"quote": "never said anywhere at all", "label": "Dropped"},
+               {"quote": "a1 a2", "label": "Too short to trust"}]
+    out = tl.locate_moments(moments, transcript, segments, 600.0)
+    assert [m["label"] for m in out] == ["Halfway through part one", "The entry trigger"]
+    assert out[0]["t"] == 150 and out[1]["t"] == 300          # sorted, part-anchored
+    # no part offsets: the position along the transcript is the time
+    out = tl.locate_moments(moments[:2], transcript, [], 1000.0)
+    assert out[0]["t"] == 125 and out[1]["t"] == 250
+    assert tl.locate_moments(moments, transcript, [], None) == []   # nothing to time with
+    assert tl.locate_moments(moments, "", segments, 600.0) == []
+
+
+def test_fmt_time_and_seek_links():
+    assert tl.fmt_time(65) == "1:05" and tl.fmt_time(3725) == "1:02:05" and tl.fmt_time(None) == "0:00"
+    assert tl.seek_link({"attachment_id": "a1", "youtube_id": "YT123456789"}, 65) == \
+        "https://youtu.be/YT123456789?t=65"
+    assert tl.seek_link({"attachment_id": "yt:LINK1234567"}, 9) == "https://youtu.be/LINK1234567?t=9"
+    assert tl.seek_link({"attachment_id": "a1"}, 9) == ""
+
+
+def _recap_client(monkeypatch, payload):
+    class Block:
+        type = "text"
+        text = payload
+
+    class Msg:
+        stop_reason = "end_turn"
+        content = [Block()]
+
+    class Client:
+        def with_options(self, **kw):
+            return self
+
+        class messages:  # noqa: N801
+            @staticmethod
+            def create(**kw):
+                return Msg()
+
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: Client())
+
+
+def test_generate_recap_reads_the_level_and_the_moments(monkeypatch):
+    _recap_client(monkeypatch, json.dumps({
+        "title": "Cut losers fast", "recap": "One. Two. Three. Four.", "is_lesson": True,
+        "takeaway": "Small losses.", "tickers": [], "tags": ["risk"], "level": "Advanced ",
+        "moments": [{"quote": "cut it right here", "label": "The stop is hit."},
+                    "junk", {"quote": "", "label": "no quote"},
+                    {"quote": "second moment words", "label": "Second"},
+                    {"quote": "third moment words", "label": "Third"},
+                    {"quote": "fourth is one too many", "label": "Fourth"}]}))
+    out = tl.generate_recap(transcript="t", caption="", posted=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    assert out["level"] == "advanced"
+    assert [m["label"] for m in out["moments"]] == ["The stop is hit", "Second", "Third"]
+    assert "**" not in tl._SYS and "level" in tl._SYS and "moments" in tl._SYS
+    _recap_client(monkeypatch, json.dumps({
+        "title": "T", "recap": "One. Two. Three. Four.", "is_lesson": True, "level": "expert"}))
+    out = tl.generate_recap(transcript="t", caption="", posted=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    assert out["level"] == "intermediate" and out["moments"] == []
+
+
+def test_a_lesson_stores_its_level_and_timed_moments_and_shows_them(monkeypatch):
+    transcript = "intro words " * 20 + "now watch the entry trigger on NVDA " + "more words " * 20
+    m = msg(sf(2026, 10, 15), attachments=[video("km")])
+    tl.record_message(m, TSDR)
+    recap = {**RECAP, "level": "beginner",
+             "moments": [{"quote": "now watch the entry trigger on NVDA", "label": "The entry trigger"}]}
+    fake = _pipeline(monkeypatch, m, transcript=transcript, recap=recap)
+    monkeypatch.setattr(tl, "transcribe", lambda v, w: (transcript, 100.0, [[0, transcript]]))
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    row = tl.get_lesson("km")
+    assert row["level"] == "beginner"
+    moments = json.loads(row["moments"])
+    assert len(moments) == 1 and moments[0]["label"] == "The entry trigger"
+    assert 45 <= moments[0]["t"] <= 55                     # about halfway through 100 s
+    assert json.loads(row["segments"]) == [[0, transcript]]
+    desc = fake.posts("/channels/lessons/messages")[0]["embeds"][0]["description"]
+    stamp = tl.fmt_time(moments[0]["t"])
+    assert f"**Key moments**\n`{stamp}` The entry trigger" in desc       # no video copy: time only
+    with_copy = {**row, "youtube_id": "YTID1234567"}
+    assert f"[`{stamp}`](https://youtu.be/YTID1234567?t={moments[0]['t']}) The entry trigger" \
+        in tl.build_embed(with_copy, "https://x")["description"]
+    assert f"Key moments:\n{stamp} The entry trigger" in tl.youtube_description(row)
+
+
+def test_a_repeat_of_an_earlier_video_is_recorded_and_not_posted(monkeypatch):
+    talk = " ".join(f"word{i} " for i in range(80))
+    first = msg(sf(2026, 10, 14), attachments=[video("d1")])
+    tl.record_message(first, TSDR)
+    _pipeline(monkeypatch, first, transcript=talk)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    again = msg(sf(2026, 10, 15), attachments=[video("d2")])
+    tl.record_message(again, TSDR)
+    fake = _pipeline(monkeypatch, again, transcript=talk + " one extra sentence here.")
+    out = tl.run_lessons(limit=3, deadline=9e12)
+    assert out == {"posted": 0, "skipped": 0, "duplicate": 1, "errors": 0}
+    row = tl.get_lesson("d2")
+    assert row["status"] == "duplicate" and row["duplicate_of"] == "d1"
+    assert fake.posts("/channels/lessons/messages") == []
+    # the same talk from the OTHER speaker is their own lesson
+    monkeypatch.setenv("TSDR_LESSONS_AUTHOR_IDS", f"{PATRICK},{tl.BRACCO_USER_ID}")
+    theirs = msg(sf(2026, 10, 16), author=tl.BRACCO_USER_ID, attachments=[video("d3")])
+    tl.record_message(theirs, tl.BRACCO_CHANNEL_ID)
+    _pipeline(monkeypatch, theirs, transcript=talk, channel=tl.BRACCO_CHANNEL_ID)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    # a different talk by the first speaker is not a duplicate
+    assert tl.find_duplicate(" ".join(f"other{i}" for i in range(80)), PATRICK, "x") is None
+    assert tl.find_duplicate("too short", PATRICK, "x") is None
+
+
+def test_clips_never_reach_the_shelf_and_existing_ones_come_off_once(monkeypatch):
+    _posted_lesson(monkeypatch, "c1")
+    tl._update("c1", section="clips", tags=json.dumps(["clip"]), edu_video_id=501)
+    _posted_lesson(monkeypatch, "l1")
+    tl._update("l1", section="setups", edu_video_id=502)
+    tl._update("c1", youtube_id="YTCLIP00001")
+    tl._update("l1", youtube_id="YTLESSON001")
+    from api.services import education_service as es
+    gone = []
+    monkeypatch.setattr(es, "delete_video", lambda vid: gone.append(vid) or True)
+    assert tl.remove_clips_from_library() == 1 and gone == [501]
+    assert tl.get_lesson("c1")["edu_video_id"] is None
+    assert tl.get_lesson("l1")["edu_video_id"] == 502          # lessons stay
+    assert tl.remove_clips_from_library() == 0 and gone == [501]   # once
+    # the upload stage skips clips
+    tl._update("c1", youtube_id=None)
+    tl._update("l1", youtube_id=None)
+    order = []
+    monkeypatch.setattr(tl, "upload_lesson", lambda row: order.append(row["attachment_id"]) or "uploaded")
+    tl.run_youtube(deadline=9e12)
+    assert order == ["l1"]

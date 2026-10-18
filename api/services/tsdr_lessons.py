@@ -22,6 +22,15 @@ Owner design, 2026-10-15:
     Lessons posted before this are moved into the threads oldest first and
     their old channel posts deleted (`run_regroup`).
 
+  * Library v2 (owner decisions 2026-10-18, spec
+    docs/superpowers/specs/2026-10-18-tsdr-lessons-library-v2-design.md): every
+    recap carries a LEVEL (beginner / intermediate / advanced) and 2-3 KEY
+    MOMENTS timed from the transcription's part offsets (or proportionally for a
+    linked video), shown in the embed, the YouTube description and as chapters
+    on Desk > Videos; a video that repeats an earlier talk by the same speaker
+    is recorded as a DUPLICATE and not posted; clips that are not lessons never
+    reach the website shelf.
+
 Stages, each run by `tick()` every 15 minutes on the web pod:
   1. scan     — REST-poll the source channels (forward + resumable backfill),
                 record one row per video attachment. No downloads.
@@ -58,6 +67,8 @@ log = logging.getLogger(__name__)
 
 API = "https://discord.com/api/v10"
 USER_AGENT = "DiscordBot (https://uctintelligence.com, 1.0)"
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/141.0 Safari/537.36")   # YouTube's public pages
 _ET = ZoneInfo("America/New_York")
 _DISCORD_EPOCH_MS = 1420070400000
 
@@ -255,7 +266,13 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons_state (
 _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
                   ("section", "TEXT"),
                   # 1 = a transcript arrived for a posted link lesson: rewrite it
-                  ("redo", "INTEGER NOT NULL DEFAULT 0"))
+                  ("redo", "INTEGER NOT NULL DEFAULT 0"),
+                  # library v2 (owner, 2026-10-18): the recap's level, its key
+                  # moments (JSON [{t, label, quote}]), the transcript's part
+                  # offsets (JSON [[start_s, text], ...]) and, for a repeat of
+                  # an earlier video, the lesson it duplicates
+                  ("level", "TEXT"), ("moments", "TEXT"), ("segments", "TEXT"),
+                  ("duplicate_of", "TEXT"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -766,20 +783,25 @@ def download(url: str, dest: Path) -> int:
     return written
 
 
-def transcribe(video: Path, work: Path) -> tuple[str, float]:
-    """(transcript, seconds) through the voice-notes ffmpeg split + Whisper.
-    ('', 0.0) when the file carries no audio."""
+def transcribe(video: Path, work: Path) -> tuple[str, float, list]:
+    """(transcript, seconds, segments) through the voice-notes ffmpeg split +
+    Whisper. `segments` is one [start_seconds, text] per 5-minute part: the
+    timing key moments are placed with. ('', 0.0, []) when the file carries no
+    audio."""
     from api.services.journal_two import voice_notes
 
     seconds = voice_notes.probe_duration(video)
     if not seconds:
-        return "", 0.0
+        return "", 0.0, []
     if seconds > MAX_VIDEO_SECONDS:
         raise ValueError(f"video is {int(seconds // 60)} minutes, over the cap")
     parts = voice_notes.split_audio(video, work / "parts", duration=seconds)
-    text = " ".join(t.strip() for t in (voice_notes.transcribe_part(p, i)
-                                        for i, p in enumerate(parts)) if t and t.strip())
-    return text, float(seconds)
+    segments = []
+    for i, part in enumerate(parts):
+        text = (voice_notes.transcribe_part(part, i) or "").strip()
+        if text:
+            segments.append([i * voice_notes.CHUNK_SECONDS, text])
+    return " ".join(t for _, t in segments), float(seconds), segments
 
 
 def youtube_transcript(video_id: str) -> str:
@@ -807,11 +829,27 @@ def youtube_video_title(video_id: str) -> str:
         return ""
 
 
+def youtube_video_length(video_id: str) -> Optional[float]:
+    """Seconds, read off the public watch page, or None. Best effort: the
+    length only places key moments along a linked video."""
+    import httpx
+    try:
+        r = httpx.get(f"https://www.youtube.com/watch?v={video_id}",
+                      headers={"User-Agent": _BROWSER_UA, "Accept-Language": "en-US,en;q=0.9"},
+                      timeout=15.0, follow_redirects=True)
+        m = re.search(r'"lengthSeconds":"(\d+)"', r.text) if r.status_code == 200 else None
+        return float(m.group(1)) if m else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ── the recap ────────────────────────────────────────────────────────────────
 
 # Lowercase single words, the same shape as the library's existing tags
 # ("earnings", "macro"), so they become Desk > Videos filter chips as-is.
 TAGS = ("setups", "entries", "exits", "risk", "market", "psychology", "process", "review")
+LEVELS = ("beginner", "intermediate", "advanced")
+MAX_MOMENTS = 3
 _TICKER = re.compile(r"^[A-Z]{1,5}(?:\.[A-Z])?$")
 
 _SYS = (
@@ -833,6 +871,13 @@ _SYS = (
     '  "takeaway": ONE short sentence a member should remember and apply.\n'
     '  "tickers": the stock/ETF symbols actually discussed, uppercase, no "$", at most 8.\n'
     f'  "tags": 1 to 3 topics, chosen ONLY from: {", ".join(TAGS)}.\n'
+    f'  "level": who the lesson is for, ONLY one of: {", ".join(LEVELS)}. beginner = a '
+    "first principle every new member needs; advanced = assumes the member already trades "
+    "these setups and manages positions; otherwise intermediate.\n"
+    '  "moments": 2 or 3 key moments, in transcript order, each {"quote": 6 to 12 '
+    "consecutive words copied EXACTLY from the transcript where the moment starts, "
+    '"label": 3 to 7 words naming what happens there, e.g. "The entry trigger on NVDA"}. '
+    "[] when there is no transcript.\n"
     '  "is_lesson": false when the clip teaches nothing (a joke, a quick "look at this" '
     "with no explanation, a tech test, an announcement); true otherwise. Every clip is "
     "still posted, so when is_lesson is false still give a title and a recap of 1 to 3 "
@@ -902,9 +947,133 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         tag = str(t).strip().lower()
         if tag in TAGS and tag not in tags:
             tags.append(tag)
+    level = str(data.get("level") or "").strip().lower()
+    if level not in LEVELS:
+        level = "intermediate"
+    moments = []
+    for m in data.get("moments") or []:
+        if len(moments) == MAX_MOMENTS:
+            break
+        if not isinstance(m, dict):
+            continue
+        quote = re.sub(r"\s+", " ", str(m.get("quote") or "")).strip()
+        label = re.sub(r"\s+", " ", str(m.get("label") or "")).strip().rstrip(".")[:80]
+        if quote and label:
+            moments.append({"quote": quote[:200], "label": label})
     return {"is_lesson": is_lesson, "title": title, "recap": " ".join(sentences[:6]),
             "question": q[:400], "takeaway": str(data.get("takeaway") or "").strip()[:300],
-            "tickers": tickers[:8], "tags": tags[:3]}
+            "tickers": tickers[:8], "tags": tags[:3], "level": level, "moments": moments}
+
+
+# ── key moments and duplicates ───────────────────────────────────────────────
+
+def fmt_time(seconds) -> str:
+    s = max(0, int(seconds or 0))
+    if s >= 3600:
+        return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def _norm_words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9$%.']+", (text or "").lower())
+
+
+def locate_moments(moments: list, transcript: str, segments: list, duration_s) -> list:
+    """Each key moment with its time: the quote is found in the transcript by its
+    first six normalised words (so casing and punctuation cannot miss), and the
+    match's position becomes a time from the part offsets when the video was
+    transcribed here, else proportionally along the whole transcript. A quote
+    that is not in the transcript is dropped; so is a moment with no way to
+    time it. Sorted by time, so the list never runs backwards."""
+    words = _norm_words(transcript)
+    if not words or not moments:
+        return []
+    bounds = []   # (first word index, last word index + 1, start_s, end_s) per part
+    if segments:
+        at = 0
+        for i, seg in enumerate(segments):
+            n = len(_norm_words(seg[1]))
+            if i + 1 < len(segments):
+                end = segments[i + 1][0]
+            else:   # the last part runs to the end of the video (a 5-minute part if unknown)
+                end = max(float(duration_s), float(seg[0])) if duration_s else float(seg[0]) + 300.0
+            bounds.append((at, at + n, float(seg[0]), float(end)))
+            at += n
+    elif not duration_s:
+        return []
+    out = []
+    for m in moments:
+        if not isinstance(m, dict):
+            continue
+        q = _norm_words(m.get("quote") or "")[:6]
+        if len(q) < 3:
+            continue
+        idx = next((i for i in range(len(words) - len(q) + 1) if words[i:i + len(q)] == q), None)
+        if idx is None:
+            continue
+        if bounds:
+            lo, hi, start, end = next(((lo, hi, st, en) for lo, hi, st, en in bounds
+                                       if lo <= idx < hi), bounds[-1])
+            frac = (idx - lo) / float(max(1, hi - lo))
+            t = start + frac * max(0.0, end - start)
+        else:
+            t = idx / float(len(words)) * float(duration_s)
+        out.append({"t": int(round(t)), "label": str(m.get("label") or "").strip(),
+                    "quote": str(m.get("quote") or "").strip()})
+    out.sort(key=lambda m: m["t"])
+    return out[:MAX_MOMENTS]
+
+
+def seek_link(lesson: dict, t) -> str:
+    """The lesson's YouTube copy (or the linked video) opened at `t` seconds; ""
+    for a lesson whose only video is the Discord forward."""
+    vid = link_video_id(lesson) or str(lesson.get("youtube_id") or "")
+    return f"https://youtu.be/{vid}?t={int(t or 0)}" if vid else ""
+
+
+def located_moments(lesson: dict) -> list[dict]:
+    return [m for m in _json_list(lesson.get("moments"))[:MAX_MOMENTS]
+            if isinstance(m, dict) and "t" in m and m.get("label")]
+
+
+def moments_lines(lesson: dict) -> list[str]:
+    out = []
+    for m in located_moments(lesson):
+        stamp, link = fmt_time(m["t"]), seek_link(lesson, m["t"])
+        out.append(f"[`{stamp}`]({link}) {m['label']}" if link else f"`{stamp}` {m['label']}")
+    return out
+
+
+_SHINGLE = 5
+_DUPLICATE_JACCARD = 0.8
+
+
+def _shingles(text: str) -> set:
+    w = _norm_words(text)
+    return {" ".join(w[i:i + _SHINGLE]) for i in range(max(0, len(w) - _SHINGLE + 1))}
+
+
+def find_duplicate(transcript: str, author_id: str, exclude: str) -> Optional[str]:
+    """The attachment id of an earlier POSTED lesson by the same speaker whose
+    transcript is the same talk (word 5-gram Jaccard >= 0.8), else None. A
+    transcript under MIN_WORDS is never a duplicate: there is nothing to match,
+    and two silent clips would otherwise look identical."""
+    if len(_norm_words(transcript)) < MIN_WORDS:
+        return None
+    mine = _shingles(transcript)
+    if not mine:
+        return None
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT attachment_id, transcript FROM tsdr_lessons WHERE status = 'posted' "
+            "AND author_id = ? AND attachment_id != ? AND transcript IS NOT NULL "
+            "AND transcript != '' ORDER BY posted_at",
+            (str(author_id), str(exclude))).fetchall()
+    for r in rows:
+        theirs = _shingles(r["transcript"])
+        if theirs and len(mine & theirs) / float(len(mine | theirs)) >= _DUPLICATE_JACCARD:
+            return str(r["attachment_id"])
+    return None
 
 
 def _json_list(raw) -> list:
@@ -939,6 +1108,9 @@ def build_embed(lesson: dict, link: str) -> dict:
     body += lesson["recap"]
     if lesson.get("takeaway"):
         body += f"\n\n**Key takeaway:** {lesson['takeaway']}"
+    lines = moments_lines(lesson)
+    if lines:
+        body += "\n\n**Key moments**\n" + "\n".join(lines)
     links = f"[▶ Watch the video]({link})"
     if lesson.get("youtube_id"):
         links += f"  ·  [Watch on UCT]({website_link(lesson['youtube_id'])})"
@@ -999,7 +1171,7 @@ def as_clip(recap: dict, row: dict, caption: str, title: str = "") -> dict:
     tags = [CLIP_TAG] + [t for t in recap.get("tags") or [] if t != CLIP_TAG]
     return {"title": title, "recap": body, "question": recap.get("question") or "",
             "takeaway": recap.get("takeaway") or "", "tickers": recap.get("tickers") or [],
-            "tags": tags[:3]}
+            "tags": tags[:3], "level": recap.get("level") or "", "moments": []}
 
 
 def process_lesson(row: dict, lesson_channel: str) -> str:
@@ -1015,7 +1187,8 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         # a transcript sent in from outside (store_link_transcript) wins:
         # YouTube refuses captions to this server more often than not
         transcript = (row.get("transcript") or "").strip() or youtube_transcript(vid)
-        seconds = None
+        seconds = row.get("duration_s") or youtube_video_length(vid)
+        segments = _json_list(row.get("segments"))
         yt_title = youtube_video_title(vid)
     else:
         att = next((a for a in (msg or {}).get("attachments") or []
@@ -1027,9 +1200,16 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         try:
             video = work / ("video" + (Path(str(att.get("filename") or "")).suffix or ".mp4"))
             download(str(att.get("url") or att.get("proxy_url")), video)
-            transcript, seconds = transcribe(video, work)
+            transcript, seconds, segments = transcribe(video, work)
         finally:
             shutil.rmtree(work, ignore_errors=True)
+    twin = find_duplicate(transcript, row["author_id"], aid)
+    if twin:
+        # the same talk, posted again (or shared as a link after the file):
+        # recorded, never posted, so the library holds each lesson once
+        _update(aid, status="duplicate", duplicate_of=twin, duration_s=seconds,
+                transcript=transcript, segments=json.dumps(segments), last_error=None)
+        return "duplicate"
     caption = row.get("caption") or ""
     if yt_title:
         caption = f"{caption}\n(YouTube video title: {yt_title})".strip()
@@ -1042,10 +1222,13 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
                                speaker=speaker_name(row))
         if not recap.pop("is_lesson", True):
             recap = as_clip(recap, row, row.get("caption") or "", yt_title)
-    _update(aid, duration_s=seconds, transcript=transcript, title=recap["title"],
-            recap=recap["recap"], question=recap["question"], takeaway=recap["takeaway"],
-            tickers=json.dumps(recap["tickers"]), tags=json.dumps(recap["tags"]))
-    lesson = {**row, **recap, "duration_s": seconds}
+    moments = locate_moments(recap.get("moments") or [], transcript, segments, seconds)
+    _update(aid, duration_s=seconds, transcript=transcript, segments=json.dumps(segments),
+            title=recap["title"], recap=recap["recap"], question=recap["question"],
+            takeaway=recap["takeaway"], tickers=json.dumps(recap["tickers"]),
+            tags=json.dumps(recap["tags"]), level=recap.get("level") or None,
+            moments=json.dumps(moments))
+    lesson = {**row, **recap, "duration_s": seconds, "moments": moments}
     link = jump_link(guild_id(), row["channel_id"], row["message_id"])
     if threads_enabled():
         placed = post_to_section(lesson, link)
@@ -1061,7 +1244,7 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
 
 
 def run_lessons(*, limit: int, deadline: float) -> dict:
-    out = {"posted": 0, "skipped": 0, "errors": 0}
+    out = {"posted": 0, "skipped": 0, "duplicate": 0, "errors": 0}
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             f"SELECT * FROM tsdr_lessons WHERE status = 'new' AND attempts < ? "
@@ -1215,6 +1398,9 @@ def youtube_description(lesson: dict) -> str:
     text += lesson["recap"]
     if lesson.get("takeaway"):
         text += f"\n\nKey takeaway: {lesson['takeaway']}"
+    lines = [f"{fmt_time(m['t'])} {m['label']}" for m in located_moments(lesson)]
+    if lines:
+        text += "\n\nKey moments:\n" + "\n".join(lines)
     text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#{source_name(lesson)}) on "
              f"{posted:%B} {posted.day}, {posted.year}.")
     return text.replace("<", "").replace(">", "")[:4900]
@@ -1257,9 +1443,11 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     created = education_service.create_video({
         "youtube_id": vid, "title": row["title"], "category": cat,
         "description": youtube_description(row), "duration": duration, "sort_order": 0})
+    chapters = [{"t": m["t"], "title": m["label"]} for m in located_moments(row)]
     education_service.set_video_insights(
         int(created["id"]), transcript=row.get("transcript") or "",
-        headline=row["title"], summary=split_sentences(row["recap"]))
+        headline=row["title"], summary=split_sentences(row["recap"]),
+        chapters=chapters or None)
     tags = _json_list(row.get("tags"))
     if tags:
         education_service.set_video_tags(int(created["id"]), tags)
@@ -1292,6 +1480,8 @@ def run_youtube(*, deadline: float) -> dict:
         rows = [dict(r) for r in c.execute(
             f"SELECT * FROM tsdr_lessons WHERE status = 'posted' AND youtube_id IS NULL "
             f"AND yt_attempts < ? AND attachment_id NOT LIKE '{LINK_PREFIX}%' "
+            # a clip (not a lesson) stays in Discord: the shelf is lessons only
+            f"AND (section IS NULL OR section != 'clips') "
             # a lesson in a thread without its video goes first: its YouTube
             # copy is the video run_video_refill posts
             f"{_queue_order_sql().replace('ORDER BY ', _NEEDS_VIDEO_FIRST, 1)} LIMIT ?",
@@ -1312,6 +1502,36 @@ def run_youtube(*, deadline: float) -> dict:
             if "quota" in str(e).lower():
                 break
     return out
+
+
+_CLIPS_LIBRARY_KEY = "clips_removed_from_library"
+
+
+def remove_clips_from_library() -> int:
+    """Once (owner, 2026-10-18): take the clips that are not lessons off the
+    Desk > Videos shelf. Their unlisted YouTube copies stay; only the library
+    rows go. Marked done only when every row went, so a failure retries."""
+    if get_state(_CLIPS_LIBRARY_KEY):
+        return 0
+    from api.services import education_service
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT attachment_id, edu_video_id FROM tsdr_lessons WHERE section = 'clips' "
+            "AND edu_video_id IS NOT NULL").fetchall()]
+    n, failed = 0, 0
+    for r in rows:
+        try:
+            education_service.delete_video(int(r["edu_video_id"]))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not take clip %s off the shelf: %s",
+                        r["attachment_id"], e)
+            failed += 1
+            continue
+        _update(r["attachment_id"], edu_video_id=None)
+        n += 1
+    if not failed:
+        set_state(_CLIPS_LIBRARY_KEY, "1")
+    return n
 
 
 # Skip reasons from before every clip was posted. Rows skipped for them are
@@ -1469,6 +1689,12 @@ def tick() -> dict:
                 log.warning("[tsdr-lessons] video refill stage failed: %s", e)
                 out["refill"] = {"error": str(e)[:200]}
         if youtube_enabled():
+            try:
+                gone = remove_clips_from_library()
+                if gone:
+                    out["clips_off_shelf"] = gone
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] could not take clips off the shelf: %s", e)
             try:
                 out["youtube"] = run_youtube(deadline=deadline)
             except Exception as e:  # noqa: BLE001
