@@ -194,7 +194,7 @@ def _starter_pack_daily_cap() -> int:
 
 @router.post("/journal-styles/starter-packs/{pack}", dependencies=[Depends(_require_starter_packs)])
 def install_starter_pack_endpoint(pack: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """`{installed: [{styleId, title}], alreadyHad: [title], skipped: [title]}` -- the pack's three firm styles
+    """`{installed: [{styleId, title}], alreadyHad: [title], skipped: [{title, reason}]}` -- the pack's three firm styles
     as the member's own copies (starter_packs.install). Idempotent: a style already had is named, never copied
     twice. 404 for an unknown pack (before anything is charged); 429 past the rate, with the day's charge given
     back when the install is refused or fails."""

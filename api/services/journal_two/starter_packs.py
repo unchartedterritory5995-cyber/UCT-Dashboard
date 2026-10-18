@@ -13,7 +13,8 @@ so a copy carries `source_gallery_id` / `source_version` and obeys every rule an
     styles half is the router's own gate, and `install` asks both.
   * ONE TRANSACTION (ruling P5-R-C2): a SAVEPOINT per row and one commit. A row whose adopt raises a
     `GalleryError` (a kind a later release removed, the member's style cap) is rolled back to its savepoint
-    and named in `skipped`; the rows before and after it stay. Anything else rolls the whole pack back.
+    and named in `skipped` with that error's sentence as its `reason` (ruling P5-R-T4-5: the offer says why);
+    the rows before and after it stay. Anything else rolls the whole pack back.
   * IDEMPOTENT: a row the member already has a live copy of (`source_gallery_id` match) is named in
     `alreadyHad`, never copied twice. A copy the member deleted is not "had": installing again brings it back.
   * SEED ORDER is rowid order, which is the seed file's order (ruling P5-R-T3-6: every firm row shares one
@@ -54,7 +55,7 @@ def _already_has(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> boo
 
 
 def install(conn: sqlite3.Connection | None, user_id: str, pack: str) -> dict[str, Any] | None:
-    """`{"installed": [{"styleId", "title"}], "alreadyHad": [title], "skipped": [title]}`, each list in seed
+    """`{"installed": [{"styleId", "title"}], "alreadyHad": [title], "skipped": [{"title", "reason"}]}`, each list in seed
     order, or None when the pack is unknown or either switch is off (the route answers its one 404).
 
     `conn` may be None (the route), and then this opens and closes its own connection. A connection
@@ -80,10 +81,10 @@ def install(conn: sqlite3.Connection | None, user_id: str, pack: str) -> dict[st
             conn.execute("SAVEPOINT starter_pack_row")
             try:
                 done = gallery._adopt_listed_row(conn, user_id, row, notify=False, commit=False)
-            except gallery.GalleryError:
+            except gallery.GalleryError as e:
                 conn.execute("ROLLBACK TO starter_pack_row")
                 conn.execute("RELEASE starter_pack_row")
-                out["skipped"].append(title)
+                out["skipped"].append({"title": title, "reason": str(e)})
                 continue
             conn.execute("RELEASE starter_pack_row")
             out["installed"].append({"styleId": done["style"]["id"], "title": title})

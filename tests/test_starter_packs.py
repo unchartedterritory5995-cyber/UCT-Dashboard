@@ -209,7 +209,9 @@ def test_an_unbuildable_firm_row_is_skipped_not_fatal(conn):
     out = _sp().install(conn, MEMBER, "swing")
     titles = _seed_titles("swing")
     assert [i["title"] for i in out["installed"]] == [titles[0], titles[2]]
-    assert out["skipped"] == [titles[1]] and out["alreadyHad"] == []
+    # P5-R-T4-5: the skipped row carries the refusal's own sentence, so the offer can say why.
+    assert out["skipped"] == [{"title": titles[1], "reason": gallery.ADOPT_UNSUPPORTED_SENTENCE}]
+    assert out["alreadyHad"] == []
     assert [r["source_gallery_id"] for r in _styles(conn)] == [_firm_id("swing", 0), _firm_id("swing", 2)]
 
 
@@ -243,11 +245,22 @@ def test_a_row_that_fails_after_its_copy_is_written_leaves_no_copy(conn, monkeyp
     monkeypatch.setattr(gallery, "_author_label", label)
     out = _sp().install(conn, MEMBER, "swing")
     titles = _seed_titles("swing")
-    assert out["skipped"] == [titles[1]]
+    assert out["skipped"] == [{"title": titles[1], "reason": "boom after the write"}]
     assert [i["title"] for i in out["installed"]] == [titles[0], titles[2]]
     assert [r["source_gallery_id"] for r in _styles(conn)] == [_firm_id("swing", 0), _firm_id("swing", 2)]
     assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery_uses WHERE gallery_id = ?",
                         (failing,)).fetchone()[0] == 0
+
+
+def test_a_member_at_the_style_limit_is_told_why_each_row_was_skipped(conn, monkeypatch):
+    # P5-R-T4-5: the cap is a StyleValidationError, so every row lands in `skipped` with the cap's own sentence.
+    from api.services.journal_two import journal_styles as js
+    monkeypatch.setattr(js, "MAX_STYLES_PER_MEMBER", 0)
+    out = _sp().install(conn, MEMBER, "swing")
+    sentence = "You can keep up to 0 styles. Delete one first."
+    assert out["installed"] == [] and out["alreadyHad"] == []
+    assert out["skipped"] == [{"title": t, "reason": sentence} for t in _seed_titles("swing")]
+    assert _styles(conn) == []
 
 
 def test_an_unexpected_error_rolls_the_whole_pack_back(conn, monkeypatch):
@@ -466,6 +479,6 @@ def test_the_parse_reads_the_planned_shape_and_sees_a_difference():
 
 
 def test_client_packs_equal_server_packs():
-    if not STARTER_JS.exists():
-        pytest.xfail("J/lib/starterPacks.js is created by P5 Task 5; once it exists this comparison runs")
+    # P5-R-T4-2: the file exists since Task 5, so its absence is a failure, never an xfail.
+    assert STARTER_JS.exists(), f"{STARTER_JS} is missing"
     assert client_packs(STARTER_JS.read_text(encoding="utf-8")) == list(_sp().PACKS)

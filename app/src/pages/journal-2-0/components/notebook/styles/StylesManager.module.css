@@ -24,6 +24,7 @@
 .btn:disabled, .iconBtn:disabled { opacity: 0.45; cursor: default; }
 .iconBtn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; }
 .danger { color: var(--danger-ink); }
+.quiet { border-color: transparent; background: none; color: var(--accent); }   /* P5: the Starter packs link */
 
 .notice { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .error { margin: 0; color: var(--danger-ink); font-size: 13px; }
