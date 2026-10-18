@@ -1212,3 +1212,145 @@ def test_no_line_logs_or_prints_note_text(path):
     assert bad == [], bad
     assert "print" in _calls(ROOT / "tests" / "fixtures" / "_gen_example_reduce_goldens.py"), \
         "non-vacuity: the scan sees a print where one exists"
+
+
+# ── P3b-F-R1 (final review C-1): the scrub is LINEAR in a text node's length ───────────────────────────
+#
+# The scrub re-split the whole prefix of a text node for every number (`_words(text[:at])`), and three of its
+# regexes re-scanned a long run from every start inside it: 70 KB of a pasted trade CSV took 22.7 s and 200 KB
+# about three minutes, all of it holding the GIL of the one web process. The rails below hold the fix to two
+# things at once: the output did not move by one byte (every rewritten piece equals the old one), and the cost
+# grows with the text, not with its square.
+
+#: The three patterns as they were before P3b-F-R1, VERBATIM: the reference the rewritten ones must equal.
+_OLD_PNL = re.compile(r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s?(?:[Rr]|%)(?!\w)")
+_OLD_SPACED = re.compile(rf"(?<![\w.,$]){xs._NUM_SPACED}\s?(?:{xs._CURRENCY}|\$)(?!\w)", re.IGNORECASE)
+_OLD_URL = re.compile(
+    r"(?<![\w@.-])(?:[A-Za-z][A-Za-z0-9+.-]*://|www\.)" + xs._URL_TAIL + r"+"
+    + r"|(?<![\w@./-])" + xs._HOST + r"(?:" + "|".join(xs.URL_TLDS) + r")(?![\w-])(?:[/?#]" + xs._URL_TAIL + r"*)?"
+    + r"|(?<![\w@./-])" + xs._HOST + r"[A-Za-z]{2,}/" + xs._URL_TAIL + r"+",
+    re.IGNORECASE)
+
+
+def _corpus() -> list[str]:
+    """Every string literal of this file (the cases every rule above is pinned on) plus the shapes that made the
+    old scrub quadratic, short and long."""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    out = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+           and 0 < len(n.value) <= 2000}
+    shapes = ["145 150 155 160 €", "1234 567 890 €", "x123 456 789 €", "123 45 678 €", "(12 345 €", "12 345.67 €",
+              "1,2345%", "12345,678,901%", "1,23,456%", "1234,567,890%", "123,456,789", "1234567890R",
+              "a+b+http://x.com/p", "x.com+http://y", "é+abc://q", "ſ+k://z", "C++ and a+b", "www.x.io+www.y.io",
+              "acct # no 2024", "card ending in 4421", ";;;;up 1,240", "made;" * 20 + "1,240", "1;2;3;4 profit 1,240"]
+    out.update(shapes)
+    out.update(s * 40 for s in shapes)
+    return sorted(out)
+
+
+@pytest.mark.parametrize("ref,new", [
+    (_OLD_PNL, lambda t: [m.span() for m in xs._PNL.finditer(t)]),
+    (_OLD_SPACED, lambda t: [m.span() for m in xs._MONEY_EXTRA[5].finditer(t)]),
+    (_OLD_URL, xs._url_spans),
+], ids=["pnl-figure", "spaced-amount", "address"])
+def test_F_R1_each_rewritten_pattern_matches_exactly_what_the_old_one_did(ref, new):
+    import itertools
+    alphabets = {"pnl-figure": "1,%. +", "spaced-amount": "1 €,.$", "address": "a+.:/w "}
+    cases = _corpus()
+    for alpha in alphabets.values():                    # and every short string over the characters that matter
+        cases += ["".join(p) for n in range(1, 6) for p in itertools.product(alpha, repeat=n)]
+    differ = [c for c in cases if [m.span() for m in ref.finditer(c)] != new(c)]
+    assert differ == [], differ[:5]
+    assert any(ref.search(c) for c in cases), "non-vacuity: the reference matches somewhere in the corpus"
+
+
+def test_F_R1_the_one_tokenisation_answers_exactly_what_the_prefix_split_did():
+    """`_Words.before/after` against `_words(text[:at])` / `_words(text[at:])` at EVERY offset. A word longer than
+    every vocabulary entry is compared as `_LONG_WORD` (it can match none of them either way)."""
+    def capped(words):
+        return [w if len(w) <= xs._WORD_CAP else xs._LONG_WORD for w in words]
+    texts = [c for c in _corpus() if len(c) <= 400] + ["x" * 90 + ";up 1", ";" * 90 + "profit 1,240", "a" * 70]
+    for text in texts:
+        words = xs._Words(text)
+        for at in range(len(text) + 1):
+            for n in (1, 3, 4):
+                assert words.before(at, n) == capped(xs._words(text[:at])[-n:]), (text, at, n)
+            assert words.after(at, 2) == capped(xs._words(text[at:])[:2]), (text, at)
+            assert words.count_before(at) == len(xs._words(text[:at])), (text, at)
+
+
+def test_F_R1_a_word_is_cut_by_the_same_whitespace_str_split_cuts_on():
+    import sys
+    differ = [c for c in range(sys.maxunicode + 1) if (xs._TOKEN.fullmatch(chr(c)) is None) != chr(c).isspace()]
+    assert differ == []
+
+
+def test_F_R1_every_vocabulary_entry_is_shorter_than_the_long_word_cap():
+    vocab = (xs.BALANCE_WORDS + xs.PNL_MONEY_WORDS + xs.UP_DOWN_WORDS + xs.PNL_WORDS + xs.PNL_WORDS_AFTER
+             + xs.ACCOUNT_WORDS + xs.ACCOUNT_YEAR_WORDS + xs._YEAR_GAP_WORDS)
+    assert max(len(w) for v in vocab for w in v.split()) < xs._WORD_CAP
+
+
+#: The worst text node P3b-F-R1's measurement found, built from the shapes that cost the most per byte: dense
+#: amounts and P&L words, a list of 3-digit levels, single digits, a token with no space in it, and a P&L figure run.
+_WORST_UNITS = ("made 1,240 profit balance 12,345 up 2k down 1,500 acct 12345678 $1,240 EUR 500 3.2R loss "
+                "stop loss 145 take profit 1,240 realized card ending in 4421 fiscal year 2025 # 2024 ",
+                "145 150 155 160 ", "1 1 1 1 1 1 1 1 ", "1;2;3;4;5;6;7;8;", "$1 $2 1 240 € ", "1\u00a01\u00a0")
+#: ⛔ The stated bound for a 200 KB worst-case body (measured well under it on this box; the old scrub took
+#: minutes): through `scrub_text`, and through the reducer in example mode, as one text node.
+COST_BOUND_S = 30.0
+
+
+def _worst_text(n_bytes: int) -> str:
+    per = n_bytes // len(_WORST_UNITS)
+    return "".join((u * (per // len(u) + 1))[:per] for u in _WORST_UNITS)
+
+
+def _timed(fn) -> float:
+    import time
+    best = None
+    for _ in range(2):
+        t0 = time.perf_counter()
+        fn()
+        took = time.perf_counter() - t0
+        best = took if best is None else min(best, took)
+    return best
+
+
+def test_F_R1_the_scrub_reads_a_bounded_slice_per_number_never_the_prefix(monkeypatch):
+    """The operation count: every `_words` split the scrub makes, summed. The old lookup split the whole prefix for
+    each number, so this summed to the text's length times its numbers; now it is a bounded slice per number."""
+    text = _worst_text(40_000)
+    seen = []
+    real = xs._words
+
+    def counting(s):
+        seen.append(len(s))
+        return real(s)
+    monkeypatch.setattr(xs, "_words", counting)
+    xs.scrub_text(text, ("Acme Bank",), [])
+    assert sum(seen) <= 2 * len(text), (sum(seen), len(text), len(seen))
+    assert seen, "non-vacuity: the plan-phrase rule splits its bounded slice, so the counter sees calls"
+
+
+def test_F_R1_four_times_the_text_costs_about_four_times_the_time():
+    """The growth ratio: a quadratic scrub costs 16x for 4x the text, a linear one about 4x. Best of two runs each,
+    and a bound well above 4 and well below 16, so a loaded box does not decide it."""
+    small, large = _worst_text(25_000), _worst_text(100_000)
+    t_small = _timed(lambda: xs.scrub_text(small, ("Acme Bank",), []))
+    t_large = _timed(lambda: xs.scrub_text(large, ("Acme Bank",), []))
+    assert t_large / t_small < 8, (t_small, t_large)
+
+
+def test_F_R1_a_200_kb_worst_case_body_reduces_inside_the_stated_bound():
+    import time
+    text = _worst_text(200_000)
+    assert len(text) >= 199_000                         # non-vacuity: the body is the size the ruling names
+    t0 = time.perf_counter()
+    xs.scrub_text(text, ("Acme Bank",), [])
+    t_scrub = time.perf_counter() - t0
+    report: list = []
+    t0 = time.perf_counter()
+    out = ex(doc(p(t(text))), report=report)
+    t_reduce = time.perf_counter() - t0
+    assert t_scrub < COST_BOUND_S and t_reduce < COST_BOUND_S, (t_scrub, t_reduce)
+    assert report and V in texts_in(out)[0]             # non-vacuity: it really replaced things on the way
