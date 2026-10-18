@@ -299,6 +299,14 @@ NOT_REHEARSED = {
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
                                         "client-only, no route; waits for the owner to arm it",
+    # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
+    # rows in the library; installing a pack writes the member's own styles, which this read-only
+    # rehearsal does not do. Its evidence is the fin walk's starter-packs step and the route-off tests.
+    "NOTEBOOK_STARTER_PACKS_ENABLED": "dark (P5): the How do you trade? offer, the starter-pack install "
+                                      "endpoint and the firm style rows in the library (needs "
+                                      "NOTEBOOK_JOURNAL_STYLES_ENABLED also on); installing a pack writes "
+                                      "the member's own styles, so there is no rendered on/off probe in "
+                                      "this tool; waits for the owner's arming",
 }
 
 

@@ -1912,6 +1912,12 @@
       "where": [],
       "note": "P2 Tier 3. Gates creating the mood check-in block, the By check-in psychology view, Checklist from my winners and the Your trading year door. Off: none is offered; an existing check-in block still renders. Payload key journal_tier3_enabled. Arm: railway variables --service web --set JOURNAL_TIER3_ENABLED=1 (the owner's). Rollback: 0; check-ins already stored stay stored and unread."
     },
+    "NOTEBOOK_STARTER_PACKS_ENABLED": {
+      "member_facing": { "label": "Notebook: starter packs", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style rows in the library. Needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Arm: railway variables --service web --set NOTEBOOK_STARTER_PACKS_ENABLED=1 (the owner's). Rollback: 0; installed copies stay the member's own."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",
