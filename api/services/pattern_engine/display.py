@@ -103,6 +103,11 @@ display-only:
               LANE_DIVERGE_RATIO (now 1.45); and when its entry is set by a bar before the lanes
               start while the price sits far under it (entry_detached, `flag_entry_verdict`). The
               detector's firing, confidence and levels are untouched.
+  bull_flag (round 9, lab REPORT_BULLFLAG_R8.md) -- DISPLAY SELECTION, as round 8. One impulse
+              verdict (`pole_impulse_verdict`) now holds short_pole (the drawn pole under
+              DRAWN_POLE_MIN_ATR), grind_pole (down share 0.35) and two_step_pole;
+              under_prior_high reads LEAD_BARS = 90 bars; the drawn lanes must hold
+              LANE_MIN_BODY_SHARE of the bodies they span (loose_lanes, `flag_lanes_verdict`).
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `handle_verdict`
               (short / long / after_breakout; the rim stays).
@@ -342,7 +347,7 @@ POLE_WICK_FRAC = 0.2
 #: grind, not a pole (judged 1-1.5 at 0.45-0.53 with 0.41-0.50 down; poles judged 3 >= 0.52 had
 #: <= 0.32 down).
 GRIND_MAX_EFF = 0.54
-GRIND_MIN_DOWN = 0.40
+GRIND_MIN_DOWN = 0.35   # round 9: 0.40 -> 0.35 (see the round-9 block)
 #: lanes: a first flag bar whose red body is at least FIRST_WIDE_BODY_ATR ATR(14) and whose range is
 #: at least FIRST_WIDE_RATIO x the median range of the other flag bars is left out of the lane fit
 #: (judged 2 at 0.94-1.47; no first bar of a flag judged 3 over 0.86) ...
@@ -363,7 +368,6 @@ LANE_FLOAT_ATR = 0.4
 #: under_prior_high: the pole's top more than LEAD_NEAR_ATR ATR(14) (the ATR up to the drawn pole start)
 #: under the highest high of the LEAD_BARS bars ending at the top -- a rebound under a prior high, not
 #: a leader at its high (judged 1.5-2.5 at 0.81-7.7; the largest on a drawn flag judged 3 was 0.48) ...
-LEAD_BARS = 60
 LEAD_NEAR_ATR = 0.6
 #: ... rebound_pole: the highest high of the REBOUND_BARS bars up to the drawn pole start sits at least
 #: REBOUND_FRAC of the drawn pole's height above its low -- the pole climbs back out of a drop just
@@ -380,6 +384,28 @@ TWO_STEP_LATE_FRAC = 0.65
 #: sits more than ENTRY_STRANDED_ATR ATR(14) under the drawn entry (judged 2 at 1.70 and 2.07; no other
 #: drawn judged flag has its entry bar before its lanes).
 ENTRY_STRANDED_ATR = 1.5
+# -- Round 9, bull_flag only (lab REPORT_BULLFLAG_R8.md, 2026-10-17). DISPLAY SELECTION, as round 8.
+# Every threshold is calibrated on the 125 bull_flag cases judged in team rounds 1-5, the R5 confirm and
+# R6-R8 packet A (60 of them drawn at the round-8 code), which the round-9 packets exclude.
+#: under_prior_high reads LEAD_BARS = 90 bars (was 60): R8 case_831 and 041 topped out 3-7 ATR under a
+#: high 61-90 bars back. Every drawn judged flag with a prior high > LEAD_NEAR_ATR in 61-90 bars was
+#: judged <= 2; 100 bars would reach a flag judged 3 (5.1 ATR under a high 91-100 bars back).
+LEAD_BARS = 90
+#: short_pole: the DRAWN pole (from the start pole_draw_start moved it to) rises less than
+#: DRAWN_POLE_MIN_ATR ATR(14) (the ATR up to that start). slow_pole measures the detector's pole from
+#: its first bar; a drawn final leg can be a short spike off a moved start (R8 case_317, 3.8 ATR,
+#: judged 1; R6 case_838 4.1, judged 2). The smallest drawn pole judged 3 rose 5.0. A plain minimum bar
+#: count does not separate: R8 case_635, a 2-bar gap-up pole, was judged 3.
+DRAWN_POLE_MIN_ATR = 4.5
+#: grind_pole's down-close share 0.40 -> 0.35 (R8 case_041: efficiency 0.31, 37% down closes, judged 2;
+#: the judged 3s under GRIND_MAX_EFF all had <= 0.25 down closes).
+#: loose_lanes: the drawn lanes hold less than LANE_MIN_BODY_SHARE of the summed body length of the bars
+#: they span (bodies clipped to the lanes; judged 1-2.5 at 0.36-0.56, the lowest on a flag judged 3 was
+#: 0.60).
+LANE_MIN_BODY_SHARE = 0.58
+#: ... judged only when those bodies sum to at least LANE_MIN_BODY_ATR ATR(14): under it there is too
+#: little body to judge (the smallest on a drawn judged flag was 1.07).
+LANE_MIN_BODY_ATR = 0.5
 
 
 def _index(bars) -> dict:
@@ -1188,21 +1214,40 @@ def pole_draw_start(bars: list, b0: int, top: int) -> int:
 
 
 def pole_impulse_verdict(bars: list, s: int, top: int):
-    """(draw, reason) for the DRAWN pole from bar `s` to the top. Round 7 (REPORT_BULLFLAG_R6.md: a
-    stair-step grind with several pullbacks read as a pole; slow_pole's ATR test passed it):
-      grind_pole  its close-to-close efficiency (net close change over the summed absolute close
-                  changes) is under GRIND_MAX_EFF while at least GRIND_MIN_DOWN of its bars close
-                  down -- a staircase, not an impulse.
-    (True, None) when the pole is unknown or a single bar."""
+    """(draw, reason) for the IMPULSE of the DRAWN pole from bar `s` to the top -- the one place a
+    pole's thrust is judged (round 9 unified round 7's grind and round 8's two-step here):
+      short_pole     the drawn pole rises less than DRAWN_POLE_MIN_ATR ATR(14) (the ATR up to `s`):
+                     a spike off a moved start, not a pole (round 9; slow_pole measures the
+                     detector's pole from its own first bar);
+      grind_pole     its close-to-close efficiency (net close change over the summed absolute close
+                     changes) is under GRIND_MAX_EFF while at least GRIND_MIN_DOWN of its bars close
+                     down -- a staircase, not an impulse (round 7; down share 0.35 since round 9);
+      two_step_pole  a pole of at least TWO_STEP_MIN_BARS bars reaches half its height only after
+                     TWO_STEP_LATE_FRAC of its bars: a slow first leg, then the thrust (round 8).
+    No single scalar separated all three on the judged set (a 2-bar gap-up pole and a 15-bar pole
+    with 40% down closes were both judged 3), so they are three clauses of one verdict. Display
+    selection only. (True, None) when the pole is unknown or a single bar."""
     if not 0 <= s < top < len(bars):
         return True, None
-    path = sum(abs(float(bars[j]["c"]) - float(bars[j - 1]["c"])) for j in range(s + 1, top + 1))
-    if path <= 0:
+    hi = float(bars[top]["h"])
+    lo = float(bars[s]["l"])
+    height = hi - lo
+    if height <= 0:
         return True, None
-    eff = (float(bars[top]["c"]) - float(bars[s]["c"])) / path
-    down = sum(1 for j in range(s + 1, top + 1) if float(bars[j]["c"]) < float(bars[j - 1]["c"]))
-    if eff < GRIND_MAX_EFF and down >= GRIND_MIN_DOWN * (top - s):
-        return False, "grind_pole"
+    at = atr14(bars[:s + 1]) or atr14(bars[:top + 1])
+    if at and height < DRAWN_POLE_MIN_ATR * at:
+        return False, "short_pole"
+    path = sum(abs(float(bars[j]["c"]) - float(bars[j - 1]["c"])) for j in range(s + 1, top + 1))
+    if path > 0:
+        eff = (float(bars[top]["c"]) - float(bars[s]["c"])) / path
+        down = sum(1 for j in range(s + 1, top + 1) if float(bars[j]["c"]) < float(bars[j - 1]["c"]))
+        if eff < GRIND_MAX_EFF and down >= GRIND_MIN_DOWN * (top - s):
+            return False, "grind_pole"
+    n = top - s
+    if n >= TWO_STEP_MIN_BARS:
+        half = next(j for j in range(s, top + 1) if float(bars[j]["h"]) - lo >= 0.5 * height)
+        if (half - s) / n >= TWO_STEP_LATE_FRAC:
+            return False, "two_step_pole"
     return True, None
 
 
@@ -1216,8 +1261,7 @@ def flag_context_verdict(bars: list, s: int, top: int):
       rebound_pole      the highest high of the REBOUND_BARS bars up to the pole's start is at least
                         REBOUND_FRAC of the pole's height above the start's low: the pole climbs back
                         out of a drop it just made;
-      two_step_pole     a pole of at least TWO_STEP_MIN_BARS bars reaches half its height only after
-                        TWO_STEP_LATE_FRAC of its bars: a slow first leg, then the thrust.
+    (two_step_pole moved to pole_impulse_verdict in round 9.)
     ATR(14) is the ATR up to the pole start. Display selection only. (True, None) when unknown."""
     if not 0 <= s < top < len(bars):
         return True, None
@@ -1233,11 +1277,6 @@ def flag_context_verdict(bars: list, s: int, top: int):
     pre = max(float(b["h"]) for b in bars[max(0, s - REBOUND_BARS):s + 1])
     if pre - lo >= REBOUND_FRAC * height:
         return False, "rebound_pole"
-    n = top - s
-    if n >= TWO_STEP_MIN_BARS:
-        half = next(j for j in range(s, top + 1) if float(bars[j]["h"]) - lo >= 0.5 * height)
-        if (half - s) / n >= TWO_STEP_LATE_FRAC:
-            return False, "two_step_pole"
     return True, None
 
 
@@ -1263,6 +1302,35 @@ def flag_entry_verdict(bars: list, pos: dict, d: dict, entry, lanes=None):
     at = atr14(bars[:last + 1])
     if js < left and at and float(entry) - float(bars[last]["c"]) > ENTRY_STRANDED_ATR * at:
         return False, "entry_detached"
+    return True, None
+
+
+def flag_lanes_verdict(bars: list, anchors: list):
+    """(draw, reason) for a bull_flag's DRAWN lanes (`anchors` = the four drawn price-space anchors,
+    [upper start, upper end, lower start, lower end]). Round 9 (lab REPORT_BULLFLAG_R8.md: lanes that
+    leave much of the flag outside them, R8 case_055 / 831):
+      loose_lanes  the lanes hold less than LANE_MIN_BODY_SHARE of the summed body length (|open -
+                   close|) of the bars they span, each body clipped to the channel at its bar.
+    Doji bodies weigh nothing. (True, None) when the lanes are unknown or the bodies sum to less than
+    LANE_MIN_BODY_ATR ATR(14) (the ATR up to the lanes' last bar): too little body to judge."""
+    pos = _index(bars)
+    xs = [pos.get(p.get("t")) for p in anchors] if anchors and len(anchors) == 4 else []
+    if len(xs) != 4 or None in xs:
+        return True, None
+    up = ((xs[0], float(anchors[0]["price"])), (xs[1], float(anchors[1]["price"])))
+    dn = ((xs[2], float(anchors[2]["price"])), (xs[3], float(anchors[3]["price"])))
+    inside = total = 0.0
+    for j in range(min(xs), max(xs) + 1):
+        o, c = float(bars[j]["o"]), float(bars[j]["c"])
+        top_b, bot_b = max(o, c), min(o, c)
+        u, lo = _line_at(*up, j, "price"), _line_at(*dn, j, "price")
+        total += top_b - bot_b
+        inside += max(0.0, min(top_b, u) - max(bot_b, lo))
+    at = atr14(bars[:max(xs) + 1])
+    if total <= 0 or not at or total < LANE_MIN_BODY_ATR * at:
+        return True, None
+    if inside / total < LANE_MIN_BODY_SHARE:
+        return False, "loose_lanes"
     return True, None
 
 
@@ -1630,7 +1698,7 @@ def draw_geometry(detections: list, bars: list) -> list:
                     pause, why = False, "diverging"
                 if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
                     pause, why = flag_edge_verdict(bars, pos, d)
-                if pause and s is not None:   # round 7: a stair-step grind is not a pole
+                if pause and s is not None:   # rounds 7-9: a short spike, a grind, two steps
                     pause, why = pole_impulse_verdict(bars, s, top)
                 if pause and s is not None:   # round 8: under a prior high, a rebound, two steps
                     pause, why = flag_context_verdict(bars, s, top)
@@ -1647,6 +1715,11 @@ def draw_geometry(detections: list, bars: list) -> list:
                         # round 8: the DRAWN lanes must not fan either
                         if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
                             pause, why = False, "diverging"
+                if pause and ok:   # round 9: the drawn lanes must hold the flag's bodies
+                    drawn = lanes if lanes is not None else (geom.get("anchors") or [])
+                    spaces = list(extras.get("line_spaces") or []) + ["price", "price"]
+                    if lanes is not None or (spaces[0] == "price" and spaces[1] == "price"):
+                        pause, why = flag_lanes_verdict(bars, drawn)
                 if pause:       # round 8: an entry set at the pole top above a flag that dropped away
                     entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
                     pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)

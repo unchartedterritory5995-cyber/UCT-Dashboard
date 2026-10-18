@@ -24,7 +24,7 @@ UP, DN = ((19, 17.5), (24, 16.5)), ((19, 16.5), (24, 15.5))  # bars 19-24 (FLAG)
 def test_the_constants_are_the_round_8_calibration():
     assert display.FLAG_MIN_BARS == 5
     assert display.LANE_DIVERGE_RATIO == 1.45
-    assert (display.LEAD_BARS, display.LEAD_NEAR_ATR) == (60, 0.6)
+    assert (display.LEAD_BARS, display.LEAD_NEAR_ATR) == (90, 0.6)   # round 9: 60 -> 90
     assert (display.REBOUND_BARS, display.REBOUND_FRAC) == (10, 0.76)
     assert (display.TWO_STEP_MIN_BARS, display.TWO_STEP_LATE_FRAC) == (12, 0.65)
     assert display.ENTRY_STRANDED_ATR == 1.5
@@ -124,11 +124,12 @@ def test_a_slow_first_leg_then_a_thrust_is_two_steps_not_one_pole():
 
 
 def test_two_step_needs_a_long_pole():
+    # round 9: two_step_pole lives in the one impulse verdict, pole_impulse_verdict
     bars = _ohlc(_two_step(True))
-    assert display.flag_context_verdict(bars, 14, 26) == (False, "two_step_pole")
+    assert display.pole_impulse_verdict(bars, 14, 26) == (False, "two_step_pole")
     # the same late half on an 11-bar pole (start one bar later) is under TWO_STEP_MIN_BARS
     assert 26 - 15 < display.TWO_STEP_MIN_BARS
-    assert display.flag_context_verdict(bars, 15, 26) == (True, None)
+    assert display.pole_impulse_verdict(bars, 15, 26) == (True, None)
 
 
 # -- 4. a flag needs five bars ------------------------------------------------------------------------
