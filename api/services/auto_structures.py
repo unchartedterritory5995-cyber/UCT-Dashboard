@@ -7,11 +7,12 @@ the current base boxes (`include_structures=true`).
 AUTO_STRUCTURES_MEMBERS_ENABLED (default OFF, read PER CALL, and only meaningful
 while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
 see ONLY the MEMBER SET (registry.DISPLAY_MEMBER_SET): the types that passed two
-independent blind packets as drawn at 331774fc5a -- flat_base, the MA pullback v5
-(uct_pullback_ma_v5, otherwise internal) and, on D/W/M, the learned `drawn` levels
-+ trendlines. The rest of the team set (bull_flag, bc:flat-base,
-bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
-the route filters server-side (`member_rows`), never the client.
+independent blind packets as drawn -- flat_base, the MA pullback v5
+(uct_pullback_ma_v5, otherwise internal), and on D/W/M the bc:flat-base pivot line
+(box off; REPORT_BCFLAT_C2.md) and the learned `drawn` levels + trendlines. The
+rest of the team set (bull_flag, bc:cup-with-handle), experimental, hidden and the
+levels layer stay admin-only; the route filters server-side (`member_rows`), never
+the client.
 Display-only end to end: nothing here changes what any detector fires on, its
 confidence, HIST_SCORE or `confirmed_only`.
 """
@@ -63,11 +64,33 @@ def member_rows(rows) -> list:
     """What a member may be drawn: rows whose pattern id is in the MEMBER SET
     (registry.DISPLAY_MEMBER_SET, the types that passed the blind check as drawn)
     AND whose display tier is `trusted` (stamped per row by display_policy).
-    Both must hold: a row without a tier, or an id outside the set, is dropped."""
+    Both must hold: a row without a tier, or an id outside the set, is dropped.
+
+    A team-set base box (TEAM_PIVOT_BOXES) passed its blind check as its PIVOT LINE
+    with the box off, so a member gets one only in that shape (`_pivot_only`): a box
+    whose stamp failed or never ran would draw the full box, which nobody judged."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
-            and (r or {}).get("pattern_id") in allowed]
+            and (r or {}).get("pattern_id") in allowed
+            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))]
+
+
+def _pivot_only(row) -> bool:
+    """True when a base-box row draws its pivot line and nothing else: not stale,
+    `draw_box` explicitly False, and a `draw_pivot` with a finite price and a span.
+    That is what PatternOverlay draws for an admin's team-set box (boxOff -> no box
+    renderer, the pivot as a horizontal line)."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    pv = ex.get("draw_pivot")
+    if ex.get("stale") or ex.get("draw_box") is not False or not isinstance(pv, dict):
+        return False
+    try:
+        price = float(pv.get("price"))
+    except (TypeError, ValueError):
+        return False
+    return (price == price and price not in (float("inf"), float("-inf"))
+            and pv.get("start_t") is not None and pv.get("end_t") is not None)
 
 
 def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
