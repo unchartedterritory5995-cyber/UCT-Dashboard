@@ -6,10 +6,16 @@ the current base boxes (`include_structures=true`).
 
 AUTO_STRUCTURES_MEMBERS_ENABLED (default OFF, read PER CALL, and only meaningful
 while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
-see ONLY trusted-tier detections (registry.DISPLAY_TRUSTED). Experimental,
-hidden, the levels layer, base boxes and the learned `drawn` block stay
-admin-only; the route filters server-side (`member_rows`), never the client. Display-only end to end: nothing here changes what any
-detector fires on, its confidence, HIST_SCORE or `confirmed_only`.
+see ONLY the MEMBER SET (registry.DISPLAY_MEMBER_SET): the types that passed two
+independent blind packets as drawn -- flat_base, the MA pullback v5
+(uct_pullback_ma_v5, otherwise internal), and on D/W/M the bc:flat-base pivot line
+(box off; REPORT_BCFLAT_C2.md), the learned `drawn` levels + trendlines, and
+bull_flag as the round-9 drawing code draws it (REPORT_BULLFLAG_R9.md; only a row
+stamped with that round, never a stale one). The rest of the team set
+(bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
+the route filters server-side (`member_rows`), never the client.
+Display-only end to end: nothing here changes what any detector fires on, its
+confidence, HIST_SCORE or `confirmed_only`.
 """
 from __future__ import annotations
 
@@ -48,11 +54,69 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
+def member_ids() -> frozenset:
+    """The pattern ids a member may be drawn: registry.DISPLAY_MEMBER_SET, read
+    from the registry module PER CALL (one authority, never a copy here)."""
+    from api.services.pattern_engine.detectors import registry
+    return frozenset(registry.DISPLAY_MEMBER_SET)
+
+
 def member_rows(rows) -> list:
-    """What a member may be drawn: rows whose display tier is `trusted` (the
-    registry's DISPLAY_TRUSTED, stamped per row by display_policy), nothing else.
-    A row without a tier is not trusted."""
-    return [r for r in rows or [] if (r or {}).get("display_tier") == "trusted"]
+    """What a member may be drawn: rows whose pattern id is in the MEMBER SET
+    (registry.DISPLAY_MEMBER_SET, the types that passed the blind check as drawn)
+    AND whose display tier is `trusted` (stamped per row by display_policy).
+    Both must hold: a row without a tier, or an id outside the set, is dropped.
+
+    A team-set base box (TEAM_PIVOT_BOXES) passed its blind check as its PIVOT LINE
+    with the box off, so a member gets one only in that shape (`_pivot_only`): a box
+    whose stamp failed or never ran would draw the full box, which nobody judged.
+
+    A bull_flag passed its blind check as drawn by ONE drawing round
+    (MEMBER_BULL_FLAG_ROUND), so a member gets one only while it is that round's
+    finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
+    drawing code or never stamped at all, is dropped. Fail closed."""
+    allowed = member_ids()
+    return [r for r in rows or []
+            if (r or {}).get("display_tier") == "trusted"
+            and (r or {}).get("pattern_id") in allowed
+            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
+            and ((r or {}).get("pattern_id") != "bull_flag" or _confirmed_flag(r))]
+
+
+#: The bull_flag drawing round the blind check confirmed for members: round 9,
+#: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
+#: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
+#: stop getting bull_flag until that round is confirmed and this is changed by hand.
+MEMBER_BULL_FLAG_ROUND = 9
+
+
+def _confirmed_flag(row) -> bool:
+    """True when a bull_flag row is drawn by the confirmed round: not stale, and
+    `extras.draw_round` (stamped by display.draw_geometry only on a flag that came
+    through every verdict and the overlap pass) equals MEMBER_BULL_FLAG_ROUND.
+    Missing geometry, a missing stamp or any other round is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    return type(rnd) is int and rnd == MEMBER_BULL_FLAG_ROUND
+
+
+def _pivot_only(row) -> bool:
+    """True when a base-box row draws its pivot line and nothing else: not stale,
+    `draw_box` explicitly False, and a `draw_pivot` with a finite price and a span.
+    That is what PatternOverlay draws for an admin's team-set box (boxOff -> no box
+    renderer, the pivot as a horizontal line)."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    pv = ex.get("draw_pivot")
+    if ex.get("stale") or ex.get("draw_box") is not False or not isinstance(pv, dict):
+        return False
+    try:
+        price = float(pv.get("price"))
+    except (TypeError, ValueError):
+        return False
+    return (price == price and price not in (float("inf"), float("-inf"))
+            and pv.get("start_t") is not None and pv.get("end_t") is not None)
 
 
 def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
@@ -126,6 +190,9 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
             extras["draw_sub_boxes"] = subs
         except Exception:  # noqa: BLE001
             pass
+    if bars and pid in TEAM_PIVOT_BOXES and not extras.get("stale"):
+        # (round 4: an already-stale box -- a failed cup breakout -- keeps its first reason)
+        _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot)
     return {
         "id": f"{pid}:{sym}:{start_t}:{end_t}",
         "sym": sym,
@@ -146,6 +213,102 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
         "status": "forming",
         **display_policy(pid),
     }
+
+
+#: Team drawing set (owner direction 2026-10-17, registry.DISPLAY_TEAM_SET): the
+#: base_catalog boxes the team draws, as their breakout / pivot line. The BOX is
+#: dropped (`draw_box` False) because neither box held up blind (v3: bc:flat-base
+#: 1.20, bc:cup-with-handle 1.50); the cup keeps its capped handle (`draw_handle`).
+TEAM_PIVOT_BOXES = frozenset({"bc:flat-base", "bc:cup-with-handle"})
+
+
+def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
+    """Stamp extras.draw_pivot / draw_box / draw_handle (display only), or mark
+    a flat base that already broke DOWN out of its band as stale. Never raises."""
+    try:
+        price = float(top if pivot is None else pivot)
+        ext = _display.consolidation_extent(bars, start_t, end_t, top, floor)
+        if pid == "bc:flat-base":
+            if ext and ext.get("break") == "breakdown":
+                extras["stale"] = True
+                extras["stale_reason"] = "broke_down"
+                return
+            pv = _display.pivot_line(ext, start_t, end_t, price)
+            # round 4: the line on the base's top CLUSTER of highs, never one spike / failed-
+            # breakout wick, and never the last (breakout) bar's high
+            pos = _display._index(bars)
+            s, e = pos.get(pv["start_t"]), pos.get(pv["end_t"])
+            if s is not None and e is not None:
+                e = min(e, len(bars) - 2) if e > s else e
+                top = _display.robust_top(bars, min(s, e), max(s, e), _display.atr14(bars))
+                if top is not None:
+                    pv["price"] = float(top)
+            # round 2: a real base under the line, and the line near price
+            ok, why = _display.pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 3: and a FLAT base -- no stair-step, no deep V
+                ok, why = _display.flat_shape_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 4: not a wide choppy range, not a recovery from a deep decline
+                ok, why = _display.flat_range_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 5: a base under the line -- no fresh high, no thin or rounded base
+                ok, why = _display.flat_top_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if not ok:
+                extras["stale"] = True
+                extras["stale_reason"] = why
+                return
+            extras["draw_pivot"] = pv
+        else:   # bc:cup-with-handle: the rim line, from the LEFT LIP to the breakout bar
+            subs0 = extras.get("sub_boxes") or []
+            cup = subs0[0] if len(subs0) >= 2 else {"start_t": start_t, "end_t": end_t}
+            # round 8 (display.cup_true_start): the drawn cup starts on the true left peak when the
+            # detector's start fell a few bars after it; every rule below reads the moved start
+            cs_t = _display.cup_true_start(bars, cup.get("start_t"), cup.get("end_t"))
+            if cs_t != cup.get("start_t"):
+                extras["cup_start_moved_from"] = cup.get("start_t")
+                cup = {**cup, "start_t": cs_t}
+            rim = _display.cup_rim_line(bars, cup.get("start_t"), cup.get("end_t"), end_t)
+            if rim is None:     # span unknown: the old line (box top / pivot) as before
+                end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
+                rim = {"start_t": int(start_t), "end_t": int(end), "price": price}
+            # round 4: no gap-island cup, no rim already broken by a close before the last bar;
+            # round 5 (display.cup_reach_verdict): no rim too old for the chart, none on a
+            # pre-gap-down high, none the right side never came back to
+            ok, why = _display.cup_shape_verdict(bars, cup.get("start_t"), cup.get("end_t"), rim)
+            if not ok and why == "short_of_rim":
+                # round 9 (display.handle_pivot): a right side stalled further under the rim than
+                # RIM_REACH_ATR but within HANDLE_PIVOT_REACH_ATR, with a handle, draws its PIVOT at the
+                # handle high and keeps the rim as a faint reference line (extras.draw_rim_ref)
+                hp, hbox, _hwhy = _display.handle_pivot(bars, cup.get("start_t"), cup.get("end_t"), rim)
+                if hp:
+                    extras["draw_pivot"] = hp
+                    extras["draw_rim_ref"] = rim
+                    extras["draw_handle"] = hbox
+                    extras["draw_box"] = False
+                    return
+                extras["handle_pivot_reason"] = _hwhy
+            if not ok:
+                extras["stale"] = True
+                extras["stale_reason"] = why
+                return
+            extras["draw_pivot"] = rim
+            # round 6 (display.pullback_handle): the handle box is the pullback from the right
+            # side's peak to the last bar (or the bar before the breakout) -- at most
+            # HANDLE_MAX_PULLBACK_BARS bars after the peak, its floor in the cup's upper half;
+            # otherwise no box (the rim stays)
+            box, why = _display.pullback_handle(bars, cup.get("start_t"), cup.get("end_t"), rim)
+            if box:
+                extras["draw_handle"] = box
+                # round 10 (display.handle_pivot_in_reach): a right side within reach that still sits more
+                # than HANDLE_PIVOT_EPS_ATR under the rim pivots at the HANDLE HIGH; the rim stays as a faint
+                # reference (round 9's two-line drawing)
+                hp, _hwhy = _display.handle_pivot_in_reach(bars, cup.get("start_t"), cup.get("end_t"), rim, box)
+                if hp:
+                    extras["draw_pivot"] = hp
+                    extras["draw_rim_ref"] = rim
+            else:
+                extras["handle_reason"] = why
+        extras["draw_box"] = False
+    except Exception:  # noqa: BLE001 -- a drawing stamp never drops the box
+        pass
 
 
 def _daily_bars(sym: str) -> list:
@@ -184,6 +347,20 @@ def structures_for(sym: str) -> list:
     return out
 
 
+def last_bar_forming(last_t, now=None) -> bool:
+    """True when the daily series' last bar is a session still in progress (later than the most
+    recent COMPLETE session, barspack's one authority on that), so the prior day is the bar before
+    it. False when the last bar is complete -- it IS the prior day as of the next session -- and
+    False when the session clock is unknown (the conservative answer: the drawer then omits the
+    prior-day pair and says so, rather than drawing a forming bar's moving range as a level)."""
+    try:
+        from api.services import barspack
+        done = barspack._last_complete_session_ymd(now)
+        return done is not None and int(last_t) > int(done)
+    except Exception:  # noqa: BLE001 -- a clock question never breaks the drawing
+        return False
+
+
 def drawn_for(sym: str):
     """The learned drawer's default drawing for the latest daily bars of `sym`
     (api/services/auto_draw.drawn_set), plus the display rules that ride with it:
@@ -199,7 +376,8 @@ def drawn_for(sym: str):
     try:
         from api.services import auto_draw
         rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _daily_bars(sym)]
-        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows))
+        forming = bool(rows) and last_bar_forming(rows[-1][0])
+        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)
         if drawn is not None:
             suppress = {pid: "hidden_by_default" for pid in sorted(DISPLAY_LEARNED_HIDES)}
             suppress.update({pid: "replaced_by_learned" for pid in sorted(DISPLAY_LEARNED_REPLACES)})

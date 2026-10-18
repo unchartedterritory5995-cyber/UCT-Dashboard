@@ -1,0 +1,12 @@
+0 api/services/journal_two/template_gallery.py
+0 api/services/journal_two/journal_styles.py
+0 api/services/journal_two/note_kinds.py
+0 api/services/journal_two/note_properties.py
+0 api/services/journal_two/account_purge.py
+0 api/routers/notebook_template_gallery.py
+0 app/src/pages/journal-2-0/components/notebook/TemplateGallery.jsx
+0 app/src/pages/journal-2-0/components/notebook/TemplatePicker.jsx
+0 app/src/pages/journal-2-0/lib/notebookTelemetry.js
+0 api/routers/journal_two.py
+0 tools/notebook_contract_fixtures.py
+0 api/routers/auth.py

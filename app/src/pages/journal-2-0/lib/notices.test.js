@@ -9,6 +9,8 @@ import fx from './__fixtures__/notices.json'
 // The follow-up row is CAPTURED too, but lives in its own fixture so the literal counts the box's other
 // tests assert on notices.json stand (see its _provenance).
 import fu from './__fixtures__/notices.followup.json'
+// P3a: the community library's two rows, CAPTURED the same way (see its _provenance).
+import lib from './__fixtures__/notices.library.json'
 
 const ALERTS = [...fx.alertsBody, ...fu.alertsBody]
 
@@ -74,6 +76,42 @@ describe('toNotices', () => {
     const row = fu.alertsBody[0]
     expect(row.data.research_url.startsWith(`${m[1]}?followup=`)).toBe(true)
     expect(toNotices([row], { insights: [] })[0].href).toBe(row.data.research_url)
+  })
+
+  it('a library update says what the bell said and opens the member\'s own copy', () => {
+    const rows = toNotices(lib.alertsBody, { insights: [] })
+    expect(rows.map((n) => n.kind)).toEqual(['library', 'library'])
+    const update = rows.find((n) => n.href !== null)
+    expect(update.title).toBe('Weekend Prep')
+    expect(update.line).toBe('Weekend Prep has a new version from its author. Open it to see what changed.')
+    expect(update.href).toMatch(/^\/journal\/notebook\?styles=1&libraryUpdate=[0-9a-f]{32}$/)
+    expect(update.source).toBe('alert')
+  })
+  it('a library withdraw says the copy is untouched and opens nothing', () => {
+    const gone = toNotices(lib.alertsBody, { insights: [] }).find((n) => n.href === null)
+    expect(gone.line).toBe('Weekend Prep was taken down by its author. Your copy is yours and has not changed.')
+  })
+  it('a library row whose link is not the member\'s copy has no link', () => {
+    const row = { ...lib.alertsBody.find((r) => r.data?.research_url) }
+    for (const url of ['https://elsewhere.example/x', '/journal/notebook?note=abc', '/journal/notebook?styles=1', null, undefined, 7]) {
+      row.data = { ...row.data, research_url: url }
+      expect(toNotices([row], { insights: [] })[0].href).toBeNull()
+    }
+  })
+  it('the captured library rows are the raw capture, not retyped rows', () => {
+    const raw = JSON.parse(readFileSync(resolve(globalThis.process.cwd(), '..', 'docs', 'notebook', 'evidence', 'p3a-library-notice-capture', 'alerts-body.json'), 'utf8'))
+    expect(raw).toHaveLength(2)
+    expect(lib.alertsBody).toEqual(raw)
+  })
+  it('the library type and link are the server\'s (derived from the source, not restated)', () => {
+    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
+    const type = src.match(/^LIBRARY_NOTICE_SOURCE = "(.+)"$/m)
+    const path = src.match(/^LIBRARY_UPDATE_PATH = "(.+)"$/m)
+    expect(type).not.toBeNull()
+    expect(path).not.toBeNull()
+    expect(new Set(lib.alertsBody.map((r) => r.type))).toEqual(new Set([type[1]]))
+    const url = `${path[1]}abc123`
+    expect(toNotices([{ id: 'l1', type: type[1], data: { research_url: url } }], { insights: [] })[0].href).toBe(url)
   })
 
   it('a resurfaced note opens its note, version door included', () => {

@@ -234,6 +234,7 @@ from api.routers import hub_reports as hub_reports_router  # joystick hub owner 
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
+from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
@@ -2421,10 +2422,11 @@ def register_screener_jobs(scheduler):
         id="screener_live_tier", max_instances=1, replace_existing=True,
         coalesce=True)
 
-    # ⭐ PRE-MARKET MODE (spec 2026-10-16 §2) — a SEPARATE writer into its own table,
-    # `screener_premarket`; it never touches `screener_live` or `screener_rows`. Cheap
-    # when idle: `run_sweep` checks the flag, then the session, before any read, so it
-    # does nothing outside 04:00-09:30 ET. Dark behind SCREENER_PREMARKET_ENABLED.
+    # ⭐ EXTENDED HOURS (spec 2026-10-16 §2, widened 2026-10-17) — a SEPARATE writer into
+    # its own table, `screener_premarket`; it never touches `screener_live` or
+    # `screener_rows`. Cheap when idle: `run_sweep` checks the flag, then the calendar
+    # window, before any read, so it does nothing outside pre-market (04:00-09:30 ET) and
+    # after hours (close-20:00 ET). Dark behind SCREENER_PREMARKET_ENABLED.
     from api.services.screener import premarket
 
     def _run_premarket():
@@ -10108,6 +10110,7 @@ app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
 app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/connectors/* -- unconditional; per-provider config checked in-endpoint
 app.include_router(desk_zoom_webhook_router.router)
+app.include_router(tsdr_lessons_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)

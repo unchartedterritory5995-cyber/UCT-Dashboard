@@ -12,13 +12,18 @@
   "body": {
     "template": {
       "author": "Alice Trader",
+      "authorHandle": "rCSvkcuPmyPi",
       "category": "review",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "description": "",
       "featured": false,
       "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
       "hidden": false,
       "id": "5a0bbe1fc29544bdb71b275fb117a0d1",
+      "itemType": "outline",
       "listedAt": null,
       "mine": false,
       "openReports": 0,
@@ -38,10 +43,15 @@
       ],
       "propertyCount": 2,
       "reviewNote": "Too thin to be useful yet.",
+      "revisionTitle": null,
+      "sourceStyleId": null,
       "status": "rejected",
       "title": "Weekly review",
+      "tradingStyle": null,
+      "trendingCount": 0,
       "updatedAt": "2026-10-05T14:30:00+00:00",
-      "usedBy": 0
+      "usedBy": 0,
+      "version": 1
     }
   }
 }

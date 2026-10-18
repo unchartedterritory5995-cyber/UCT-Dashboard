@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/nope/adopt",
+    "path": "/api/j2/template-gallery/nope/adopt",
+    "requestBody": {},
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

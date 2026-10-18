@@ -165,3 +165,17 @@ describe('urgent key matches the chart', () => {
     expect(mod._url('AAPL', 'D', false)).toBe(`/api/bars/AAPL?tf=D&bars=${FIRST_PAINT_BARS}`)
   })
 })
+
+describe('one download per row (2026-10-17)', () => {
+  it('a row with an urgent job running is not fetched again under &warm=1', async () => {
+    mod.prefetchBars(['AAA'], 'D', { urgent: true })          // never settles: stays in flight
+    await micro()
+    mod.prefetchBarsToIDB(['AAA', 'BBB'], 'D', { priority: true, visible: true })
+    await drain()
+    const aaa = urls().filter(u => u.includes('/api/bars/AAA'))
+    expect(aaa.some(u => !u.includes('warm=1'))).toBe(true)  // the chart's key, once
+    expect(aaa.some(u => u.includes('warm=1'))).toBe(false)
+    // CONTROL: a row without an urgent job is still warmed into IDB
+    expect(urls().some(u => u.includes('/api/bars/BBB') && u.includes('warm=1'))).toBe(true)
+  })
+})

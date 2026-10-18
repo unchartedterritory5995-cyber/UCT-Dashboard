@@ -273,6 +273,21 @@ NOT_REHEARSED = {
                                           "pass, its bell, card and prefill; evidence is a run-ledger "
                                           "row and a delivered notice (the fin walk's followup group); "
                                           "waits for the owner's arming (docs/notebook/t2b-arming.md)",
+    # Journal P4a. A layout editor and a saved layout, not a page read this tool can switch.
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": "dark (P4a): the Customize button on Today and the trade page and "
+                                    "reading a saved layout; off, both pages render their fixed layout; "
+                                    "no rendered on/off probe in this tool; waits for the owner's arming",
+    # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
+    # update and a withdraw, read off the rendered pages in a sandbox) and the route-off tests -- not a
+    # rendered probe here. (Task 11 reworded this from a fin-walk library group that did not exist; the final
+    # review M-3 then struck its sweep.flags-off.json citation: in that "every flag off" sweep the router's
+    # own gallery switch answers 404 before `_require_library` runs, so it cannot show THIS switch's 404.)
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED": "dark (P3a): the community style library -- sharing a style, adopting "
+                                      "one, Helpful, author pages, follow and the feed; every library route "
+                                      "answers 404 while off with the gallery on (tests/test_style_library_adopt.py "
+                                      "and tests/test_style_library_social.py, the ..._404_for_everyone_while_"
+                                      "the_library_is_off tests); evidence is tools/notebook_style_library_walk.py "
+                                      "in a sandbox and those tests, not a rendered probe; waits for the owner's arming",
     # P2 Tier 3. Gates CREATING a mood check-in block and offering three views/doors; an existing
     # block still renders when it is off. Not rehearsed in this tool; the fin walk's Tier 3 group
     # (Task 10) is its evidence.

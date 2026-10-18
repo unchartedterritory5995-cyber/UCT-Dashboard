@@ -336,9 +336,35 @@ def _team_display() -> dict:
     return out
 
 
+def edge_call(st: dict, edge_z: float, min_n: int) -> Optional[tuple]:
+    """The ledger's rule for one trader's cut, the same one the brain's trader playbooks apply
+    (TSDR-Ledger lab/trader_playbooks/build.py `verdict`, in SCORECARD's order): at n >= min_n, a
+    |z| >= edge_z on edge20 (20-session return vs the same stock on a random day) decides first, else
+    the same test on edgeR. Returns ('edge' | 'negative', 'edge20' | 'edgeR', z) or None.
+
+    n is the brain's n: the count of edge20 values (`n_edge20`), which gates both steps. An import made
+    before the setup library carried `n_edge20`/`edge20_z` has only `n_scored` and `edgeR_z`, so the
+    gate reads n_scored, the edge20 step finds nothing and the edgeR step decides, exactly as this
+    line did before."""
+    n = _rule_n(st)
+    if n < min_n:
+        return None
+    for basis, key in (("edge20", "edge20_z"), ("edgeR", "edgeR_z")):
+        z = _num(st.get(key))
+        if z is not None and abs(z) >= edge_z:
+            return ("edge" if z > 0 else "negative"), basis, z
+    return None
+
+
+def _rule_n(st: dict) -> int:
+    n20 = _num(st.get("n_edge20"))
+    return int(n20) if n20 is not None else int(st.get("n_scored") or 0)
+
+
 def trader_cuts(pb: dict) -> dict:
     """{'edge': [(author_id, stats)], 'negative': [...], 'not_enough_data': [author_id]} from the
-    playbook's per-trader cut. Keys that are not one of the team's authors are dropped."""
+    playbook's per-trader cut, judged by `edge_call`. Keys that are not one of the team's authors
+    are dropped."""
     from api.services.wisdom.archive import team_record
 
     edge_z, min_n = team_record._thresholds()
@@ -350,9 +376,9 @@ def trader_cuts(pb: dict) -> dict:
         st = cuts.get(key) or {}
         if not aid or not int(st.get("n_scored") or 0):
             continue
-        z, n = _num(st.get("edgeR_z")), int(st.get("n_scored") or 0)
-        if z is not None and abs(z) >= edge_z and n >= min_n:
-            out["edge" if z > 0 else "negative"].append((aid, st))
+        call = edge_call(st, edge_z, min_n)
+        if call:
+            out[call[0]].append((aid, st))
         else:
             out["not_enough_data"].append(aid)
     return out
@@ -360,18 +386,20 @@ def trader_cuts(pb: dict) -> dict:
 
 def traders_line(pb: dict) -> str:
     """Who has an edge on this setup, or "" when the playbook carries no per-trader cut."""
+    from api.services.wisdom.archive import team_record
+
     cuts = trader_cuts(pb)
     if not any(cuts.values()):
         return ""
+    edge_z, min_n = team_record._thresholds()
 
     def item(aid, st):
-        bits = [f"n {int(st.get('n_scored') or 0)}"]
+        bits = [f"n {_rule_n(st)}"]
         edge = _num(st.get("mean_edgeR"))
         if edge is not None:
             bits.append(f"edge R {edge:+.2f}")
-        z = _num(st.get("edgeR_z"))
-        if z is not None:
-            bits.append(f"z {z:.1f}")
+        _, basis, z = edge_call(st, edge_z, min_n)
+        bits.append(f"z {z:.1f} on {'edge20' if basis == 'edge20' else 'edge R'}")
         return f"{_speaker(aid)} ({', '.join(bits)})"
 
     parts = [f"measured edge: {'; '.join(item(a, s) for a, s in cuts['edge']) or 'none'}",

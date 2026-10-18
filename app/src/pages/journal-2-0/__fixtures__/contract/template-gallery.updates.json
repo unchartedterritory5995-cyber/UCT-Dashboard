@@ -1,0 +1,21 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/updates",
+    "note": "One adopted copy behind its listed version.",
+    "path": "/api/j2/template-gallery/updates",
+    "status": 200
+  },
+  "body": {
+    "updates": [
+      {
+        "fromVersion": 1,
+        "galleryId": "6fe563fa41b14de497fce4a0f0b4fea3",
+        "styleId": "98f53c81c4c54b21acb18ce0a16a65f8",
+        "styleName": "Weekend prep",
+        "title": "Weekend prep",
+        "toVersion": 2
+      }
+    ]
+  }
+}

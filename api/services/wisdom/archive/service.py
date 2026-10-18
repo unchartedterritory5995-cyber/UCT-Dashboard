@@ -36,8 +36,10 @@ RECORD_FIELDS = {"record_id", "author_id", "stated_date", "record_type", "ticker
 CALL_FIELDS = {"call_id", "record_id", "author_id", "ticker", "direction", "setup", "action", "posted",
                "entry", "stop", "target", "conf", "reported", "outcome", "methodology", "sha"}
 
-_RECORD_ID = re.compile(r"^t\d{1,7}$")
-_CALL_ID = re.compile(r"^(t\d{1,7})#\d{1,4}$")
+#: Record ids: "t<n>" = a Discord post, "z<n>" = a reviewed spoken segment of a Live Trading Session
+#: (Zoom). Both are records with text (a z record's quote is the spoken segment); calls cite either.
+_RECORD_ID = re.compile(r"^(?:t\d{1,7}|z\d{1,9})$")
+_CALL_ID = re.compile(r"^(t\d{1,7}|z\d{1,9})#\d{1,4}$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 _TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.!\-/^=]{0,14}$")
 _SHA = re.compile(r"^[0-9a-f]{16,64}$")
@@ -201,7 +203,7 @@ SETUP_FIELDS = {"setup_id", "name", "family", "aliases", "used_by", "stats", "st
                 "teachings", "winners", "failures", "sha"}
 #: The measured numbers a playbook's stats may carry; anything else is refused.
 STAT_FIELDS = ("n", "n_scored", "win20", "med_r20", "mean_r20", "med_edge20", "mean_simR", "mean_edgeR",
-               "edgeR_z", "thin")
+               "edgeR_z", "edge20_z", "n_edge20", "thin")
 CONTEXT_GROUPS = ("trader", "kind", "market", "entry", "extension_from_50", "direction")
 TEACHING_FIELDS = {"record_id", "author_id", "date", "note"}
 EXAMPLE_FIELDS = {"call_id", "record_id", "ticker", "author_id", "posted", "direction", "action", "evidence",

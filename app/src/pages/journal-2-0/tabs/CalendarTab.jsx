@@ -13,7 +13,8 @@ import { renderMonthCardPng } from '../lib/monthCardPng'
 import { downloadBlob, copyBlobToClipboard } from '../../../components/chart/chartScreenshot'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useScope from '../hooks/useScope'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePreferences from '../../../hooks/usePreferences'
+import { effectiveDayBasis, isBrokerAccount } from '../lib/dayBasis'
 import ScopeBar from '../components/scope/ScopeBar'
 import UIcon from '../../../components/ui/UIcon'
 import CalendarHeader from '../components/calendar/CalendarHeader'
@@ -44,11 +45,9 @@ export default function CalendarTab() {
   const week = Number(searchParams.get('w')) || undefined
 
   const { accountId, account } = useJ2SelectedAccount()
-  const isBroker =
-    !!account && account.balanceSource && account.balanceSource !== 'manual'
+  const isBroker = isBrokerAccount(account)
   const { prefs, setPref } = usePreferences()
-  const basisPref = parsePref(prefs.j2_calendar_pnl_basis, 'account')
-  const effectiveBasis = isBroker ? basisPref : 'closed'
+  const effectiveBasis = effectiveDayBasis(account, prefs)
 
   // The calendar navigates its OWN dates (view/year/month/week), so the global
   // Scope date facet does NOT apply here — strip `date_from`/`date_to` and pass

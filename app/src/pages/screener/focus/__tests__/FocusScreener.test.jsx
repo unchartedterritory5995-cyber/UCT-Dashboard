@@ -7,7 +7,7 @@ vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-te
 vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import FocusScreener from '../FocusScreener'
 import { SPEC_PARAM, encodeSpec, decodeSpec } from '../../shell/specUrl'
 import { AuthContext } from '../../../../context/AuthContext'
@@ -195,7 +195,9 @@ test('an emptying change offers to undo it', async () => {
   scanRows = rowsA
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
-  expect(scanBodies().at(-1).filters).toEqual([])
+  // Undo restores the earlier screen; since 2026-10-17 its answer comes from this mount's
+  // kept answers, so no request has to go out. The unfiltered screen is what is shown.
+  expect(screen.getByRole('button', { name: 'Filters, 0 active' })).toBeInTheDocument()
 })
 test('the ? menu offers the how-to only when the checklist is on, and opens it in a sheet', async () => {
   const { unmount } = mount()

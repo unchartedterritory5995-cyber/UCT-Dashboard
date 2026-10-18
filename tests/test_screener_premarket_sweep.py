@@ -96,12 +96,18 @@ def test_a_missing_trade_time_is_not_traded_today(env):
     assert r["not_traded_today"] == 2
 
 
-@pytest.mark.parametrize("session", ["regular", "post_market"])
-def test_outside_pre_market_it_writes_nothing(env, session):
+# 2026-10-17: the windows are the trading CALENDAR's, read off `now` (Friday 10/16):
+# the session, overnight after 20:00, a Saturday, and a 03:00 weekday are not swept.
+OUTSIDE = [datetime(2026, 10, 16, 11, 0, tzinfo=ET), datetime(2026, 10, 16, 20, 30, tzinfo=ET),
+           datetime(2026, 10, 17, 12, 0, tzinfo=ET), datetime(2026, 10, 16, 3, 0, tzinfo=ET)]
+
+
+@pytest.mark.parametrize("now", OUTSIDE)
+def test_outside_the_extended_windows_it_writes_nothing(env, now):
     state, premarket, snapshot_db = env
-    state["session"] = session
+    state["now"] = now
     r = premarket.run_sweep()
-    assert r["skipped_reason"] == "not_pre_market"
+    assert r["skipped_reason"] == "not_extended_hours"
     assert r["written"] == 0
     assert not _table(snapshot_db) or _rows(snapshot_db) == {}
 
@@ -126,9 +132,9 @@ def test_flag_unset_is_disabled_and_writes_nothing(env, monkeypatch):
     assert not _table(snapshot_db) or _rows(snapshot_db) == {}
 
 
-def test_outside_pre_market_there_is_no_market_read(env, monkeypatch):
+def test_outside_the_extended_windows_there_is_no_market_read(env, monkeypatch):
     state, premarket, snapshot_db = env
-    state["session"] = "regular"
+    state["now"] = datetime(2026, 10, 16, 11, 0, tzinfo=ET)
     calls = []
     from api.services import scan_volume
     monkeypatch.setattr(scan_volume, "full_market_snapshot",
@@ -210,3 +216,73 @@ def test_the_job_is_registered_beside_the_live_tier():
            if kw.arg == "id" and isinstance(kw.value, ast.Constant)}
     assert "screener_live_tier" in ids              # non-vacuity control
     assert "screener_premarket_sweep" in ids
+
+
+# ── after hours (2026-10-17): one column for both windows ─────────────────────
+
+def _post(state, at=datetime(2026, 10, 16, 17, 5, tzinfo=ET)):
+    state["now"] = at
+    close = datetime(2026, 10, 16, 16, 0, tzinfo=ET)
+    state["snap"] = {
+        # traded after the close: change is against TODAY'S close, not yesterday's
+        "AAA": {"last_price": 110.0, "prev_close": 90.0, "day_close": 100.0,
+                "last_trade_ns": _ns(datetime(2026, 10, 16, 17, 1, tzinfo=ET))},
+        # lastTrade pinned to the 16:00 closing print, the minute bar is live (SPY case)
+        "OLD": {"last_price": 50.0, "prev_close": 49.0, "day_close": 50.0,
+                "last_trade_ns": _ns(close), "min_close": 51.0,
+                "min_t_ms": int(datetime(2026, 10, 16, 17, 0, tzinfo=ET).timestamp()) * 1000},
+        # nothing after the close at all: no row, never a 0.0%
+        "BRK.B": {"last_price": 400.0, "prev_close": 390.0, "day_close": 400.0,
+                  "last_trade_ns": _ns(close)},
+    }
+
+
+def test_after_hours_a_stock_that_traded_since_the_close_gets_its_move(env):
+    state, premarket, snapshot_db = env
+    _post(state)
+    r = premarket.run_sweep()
+    assert r["skipped_reason"] is None and r["window"] == "post"
+    rows = _rows(snapshot_db)
+    assert rows["AAA"]["premarket_chg_pct"] == 10.0          # vs day_close 100
+    assert rows["AAA"]["ext_session"] == "post"
+    assert rows["OLD"]["premarket_price"] == 51.0            # the minute bar, not the pinned print
+    assert rows["OLD"]["premarket_chg_pct"] == 2.0
+    assert "BRK-B" not in rows
+    assert r["not_traded_today"] == 1 and r["written"] == 2
+
+
+def test_CONTROL_the_closing_print_itself_is_not_an_after_hours_trade(env):
+    """A last trade stamped exactly at the close is the closing auction, not after hours."""
+    state, premarket, snapshot_db = env
+    _post(state)
+    state["snap"]["OLD"].pop("min_close")
+    premarket.run_sweep()
+    assert "OLD" not in _rows(snapshot_db)
+
+
+def test_a_half_day_after_hours_window_opens_at_its_own_close(env, monkeypatch):
+    """The calendar's 13:00 close, not the weekday clock's 16:00."""
+    from api.services import session_calendar
+    state, premarket, snapshot_db = env
+    _post(state, at=datetime(2026, 10, 16, 14, 0, tzinfo=ET))
+    state["snap"]["AAA"]["last_trade_ns"] = _ns(datetime(2026, 10, 16, 13, 30, tzinfo=ET))
+    monkeypatch.setattr(session_calendar, "session_at", lambda ts, *a: "post")
+    monkeypatch.setattr(session_calendar, "close_time",
+                        lambda d, *a: datetime(2026, 10, 16, 13, 0, tzinfo=ET))
+    premarket.run_sweep()
+    assert _rows(snapshot_db)["AAA"]["premarket_chg_pct"] == 10.0
+
+
+def test_the_morning_replaces_rows_the_old_schema_wrote(env):
+    """A table created before `ext_session` existed gains the column; its rows (all
+    pre-market, NULL session) are superseded by the next sweep."""
+    state, premarket, snapshot_db = env
+    with snapshot_db.connect() as conn:
+        conn.execute("CREATE TABLE screener_premarket (ticker TEXT PRIMARY KEY, "
+                     "session_ymd INTEGER, premarket_price REAL, premarket_chg_pct REAL, "
+                     "premarket_asof REAL)")
+        conn.execute("INSERT INTO screener_premarket VALUES ('ZZZ', 20261015, 1, 1, 1)")
+        conn.commit()
+    premarket.run_sweep()
+    rows = _rows(snapshot_db)
+    assert "ZZZ" not in rows and rows["AAA"]["ext_session"] == "pre"

@@ -454,25 +454,26 @@ def _stocks_only(starter):
 
 
 def premarket_starters():
-    """The two Morning prep starters (spec 2026-10-16 §2). They screen on the two
-    pre-market columns, which are served 04:00-09:30 ET only, so outside that window
-    both answer empty (the Focus empty state says why). Shown only to users the flag
-    reaches -- see `starters(user)`."""
+    """The two Extended hours starters (spec 2026-10-16 §2, widened 2026-10-17). They
+    screen on the extended-hours columns: pre-market before the open, after hours after the
+    close, the last after-hours print overnight and on weekends; in the session both answer
+    empty (the Focus empty state says why). The ids keep `premarket` so pinned screens
+    survive. Shown only to users the flag reaches -- see `starters(user)`."""
     sort = {"key": "premarket_chg_pct", "dir": "desc"}
     return [
-        {"id": "starter_premarket_gappers", "name": "Gapping pre-market",
-         "group": "Morning prep",
-         "description": "Stocks up 3%+ before the open (4:00–9:30 ET), $10M+ traded daily, price $5+. No pre-market volume is available.",
+        {"id": "starter_premarket_gappers", "name": "Up in extended hours",
+         "group": "Extended hours",
+         "description": "Stocks up 3%+ before the open or after the close, $10M+ traded daily, price $5+. Before the open the move is against the prior close, after the close against today's close. No extended-hours volume is available.",
          "spec": {"filters": [
              {"key": "premarket_chg_pct", "op": "gte", "min": 3},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
              {"key": "price", "op": "gte", "min": 5}],
           "view": "technical", "sort": dict(sort)}},
-        {"id": "starter_premarket_setups", "name": "Setups gapping pre-market",
-         "group": "Morning prep",
+        {"id": "starter_premarket_setups", "name": "Setups moving in extended hours",
+         "group": "Extended hours",
          # `base_pivot_px >= 0` is the PRESENCE test: SQL answers it only for a row
          # that holds a pivot, i.e. a stock with a base.
-         "description": "Stocks with a base pivot, up 2%+ before the open, $10M+ traded daily. No pre-market volume is available.",
+         "description": "Stocks with a base pivot, up 2%+ before the open or after the close, $10M+ traded daily. No extended-hours volume is available.",
          "spec": {"filters": [
              {"key": "base_pivot_px", "op": "gte", "min": 0},
              {"key": "premarket_chg_pct", "op": "gte", "min": 2},
@@ -482,7 +483,7 @@ def premarket_starters():
 
 
 def starters(user=None):
-    """Every starter this user may see. The Morning prep pair joins only when
+    """Every starter this user may see. The Extended hours pair joins only when
     `premarket.served_to(user)`; with no user that is a member's answer, so a caller
     that does not pass one fails closed at `admin`."""
     from api.services.screener import premarket  # noqa: PLC0415
@@ -676,7 +677,7 @@ def _starter_defs():
         #   Near the 20-day high on vol   537 without volume, 41 at vol_ratio >= 1.5
         {"id": "starter_volume_surge_now", "name": "Volume surge right now",
          "group": "Momentum leaders",
-         "description": "Stocks on 2x usual volume and up from the open (live in the session, last session's full day after hours), above 50 day, $20M+ traded, price $5+",
+         "description": "Stocks on 2x volume (live during the session, else prior day) up from the open, above 50 day, $20M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "chg_from_open_pct", "op": "gt", "min": 0},
              {"key": "above_50sma", "op": "eq", "value": 1},
@@ -688,7 +689,7 @@ def _starter_defs():
          "group": "Momentum leaders",
          # Recalibrated 2026-10-16 from 3% after two in-session readings on production:
          # 6 at 09:52 and 6 at 10:09 ET (target 10-60); at 2% it was 14 at 09:52.
-         "description": "Stocks gapped up 2%+ on 1.5x usual volume (live in the session, last session's full day after hours), $10M+ traded, price $5+",
+         "description": "Stocks gapped up 2%+ on 1.5x volume (live during the session, else prior day), $10M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 2},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
@@ -697,7 +698,7 @@ def _starter_defs():
           "view": "technical", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_near_20d_high_volume", "name": "Near the 20-day high on volume",
          "group": "Breakouts & entries",
-         "description": "Stocks within 3% of the 20 day high on 1.5x usual volume (live in the session, last session's full day after hours), above 50 day, $20M+ traded",
+         "description": "Stocks within 3% of the 20 day high on 1.5x volume (live during the session, else prior day), above 50 day, $20M+ traded",
          "spec": {"filters": [
              {"key": "dist_20d_high_pct", "op": "gte", "min": -3},
              {"key": "above_50sma", "op": "eq", "value": 1},

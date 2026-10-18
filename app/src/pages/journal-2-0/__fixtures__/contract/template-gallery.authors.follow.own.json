@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/authors/PG0pAaSjoUwn/follow",
+    "note": "Nobody follows themselves.",
+    "path": "/api/j2/template-gallery/authors/PG0pAaSjoUwn/follow",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}
