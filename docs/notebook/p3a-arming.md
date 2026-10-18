@@ -7,7 +7,8 @@ Status (2026-10-17, branch `notebook-p3a-library`, base `f2e816e042`): built tas
 reviewed, then an Opus whole-branch review (0 Critical, 4 Important, 13 Minor), whose one fix round (`fa07acba4d` ..
 `cdbbb56ed7`, plus this packet) is in this branch. Nothing here has been run on production.
 
-LANDING: `<LANDING: landing tree sha = this branch + origin/master sha, filled by the controller>`
+LANDING: `8e19b840fb` = this branch (`41548ccbd1` + the gate fix `ea23addd52`) + origin/master `e7c62711fe` (#390), nine
+union conflicts resolved with master's P4a entries first. Every evidence line below is at that tree unless it says otherwise.
 
 ## What merging does, before anything is armed
 
@@ -71,8 +72,17 @@ the body; ruling R-T4-2). An author can still unpublish their own item while the
 
 ## Evidence
 
-- **Gate**: `<GATE_RESULT: six shards at the landing tree -- files, totals reconcile, failures outside the baseline
-  and whose they are, evidence path; filled by the controller>`
+- **Gate**, six shards, at the landing tree `8e19b840fb`: 3,549 test files, totals reconcile, 23 failures outside the
+  2026-09-24 baseline, none of them this branch's. Seven are the known master reds (`enumerationSites`, `lwcHazards`,
+  `panelAdoption.ratchet`, `keyListenerCensus` x2, `terminalReachableContrast`, `themeColours.rail`). The other
+  sixteen pass alone on this tree (8 files, 111 passed): the chart-engine vendor-harness and `*.measure` tests,
+  `ScanObjectCard`, `CaptureHost` and the screenshot-chip test, so they were load-sensitive. Evidence:
+  `docs/notebook/evidence/p3a-gate-landing-20261018T0259/`. The first gate, at `5524c27bd8`, found one real defect of
+  this branch's (`LibraryUpdateSheet.jsx:64` chose a save baseline with `??`, caught by the offline baseline rail),
+  fixed in `ea23addd52` (`docs/notebook/evidence/p3a-gate-20261018T0111/`).
+- **Bytes** at the landing tree: **2,237,098 B** across 60 chunks, PASS (budget 2,260,793 B, not raised).
+- **Landing rails**: flag, ledger, rehearsal and style-library pytest 837 passed; the 3 reds are the known master
+  base reds. Contract fixtures `--check` 293 OK.
 - **Walk**: the style library walk (`tools/notebook_style_library_walk.py`), run 3 on port 8079, 1280 / 820 / 390:
   21 PASS, 0 FAIL, 0 INCONCLUSIVE; `C:\data` CLEAN at every checkpoint of every run
   (`docs/notebook/evidence/p3a-walk-20261017T2219/`; runs 1 and 2 kept raw beside it, and the three integrity logs
