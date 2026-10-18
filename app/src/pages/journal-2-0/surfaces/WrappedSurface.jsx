@@ -9,15 +9,21 @@
  * year. Sample wording is `sampleSize.js`'s, through `wordStat`; nothing here restates a word or a
  * threshold. Ticker chips open the Notebook's own ticker filter (`notebookTickerHref`).
  *
- * The account is the Journal's own pick (`useJ2SelectedAccount`), as My Playbook reads it.
+ * THE ACCOUNT IS THE ONE THE PAGE WAS OPENED FOR (ruling R-T3-T8-R2): a `?account_id=` on the URL
+ * (the Report page door always writes one, `_all_` for All Accounts) wins; with none, the Journal's
+ * own pick (`useJ2SelectedAccount`), as My Playbook reads it. The header names the scope.
+ *
+ * "Not ready" and "no closed trades" are told apart by the PAYLOAD (`available`, `tradeCount`),
+ * never by this device's clock: the server returns the year's trade count even when the year is not
+ * open yet, so a count above zero can only mean "not ready".
  *
  * Dark behind `journal_tier3_enabled` (the My Playbook precedent): with the switch off nothing is
- * fetched and the route sends the member back to the Report page, where the door lives.
+ * fetched and the route sends the member to the Journal (a bare Report page link loses its query).
  *
  * ⛔ LAZY ONLY: App.jsx reaches this through its own lazy route, so the Notebook's first open pays
  * nothing for it. No emoji: UIcon only.
  */
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../../../components/TileCard'
 import UIcon from '../../../components/ui/UIcon'
@@ -26,12 +32,15 @@ import { tier3Enabled } from '../lib/tier3Flag'
 import { wordStat } from '../lib/sampleSize'
 import { fmtPct, fmtR } from '../lib/playbookFormat'
 import { notebookTickerHref } from '../lib/notebookTickerLink'
-import { currentYearOpen } from '../lib/wrappedLink'
+import { YEAR_UNAVAILABLE, accountFromParam } from '../lib/wrappedLink'
 import { RouteLanding } from '../lib/routeFocus'
 import styles from './WrappedSurface.module.css'
 
 const BASE = '/api/j2/wrapped'
 const NOTHING = 'Nothing here yet.'
+// The plan's own sentences (R-T3-9; Review Focus 6), verbatim.
+const TOO_FEW_TO_RANK = 'Too few trades to rank'
+const NO_ADHERENCE = 'No adherence recorded this year.'
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
   'October', 'November', 'December']
 
@@ -87,6 +96,7 @@ function BestSetups({ rows }) {
               <td className={styles.sample}>
                 <span className={styles.n} data-n={r.sampleN}>n={r.sampleN}</span>
                 {word.label && !word.hidden ? <span className={styles.word}> {word.label}</span> : null}
+                {r.sample === 'too_few' ? <span className={styles.unranked}> {TOO_FEW_TO_RANK}</span> : null}
               </td>
             </tr>
           )
@@ -96,7 +106,11 @@ function BestSetups({ rows }) {
   )
 }
 
-function Tickers({ rows, scope }) {
+/** The count is the year's; the Notebook it opens holds every note on the ticker, so the name says both. */
+const chipName = (t, year) =>
+  `${t.symbol}, ${plural(t.noteCount, 'note', 'notes')} in ${year}. Opens all your notes on ${t.symbol}`
+
+function Tickers({ rows, scope, year }) {
   return (
     <>
       {scope === 'all' ? (
@@ -109,7 +123,7 @@ function Tickers({ rows, scope }) {
           {rows.map((t) => (
             <li key={t.symbol}>
               <Link className={styles.chip} to={notebookTickerHref(t.symbol)}
-                    aria-label={`${t.symbol}, ${plural(t.noteCount, 'note', 'notes')}, open in the Notebook`}>
+                    aria-label={chipName(t, year)} title={chipName(t, year)}>
                 <span className={styles.chipSym}>{t.symbol}</span>
                 <span className={styles.chipCount}>{t.noteCount}</span>
               </Link>
@@ -123,8 +137,13 @@ function Tickers({ rows, scope }) {
 
 function Discipline({ rows }) {
   if (!rows.length) return <p className={styles.nothing}>{NOTHING}</p>
+  // Review Focus 6: a year with no adherence record says so ABOVE the twelve rows, which still each
+  // read "—" with their trade count.
+  const none = rows.every((d) => typeof d.adherence !== 'number')
   return (
-    <ol className={styles.months} data-testid="wrapped-discipline">
+    <>
+      {none ? <p className={styles.nothing} data-testid="wrapped-no-adherence">{NO_ADHERENCE}</p> : null}
+      <ol className={styles.months} data-testid="wrapped-discipline">
       {rows.map((d) => {
         const pct = fmtPct(d.adherence)
         const width = typeof d.adherence === 'number' ? `${Math.max(0, Math.min(1, d.adherence)) * 100}%` : '0%'
@@ -137,7 +156,8 @@ function Discipline({ rows }) {
           </li>
         )
       })}
-    </ol>
+      </ol>
+    </>
   )
 }
 
@@ -148,7 +168,7 @@ function Lessons({ rows }) {
       {rows.map((l) => (
         <li key={`${l.ruleId}:${l.version}`} className={styles.lesson}>
           <span className={styles.lessonLabel}>{l.label}</span>
-          <span className={styles.lessonMeta}>Version {l.version} · {String(l.changedAt || '').slice(0, 10)}</span>
+          <span className={styles.lessonMeta}>Version {l.version} · {l.changedDay || '—'}</span>
           {l.changeNote ? <span className={styles.lessonNote}>{l.changeNote}</span> : null}
         </li>
       ))}
@@ -156,25 +176,35 @@ function Lessons({ rows }) {
   )
 }
 
-export default function WrappedSurface({ now }) {
+export default function WrappedSurface() {
   const on = tier3Enabled()
   const { year: yearParam } = useParams()
+  const [search] = useSearchParams()
   const year = String(yearParam || '')
-  const { accountId, isLoading: accountsLoading } = useJ2SelectedAccount(on)
-  const url = on && !accountsLoading
-    ? `${BASE}/${encodeURIComponent(year)}${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`
+  const validYear = /^\d{4}$/.test(year)
+  const fromUrl = accountFromParam(search.get('account_id'))      // undefined = the URL names none
+  const { accountId: picked, accounts, isLoading: accountsLoading } = useJ2SelectedAccount(on)
+  const accountId = fromUrl === undefined ? picked : fromUrl
+  const ready = fromUrl !== undefined || !accountsLoading
+  const url = on && validYear && ready
+    ? `${BASE}/${year}${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`
     : null
   const { data, error, mutate } = useSWR(url, getJson, { revalidateOnFocus: false, shouldRetryOnError: false })
 
-  if (!on) return <Navigate to="/journal-2-0/report" replace />
+  if (!on) return <Navigate to="/journal" replace />
 
   const title = `Your ${year} in trading`
-  const cur = currentYearOpen(now)
+  const accountName = accountId ? accounts.find((a) => a.id === accountId)?.name ?? '—' : 'All Accounts'
+  // A year the route refuses (or that is not a year at all) gets the server's plain sentence and no
+  // retry: asking again cannot change the answer.
+  const refused = !validYear || error?.status === 400 || error?.status === 422
+  // The landing names the page in every state (focus on arrival reads the title, not the shell's).
+  let landing = title
   let body
-  if (error) {
-    body = error.status === 400 && error.detail ? (
-      <p className={styles.sentence} role="alert">{error.detail}</p>
-    ) : (
+  if (refused) {
+    body = <p className={styles.sentence} role="alert">{YEAR_UNAVAILABLE}</p>
+  } else if (error) {
+    body = (
       <p className={styles.sentence} role="alert">
         Couldn’t load your trading year.{' '}
         <button type="button" className={styles.linkBtn} onClick={() => mutate()}>Try again</button>
@@ -182,19 +212,19 @@ export default function WrappedSurface({ now }) {
     )
   } else if (!data) {
     body = <p className={styles.sentence} data-testid="wrapped-loading">Reading your year…</p>
-  } else if (!data.available && Number(year) === cur.year && !cur.open) {
+  } else if (!data.available && data.tradeCount > 0) {
     body = <p className={styles.sentence}>{`Your ${year} trading year opens on December 1.`}</p>
   } else if (!data.available) {
     body = <p className={styles.sentence}>{`No closed trades in ${year}.`}</p>
   } else {
+    landing = `${title}, four sections`
     body = (
       <>
-        <RouteLanding title={`${title}, four sections`} />
         <TileCard title="Best setups" icon="star" className={styles.tile}>
           <BestSetups rows={data.bestSetups || []} />
         </TileCard>
         <TileCard title="Most-written tickers" icon="tag" className={styles.tile}>
-          <Tickers rows={data.tickers || []} scope={data.tickersScope} />
+          <Tickers rows={data.tickers || []} scope={data.tickersScope} year={year} />
         </TileCard>
         <TileCard title="Discipline trend" icon="check" className={styles.tile}>
           <Discipline rows={data.discipline || []} />
@@ -215,10 +245,14 @@ export default function WrappedSurface({ now }) {
           <UIcon name="calendar" size={18} className={styles.titleIcon} />
           {title}
         </h1>
-        {data?.available ? (
-          <p className={styles.meta}>{plural(data.tradeCount, 'closed trade', 'closed trades')}</p>
+        {!refused ? (
+          <p className={styles.meta} data-testid="wrapped-scope">
+            {accountName}
+            {data?.available ? ` · ${plural(data.tradeCount, 'closed trade', 'closed trades')}` : null}
+          </p>
         ) : null}
       </header>
+      <RouteLanding title={landing} />
       {body}
     </section>
   )

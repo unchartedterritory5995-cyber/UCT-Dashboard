@@ -25,6 +25,8 @@ The four sections and where each number comes from (R-T3-9):
     mean "no record").
   * lessons: rule versions whose words changed within the year (`j2_journal_rule_versions`),
     newest first, at most TOP_LESSONS (R-T3-7). A dismissed rule is gone and teaches nothing.
+    Each carries `changedDay`, the ET day it was put in the year by, so the page prints the day
+    the bucket used rather than the UTC date of the stamp.
 
 The year is the ET trading day throughout: a trade by the `filters.trades_where` day spine, a
 note and a version by `timeutil.compute_trading_day_et` of their stamp. `available` is False for
@@ -185,7 +187,8 @@ def _lessons(conn: sqlite3.Connection, user_id: str, year: int, account_id: str 
         " JOIN j2_journal_rules r ON r.id = v.rule_id AND r.user_id = v.user_id"
         f" WHERE v.user_id = ? AND {where}", [user_id] + args).fetchall()
     out = [{"ruleId": r["rule_id"], "label": r["label"], "version": int(r["version"]),
-            "changeNote": r["change_note"], "changedAt": r["changed_at"]}
+            "changeNote": r["change_note"], "changedAt": r["changed_at"],
+            "changedDay": compute_trading_day_et(r["changed_at"])}
            for r in rows if _in_year(r["changed_at"], year)]
     # R-P2b-2, read-only: a rule made before versions existed has no v1 row until something writes
     # it. Its v1 is its creation, so a rule made this year still counts, and this read writes nothing.
@@ -195,7 +198,8 @@ def _lessons(conn: sqlite3.Connection, user_id: str, year: int, account_id: str 
             args).fetchall():
         if _in_year(r["created_at"], year):
             out.append({"ruleId": r["id"], "label": r["label"], "version": 1,
-                        "changeNote": None, "changedAt": r["created_at"]})
+                        "changeNote": None, "changedAt": r["created_at"],
+                        "changedDay": compute_trading_day_et(r["created_at"])})
     out.sort(key=lambda x: (x["changedAt"], x["version"], x["ruleId"]), reverse=True)
     return out[:TOP_LESSONS]
 

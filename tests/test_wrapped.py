@@ -308,12 +308,23 @@ def test_three_versions_in_the_year_and_one_before_read_three_newest_first(conn)
     lessons = wrapped.year_wrapped(conn, "u1", 2025, None)["lessons"]
     assert lessons == [
         {"ruleId": r2, "label": "No adds to losers", "version": 1, "changeNote": None,
-         "changedAt": "2025-09-01T15:00:00Z"},
+         "changedAt": "2025-09-01T15:00:00Z", "changedDay": "2025-09-01"},
         {"ruleId": r1, "label": "Wait 30 minutes after the open", "version": 3, "changeNote": "still early",
-         "changedAt": "2025-06-01T15:00:00Z"},
+         "changedAt": "2025-06-01T15:00:00Z", "changedDay": "2025-06-01"},
         {"ruleId": r1, "label": "Wait 15 minutes after the open", "version": 2, "changeNote": "too early",
-         "changedAt": "2025-02-01T15:00:00Z"},
+         "changedAt": "2025-02-01T15:00:00Z", "changedDay": "2025-02-01"},
     ]
+
+
+def test_a_lesson_carries_the_et_day_that_put_it_in_the_year(conn):
+    """Fix round 1, M4: 2026-01-01T01:30Z is 20:30 ET on Dec 31 2025, so it is a 2025 lesson and
+    its day is 2025-12-31, never the UTC 2026-01-01."""
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+    rid = _rule(conn, aid, "Rule")
+    _version(conn, rid, 2, "Rule, edited late", "2026-01-01T01:30:00Z")
+    lessons = wrapped.year_wrapped(conn, "u1", 2025, None)["lessons"]
+    assert [(l["changedAt"], l["changedDay"]) for l in lessons] == [("2026-01-01T01:30:00Z", "2025-12-31")]
 
 
 def test_lessons_stop_at_the_newest_twelve(conn):
@@ -340,7 +351,8 @@ def test_dismissed_rules_and_other_members_rules_teach_nothing_and_a_legacy_rule
     _rule(conn, aid, "Older legacy", created="2024-05-05T15:00:00Z")
     lessons = wrapped.year_wrapped(conn, "u1", 2025, None)["lessons"]
     assert lessons == [{"ruleId": legacy, "label": "Made before versions", "version": 1,
-                        "changeNote": None, "changedAt": "2025-05-05T15:00:00Z"}]
+                        "changeNote": None, "changedAt": "2025-05-05T15:00:00Z",
+                        "changedDay": "2025-05-05"}]
     assert conn.execute("SELECT COUNT(*) FROM j2_journal_rule_versions WHERE rule_id = ?",
                         (legacy,)).fetchone()[0] == 0          # the read wrote nothing
 
@@ -605,7 +617,33 @@ def test_the_door_and_the_server_open_the_current_year_on_the_same_day():
     src = (Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "journal-2-0" / "lib"
            / "wrappedLink.js").read_text(encoding="utf-8")
     found = re.findall(r"^export const OPENS_ON = '(\d\d-\d\d)'$", src, flags=re.M)
-    assert found == [wrapped.OPENS_ON] == ["12-01"]
+    assert len(found) == 1, found                  # non-vacuity: the client declares it exactly once
+    assert found[0] == wrapped.OPENS_ON
+
+
+def _wrapped_link_const(name):
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "journal-2-0" / "lib"
+           / "wrappedLink.js").read_text(encoding="utf-8")
+    found = re.findall(rf'^export const {name} = "([^"]*)"$', src, flags=re.M)
+    assert len(found) == 1, (name, found)
+    return found[0]
+
+
+def test_the_page_and_the_server_share_the_year_refusal_sentence():
+    """Fix round 1, M8: the page shows this for a year it never asks about (not four digits) and
+    for a 400 or 422, so the client holds the server's sentence; this reads it from the file."""
+    assert _wrapped_link_const("YEAR_UNAVAILABLE") == wrapped.YEAR_UNAVAILABLE_SENTENCE
+
+
+def test_the_door_encodes_all_accounts_with_the_servers_own_sentinel():
+    """Fix round 1, I1: a door link says `?account_id=<sentinel>` for All Accounts, and the route's
+    `plain_account_id` must read that value as no account."""
+    from api.services.journal_two import unified_coach
+    sentinel = _wrapped_link_const("ALL_ACCOUNTS_PARAM")
+    assert sentinel == unified_coach.UNIFIED_ACCOUNT_ID
+    assert unified_coach.plain_account_id(sentinel) is None
 
 
 def test_the_switch_is_read_per_request(monkeypatch):

@@ -6,6 +6,9 @@
  *   - a picker of EARLIER years, fed by `GET /api/j2/wrapped/years` for the account the report is
  *     showing, because the Report page holds no trade list by default.
  *
+ * Every link carries the account the report is showing (ruling R-T3-T8-R2), so the page reads the
+ * same scope the picker listed.
+ *
  * Only while `tier3Enabled()`: with the switch off it renders nothing and fetches nothing. It links
  * to the page and never imports it, so the report pays only for this door.
  */
@@ -38,7 +41,7 @@ export default function WrappedDoor({ accountId }) {
   return (
     <nav className={styles.door} aria-label="Your trading year" data-testid="wrapped-door">
       {cur.open ? (
-        <Link className={styles.current} to={wrappedHref(cur.year)}>
+        <Link className={styles.current} to={wrappedHref(cur.year, accountId)}>
           <UIcon name="calendar" size={13} className={styles.icon} />
           {`Your ${cur.year} in trading`}
         </Link>
@@ -50,7 +53,7 @@ export default function WrappedDoor({ accountId }) {
                   onChange={(e) => setPicked(Number(e.target.value))}>
             {earlier.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
-          <Link className={styles.open} to={wrappedHref(year)}>{`Your ${year} in trading`}</Link>
+          <Link className={styles.open} to={wrappedHref(year, accountId)}>{`Your ${year} in trading`}</Link>
         </span>
       ) : null}
     </nav>

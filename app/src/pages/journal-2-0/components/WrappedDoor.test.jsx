@@ -4,6 +4,8 @@
 //  5. The current year's door shows from December 1 ET and not in October (the clock is pinned),
 //     and the earlier-years picker comes from GET /api/j2/wrapped/years for the report's account.
 //  6. Every link has an accessible name, and the picker is labelled.
+//  R-T3-T8-R2: every link carries the account the report shows (`_all_` for All Accounts), and the
+//     page it opens reads THAT account, not the Journal's stored pick.
 //
 // The door is mounted through the REAL Report page, so a door that is built but never placed reds.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -13,6 +15,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { computeAccessibleName } from 'dom-accessibility-api'
 import ReportPage from './ReportPage'
+import WrappedSurface from '../surfaces/WrappedSurface'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 const ANALYTICS = { tradeCount: 0 }
@@ -29,17 +32,19 @@ function installFetch() {
     if (u.startsWith('/api/j2/analytics')) return json(ANALYTICS)
     if (u.startsWith('/api/j2/accounts')) return json({ accounts: [{ id: 'acct-1', name: 'Main' }] })
     if (u.startsWith('/api/j2/wrapped/years')) return json({ years })
+    if (u.startsWith('/api/j2/wrapped/')) return json({ year: 2025, tradeCount: 0, bestSetups: [], tickers: [],
+      tickersScope: 'all', discipline: [], lessons: [], available: false })
     return json({})
   })
 }
 
-function renderReport(search = '?account_id=acct-1&period=ytd') {
+function renderReport(search = '?account_id=acct-1&period=ytd', page = <p>wrapped page</p>) {
   return render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <MemoryRouter initialEntries={[`/journal-2-0/report${search}`]}>
         <Routes>
           <Route path="/journal-2-0/report" element={<ReportPage />} />
-          <Route path="/journal-2-0/wrapped/:year" element={<p>wrapped page</p>} />
+          <Route path="/journal-2-0/wrapped/:year" element={page} />
         </Routes>
       </MemoryRouter>
     </SWRConfig>,
@@ -79,7 +84,7 @@ describe('the Report page door to Your <year> in trading', () => {
     renderReport()
     const door = await screen.findByRole('navigation', { name: 'Your trading year' })
     const current = within(door).getByRole('link', { name: 'Your 2026 in trading' })
-    expect(current.getAttribute('href')).toBe('/journal-2-0/wrapped/2026')
+    expect(current.getAttribute('href')).toBe('/journal-2-0/wrapped/2026?account_id=acct-1')
     const picker = await within(door).findByRole('combobox', { name: 'Earlier years' })
     expect([...picker.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['2025', '2023'])
     expect(yearsCalls()).toEqual(['/api/j2/wrapped/years?account_id=acct-1'])
@@ -93,7 +98,7 @@ describe('the Report page door to Your <year> in trading', () => {
     expect(within(door).queryByRole('link', { name: 'Your 2026 in trading' })).toBeNull()
     expect(door.textContent).not.toContain('2026')                  // the picker lists earlier years only
     const open = within(door).getByRole('link', { name: 'Your 2025 in trading' })
-    expect(open.getAttribute('href')).toBe('/journal-2-0/wrapped/2025')
+    expect(open.getAttribute('href')).toBe('/journal-2-0/wrapped/2025?account_id=acct-1')
   })
 
   it('November 30 at 11 pm ET is still not December', async () => {
@@ -109,7 +114,7 @@ describe('the Report page door to Your <year> in trading', () => {
     const picker = await screen.findByRole('combobox', { name: 'Earlier years' })
     await userEvent.selectOptions(picker, '2023')
     const open = screen.getByRole('link', { name: 'Your 2023 in trading' })
-    expect(open.getAttribute('href')).toBe('/journal-2-0/wrapped/2023')
+    expect(open.getAttribute('href')).toBe('/journal-2-0/wrapped/2023?account_id=acct-1')
     await userEvent.click(open)
     expect(await screen.findByText('wrapped page')).toBeTruthy()
   })
@@ -122,6 +127,32 @@ describe('the Report page door to Your <year> in trading', () => {
     await settle()
     expect(yearsCalls()).toEqual(['/api/j2/wrapped/years'])        // All Accounts: no account_id
     expect(screen.queryByRole('navigation', { name: 'Your trading year' })).toBeNull()
+  })
+
+  it('an All Accounts report writes `_all_` on every link', async () => {
+    years = [2026, 2025]
+    pin('2026-12-15T16:00:00Z')
+    renderReport('?period=ytd')
+    const door = await screen.findByRole('navigation', { name: 'Your trading year' })
+    await within(door).findByRole('combobox', { name: 'Earlier years' })
+    expect(within(door).getByRole('link', { name: 'Your 2026 in trading' }).getAttribute('href'))
+      .toBe('/journal-2-0/wrapped/2026?account_id=_all_')
+    expect(within(door).getByRole('link', { name: 'Your 2025 in trading' }).getAttribute('href'))
+      .toBe('/journal-2-0/wrapped/2025?account_id=_all_')
+  })
+
+  it('door to page: an acct-2 report opens the page on acct-2 while the Journal pick is acct-1', async () => {
+    localStorage.setItem('uct.j2.selectedAccountId', 'acct-1')
+    years = [2026, 2025]
+    pin('2026-10-17T16:00:00Z')
+    renderReport('?account_id=acct-2&period=ytd', <WrappedSurface />)
+    const open = await screen.findByRole('link', { name: 'Your 2025 in trading' })
+    expect(yearsCalls()).toEqual(['/api/j2/wrapped/years?account_id=acct-2'])
+    await userEvent.click(open)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Your 2025 in trading' })).toBeTruthy()
+    await screen.findByText('No closed trades in 2025.')
+    expect(yearsCalls().filter((u) => !u.includes('/years'))).toEqual(['/api/j2/wrapped/2025?account_id=acct-2'])
+    localStorage.clear()
   })
 
   it('every link has an accessible name, and the picker is labelled', async () => {

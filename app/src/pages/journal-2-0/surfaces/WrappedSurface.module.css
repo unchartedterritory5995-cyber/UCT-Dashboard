@@ -46,9 +46,10 @@
 .setup { font-weight: 600; overflow-wrap: anywhere; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .table .num { text-align: right; }
-.sample { white-space: nowrap; }
+.sample { white-space: normal; }
 .n { color: var(--text-muted, #8a8a8a); font-variant-numeric: tabular-nums; }
 .word { color: var(--warn, #dcbb5e); }
+.unranked { color: var(--text-muted, #8a8a8a); font-style: italic; }
 .reveal { display: inline-block; text-align: right; }
 .summary {
   cursor: pointer;
