@@ -259,6 +259,12 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
         else:   # bc:cup-with-handle: the rim line, from the LEFT LIP to the breakout bar
             subs0 = extras.get("sub_boxes") or []
             cup = subs0[0] if len(subs0) >= 2 else {"start_t": start_t, "end_t": end_t}
+            # round 8 (display.cup_true_start): the drawn cup starts on the true left peak when the
+            # detector's start fell a few bars after it; every rule below reads the moved start
+            cs_t = _display.cup_true_start(bars, cup.get("start_t"), cup.get("end_t"))
+            if cs_t != cup.get("start_t"):
+                extras["cup_start_moved_from"] = cup.get("start_t")
+                cup = {**cup, "start_t": cs_t}
             rim = _display.cup_rim_line(bars, cup.get("start_t"), cup.get("end_t"), end_t)
             if rim is None:     # span unknown: the old line (box top / pivot) as before
                 end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
