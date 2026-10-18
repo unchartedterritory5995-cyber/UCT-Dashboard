@@ -192,11 +192,18 @@ def run_step(vp: str, n: int, title: str, fn, pages: dict) -> dict:
 
 # ── accounts and pages ────────────────────────────────────────────────────────────────────
 
-def new_ctx(browser, vp: str):
+#: Each account's signed-in cookies, taken ONCE at provisioning and reused by every story's context. Run
+#: p3b-walk-20261018T120827Z signed in afresh per context per viewport and the app's sign-in limiter answered 429 at
+#: the second story (NOT RUN); a member does not sign in again to open a second tab either.
+STATES: dict[str, dict] = {}
+
+
+def new_ctx(browser, vp: str, email: str | None = None):
     wd, ht = VIEWPORTS[vp]
     touch = wd <= fw.TOUCH_MAX
+    extra = {"storage_state": STATES[email]} if email else {}
     return browser.new_context(viewport={"width": wd, "height": ht}, has_touch=touch, is_mobile=touch,
-                               reduced_motion="reduce")
+                               reduced_motion="reduce", **extra)
 
 
 def provision(browser, base: str) -> None:
@@ -211,6 +218,7 @@ def provision(browser, base: str) -> None:
                 comp = admin.request.post(base + "/api/auth/admin/comp-access", data={"email": email, "action": "grant"})
                 ver = admin.request.post(base + "/api/auth/admin/verify-email", data={"email": email})
                 me = c.request.get(base + "/api/auth/me").json()
+                STATES[email] = c.storage_state()
                 REC["setup"].append({"account": name, "comp": comp.status, "verify": ver.status,
                                      "paid_equiv": bool(me.get("paid_equiv")),
                                      "role": me.get("role") or (me.get("user") or {}).get("role")})
@@ -218,6 +226,7 @@ def provision(browser, base: str) -> None:
                     raise h.SetupFailed(f"{name} is not paid-equivalent (comp {comp.status}, verify {ver.status})")
             finally:
                 c.close()
+        STATES[h.ADMIN_EMAIL] = admin.storage_state()
         me = admin.request.get(base + "/api/auth/me").json()
         role = me.get("role") or (me.get("user") or {}).get("role")
         REC["setup"].append({"account": "admin (ADMIN_EMAILS)", "role": role, "paid_equiv": bool(me.get("paid_equiv"))})
@@ -229,8 +238,7 @@ def provision(browser, base: str) -> None:
 
 
 def signed_in(browser, base: str, vp: str, who) -> tuple:
-    ctx = new_ctx(browser, vp)
-    h._signup_or_login(ctx.request, base, who[0], who[1], who[2])
+    ctx = new_ctx(browser, vp, who[0])
     pg = ctx.new_page()
     watch = Watch(pg)
     pg.goto(base + "/journal/notebook", wait_until="domcontentloaded", timeout=60000)
@@ -308,8 +316,7 @@ def story(browser, base: str, vp: str, run: str) -> None:
     REC.setdefault("stories", {})[vp] = S
     actx, apg, aw = signed_in(browser, base, vp, AUTHOR)
     mctx, mpg, mw = signed_in(browser, base, vp, MEMBER)
-    dctx = new_ctx(browser, vp)
-    h._signup_or_login(dctx.request, base, h.ADMIN_EMAIL, h.ADMIN_PW, "hubtest")
+    dctx = new_ctx(browser, vp, h.ADMIN_EMAIL)
     dpg = dctx.new_page()
     dw = Watch(dpg)
     dpg.goto(base + "/journal/notebook", wait_until="domcontentloaded", timeout=60000)
