@@ -37,6 +37,11 @@ Owner design, 2026-10-15:
     a speaker on a post = rewrite it. Lessons already in the threads are moved
     over oldest first (run_forum_migration); the old channel is left for the
     owner to delete.
+  * Desk > Videos mirrors the sections: one shelf per section ("TSDR Lessons ·
+    Setups & Entries", ...), the section and level as tags for the Filters
+    chips, the recap + key moments as the description, the moments as
+    chapters; rows already on the website move over once
+    (move_library_rows_to_sections), and a rewrite updates its row.
 
 Stages, each run by `tick()` every 15 minutes on the web pod:
   1. scan     — REST-poll the source channels (forward + resumable backfill),
@@ -1259,6 +1264,8 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
             tags=json.dumps(recap["tags"]), level=recap.get("level") or None,
             moments=json.dumps(moments))
     lesson = {**row, **recap, "duration_s": seconds, "moments": moments}
+    if row.get("edu_video_id"):
+        sync_library_row({**lesson, "section": section_for(lesson)})   # a rewrite
     link = jump_link(guild_id(), row["channel_id"], row["message_id"])
     if forum_enabled():
         related = related_lessons(lesson)
@@ -1475,6 +1482,75 @@ def youtube_description(lesson: dict) -> str:
     return text.replace("<", "").replace(">", "")[:4900]
 
 
+def library_category_for(lesson: dict) -> str:
+    """The Desk > Videos shelf a lesson sits on: one per section ("TSDR Lessons
+    · Setups & Entries"), so the website mirrors the forum (owner, 2026-10-18).
+    A lesson without a section keeps the plain shelf."""
+    names = {k: n for k, n, _ in SECTIONS}
+    section = lesson.get("section")
+    if section in names and section != "clips":
+        return f"{library_category()} · {names[section]}"
+    return library_category()
+
+
+def library_tags(lesson: dict) -> list[str]:
+    """The website row's tags: the topic tags, then the section and the level
+    in words, so the Videos page's Filters chips can narrow by either."""
+    tags = [str(t) for t in _json_list(lesson.get("tags")) if t and t != CLIP_TAG]
+    names = {k: n for k, n, _ in SECTIONS}
+    section = lesson.get("section")
+    if section in names and section != "clips":
+        tags.append(names[section].lower())
+    if lesson.get("level") in LEVELS:
+        tags.append(str(lesson["level"]))
+    return tags
+
+
+def sync_library_row(lesson: dict) -> bool:
+    """Bring a lesson's Desk > Videos row up to date with the lesson: shelf,
+    title, description, tags, recap and chapters. Best effort; False when the
+    row could not be written."""
+    from api.services import education_service
+
+    vid = lesson.get("edu_video_id")
+    if not vid:
+        return False
+    try:
+        cat = library_category_for(lesson)
+        education_service.register_category_if_missing(cat, kind="library")
+        education_service.update_video(int(vid), {"title": lesson["title"], "category": cat,
+                                                  "description": youtube_description(lesson)})
+        education_service.set_video_tags(int(vid), library_tags(lesson))
+        chapters = [{"t": m["t"], "title": m["label"]} for m in located_moments(lesson)]
+        education_service.set_video_insights(
+            int(vid), headline=lesson["title"], summary=split_sentences(lesson["recap"]),
+            chapters=chapters or None)
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("[tsdr-lessons] could not update the website row for %s: %s",
+                    lesson.get("attachment_id"), e)
+        return False
+
+
+_LIBRARY_SECTIONS_KEY = "library_rows_on_section_shelves"
+
+
+def move_library_rows_to_sections() -> int:
+    """Once (owner, 2026-10-18): every lesson already on the website moves to
+    its section's shelf, with section and level tags, the recap-and-moments
+    description and chapters. Marked done only when every row went."""
+    if get_state(_LIBRARY_SECTIONS_KEY):
+        return 0
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND edu_video_id IS NOT NULL "
+            "ORDER BY posted_at").fetchall()]
+    done = [sync_library_row(r) for r in rows]
+    if all(done):
+        set_state(_LIBRARY_SECTIONS_KEY, "1")
+    return sum(1 for d in done if d)
+
+
 def upload_lesson(row: dict, yt_client=None) -> str:
     from api.services import education_service
     from api.services.youtube_client import YouTubeClient
@@ -1501,7 +1577,7 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     _update(aid, youtube_id=vid, yt_error=None)
-    cat = library_category()
+    cat = library_category_for(row)
     try:
         education_service.register_category_if_missing(cat, kind="library")
     except Exception:
@@ -1517,7 +1593,7 @@ def upload_lesson(row: dict, yt_client=None) -> str:
         int(created["id"]), transcript=row.get("transcript") or "",
         headline=row["title"], summary=split_sentences(row["recap"]),
         chapters=chapters or None)
-    tags = _json_list(row.get("tags"))
+    tags = library_tags(row)
     if tags:
         education_service.set_video_tags(int(created["id"]), tags)
     _update(aid, edu_video_id=int(created["id"]))
@@ -2247,6 +2323,12 @@ def tick() -> dict:
                     out["clips_off_shelf"] = gone
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] could not take clips off the shelf: %s", e)
+            try:
+                moved = move_library_rows_to_sections()
+                if moved:
+                    out["shelved_by_section"] = moved
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] could not move library rows to their shelves: %s", e)
             try:
                 out["youtube"] = run_youtube(deadline=deadline)
             except Exception as e:  # noqa: BLE001
