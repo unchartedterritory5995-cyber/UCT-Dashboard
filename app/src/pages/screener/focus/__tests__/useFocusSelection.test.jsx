@@ -195,5 +195,5 @@ test('at the list edges the window shrinks instead of wrapping', () => {
 test('the whole result list is pre-warmed on the chart timeframe, like the watchlist', () => {
   vi.clearAllMocks()
   renderHook(() => useFocusSelection({ rows: rows(40), tf: 'W' }))
-  expect(prewarmVisibleList).toHaveBeenCalledWith(rows(40).map(r => r.ticker), { chartTf: 'W' })
+  expect(prewarmVisibleList).toHaveBeenCalledWith(rows(40).map(r => r.ticker), { chartTf: 'W', memTop: 60 })
 })
