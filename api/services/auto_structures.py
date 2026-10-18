@@ -11,7 +11,9 @@ independent blind packets as drawn -- flat_base, the MA pullback v5
 (uct_pullback_ma_v5, otherwise internal), and on D/W/M the bc:flat-base pivot line
 (box off; REPORT_BCFLAT_C2.md), the learned `drawn` levels + trendlines, and
 bull_flag as the round-9 drawing code draws it (REPORT_BULLFLAG_R9.md; only a row
-stamped with that round, never a stale one). The rest of the team set
+stamped with that round, never a stale one), plus its lighter "flagging" tier (lab
+flag_vocab: a stale flag stopped only by a relaxed verdict and stamped extras.flagging;
+drawn faint, no entry line). The rest of the team set
 (bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
 the route filters server-side (`member_rows`), never the client.
 Display-only end to end: nothing here changes what any detector fires on, its
@@ -74,13 +76,18 @@ def member_rows(rows) -> list:
     A bull_flag passed its blind check as drawn by ONE drawing round
     (MEMBER_BULL_FLAG_ROUND), so a member gets one only while it is that round's
     finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
-    drawing code or never stamped at all, is dropped. Fail closed."""
+    drawing code or never stamped at all, is dropped. Fail closed.
+
+    The one other bull_flag a member gets is the "flagging" tier (`_flagging_flag`): a flag the
+    round-9 code stopped ONLY on a relaxed verdict, stamped `extras.flagging` with tier "flagging"
+    and the member round. PatternOverlay draws it light, with no entry line."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
-            and ((r or {}).get("pattern_id") != "bull_flag" or _confirmed_flag(r))]
+            and ((r or {}).get("pattern_id") != "bull_flag"
+                 or _confirmed_flag(r) or _flagging_flag(r))]
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
@@ -100,6 +107,33 @@ def _confirmed_flag(row) -> bool:
         return False
     rnd = ex.get("draw_round")
     return type(rnd) is int and rnd == MEMBER_BULL_FLAG_ROUND
+
+
+#: The "flagging" tier's own member round (lab flag_vocab, 2026-10-18: on the team's broad flag
+#: vocabulary, held out by date, drawing these flags lifted Youden's J +0.135 [+0.108, +0.161]).
+#: A literal on purpose, like MEMBER_BULL_FLAG_ROUND: a new drawing round stops the tier for
+#: members until it is re-measured and this is changed by hand.
+MEMBER_FLAGGING_ROUND = 9
+#: The tier name the stamp must carry.
+MEMBER_FLAGGING_TIER = "flagging"
+
+
+def _flagging_flag(row) -> bool:
+    """True when a bull_flag row is the "flagging" tier as display.draw_geometry stamps it: the
+    strict round stopped it (`stale`, no `draw_round`) on a relaxed reason only
+    (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and the member round
+    as an int. Anything else -- no stamp, another round, another tier, a stale reason outside the
+    relaxed set, a row that is ALSO stamped confirmed -- is False. Fail closed."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale") is not True or "draw_round" in ex:
+        return False
+    if ex.get("stale_reason") not in _display.FLAGGING_REASONS:
+        return False
+    stamp = ex.get("flagging")
+    if not isinstance(stamp, dict) or stamp.get("tier") != MEMBER_FLAGGING_TIER:
+        return False
+    rnd = stamp.get("draw_round")
+    return type(rnd) is int and rnd == MEMBER_FLAGGING_ROUND
 
 
 def _pivot_only(row) -> bool:

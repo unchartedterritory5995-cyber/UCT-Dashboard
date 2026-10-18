@@ -112,6 +112,11 @@ display-only:
               DRAWN_POLE_MIN_ATR), grind_pole (down share 0.35) and two_step_pole;
               under_prior_high reads LEAD_BARS = 90 bars; the drawn lanes must hold
               LANE_MIN_BODY_SHARE of the bodies they span (loose_lanes, `flag_lanes_verdict`).
+  bull_flag ("flagging" tier, lab flag_vocab 2026-10-18) -- a flag stopped ONLY by
+              FLAGGING_RELAXED (shape / impulse / context) stays `stale` with its reason and also
+              carries `flagging` {tier, draw_round, draw_lanes, draw_anchors?}: what a member may see
+              as the team's "flagging" (light lanes, no entry line), never over a confirmed flag's
+              bars. Every field a confirmed flag carries is exactly as before.
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `pullback_handle`
               (round 6: the box is the pullback from the right side's peak; no_pullback / short /
@@ -122,6 +127,7 @@ display-only:
 """
 from __future__ import annotations
 
+import copy
 import math
 from bisect import bisect_right
 
@@ -1804,6 +1810,7 @@ def draw_geometry(detections: list, bars: list) -> list:
     closes = None
     emas: dict = {}
     flags: list = []
+    flagging: list = []
     for d in detections or []:
         try:
             pid = d.get("pattern_id")
@@ -1907,43 +1914,20 @@ def draw_geometry(detections: list, bars: list) -> list:
                 extras["draw_lanes"] = ok
                 if reason:
                     extras["lanes_reason"] = reason
-                pause, why = flag_pause_verdict(bars, pos, d)
-                if pause:       # round 4: a fast pole, a real flag, a midline that does not rise
-                    pause, why = flag_shape_verdict(bars, pos, d)
-                if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
-                    pause, why = False, "diverging"
-                if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
-                    pause, why = flag_edge_verdict(bars, pos, d)
-                if pause and s is not None:   # rounds 7-9: a short spike, a grind, two steps
-                    pause, why = pole_impulse_verdict(bars, s, top)
-                if pause and s is not None:   # round 8: under a prior high, a rebound, two steps
-                    pause, why = flag_context_verdict(bars, s, top)
-                ep = None
-                if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
-                    ep = flag_entry_line(bars, pos, d)
-                    if ep is not None:
-                        extras["draw_entry_price"] = ep
-                lanes = None
-                if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
-                    lanes = flag_draw_lanes(bars, pos, d)
-                    if lanes is not None:
-                        extras["draw_anchors"] = lanes
-                        # round 8: the DRAWN lanes must not fan either
-                        if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
-                            pause, why = False, "diverging"
-                if pause and ok:   # round 9: the drawn lanes must hold the flag's bodies
-                    drawn = lanes if lanes is not None else (geom.get("anchors") or [])
-                    spaces = list(extras.get("line_spaces") or []) + ["price", "price"]
-                    if lanes is not None or (spaces[0] == "price" and spaces[1] == "price"):
-                        pause, why = flag_lanes_verdict(bars, drawn)
-                if pause:       # round 8: an entry set at the pole top above a flag that dropped away
-                    entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
-                    pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)
-                if not pause:   # round 2: a second leg past the pole, not a pause
-                    extras["stale"] = True
-                    extras["stale_reason"] = why
-                    extras["draw_lanes"] = False
+                # "flagging" tier: the extras as they stand before any verdict ran, so the relaxed
+                # run below starts from exactly what the strict run started from.
+                before = copy.deepcopy(extras)
+                _flag_verdicts(bars, pos, d, s, top, ok, reason, relax=False)
                 flags.append(d)
+                if extras.get("stale") and extras.get("stale_reason") in FLAGGING_REASONS:
+                    try:   # its own guard: a crash here leaves the strict result untouched
+                        twin = {**d, "geometry": {**geom, "extras": copy.deepcopy(before)}}
+                        _flag_verdicts(bars, pos, twin, s, top, ok, reason, relax=True)
+                        tex = twin["geometry"]["extras"]
+                        if not tex.get("stale"):
+                            flagging.append((d, tex))
+                    except Exception:  # noqa: BLE001 -- no flagging stamp, fail closed
+                        pass
         except Exception:  # noqa: BLE001 -- one detection's fix skips that one only
             continue
     # Overlapping bull_flags of one run: only the most confident is drawn at all
@@ -1968,4 +1952,83 @@ def draw_geometry(detections: list, bars: list) -> list:
                 extras["draw_round"] = BULL_FLAG_DRAW_ROUND
         except Exception:  # noqa: BLE001
             continue
+    # The "flagging" tier, AFTER the confirmed flags are settled: a flag that failed only the
+    # FLAGGING_RELAXED verdicts is stamped `extras.flagging` -- never over a confirmed flag's bars,
+    # and only the most confident of those left over the same bars. Its own key: the row stays
+    # `stale` with its reason, so every field a confirmed flag or an older client reads is untouched.
+    for d, tex in sorted(flagging, key=lambda x: -(x[0].get("confidence") or 0)):
+        try:
+            span = _bar_span(pos, d)
+            if not span or any(k[0] <= span[1] and span[0] <= k[1] for k in kept):
+                continue
+            kept.append(span)
+            stamp = {"tier": FLAGGING_TIER, "draw_round": BULL_FLAG_DRAW_ROUND,
+                     "draw_lanes": bool(tex.get("draw_lanes"))}
+            if tex.get("draw_anchors"):
+                stamp["draw_anchors"] = tex["draw_anchors"]
+            d["geometry"]["extras"]["flagging"] = stamp
+        except Exception:  # noqa: BLE001
+            continue
     return detections
+
+
+#: The "flagging" tier (lab flag_vocab, 2026-10-18). The team says "flag", "flagging", "flag out"
+#: for any stock pausing after a move, not only a textbook bull flag. On the team's own flag calls
+#: (newer half, held out; 833 charts), drawing the flags that fail ONLY these three verdicts raised
+#: the share of team flag calls drawn from 6.2% to 24.4% against 0.8% -> 5.4% on random charts
+#: (dYouden +0.135 [+0.108, +0.161]). Their geometry measured at chance against the team's lines,
+#: so a flagging flag is drawn light and WITHOUT an entry line (PatternOverlay).
+FLAGGING_RELAXED = ("flag_shape_verdict", "pole_impulse_verdict", "flag_context_verdict")
+#: The stale reasons those three verdicts give. Only a flag stopped by one of them can be "flagging";
+#: a flag stopped by any other verdict (or the overlap pass) never is.
+FLAGGING_REASONS = frozenset({
+    "slow_pole", "short_flag", "rising_flag", "detached_flag", "steep_flag", "deep_flag",   # shape
+    "short_pole", "grind_pole", "two_step_pole",                                         # impulse
+    "under_prior_high", "rebound_pole",                                                  # context
+})
+#: The tier name the stamp carries -- the team's own word, and the overlay's label.
+FLAGGING_TIER = "flagging"
+
+
+def _flag_verdicts(bars, pos, d, s, top, ok, reason, relax=False):
+    """The bull_flag display verdicts in round order, stamping `d`'s extras exactly as draw_geometry
+    always has (draw_entry_price, draw_anchors, and stale / stale_reason / draw_lanes on a failure).
+    relax=True treats FLAGGING_RELAXED as passing -- run only on a deep copy (the "flagging" tier)."""
+    geom = d["geometry"]
+    extras = geom["extras"]
+    pause, why = flag_pause_verdict(bars, pos, d)
+    if pause and not relax:       # round 4: a fast pole, a real flag, a midline that does not rise
+        pause, why = flag_shape_verdict(bars, pos, d)
+    if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
+        pause, why = False, "diverging"
+    if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
+        pause, why = flag_edge_verdict(bars, pos, d)
+    if pause and s is not None and not relax:   # rounds 7-9: a short spike, a grind, two steps
+        pause, why = pole_impulse_verdict(bars, s, top)
+    if pause and s is not None and not relax:   # round 8: under a prior high, a rebound, two steps
+        pause, why = flag_context_verdict(bars, s, top)
+    ep = None
+    if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
+        ep = flag_entry_line(bars, pos, d)
+        if ep is not None:
+            extras["draw_entry_price"] = ep
+    lanes = None
+    if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
+        lanes = flag_draw_lanes(bars, pos, d)
+        if lanes is not None:
+            extras["draw_anchors"] = lanes
+            # round 8: the DRAWN lanes must not fan either
+            if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
+                pause, why = False, "diverging"
+    if pause and ok:   # round 9: the drawn lanes must hold the flag's bodies
+        drawn = lanes if lanes is not None else (geom.get("anchors") or [])
+        spaces = list(extras.get("line_spaces") or []) + ["price", "price"]
+        if lanes is not None or (spaces[0] == "price" and spaces[1] == "price"):
+            pause, why = flag_lanes_verdict(bars, drawn)
+    if pause:       # round 8: an entry set at the pole top above a flag that dropped away
+        entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
+        pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)
+    if not pause:   # round 2: a second leg past the pole, not a pause
+        extras["stale"] = True
+        extras["stale_reason"] = why
+        extras["draw_lanes"] = False

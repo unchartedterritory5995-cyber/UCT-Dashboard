@@ -26,6 +26,15 @@ export function isExperimental(detection) {
   return detection?.display_tier === 'experimental'
 }
 
+// The bull_flag "flagging" tier (PatternOverlay.flaggingView): the team's looser "flag", drawn
+// light -- dotted and faint -- and labelled with the team's own word.
+export const FLAGGING_TIER = 'flagging'
+export const FLAGGING_DASH = '2,4'
+
+export function isFlagging(detection) {
+  return detection?.flag_tier === FLAGGING_TIER
+}
+
 export function isStale(detection) {
   const age = detection?.geometry?.extras?.pattern_age_bars
   return typeof age === 'number' && age > STALE_AFTER_BARS
@@ -39,6 +48,7 @@ export function getOpacity(detection) {
   // quieter still. Never below a legible floor.
   if (isExperimental(detection)) op *= 0.75
   if (isStale(detection)) op *= 0.6
+  if (isFlagging(detection)) op *= 0.55
   return Math.max(0.25, op)
 }
 
@@ -47,6 +57,7 @@ export function getStrokeWidth(detection) {
 }
 
 export function getStrokeDasharray(detection) {
+  if (isFlagging(detection)) return FLAGGING_DASH
   if (detection?.status === 'forming') return '5,3'
   // Experimental tier: a dotted stroke, so it never reads as a trusted line.
   return isExperimental(detection) ? '2,3' : 'none'
@@ -64,6 +75,7 @@ export function getGlowFilter(detection) {
 }
 
 export function formatLabel(detection) {
+  if (isFlagging(detection)) return FLAGGING_TIER
   const name = detection?.pattern_name || detection?.pattern_id || 'pattern'
   const conf = detection?.confidence
   const base = conf == null ? name : `${name} (${Math.round(conf)})`
