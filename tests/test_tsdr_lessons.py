@@ -1580,3 +1580,79 @@ def test_the_forum_stages_run_only_with_the_flag_and_regroup_steps_aside(monkeyp
     tl.tick()
     assert ran == ["run_forum_migration", "run_rewrite_requests", "run_related_refresh",
                    "run_video_refill", "refresh_index"]
+
+
+# ── library v2: Desk > Videos mirrors the sections ───────────────────────────
+
+def test_a_lesson_uploads_onto_its_sections_shelf_with_section_and_level_tags(monkeypatch):
+    fake = _posted_lesson(monkeypatch, "sh1")
+    tl._update("sh1", section="management", level="advanced",
+               moments=json.dumps([{"t": 42, "label": "The stop", "quote": "q"}]))
+
+    class YT:
+        def upload(self, path, title, description, privacy):
+            return "YTSHELF0001"
+
+    from api.services import education_service as es
+    made = {}
+    monkeypatch.setattr(es, "register_category_if_missing", lambda name, kind="library": made.update(cat=name))
+    monkeypatch.setattr(es, "create_video", lambda p: made.update(p) or {"id": 78})
+    monkeypatch.setattr(es, "set_video_insights", lambda vid, **kw: made.update(kw))
+    monkeypatch.setattr(es, "set_video_tags", lambda vid, tags: made.update(tags=tags))
+    import api.services.youtube_client as ytc
+    monkeypatch.setattr(ytc, "YouTubeClient", YT)
+    assert tl.run_youtube(deadline=9e12)["uploaded"] == 1
+    assert made["cat"] == made["category"] == "TSDR Lessons · Trade Management"
+    assert made["tags"] == ["risk", "trade management", "advanced"]
+    assert made["chapters"] == [{"t": 42, "title": "The stop"}]
+    assert "Key moments:\n0:42 The stop" in made["description"]
+    # a lesson without a section keeps the plain shelf and its topic tags
+    assert tl.library_category_for({"section": None}) == "TSDR Lessons"
+    assert tl.library_tags({"tags": json.dumps(["risk"]), "section": None, "level": None}) == ["risk"]
+    assert tl.library_category_for({"section": "clips"}) == "TSDR Lessons"
+
+
+def test_rows_already_on_the_website_move_to_their_section_shelves_once(monkeypatch):
+    _posted_lesson(monkeypatch, "mv1")
+    tl._update("mv1", section="setups", level="beginner", edu_video_id=601)
+    _posted_lesson(monkeypatch, "mv2")
+    tl._update("mv2", section="market", edu_video_id=602)
+    _posted_lesson(monkeypatch, "mv3")                                     # not on the website
+    from api.services import education_service as es
+    writes = []
+    monkeypatch.setattr(es, "register_category_if_missing", lambda name, kind="library": writes.append(("cat", name)))
+    monkeypatch.setattr(es, "update_video", lambda vid, p: writes.append(("video", vid, p["category"])) or {})
+    monkeypatch.setattr(es, "set_video_tags", lambda vid, tags: writes.append(("tags", vid, tags)))
+    monkeypatch.setattr(es, "set_video_insights", lambda vid, **kw: writes.append(("insights", vid, kw.get("chapters"))))
+    assert tl.move_library_rows_to_sections() == 2
+    assert ("video", 601, "TSDR Lessons · Setups & Entries") in writes
+    assert ("tags", 601, ["risk", "setups & entries", "beginner"]) in writes
+    assert ("video", 602, "TSDR Lessons · Market Read") in writes
+    assert ("insights", 601, None) in writes
+    assert not any(w[0] == "video" and w[1] not in (601, 602) for w in writes)
+    assert tl.move_library_rows_to_sections() == 0                           # once
+    # a failed write leaves the one-shot open for the next tick
+    tl.set_state(tl._LIBRARY_SECTIONS_KEY, "")
+
+    def boom(vid, p):
+        raise RuntimeError("db locked")
+    monkeypatch.setattr(es, "update_video", boom)
+    assert tl.move_library_rows_to_sections() == 0
+    assert tl.get_state(tl._LIBRARY_SECTIONS_KEY) in (None, "")
+
+
+def test_a_rewrite_updates_the_lessons_website_row(monkeypatch):
+    m = msg(sf(2026, 10, 15), attachments=[video("rw1")])
+    tl.record_message(m, TSDR)
+    tl._update("rw1", edu_video_id=701, transcript="old words " * 30)
+    fake = _pipeline(monkeypatch, m, recap={**RECAP, "title": "Better title", "level": "beginner"})
+    from api.services import education_service as es
+    writes = {}
+    monkeypatch.setattr(es, "register_category_if_missing", lambda name, kind="library": None)
+    monkeypatch.setattr(es, "update_video", lambda vid, p: writes.update(vid=vid, **p) or {})
+    monkeypatch.setattr(es, "set_video_tags", lambda vid, tags: writes.update(tags=tags))
+    monkeypatch.setattr(es, "set_video_insights", lambda vid, **kw: writes.update(kw))
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert writes["vid"] == 701 and writes["title"] == writes["headline"] == "Better title"
+    assert writes["category"] == "TSDR Lessons · Setups & Entries"
+    assert writes["tags"] == ["entries", "setups", "setups & entries", "beginner"]
