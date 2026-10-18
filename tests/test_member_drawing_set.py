@@ -249,7 +249,8 @@ def test_flag_on_a_real_stamped_bc_flat_base_reaches_a_member_as_its_pivot(monke
     assert [s["pattern_id"] for s in body["structures"]] == ["bc:flat-base"]
     ex = body["structures"][0]["geometry"]["extras"]
     assert ex["draw_box"] is False
-    assert ex["draw_pivot"] == {"start_t": ymd_t(5), "end_t": ymd_t(20), "price": 100.5}
+    # round 6 (test_bcflat_r6): the drawn line starts at its first touch (bar 7), not bar 5
+    assert ex["draw_pivot"] == {"start_t": ymd_t(7), "end_t": ymd_t(20), "price": 100.5}
 
 
 # -- flag OFF: byte-identical to before --------------------------------------------------------
