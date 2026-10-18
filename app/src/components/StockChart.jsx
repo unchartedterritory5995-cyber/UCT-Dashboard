@@ -166,6 +166,7 @@ import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
+import { _packStillIngesting } from '../utils/prefetchBars'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
@@ -6937,11 +6938,18 @@ export default function StockChart({
     // slow idbGet on a populated browser means "busy, has data — wait for it", NOT
     // "empty — bypass to the server". Only a browser that has never shown cached bars
     // keeps the fast new-user path.
+    // ⛔ …EXCEPT WHILE THE FIRST PACK INGEST RUNS (2026-10-18). That ingest holds IndexedDB
+    // for over a minute on a first visit, and the first cached hit (a hot-pack name) flips
+    // `_browserHasCachedBars`, so every later ticker waited the full 4 s: measured on
+    // production, a fresh browser's click on a screener row painted in 0.7-1.8 s with no
+    // server request at all, and a screenshot caught "Loading chart…" at 4 s. While the pack
+    // is still ingesting, "busy" means the ingest, not "has data": keep the short wait.
+    const _patient = _browserHasCachedBars && !_packStillIngesting()
     const _t = setTimeout(() => {
       if (settled) return
       idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
       setIdbLoaded(true)
-    }, _browserHasCachedBars ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
+    }, _patient ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
     idbGet(sym, resolvedTf).then(entry => {
       settled = true; clearTimeout(_t)
       if (entry?.bars?.length) {
@@ -14128,6 +14136,27 @@ export default function StockChart({
       }
     }
 
+    // ⭐ RESTATE THIS PASS'S FRAME AS A DISTANCE FROM THE NEWEST BAR (2026-10-18).
+    // LWC keeps a view as an offset from the NEWEST index of its time axis, and it merges a
+    // new series' dates into that axis at its next render. On a symbol switch, the frame set
+    // above is therefore stored against the PREVIOUS symbol's axis: measured on production,
+    // CDNA (600 bars) -> AAPL (300) framed AAPL at [178,306], LWC stored it as 294 bars left
+    // of CDNA's newest, and after the merge AAPL showed its first bars; the deep-history merge
+    // then kept that, so the chart sat on Feb-Aug 2025 under a price reading Oct 2026.
+    // scrollToPosition sets the same right offset against the newest bar, which the pending
+    // merge cannot move. Only when the view moved during this pass; with no merge pending it
+    // is the offset LWC already holds, so it changes nothing.
+    try {
+      const _ts = chart?.timeScale()
+      const _r = _ts?.getVisibleLogicalRange()
+      // Against the range BEFORE this pass's setData: on a switch LWC already reports the
+      // re-based range after setData, so comparing with that would miss the very frame at fault.
+      const _base = _preUpdateRange || oldRange
+      if (_r && _base && (_r.from !== _base.from || _r.to !== _base.to)) {
+        const _n = candleSeriesRef.current?.data?.()?.length || filteredBars.length
+        if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+      }
+    } catch { /* mid-load: the frame above stands */ }
     // Track current bar count + bars so the next ticker switch can right-anchor the
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length

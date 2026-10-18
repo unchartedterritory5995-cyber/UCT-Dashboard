@@ -126,3 +126,39 @@ def test_all_specs_reads_every_members_saved_screen():
     SS.create("new-today-user-b", "B", b)
     specs = SS.all_specs()
     assert a in specs and b in specs
+
+
+# ── same-session builds (2026-10-18): weekend/holiday builds run over the session before them.
+
+def test_a_weekend_build_compares_against_the_last_EARLIER_session(snap):
+    """Fri 03:00 (Thu's session), Sat and Sun (both Fri's session): Sunday's answer is
+    Friday's real change, never the clock drift between Saturday and Sunday."""
+    _build("2026-10-16", ["AAA", "BBB"], "2026-10-15")
+    _build("2026-10-17", ["AAA", "CCC"], "2026-10-16")
+    _build("2026-10-18", ["AAA", "CCC", "DDD"], "2026-10-16")    # clock-driven change
+    out = M.diff(SPEC)
+    assert out["state"] == "ok"
+    assert out["prev_as_of"] == "2026-10-16" and out["prev_session"] == "2026-10-15"
+    assert out["new_since_label"] == "New since Oct 15 close"
+    assert out["entered"] == ["CCC", "DDD"] and out["exited"] == ["BBB"]
+
+
+def test_CONTROL_two_builds_over_one_session_only_say_nothing_new(snap):
+    _build("2026-10-17", ["AAA"], "2026-10-16")
+    _build("2026-10-18", ["AAA", "DDD"], "2026-10-16")
+    assert M.diff(SPEC)["state"] == "no_history"
+
+
+def test_a_long_weekend_still_reaches_the_session_before_it(snap):
+    _build("2026-10-09", ["AAA"], "2026-10-08")
+    for d in ("2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13"):  # Sat, Sun, holiday, Tue 03:00
+        _build(d, ["AAA", "EEE"], "2026-10-09")
+    out = M.diff(SPEC)
+    assert out["prev_session"] == "2026-10-08" and out["entered"] == ["EEE"]
+
+
+def test_a_build_without_a_session_falls_back_to_the_build_before(snap):
+    _build("2026-10-15", ["AAA"], "2026-10-14")
+    _build("2026-10-16", ["AAA", "BBB"], None)
+    out = M.diff(SPEC)
+    assert out["prev_as_of"] == "2026-10-15" and out["entered"] == ["BBB"]

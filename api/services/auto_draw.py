@@ -14,6 +14,17 @@ the app's engine lines, horizontals on par with nearest-first engine levels). Tw
 The fitted standardisation and coefficients are embedded below as constants; the parity rail
 (tests/test_auto_draw.py) proves this file reproduces the lab drawer exactly when the lab is present.
 
+Drawn levels, 2026-10-18 (config C2 `flat_nearest_pd` of the drawn-vs-team study, lab path
+lab/drawn_vs_team/, PREREG.txt + heldout.py + analyze.levels_config): the team's own drawn levels
+(human ground truth, pixel-calibrated off their chart screenshots) were compared against the drawer
+on a held-out half split by posted date. Pooled F1 at 0.5 ATR: the round-5 drawer 0.339, C2 0.412,
++0.073 [+0.051, +0.095], one-sided paired bootstrap over as-of dates, Holm-corrected pass. C2 restores
+the prior-day high / low after the close and ranks every structural level (major swing H / L / peak,
+learned fill, 10-day H / L, swing-high resistance, prior day) nearest the close first, with no
+major-swing priority; micro levels last, the 0.6 ATR dedupe, the one-above-the-close rule and the
+count of 4 are unchanged. The pure learned-ranker config (C3) tied it within noise; C2 ships because
+it keeps every member-facing level label. Trendlines were not changed by that study.
+
 `bars`: daily bars oldest first, as (ts, o, h, l, c, v) tuples or {t,o,h,l,c,v} dicts, ts = YYYYMMDD int.
 Only bars up to the last bar (or `asof`, when given) are read: no lookahead.
 coords:
@@ -418,13 +429,14 @@ DRAWN_TRENDLINES = 3
 DRAWN_HORIZONTALS = 4
 #: The learned horizontals offered as fill (they replace the swing_pivots layer: its learned top 3).
 DRAWN_LEARNED_FILL = 3
-#: Round 3 (REPORT_TEAM_SET_R2.md): the prior-day high / low is DELIBERATE, not silently dropped.
-#: The chart's last bar IS the prior day as of the next session (the session the chart is read
-#: for), so its high / low are that candle's own range and are not drawn -- they are listed in
-#: `omitted` with this reason. When the last bar is a session still FORMING (drawn_set's
-#: `last_bar_forming`, decided by the caller from the clock), the prior day is the bar before it
-#: and its high / low are drawn like any other level.
-PRIOR_DAY_IS_LAST_BAR = 'prior_day_is_last_bar'
+#: The prior-day high / low is a STRUCTURAL level (never micro), drawn after the close too (C2,
+#: 2026-10-18, see the module docstring): with the last bar complete it IS the prior day as of the
+#: next session, so its high / low are drawn; while the last bar is a session still FORMING
+#: (drawn_set's `last_bar_forming`, decided by the caller from the clock) the prior day is the bar
+#: before it. Rounds 2-5 omitted the pair after the close (reason 'prior_day_is_last_bar'); the
+#: team draws that pair about twice as often as a shifted control, and the omission cost agreement
+#: on the held-out half, so it was replaced. `omitted` stays in drawn_set's output for any level
+#: type deliberately not drawn (none today).
 #: Round 3: older swing-high RESISTANCE -- a confirmed pivot high (at least this many lower highs
 #: on EACH side) inside the lookback, above the last close, that no later close has broken.
 SWING_HIGH_STRENGTH = 3
@@ -474,14 +486,19 @@ TL_PER_SIDE = 1
 #: many lower highs (higher lows) on EACH side ...
 MAJOR_SWING_STRENGTH = 5
 #: ... within this many bars, unbroken by any close since. The nearest major swing high above the
-#: close is ALWAYS drawn when one exists, then the nearest major swing low, then the window's peak.
+#: close, the nearest major swing low and the window's peak are CANDIDATES, ranked with the other
+#: structural levels nearest the close first (C2, 2026-10-18: rounds 4-5 drew them ahead of every
+#: other level, and on the team's own drawings those priority slots agreed least).
 MAJOR_SWING_LOOKBACK = 250
-#: The major swing low and the peak high rank ahead only within this many ATR of the close (the
-#: nearest major swing high above the close is drawn at any distance).
+#: The major swing low and the peak high are candidates only within this many ATR of the close
+#: (the nearest major swing high above the close is a candidate at any distance).
 MAJOR_MAX_DIST_ATR = 8.0
 #: A level anchored on one of the last MICRO_BARS bars (a fresh 10-day high / low, the learned
 #: drawer's last-bar levels) is a MICRO level: drawn only after every structural level.
 MICRO_BARS = 3
+#: The rank tier of every structural level (`_rank_levels`: a STRUCTURAL level anchored at or after
+#: `micro_from` drops to the MICRO tier, STRUCTURAL + 1). C2 ranks all of them in this one tier.
+STRUCTURAL = 3
 
 
 def swing_high_resistance(a, i, lookback=None, strength=None):
@@ -534,14 +551,14 @@ def major_swings(a, i, is_high, lookback=None, strength=None):
 
 
 def _horizontals(a, i, at, bars, last_bar_forming=False):
-    """(drawn horizontals, omitted) -- see drawn_set. Round 4: candidates are drawn in RANK order,
-    not nearest first: (0) the nearest major swing high above the close, (1) the nearest major
-    swing low below it and (2) the major window peak high, each within MAJOR_MAX_DIST_ATR, (3) the
-    structural levels -- the learned
-    fill, the 10-day high / low, unbroken swing-high resistance, a forming session's prior day --
-    nearest first, (4) MICRO levels (anchored on the last MICRO_BARS bars) last. A level within
-    H_DUP_ATR of a better-ranked one is the same level. At most DRAWN_HORIZONTALS, at least one
-    above the close whenever any candidate is; returned nearest the close first."""
+    """(drawn horizontals, omitted) -- see drawn_set. C2 (2026-10-18): every STRUCTURAL level --
+    the nearest major swing high above the close (any distance), the nearest major swing low below
+    it and the major window peak high (each within MAJOR_MAX_DIST_ATR), the learned fill, the
+    10-day high / low, unbroken swing-high resistance and the prior day's high / low -- is ranked
+    nearest the close first (no major-swing priority tier any more); MICRO levels (anchored on the
+    last MICRO_BARS bars) rank after all of them. A level within H_DUP_ATR of a better-ranked one
+    is the same level. At most DRAWN_HORIZONTALS, at least one above the close whenever any
+    candidate is; returned nearest the close first."""
     close = float(a[i, 4])
     micro_from = i - MICRO_BARS + 1
     cands = []
@@ -549,16 +566,16 @@ def _horizontals(a, i, at, bars, last_bar_forming=False):
     lows = major_swings(a, i, False)
     if highs:
         h = highs[0]
-        cands.append((0, {'source': 'major_swing_high', 'label': 'swing H', 'price': h['price'],
-                          't_from': int(a[h['j'], 0]), 'score': None, '_j': h['j']}))
+        cands.append((STRUCTURAL, {'source': 'major_swing_high', 'label': 'swing H', 'price': h['price'],
+                                   't_from': int(a[h['j'], 0]), 'score': None, '_j': h['j']}))
         peak = max(highs, key=lambda r: r['price'])
         if peak is not h and peak['price'] - close <= MAJOR_MAX_DIST_ATR * at:
-            cands.append((2, {'source': 'major_peak_high', 'label': 'peak H', 'price': peak['price'],
-                              't_from': int(a[peak['j'], 0]), 'score': None, '_j': peak['j']}))
+            cands.append((STRUCTURAL, {'source': 'major_peak_high', 'label': 'peak H', 'price': peak['price'],
+                                       't_from': int(a[peak['j'], 0]), 'score': None, '_j': peak['j']}))
     if lows and close - lows[0]['price'] <= MAJOR_MAX_DIST_ATR * at:
         h = lows[0]
-        cands.append((1, {'source': 'major_swing_low', 'label': 'swing L', 'price': h['price'],
-                          't_from': int(a[h['j'], 0]), 'score': None, '_j': h['j']}))
+        cands.append((STRUCTURAL, {'source': 'major_swing_low', 'label': 'swing L', 'price': h['price'],
+                                   't_from': int(a[h['j'], 0]), 'score': None, '_j': h['j']}))
     w10 = a[max(0, i - 9):i + 1]
     j_hi10 = max(0, i - 9) + int(np.argmax(w10[:, 2]))
     j_lo10 = max(0, i - 9) + int(np.argmin(w10[:, 3]))
@@ -577,17 +594,15 @@ def _horizontals(a, i, at, bars, last_bar_forming=False):
         structural.append({'source': 'swing_high', 'label': 'swing H', 'price': sh['price'],
                            't_from': int(a[sh['j'], 0]), 'score': None, '_j': sh['j']})
     omitted = []
+    # C2: the prior day is the last bar after the close, the bar before it while the last bar forms;
+    # either way it is structural, never demoted as micro (`_j` -1 is below any `micro_from`)
     pd = i - 1 if last_bar_forming else i
     for src, label, col in (('prior_day_high', 'PDH', 2), ('prior_day_low', 'PDL', 3)):
-        if not last_bar_forming:
-            # the last bar IS the prior day: its own candle already shows this level
-            omitted.append({'source': src, 'reason': PRIOR_DAY_IS_LAST_BAR})
-        elif pd >= 0:
-            # deliberate: a forming session's prior day is structural, never demoted as micro
+        if pd >= 0:
             structural.append({'source': src, 'label': label, 'price': float(a[pd, col]),
                                't_from': int(a[pd, 0]), 'score': None, '_j': -1})
     for h in structural:
-        cands.append((3, h))
+        cands.append((STRUCTURAL, h))
     out = _rank_levels(cands, close, at, micro_from, DRAWN_HORIZONTALS)
     for h in out:
         h.pop('_j', None)
@@ -596,11 +611,14 @@ def _horizontals(a, i, at, bars, last_bar_forming=False):
 
 
 def _rank_levels(cands, close, at, micro_from, k):
-    """Round 4: the drawn levels from (tier, level) candidates -- a structural level (tier 3)
-    anchored on a bar at or after `micro_from` is MICRO (tier 4); ranked by tier, then nearest the
-    close; a level within H_DUP_ATR of a better-ranked one is the same level; the first `k`, with
-    one above the close whenever any candidate is; returned nearest the close first."""
-    tiered = [(4 if t == 3 and h.get('_j', -1) >= micro_from else t, h) for t, h in cands]
+    """Round 4: the drawn levels from (tier, level) candidates -- a structural level (tier
+    STRUCTURAL) anchored on a bar at or after `micro_from` is MICRO (tier STRUCTURAL + 1); ranked by
+    tier, then nearest the close; a level within H_DUP_ATR of a better-ranked one is the same level;
+    the first `k`, with one above the close whenever any candidate is; returned nearest the close
+    first. Since C2 (2026-10-18) `_horizontals` passes every level as STRUCTURAL, so the order is
+    nearest-first with micro levels last."""
+    tiered = [(STRUCTURAL + 1 if t == STRUCTURAL and h.get('_j', -1) >= micro_from else t, h)
+              for t, h in cands]
     ranked = [h for _, h in sorted(tiered, key=lambda th: (th[0], abs(th[1]['price'] - close)))]
     chosen = []
     for h in ranked:
@@ -717,20 +735,19 @@ def drawn_set(bars, last_bar_forming=False):
                    support line across a crash, at least TL_MIN_TOUCHES touches, one line per
                    anchor, no
                    near-duplicates), at most DRAWN_TRENDLINES
-      horizontals  ranked by `_horizontals` (round 4): the nearest MAJOR swing high above the
-                   close (always, when one exists within MAJOR_SWING_LOOKBACK bars), the nearest
-                   major swing low, the window's peak high, then the structural levels (learned
-                   fill, 10-day high/low, unbroken swing-high resistance, a forming session's prior
-                   day), MICRO levels from the last MICRO_BARS bars last; near-duplicates within
-                   H_DUP_ATR dropped, at most DRAWN_HORIZONTALS (at least one above the close when
-                   any candidate is), nearest first. The prior day's high/low only when
-                   `last_bar_forming` (then the prior day is the bar before the last).
-      omitted      level types deliberately not drawn, each with its reason -- the prior-day
-                   pair is listed here (PRIOR_DAY_IS_LAST_BAR) when the last bar IS the prior day,
-                   so the drop is stated, never silent.
+      horizontals  ranked by `_horizontals` (C2, 2026-10-18): every structural level -- the
+                   nearest major swing high above the close, the nearest major swing low, the
+                   window's peak high, the learned fill, the 10-day high/low, unbroken swing-high
+                   resistance, the prior day's high/low -- nearest the close first, MICRO levels
+                   from the last MICRO_BARS bars last; near-duplicates within H_DUP_ATR dropped, at
+                   most DRAWN_HORIZONTALS (at least one above the close when any candidate is),
+                   nearest first. The prior day is the last bar after the close, and the bar
+                   before it while `last_bar_forming`.
+      omitted      level types deliberately not drawn, each with its reason, so a drop is stated,
+                   never silent (empty since C2 restored the prior-day pair after the close).
 
-    Rounds 2-4 of the team-set blind check (REPORT_TEAM_SET.md / _R2.md / _R3.md, 2026-10-17),
-    display-only.
+    Rounds 2-5 of the team-set blind check (REPORT_TEAM_SET.md / _R2.md / _R3.md / _R4.md,
+    2026-10-17) and the drawn-vs-team study's C2 levels (2026-10-18), display-only.
     None when there are too few bars. Never raises past bad input shapes it can reject."""
     a = as_arrays(bars)
     i = len(a) - 1

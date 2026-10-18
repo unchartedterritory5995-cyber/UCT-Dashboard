@@ -171,17 +171,24 @@ def _arr(bars):
     return auto_draw.as_arrays(bars)
 
 
-def test_learned_levels_drop_prior_day_at_the_last_bar_cap_four_no_duplicates():
-    seen_learned = 0
+def test_learned_levels_keep_prior_day_at_the_last_bar_cap_four_no_duplicates():
+    seen_learned = seen_prior_day = 0
     for seed in SEEDS:
         bars = _synthetic(seed)
         d = auto_draw.drawn_set(bars)
         hs = d["horizontals"]
         assert 1 <= len(hs) <= 4 == auto_draw.DRAWN_HORIZONTALS
-        # round 3 made this deliberate: with a complete last bar the prior day IS that bar, so its
-        # high / low are never drawn at its own range edges -- they are listed as omitted instead
-        assert not any(h["source"].startswith("prior_day") for h in hs)
-        assert {o["source"] for o in d["omitted"]} == {"prior_day_high", "prior_day_low"}
+        # CHANGED 2026-10-18 (drawn-vs-team study, config C2): rounds 2-5 never drew the prior day
+        # at a complete last bar and listed the pair as omitted. The team's held-out drawings carry
+        # that pair ~2x a shifted control and the omission cost agreement, so it is drawn again (as
+        # the last bar's own high / low) and nothing is omitted.
+        assert d["omitted"] == []
+        for h in hs:
+            if h["source"] == "prior_day_high":
+                assert h["price"] == round(bars[-1][2], 4) and h["t_from"] == bars[-1][0]
+            if h["source"] == "prior_day_low":
+                assert h["price"] == round(bars[-1][3], 4) and h["t_from"] == bars[-1][0]
+        seen_prior_day += any(h["source"].startswith("prior_day") for h in hs)
         ps = [h["price"] for h in hs]
         assert all(abs(x - y) > auto_draw.H_DUP_ATR * d["atr"] - 1e-6
                    for i, x in enumerate(ps) for y in ps[i + 1:]), (seed, ps)
@@ -189,6 +196,7 @@ def test_learned_levels_drop_prior_day_at_the_last_bar_cap_four_no_duplicates():
         assert dists == sorted(dists)
         seen_learned += any(h["source"] == "learned" for h in hs)
     assert seen_learned, "control: the learned fill never entered"
+    assert seen_prior_day, "control: the prior-day pair never reached a complete-bar chart"
 
 
 def _cut_closes(a, at, tl):

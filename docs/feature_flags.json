@@ -2802,6 +2802,12 @@
       "where": [],
       "note": "Regroup stage of #tsdr video lessons (owner design 2026-10-16), default OFF, read per call in api/services/tsdr_lessons.py (== '1'): lessons go to their section's thread as a recap embed plus a forward of the original message, and lessons already posted to the channel are moved into the threads (run_regroup). SERVICE: web. Declared here by the wisdom-archive session because #354 shipped the gate without a ledger entry and test_every_off_by_default_gate_is_declared went red on master."
     },
+    "TSDR_LESSONS_FORUM_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-18",
+      "where": [],
+      "note": "Library v2 of the #tsdr video lessons (owner decisions 2026-10-18; spec docs/superpowers/specs/2026-10-18-tsdr-lessons-library-v2-design.md), default OFF, read per call in api/services/tsdr_lessons.py::forum_enabled(). SERVICE: web. What it arms: a FORUM channel (#lesson-library, TSDR_LESSONS_FORUM_NAME / TSDR_LESSONS_FORUM_CHANNEL_ID) under EDUCATION replaces the five section threads - one post per lesson tagged with section, level and speaker, the video inside the post, a See-also line, a pinned Index post, and a pencil reaction from a speaker (TSDR_LESSONS_REVIEWER_IDS) = rewrite. Lessons already in the threads are moved over oldest first, TSDR_LESSONS_FORUM_MIGRATE_PER_TICK (10) per tick; the old #video-lessons channel is left for the owner to delete. Needs Manage Channels to create the forum and its tags; without it the owner creates a Forum channel named lesson-library by hand and the bot finds it by name. MEMBER-VISIBLE: a new forum channel. REVERSAL: unset it; the forum and its posts stay, new lessons go back to the threads."
+    },
     "TSDR_LESSONS_YOUTUBE_ENABLED": {
       "status": "pending",
       "since": "2026-10-15",

@@ -198,15 +198,24 @@ def test_swing_high_resistance_reaches_the_drawn_set_and_one_level_sits_above_pr
     assert seen_swing, "control: no swing-high resistance level ever reached the chart"
 
 
-def test_the_prior_day_pair_is_deliberate_omitted_or_drawn_from_the_bar_before():
-    drawn_from_forming = 0
+def test_the_prior_day_pair_is_the_last_bar_after_the_close_or_the_bar_before_while_forming():
+    # CHANGED 2026-10-18 (drawn-vs-team study, config C2): round 3 made the after-close prior-day
+    # pair an explicit OMISSION (`omitted`, reason 'prior_day_is_last_bar'). The team's held-out
+    # drawings showed that pair is what they draw (~2x a shifted control), so C2 replaced the
+    # omission with a restore: after the close the prior day is the last bar itself; while the last
+    # bar forms it is still the bar before. Nothing is omitted either way.
+    drawn_from_done = drawn_from_forming = 0
     for seed in range(1, 41):
         bars = _synthetic(seed)
         done = auto_draw.drawn_set(bars)
-        assert not any(h["source"].startswith("prior_day") for h in done["horizontals"])
-        assert done["omitted"] == [
-            {"source": "prior_day_high", "reason": auto_draw.PRIOR_DAY_IS_LAST_BAR},
-            {"source": "prior_day_low", "reason": auto_draw.PRIOR_DAY_IS_LAST_BAR}]
+        assert done["omitted"] == [] and done["last_bar_forming"] is False
+        last = bars[-1]
+        for h in done["horizontals"]:
+            if h["source"] == "prior_day_high":
+                assert h["price"] == round(last[2], 4) and h["t_from"] == last[0] and h["label"] == "PDH"
+            if h["source"] == "prior_day_low":
+                assert h["price"] == round(last[3], 4) and h["t_from"] == last[0] and h["label"] == "PDL"
+        drawn_from_done += any(h["source"].startswith("prior_day") for h in done["horizontals"])
         live = auto_draw.drawn_set(bars, last_bar_forming=True)
         assert live["omitted"] == [] and live["last_bar_forming"] is True
         prev = bars[-2]
@@ -217,6 +226,7 @@ def test_the_prior_day_pair_is_deliberate_omitted_or_drawn_from_the_bar_before()
                 assert h["price"] == round(prev[3], 4) and h["t_from"] == prev[0]
         drawn_from_forming += any(h["source"].startswith("prior_day") for h in live["horizontals"])
     assert drawn_from_forming, "control: a forming last bar never let the prior day onto the chart"
+    assert drawn_from_done, "control: a complete last bar never let the prior day onto the chart"
 
 
 def _et(y, mo, d, h, mi):
