@@ -1,0 +1,66 @@
+=== b1 BEFORE @ 2026-10-17T22:59:44 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T22:59:44
+    background: LIGHT — cpu 6%; heavy: discord.exe x1 1.1GB
+  availMB=15874 cpu_samples=8.5,9.6,6.2 cpu_mean=8.1
+  run b1 harness exit=0
+=== b1 AFTER @ 2026-10-17T23:01:26 ===
+  load: BUSY — 1 marked process(es) (gate 0, vitest 0, pytest 1); largest pid 26128 python.exe C:\Python314\python.exe -m pytest tests/test_alert_durability_legacy.py tests/test_alerts_
+  availMB=15489 cpu_samples=14.2,15,14.1 cpu_mean=14.4
+=== p1 BEFORE @ 2026-10-17T23:02:04 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:02:04
+    background: LIGHT — cpu 12%; heavy: discord.exe x1 1.1GB
+  availMB=15550 cpu_samples=5,3.8,6.2 cpu_mean=5
+  run p1 harness exit=0
+=== p1 AFTER @ 2026-10-17T23:03:39 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:03:39
+    background: LIGHT — cpu 3%; heavy: discord.exe x1 1.1GB
+  availMB=15856 cpu_samples=6.1,4.4,3.8 cpu_mean=4.8
+=== b2 BEFORE @ 2026-10-17T23:03:48 ===
+  load: BUSY — 2 marked process(es) (gate 0, vitest 0, pytest 2); largest pid 21664 python.exe python -X pycache_prefix=C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/61625
+  availMB=15877 cpu_samples=7.2,6.9,7.8 cpu_mean=7.3
+  run b2 harness exit=0
+=== b2 AFTER @ 2026-10-17T23:05:31 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:05:31
+    background: LIGHT — cpu 14%; heavy: discord.exe x1 1.1GB
+  availMB=16117 cpu_samples=5.2,3.8,7.5 cpu_mean=5.5
+=== b3 BEFORE @ 2026-10-17T23:05:40 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:05:40
+    background: LIGHT — cpu 8%; heavy: discord.exe x1 1.1GB
+  availMB=16109 cpu_samples=4.1,3.4,7.2 cpu_mean=4.9
+  run b3 harness exit=0
+=== b3 AFTER @ 2026-10-17T23:07:22 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:07:22
+    background: LIGHT — cpu 0%; heavy: discord.exe x1 1.1GB
+  availMB=15565 cpu_samples=13.1,8.8,7.4 cpu_mean=9.8
+=== abA1 BEFORE @ 2026-10-17T23:08:25 ===
+  load: BUSY — 1 marked process(es) (gate 0, vitest 0, pytest 1); largest pid 60172 python.exe C:\Python314\python.exe -m pytest tests/test_notebook_rollback_never_revert.py tests/test_
+  availMB=15709 cpu_samples=11,10.4,11.5 cpu_mean=11
+  run abA1 harness exit=0
+=== abA1 AFTER @ 2026-10-17T23:10:05 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:10:05
+    background: LIGHT — cpu 3%; heavy: discord.exe x1 1.1GB, claude.exe x1 1.0GB
+  availMB=15726 cpu_samples=5.8,5.3,6.5 cpu_mean=5.9
+=== abB1 BEFORE @ 2026-10-17T23:10:14 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:10:14
+    background: LIGHT — cpu 2%; heavy: discord.exe x1 1.1GB
+  availMB=15734 cpu_samples=5.8,4,5.2 cpu_mean=5
+  run abB1 harness exit=0
+=== abB1 AFTER @ 2026-10-17T23:11:55 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:11:55
+    background: LIGHT — cpu 17%; heavy: discord.exe x1 1.1GB
+  availMB=15739 cpu_samples=5.7,4.6,5 cpu_mean=5.1
+=== abA2 BEFORE @ 2026-10-17T23:12:04 ===
+  load: BUSY — 1 marked process(es) (gate 0, vitest 0, pytest 1); largest pid 41688 python.exe C:\Python314\python.exe -m pytest tests/test_cup_r8.py -q -p no:cacheprovider
+  availMB=15803 cpu_samples=5.5,6.3,10.8 cpu_mean=7.5
+  run abA2 harness exit=0
+=== abA2 AFTER @ 2026-10-17T23:13:44 ===
+  load: BUSY — 1 marked process(es) (gate 0, vitest 0, pytest 1); largest pid 21140 python.exe C:\Python314\python.exe -m pytest tests/test_auto_draw.py tests/test_auto_structures.py te
+  availMB=15799 cpu_samples=5.1,6.1,8.7 cpu_mean=6.6
+=== abB2 BEFORE @ 2026-10-17T23:13:53 ===
+  load: BUSY — 1 marked process(es) (gate 0, vitest 0, pytest 1); largest pid 21140 python.exe C:\Python314\python.exe -m pytest tests/test_auto_draw.py tests/test_auto_structures.py te
+  availMB=15670 cpu_samples=11.6,8.9,6.6 cpu_mean=9
+  run abB2 harness exit=0
+=== abB2 AFTER @ 2026-10-17T23:15:34 ===
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-17T23:15:34
+    background: LIGHT — cpu 9%; heavy: discord.exe x1 1.1GB, claude.exe x1 1.0GB
+  availMB=15684 cpu_samples=5.8,4.1,8.4 cpu_mean=6.1
