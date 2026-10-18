@@ -17,6 +17,7 @@ import useSWR, { mutate as globalMutate } from 'swr'
 import { GALLERY_KEY, getGalleryTemplate } from './templateGallery'
 import { STYLES_URL, previewJournalStyle } from './journalStyles'
 import { styleLibraryEnabled } from './styleLibraryFlag'
+import { NOTE_KIND_PROPERTY } from './noteKinds'
 
 export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
@@ -95,10 +96,19 @@ export function libraryListKey({ q = '', category = '', sort = 'newest', section
   return qs ? `${GALLERY_KEY}?${qs}` : GALLERY_KEY
 }
 
-/** One view of the library: `{templates, isAdmin, error, isLoading, refresh}`. */
+/** One view of the library: `{templates, isAdmin, exampleNotes, error, isLoading, refresh}`.
+ *  `exampleNotes` is the server's `capabilities.exampleNotes` (P3b, ruling P3b-R6): a missing key is false, so a
+ *  pod that predates P3b, or one with the switch off, offers no "Add an example note" door. */
 export function useLibraryList(filters, { enabled = true } = {}) {
   const { data, error, isLoading, mutate } = useSWR(enabled ? libraryListKey(filters) : null, fetcher, SWR_OPTS)
-  return { templates: data?.templates || [], isAdmin: Boolean(data?.viewer?.admin), error, isLoading, refresh: mutate }
+  return {
+    templates: data?.templates || [],
+    isAdmin: Boolean(data?.viewer?.admin),
+    exampleNotes: data?.capabilities?.exampleNotes === true,
+    error,
+    isLoading,
+    refresh: mutate,
+  }
 }
 
 /** What the authors this member follows have listed (the Following view). */
@@ -178,6 +188,79 @@ export async function applyStyleUpdate(styleId, { takeOutline = false, baseUpdat
   })
   await refreshLibrary()
   return style
+}
+
+// ── P3b: example notes (an author's note shown as an example of one of their shared styles) ──
+//
+// ⛔ ONE FACT IN TWO FILES with api/services/journal_two/template_gallery.py (EXAMPLE_MAX_IMAGES,
+// EXAMPLE_IMAGE_EXTENSIONS and the three image sentences): ExamplePreviewSheet.test.jsx READS that file and holds
+// these equal. The server is the enforcer (it refuses at publish); the sheet only says the limits before Submit
+// and refuses to switch on a 7th image (ruling P3b-T4-R2).
+export const EXAMPLE_MAX_IMAGES = 6
+export const EXAMPLE_IMAGE_EXTENSIONS = Object.freeze(['.png', '.jpg', '.jpeg', '.webp'])
+export const EXAMPLE_IMAGE_COUNT_SENTENCE = 'An example can show up to 6 images.'
+export const EXAMPLE_IMAGE_TYPE_SENTENCE = 'Only PNG, JPEG or WebP images can be shared.'
+export const EXAMPLE_IMAGE_SIZE_SENTENCE = 'An image in an example can be at most 2 MB.'
+
+/** A style item of the member's own the server would link an example to: pending or approved, not hidden (the
+ *  server re-checks it, under its write lock, at publish). */
+export const isLinkableStyleItem = (item) => Boolean(item) && item.itemType === 'style' && !item.hidden
+  && (item.status === 'approved' || item.status === 'pending')
+
+/** The member's own library item for one of their styles (Your submissions' rows carry `sourceStyleId`). */
+export const linkedStyleItem = (templates, styleId) => (styleId && Array.isArray(templates)
+  ? templates.find((t) => isLinkableStyleItem(t) && t.sourceStyleId === styleId) || null
+  : null)
+
+/** The kind of note a style item is for: its listed payload's `kindId` (the kind the server checks a note against
+ *  at publish), or null when it names none. */
+export async function getStyleItemKind(styleItemId) {
+  const template = await getGalleryTemplate(styleItemId)
+  const kind = template?.payload?.kindId
+  return typeof kind === 'string' && kind ? kind : null
+}
+
+/** The notes list call (GET /api/j2/notes, `notes._row_to_note_summary` rows) for the member's notes of one kind,
+ *  newest first: the server filters by the `builtin:note_kind` property. Null (nothing asked) without a kind. */
+export function exampleCandidatesKey(kindId) {
+  if (!kindId) return null
+  const params = new URLSearchParams()
+  params.set('sort', 'created')
+  params.set('limit', '200')
+  params.set('propertyFilter', JSON.stringify([{ propertyId: NOTE_KIND_PROPERTY, op: 'eq', value: kindId }]))
+  return `/api/j2/notes?${params.toString()}`
+}
+
+/** The member's live notes of `kindId`, newest first: `{notes, error, isLoading}`. The kind is checked here too
+ *  (the list is filtered, never trusted to be): a note of any other kind, or a trashed or archived one, is never
+ *  offered. ⚠️ A sample-notebook note cannot be told apart from a list row; the server answers its 404 (P3b-R11)
+ *  and the preview says so. */
+export function useExampleCandidates(kindId) {
+  const { data, error, isLoading } = useSWR(exampleCandidatesKey(kindId), fetcher, SWR_OPTS)
+  const notes = (Array.isArray(data?.notes) ? data.notes : []).filter((n) => n && n.id && !n.deletedAt && !n.archivedAt
+    && n.propertiesJson?.[NOTE_KIND_PROPERTY] === kindId)
+  return { notes, error, isLoading }
+}
+
+/** Exactly what other members would see of one of the member's notes, written nowhere:
+ *  `{bodyJson, changes: [{kind, before, after, path}], counts, images: [{src, name, ocr, warnings}], title}`.
+ *  ⛔ `before` is the author's own text: it is shown in the author's preview and nowhere else. */
+export async function previewExample({ noteId, imagesOn = [] }) {
+  return call(`${GALLERY_KEY}/examples/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ noteId, imagesOn }),
+  })
+}
+
+/** Submit the note for review as an example of the style: `{template}`. ⛔ The body is exactly these four keys:
+ *  the SERVER reads and reduces the note itself, so no body of the note ever leaves this file. */
+export async function publishExample({ noteId, styleItemId, imagesOn = [], title }) {
+  const out = await call(`${GALLERY_KEY}/examples`, {
+    method: 'POST',
+    body: JSON.stringify({ noteId, styleItemId, imagesOn, title }),
+  })
+  await refreshLibrary()
+  return out
 }
 
 /** A listed style composed with the member's OWN data, written nowhere: the journal styles preview door

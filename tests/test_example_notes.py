@@ -490,9 +490,13 @@ def test_an_example_is_never_listed_on_its_own(api, conn, ex_on, ocr):
     gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
     gallery.admin_act("admin", item["id"], "feature", conn=conn)
     assert _row(conn, item["id"])["status"] == "approved"
-    for section in ("all", "picks", "mine"):
+    for section in ("all", "picks"):
         ids = {t["id"] for t in gallery.list_gallery("author", section=section, conn=conn)}
         assert item["id"] not in ids, section
+    # ruling P3b-R12: the author's OWN Your submissions lists it (status and any reviewer note), nobody else's does
+    mine = {t["id"]: t for t in gallery.list_gallery("author", section="mine", conn=conn)}
+    assert (mine[item["id"]]["itemType"], mine[item["id"]]["status"]) == ("example_note", "approved")
+    assert item["id"] not in {t["id"] for t in gallery.list_gallery("viewer", section="mine", conn=conn)}
     assert sid in {t["id"] for t in gallery.list_gallery("author", conn=conn)}          # control: the style is listed
     with pytest.raises(gallery.GalleryError):
         gallery.list_gallery("author", item_type="example_note", conn=conn)
@@ -505,6 +509,23 @@ def test_an_example_is_never_listed_on_its_own(api, conn, ex_on, ocr):
 
 
 # ── 8. the rate limit ───────────────────────────────────────────────────────────────────────
+
+def test_an_authors_examples_leave_your_submissions_while_the_switch_is_off(api, conn, ex_on, ocr, monkeypatch):
+    """P3b-R12's other half: with the example switch off, an example reads as absent in the author's own list
+    too (the rows stay stored), and a rejected one keeps its reviewer's note while it is listed."""
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn)
+    item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).json()["template"]
+    gallery.admin_act("admin", item["id"], "reject", note="Shows an account number.",
+                      reviewed_updated_at=item["updatedAt"], conn=conn)
+    row = {t["id"]: t for t in gallery.list_gallery("author", section="mine", conn=conn)}[item["id"]]
+    assert (row["status"], row["reviewNote"]) == ("rejected", "Shows an account number.")
+    monkeypatch.setenv(gallery.EXAMPLE_FLAG, "0")
+    ids = {t["id"] for t in gallery.list_gallery("author", section="mine", conn=conn)}
+    assert item["id"] not in ids
+    assert sid in ids                                                                   # control: the style stays
+    assert _row(conn, item["id"]) is not None                                           # stored, never deleted
+
 
 def test_the_eleventh_publish_in_an_hour_is_429_with_the_shared_sentence(api, conn, ex_on, ocr, monkeypatch):
     from api.routers import notebook_template_gallery as router_mod

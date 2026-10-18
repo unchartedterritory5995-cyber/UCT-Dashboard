@@ -25,20 +25,22 @@
 // ⛔ StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk (TemplatePicker.jsx,
 // and since Task 10 styles/LibraryDoor.jsx, which opens it at Styles with its own `backLabel`), so none of the
 // library is in the Notebook's first open (R-P3-5). styleLibrary.js is also read by the lazy Styles manager.
-import { useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
   copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate, reviewGalleryTemplate,
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
-  LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
+  EXAMPLE_NOTE_TYPE, LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, previewLibraryStyle,
+  tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
 import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
 import AuthorView from './AuthorView'
+import lazyChunk from '../../lib/lazyChunk'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
@@ -180,8 +182,18 @@ function statusText(item) {
   return STATUS_LABELS[item.status] || item.status
 }
 
+// P3b: with the library on, the list is read through the library's hook (the same key), which also reads the server's
+// `capabilities.exampleNotes`: an approved or pending style of the author's carries "Add an example note" (ruling
+// P3b-R7), and the author's example notes are rows here too, with their status and any reviewer note (P3b-R12).
+// The latched switch picks the hook once for the life of the tab, as TemplateGallery's own list does.
+const EXAMPLE_ROW_NOTE = 'Example note'
+// Loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
+const AddExampleNoteDoor = lazyChunk(() => import('./styles/AddExampleNoteDoor'))
+
 function MySubmissions({ onMessage }) {
-  const { templates, error, isLoading, refresh } = useTemplateGallery({ section: 'mine' })
+  const uid = useId()
+  const useMine = styleLibraryEnabled() ? useLibraryList : useTemplateGallery
+  const { templates, error, isLoading, refresh, exampleNotes = false } = useMine({ section: 'mine' })
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
   // FIN-A11Y (review R4, M-4): Unpublish swaps itself for a confirm row and "Keep it" swaps
@@ -228,10 +240,11 @@ function MySubmissions({ onMessage }) {
       {templates.map((item) => (
         <li key={item.id} className={styles.card} data-gallery-mine={item.status} data-gallery-row={item.id}>
           <div className={styles.cardHead}>
-            <h4 className={styles.cardTitle}>{item.title}</h4>
+            <h4 className={styles.cardTitle} id={`${uid}-${item.id}`}>{item.title}</h4>
             <span className={`${styles.status} ${styles[`status_${item.hidden ? 'hidden' : item.status}`] || ''}`}>
               {statusText(item)}
             </span>
+            {item.itemType === EXAMPLE_NOTE_TYPE && <span className={styles.meta}>{EXAMPLE_ROW_NOTE}</span>}
           </div>
           {/* R-P3-3's client half (final review I-1). An APPROVED row carries a note only after a declined
               update (approve and a new share both clear it), so the author reads why; a held update is said too. */}
@@ -255,6 +268,14 @@ function MySubmissions({ onMessage }) {
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => askUnpublish(item)}
                 aria-label={`Unpublish ${item.title}`} data-gallery-focus="open">Unpublish</button>
+              {exampleNotes && isLinkableStyleItem(item) && (
+                <span data-example-door="">
+                  <Suspense fallback={null}>
+                    <AddExampleNoteDoor styleItemId={item.id} describedBy={`${uid}-${item.id}`}
+                      onSent={(text) => { onMessage({ tone: 'ok', text }); refresh() }} />
+                  </Suspense>
+                </span>
+              )}
             </div>
           )}
         </li>

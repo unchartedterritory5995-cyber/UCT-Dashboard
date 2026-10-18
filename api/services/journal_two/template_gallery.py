@@ -636,7 +636,8 @@ def _check_select_shapes() -> None:
 _check_select_shapes()
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
 #: R-P3b-2: an example note belongs to a style and is never a list row of its own. Every list read (the gallery's
-#: three sections, an author's page and its count, the feed) carries this.
+#: `all` and `picks` sections, an author's page and its count, the feed) carries this; the author's own `mine`
+#: carries it only while the example switch is off (ruling P3b-R12).
 _NEVER_LISTED = f"g.item_type != '{EXAMPLE_ITEM}'"
 
 
@@ -679,7 +680,11 @@ def list_gallery(
     query = q.strip()[:MAX_QUERY_CHARS] if isinstance(q, str) else ""
     where: list[str] = []
     args: list[Any] = []
-    where.append(_NEVER_LISTED)
+    # Ruling P3b-R12: an author's OWN Your submissions lists their example notes too, with the status and any
+    # reviewer's note, while the switch is on (R-P3b-2's "never listed on its own" governs the library, where
+    # other members browse). With the switch off an example reads as absent everywhere, here included.
+    if section != "mine" or not example_enabled():
+        where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
         args.append(viewer_id)

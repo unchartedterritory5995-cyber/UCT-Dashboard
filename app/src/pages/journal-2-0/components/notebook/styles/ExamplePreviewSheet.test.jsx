@@ -1,0 +1,312 @@
+// P3b Task 5 — the exact-public preview of an example note, with the per-image opt-in, through the REAL client
+// (lib/styleLibrary.js) with only the network faked.
+// ⛔ Feedback is asserted by RENDERED TEXT, never by a state transition.
+//
+// CONTRACT: the preview, the publish and its 400 are the server's recorded answers (`__fixtures__/contract`,
+// written by tools/notebook_contract_fixtures.py and held current by tests/test_notebook_contract_fixtures.py).
+// A variation (an image that is still being read, an image with OCR warnings, seven images) is a spread +
+// override of the recorded preview, never a retyped shape.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react'
+import { SWRConfig } from 'swr'
+import { contract, contractBody } from '../../../__fixtures__/contract'
+import {
+  EXAMPLE_IMAGE_COUNT_SENTENCE, EXAMPLE_IMAGE_EXTENSIONS, EXAMPLE_IMAGE_SIZE_SENTENCE, EXAMPLE_IMAGE_TYPE_SENTENCE,
+  EXAMPLE_MAX_IMAGES,
+} from '../../../lib/styleLibrary'
+import ExamplePreviewSheet, {
+  CHANGE_KINDS, CONFIRM_SENTENCE, EXAMPLE_SENT_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE, SHARE_IMAGE_LABEL,
+  countsSentence,
+} from './ExamplePreviewSheet'
+
+// ── the server's answers ──
+const PREVIEW = contractBody('template-gallery.examples.preview')
+const PUBLISHED = contractBody('template-gallery.examples.publish')
+const OTHER_KIND = contract('template-gallery.examples.publish.other-kind')
+const IMAGE = PREVIEW.images[0]
+const NOTE = { id: contract('template-gallery.examples.preview')._contract.requestBody.noteId, title: PREVIEW.title }
+const STYLE_ITEM_ID = contract('template-gallery.examples.publish')._contract.requestBody.styleItemId
+// The preview while every image is off: the recorded one, without the image the recording had switched on.
+const withoutImages = (p) => ({ ...p, bodyJson: { ...p.bodyJson, content: p.bodyJson.content.filter((n) => n.type !== 'image') } })
+const readRepo = (rel) => readFileSync(resolve(process.cwd(), '..', rel), 'utf8')
+
+let calls
+let previewAnswer
+let publishAnswer
+function installFetch() {
+  calls = []
+  globalThis.fetch = vi.fn(async (input, init = {}) => {
+    const method = (init.method || 'GET').toUpperCase()
+    const url = typeof input === 'string' ? input : input.url
+    const path = url.split('?')[0]
+    const body = init.body ? JSON.parse(init.body) : undefined
+    calls.push({ method, path, body })
+    let out = [404, { detail: 'Not found' }]
+    if (method === 'POST' && path === '/api/j2/template-gallery/examples/preview') {
+      out = typeof previewAnswer === 'function' ? previewAnswer(body) : previewAnswer
+    } else if (method === 'POST' && path === '/api/j2/template-gallery/examples') {
+      out = publishAnswer
+    } else if (method === 'GET' && path.startsWith('/api/j2/template-gallery')) {
+      out = contractBody('template-gallery.list')
+    }
+    const [status, payload] = Array.isArray(out) && typeof out[0] === 'number' ? out : [200, out]
+    return { ok: status >= 200 && status < 300, status, json: async () => payload }
+  })
+}
+const posted = (path) => calls.filter((c) => c.method === 'POST' && c.path === path)
+const PREVIEW_PATH = '/api/j2/template-gallery/examples/preview'
+const PUBLISH_PATH = '/api/j2/template-gallery/examples'
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn()
+  // Like the server: a switched-on image is in the body, a switched-off one is not.
+  previewAnswer = (body) => ((body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW))
+  publishAnswer = PUBLISHED
+  installFetch()
+})
+afterEach(() => { vi.restoreAllMocks() })
+
+const tree = (node) => (
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>{node}</SWRConfig>
+)
+const open = (props = {}) => {
+  const onSent = vi.fn()
+  const onClose = vi.fn()
+  render(tree(<ExamplePreviewSheet note={NOTE} styleItemId={STYLE_ITEM_ID} onSent={onSent} onClose={onClose} {...props} />))
+  return { onSent, onClose }
+}
+const sheet = () => screen.findByRole('dialog', { name: PREVIEW_TITLE })
+
+describe('the recorded answers hold what these rails read (non-vacuity)', () => {
+  it('the preview carries changes, counts and one image; publish carries a template; the 400 a sentence', () => {
+    expect(PREVIEW.changes.length).toBeGreaterThan(0)
+    expect(Object.keys(PREVIEW.counts).length).toBeGreaterThan(0)
+    expect(PREVIEW.images).toHaveLength(1)
+    expect(PREVIEW.bodyJson.content.some((n) => n.type === 'image')).toBe(true)
+    expect(withoutImages(PREVIEW).bodyJson.content.some((n) => n.type === 'image')).toBe(false)
+    expect(PUBLISHED.template.itemType).toBe('example_note')
+    expect(OTHER_KIND._contract.status).toBe(400)
+    expect(typeof OTHER_KIND.body.detail).toBe('string')
+  })
+})
+
+describe('one fact in two files: the client\'s copies of the server\'s lists', () => {
+  it('CHANGE_KINDS names every change kind, in the order of example_sanitize.KINDS', () => {
+    const src = readRepo('api/services/journal_two/example_sanitize.py')
+    const m = /^KINDS: tuple\[str, \.\.\.\] = \(([\s\S]*?)\)\n/m.exec(src)
+    expect(m).not.toBeNull()
+    const kinds = [...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1])
+    expect(kinds.length).toBeGreaterThan(5)
+    expect(Object.keys(CHANGE_KINDS)).toEqual(kinds)
+  })
+  it('the image limits and their sentences equal template_gallery.py\'s', () => {
+    const src = readRepo('api/services/journal_two/template_gallery.py')
+    expect(Number(/^EXAMPLE_MAX_IMAGES = (\d+)$/m.exec(src)?.[1])).toBe(EXAMPLE_MAX_IMAGES)
+    const exts = /^EXAMPLE_IMAGE_EXTENSIONS = \{(.*)\}$/m.exec(src)?.[1]
+    expect(exts).toBeTruthy()
+    expect([...exts.matchAll(/"(\.[a-z]+)": /g)].map((x) => x[1])).toEqual([...EXAMPLE_IMAGE_EXTENSIONS])
+    const sentence = (name) => new RegExp(`^${name} = "(.*)"$`, 'm').exec(src)?.[1]
+    expect(sentence('EXAMPLE_IMAGE_COUNT_SENTENCE')).toBe(EXAMPLE_IMAGE_COUNT_SENTENCE)
+    expect(sentence('EXAMPLE_IMAGE_TYPE_SENTENCE')).toBe(EXAMPLE_IMAGE_TYPE_SENTENCE)
+    expect(sentence('EXAMPLE_IMAGE_SIZE_SENTENCE')).toBe(EXAMPLE_IMAGE_SIZE_SENTENCE)
+  })
+})
+
+describe('the counts sentence', () => {
+  it('says the brief\'s own example word for word', () => {
+    expect(countsSentence({ money: 3, broker: 1, block_reset: 2 }))
+      .toBe('3 amounts, 1 broker name and 2 blocks were replaced. Here is exactly what other members will see.')
+  })
+  it('one replacement is "was", what was dropped is "left out", and nothing at all says so', () => {
+    expect(countsSentence({ money: 1 })).toBe('1 amount was replaced. Here is exactly what other members will see.')
+    expect(countsSentence({ money: 2, image_off: 1, dropped: 2 }))
+      .toBe('2 amounts were replaced, and 1 image and 2 items were left out. Here is exactly what other members will see.')
+    expect(countsSentence({})).toBe('Nothing was replaced. Here is exactly what other members will see.')
+  })
+})
+
+describe('the preview sheet', () => {
+  it('3. shows the counts sentence and every replaced span, in place, with its kind as its description', async () => {
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByText(countsSentence(PREVIEW.counts))).toBeInTheDocument()
+    // the first request is the note alone, every image off
+    expect(posted(PREVIEW_PATH)[0].body).toEqual({ noteId: NOTE.id, imagesOn: [] })
+    const spans = await waitFor(() => {
+      const found = dialog.querySelectorAll('[data-replaced]')
+      expect(found.length).toBe(PREVIEW.changes.length)
+      return [...found]
+    })
+    expect(spans.map((s) => s.getAttribute('data-replaced'))).toEqual(PREVIEW.changes.map((c) => c.kind))
+    spans.forEach((s, i) => {
+      expect(s.textContent).toBe(PREVIEW.changes[i].after)
+      expect(s).toHaveAccessibleDescription(CHANGE_KINDS[PREVIEW.changes[i].kind][2])
+    })
+    // the replaced text is the reduced body's own: the paragraph still reads whole, word for word
+    const text = PREVIEW.bodyJson.content[0].content[0].text
+    expect(within(dialog).getByText((_, el) => el?.tagName === 'P' && el.textContent === text)).toBeInTheDocument()
+    // ⛔ the author's own words (`before`) are never on screen
+    for (const c of PREVIEW.changes) expect(dialog.textContent).not.toContain(c.before)
+  })
+
+  it('4. every image switch starts off, and the author sees their own image and its OCR line', async () => {
+    open()
+    const dialog = await sheet()
+    const switches = await within(dialog).findAllByRole('switch', { name: SHARE_IMAGE_LABEL })
+    expect(switches).toHaveLength(PREVIEW.images.length)
+    for (const s of switches) expect(s).toHaveAttribute('aria-checked', 'false')
+    const thumb = within(dialog).getByRole('img', { name: `Your image ${IMAGE.name}` })
+    expect(thumb).toHaveAttribute('src', IMAGE.src)
+    expect(within(dialog).getByText(OCR_UNREAD_SENTENCE)).toBeInTheDocument()
+    expect(dialog.querySelector('[data-template-preview-body] img')).toBeNull()      // off: not in the body
+  })
+
+  it('test_unread_image_needs_the_second_confirm: a processing image asks again, and Cancel leaves it off', async () => {
+    previewAnswer = (body) => {
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      return { ...p, images: p.images.map((i) => ({ ...i, ocr: 'processing' })) }
+    }
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByText(OCR_UNREAD_SENTENCE)).toBeInTheDocument()
+    expect(OCR_UNREAD_SENTENCE).toBe("We couldn't read this image yet. Check it yourself before switching it on.")
+    const sw = within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })
+    fireEvent.click(sw)
+    const ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
+    expect(within(ask).getByText(CONFIRM_SENTENCE)).toBeInTheDocument()
+    expect(CONFIRM_SENTENCE).toBe('This image may show an account detail. Share it anyway?')
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(within(dialog).queryByRole('group', { name: CONFIRM_SENTENCE })).toBeNull()
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    expect(posted(PREVIEW_PATH)).toHaveLength(1)                                     // nothing was re-run
+  })
+
+  it('an image with OCR warnings names what it may show, asks again, and "Share it" re-runs the preview with it in place', async () => {
+    previewAnswer = (body) => {
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      return { ...p, images: p.images.map((i) => ({ ...i, ocr: 'ready', warnings: [{ kind: 'money', match: '$1,240' }] })) }
+    }
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByText(/It may show an account detail: \$1,240\./)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL }))
+    const ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
+    fireEvent.click(within(ask).getByRole('button', { name: 'Share it' }))
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2))
+    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, imagesOn: [IMAGE.src] })
+    await waitFor(() => expect(dialog.querySelector('[data-template-preview-body] img')).not.toBeNull())
+    expect(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('an image read with nothing to warn about switches on with no second question', async () => {
+    previewAnswer = (body) => {
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      return { ...p, images: p.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+    }
+    open()
+    const dialog = await sheet()
+    fireEvent.click(await within(dialog).findByRole('switch', { name: SHARE_IMAGE_LABEL }))
+    expect(within(dialog).queryByRole('group', { name: CONFIRM_SENTENCE })).toBeNull()
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2))
+    expect(posted(PREVIEW_PATH)[1].body.imagesOn).toEqual([IMAGE.src])
+  })
+
+  it('says the server\'s image limits near the rows, and a 7th image cannot be switched on, with the reason', async () => {
+    const seven = Array.from({ length: EXAMPLE_MAX_IMAGES + 1 }, (_, i) => ({
+      ...IMAGE, ocr: 'no_text', warnings: [], name: `chart${i}.png`, src: IMAGE.src.replace('chart.png', `chart${i}.png`),
+    }))
+    previewAnswer = () => ({ ...withoutImages(PREVIEW), images: seven })
+    open()
+    const dialog = await sheet()
+    for (const s of [EXAMPLE_IMAGE_COUNT_SENTENCE, EXAMPLE_IMAGE_TYPE_SENTENCE, EXAMPLE_IMAGE_SIZE_SENTENCE]) {
+      expect(await within(dialog).findByText(s, { selector: '[data-example-limits] *' })).toBeInTheDocument()
+    }
+    const switches = within(dialog).getAllByRole('switch', { name: SHARE_IMAGE_LABEL })
+    expect(switches).toHaveLength(7)
+    for (let i = 0; i < EXAMPLE_MAX_IMAGES; i += 1) {
+      fireEvent.click(switches[i])
+      await waitFor(() => expect(switches[i]).toHaveAttribute('aria-checked', 'true'))
+    }
+    expect(switches[6]).toBeDisabled()
+    expect(switches[6]).toHaveAccessibleDescription(expect.stringContaining(EXAMPLE_IMAGE_COUNT_SENTENCE))
+    fireEvent.click(switches[0])                                                     // one off: the 7th is free again
+    await waitFor(() => expect(switches[6]).not.toBeDisabled())
+  })
+
+  it('an image that is not PNG, JPEG or WebP cannot be switched on, and says why', async () => {
+    previewAnswer = () => ({ ...withoutImages(PREVIEW), images: [{ ...IMAGE, name: 'loop.gif', src: IMAGE.src.replace('chart.png', 'loop.gif') }] })
+    open()
+    const dialog = await sheet()
+    const sw = await within(dialog).findByRole('switch', { name: SHARE_IMAGE_LABEL })
+    expect(sw).toBeDisabled()
+    expect(sw).toHaveAccessibleDescription(expect.stringContaining(EXAMPLE_IMAGE_TYPE_SENTENCE))
+  })
+
+  it('6. Submit posts exactly {noteId, styleItemId, imagesOn, title} and never a body, then says it was sent', async () => {
+    const { onSent } = open()
+    const dialog = await sheet()
+    const title = await within(dialog).findByLabelText('Title in the library')
+    await waitFor(() => expect(title).toHaveValue(PREVIEW.title))                    // prefilled with the note title
+    fireEvent.change(title, { target: { value: 'My Monday plan' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit for review' }))
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    const sent = posted(PUBLISH_PATH)[0].body
+    expect(sent).toEqual({ noteId: NOTE.id, styleItemId: STYLE_ITEM_ID, imagesOn: [], title: 'My Monday plan' })
+    expect(Object.keys(sent).sort()).toEqual(['imagesOn', 'noteId', 'styleItemId', 'title'])
+    // ⛔ never a body: no request of this sheet carries the note's text or a document
+    for (const c of calls) {
+      expect(JSON.stringify(c.body || {})).not.toMatch(/bodyJson|"type":"doc"/)
+    }
+    await waitFor(() => expect(onSent).toHaveBeenCalledWith(EXAMPLE_SENT_SENTENCE))
+    expect(EXAMPLE_SENT_SENTENCE).toBe('Sent for review. It will show on your style once approved.')
+  })
+
+  it('7. a failed submit keeps the sheet open with the server\'s sentence', async () => {
+    publishAnswer = [OTHER_KIND._contract.status, OTHER_KIND.body]
+    const { onSent, onClose } = open()
+    const dialog = await sheet()
+    await waitFor(() => expect(within(dialog).getByLabelText('Title in the library')).toHaveValue(PREVIEW.title))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit for review' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(OTHER_KIND.body.detail)
+    expect(screen.getByRole('dialog', { name: PREVIEW_TITLE })).toBeInTheDocument()
+    expect(onSent).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('a preview the server will not make (404) says so and offers no Submit', async () => {
+    previewAnswer = [404, { detail: 'Not found' }]
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("This note can't be an example. Pick another note.")
+    expect(within(dialog).getByRole('button', { name: 'Submit for review' })).toBeDisabled()
+  })
+
+  it('8. every control has an accessible name', async () => {
+    open()
+    const dialog = await sheet()
+    await within(dialog).findAllByRole('switch')
+    const controls = [
+      ...within(dialog).getAllByRole('button'),
+      ...within(dialog).getAllByRole('switch'),
+      ...within(dialog).getAllByRole('textbox'),
+    ]
+    expect(controls.length).toBeGreaterThan(3)
+    for (const c of controls) expect(c).toHaveAccessibleName()
+  })
+
+  it('8. every control class reaches var(--tap-min) at the touch tier (<= 1024px)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/journal-2-0/components/notebook/styles/ExampleNote.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const touch = /@media \(max-width: 1024px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] || ''
+    expect(touch).not.toBe('')
+    const pinned = new Set()
+    for (const [, sel, body] of touch.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/min-height:\s*var\(--tap-min\)/.test(body)) continue
+      for (const part of sel.split(',')) pinned.add(part.trim().match(/\.[A-Za-z][\w-]*(?![\s\S]*\.)/)?.[0])
+    }
+    for (const cls of ['.btn', '.switch', '.noteRow', '.search', '.titleInput']) expect(pinned).toContain(cls)
+  })
+})

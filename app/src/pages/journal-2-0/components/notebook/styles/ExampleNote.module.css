@@ -1,0 +1,64 @@
+/* P3b Task 5: the "Add an example note" door, its note picker and the preview sheet. Breakpoints: only 640 and
+   1024. Every control reaches var(--tap-min) at <=1024 (styles/tapFloor.test.js: declared at the touch tier,
+   which covers the phone too). Tokens only from tokens.css. */
+.door { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.status { margin: 0; font-size: 13px; color: var(--success-ink); }
+.status:empty { display: none; }
+
+.btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.primary { border-color: var(--accent); color: var(--text-bright); }
+
+.hint { margin: 0; font-size: 12px; color: var(--text-muted); }
+.error { margin: 0; color: var(--danger-ink); font-size: 13px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; color: var(--text-muted); }
+
+/* the picker */
+.picker { display: flex; flex-direction: column; gap: 10px; }
+.search, .titleInput { font: inherit; font-size: 13.5px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--field-edge); background: var(--bg-surface); color: var(--text); max-width: 100%; }
+.noteList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.noteRow { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); cursor: pointer; }
+.noteRow:hover, .noteRow:focus-visible { border-color: var(--accent); }
+.noteTitle { font-weight: 600; color: var(--text-bright); overflow-wrap: anywhere; }
+.noteDate { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+/* the preview sheet */
+.sheet { display: flex; flex-direction: column; gap: 12px; }
+.summary { margin: 0; font-size: 13.5px; color: var(--text); }
+.bodyFrame { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--bg-surface); }
+.body { min-width: 0; }
+/* a replaced span: what members will read, marked in place (its kind is its accessible description) */
+.replaced { text-decoration-line: underline; text-decoration-style: dotted; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.images { display: flex; flex-direction: column; gap: 8px; }
+.subhead { margin: 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.limits { display: flex; flex-direction: column; gap: 2px; }
+.imageList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.imageRow { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); }
+.thumb { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elevated); }
+.imageText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.imageName { font-size: 13px; color: var(--text-bright); overflow-wrap: anywhere; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); cursor: pointer; }
+.switch:disabled { opacity: 0.45; cursor: default; }
+.track { position: relative; width: 30px; height: 16px; border-radius: 999px; border: 1px solid var(--field-edge); background: var(--bg-surface); flex: none; }
+.knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); transition: left 0.15s; }
+.switch[aria-checked='true'] .track { border-color: var(--accent); }
+.switch[aria-checked='true'] .knob { left: 16px; background: var(--accent); }
+.confirm { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-accent); background: var(--bg-elevated); }
+.ask { margin: 0; font-size: 13px; color: var(--text); }
+.footer { display: flex; flex-direction: column; gap: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .knob { transition: none; }
+}
+@media (max-width: 1024px) {
+  .btn, .switch, .noteRow, .search, .titleInput { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .imageRow { grid-template-columns: 56px 1fr; }
+  .thumb { width: 56px; height: 42px; }
+  .switch { grid-column: 1 / -1; justify-self: start; }
+  .actions { flex-direction: column-reverse; }
+}
