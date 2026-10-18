@@ -11,6 +11,9 @@ vi.mock('../../../../components/StockChart', () => {
   const note = () => { chart.renders += 1 }
   return { default: function StockChart(p) { note(); return <div data-testid="stockchart" data-sym={p.sym} /> } }
 })
+// The pane's chart is the /charts Chart widget (ScreenerChartWidget); it is stubbed at its
+// boundary and counts its renders the way the StockChart stub does (S5).
+vi.mock('../ScreenerChartWidget', () => ({ default: function ScreenerChartWidget(p) { chart.renders += 1; return <div data-testid="stockchart" data-sym={p.sym} /> } }))
 vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
 vi.mock('../../../../hooks/useRealtimePrices', async () => {
   const React = await import('react')

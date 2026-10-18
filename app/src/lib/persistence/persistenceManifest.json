@@ -534,6 +534,18 @@
       "files": []
     },
     {
+      "key": "screener_chart_widget",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Screener chart",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartWidget.jsx"
+      ]
+    },
+    {
       "key": "screener_column_presets",
       "store": "server-preference",
       "scope": "cross-device",
