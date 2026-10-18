@@ -22,6 +22,12 @@
  *
  * The confirm is MakeRuleButton's shape (label editable, the evidence line read-only, one confirm),
  * built here because MakeRuleButton takes no pre-filled label. MakeRuleButton is unchanged.
+ * Final fix M5: it is an inline form, so a NON-modal group (never role="dialog", the page stays
+ * usable, like the house's other inline popovers); Escape and Cancel close it and return focus to the
+ * "Add to my checklist" button that opened it.
+ * Final fix I3: the evidence line always prints BOTH counts, the best trades carrying the tag and the
+ * other trades carrying it (`othersTagged` of `restCount`); with too few other trades the server makes
+ * no comparison and the panel says so (TOO_FEW_REST_TEXT).
  *
  * ⛔ LAZY ONLY. InsightsHub mounts this through `lazyLeaf`, and only while `tier3Enabled()`, keyed by
  * the account so switching account starts a fresh panel. The switch lives in InsightsHub, once.
@@ -48,6 +54,8 @@ export const MARK_GONE_PREFIX = "Added the rule, but couldn't mark it for before
 export const PENDING_MARK_TEXT = "You added this rule, but it isn't marked for before entry yet."
 export const NONE_TEXT = 'No habit stands out on your best trades right now.'
 export const NO_REST_TEXT = 'Every closed trade you have is among your best, so there is nothing to compare them with yet.'
+/** Final fix I3: the server's `restSample` is too few (sample_size), so it made no comparison. */
+export const TOO_FEW_REST_TEXT = 'There are too few other trades to compare your best trades with yet.'
 export const NO_ACCOUNT_TEXT = 'Pick one account to add these to its pre-entry checklist.'
 export const LOAD_FAILED_TEXT = "Couldn't load suggestions right now."
 
@@ -60,8 +68,7 @@ const fetcher = (url) =>
     return r.json()
   })
 
-const pct = (v) => `${Math.round((Number(v) || 0) * 100)}%`
-const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const DAY =new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 const fmtDay = (day) => {
   const d = new Date(`${day}T00:00:00Z`)
   return Number.isNaN(d.getTime()) ? day : DAY.format(d)
@@ -69,10 +76,11 @@ const fmtDay = (day) => {
 const fmtR = (r) => `${r > 0 ? '+' : ''}${Number(r).toFixed(2)}R`
 const tradeHref = (id) => `/journal-2-0/trade/${encodeURIComponent(id)}`
 
-/** `On 9 of your 20 best trades (45%) · on 12% of the rest` */
-export function shareLine(suggestion, bestCount) {
+/** `On 9 of your 20 best trades · on 1 of 31 other trades`: BOTH counts, always (final fix I3). */
+export function shareLine(suggestion, bestCount, restCount) {
   const n = suggestion.evidence?.length || 0
-  return `On ${n} of your ${bestCount} best trades (${pct(suggestion.shareBest)}) · on ${pct(suggestion.shareOthers)} of the rest`
+  const k = suggestion.othersTagged ?? 0
+  return `On ${n} of your ${bestCount} best trades · on ${k} of ${restCount} other ${restCount === 1 ? 'trade' : 'trades'}`
 }
 
 export default function ChecklistFromWinners({ accountId }) {
@@ -83,6 +91,8 @@ export default function ChecklistFromWinners({ accountId }) {
   const { create, mutate: rereadRules } = useJournalRules(accountId || null)
   const baseId = useId()
   const inFlight = useRef(false)
+  // M5: the "Add to my checklist" button that opened the form, so closing it hands focus back.
+  const opener = useRef(null)
 
   const [openTag, setOpenTag] = useState(null)
   const [label, setLabel] = useState('')
@@ -94,10 +104,17 @@ export default function ChecklistFromWinners({ accountId }) {
 
   const markDone = useCallback((tag) => setDone((prev) => new Set(prev).add(`${scope}|${tag}`)), [scope])
 
-  const open = useCallback((s) => {
+  const open = useCallback((s, button) => {
+    opener.current = button || null
     setOpenTag(s.tag)
     setLabel(s.label)
     setNotice(null)
+  }, [])
+
+  /** M5: Cancel and Escape close the form without a write and put focus back on its opener. */
+  const close = useCallback(() => {
+    setOpenTag(null)
+    opener.current?.focus()
   }, [])
 
   /** The before-entry PUT, shared by accept, mark and Try again. Never a create. */
@@ -163,6 +180,7 @@ export default function ChecklistFromWinners({ accountId }) {
   }, [mark])
 
   const bestCount = data?.bestCount || 0
+  const restCount = data?.restCount || 0
   const listed = data?.suggestions || []
   const visible = listed.filter((s) => !done.has(`${scope}|${s.tag}`))
   const mine = pending.filter((p) => p.scope === scope)
@@ -175,6 +193,7 @@ export default function ChecklistFromWinners({ accountId }) {
   else if (data?.status === 'too_few') body = <p className={styles.empty}>{TOO_FEW_TEXT}</p>
   else if (visible.length === 0 && addedHere) body = null
   else if (data?.status === 'ok' && data.restCount === 0) body = <p className={styles.empty}>{NO_REST_TEXT}</p>
+  else if (data?.status === 'ok' && data.restSample === 'too_few') body = <p className={styles.empty}>{TOO_FEW_REST_TEXT}</p>
   else if (visible.length === 0) body = <p className={styles.empty}>{NONE_TEXT}</p>
   else {
     body = (
@@ -182,7 +201,7 @@ export default function ChecklistFromWinners({ accountId }) {
         {!accountId && <p className={styles.muted}>{NO_ACCOUNT_TEXT}</p>}
         <ul className={styles.list}>
           {visible.map((s) => {
-            const line = shareLine(s, bestCount)
+            const line = shareLine(s, bestCount, restCount)
             const isOpen = openTag === s.tag
             return (
               <li key={s.tag} className={styles.item}>
@@ -212,7 +231,7 @@ export default function ChecklistFromWinners({ accountId }) {
                   <button
                     type="button"
                     className={styles.add}
-                    onClick={() => (isOpen ? setOpenTag(null) : open(s))}
+                    onClick={(ev) => (isOpen ? setOpenTag(null) : open(s, ev.currentTarget))}
                     aria-expanded={isOpen}
                   >
                     <UIcon name="shield" size={13} />
@@ -220,7 +239,12 @@ export default function ChecklistFromWinners({ accountId }) {
                   </button>
                 )}
                 {isOpen && !s.pendingMark && (
-                  <div className={styles.pop} role="dialog" aria-label={`Add "${s.tag}" to your checklist`}>
+                  // M5: an inline form, so NON-modal (the page stays usable) and not role="dialog";
+                  // Escape closes it and focus goes back to "Add to my checklist".
+                  <div className={styles.pop} role="group" aria-label={`Add "${s.tag}" to your checklist`}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Escape') { ev.stopPropagation(); close() }
+                    }}>
                     <div className={styles.field}>
                       <label className={styles.fieldLabel} htmlFor={`${baseId}-rule`}>Your rule</label>
                       <input
@@ -235,7 +259,7 @@ export default function ChecklistFromWinners({ accountId }) {
                     </div>
                     <p className={styles.evidenceLine}>{line}</p>
                     <div className={styles.actions}>
-                      <button type="button" className={styles.cancel} onClick={() => setOpenTag(null)}>
+                      <button type="button" className={styles.cancel} onClick={close}>
                         Cancel
                       </button>
                       <button

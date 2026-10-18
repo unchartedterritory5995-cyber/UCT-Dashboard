@@ -230,8 +230,9 @@ def expected_suggestion() -> dict:
     rest = [t for t in rows if t not in best]
     k = sum("patient" in t["emotionTags"] for t in best)
     rk = sum("patient" in t["emotionTags"] for t in rest)
-    return {"share": f"On {k} of your {len(best)} best trades ({round(100 * k / len(best))}%) · "
-                     f"on {round(100 * rk / len(rest))}% of the rest", "evidence": k}
+    # Final fix I3: both counts, never a percent of "the rest" (ChecklistFromWinners.shareLine).
+    return {"share": f"On {k} of your {len(best)} best trades · "
+                     f"on {rk} of {len(rest)} other {'trade' if len(rest) == 1 else 'trades'}", "evidence": k}
 
 
 def expected_year() -> dict:
@@ -465,7 +466,8 @@ def walk_viewport(browser, base: str, vp: str) -> None:
         st.check("its evidence lists every best trade carrying the tag", links.count() == want["evidence"],
                  json.dumps({"links": links.count(), "want": want["evidence"]}))
         tag.get_by_role("button", name=re.compile("add to my checklist", re.I)).click(timeout=T)
-        dlg = pg.get_by_role("dialog", name='Add "patient" to your checklist')
+        # Final fix M5: the accept form is a non-modal group, never role="dialog".
+        dlg = pg.get_by_role("group", name='Add "patient" to your checklist')
         dlg.wait_for(timeout=T)
         label = dlg.get_by_label("Your rule").input_value()
         st.read("the confirm", dlg.inner_text() + f"\n[Your rule] {label}")
@@ -543,10 +545,13 @@ def walk_viewport(browser, base: str, vp: str) -> None:
                  trades_col == {k: str(n) for k, n in want["setups"].items()},
                  json.dumps({"read": rows, "want": want["setups"]}))
         months = [" ".join(li.inner_text().split()) for li in regs["Discipline trend"].get_by_role("listitem").all()]
-        counts = [re.search(r"(\d+) trades?$", m) for m in months]
-        st.check("Discipline trend: twelve months, each with the seed's trade count and no adherence (a dash)",
-                 len(months) == 12 and [int(c.group(1)) if c else None for c in counts] == want["months"]
-                 and all("—" in m for m in months), json.dumps({"read": months, "want": want["months"]}))
+        counts = [re.search(r"(\d+) records?$", m) for m in months]
+        # Final fix I2: a month prints the adherence RECORDS its mean rests on, never its trades. The
+        # seed records no adherence, so every month is a dash on 0 records.
+        st.check("Discipline trend: twelve months, each a dash on 0 adherence records, and no trade count",
+                 len(months) == 12 and [int(c.group(1)) if c else None for c in counts] == [0] * 12
+                 and all("—" in m for m in months) and not any(re.search(r"\btrades?\b", m) for m in months),
+                 json.dumps({"read": months, "want": "— and 0 records on each of 12"}))
         empty = {k: regs[k].inner_text()[:200] for k in ("Most-written tickers", "Lessons you wrote into your rules")}
         st.check("Most-written tickers and Lessons are empty for that year (no note, no rule change in it)",
                  all("Nothing here yet." in v for v in empty.values()), json.dumps(empty))

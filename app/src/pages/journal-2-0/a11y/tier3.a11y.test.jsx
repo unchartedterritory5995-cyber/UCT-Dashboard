@@ -104,7 +104,7 @@ describe('a11y: Tier 3 surfaces (P2 Tier 3, Task 10)', () => {
     expect(within(calm).getByText(PENDING_MARK_TEXT)).toBeTruthy()
     expect(within(calm).getByRole('button', { name: /mark it for before entry/i })).toBeTruthy()
     await userEvent.click(within(patient).getByRole('button', { name: /add to my checklist/i }))
-    const confirm = within(patient).getByRole('dialog', { name: 'Add "patient" to your checklist' })
+    const confirm = within(patient).getByRole('group', { name: 'Add "patient" to your checklist' })   // M5: non-modal
     expect(within(confirm).getByLabelText('Your rule')).toBeTruthy()
     expect(within(confirm).getByRole('button', { name: 'Save rule' })).toBeTruthy()
     await settle()
@@ -144,7 +144,7 @@ describe('a11y: Tier 3 surfaces (P2 Tier 3, Task 10)', () => {
     render(<Shell><ChecklistFromWinners accountId="acc1" /></Shell>)
     const patient = (await screen.findByText('patient', { selector: 'span' })).closest('li')
     await userEvent.click(within(patient).getByRole('button', { name: /add to my checklist/i }))
-    const confirm = within(patient).getByRole('dialog', { name: 'Add "patient" to your checklist' })
+    const confirm = within(patient).getByRole('group', { name: 'Add "patient" to your checklist' })   // M5: non-modal
     await userEvent.click(within(confirm).getByRole('button', { name: 'Save rule' }))
   }
 

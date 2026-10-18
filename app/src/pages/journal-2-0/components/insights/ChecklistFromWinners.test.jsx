@@ -5,7 +5,7 @@ import { SWRConfig } from 'swr'
 
 import ChecklistFromWinners, {
   ADDED_TEXT, CREATE_FAILED_TEXT, MARK_FAILED_TEXT, MARK_GONE_PREFIX, NO_ACCOUNT_TEXT, NO_REST_TEXT, NONE_TEXT,
-  PENDING_MARK_TEXT, TOO_FEW_TEXT, shareLine,
+  PENDING_MARK_TEXT, TOO_FEW_REST_TEXT, TOO_FEW_TEXT, shareLine,
 } from './ChecklistFromWinners'
 import { DISMISSED_SENTENCE } from '../../lib/blocks/rulesApi'
 
@@ -13,16 +13,16 @@ import { DISMISSED_SENTENCE } from '../../lib/blocks/rulesApi'
 const ev = (i, r) => ({ tradeRef: `id:t${i}`, tradeId: `t${i}`, symbol: `SYM${i}`, exitDate: `2026-10-${String(10 + i).padStart(2, '0')}`, r })
 const PATIENT = {
   tag: 'patient', label: 'Before entry: am I patient?', sourceId: 'winners:patient', pendingMark: null,
-  shareBest: 0.45, shareOthers: 0.12,
+  shareBest: 0.45, shareOthers: 0.12, othersTagged: 4,
   evidence: [ev(1, 3.2), ev(2, 2.75), ev(3, 2.5), ev(4, 2.1), ev(5, 1.9), ev(6, 1.6), ev(7, 1.4), ev(8, 1.2), ev(9, 1.0)],
 }
 const CALM = {
   tag: 'calm', label: 'Before entry: am I calm?', sourceId: 'winners:calm', pendingMark: null,
-  shareBest: 0.4, shareOthers: 0.0,
+  shareBest: 0.4, shareOthers: 0.0, othersTagged: 0,
   evidence: [ev(11, 4.0), ev(12, 3.0), ev(13, 2.0), ev(14, 1.8), ev(15, 1.7), ev(16, 1.5), ev(17, 1.3), ev(18, 1.1)],
 }
-const OK = { status: 'ok', winnerCount: 26, bestCount: 20, restCount: 31, suggestions: [PATIENT, CALM] }
-const TOO_FEW = { status: 'too_few', winnerCount: 7, bestCount: 0, restCount: 0, suggestions: [] }
+const OK = { status: 'ok', winnerCount: 26, bestCount: 20, restCount: 31, restSample: 'normal', suggestions: [PATIENT, CALM] }
+const TOO_FEW = { status: 'too_few', winnerCount: 7, bestCount: 0, restCount: 0, restSample: 'too_few', suggestions: [] }
 
 const SUGG = '/api/j2/insights/checklist-suggestions'
 const RULES_POST = '/api/j2/accounts/acc1/rules'
@@ -73,6 +73,8 @@ function renderPanel(props = { accountId: 'acc1' }) {
 }
 
 const card = (tag) => screen.getByText(tag, { selector: 'span' }).closest('li')
+// M5: the accept form is a NON-modal group named for its tag (never role="dialog").
+const pop = (tag) => screen.getByRole('group', { name: `Add "${tag}" to your checklist` })
 
 beforeEach(() => { localStorage.clear() })
 
@@ -89,13 +91,13 @@ describe('ChecklistFromWinners — reading', () => {
     globalThis.fetch = fakeFetch()
     renderPanel()
     const patient = within(await screen.findByText('patient', { selector: 'span' }).then((n) => n.closest('li')))
-    expect(patient.getByText('On 9 of your 20 best trades (45%) · on 12% of the rest')).toBeInTheDocument()
+    expect(patient.getByText('On 9 of your 20 best trades · on 4 of 31 other trades')).toBeInTheDocument()
     const links = patient.getAllByRole('link')
     expect(links).toHaveLength(9)
     expect(links[0]).toHaveAttribute('href', '/journal-2-0/trade/t1')
     expect(links[0]).toHaveTextContent('SYM1 · Oct 11, 2026 · +3.20R')
     expect(patient.getByRole('button', { name: /add to my checklist/i })).toBeInTheDocument()
-    expect(shareLine(CALM, 20)).toBe('On 8 of your 20 best trades (40%) · on 0% of the rest')
+    expect(shareLine(CALM, 20, 31)).toBe('On 8 of your 20 best trades · on 0 of 31 other trades')   // I3: both counts
     // The request carries the account.
     expect(globalThis.fetch.mock.calls.some(([u]) => u === `${SUGG}?account_id=acc1`)).toBe(true)
   })
@@ -119,11 +121,11 @@ describe('ChecklistFromWinners — accepting', () => {
   async function openAndSave(tag, label) {
     const item = within(card(tag))
     fireEvent.click(item.getByRole('button', { name: /add to my checklist/i }))
-    const dialog = within(screen.getByRole('dialog'))
+    const dialog = within(pop(tag))
     const input = dialog.getByLabelText('Your rule')
     expect(input).toHaveValue(`Before entry: am I ${tag}?`)                      // pre-filled
     // The evidence line is read-only text, not a field.
-    expect(dialog.getByText(shareLine(tag === 'patient' ? PATIENT : CALM, 20))).toBeInTheDocument()
+    expect(dialog.getByText(shareLine(tag === 'patient' ? PATIENT : CALM, 20, 31))).toBeInTheDocument()
     expect(dialog.getAllByRole('textbox')).toHaveLength(1)
     if (label !== undefined) fireEvent.change(input, { target: { value: label } })
     fireEvent.click(dialog.getByRole('button', { name: 'Save rule' }))
@@ -140,7 +142,7 @@ describe('ChecklistFromWinners — accepting', () => {
     expect(w.map((c) => `${c.method} ${c.url}`)).toEqual([`POST ${RULES_POST}`, `PUT ${RULE_PUT}`])
     const posted = JSON.parse(w[0].body)
     expect(posted.label).toBe('Before entry: am I being patient with this one?')
-    expect(posted.evidence).toBe(shareLine(PATIENT, 20))
+    expect(posted.evidence).toBe(shareLine(PATIENT, 20, 31))
     expect(posted.sourceId).toBe('winners:patient')                // the server's provenance, echoed
     expect(JSON.parse(w[1].body)).toEqual({ beforeEntry: true })
     expect(screen.queryByText('patient', { selector: 'span' })).not.toBeInTheDocument()
@@ -221,7 +223,7 @@ describe('ChecklistFromWinners — accepting', () => {
 describe('ChecklistFromWinners — fix round 1', () => {
   async function openAndSave(tag) {
     fireEvent.click(within(card(tag)).getByRole('button', { name: /add to my checklist/i }))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save rule' }))
+    fireEvent.click(within(pop(tag)).getByRole('button', { name: 'Save rule' }))
   }
 
   it('M2: a tag accepted in one account is offered again in another', async () => {
@@ -259,7 +261,7 @@ describe('ChecklistFromWinners — fix round 1', () => {
     renderPanel()
     await screen.findByText('patient', { selector: 'span' })
     fireEvent.click(within(card('patient')).getByRole('button', { name: /add to my checklist/i }))
-    const save = within(screen.getByRole('dialog')).getByRole('button', { name: 'Save rule' })
+    const save = within(pop('patient')).getByRole('button', { name: 'Save rule' })
     // Both clicks inside one act: React has not re-rendered the disabled button between them, so only
     // the in-flight guard can stop the second.
     act(() => { save.click(); save.click() })
@@ -307,5 +309,46 @@ describe('ChecklistFromWinners — fix round 1', () => {
     renderPanel()
     expect(await screen.findByText(NO_REST_TEXT)).toBeInTheDocument()
     expect(screen.queryByText(NONE_TEXT)).not.toBeInTheDocument()
+  })
+
+  it('I3: too few other trades to compare: nothing is suggested and the panel says so', async () => {
+    globalThis.fetch = fakeFetch({ suggestions: { ...OK, restCount: 6, restSample: 'too_few', suggestions: [] } })
+    renderPanel()
+    expect(await screen.findByText(TOO_FEW_REST_TEXT)).toBeInTheDocument()
+    expect(TOO_FEW_REST_TEXT).toBe('There are too few other trades to compare your best trades with yet.')
+    expect(screen.queryByText(NONE_TEXT)).not.toBeInTheDocument()
+    expect(screen.queryByText(NO_REST_TEXT)).not.toBeInTheDocument()
+  })
+})
+
+describe('ChecklistFromWinners — the accept form (final fix M5)', () => {
+  it('is a non-modal group, never role="dialog"; Escape closes it and returns focus to its opener', async () => {
+    globalThis.fetch = fakeFetch()
+    renderPanel()
+    await screen.findByText('patient', { selector: 'span' })
+    const opener = within(card('patient')).getByRole('button', { name: /add to my checklist/i })
+    opener.focus()
+    fireEvent.click(opener)
+    const form = pop('patient')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(form).not.toHaveAttribute('aria-modal')
+    const input = within(form).getByLabelText('Your rule')
+    expect(document.activeElement).toBe(input)                     // focus moves in on open
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Add "patient" to your checklist' })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(opener)
+    expect(opener).toHaveAttribute('aria-expanded', 'false')
+    expect(writes(globalThis.fetch)).toEqual([])                     // Escape writes nothing
+  })
+
+  it('Cancel returns focus to the opener too', async () => {
+    globalThis.fetch = fakeFetch()
+    renderPanel()
+    await screen.findByText('patient', { selector: 'span' })
+    const opener = within(card('patient')).getByRole('button', { name: /add to my checklist/i })
+    fireEvent.click(opener)
+    fireEvent.click(within(pop('patient')).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('group', { name: 'Add "patient" to your checklist' })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(opener)
   })
 })

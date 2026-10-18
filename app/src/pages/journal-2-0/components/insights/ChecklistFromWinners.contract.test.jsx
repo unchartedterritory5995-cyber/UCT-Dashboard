@@ -14,7 +14,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 import ChecklistFromWinners, {
-  LOAD_FAILED_TEXT, NO_REST_TEXT, NONE_TEXT, PENDING_MARK_TEXT, TOO_FEW_TEXT,
+  LOAD_FAILED_TEXT, NO_REST_TEXT, NONE_TEXT, PENDING_MARK_TEXT, TOO_FEW_REST_TEXT, TOO_FEW_TEXT,
 } from './ChecklistFromWinners'
 import { contractBody, contractResponse } from '../../__fixtures__/contract'
 
@@ -47,7 +47,8 @@ describe('ChecklistFromWinners reads the recorded suggestions', () => {
   it('renders each suggestion with its share line and its evidence trades, linked to each trade page', async () => {
     renderPanel()
     const patient = (await screen.findByText('patient', { selector: 'span' })).closest('li')
-    expect(within(patient).getByText('On 10 of your 20 best trades (50%) · on 23% of the rest')).toBeInTheDocument()
+    // Final fix I3: both counts, always (the server's othersTagged of restCount).
+    expect(within(patient).getByText('On 10 of your 20 best trades · on 3 of 13 other trades')).toBeInTheDocument()
     const links = within(within(patient).getByRole('list', { name: 'Best trades tagged patient' })).getAllByRole('link')
     expect(links).toHaveLength(10)
     expect(links[0].textContent).toBe('WB00 · Jul 1, 2026 · +3.00R')
@@ -55,7 +56,7 @@ describe('ChecklistFromWinners reads the recorded suggestions', () => {
     expect(links[9].textContent).toBe('WB18 · Aug 13, 2026 · +1.20R')
 
     const calm = card('calm')
-    expect(within(calm).getByText('On 9 of your 20 best trades (45%) · on 0% of the rest')).toBeInTheDocument()
+    expect(within(calm).getByText('On 9 of your 20 best trades · on 0 of 13 other trades')).toBeInTheDocument()
     expect(within(calm).getAllByRole('link')).toHaveLength(9)
     // Habits that do not qualify are not offered.
     expect(screen.queryByText('excited', { selector: 'span' })).not.toBeInTheDocument()
@@ -73,6 +74,15 @@ describe('ChecklistFromWinners reads the recorded suggestions', () => {
     expect(within(calm).getByText(PENDING_MARK_TEXT)).toBeInTheDocument()
     expect(within(calm).getByRole('button', { name: /mark it for before entry/i })).toBeInTheDocument()
     expect(within(calm).queryByRole('button', { name: /add to my checklist/i })).not.toBeInTheDocument()
+  })
+
+  it('final fix I3: one other trade is too few to compare: nothing is suggested, and the panel says so', async () => {
+    fixture = 'checklist-suggestions.too-few-others'
+    expect(contractBody(fixture)).toMatchObject({ status: 'ok', restCount: 1, restSample: 'too_few', suggestions: [] })
+    renderPanel()
+    expect(await screen.findByText(TOO_FEW_REST_TEXT)).toBeInTheDocument()
+    expect(screen.queryByText(NONE_TEXT)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /add to my checklist/i })).not.toBeInTheDocument()
   })
 
   it('too few winners: the too_few sentence, and nothing to add', async () => {

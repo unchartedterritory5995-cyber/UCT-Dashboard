@@ -149,13 +149,15 @@ def test_fewer_than_ten_winners_is_too_few_and_suggests_nothing(conn):
     aid = _account(conn)
     _book(conn, aid, winners=9, losers=5, best_tags={i: ["patient"] for i in range(9)})
     out = cs.suggest(conn, "u1", aid)
-    assert out == {"status": "too_few", "winnerCount": 9, "bestCount": 0, "restCount": 0, "suggestions": []}
+    assert out == {"status": "too_few", "winnerCount": 9, "bestCount": 0, "restCount": 0,
+                   "restSample": "too_few", "suggestions": []}
     assert cs.MIN_WINNERS == 10
 
 
 def test_exactly_ten_winners_is_enough(conn):
     aid = _account(conn)
-    _book(conn, aid, winners=10, losers=5, best_tags={i: ["patient"] for i in range(10)})
+    # Ten losers: final fix I3 compares only against at least ten other trades.
+    _book(conn, aid, winners=10, losers=10, best_tags={i: ["patient"] for i in range(10)})
     out = cs.suggest(conn, "u1", aid)
     assert (out["status"], out["winnerCount"], out["bestCount"]) == ("ok", 10, 10)
     assert _tag(out, "patient") is not None
@@ -190,6 +192,7 @@ def test_a_tag_on_10_of_the_best_and_1_of_30_others_is_suggested_with_ten_trades
     assert s["label"] == "Before entry: am I patient?"
     assert s["shareBest"] == 0.5
     assert s["shareOthers"] == round(1 / 30, 4)
+    assert (s["othersTagged"], out["restCount"], out["restSample"]) == (1, 30, "normal")   # I3: both counts
     assert len(s["evidence"]) == 10
     # Evidence is in R order, descending, and names each trade.
     rs = [e["r"] for e in s["evidence"]]
@@ -313,6 +316,8 @@ def test_the_best_cut_breaks_ties_by_later_exit_day_then_trade_id(conn):
     # 21 winners, all R 2.0: the oldest exit day falls out of the best 20.
     for i in range(21):
         _trade(conn, aid, r=2.0, day_index=i, symbol=f"T{i}", emotion=["oldest"] if i == 0 else ["calm"])
+    for j in range(10):                                   # final fix I3: ten others to compare with
+        _trade(conn, aid, r=-1.0, day_index=100 + j, symbol=f"L{j}")
     out = cs.suggest(conn, "u1", aid)
     assert out["bestCount"] == 20
     assert _tag(out, "oldest") is None
@@ -359,8 +364,8 @@ def test_a_trade_with_no_effective_r_still_counts_in_the_rest(conn):
     out = cs.suggest(conn, "u1", aid)
     assert (out["winnerCount"], out["bestCount"], out["restCount"]) == (20, 20, 30)
     assert _tag(out, "calm") is None                      # 0.5 vs 1.0: measured, never infinite
-    patient = _tag(out, "patient")                        # never in the rest: infinite, and passes
-    assert patient is not None and patient["shareOthers"] == 0.0
+    patient = _tag(out, "patient")                        # never in the rest: read as under 1 in 30, passes
+    assert patient is not None and (patient["shareOthers"], patient["othersTagged"]) == (0.0, 0)
     mixed = _tag(out, "mixed")                            # 10/20 vs 3/30: measured from real rows
     assert mixed is not None and (mixed["shareBest"], mixed["shareOthers"]) == (0.5, 0.1)
 
@@ -372,10 +377,132 @@ def test_when_every_trade_is_among_the_best_nothing_is_suggested(conn):
     out = cs.suggest(conn, "u1", aid)
     assert (out["status"], out["winnerCount"], out["bestCount"], out["restCount"]) == ("ok", 15, 15, 0)
     assert out["suggestions"] == []
-    # Control: one unranked trade outside the best is a real rest, and the tag is measured against it.
-    _trade(conn, aid, r=None, pnl=-30.0, day_index=200)
+    # Control: ten unranked trades outside the best are a real rest, and the tag is measured against it.
+    for k in range(10):
+        _trade(conn, aid, r=None, pnl=-30.0, day_index=200 + k)
     out2 = cs.suggest(conn, "u1", aid)
-    assert out2["restCount"] == 1 and _tag(out2, "patient")["shareOthers"] == 0.0
+    assert out2["restCount"] == 10 and _tag(out2, "patient")["othersTagged"] == 0
+
+
+# ── final fix I3: the comparison rests on enough other trades, and is always finite ──
+
+def test_a_rest_of_one_trade_suggests_nothing_and_says_there_are_too_few_to_compare(conn):
+    """The review's scenario: 11 winners and 1 loser, "patient" on 5 of the 11 and not on the loser.
+    The rest is ONE trade, below sample_size's too-few line, so no comparison is made at all."""
+    from api.services.journal_two import sample_size
+    aid = _account(conn)
+    _book(conn, aid, winners=11, losers=1, best_tags={i: ["patient"] for i in range(5)})
+    out = cs.suggest(conn, "u1", aid)
+    assert (out["status"], out["bestCount"], out["restCount"], out["restSample"]) == ("ok", 11, 1, "too_few")
+    assert out["suggestions"] == []
+    assert out["restSample"] == sample_size.band(out["restCount"])        # the helper's band, never restated
+
+
+def test_nine_other_trades_are_too_few_and_ten_are_enough(conn):
+    aid = _account(conn)
+    _book(conn, aid, winners=20, losers=9, best_tags={i: ["patient"] for i in range(12)}, rest_tags={0: ["patient"]})
+    nine = cs.suggest(conn, "u1", aid)
+    assert (nine["restCount"], nine["restSample"], nine["suggestions"]) == (9, "too_few", [])
+    _trade(conn, aid, r=-1.0, day_index=150, symbol="L9")
+    ten = cs.suggest(conn, "u1", aid)
+    assert (ten["restCount"], ten["restSample"]) == (10, "thin")
+    s = _tag(ten, "patient")
+    assert s is not None and (len(s["evidence"]), s["othersTagged"]) == (12, 1)
+
+
+def test_a_tag_absent_from_the_rest_is_compared_at_the_rests_resolution_never_infinitely(conn, monkeypatch):
+    """A tag on none of N other trades is read as fewer than 1 in N, so its lift is a finite number
+    (share among the best x N). Proved finite: raised past that number, MIN_LIFT withholds it; an
+    infinite lift would pass any MIN_LIFT."""
+    aid = _account(conn)
+    _book(conn, aid, winners=20, losers=10, best_tags={i: ["patient"] for i in range(8)})   # 8/20 vs 0/10
+    s = _tag(cs.suggest(conn, "u1", aid), "patient")
+    assert s is not None and (s["shareBest"], s["othersTagged"]) == (0.4, 0)
+    monkeypatch.setattr(cs, "MIN_LIFT", 4.01)          # 0.4 x 10 = 4.0 < 4.01
+    assert _tag(cs.suggest(conn, "u1", aid), "patient") is None
+    monkeypatch.setattr(cs, "MIN_LIFT", 4.0)           # control: at the bound it passes
+    assert _tag(cs.suggest(conn, "u1", aid), "patient") is not None
+
+
+# ── final fix I4 (R-T3-FIN-1): only a tag a member would want present is a checklist item ──
+
+@pytest.mark.parametrize("tag", ["euphoric", "greedy", "anxious", "impulsive", "fearful", "frustrated",
+                                 "bored", "rushed", "distracted", "revenge-driven"])
+def test_a_negative_emotion_on_the_best_trades_is_never_suggested(conn, tag):
+    aid = _account(conn)
+    # The same distribution for a constructive tag IS suggested: the valence, not the numbers, excludes.
+    _book(conn, aid, winners=20, losers=20, best_tags={i: [tag, "focused"] for i in range(18)})
+    out = cs.suggest(conn, "u1", aid)
+    assert _tag(out, tag) is None
+    assert _tag(out, "focused") is not None
+
+
+def test_a_mistake_word_used_as_an_emotion_tag_is_never_suggested_in_any_case(conn):
+    aid = _account(conn)
+    _book(conn, aid, winners=20, losers=20,
+          best_tags={i: (["FOMO"] if i < 9 else ["fomo"]) + ["calm"] for i in range(18)})
+    out = cs.suggest(conn, "u1", aid)
+    assert [s["tag"].lower() for s in out["suggestions"]] == ["calm"]
+
+
+def test_a_custom_tag_outside_the_vocabulary_is_suggested_by_default(conn):
+    """The stated default: the excluded set is the ONE list, so a member's own tag ("prepared") is a
+    habit like any constructive one."""
+    aid = _account(conn)
+    _book(conn, aid, winners=20, losers=20, best_tags={i: ["prepared"] for i in range(12)})
+    assert _tag(cs.suggest(conn, "u1", aid), "prepared") is not None
+
+
+_CLIENT_VOCAB = ("app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx",
+                 "app/src/pages/journal-2-0/components/psychology/RapidTagFlow.jsx")
+
+
+def _client_list(path, name):
+    """The array literal `const <name> = [...]` in a client file, comments stripped first."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8")
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    src = re.sub(r"(?m)//.*$", "", src)
+    m = re.search(rf"const {name} = \[(.*?)\]", src, flags=re.S)
+    assert m, f"{name} not found in {path}"
+    return re.findall(r"'([^']+)'", m.group(1))
+
+
+def test_every_vocabulary_tag_is_decided_one_way_or_the_other():
+    """The rail that makes a new tag force a decision. The vocabulary is read from the server
+    (tag_suggest) AND both client lists; every emotion must sit in exactly one of the two declared
+    sets, and every mistake is never suggested."""
+    from api.services.journal_two import tag_suggest
+    emotions = set(tag_suggest.STANDARD_EMOTIONS)
+    mistakes = set(tag_suggest.STANDARD_MISTAKES)
+    for path in _CLIENT_VOCAB:
+        emotions |= set(_client_list(path, "STANDARD_EMOTIONS"))
+        mistakes |= set(_client_list(path, "STANDARD_MISTAKES"))
+    # Non-vacuity: the lists were read, and they hold what the product offers.
+    assert {"patient", "euphoric"} <= emotions and {"FOMO", "chasing"} <= mistakes
+    assert not (cs.SUGGESTIBLE_EMOTIONS & cs.NEVER_SUGGESTED), "a tag cannot be both"
+    undecided = sorted(t for t in emotions if t.lower() not in cs.SUGGESTIBLE_EMOTIONS | cs.NEVER_SUGGESTED)
+    assert undecided == [], f"decide each new emotion tag: {undecided}"
+    assert sorted(t for t in mistakes if t.lower() not in cs.NEVER_SUGGESTED) == []
+    assert all(cs.suggestible(t) for t in cs.SUGGESTIBLE_EMOTIONS)
+    assert not any(cs.suggestible(t) for t in cs.NEVER_SUGGESTED)
+
+
+# ── final fix M4: one habit whatever its spelling ──────────────────────────────
+
+def test_a_tag_counts_once_whatever_its_case_and_shows_the_members_most_used_spelling(conn):
+    """ "Patient" on 5 of the best and "patient" on 4: each alone is under MIN_SHARE (0.25, 0.2),
+    together 9 of 20 (0.45) qualifies. The member wrote "Patient" more often, so that is what shows;
+    the provenance stays the one lower-case key, so a rule made from it is found whatever the spelling."""
+    aid = _account(conn)
+    best = {i: (["Patient"] if i < 5 else ["patient"]) for i in range(9)}
+    _book(conn, aid, winners=20, losers=20, best_tags=best, rest_tags={5: ["PATIENT"]})
+    out = cs.suggest(conn, "u1", aid)
+    assert len(out["suggestions"]) == 1
+    s = out["suggestions"][0]
+    assert (s["tag"], s["label"], s["sourceId"]) == ("Patient", "Before entry: am I Patient?", "winners:patient")
+    assert (s["shareBest"], len(s["evidence"]), s["othersTagged"]) == (0.45, 9, 1)
 
 
 def test_another_members_trades_are_never_read(conn):
@@ -383,12 +510,12 @@ def test_another_members_trades_are_never_read(conn):
     other = _account(conn, user_id="u2")
     _book(conn, other, winners=20, losers=10, best_tags={i: ["patient"] for i in range(20)}, user_id="u2")
     assert cs.suggest(conn, "u2", other)["winnerCount"] == 20      # control: the book is there
-    assert cs.suggest(conn, "u1", None) == {"status": "too_few", "winnerCount": 0, "bestCount": 0,
-                                            "restCount": 0, "suggestions": []}
+    nothing = {"status": "too_few", "winnerCount": 0, "bestCount": 0, "restCount": 0,
+               "restSample": "too_few", "suggestions": []}
+    assert cs.suggest(conn, "u1", None) == nothing
     assert cs.suggest(conn, "u1", aid)["winnerCount"] == 0
     # M6: u1 naming u2's account reads nothing of u2's.
-    assert cs.suggest(conn, "u1", other) == {"status": "too_few", "winnerCount": 0, "bestCount": 0,
-                                             "restCount": 0, "suggestions": []}
+    assert cs.suggest(conn, "u1", other) == nothing
 
 
 # ── 8. the route ──────────────────────────────────────────────────────────────

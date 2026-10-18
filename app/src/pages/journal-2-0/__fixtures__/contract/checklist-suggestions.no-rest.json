@@ -9,6 +9,7 @@
   "body": {
     "bestCount": 12,
     "restCount": 0,
+    "restSample": "too_few",
     "status": "ok",
     "suggestions": [],
     "winnerCount": 12

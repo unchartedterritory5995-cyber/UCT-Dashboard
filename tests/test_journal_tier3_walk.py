@@ -87,7 +87,7 @@ def test_the_expected_values_are_derived_from_the_seed():
     import journal_tier3_walk as t3
 
     s = t3.expected_suggestion()
-    assert s == {"share": "On 20 of your 20 best trades (100%) · on 20% of the rest", "evidence": 20}
+    assert s == {"share": "On 20 of your 20 best trades · on 2 of 10 other trades", "evidence": 20}
     y = t3.expected_year()
     assert y["trades"] == 14 and sum(y["months"]) == 14 and len(y["months"]) == 12
     assert y["setups"] == {"VCP": 9, "Breakout": 5}

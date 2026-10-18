@@ -9,6 +9,7 @@
   "body": {
     "bestCount": 20,
     "restCount": 13,
+    "restSample": "thin",
     "status": "ok",
     "suggestions": [
       {
@@ -85,6 +86,7 @@
           }
         ],
         "label": "Before entry: am I patient?",
+        "othersTagged": 3,
         "pendingMark": null,
         "shareBest": 0.5,
         "shareOthers": 0.2308,
@@ -158,6 +160,7 @@
           }
         ],
         "label": "Before entry: am I calm?",
+        "othersTagged": 0,
         "pendingMark": "2b5762ecae204ec7b93ed572f524f624",
         "shareBest": 0.45,
         "shareOthers": 0.0,

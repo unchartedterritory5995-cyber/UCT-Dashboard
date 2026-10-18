@@ -2311,6 +2311,33 @@ def check_in_outcomes(w: World) -> None:
     w.as_user(MEMBER)
 
 
+@builder
+def checklist_from_winners_too_few_others(w: World) -> None:
+    """P2 Tier 3 final fix I3 (appended last: its members and ids come after every other builder's).
+    The review's book: eleven winners and ONE other trade, "patient" on five of the winners and not on
+    the other. A rest of one is below sample_size's too-few line, so no comparison is made: the
+    payload's `restSample` is `too_few` and nothing is suggested."""
+    base = "/api/j2/insights/checklist-suggestions"
+    who = w.member("winners-one-other")
+    c = w.conn()
+    try:
+        for i in range(11):
+            day = f"2026-08-{3 + i:02d}"
+            tid = add_trade(c, f"wo-{i:02d}", user=who, symbol="WONE", entry=100.0, exit_=101.0 + i * 0.1,
+                            stop=99.0, entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            _tag_trade(c, tid, ["patient"] if i < 5 else [])
+        add_trade(c, "wo-loss", user=who, symbol="WONE", entry=100.0, exit_=99.0, stop=99.0,
+                  entry_date="2026-08-20T14:30:00+00:00", exit_date="2026-08-20T19:30:00+00:00")
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(who)
+    w.record("checklist-suggestions.too-few-others", "GET", base, case="empty", expect=200,
+             note="Eleven winners and one other trade: too few others to compare with (restSample too_few), "
+                  "so nothing is suggested.")
+    w.as_user(MEMBER)
+
+
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────
 
 #: Every value the normaliser rewrote in the last run (for `--explain`, and for the rail).
