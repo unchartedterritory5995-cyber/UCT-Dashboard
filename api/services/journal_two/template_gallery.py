@@ -1128,6 +1128,12 @@ def _example_note(conn: sqlite3.Connection, user_id: str, note_id: Any) -> dict 
         (note_id, user_id)).fetchone()
     if row is None or sample_marker.is_sample(row["import_source"]):
         return None
+    # ⛔ P3b-T3-R1 (review I-1): BOUNDED BEFORE ANY REDUCTION. A note body may be 1 MB and a reduction of one is
+    # seconds of CPU on the one web process; an example's stored body may be at most MAX_BODY_BYTES, so a note
+    # whose stored body is already larger is refused here, measured on the stored text, before it is parsed.
+    # Only after the ownership check: the size of a note that is not yours is never an answer.
+    if len((row["body_json"] or "").encode("utf-8")) > MAX_BODY_BYTES:
+        raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
     try:
         body = json.loads(row["body_json"] or '{"type": "doc", "content": []}')
     except (TypeError, ValueError, RecursionError):
@@ -1204,6 +1210,18 @@ def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
     return _node_text(doc)
 
 
+def _example_title(raw: Any, brokers: tuple[str, ...], *, required: bool = True) -> str:
+    """The title other members see (review M-3). The 80-character cap is on what the author TYPED (gallery's
+    `_clean_text`, which also refuses anything but text); then the example text pass runs, and a scrubbed title
+    that grew past the cap ("$1" becomes "your value here") is shortened with an ellipsis rather than refused
+    for a length the author never typed. The preview shows this same title."""
+    typed = _clean_text(raw, field="title", limit=MAX_TITLE_CHARS, required=required)
+    scrubbed = " ".join(str(_example_text(typed, brokers)).split())
+    if len(scrubbed) > MAX_TITLE_CHARS:
+        scrubbed = scrubbed[: MAX_TITLE_CHARS - 1].rstrip() + "…"
+    return scrubbed
+
+
 def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
                brokers: tuple[str, ...]) -> tuple[str, list[dict]]:
     """An image's OCR state and its warnings (R-P3b-5), read from the document pipeline that already runs on
@@ -1226,9 +1244,9 @@ def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
             page = docr.page_transcript(user_id, doc["id"], 1, conn=conn)
             text = page.get("text") if isinstance(page, dict) else ""
             return "ready", example_sanitize.ocr_warnings(text if isinstance(text, str) else "", brokers)
-        if state.get("ocr_unavailable") or state.get("status") == dx._STATUS_FAILED:
+        if state.get("ocr_unavailable") or state.get("status") == dx.STATUS_FAILED:
             return "unavailable", []
-        if state.get("pages_awaiting_ocr") or state.get("status") == dx._STATUS_PENDING:
+        if state.get("pages_awaiting_ocr") or state.get("status") == dx.STATUS_PENDING:
             return "processing", []
         return "no_text", []
     except Exception as e:  # noqa: BLE001 -- an unreadable state is "we couldn't read it", never a failed preview
@@ -1236,14 +1254,17 @@ def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
         return "unavailable", []
 
 
-def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, images_on: Any) -> dict | None:
+def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, images_on: Any,
+                    title: Any = None) -> dict | None:
     """Exactly what other members would see of this note, for its author (R-P3b-4). None when the switch is
-    off or the note may not be an example (the route answers 404). Writes nothing.
+    off or the note may not be an example (the route answers 404); `GalleryError` for a note too long to be one
+    or a title that is not text. Writes nothing.
 
     `{"bodyJson": reduced, "changes": [{kind, before, after, path}], "counts": {kind: n},
-      "images": [{src, name, ocr, warnings}]}` -- `images` lists every image of this note the author may
-    switch on, in body order, at the author's own address; a switched-on one appears in `bodyJson` at that
-    address too. `before` is the author's own text and goes to the author only."""
+      "images": [{src, name, ocr, warnings}], "title": str}` -- `images` lists every image of this note the
+    author may switch on, in body order, at the author's own address; a switched-on one appears in `bodyJson`
+    at that address too. `title` is the scrubbed form of `title` (or of the note's own title when none is
+    given). `before` is the author's own text and goes to the author only."""
     if not example_enabled():
         return None
     owned = conn is None
@@ -1253,6 +1274,8 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         if note is None:
             return None
         brokers = _author_brokers(conn, user_id)
+        shown_title = _example_title(note["title"][:MAX_TITLE_CHARS] if title is None else title, brokers,
+                                     required=False)
         changes: list[dict] = []
         body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
                                      brokers=brokers, item_id=_PREVIEW_ITEM_ID, report=changes)
@@ -1261,10 +1284,13 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
             tail = str(node["attrs"].get("src") or "")[len(prefix):]
             if tail.isdigit() and int(tail) < len(kept):
                 node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
-        # The images the author may switch on: the reducer's own answer (its own-attachment check), asked by
-        # reducing once with every image of the note switched on. Never a second copy of that check.
-        candidates = [n["attrs"].get("src") for n in _image_nodes(note["body"])]
-        _, offered = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=candidates,
+        # The images the author may switch on: the reducer's own answer (its own-attachment check), asked of a
+        # document holding ONLY the note's images, every one switched on (review M-2: never a second reduction
+        # of the whole note). Never a second copy of that check.
+        images_only = {"type": "doc", "content": [{"type": "image", "attrs": dict(n["attrs"])}
+                                                  for n in _image_nodes(note["body"])]}
+        candidates = [n["attrs"].get("src") for n in images_only["content"]]
+        _, offered = _reduce_example(images_only, user_id=user_id, note_id=note["id"], images_on=candidates,
                                      brokers=(), item_id=_PREVIEW_ITEM_ID, report=None)
         images = []
         for src in offered:
@@ -1273,7 +1299,7 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         counts: dict[str, int] = {}
         for c in changes:
             counts[c["kind"]] = counts.get(c["kind"], 0) + 1
-        return {"bodyJson": body, "changes": changes, "counts": counts, "images": images}
+        return {"bodyJson": body, "changes": changes, "counts": counts, "images": images, "title": shown_title}
     finally:
         if owned:
             conn.close()
@@ -1304,20 +1330,41 @@ def _safe_example(payload: Any) -> dict:
             "noteKind": kind if isinstance(kind, str) else None}
 
 
+def _bind_images(body: dict, draft_id: str, item_id: str) -> dict:
+    """Point the image addresses of a body reduced against `draft_id` at the row it is written to (P3b-T3-R1:
+    the reduction runs before the lock, so before the row is known). Runs INSIDE the short write transaction,
+    between the lookup and the write. `EXAMPLE_IMAGE_ROUTE` fixes the address's shape, so only the id moves."""
+    if draft_id != item_id:
+        old, new = EXAMPLE_IMAGE_PATH.format(item_id=draft_id), EXAMPLE_IMAGE_PATH.format(item_id=item_id)
+        for node in _image_nodes(body):
+            src = node["attrs"].get("src")
+            if isinstance(src, str) and src.startswith(old):
+                node["attrs"] = {**node["attrs"], "src": new + src[len(old):]}
+    return body
+
+
 def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, style_item_id: Any,
                     images_on: Any, title: Any) -> dict | None:
     """Submit (or resubmit) one of the member's own notes as an example of one of their shared styles.
 
     None when the switch is off or the note may not be an example (the route answers 404).
     `GalleryError` for a style that is not theirs to link (`EXAMPLE_STYLE_SENTENCE`), a note of another
-    kind (`EXAMPLE_KIND_SENTENCE`), or a bad title.
+    kind (`EXAMPLE_KIND_SENTENCE`), a note too long to be one (`EXAMPLE_TOO_LONG_SENTENCE`), or a bad title.
+    `ValueError` for a caller's connection that already holds a transaction (review M-8): this function owns
+    its transaction and must never roll back a caller's work.
 
     The server reads the note and reduces it ITSELF; nothing a client sends is a body. First publish: a
     PENDING `example_note` item. Again (same author, note and style) while pending or rejected: replaced in
     place, back to pending. Again while APPROVED: the new version is HELD in `pending_json` and the approved
-    one stays listed, as a style's does (R-P3-3)."""
+    one stays listed, as a style's does (R-P3-3).
+
+    ⛔ P3b-T3-R1 (review I-1): the note is bounded before it is reduced (`_example_note`), and the reduction
+    runs BEFORE `BEGIN IMMEDIATE`, against a fresh id. Only the lookup, the image rebinding and the write sit
+    inside the write lock, so a publish never holds auth.db's lock for the length of a reduction."""
     if not example_enabled():
         return None
+    if conn is not None and conn.in_transaction:
+        raise ValueError("publish_example needs a connection with no open transaction")
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -1329,27 +1376,28 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         if not note["kind"] or note["kind"] != kind:
             raise GalleryError(EXAMPLE_KIND_SENTENCE)
         brokers = _author_brokers(conn, user_id)
-        clean_title = _clean_text(_example_text(title, brokers), field="title", limit=MAX_TITLE_CHARS,
-                                  required=True)
+        clean_title = _example_title(title, brokers)
+        draft_id = uuid.uuid4().hex                  # the new row's id, if the lookup below finds none
+        body, _kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                      brokers=brokers, item_id=draft_id, report=None)
+        stored = json.dumps({"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind})
+        if len(stored.encode("utf-8")) > MAX_BODY_BYTES:
+            raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
+        preview = json.dumps(preview_lines(body))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
-        if not conn.in_transaction:
-            conn.execute("BEGIN IMMEDIATE")     # the lookup and the write below cannot interleave with a twin
+        conn.execute("BEGIN IMMEDIATE")              # the lookup and the write cannot interleave with a twin
         existing = conn.execute(
             "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ? AND item_type = ?"
             " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
             (user_id, note["id"], EXAMPLE_ITEM, style["id"])).fetchone()
-        gid = existing["id"] if existing else uuid.uuid4().hex
-        body, _kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
-                                      brokers=brokers, item_id=gid, report=None)
+        gid = existing["id"] if existing else draft_id
+        body = _bind_images(body, draft_id, gid)
         payload = {"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind}
         payload_json = json.dumps(payload)
-        if len(payload_json.encode("utf-8")) > MAX_BODY_BYTES:
-            raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
-        preview = preview_lines(body)
         now = _now()
         if existing and existing["status"] == "approved":
             revision = {"title": clean_title, "description": "", "category": style["category"],
-                        "tradingStyle": style["trading_style"], "payload": payload, "preview": preview}
+                        "tradingStyle": style["trading_style"], "payload": payload, "preview": json.loads(preview)}
             conn.execute(
                 "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
                 " updated_at = ? WHERE id = ?", (json.dumps(revision), now, now, gid))
@@ -1360,7 +1408,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
                 " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
                 " pending_json = NULL, pending_at = NULL WHERE id = ?",
                 (clean_title, style["category"], style["trading_style"], json.dumps(body), payload_json, now,
-                 json.dumps(preview), gid))
+                 preview, gid))
         else:
             conn.execute(
                 "INSERT INTO j2_template_gallery (id, user_id, source_note_id, kind, title, description,"
@@ -1368,12 +1416,12 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
                 " payload_json, version, trading_style)"
                 " VALUES (?, ?, ?, 'member', ?, '', ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
                 (gid, user_id, note["id"], clean_title, style["category"], json.dumps(body), now, now,
-                 json.dumps(preview), EXAMPLE_ITEM, payload_json, style["trading_style"]))
+                 preview, EXAMPLE_ITEM, payload_json, style["trading_style"]))
         conn.commit()
         return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
     except Exception:
         if conn.in_transaction:
-            conn.rollback()
+            conn.rollback()                          # only ever this function's own transaction (M-8)
         raise
     finally:
         if owned:

@@ -32,7 +32,7 @@ import {
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
-  ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
+  LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
@@ -273,7 +273,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
-  const [itemType, setItemType] = useState(() => (libraryOn && ITEM_TYPES.some((t) => t.key === initialType && t.key !== 'example_note') ? initialType : ALL))
+  const [itemType, setItemType] = useState(() => (libraryOn && LISTED_ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
   const [tradingStyle, setTradingStyle] = useState(ALL)
   const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
@@ -471,7 +471,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type">
-                {[{ key: ALL, label: 'All' }, ...ITEM_TYPES.filter((t) => t.key !== 'example_note')].map((t) => (
+                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>

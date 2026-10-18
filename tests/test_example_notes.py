@@ -10,6 +10,12 @@ never stored: test 2 searches EVERY column of the stored row for it.
 from __future__ import annotations
 
 import json
+import os
+import re
+import sqlite3
+import threading
+import time
+from pathlib import Path
 
 import pytest
 
@@ -141,7 +147,8 @@ def test_the_preview_returns_the_reduced_body_counts_and_the_images_with_their_o
     r = api.post(f"{EX}/preview", json={"noteId": nid, "imagesOn": [_src("author", nid, "read.png")]})
     assert r.status_code == 200, r.text
     out = r.json()
-    assert set(out) == {"bodyJson", "changes", "counts", "images"}
+    assert set(out) == {"bodyJson", "changes", "counts", "images", "title"}
+    assert out["title"] == "Weekend plan"                           # the note's own title, scrubbed (M-3)
     assert _texts(out["bodyJson"])[0] == REPLACED
     assert out["counts"] == {"money": 1, "pnl_figure": 1, "broker": 1, "image_off": 3}
     kinds = [c["kind"] for c in out["changes"]]
@@ -517,3 +524,288 @@ def test_the_source_note_column_is_an_additive_alter(conn):
     cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_template_gallery)")}
     assert "source_note_id" in cols
     gallery.ensure_gallery_schema(conn)                                                 # idempotent
+
+
+# ── fix round 1 ─────────────────────────────────────────────────────────────────────────────
+
+ROOT = Path(__file__).resolve().parents[1]
+STYLE_LIB = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "styleLibrary.js"
+
+
+def _big_note(conn, user="author"):
+    """A weekend_prep note whose stored body is just over the example ceiling."""
+    nid = _note(conn, user)
+    para = _para("made $1,240 on NVDA " * 50)
+    n = gallery.MAX_BODY_BYTES // len(json.dumps(para)) + 2
+    raw = json.dumps({"type": "doc", "content": [para] * n})
+    assert len(raw.encode("utf-8")) > gallery.MAX_BODY_BYTES
+    conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (raw, nid))
+    conn.commit()
+    return nid
+
+
+@pytest.fixture
+def reduce_calls(monkeypatch):
+    calls = []
+    real = gallery._reduce_example
+
+    def spy(*a, **k):
+        calls.append(k.get("item_id"))
+        return real(*a, **k)
+    monkeypatch.setattr(gallery, "_reduce_example", spy)
+    return calls
+
+
+def test_an_oversized_note_is_refused_before_any_reduction(api, conn, ex_on, ocr, reduce_calls):
+    """I-1 / P3b-T3-R1: the note's stored body is measured against the example ceiling before it is reduced."""
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+    sid = _shared_style(conn)
+    nid = _big_note(conn)
+    before = daily_counters.value(et_today(), "notebook_gallery_publish", "author")
+    r = api.post(f"{EX}/preview", json={"noteId": nid})
+    assert (r.status_code, r.json()["detail"]) == (400, gallery.EXAMPLE_TOO_LONG_SENTENCE)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, gallery.EXAMPLE_TOO_LONG_SENTENCE)
+    assert reduce_calls == []
+    assert daily_counters.value(et_today(), "notebook_gallery_publish", "author") == before   # the refund rule
+    # someone else's oversized note is still the 404: size is never an oracle for a note that is not yours
+    theirs = _big_note(conn, user="other")
+    assert api.post(f"{EX}/preview", json={"noteId": theirs}).status_code == 404
+    # control: an ordinary note is reduced
+    small = _note(conn)
+    assert api.post(f"{EX}/preview", json={"noteId": small}).status_code == 200 and reduce_calls
+
+
+def test_the_write_lock_is_not_held_while_the_note_is_reduced(api, conn, ex_on, ocr, monkeypatch):
+    """I-1 / P3b-T3-R1: the reduction runs BEFORE `BEGIN IMMEDIATE`. While it runs, a second connection with no
+    busy wait can take the write lock -- for a new row and for a held revision alike."""
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn)
+    seen = []
+    real = gallery._reduce_example
+
+    def probe(*a, **k):
+        other = sqlite3.connect(os.environ["AUTH_DB_PATH"], timeout=0, isolation_level=None)
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.execute("ROLLBACK")
+            seen.append("free")
+        except sqlite3.OperationalError as e:
+            seen.append(f"locked: {e}")
+        finally:
+            other.close()
+        return real(*a, **k)
+    monkeypatch.setattr(gallery, "_reduce_example", probe)
+    first = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert first.status_code == 200, first.text
+    gallery.admin_act("admin", first.json()["template"]["id"], "approve",
+                      reviewed_updated_at=first.json()["template"]["updatedAt"], conn=conn)
+    assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Again"}).status_code == 200
+    assert len(seen) >= 2 and all(x == "free" for x in seen), seen
+
+
+def test_an_existing_rows_images_point_at_that_row_after_the_unlocked_reduction(api, conn, ex_on, ocr):
+    """The reduction runs against a fresh id before the lookup; a row found under the lock gets its own id."""
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn, images=("read.png",))
+    on = [_src("author", nid, "read.png")]
+    item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": on, "title": "One"}).json()["template"]
+    api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": on, "title": "Two"})     # in place (pending)
+    row = _row(conn, item["id"])
+    assert _images(json.loads(row["body_json"])) == [f"{URL}/{item['id']}/images/0"]
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=row["updated_at"], conn=conn)
+    api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": on, "title": "Three"})   # held
+    rev = json.loads(_row(conn, item["id"])["pending_json"])
+    assert _images(rev["payload"]["bodyJson"]) == [f"{URL}/{item['id']}/images/0"]
+
+
+def test_two_publishes_at_once_make_one_example(api, conn, ex_on, ocr, monkeypatch):
+    """M-5: the lookup and the write cannot interleave. The step between them is slowed, so without the write
+    lock both publishers would look, find nothing, and insert."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    real = gallery._bind_images
+
+    def slow(*a, **k):
+        time.sleep(0.3)
+        return real(*a, **k)
+    monkeypatch.setattr(gallery, "_bind_images", slow)
+    barrier, out, errors = threading.Barrier(2), [], []
+
+    def go():
+        barrier.wait()
+        try:
+            out.append(gallery.publish_example(None, "author", nid, sid, [], "Plan")["id"])
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+    threads = [threading.Thread(target=go) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == [] and len(out) == 2 and out[0] == out[1]
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE item_type = 'example_note'").fetchone()[0] == 1
+
+
+def test_publish_refuses_a_connection_with_an_open_transaction_and_leaves_it_alone(conn, ex_on, ocr):
+    """M-8: a caller's own transaction is never rolled back by a publish."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    conn.execute("UPDATE j2_notes SET title = 'caller work' WHERE id = ?", (nid,))
+    assert conn.in_transaction
+    with pytest.raises(ValueError):
+        gallery.publish_example(conn, "author", nid, sid, [], "Plan")
+    assert conn.in_transaction
+    assert conn.execute("SELECT title FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0] == "caller work"
+    conn.rollback()
+
+
+def test_the_example_switch_parses_exactly_as_flag_on(monkeypatch, lib_on):
+    """M-1 / P3b-T3-R2: the server-only read and the one parse agree on every value form."""
+    from api.services.notebook_flags import flag_on
+    forms = [None, "", "1", "true", "yes", "on", "0", "false", "no", "off", "TRUE", "True", " 1 ", " on ",
+             "Yes\n", "\tOFF", "flase", "2", "enabled", " "]
+    for raw in forms:
+        if raw is None:
+            monkeypatch.delenv(gallery.EXAMPLE_FLAG, raising=False)
+        else:
+            monkeypatch.setenv(gallery.EXAMPLE_FLAG, raw)
+        assert gallery.example_enabled() == flag_on(gallery.EXAMPLE_FLAG, False), repr(raw)
+    monkeypatch.setenv(gallery.EXAMPLE_FLAG, " 1 ")
+    assert gallery.example_enabled() is True                                          # non-vacuity
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert gallery.example_enabled() is False                                         # and it needs the library
+
+
+def test_a_hidden_style_is_not_one_to_link(api, conn, ex_on, ocr):
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn)
+    gallery.admin_act("admin", sid, "hide", conn=conn)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, "Pick one of your own shared styles.")
+    gallery.admin_act("admin", sid, "unhide", conn=conn)
+    assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).status_code == 200   # control
+
+
+def test_publishing_again_after_a_rejection_replaces_it_and_goes_back_to_pending(api, conn, ex_on, ocr):
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "One"}).json()["template"]
+    gallery.admin_act("admin", item["id"], "reject", note="Too thin", conn=conn)
+    assert _row(conn, item["id"])["status"] == "rejected"
+    conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?",
+                 (json.dumps({"type": "doc", "content": [_para("fuller version")]}), nid))
+    conn.commit()
+    again = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Two"}).json()["template"]
+    row = _row(conn, item["id"])
+    assert again["id"] == item["id"] and (row["status"], row["review_note"], row["title"]) == ("pending", None, "Two")
+    assert _texts(json.loads(row["body_json"])) == ["fuller version"]
+
+
+def test_rejecting_a_held_example_revision_keeps_the_listed_one(api, conn, ex_on, ocr):
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn)
+    item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Listed"}).json()["template"]
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    listed = dict(_row(conn, item["id"]))
+    api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Revised"})
+    assert _row(conn, item["id"])["pending_json"]
+    gallery.admin_act("admin", item["id"], "reject", note="Keep the old one", conn=conn)
+    now = dict(_row(conn, item["id"]))
+    assert now["pending_json"] is None and now["pending_at"] is None and now["review_note"] == "Keep the old one"
+    for col in ("status", "listed_at", "title", "body_json", "payload_json", "version"):
+        assert now[col] == listed[col], col
+
+
+def test_the_source_note_alter_keeps_an_existing_tables_rows(tmp_path):
+    from tests.test_style_library import _LEGACY_DDL
+    c = sqlite3.connect(str(tmp_path / "legacy.db"))
+    c.row_factory = sqlite3.Row
+    try:
+        c.execute(_LEGACY_DDL)
+        c.execute("CREATE TABLE users (id TEXT PRIMARY KEY, display_name TEXT)")
+        c.execute("INSERT INTO j2_template_gallery (id, user_id, kind, title, category, body_json, status,"
+                  " created_at, updated_at) VALUES ('old1', 'u1', 'member', 'Old', 'journal', '{}', 'approved',"
+                  " '2026-09-01T00:00:00+00:00', '2026-09-01T00:00:00+00:00')")
+        c.commit()
+        assert "source_note_id" not in {r[1] for r in c.execute("PRAGMA table_info(j2_template_gallery)")}
+        gallery.ensure_gallery_schema(c)
+        row = c.execute("SELECT title, status, source_note_id FROM j2_template_gallery WHERE id = 'old1'").fetchone()
+        assert tuple(row) == ("Old", "approved", None)
+    finally:
+        c.close()
+
+
+def test_the_title_is_capped_as_typed_and_its_scrubbed_form_is_previewed(api, conn, ex_on, ocr):
+    """M-3: the 80-character cap is on what the author TYPED; a scrubbed title that grows is shortened, and the
+    preview shows the scrubbed title other members will see."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    typed = "made $1 $2 $3 $4 $5 $6"                                  # 22 typed; over 80 once scrubbed
+    pv = api.post(f"{EX}/preview", json={"noteId": nid, "title": typed}).json()
+    assert pv["title"].startswith("made your value here your value here")
+    assert len(pv["title"]) <= gallery.MAX_TITLE_CHARS and "$" not in pv["title"]
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": typed})
+    assert r.status_code == 200, r.text
+    assert r.json()["template"]["title"] == pv["title"]
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "x" * (gallery.MAX_TITLE_CHARS + 1)})
+    assert (r.status_code, r.json()["detail"]) == (400, "The title can be at most 80 characters.")
+    assert api.post(f"{EX}/preview", json={"noteId": nid, "title": 7}).status_code == 400
+
+
+def test_the_preview_reduces_the_note_once(api, conn, ex_on, ocr, monkeypatch):
+    """M-2: the images on offer are asked of the reducer over the note's images only, never a second full pass."""
+    from api.services.journal_two import public_note_payload as public
+    nid = _note(conn, images=("read.png",))
+    note_body = json.loads(conn.execute("SELECT body_json FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0])
+    full = []
+    real = public.reduce
+
+    def count(body, **k):
+        if body == note_body:
+            full.append(1)
+        return real(body, **k)
+    monkeypatch.setattr(public, "reduce", count)
+    out = api.post(f"{EX}/preview", json={"noteId": nid}).json()
+    assert full == [1]
+    assert [i["name"] for i in out["images"]] == ["read.png"]
+
+
+def test_the_client_names_the_example_type_once_and_lists_the_rest():
+    """M-4: `EXAMPLE_NOTE_TYPE` is the server's `EXAMPLE_ITEM`; the gallery reads `LISTED_ITEM_TYPES`."""
+    text = STYLE_LIB.read_text(encoding="utf-8")
+    m = re.search(r"export const EXAMPLE_NOTE_TYPE = '([a-z_]+)'", text)
+    assert m and m.group(1) == gallery.EXAMPLE_ITEM
+    assert "export const LISTED_ITEM_TYPES" in text
+    jsx = ROOT / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "TemplateGallery.jsx"
+    assert "example_note" not in jsx.read_text(encoding="utf-8")
+
+
+def test_the_ocr_states_read_the_documents_public_names():
+    """M-6: the pipeline's status names are public, and the ones the OCR state compares against."""
+    from api.services.journal_two import document_extraction as dx
+    assert (dx.STATUS_PENDING, dx.STATUS_FAILED) == ("pending", "processing_failed")
+    src = (ROOT / "api" / "services" / "journal_two" / "template_gallery.py").read_text(encoding="utf-8")
+    assert "dx._STATUS" not in src
+
+
+def test_every_publish_route_charges_and_refunds_the_same_way(api, conn, ex_on, ocr, monkeypatch):
+    """M-7: one charge helper for the outline, style and example publish routes; a failure of any kind, an
+    unexpected one included, gives the day's charge back."""
+    from api.routers import notebook_template_gallery as router_mod
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+
+    def boom(*a, **k):
+        raise RuntimeError("unexpected")
+    before = daily_counters.value(et_today(), "notebook_gallery_publish", "author")
+    for name, path, body in (("publish", URL, {"templateId": "t", "title": "T", "category": "journal"}),
+                             ("publish_style", f"{URL}/styles", {"styleId": "s", "title": "T", "category": "journal"}),
+                             ("publish_example", EX, {"noteId": "n", "styleItemId": "s", "title": "T"})):
+        monkeypatch.setattr(gallery, name, boom)
+        with pytest.raises(RuntimeError):
+            api.post(path, json=body)
+        assert daily_counters.value(et_today(), "notebook_gallery_publish", "author") == before, name
+    src = Path(router_mod.__file__).read_text(encoding="utf-8")
+    assert src.count("_daily_take(DAILY_PUBLISH_SCOPE") == 1                              # one copy

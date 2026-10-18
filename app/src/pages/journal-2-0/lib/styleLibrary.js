@@ -22,9 +22,16 @@ export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
   { key: 'style', label: 'Styles' },
   // P3b: an example note belongs to a style and is never listed on its own (R-P3b-2). It is in this list so the
-  // server's ITEM_TYPES and this one stay one fact; the library's type chips skip it at render.
+  // server's ITEM_TYPES and this one stay one fact; the library's type chips read LISTED_ITEM_TYPES below.
   { key: 'example_note', label: 'Example notes' },
 ])
+
+/** P3b: the server's EXAMPLE_ITEM (tests/test_example_notes.py reads this line and holds the two equal). */
+export const EXAMPLE_NOTE_TYPE = 'example_note'
+
+/** The item types a member can list or filter by: every type but the example note (the server's
+ *  LISTED_ITEM_TYPES). The library's type chips and its initial type read this, never ITEM_TYPES. */
+export const LISTED_ITEM_TYPES = Object.freeze(ITEM_TYPES.filter((t) => t.key !== EXAMPLE_NOTE_TYPE))
 
 export const TRADING_STYLES = Object.freeze([
   { key: 'swing', label: 'Swing' },

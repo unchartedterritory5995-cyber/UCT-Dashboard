@@ -182,6 +182,27 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
     return HTTPException(status_code=409 if isinstance(e, gallery.GalleryConflict) else 400, detail=str(e))
 
 
+def _charged_publish(user: dict, publish: Any) -> Any:
+    """ONE charge rule for every publish route -- an outline, a style, an example note (P3b review M-7): the
+    in-process 10/hour, then one durable charge for today, then `publish()`. A refusal of any kind gives the day's
+    charge back: a 400 or 409 (`GalleryError`), a 404 (`None`), and an unexpected failure too, so a typo or a
+    server fault never costs a member a slot. Returns what `publish()` returned."""
+    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+    try:
+        item = publish()
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise
+    if item is None:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise public.not_found()
+    return item
+
+
 # ── every member ────────────────────────────────────────────────────────────────────────
 
 @router.get("")
@@ -214,18 +235,9 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
     held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
     `_require_library` route dependency, before the plan check and the body."""
-    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
-    try:
-        item = gallery.publish_style(user["id"], body.get("styleId"), title=body.get("title"),
-                                     description=body.get("description"), category=body.get("category"),
-                                     trading_style=body.get("tradingStyle"))
-    except gallery.GalleryError as e:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise _bad(e)
-    if item is None:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise public.not_found()
+    item = _charged_publish(user, lambda: gallery.publish_style(
+        user["id"], body.get("styleId"), title=body.get("title"), description=body.get("description"),
+        category=body.get("category"), trading_style=body.get("tradingStyle")))
     dropped = item.pop("droppedProperties", 0)
     return {"template": item, "droppedProperties": dropped}
 
@@ -255,10 +267,17 @@ def _images_on(body: dict[str, Any]) -> list[str]:
 @router.post("/examples/preview", dependencies=[Depends(_require_example)])
 def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
                              user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """`{noteId, imagesOn?}` -> `{bodyJson, changes, counts, images}`: exactly what other members would see, for
-    the author. Writes nothing. 404 when the note is not theirs, not live, or the sample notebook's."""
+    """`{noteId, imagesOn?, title?}` -> `{bodyJson, changes, counts, images, title}`: exactly what other members
+    would see, for the author, the title included (the note's own when none is sent). Writes nothing. 404 when
+    the note is not theirs, not live, or the sample notebook's; 400 for a note too long to be an example.
+
+    ⚠️ Not rate-limited (review M-2): no new limiter scope is added (the single-process roster). Its cost is
+    bounded instead -- a note over the example ceiling is refused before it is reduced, and it is reduced once."""
     images_on = _images_on(body)
-    out = gallery.preview_example(None, user["id"], body.get("noteId"), images_on)
+    try:
+        out = gallery.preview_example(None, user["id"], body.get("noteId"), images_on, body.get("title"))
+    except gallery.GalleryError as e:
+        raise _bad(e)
     if out is None:
         raise public.not_found()
     return out
@@ -272,20 +291,8 @@ def publish_example_endpoint(body: dict[str, Any] = Depends(paid_body),
     a note that may not be an example. Rate-limited with sharing a style (R-P3b-8); a refused or failed publish
     gives the day's charge back."""
     images_on = _images_on(body)
-    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
-    try:
-        item = gallery.publish_example(None, user["id"], body.get("noteId"), body.get("styleItemId"), images_on,
-                                       body.get("title"))
-    except gallery.GalleryError as e:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise _bad(e)
-    except Exception:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise
-    if item is None:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise public.not_found()
+    item = _charged_publish(user, lambda: gallery.publish_example(
+        None, user["id"], body.get("noteId"), body.get("styleItemId"), images_on, body.get("title")))
     return {"template": item}
 
 
@@ -391,17 +398,9 @@ def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> di
 def publish_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{templateId, title, description?, category}` -> a PENDING submission (or the same
     copy resubmitted). The SERVER reads the template; the client never sends its body."""
-    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
-    try:
-        item = gallery.publish(user["id"], body.get("templateId"), title=body.get("title"),
-                               description=body.get("description"), category=body.get("category"))
-    except gallery.GalleryError as e:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise _bad(e)
-    if item is None:
-        _give_back(day, DAILY_PUBLISH_SCOPE, user)
-        raise public.not_found()
+    item = _charged_publish(user, lambda: gallery.publish(
+        user["id"], body.get("templateId"), title=body.get("title"), description=body.get("description"),
+        category=body.get("category")))
     return {"template": item}
 
 
