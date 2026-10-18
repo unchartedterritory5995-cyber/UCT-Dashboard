@@ -94,6 +94,15 @@ display-only:
               (grind_pole); `draw_anchors` carries refitted lanes (`flag_draw_lanes`: a wide red
               first bar left out, a flat-bottomed wedge drawn parallel, a floating lane end
               pulled onto the bars) -- the detector's own anchors are untouched.
+  bull_flag (round 8, lab REPORT_BULLFLAG_R7.md) -- DISPLAY SELECTION: the judges accepted the
+              geometry and objected to which flags were drawn. A flag is `stale` (not drawn) when
+              its pole tops out under a prior high (under_prior_high), climbs back out of a drop it
+              just made (rebound_pole) or is a slow first leg then a thrust (two_step_pole) --
+              `flag_context_verdict`; when the flag has fewer than FLAG_MIN_BARS (now 5) bars;
+              when its lanes -- the detector's or the refitted DRAWN ones -- fan past
+              LANE_DIVERGE_RATIO (now 1.45); and when its entry is set by a bar before the lanes
+              start while the price sits far under it (entry_detached, `flag_entry_verdict`). The
+              detector's firing, confidence and levels are untouched.
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `handle_verdict`
               (short / long / after_breakout; the rim stays).
@@ -184,8 +193,10 @@ EXTENT_CAPPED = frozenset({"flat_base", "bc:flat-base", "bc:square-box"})
 TAGGED_MA = {"e8": ("ema", 8), "e21": ("ema", 21), "s50": ("sma", 50), "s200": ("sma", 200)}
 TEAM_PULLBACKS = frozenset({"uct_pullback_ma_v5"})
 #: A flag's lanes "diverge" when the channel is more than this many times as
-#: wide at its right end as at its left end.
-LANE_DIVERGE_RATIO = 2.0
+#: wide at its right end as at its left end. Round 8 (lab REPORT_BULLFLAG_R7.md: fanning lower lanes,
+#: R7 case_891 at 1.74, R6 case_666): 2.0 -> 1.45, and read off the DRAWN lanes too; on the judged
+#: drawn flags the gap is between 1.43 (kept) and 1.50 (removed).
+LANE_DIVERGE_RATIO = 1.45
 #: A flag (a pause) stays at or below its pole high: this relative tolerance.
 FLAG_POLE_TOL = 0.002
 #: A flag's channel midline may rise at most this fraction of the pole height.
@@ -236,7 +247,9 @@ POLE_MIN_ATR = 5.0
 POLE_MAX_BARS = 20
 #: ... the flag (the bars its lanes cover) has at least FLAG_MIN_BARS bars, and its channel
 #: midline does not rise (slope <= 0).
-FLAG_MIN_BARS = 4
+#: Round 8 (lab REPORT_BULLFLAG_R7.md: 3-5 bar flags read as barely formed): 4 -> 5; the judged drawn
+#: 4-bar flags averaged 2.17, the 5-bar ones 2.35.
+FLAG_MIN_BARS = 5
 #: Round 4 (uct_pullback_ma_v5 tag): the tagged MA must RISE at least TAG_MIN_RISE_ATR ATR(14) over
 #: TAG_SLOPE_BARS bars (at the tag bar and at the last bar) -- flat or rolling over otherwise; a
 #: literal slope <= 0 never fires, the detector already requires a rising 21 EMA (on the round
@@ -343,6 +356,30 @@ WEDGE_FLAT_ATR = 0.04
 #: (under their lows for the lower lane, over their highs for the upper) is pulled onto them (judged
 #: 1-2 at 0.41-1.38; the largest on a flag judged 3 was 0.37).
 LANE_FLOAT_ATR = 0.4
+# -- Round 8, bull_flag only (lab REPORT_BULLFLAG_R7.md, 2026-10-17). DISPLAY SELECTION: a flag whose
+# context is wrong is `stale` (not drawn); the detector's firing, confidence and levels are untouched.
+# Every threshold is calibrated on the 110 bull_flag cases judged in team rounds 1-5, the R5 confirm,
+# R6 packet A and R7 packet A (73 of them drawn at the round-7 code), which the round-8 packets exclude.
+#: under_prior_high: the pole's top more than LEAD_NEAR_ATR ATR(14) (the ATR up to the drawn pole start)
+#: under the highest high of the LEAD_BARS bars ending at the top -- a rebound under a prior high, not
+#: a leader at its high (judged 1.5-2.5 at 0.81-7.7; the largest on a drawn flag judged 3 was 0.48) ...
+LEAD_BARS = 60
+LEAD_NEAR_ATR = 0.6
+#: ... rebound_pole: the highest high of the REBOUND_BARS bars up to the drawn pole start sits at least
+#: REBOUND_FRAC of the drawn pole's height above its low -- the pole climbs back out of a drop just
+#: made (judged 1.5-2.5 at 0.80-0.84; the largest on a flag judged 3 was 0.72) ...
+REBOUND_BARS = 10
+REBOUND_FRAC = 0.76
+#: ... two_step_pole: a drawn pole of at least TWO_STEP_MIN_BARS bars that reaches half its height only
+#: after TWO_STEP_LATE_FRAC of its bars -- a slow first leg, then the thrust (judged 2-2.5 at 0.67-0.85,
+#: none 3; the latest on a long pole judged 3 was 0.50).
+TWO_STEP_MIN_BARS = 12
+TWO_STEP_LATE_FRAC = 0.65
+#: entry_detached: the bar that sets the drawn entry (the flag's highest high) comes BEFORE the lanes'
+#: first bar -- the flag dropped away from the pole top before the lanes start -- while the last close
+#: sits more than ENTRY_STRANDED_ATR ATR(14) under the drawn entry (judged 2 at 1.70 and 2.07; no other
+#: drawn judged flag has its entry bar before its lanes).
+ENTRY_STRANDED_ATR = 1.5
 
 
 def _index(bars) -> dict:
@@ -1169,6 +1206,66 @@ def pole_impulse_verdict(bars: list, s: int, top: int):
     return True, None
 
 
+def flag_context_verdict(bars: list, s: int, top: int):
+    """(draw, reason) for the CONTEXT of the drawn pole from bar `s` to the top. Round 8 (lab
+    REPORT_BULLFLAG_R7.md: the judges accepted the geometry and objected to WHICH flags were drawn --
+    rebounds under a prior high or out of a big drop, long two-step advances):
+      under_prior_high  the pole's top sits more than LEAD_NEAR_ATR ATR(14) under the highest high
+                        of the LEAD_BARS bars ending at the top: a recovery leg, not a leader at its
+                        high;
+      rebound_pole      the highest high of the REBOUND_BARS bars up to the pole's start is at least
+                        REBOUND_FRAC of the pole's height above the start's low: the pole climbs back
+                        out of a drop it just made;
+      two_step_pole     a pole of at least TWO_STEP_MIN_BARS bars reaches half its height only after
+                        TWO_STEP_LATE_FRAC of its bars: a slow first leg, then the thrust.
+    ATR(14) is the ATR up to the pole start. Display selection only. (True, None) when unknown."""
+    if not 0 <= s < top < len(bars):
+        return True, None
+    hi = float(bars[top]["h"])
+    lo = float(bars[s]["l"])
+    height = hi - lo
+    if height <= 0:
+        return True, None
+    at = atr14(bars[:s + 1]) or atr14(bars[:top + 1])
+    lead = max(float(b["h"]) for b in bars[max(0, top - LEAD_BARS + 1):top + 1])
+    if at and lead - hi > LEAD_NEAR_ATR * at:
+        return False, "under_prior_high"
+    pre = max(float(b["h"]) for b in bars[max(0, s - REBOUND_BARS):s + 1])
+    if pre - lo >= REBOUND_FRAC * height:
+        return False, "rebound_pole"
+    n = top - s
+    if n >= TWO_STEP_MIN_BARS:
+        half = next(j for j in range(s, top + 1) if float(bars[j]["h"]) - lo >= 0.5 * height)
+        if (half - s) / n >= TWO_STEP_LATE_FRAC:
+            return False, "two_step_pole"
+    return True, None
+
+
+def flag_entry_verdict(bars: list, pos: dict, d: dict, entry, lanes=None):
+    """(draw, reason) for a bull_flag's DRAWN entry. Round 8 (lab REPORT_BULLFLAG_R7.md case_284: the
+    flag dropped two bars below the pole top before its lanes start, so the entry -- the flag's highest
+    high -- is set at the pole top, far above the price):
+      entry_detached  the bar that sets the entry (the flag's highest high) comes BEFORE the lanes'
+                      first bar, while the last close is more than ENTRY_STRANDED_ATR ATR(14) under
+                      the drawn `entry`.
+    `lanes` is the drawn four-anchor list (extras.draw_anchors) when the lanes were refitted, else the
+    detector's anchors are read. (True, None) when the flag, lanes or entry are unknown."""
+    fb = _flag_bars(pos, d, len(bars))
+    if fb is None or not isinstance(entry, (int, float)):
+        return True, None
+    _b0, b1, last = fb
+    a = lanes if lanes else ((d.get("geometry") or {}).get("anchors") or [])
+    xs = [pos.get(p.get("t")) for p in a] if len(a) == 4 else []
+    if len(xs) != 4 or None in xs or last <= b1:
+        return True, None
+    left = min(xs)
+    js = max(range(b1 + 1, last + 1), key=lambda j: (float(bars[j]["h"]), -j))
+    at = atr14(bars[:last + 1])
+    if js < left and at and float(entry) - float(bars[last]["c"]) > ENTRY_STRANDED_ATR * at:
+        return False, "entry_detached"
+    return True, None
+
+
 def _lsq(xs, ys):
     """(slope, intercept) of the least-squares line -- the detector's own lane fit (price space)."""
     n = len(xs)
@@ -1535,14 +1632,24 @@ def draw_geometry(detections: list, bars: list) -> list:
                     pause, why = flag_edge_verdict(bars, pos, d)
                 if pause and s is not None:   # round 7: a stair-step grind is not a pole
                     pause, why = pole_impulse_verdict(bars, s, top)
+                if pause and s is not None:   # round 8: under a prior high, a rebound, two steps
+                    pause, why = flag_context_verdict(bars, s, top)
+                ep = None
                 if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
                     ep = flag_entry_line(bars, pos, d)
                     if ep is not None:
                         extras["draw_entry_price"] = ep
+                lanes = None
                 if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
                     lanes = flag_draw_lanes(bars, pos, d)
                     if lanes is not None:
                         extras["draw_anchors"] = lanes
+                        # round 8: the DRAWN lanes must not fan either
+                        if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
+                            pause, why = False, "diverging"
+                if pause:       # round 8: an entry set at the pole top above a flag that dropped away
+                    entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
+                    pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)
                 if not pause:   # round 2: a second leg past the pole, not a pause
                     extras["stale"] = True
                     extras["stale_reason"] = why

@@ -12,6 +12,10 @@ export const URGENT_NEXT = 2
 // the ±6 neighbours are promoted from IndexedDB into the sync mem cache (no network), the
 // same window Watchlists.jsx uses, so a press paints in the same frame.
 export const MEM_AROUND = 6
+// The rows that load during a first visit's pack ingest (`prewarmVisibleList` memTop). The
+// watchlist's 24 left row 25 of a screener page waiting (150 ms, measured 2026-10-17); a
+// screener page is 100 rows and a walk covers dozens, so the first 60 go up front.
+export const VISIBLE_TOP = 60
 
 const EMPTY = []
 
@@ -63,7 +67,7 @@ export default function useFocusSelection({
   // rows promoted to mem (`prewarmVisibleList`, the call Watchlists.jsx makes). Bounded,
   // queued behind the visible chart's own fetch, and already-warm tickers skip.
   useEffect(() => {
-    if (symbols.length) prewarmVisibleList(symbols, { chartTf: tf || 'D' })
+    if (symbols.length) prewarmVisibleList(symbols, { chartTf: tf || 'D', memTop: VISIBLE_TOP })
   }, [symbols, tf])
   useEffect(() => {
     const at = selTicker == null ? -1 : symbols.indexOf(selTicker)

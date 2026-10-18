@@ -350,13 +350,15 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
 
 def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
     """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows and the
-    learned drawer. bull_flag and the bc:flat-base box are team set but NOT member set."""
+    learned drawer. bull_flag is team set but NOT member set. bc:flat-base IS member set, but only
+    as its pivot line: this BOX was built without bars, so it carries no pivot stamp and would
+    draw the full box -- a member is not served it (tests/test_member_drawing_set.py)."""
     _flags(monkeypatch, True, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
     assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
     assert body["count"] == 1
-    assert "structures" not in body          # no base-box key is in the member set
+    assert "structures" not in body          # an unstamped bc:flat-base box is not pivot-only
     assert "drawn" in body
     # intraday: rows only (the boxes and the learned drawer are daily geometry)
     intra = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(

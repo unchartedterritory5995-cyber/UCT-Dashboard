@@ -1,7 +1,8 @@
 """The TEAM DRAWING SET (owner direction 2026-10-17): the chart's auto-drawings show what the
 team draws -- flags (pole + lanes), bases (breakout / pivot line), MA pullbacks (the tagged MA as a
 curve + the tag-bar marker) and the learned levels + trendlines. registry.DISPLAY_TRUSTED IS this
-set; members stay off (AUTO_STRUCTURES_MEMBERS_ENABLED=0) until it passes a blind check.
+set; members get only its blind-confirmed part (registry.DISPLAY_MEMBER_SET,
+tests/test_member_drawing_set.py).
 
 DISPLAY-ONLY: every stamp lives under `geometry.extras`; anchors, levels, start_t / end_t and
 confidence are untouched. Synthetic bars only (public repo).
@@ -216,7 +217,8 @@ def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_t
                         lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
     body = _client(PAID_MEMBER, monkeypatch, ROWS).get(URL).json()
     # registry.DISPLAY_MEMBER_SET (blind-confirmed): the pullback is served to a member through
-    # the member set only; bull_flag and the bc:flat-base box are team set, admin-only.
+    # the member set only; bull_flag is team set, admin-only. The bc:flat-base box here is built
+    # without bars (no pivot stamp, so it would draw the full box): not served to a member.
     assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
     assert "structures" not in body
     assert "drawn" in body

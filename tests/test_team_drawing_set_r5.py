@@ -177,11 +177,13 @@ SLOW_POLE = [11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0]      # bars 15-22: 
 
 
 def test_a_flag_falling_faster_than_the_pole_rose_is_not_a_flag():
-    closes = PRE + SLOW_POLE + [17.6, 16.8, 16.0, 15.2]              # the flag falls 0.8 a bar
-    ex = _drawn(closes, 22, ((23, 18.1), (26, 15.7)), ((23, 17.1), (26, 14.7)))
+    # five flag bars: round 8 raised FLAG_MIN_BARS to 5, so a 4-bar flag would stop at short_flag
+    closes = PRE + SLOW_POLE + [17.6, 16.8, 16.0, 15.2, 14.4]        # the flag falls 0.8 a bar
+    ex = _drawn(closes, 22, ((23, 18.1), (27, 14.9)), ((23, 17.1), (27, 13.9)))
     assert ex["stale"] is True and ex["stale_reason"] == "steep_flag", ex
     # control: a flag falling 0.5 a bar (under 0.65 x the pole's 1.1) draws
-    ok = _drawn(PRE + SLOW_POLE + [18.0, 17.5, 17.0, 16.5], 22, ((23, 18.5), (26, 17.0)), ((23, 17.5), (26, 16.0)))
+    ok = _drawn(PRE + SLOW_POLE + [18.0, 17.5, 17.0, 16.5, 16.0], 22,
+                ((23, 18.5), (27, 16.5)), ((23, 17.5), (27, 15.5)))
     assert not ok.get("stale"), ok
 
 
