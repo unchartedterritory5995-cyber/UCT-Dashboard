@@ -18,7 +18,8 @@ def _env(tmp_path, monkeypatch):
     for k in ("TSDR_LESSONS_ENABLED", "TSDR_LESSONS_YOUTUBE_ENABLED", "TSDR_LESSONS_CHANNEL_ID",
               "TSDR_LESSONS_SOURCE_CHANNELS", "TSDR_LESSONS_AUTHOR_IDS", "TSDR_LESSONS_SINCE",
               "TSDR_LESSONS_YT_PER_DAY", "DISCORD_GUILD_ID", "TSDR_LESSONS_GUILD_ID",
-              "TSDR_LESSONS_THREADS_ENABLED"):
+              "TSDR_LESSONS_THREADS_ENABLED", "TSDR_LESSONS_FORUM_ENABLED",
+              "TSDR_LESSONS_FORUM_CHANNEL_ID", "TSDR_LESSONS_REVIEWER_IDS"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(tl, "_sleep", lambda s: None)
 
@@ -1238,3 +1239,344 @@ def test_clips_never_reach_the_shelf_and_existing_ones_come_off_once(monkeypatch
     monkeypatch.setattr(tl, "upload_lesson", lambda row: order.append(row["attachment_id"]) or "uploaded")
     tl.run_youtube(deadline=9e12)
     assert order == ["l1"]
+
+
+# ── library v2: the Forum channel ────────────────────────────────────────────
+
+FORUM = "forum9"
+TAG_IDS = {spec["name"]: f"tag-{i}" for i, spec in enumerate(tl.forum_tag_specs())}
+
+
+def _forum_env(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_ENABLED", "1")
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_CHANNEL_ID", FORUM)
+    tl.set_state("forum_tags", json.dumps(TAG_IDS))
+
+
+def _forum_routes(posts, sent, *, forward_ok=True):
+    """A forum that numbers its posts p1, p2, ... and records what goes in them."""
+    def make_post(p, b):
+        posts.append(b)
+        pid = f"p{len(posts)}"
+        sent.setdefault(pid, [])
+        return {"id": pid}
+
+    def in_post(pid):
+        def post(p, b):
+            if "message_reference" in b and not forward_ok:
+                raise tl.DiscordError(429, "Maximum amount of forwarded attachment bytes reached")
+            sent[pid].append(b)
+            return {"id": f"{pid}-m{len(sent[pid])}"}
+        return post
+
+    routes = {("POST", f"/channels/{FORUM}/threads"): make_post}
+    for n in range(1, 40):
+        routes[("POST", f"/channels/p{n}/messages")] = in_post(f"p{n}")
+    return routes
+
+
+def _forum_lesson(aid, day, *, title=None, tags=("setups",), tickers=("NVDA",), section="setups",
+                  level="intermediate", author=PATRICK, transcript="the words " * 30):
+    m = msg(sf(2026, 3, day), author=author, attachments=[video(aid)])
+    tl.record_message(m, TSDR if author == PATRICK else tl.BRACCO_CHANNEL_ID)
+    tl._update(aid, status="posted", title=title or f"Lesson {aid}", recap="A. B. C. D.",
+               tags=json.dumps(list(tags)), tickers=json.dumps(list(tickers)), section=section,
+               level=level, transcript=transcript, discord_post_id=f"old-{aid}",
+               post_channel_id=f"t-{section}")
+    return m
+
+
+def test_the_forum_is_created_once_with_its_tags_read_only_and_remembered(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_ENABLED", "1")
+    made = []
+    fake = FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat1", "type": 4, "name": "EDUCATION"}],
+        ("GET", "/users/@me"): {"id": "bot1"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": [
+            {"id": "role-members", "type": 0, "allow": str(tl._VIEW_CHANNEL), "deny": "0"}]},
+        ("POST", f"/guilds/{GUILD}/channels"): lambda p, b: made.append(b) or {"id": "forum1"},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.ensure_forum() == "forum1"
+    body = made[0]
+    assert body["type"] == tl._FORUM and body["name"] == "lesson-library"
+    assert body["parent_id"] == "cat1" and body["default_sort_order"] == tl._SORT_BY_CREATION
+    assert [t["name"] for t in body["available_tags"]] == [
+        "Setups & Entries", "Trade Management", "Market Read", "Mindset & Process",
+        "Clips & Quick Takes", "Beginner", "Intermediate", "Advanced", "TSDR", "Bracco"]
+    ows = {o["id"]: o for o in body["permission_overwrites"]}
+    assert int(ows["role-members"]["deny"]) & tl._SEND_MESSAGES          # members read only
+    assert int(ows["bot1"]["allow"]) & tl._SEND_IN_THREADS                # the bot replies in posts
+    n = len(fake.calls)
+    assert tl.ensure_forum() == "forum1" and len(fake.calls) == n          # remembered
+
+
+def test_an_existing_forum_is_found_by_name_and_a_bot_without_the_permission_is_told(monkeypatch):
+    fake = FakeDiscord({("GET", f"/guilds/{GUILD}/channels"): [
+        {"id": "f-old", "type": tl._FORUM, "name": "Lesson-Library"}]})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.ensure_forum() == "f-old"
+    tl.set_state("forum_channel_id", "")
+
+    def refuse(p, b):
+        raise tl.DiscordError(403, "Missing Permissions")
+
+    fake = FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat1", "type": 4, "name": "EDUCATION"}],
+        ("GET", "/users/@me"): {"id": "bot1"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": []},
+        ("POST", f"/guilds/{GUILD}/channels"): refuse,
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    with pytest.raises(tl.DiscordError):
+        tl.ensure_forum()
+    assert len([c for c in fake.calls if c[0] == "POST"]) == len(tl._FORUM_OVERWRITE_LADDER)
+    assert tl.get_state("forum_channel_id") in (None, "")                 # nothing remembered
+
+
+def test_missing_forum_tags_are_added_keeping_the_existing_ones(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_CHANNEL_ID", FORUM)
+    existing = [{"id": "t-a", "name": "Setups & Entries", "emoji_name": "x"},
+                {"id": "t-z", "name": "Owner's own tag"}]
+    patched = []
+
+    def patch(p, b):
+        patched.append(b)
+        return {"available_tags": [*b["available_tags"][:2],
+                                   *[{**t, "id": f"new-{i}"} for i, t in enumerate(b["available_tags"][2:])]]}
+
+    fake = FakeDiscord({("GET", f"/channels/{FORUM}"): {"available_tags": existing},
+                        ("PATCH", f"/channels/{FORUM}"): patch})
+    monkeypatch.setattr(tl, "_discord", fake)
+    tags = tl.forum_tags()
+    assert patched[0]["available_tags"][:2] == existing                   # kept, ids and all
+    assert tags["Setups & Entries"] == "t-a" and tags["Owner's own tag"] == "t-z"
+    assert tags["Beginner"].startswith("new-") and tags["Bracco"].startswith("new-")
+    n = len(fake.calls)
+    assert tl.forum_tags() == tags and len(fake.calls) == n              # cached
+    # a bot that may not edit the channel uses what is there
+    tl.set_state("forum_tags", "")
+
+    def refuse(p, b):
+        raise tl.DiscordError(403, "Missing Permissions")
+
+    monkeypatch.setattr(tl, "_discord", FakeDiscord({("GET", f"/channels/{FORUM}"): {"available_tags": existing},
+                                                      ("PATCH", f"/channels/{FORUM}"): refuse}))
+    assert tl.forum_tags() == {"Setups & Entries": "t-a", "Owner's own tag": "t-z"}
+
+
+def test_with_the_forum_on_a_lesson_is_one_tagged_post_with_the_video_inside(monkeypatch):
+    _forum_env(monkeypatch)
+    m = msg(sf(2026, 10, 15), attachments=[video("f1")], content="EMA lesson")
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m, recap={**RECAP, "level": "beginner"})
+    posts, sent = [], {}
+    fake.routes.update(_forum_routes(posts, sent))
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert posts[0]["name"] == RECAP["title"]
+    assert posts[0]["applied_tags"] == [TAG_IDS["Setups & Entries"], TAG_IDS["Beginner"], TAG_IDS["TSDR"]]
+    assert posts[0]["message"]["embeds"][0]["title"] == RECAP["title"]
+    assert posts[0]["message"]["content"] == "Entries · Setups · $NVDA $AMD"
+    assert "message_reference" in sent["p1"][0]                           # the video, inside the post
+    row = tl.get_lesson("f1")
+    assert row["forum_post_id"] == "p1" and row["discord_post_id"] == "p1"
+    assert row["post_channel_id"] == "p1" and row["forward_post_id"] == "p1-m1"
+    assert row["section"] == "setups" and row["related_at"]
+    assert tl.get_state("index_dirty") == "1"
+    assert fake.posts("/channels/lessons/messages") == []                 # nothing in the old channel
+
+
+def test_a_clip_post_carries_no_level_tag_and_a_refused_forward_waits_for_youtube(monkeypatch):
+    _forum_env(monkeypatch)
+    m = msg(sf(2026, 10, 15), attachments=[video("fc")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False, "title": "Tape check",
+                                            "recap": "A quick look.", "tags": ["market"]})
+    posts, sent = [], {}
+    fake.routes.update(_forum_routes(posts, sent, forward_ok=False))
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert posts[0]["applied_tags"] == [TAG_IDS["Clips & Quick Takes"], TAG_IDS["TSDR"]]
+    row = tl.get_lesson("fc")
+    assert row["forward_post_id"] == "" and row["section"] == "clips"
+    # once the YouTube copy exists, the refill puts it inside the post
+    tl._update("fc", youtube_id="YTCOPY00001")
+    assert tl.run_video_refill(deadline=9e12) == {"refilled": 1, "waiting": 0, "errors": 0}
+    assert sent["p1"][-1] == {"content": "https://youtu.be/YTCOPY00001"}
+    assert tl.get_lesson("fc")["forward_post_id"] == "p1-m1"
+
+
+def test_related_lessons_score_tickers_then_tags_then_section_and_never_clips():
+    for aid, day, tags, tickers, section in (
+            ("r1", 1, ("setups",), ("NVDA",), "setups"),       # ticker + tag + section = 6
+            ("r2", 2, ("setups",), ("AMD",), "setups"),        # tag + section = 3
+            ("r3", 3, ("risk",), ("NVDA",), "management"),     # ticker = 3, newer than r2
+            ("r4", 4, ("market",), ("SPY",), "market"),        # 0
+            ("r5", 5, ("clip",), ("NVDA",), "clips")):         # a clip: never
+        _forum_lesson(aid, day, tags=tags, tickers=tickers, section=section)
+        tl._update(aid, forum_post_id=f"post-{aid}")
+    me = {"attachment_id": "me", "tags": ["setups"], "tickers": ["NVDA"], "section": "setups"}
+    assert [r["post"] for r in tl.related_lessons(me)] == ["post-r1", "post-r3", "post-r2"]
+    assert tl.related_lessons({**me, "tags": ["clip"]}) == []
+    embed = tl.build_embed({**me, "title": "T", "recap": "R", "posted_at": 1700000000,
+                            "related": tl.related_lessons(me)}, "https://x")
+    assert ("**See also:** [Lesson r1](https://discord.com/channels/" + GUILD + "/post-r1) · "
+            "[Lesson r3](") in embed["description"]
+
+
+def test_the_migration_moves_old_lessons_oldest_first_classifying_and_deduping(monkeypatch):
+    _forum_env(monkeypatch)
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_MIGRATE_PER_TICK", "3")
+    talk = "same talk words " * 30
+    _forum_lesson("m1", 1, level=None, transcript=talk)                     # needs a level
+    _forum_lesson("m2", 2, transcript=talk)                                  # repeats m1
+    _forum_lesson("m3", 3, transcript="different words here " * 30)
+    _forum_lesson("m4", 4, transcript="fourth lesson words " * 30)         # next tick
+    _forum_lesson("gone", 5, transcript="deleted by hand " * 30)
+    posts, sent = [], {}
+    routes = _forum_routes(posts, sent)
+    for aid in ("m1", "m2", "m3", "m4"):
+        routes[("GET", f"/channels/t-setups/messages/old-{aid}")] = {"id": f"old-{aid}"}
+
+    def deleted(p, b):
+        raise tl.DiscordError(404, "Unknown Message")
+    routes[("GET", "/channels/t-setups/messages/old-gone")] = deleted
+    monkeypatch.setattr(tl, "_discord", FakeDiscord(routes))
+    monkeypatch.setattr(tl, "classify_level", lambda title, recap: "advanced")
+    out = tl.run_forum_migration(deadline=9e12)
+    assert out == {"moved": 2, "duplicate": 1, "removed": 0, "errors": 0, "left": 2}
+    assert [b["name"] for b in posts] == ["Lesson m1", "Lesson m3"]
+    assert TAG_IDS["Advanced"] in posts[0]["applied_tags"]
+    m1, m2 = tl.get_lesson("m1"), tl.get_lesson("m2")
+    assert m1["level"] == "advanced" and m1["forum_post_id"] == "p1" and m1["discord_post_id"] == "p1"
+    assert m2["status"] == "duplicate" and m2["duplicate_of"] == "m1"
+    assert json.loads(tl.get_lesson("m3")["related"]) == [{"title": "Lesson m1", "post": "p1"}]
+    out = tl.run_forum_migration(deadline=9e12)
+    assert out == {"moved": 1, "duplicate": 0, "removed": 1, "errors": 0, "left": 0}
+    assert tl.get_lesson("gone")["status"] == "removed"
+    assert tl.run_forum_migration(deadline=9e12)["moved"] == 0             # done
+
+
+def test_the_index_is_one_pinned_post_edited_in_place_and_split_when_long(monkeypatch):
+    _forum_env(monkeypatch)
+    for i in range(1, 4):
+        _forum_lesson(f"i{i}", i, title=f"Lesson {i}", section="setups" if i < 3 else "market")
+        tl._update(f"i{i}", forum_post_id=f"post-i{i}")
+    tl._mark_index_dirty()
+    posts, msgs, patched, pinned = [], [], [], []
+    fake = FakeDiscord({
+        ("POST", f"/channels/{FORUM}/threads"): lambda p, b: posts.append(b) or {"id": "idx"},
+        ("PATCH", "/channels/idx"): lambda p, b: pinned.append(b) or {},
+        ("POST", "/channels/idx/messages"): lambda p, b: msgs.append(b) or {"id": f"im{len(msgs)}"},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.refresh_index() == {"updated": len(tl.SECTIONS)}
+    assert posts[0]["name"] == "Index" and pinned == [{"flags": tl._PINNED}]
+    assert msgs[0]["embeds"][0]["title"] == "Setups & Entries"
+    assert msgs[0]["embeds"][0]["description"] == (
+        f"• [Lesson 1](https://discord.com/channels/{GUILD}/post-i1) · Mar 1, 2026\n"
+        f"• [Lesson 2](https://discord.com/channels/{GUILD}/post-i2) · Mar 2, 2026")
+    assert msgs[2]["embeds"][0]["description"].startswith("• [Lesson 3]")
+    assert msgs[4]["embeds"][0]["description"] == "Nothing here yet."
+    assert tl.refresh_index() == {"updated": 0}                            # nothing changed
+    # a new lesson: the same messages are edited, not re-posted
+    _forum_lesson("i4", 6, title="Lesson 4", section="setups")
+    tl._update("i4", forum_post_id="post-i4")
+    tl._mark_index_dirty()
+    for n in range(1, 6):
+        fake.routes[("PATCH", f"/channels/idx/messages/im{n}")] = lambda p, b: patched.append(b) or {}
+    assert tl.refresh_index()["updated"] == len(tl.SECTIONS)
+    assert len(msgs) == 5 and len(patched) == 5
+    assert "[Lesson 4]" in patched[0]["embeds"][0]["description"]
+    # a section longer than one embed continues in a second message
+    assert tl._pack([f"line {i} " + "x" * 100 for i in range(60)], limit=3900)[1].startswith("line ")
+    assert len(tl._pack(["a", "b"], limit=3900)) == 1
+
+
+def test_a_pencil_from_a_speaker_rewrites_the_lesson_without_a_download(monkeypatch):
+    _forum_env(monkeypatch)
+    _forum_lesson("w1", 1, transcript="rewrite these words " * 30)
+    _forum_lesson("w2", 2, transcript="second lesson words " * 30)
+    _forum_lesson("w3", 3, transcript="third lesson words " * 30)
+    for aid, pid in (("w1", "p-w1"), ("w2", "p-w2"), ("w3", "p-w3")):
+        tl._update(aid, forum_post_id=pid, discord_post_id=pid, post_channel_id=pid)
+    deleted = []
+    fake = FakeDiscord({
+        ("GET", f"/channels/p-w1/messages/p-w1/reactions/{tl._PENCIL}"): [{"id": PATRICK}],
+        ("GET", f"/channels/p-w2/messages/p-w2/reactions/{tl._PENCIL}"): [{"id": "stranger"}],
+        ("GET", f"/channels/p-w3/messages/p-w3/reactions/{tl._PENCIL}"):
+            lambda p, b: (_ for _ in ()).throw(tl.DiscordError(404, "Unknown Channel")),
+        ("DELETE", "/channels/p-w1"): lambda p, b: deleted.append("p-w1"),
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_rewrite_requests(deadline=9e12) == {"checked": 2, "rewriting": 1, "removed": 1, "errors": 0}
+    assert deleted == ["p-w1"]
+    w1 = tl.get_lesson("w1")
+    assert w1["status"] == "new" and w1["forum_post_id"] is None and w1["transcript"]
+    assert tl.get_lesson("w2")["status"] == "posted" and tl.get_lesson("w2")["reaction_checked_at"]
+    assert tl.get_lesson("w3")["status"] == "removed"
+    # the rewrite reuses the stored transcript: no download, a new post
+    message = msg(sf(2026, 3, 1), attachments=[video("w1")])
+    fake2 = _pipeline(monkeypatch, message)
+    monkeypatch.setattr(tl, "download", lambda url, dest: (_ for _ in ()).throw(AssertionError("downloaded")))
+    posts, sent = [], {}
+    fake2.routes.update(_forum_routes(posts, sent))
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert tl.get_lesson("w1")["forum_post_id"] == "p1"
+
+
+def test_a_link_rewrite_in_the_forum_takes_the_whole_post_down(monkeypatch):
+    _forum_env(monkeypatch)
+    m = msg(sf(2026, 7, 9), content="Must watch https://youtu.be/LINKVID0001")
+    tl.record_message(m, TSDR)
+    aid = tl.LINK_PREFIX + "LINKVID0001"
+    tl._update(aid, status="posted", title="Clip", recap="A short clip.", forum_post_id="p-link",
+               discord_post_id="p-link", post_channel_id="p-link", forward_post_id="p-link-m1",
+               section="clips")
+    assert tl.store_link_transcript("LINKVID0001", "now the words " * 30) == "queued"
+    deleted = []
+    fake = FakeDiscord({("DELETE", "/channels/p-link"): lambda p, b: deleted.append(1)})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_link_redo(deadline=9e12) == {"requeued": 1, "errors": 0}
+    assert deleted == [1] and [c for c in fake.calls if "messages" in c[1]] == []
+    row = tl.get_lesson(aid)
+    assert row["status"] == "new" and row["forum_post_id"] is None and row["redo"] == 0
+
+
+def test_see_also_is_refreshed_in_place_when_stale(monkeypatch):
+    _forum_env(monkeypatch)
+    _forum_lesson("s1", 1, tickers=("NVDA",))
+    _forum_lesson("s2", 2, tickers=("NVDA",))
+    tl._update("s1", forum_post_id="p-s1", discord_post_id="p-s1", post_channel_id="p-s1",
+               related="[]", related_at=1)                                  # long ago, nothing related then
+    tl._update("s2", forum_post_id="p-s2", discord_post_id="p-s2", post_channel_id="p-s2",
+               related=json.dumps([{"title": "Lesson s1", "post": "p-s1"}]),
+               related_at=int(__import__("time").time()))                   # fresh
+    patched = []
+    fake = FakeDiscord({("PATCH", "/channels/p-s1/messages/p-s1"): lambda p, b: patched.append(b) or {}})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_related_refresh(deadline=9e12) == {"refreshed": 1, "errors": 0}
+    assert "[Lesson s2](https://discord.com/channels/" in patched[0]["embeds"][0]["description"]
+    assert json.loads(tl.get_lesson("s1")["related"]) == [{"title": "Lesson s2", "post": "p-s2"}]
+    assert tl.run_related_refresh(deadline=9e12) == {"refreshed": 0, "errors": 0}
+
+
+def test_the_forum_stages_run_only_with_the_flag_and_regroup_steps_aside(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_ENABLED", "1")
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    ran = []
+    for name in ("run_regroup", "run_forum_migration", "run_rewrite_requests", "run_related_refresh",
+                 "run_video_refill"):
+        monkeypatch.setattr(tl, name, lambda deadline, _n=name: ran.append(_n) or {})
+    monkeypatch.setattr(tl, "refresh_index", lambda: ran.append("refresh_index") or {"updated": 0})
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(tl, "run_lessons", lambda limit, deadline: {})
+    monkeypatch.setattr(tl, "run_link_redo", lambda deadline: {"requeued": 0, "errors": 0})
+    tl.set_state(tl._LINK_RESCAN_KEY, "1")
+    tl.set_state(tl._REOPEN_DONE_KEY, "1")
+    tl.tick()
+    assert ran == ["run_regroup", "run_video_refill"]
+    ran.clear()
+    monkeypatch.setenv("TSDR_LESSONS_FORUM_ENABLED", "1")
+    tl.tick()
+    assert ran == ["run_forum_migration", "run_rewrite_requests", "run_related_refresh",
+                   "run_video_refill", "refresh_index"]
