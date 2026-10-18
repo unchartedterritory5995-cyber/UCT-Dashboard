@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
+// The pane's chart is the /charts Chart widget (ScreenerChartWidget); these tests are about which
+// stock it is handed, so the host is stubbed at its boundary.
+vi.mock('../ScreenerChartWidget', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} data-phone={p.phone ? '1' : undefined} /> }))
 vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))

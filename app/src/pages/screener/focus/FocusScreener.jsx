@@ -769,7 +769,7 @@ function FocusList({ onMode }) {
   const listShowing = !error && !!result && total !== 0
   useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
   const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag,
-    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey, onRefocus: focusList,
+    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey,
     structures, busy: pending }
 
   const flagsOutsideList = <div className={styles.stateFlags} data-testid="focus-state-flags"><FlaggedActions /></div>
@@ -846,7 +846,7 @@ function FocusList({ onMode }) {
       {body}
       <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
         onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>
-        <ChartPane {...paneProps} />
+        <ChartPane {...paneProps} phone />
       </PhoneChartSheet>
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
         onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}
