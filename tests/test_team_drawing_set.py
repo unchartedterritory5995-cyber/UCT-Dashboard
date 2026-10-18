@@ -50,7 +50,11 @@ def test_flat_base_draws_its_pivot_line_at_the_level_it_fires_above():
             continue
         drawn += 1
         pv = ex["draw_pivot"]
-        assert pv["price"] == float(a[1]["price"])            # the base high, never invented
+        # round 4: the base's top cluster under the detector's base high -- one real bar's high,
+        # never invented, never above the level it fires above
+        pos = {b["t"]: k for k, b in enumerate(bars)}
+        base_highs = {float(b["h"]) for b in bars[pos[a[1]["t"]]:pos[a[2]["t"]] + 1]}
+        assert pv["price"] in base_highs and pv["price"] <= float(a[1]["price"])
         assert ex["draw_anchors"][0]["t"] <= pv["start_t"] <= pv["end_t"] <= ex["draw_anchors"][1]["t"] \
             or (pv["start_t"], pv["end_t"]) == (ex["draw_anchors"][0]["t"], ex["draw_anchors"][1]["t"])
         assert ex.get("draw_box", True) is True               # flat_base keeps its capped box
@@ -87,14 +91,19 @@ BOX = {"structure_key": "flat-base", "start_t": ymd_t(0), "end_t": ymd_t(14),
 
 
 def test_bc_flat_base_draws_the_pivot_line_only():
-    bars = _bars([80, 84, 88, 91, 94, 99, 98, 100, 97, 99, 98, 99, 100, 98, 99])
-    d = auto_structures.box_to_detection("ZZZ", BOX, bars)
+    # round 5: the base runs on 6 more bars (its line was first touched 7 bars before the end: a
+    # fresh high) and its floor is the base's own (89.5), so the line starts on the base, not on
+    # the run-up close 91 (a close 9.5 under the line is a deep base)
+    box = {**BOX, "end_t": ymd_t(20), "floor": 89.5}
+    bars = _bars([80, 84, 88, 91, 94, 99, 98, 100, 97, 99, 98, 99, 100, 98, 99, 98, 99, 100, 98, 99, 100])
+    d = auto_structures.box_to_detection("ZZZ", box, bars)
     ex = d["geometry"]["extras"]
     assert ex["draw_box"] is False
-    assert ex["draw_pivot"] == {"start_t": ymd_t(3), "end_t": ymd_t(14), "price": 100.6}
-    assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(14), "price": 79.5}]
+    # round 4: the line sits on the base's top cluster of highs (100.5), not base_catalog's pivot
+    assert ex["draw_pivot"] == {"start_t": ymd_t(5), "end_t": ymd_t(20), "price": 100.5}
+    assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(20), "price": 89.5}]
     # no pivot from base_catalog: the box top is the line
-    nop = auto_structures.box_to_detection("ZZZ", {**BOX, "pivot": None}, bars)
+    nop = auto_structures.box_to_detection("ZZZ", {**box, "pivot": None}, bars)
     assert nop["geometry"]["extras"]["draw_pivot"]["price"] == 100.5
     # no bars: nothing stamped (rows stored before the fix draw as before)
     assert "draw_pivot" not in auto_structures.box_to_detection("ZZZ", BOX)["geometry"]["extras"]
@@ -121,19 +130,27 @@ def test_a_bc_flat_base_that_broke_down_is_stale_and_not_served(monkeypatch):
 
 
 def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_handle():
-    closes = [90] * 10 + [97, 96, 95, 96, 98, 101, 104, 106]
-    bars = _bars(closes)
-    cup = {"structure_key": "cup-with-handle", "start_t": ymd_t(0), "end_t": ymd_t(17),
-           "top": 100.0, "floor": 85.0, "pivot": 100.1,
-           "sub_boxes": [{"start_t": ymd_t(0), "end_t": ymd_t(9), "top": 100.0, "floor": 85.0},
-                         {"start_t": ymd_t(10), "end_t": ymd_t(17), "top": 106.5, "floor": 94.5}]}
+    # round 2: the rim is the LEFT LIP (bar 2's high), not the box top / pivot a later spike set
+    closes = [95, 98, 100, 96, 92, 88, 86, 89, 93, 98, 97, 96, 97, 98, 102]
+    highs = [c + 0.5 for c in closes]
+    highs[9] = 104.0                                   # the right-side spike
+    # round 4: the cup's bars overlap (deep lows), so it is not a gap island
+    lows = [c - 5.0 for c in closes[:10]] + [c - 0.5 for c in closes[10:]]
+    bars = _bars(closes, highs=highs, lows=lows)
+    cup = {"structure_key": "cup-with-handle", "start_t": ymd_t(0), "end_t": ymd_t(14),
+           "top": 104.0, "floor": 85.5, "pivot": 104.1,
+           "sub_boxes": [{"start_t": ymd_t(0), "end_t": ymd_t(9), "top": 104.0, "floor": 85.5},
+                         {"start_t": ymd_t(10), "end_t": ymd_t(14), "top": 102.5, "floor": 95.5}]}
     ex = auto_structures.box_to_detection("ZZZ", cup, bars)["geometry"]["extras"]
     assert ex["draw_box"] is False
-    assert ex["draw_pivot"] == {"start_t": ymd_t(0), "end_t": ymd_t(15), "price": 100.1}
-    assert ex["draw_handle"] == {"start_t": ymd_t(10), "end_t": ymd_t(14), "top": 98.5, "floor": 94.5}
+    assert ex["draw_pivot"] == {"start_t": ymd_t(2), "end_t": ymd_t(14), "price": 100.5}
+    # round 3 (test_team_drawing_set_r3.py): this 5-bar handle is half its 10-bar cup and runs
+    # into the rim's breakout bar, so no handle box is drawn -- the rim line above stays
+    assert "draw_handle" not in ex and ex["handle_reason"] == "long"
     # handle broke out on its first bar: no handle to draw, and the cup's own sub-box is NOT it
     gone = auto_structures.box_to_detection("ZZZ", {**cup, "sub_boxes": [
-        cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(15)}]}, bars)
+        cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(14)}]},
+        _bars(closes[:-1] + [105], highs=highs[:-1] + [105.5], lows=lows))
     assert "draw_handle" not in gone["geometry"]["extras"]
 
 
@@ -189,7 +206,7 @@ ROWS = [{"id": "a", "pattern_id": "bull_flag"}, {"id": "b", "pattern_id": "uct_p
 URL = "/api/patterns/ZZZ?tf=D&confirmed_only=false&include_structures=true"
 
 
-def test_member_gets_the_team_set_but_never_the_internal_pullback(monkeypatch):
+def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_the_team_set(monkeypatch):
     monkeypatch.setenv("AUTO_STRUCTURES_ENABLED", "1")
     monkeypatch.setenv("AUTO_STRUCTURES_MEMBERS_ENABLED", "1")
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [
@@ -198,8 +215,10 @@ def test_member_gets_the_team_set_but_never_the_internal_pullback(monkeypatch):
     monkeypatch.setattr(auto_structures, "drawn_for",
                         lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
     body = _client(PAID_MEMBER, monkeypatch, ROWS).get(URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
-    assert [r["pattern_id"] for r in body["structures"]] == ["bc:flat-base"]
+    # registry.DISPLAY_MEMBER_SET (blind-confirmed): the pullback is served to a member through
+    # the member set only; bull_flag and the bc:flat-base box are team set, admin-only.
+    assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
+    assert "structures" not in body
     assert "drawn" in body
     admin = _client(ADMIN, monkeypatch, ROWS).get(URL).json()
     assert [r["pattern_id"] for r in admin["detections"]] == [r["pattern_id"] for r in ROWS]

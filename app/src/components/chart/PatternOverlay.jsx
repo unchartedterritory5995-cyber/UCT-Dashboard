@@ -38,7 +38,14 @@
 //   display-only extras: `draw_pivot` (a base's breakout / pivot line, solid, extended right),
 //   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `stale` (a base
 //   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
-//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped).
+//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped)
+//   and `draw_stop` (round 5: the stop secondary re-anchored to start at the tag bar).
+//
+// ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
+//   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
+//   line is linear in price over bar index). `geometry.secondary` draws horizontals only, so
+//   the line is re-dispatched through TrendlinePair's `single_trendline` path from the first
+//   anchor to the break bar, with a dot on each anchor high. Malformed => nothing drawn.
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -52,6 +59,7 @@ import LearnedDrawn from './patternShapes/LearnedDrawn'
 import EmaSegment from './patternShapes/EmaSegment'
 import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
+import { getColor, getOpacity } from './patternShapes/style'
 
 const SHAPE_RENDERERS = {
   trendline_pair: TrendlinePair,
@@ -96,6 +104,35 @@ export function drawGeometry(d) {
     }
   }
   return { ...d, geometry: { ...g, anchors: da, extras } }
+}
+
+export const TRENDLINE_BREAK_ID = 'uct_trendline_break'
+
+const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
+
+/**
+ * The sloped line a uct_trendline_break detection draws, as a `single_trendline` sub-detection
+ * (anchors: first high, second high, value on the break bar), or null when the row is another
+ * detector or its `extras.trendline` is missing / malformed. Pure — exported for tests.
+ */
+export function trendlineBreakLine(d) {
+  if (d?.pattern_id !== TRENDLINE_BREAK_ID) return null
+  const tl = d?.geometry?.extras?.trendline
+  if (!tl || typeof tl !== 'object') return null
+  const { t1, p1, t2, p2, t_end: tEnd, p_end: pEnd } = tl
+  if (![t1, p1, t2, p2, tEnd, pEnd].every(finiteNum)) return null
+  if (!(p1 > 0 && p2 > 0 && pEnd > 0) || !(t1 < t2 && t2 <= tEnd)) return null
+  return {
+    ...d,
+    id: `${d.id}:trendline`,
+    pattern_name: 'Trendline',
+    confidence: null,
+    geometry: {
+      shape: 'trendline_pair',
+      semantic_subtype: 'single_trendline',
+      anchors: [{ t: t1, price: p1 }, { t: t2, price: p2 }, { t: tEnd, price: pEnd }],
+    },
+  }
 }
 
 /**
@@ -260,11 +297,30 @@ export default function PatternOverlay({
         const Renderer = hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape])
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
-        // The curve replaces the flat MA level; the stop level stays.
+        // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
+        // the stop to start at the TAG bar (the detector's own stop secondary runs from the
+        // 10-session high, far left) — same price, same label, display only.
+        const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
         const secondary = (Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
-        const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
+          .map((sec) => (drawStop && sec?.role === 'stop'
+            ? {
+                ...sec,
+                draw_stop: true,
+                anchors: [
+                  { t: drawStop.start_t, price: Number(drawStop.price) },
+                  { t: drawStop.end_t, price: Number(drawStop.price) },
+                ],
+              }
+            : sec))
+        // Round 6 (bull_flag): `draw_entry_price` moves the DRAWN entry off a single wick /
+        // spike over the flag onto its body highs. Display only — levels.entry is untouched.
+        const drawnEntry = Number(ex.draw_entry_price)
+        const entry = d?.draw_entry
+          ? (ex.draw_entry_price != null && Number.isFinite(drawnEntry) ? drawnEntry : Number(d?.levels?.entry))
+          : NaN
         const anchors = d?.geometry?.anchors || []
+        const tlBreak = trendlineBreakLine(d)
         return (
           <g key={d.id} data-detection={d.pattern_id}>
             {Renderer && (
@@ -318,6 +374,20 @@ export default function PatternOverlay({
                 onClick={onDetectionClick}
               />
             )}
+            {tlBreak && (
+              <g data-role="trendline-break">
+                <TrendlinePair detection={tlBreak} tToX={tToX} priceToY={priceToY} onClick={() => onDetectionClick?.(d)} />
+                {tlBreak.geometry.anchors.slice(0, 2).map((a, i) => {
+                  const x = tToX(a.t)
+                  const y = priceToY(a.price)
+                  if (x == null || y == null) return null
+                  return (
+                    <circle key={i} data-role="anchor-high" cx={x} cy={y} r={3}
+                      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }} />
+                  )
+                })}
+              </g>
+            )}
             {Array.isArray(ex.draw_pole) && (
               <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
             )}
@@ -333,7 +403,9 @@ export default function PatternOverlay({
               if (sec.shape === 'rectangle') {
                 return <Rectangle key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
               }
-              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
+              // a re-anchored stop usually starts ON the last bar: extend it right like the pivot
+              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick}
+                extendRight={sec.draw_stop ? 40 : 0} />
             })}
             {Number.isFinite(entry) && anchors.length > 0 && (
               <LevelSegment

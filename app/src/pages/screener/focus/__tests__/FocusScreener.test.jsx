@@ -7,7 +7,7 @@ vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-te
 vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import FocusScreener from '../FocusScreener'
 import { SPEC_PARAM, encodeSpec, decodeSpec } from '../../shell/specUrl'
 import { AuthContext } from '../../../../context/AuthContext'

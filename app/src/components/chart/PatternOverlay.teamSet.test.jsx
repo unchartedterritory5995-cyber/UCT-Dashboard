@@ -99,6 +99,70 @@ describe('PatternOverlay — team set: bases draw their pivot line', () => {
   })
 })
 
+// Round 2 (lab REPORT_TEAM_SET.md): the server marks a flag that is not a pause (a rising channel
+// past the pole high) or that overlaps a more confident one as `stale`; the overlay must draw
+// nothing for it -- before, an overlapped flag kept its pole and entry line, so a run showed two.
+describe('PatternOverlay — team set round 2: one flag per run', () => {
+  const flag = (id, extras) => ({
+    id, pattern_id: 'bull_flag', pattern_name: 'Bull Flag', confidence: 70,
+    display_tier: 'trusted', display_layer: 'structures', direction: 'bullish', draw_entry: true,
+    levels: { entry: 51.6 },
+    geometry: {
+      shape: 'trendline_pair', semantic_subtype: 'parallel_channel',
+      anchors: [{ t: 20261001, price: 51.5 }, { t: 20261015, price: 50.8 },
+        { t: 20261001, price: 49.5 }, { t: 20261015, price: 48.8 }],
+      extras: { draw_lanes: true, draw_pole: [{ t: 20260915, price: 44 }, { t: 20260930, price: 52 }], ...extras },
+    },
+  })
+
+  it('draws the kept flag and nothing at all for a stale (overlapped / not-a-pause) one', () => {
+    const kept = flag('a', {})
+    const overlapped = flag('b', { draw_lanes: false, lanes_reason: 'overlapped', stale: true, stale_reason: 'overlapped' })
+    const leg = flag('c', { draw_lanes: false, stale: true, stale_reason: 'past_pole_high' })
+    const { container } = renderOverlay([kept, overlapped, leg])
+    const drawn = [...container.querySelectorAll('[data-detection]')]
+    expect(drawn).toHaveLength(1)
+    expect(selectDrawable([kept, overlapped, leg], { tf: 'D', trustedOnly: true })).toEqual([kept])
+  })
+
+  it('round 6: draw_entry_price moves the DRAWN entry line off the wick; levels.entry stays', () => {
+    const d = flag('a', { draw_entry_price: 50.9 })
+    const { container } = renderOverlay([d])
+    const labels = [...container.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(labels).toContain('Entry 50.90')
+    expect(labels).not.toContain('Entry 51.60')
+    expect(d.levels.entry).toBe(51.6)
+    // control: without it the line sits at the detector's levels.entry
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = [...c2.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(l2).toContain('Entry 51.60')
+  })
+
+  it('round 7: draw_anchors (the refitted lanes) are the lanes DRAWN; the detector anchors stay', () => {
+    const lanes = [{ t: 20261002, price: 51.2 }, { t: 20261015, price: 50.6 },
+      { t: 20261002, price: 49.0 }, { t: 20261015, price: 48.4 }]
+    const d = flag('a', { draw_anchors: lanes })
+    const { container } = renderOverlay([d])
+    const lower = container.querySelector('[data-role="lower"]').getAttribute('d')
+    const upper = container.querySelector('[data-role="upper"]').getAttribute('d')
+    // priceToCoordinate = 1000 - 10 * price: the refit's 49.0 / 48.4 and 51.2 / 50.6
+    expect(lower).toMatch(/,510(\D|$)/)
+    expect(lower).toMatch(/,516(\D|$)/)
+    expect(upper).toMatch(/,488(\D|$)/)
+    expect(d.geometry.anchors[2].price).toBe(49.5)          // the detector's own lanes are untouched
+    // control: without it the lanes sit on the detector's anchors (49.5 / 48.8)
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = c2.querySelector('[data-role="lower"]').getAttribute('d')
+    expect(l2).toMatch(/,505(\D|$)/)
+    expect(l2).not.toMatch(/,510(\D|$)/)
+  })
+
+  it('control: without the stale stamp both flags draw', () => {
+    const { container } = renderOverlay([flag('a', {}), flag('b', { draw_lanes: false })])
+    expect(container.querySelectorAll('[data-detection]')).toHaveLength(2)
+  })
+})
+
 describe('PatternOverlay — team set: the MA pullback', () => {
   const pullback = (kind, period) => ({
     id: 'pb', pattern_id: 'uct_pullback_ma_v5', pattern_name: 'UCT MA Pullback v5', confidence: 80,
@@ -129,6 +193,24 @@ describe('PatternOverlay — team set: the MA pullback', () => {
     expect(container.querySelector('[data-role="tag-bar"]')).not.toBeNull()
     const levels = [...container.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
     expect(levels).toEqual(['Tag-bar low 47.20'])
+  })
+
+  it('round 5: draw_stop re-anchors the stop to start at the TAG bar, extended right, same label', () => {
+    const d = pullback('ema', 21)
+    d.geometry.extras.draw_stop = { start_t: 20261015, end_t: 20261016, price: 47.2 }
+    const { container } = renderOverlay([d])
+    const segs = [...container.querySelectorAll('[data-shape="level-segment"]')]
+    expect(segs.map((g) => g.textContent)).toEqual(['Tag-bar low 47.20'])
+    const line = segs[0].querySelector('line')
+    const tagX = BAR_TIMES.indexOf('2026-10-15') * 10
+    const lastX = BAR_TIMES.indexOf('2026-10-16') * 10
+    expect(Number(line.getAttribute('x1'))).toBe(tagX)
+    expect(Number(line.getAttribute('x2'))).toBe(lastX + 40)
+    // control: without draw_stop the stop runs from the 10-session high (far left)
+    const { container: c2 } = renderOverlay([pullback('ema', 21)])
+    const x1 = Number(c2.querySelector('[data-shape="level-segment"] line').getAttribute('x1'))
+    expect(x1).toBe(BAR_TIMES.indexOf('2026-10-02') * 10)
+    expect(x1).toBeLessThan(tagX)
   })
 
   it('a 50 SMA tag is labelled as an SMA', () => {

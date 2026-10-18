@@ -348,14 +348,15 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
         assert set(body) == {"sym", "tf", "detections", "count"}
 
 
-def test_member_flag_on_serves_only_the_team_set(monkeypatch, _box_and_drawn):
-    """The member set IS the team set: trusted rows, trusted base boxes and the learned drawer."""
+def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
+    """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows and the
+    learned drawer. bull_flag and the bc:flat-base box are team set but NOT member set."""
     _flags(monkeypatch, True, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag", "flat_base"]
+    assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
-    assert body["count"] == 2
-    assert [r["pattern_id"] for r in body["structures"]] == ["bc:flat-base"]
+    assert body["count"] == 1
+    assert "structures" not in body          # no base-box key is in the member set
     assert "drawn" in body
     # intraday: rows only (the boxes and the learned drawer are daily geometry)
     intra = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(
@@ -368,11 +369,15 @@ def test_member_flag_on_serves_only_the_team_set(monkeypatch, _box_and_drawn):
 
 
 def test_member_filter_follows_the_registry_constant(monkeypatch, _box_and_drawn):
-    """Derived, not restated: moving DISPLAY_TRUSTED moves what a member gets."""
+    """Derived, not restated: moving DISPLAY_MEMBER_SET moves what a member gets, and a member
+    id must ALSO be trusted-tier (moving DISPLAY_TRUSTED off it drops it)."""
     _flags(monkeypatch, True, True)
-    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"bull_flag"}))
+    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET", frozenset({"bull_flag"}))
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
     assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
+    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"flat_base"}))
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert body["detections"] == []
 
 
 def test_admin_is_unchanged_by_the_member_flag(monkeypatch, _box_and_drawn):

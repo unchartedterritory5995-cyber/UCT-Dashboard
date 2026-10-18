@@ -1,13 +1,17 @@
 // useFocusSelection.js
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNeighborWarm } from '../../../hooks/useNeighborWarm'
-import { prefetchBars, prefetchBarsToIDB, warmMemFromIDB } from '../../../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../utils/prefetchBars'
 
 // A focus walk is mostly downward: warm 4 ahead and 1 behind (not a symmetric
 // ±6), and let the NEXT 2 rows bypass the cold-start pack-ingest hold.
 export const WARM_AHEAD = 4
 export const WARM_BEHIND = 1
 export const URGENT_NEXT = 2
+// Watchlist parity (owner, 2026-10-17: charts must flip as instantly as the watchlist):
+// the ±6 neighbours are promoted from IndexedDB into the sync mem cache (no network), the
+// same window Watchlists.jsx uses, so a press paints in the same frame.
+export const MEM_AROUND = 6
 
 const EMPTY = []
 
@@ -55,15 +59,23 @@ export default function useFocusSelection({
   // warm is asymmetric, so it is done below.
   useNeighborWarm(symbols, selected?.ticker ?? null, tf, { radius: 0 })
   const selTicker = selected?.ticker ?? null
+  // Watchlist parity: the whole result list into durable IDB on the chart's timeframe, top
+  // rows promoted to mem (`prewarmVisibleList`, the call Watchlists.jsx makes). Bounded,
+  // queued behind the visible chart's own fetch, and already-warm tickers skip.
+  useEffect(() => {
+    if (symbols.length) prewarmVisibleList(symbols, { chartTf: tf || 'D' })
+  }, [symbols, tf])
   useEffect(() => {
     const at = selTicker == null ? -1 : symbols.indexOf(selTicker)
     if (at < 0) return
     const onTf = tf || 'D'
+    const memAround = [...symbols.slice(at + 1, at + 1 + MEM_AROUND),
+      ...symbols.slice(Math.max(0, at - MEM_AROUND), at)].filter(Boolean)
+    if (memAround.length) warmMemFromIDB(memAround, [onTf])   // durable -> sync mem, no network
     const ahead = symbols.slice(at + 1, at + 1 + WARM_AHEAD).filter(Boolean)
     const behind = symbols.slice(Math.max(0, at - WARM_BEHIND), at).filter(Boolean)
     const around = [...ahead, ...behind]
     if (!around.length) return
-    warmMemFromIDB(around, [onTf])                      // durable -> sync mem, no network
     prefetchBarsToIDB(around, onTf, { priority: true }) // normal path: held during pack ingest
     // Next rows: opt-in bypass of the cold-start hold, capped at URGENT_NEXT inside.
     prefetchBars(ahead.slice(0, URGENT_NEXT), onTf, { urgent: true })
