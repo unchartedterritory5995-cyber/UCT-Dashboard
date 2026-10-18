@@ -1409,13 +1409,15 @@ def _gallery_root() -> Path:
     return attachment_root() / GALLERY_IMAGE_DIR
 
 
-_ITEM_ID_SEGMENT = re.compile(r"^[A-Za-z0-9_-]{1,64}$")      # the id shape `public.EXAMPLE_IMAGE_ROUTE` admits
+_ITEM_ID_SEGMENT = re.compile(r"[A-Za-z0-9_-]{1,64}")        # the id shape `public.EXAMPLE_IMAGE_ROUTE` admits
+#: An image number on the route: 1 to 3 ASCII digits, nothing else (review M-1: `str.isdigit` admits Unicode digits).
+_IMAGE_NUMBER = re.compile(r"[0-9]{1,3}")
 
 
 def _item_dir(item_id: str, version: int | None = None) -> Path:
     """An item's copy directory. The id is always a database row's, and must still be ONE plain path segment: a
     value that could climb, or name the gallery root itself, raises instead of resolving."""
-    if not isinstance(item_id, str) or not _ITEM_ID_SEGMENT.match(item_id):
+    if not isinstance(item_id, str) or not _ITEM_ID_SEGMENT.fullmatch(item_id):
         raise ValueError("not an item id")
     base = _gallery_root() / item_id
     return base / f"v{int(version)}" if version is not None else base
@@ -1524,6 +1526,11 @@ class _DirMoves:
         self._trash.append(trash)
         return trash
 
+    def set_aside(self, path: Path) -> None:
+        """Move `path` out of the way (deleted by `finish()`, put back by `undo()`); nothing when it is not there."""
+        if path.exists():
+            self._set_aside(path)
+
     def put(self, stage: Path | None, dest: Path) -> None:
         """Make `dest` hold exactly the staged copies (none when `stage` is None); its old copies are set aside."""
         if dest.exists():
@@ -1572,7 +1579,7 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
     or a number that is not a plain small integer, is None."""
     if rev not in (None, "", REV_PENDING):
         return None
-    if not isinstance(item_id, str) or not item_id or not isinstance(n, str) or not n.isdigit() or len(n) > 3:
+    if not isinstance(item_id, str) or not item_id or not isinstance(n, str) or not _IMAGE_NUMBER.fullmatch(n):
         return None
     owned = conn is None
     conn = conn or get_connection()
@@ -1583,7 +1590,7 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
         if owned:
             conn.close()
     if (row is None or row["item_type"] != EXAMPLE_ITEM or not _can_see(row, viewer_id, is_admin)
-            or not _ITEM_ID_SEGMENT.match(str(row["id"]))):
+            or not _ITEM_ID_SEGMENT.fullmatch(str(row["id"]))):
         return None
     if rev == REV_PENDING:
         if not (is_admin or (viewer_id and row["user_id"] == viewer_id)) or not row["pending_json"]:
@@ -1611,7 +1618,7 @@ def example_image_ids(conn: sqlite3.Connection, user_id: str) -> list[str]:
 def remove_example_images(item_ids: Any) -> int:
     """Delete each item's copy directory (best-effort); returns how many there were."""
     return sum(1 for gid in item_ids or ()
-               if isinstance(gid, str) and _ITEM_ID_SEGMENT.match(gid) and _remove_dir(_item_dir(gid)))
+               if isinstance(gid, str) and _ITEM_ID_SEGMENT.fullmatch(gid) and _remove_dir(_item_dir(gid)))
 
 
 def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, style_item_id: Any,
@@ -1707,11 +1714,14 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         moves.finish()                               # committed: the set-aside copies go, and nothing can undo it
         return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
     except Exception:
-        if conn.in_transaction:
-            conn.rollback()                          # only ever this function's own transaction (M-8)
+        # ⛔ P3b-T4-R6(b): the directories are put back WHILE THE WRITE LOCK IS STILL HELD, and only then is the
+        # transaction rolled back (which releases it). The other order lets a waiting publish take the lock and own
+        # the destination before this undo renames it away (review I-1).
         moves.undo()                                 # the old copies back where they were (a no-op once finished)
         if stage is not None:
             _remove_dir(stage)                       # the staged copies, renamed back by undo (or never moved)
+        if conn.in_transaction:
+            conn.rollback()                          # only ever this function's own transaction (M-8)
         raise
     finally:
         if owned:
@@ -2362,9 +2372,13 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                     "UPDATE j2_template_gallery SET pending_json = NULL, pending_at = NULL, review_note = ?,"
                     " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
                     (clean_note, admin_id, now, now, gallery_id))
-                conn.commit()
+                # P3b-R14 + P3b-T4-R6(a): the declined revision's copies are moved aside UNDER THE LOCK, before the
+                # commit, and deleted after it. Deleting `v<N>` after the commit could hit the copies a republish
+                # wrote there the moment the lock was released (review I-1).
                 if is_example:
-                    _remove_dir(_item_dir(gallery_id, held_version))   # P3b-R14: the declined revision's copies
+                    moves.set_aside(_item_dir(gallery_id, held_version))
+                conn.commit()
+                moves.finish()
                 return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
             conn.execute(
                 "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
@@ -2399,9 +2413,9 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         # Only a failure that touched the copies rolls back here (the listing must not stand without them); every
         # other refusal keeps today's behaviour, so a caller's own transaction is never rolled back for a 400.
         if isinstance(e, GalleryServerError) or moves.active:
+            moves.undo()                                # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
             if conn.in_transaction:
                 conn.rollback()
-            moves.undo()
         raise
     finally:
         if owned:

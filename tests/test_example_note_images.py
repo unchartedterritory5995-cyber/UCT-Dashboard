@@ -468,3 +468,117 @@ def test_a_failed_move_on_approval_lists_nothing_and_keeps_both_sets(api, conn, 
     assert dict(_row(conn, gid)) == before                                                # nothing was listed
     assert _files(_gallery_root(att) / gid) == {"0.png": b"old", "v2/0.png": b"new", "v2/1.png": b"extra"}
     assert sorted(p.name for p in _gallery_root(att).iterdir()) == [gid]
+
+
+# ── fix round 1 (review I-1, M-1, M-2; rulings P3b-T4-R6, P3b-T4-R7) ──────────────────────────────
+
+def _lock_probe() -> str:
+    """'held' when another connection cannot take auth.db's write lock right now, else 'free'."""
+    other = sqlite3.connect(os.environ["AUTH_DB_PATH"], timeout=0, isolation_level=None)
+    try:
+        other.execute("BEGIN IMMEDIATE")
+        other.execute("ROLLBACK")
+        return "free"
+    except sqlite3.OperationalError:
+        return "held"
+    finally:
+        other.close()
+
+
+def test_a_republish_right_after_a_reject_commits_keeps_its_held_copies(api, conn, ex_on, ocr, att, monkeypatch):
+    """R6(a): the reject's own cleanup runs after its commit. A republish is injected into exactly that gap -- the first
+    directory removal the reject makes after it has committed -- and writes a fresh held revision in `v2`. Its copies
+    must survive, so `pending_json` and the files on disk agree."""
+    sid, nid, gid = _held(api, conn, att)
+    _write(att, "author", nid, "a.png", b"fresh")
+    real, fired = gallery._remove_dir, []
+
+    def republish_first(path):
+        if not fired:
+            fired.append(path)
+            assert _row(conn, gid)["pending_json"] is None                              # the reject has committed
+            assert _publish(api, nid, sid, [_src("author", nid, "a.png")], title="Fresh").status_code == 200
+        return real(path)
+    monkeypatch.setattr(gallery, "_remove_dir", republish_first)
+    gallery.admin_act("admin", gid, "reject", note="Crop the account number.", conn=conn)
+    monkeypatch.setattr(gallery, "_remove_dir", real)
+    assert fired                                                                          # non-vacuity: the gap ran
+    assert json.loads(_row(conn, gid)["pending_json"])["title"] == "Fresh"               # the republish is held
+    assert _files(_gallery_root(att) / gid) == {"0.png": b"old", "v2/0.png": b"fresh"}
+    _as(api, "author")
+    assert api.get(f"{URL}/{gid}/images/0?rev=pending").content == b"fresh"
+    assert sorted(p.name for p in _gallery_root(att).iterdir()) == [gid]                # the declined copies are gone
+
+
+def test_a_failed_publish_puts_the_copies_back_while_it_still_holds_the_lock(api, conn, ex_on, ocr, att, monkeypatch):
+    """R6(b): the undo runs BEFORE the rollback. A failure after the swap; at the moment `undo()` starts, another
+    connection still cannot take the write lock, and the transaction is still open."""
+    sid = _shared_style(conn)
+    nid = _note_with_files(conn, att, files=(("a.png", b"first"),))
+    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
+    _write(att, "author", nid, "a.png", b"second")
+    real_put, real_undo, seen = gallery._DirMoves.put, gallery._DirMoves.undo, []
+
+    def put_then_fail(self, *a, **k):
+        real_put(self, *a, **k)
+        raise sqlite3.OperationalError("database is locked")
+
+    def spy_undo(self):
+        seen.append((self.active, _lock_probe()))
+        return real_undo(self)
+    monkeypatch.setattr(gallery._DirMoves, "put", put_then_fail)
+    monkeypatch.setattr(gallery._DirMoves, "undo", spy_undo)
+    with pytest.raises(sqlite3.OperationalError):
+        gallery.publish_example(None, "author", nid, sid, [_src("author", nid, "a.png")], "Again")
+    assert seen == [(True, "held")], seen
+    assert _lock_probe() == "free"                                                        # released afterwards
+    assert _files(_gallery_root(att)) == {f"{gid}/0.png": b"first"}
+
+
+def test_a_failed_approval_move_is_undone_while_it_still_holds_the_lock(api, conn, ex_on, ocr, att, monkeypatch):
+    """R6(b) in `admin_act`: a refused second move during the promotion; the undo starts with the lock still held."""
+    _sid, _nid, gid = _held(api, conn, att)
+    real, hits = gallery._rename, []
+    real_undo, seen = gallery._DirMoves.undo, []
+
+    def refuse_second(a, b):
+        hits.append((a, b))
+        if len(hits) == 2:
+            raise PermissionError("in use")
+        return real(a, b)
+
+    def spy_undo(self):
+        seen.append((self.active, _lock_probe(), conn.in_transaction))
+        return real_undo(self)
+    monkeypatch.setattr(gallery, "_rename", refuse_second)
+    monkeypatch.setattr(gallery._DirMoves, "undo", spy_undo)
+    with pytest.raises(gallery.GalleryServerError):
+        _approve(conn, gid)
+    assert seen == [(True, "held", True)], seen
+    assert not conn.in_transaction
+    assert _files(_gallery_root(att) / gid) == {"0.png": b"old", "v2/0.png": b"new", "v2/1.png": b"extra"}
+
+
+def test_an_image_number_must_be_one_to_three_ascii_digits(api, conn, ex_on, ocr, att):
+    """R7 (M-1): a Unicode digit `str.isdigit` admits (and `int` may refuse) is the 404, never a 500."""
+    sid = _shared_style(conn)
+    nid = _note_with_files(conn, att, files=(("a.png", b"a"),))
+    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
+    _approve(conn, gid)
+    assert api.get(f"{URL}/{gid}/images/0").status_code == 200                           # control
+    for n in ("%C2%B2", "%D9%A0", "%EF%BC%90", "0000", "1000", "-1", "+0", " 0"):
+        assert api.get(f"{URL}/{gid}/images/{n}").status_code == 404, n
+    for n in (chr(0xB2), chr(0x660), "0" + chr(10)):          # superscript two, Arabic-Indic zero, a trailing newline
+        assert gallery.example_image_path("author", gid, n) is None, repr(n)
+    assert gallery.example_image_path("author", gid, "000") == _gallery_root(att) / gid / "0.png"
+
+
+def test_an_item_id_with_a_trailing_newline_is_not_one_segment(att):
+    """R7 (M-2): the one-segment check is a full match."""
+    for bad in ("abc" + chr(10), "abc" + chr(13) + chr(10), "", "a/b", "..", "a" * 65):
+        with pytest.raises(ValueError):
+            gallery._item_dir(bad)
+    (_gallery_root(att) / "abc").mkdir(parents=True)
+    assert gallery.remove_example_images(["abc" + chr(10)]) == 0
+    assert (_gallery_root(att) / "abc").is_dir()
+    assert gallery.remove_example_images(["abc"]) == 1                                     # control
