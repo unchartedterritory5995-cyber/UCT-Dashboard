@@ -27,7 +27,11 @@ import { contractBody } from '../__fixtures__/contract'
 
 const settle = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
 const json = (body, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
-const STYLES = contractBody('template-gallery.list.styles').templates
+// P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
+// and one of the swing three shares this member item's title ("Weekend prep"). These tests are
+// about community outlines and a MEMBER's listed style, so they serve exactly those, the sets
+// the fixtures held before P5. The firm rows are pinned server-side (tests/test_firm_style_seed.py).
+const STYLES = contractBody('template-gallery.list.styles').templates.filter((t) => !t.firm)
 const STYLE = STYLES[0]
 const PAGE = contractBody('template-gallery.authors.page')
 

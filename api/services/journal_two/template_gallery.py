@@ -269,6 +269,7 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
     try:
         seed_firm_templates(conn)
+        seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
         print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
     try:
@@ -313,6 +314,74 @@ def seed_firm_templates(conn: sqlite3.Connection) -> int:
             " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?)",
             (uuid.uuid4().hex, t["seedKey"], t["title"], t.get("description") or "",
              t["category"], json.dumps(body), now, now, now, json.dumps(preview_lines(body))),
+        )
+        added += cur.rowcount or 0
+    conn.commit()
+    return added
+
+
+# ── P5: the firm styles of the starter packs ────────────────────────────────────────────
+
+#: The fifteen firm STYLE rows, three per starter pack (R-P5-3). A file of its own, never rows in
+#: `template_gallery_seed.json`: `load_seed` is the OUTLINE seed, and its 4-6 rail counts it.
+STYLE_SEED_FILE = Path(__file__).with_name("template_gallery_style_seed.json")
+
+
+def load_style_seed() -> list[dict[str, Any]]:
+    """The firm style rows, in file order. Like `load_seed`, the file's `v` is never read."""
+    data = json.loads(STYLE_SEED_FILE.read_text(encoding="utf-8"))
+    return list(data.get("styles") or [])
+
+
+def _outline_from_headings(headings: list[str]) -> list[dict]:
+    """A firm style's outline: one level-2 heading, then one empty paragraph, per heading.
+
+    The seed file holds the heading words and never TipTap JSON, so this is the one place that shape
+    is written. The result passes the gallery reducer unchanged (tests/test_firm_style_seed.py)."""
+    out: list[dict] = []
+    for text in headings:
+        out.append({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": text}]})
+        out.append({"type": "paragraph"})
+    return out
+
+
+def firm_style_id(seed_key: str) -> str:
+    """A firm style's row id: a pure function of its seed key, the same on every database.
+
+    ⛔ Not `uuid.uuid4()` (which `seed_firm_templates` uses): this seed runs inside every
+    `ensure_schema`, and `tools/notebook_contract_fixtures.py` makes uuid4 a deterministic COUNTER, so
+    fifteen extra draws at boot would shift every id the fixtures record after it."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, "uctintelligence.com/firm-style/" + seed_key).hex
+
+
+def seed_firm_styles(conn: sqlite3.Connection) -> int:
+    """INSERT OR IGNORE each firm style by `seed_key` (F9): approved, featured, no author,
+    `item_type = 'style'`, `trading_style` = its pack. Returns how many rows were added (0 on every boot
+    after the first), so an admin's later hide or unfeature is never undone by a reboot.
+
+    The payload is P3a's own shape (`{kindId, outlineBodyJson, blocks, properties}`, what `style_payload`
+    produces and `_safe_listed` reads), at version 1; `body_json` is the outline and `preview_json` its
+    preview, exactly as `publish_style` stores them. To change a shipped row, add a `-v2` row and retire
+    the `-v1` one (R-P5-4); there is no in-place upsert.
+
+    ⛔ Visibility is NOT decided here (P5-R-C3). A style row is listed only while the LIBRARY switch is on,
+    by the existing rule in `list_gallery` and `_library_hides`; the starter-packs switch alone shows
+    nothing. Task 4's install reads these rows directly, so it does not need them listed."""
+    added = 0
+    now = _now()
+    for s in load_style_seed():
+        outline = sanitize_body({"type": "doc", "content": _outline_from_headings(s["outlineHeadings"])}, "")
+        payload = {"kindId": s["kindId"], "outlineBodyJson": outline,
+                   "blocks": s["blocks"], "properties": s.get("properties") or {}}
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO j2_template_gallery (id, user_id, source_template_id, seed_key,"
+            " kind, title, description, category, body_json, property_defs_json, status,"
+            " featured, listed_at, created_at, updated_at, preview_json, item_type, payload_json,"
+            " version, trading_style)"
+            " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?, 'style', ?, 1, ?)",
+            (firm_style_id(s["seedKey"]), s["seedKey"], s["title"], s.get("description") or "", s["category"],
+             json.dumps(outline), now, now, now, json.dumps(preview_lines(outline)), json.dumps(payload),
+             s["pack"]),
         )
         added += cur.rowcount or 0
     conn.commit()

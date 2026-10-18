@@ -46,6 +46,531 @@
       {
         "author": "UCT",
         "authorHandle": null,
+        "category": "research",
+        "description": "Keep a name on watch into its report with a weekly chart and your key levels.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "2be64c2bf47d5d49aa6af0dbda5e5e30",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Why it is on the list"
+          },
+          {
+            "kind": "heading",
+            "text": "Levels"
+          },
+          {
+            "kind": "heading",
+            "text": "What would make me act"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Earnings watchlist",
+        "tradingStyle": "earnings",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Look back on a report with a daily chart: what you expected, what happened and what you learned.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "2f0ab1acd2145521a6a745c77449a2c3",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What I expected"
+          },
+          {
+            "kind": "heading",
+            "text": "What happened"
+          },
+          {
+            "kind": "heading",
+            "text": "What I learned"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Earnings follow-up",
+        "tradingStyle": "earnings",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "Get ready for a report with the earnings for your names, a daily chart and the market regime.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "9c543c43e5d55bca87b1d95d2aad3728",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The setup into the report"
+          },
+          {
+            "kind": "heading",
+            "text": "What a beat needs"
+          },
+          {
+            "kind": "heading",
+            "text": "Plan for each reaction"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Earnings prep",
+        "tradingStyle": "earnings",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Review an options trade by what you expected against what the contract actually did.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "635d46d5b0f1538a8d20775fb447dc23",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What I expected"
+          },
+          {
+            "kind": "heading",
+            "text": "What the contract did"
+          },
+          {
+            "kind": "heading",
+            "text": "What I would do differently"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Options trade review",
+        "tradingStyle": "options",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "Plan a position into a report with the earnings for your names, the index read and a daily chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "c68d72a4ff045aebbc3174ac23a92d91",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Expected move"
+          },
+          {
+            "kind": "heading",
+            "text": "Position and risk"
+          },
+          {
+            "kind": "heading",
+            "text": "Plan for the reaction"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Options earnings prep",
+        "tradingStyle": "options",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "description": "An options entry with the pre-entry checklist, the market at entry and a daily chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "f773656d712e55c1bf0dc7c338f98e94",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Thesis"
+          },
+          {
+            "kind": "heading",
+            "text": "Contract and expiry"
+          },
+          {
+            "kind": "heading",
+            "text": "Max loss"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Options trade plan",
+        "tradingStyle": "options",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Check the week against every rule you trade by and pick one thing to change next week.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "17da7976dfb05f1284f36cf1e405365b",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Rules kept"
+          },
+          {
+            "kind": "heading",
+            "text": "Rules broken"
+          },
+          {
+            "kind": "heading",
+            "text": "One change for next week"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Prop weekly review",
+        "tradingStyle": "prop",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "description": "A desk trade with a checklist you must clear, position sizing and a 15 minute chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "13794487e5d95e85beef12203bebaa67",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Setup"
+          },
+          {
+            "kind": "heading",
+            "text": "Size and risk in dollars"
+          },
+          {
+            "kind": "heading",
+            "text": "Stop"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Prop trade plan",
+        "tradingStyle": "prop",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "Start the session with every rule you trade by, the morning wire and your key levels.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "ae39e3b681f05e07ad502601ac73b476",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Daily loss limit"
+          },
+          {
+            "kind": "heading",
+            "text": "Focus list"
+          },
+          {
+            "kind": "heading",
+            "text": "Rules I will not break"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Prop desk daily prep",
+        "tradingStyle": "prop",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Grade the entry and the exit of a day trade, and check it against your active rules.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "15da6ac5d97e5c1788df7b14f88ac0bc",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Entry quality"
+          },
+          {
+            "kind": "heading",
+            "text": "Exit quality"
+          },
+          {
+            "kind": "heading",
+            "text": "Rule followed or broken"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Day trade review",
+        "tradingStyle": "day",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "description": "An intraday entry with a checklist you must clear, position sizing, price stamps and a 5 minute chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "30e0e001c3ca5610baf45daa8b9d6b50",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Setup"
+          },
+          {
+            "kind": "heading",
+            "text": "Trigger"
+          },
+          {
+            "kind": "heading",
+            "text": "Stop"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Intraday trade plan",
+        "tradingStyle": "day",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "The morning plan with the wire, earnings for your names, your movers, your key levels and your rules.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "62e45ad6db4056b085aa26de83f8dee3",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Overnight and premarket"
+          },
+          {
+            "kind": "heading",
+            "text": "Levels that matter"
+          },
+          {
+            "kind": "heading",
+            "text": "A plus setups"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Day trading prep",
+        "tradingStyle": "day",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Review a closed swing trade against the plan you made and the rules you trade by.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "162cb6525dca55a484b5e521b540bf85",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What I planned"
+          },
+          {
+            "kind": "heading",
+            "text": "What I did"
+          },
+          {
+            "kind": "heading",
+            "text": "What I would do differently"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Swing trade review",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "Prep for the week ahead with your movers, your key levels, your active rules and the market regime.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "57faa453eaae59398f38447d6c9ce867",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Market read"
+          },
+          {
+            "kind": "heading",
+            "text": "Leaders and themes"
+          },
+          {
+            "kind": "heading",
+            "text": "Names to watch"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekend prep",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "description": "A swing entry with the pre-entry checklist, position sizing, the market at entry and a daily chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "8142b55e0fc9566fa73933fb592b5f69",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Thesis"
+          },
+          {
+            "kind": "heading",
+            "text": "Entry trigger"
+          },
+          {
+            "kind": "heading",
+            "text": "Stop and invalidation"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Swing trade plan",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
         "category": "review",
         "description": "Patterns, leaks, and the ONE commitment for next week.",
         "featured": true,

@@ -23,9 +23,14 @@ import { GALLERY_SORTS } from '../../lib/templateGallery'
 import { ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
 
-const OUTLINES = contractBody('template-gallery.list').templates
+// P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
+// and one of the swing three shares this member item's title ("Weekend prep"). These tests are
+// about community outlines and a MEMBER's listed style, so they serve exactly those, the sets
+// the fixtures held before P5. The firm rows are pinned server-side (tests/test_firm_style_seed.py).
+const OUTLINES = contractBody('template-gallery.list').templates.filter((t) => t.itemType !== 'style')
 const STYLES_SWING = contract('template-gallery.list.styles')
-const STYLE = STYLES_SWING.body.templates[0]
+const MEMBER_SWING = STYLES_SWING.body.templates.filter((t) => !t.firm)
+const STYLE = MEMBER_SWING[0]
 const STYLE_ITEM = contractBody('template-gallery.styles.item').template
 const PREVIEW = contract('template-gallery.styles.preview')
 const AUTHOR_PAGE = contractBody('template-gallery.authors.page')
@@ -47,7 +52,7 @@ beforeEach(() => {
     const method = init.method || 'GET'
     const body = init.body ? JSON.parse(init.body) : null
     calls.push({ path: u.pathname, search: u.search, method, body })
-    const styles = STYLES_SWING.body.templates.map((t) => ({ ...t, mine: server.styleMine }))
+    const styles = MEMBER_SWING.map((t) => ({ ...t, mine: server.styleMine }))
     if (u.pathname === '/api/j2/note-templates') return json({ templates: [{ id: 't1', name: 'Swing plan', title: 'Swing plan', createdAt: '1' }] })
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
       const type = u.searchParams.get('type') || ''
@@ -402,7 +407,7 @@ describe('an author’s page', () => {
       if (u.pathname.startsWith('/api/j2/template-gallery/authors/')) return json({ ...own, author: { ...own.author, mine: true } })
       if (u.pathname === '/api/j2/template-gallery') {
         const picks = u.searchParams.get('section') === 'picks'
-        return json({ templates: STYLES_SWING.body.templates.filter((t) => !picks || t.featured), viewer: { admin: false } })
+        return json({ templates: MEMBER_SWING.filter((t) => !picks || t.featured), viewer: { admin: false } })
       }
       return answer('template-gallery.item.not-found')
     })
