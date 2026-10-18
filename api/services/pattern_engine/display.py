@@ -343,6 +343,31 @@ WEDGE_FLAT_ATR = 0.04
 #: (under their lows for the lower lane, over their highs for the upper) is pulled onto them (judged
 #: 1-2 at 0.41-1.38; the largest on a flag judged 3 was 0.37).
 LANE_FLOAT_ATR = 0.4
+#: Round 6 (bc:flat-base only; lab REPORT_BCFLAT_C2.md, 2026-10-17). The line sits on the base's
+#: RESISTANCE cluster: touches are counted per SWING PEAK (a bar whose high is the highest within
+#: SWING_PEAK_BARS bars either side), so the lower bars of one spike / climax are not touches --
+#: round 4's robust_top counted them and kept landing on the spike.
+SWING_PEAK_BARS = 2
+#: ... the drawn line starts at the first bar whose high touches it (TOP_TOUCH_ATR), not over the
+#: run-up bars below it; and a swing high more than OVERHEAD_MAX_ATR ATR(14) above the line (a
+#: climax / double top the base pulled back from) makes it a pullback-recovery, not a flat base.
+#: All round-6 thresholds were read off the bc:flat-base cases judged in team rounds 1-5, R5c and
+#: bcflat-c2 (lab calib_bcflat_r6.py): none of them rejects a drawing any judge scored 3.
+OVERHEAD_MAX_ATR = 1.8
+#: Right side rolling over: the least-squares fit of the last ROLL_BARS closes falls more than
+#: ROLL_DROP_ATR ATR(14) over those bars while the last close sits more than ROLL_BELOW_ATR under
+#: the line.
+ROLL_BARS = 8
+ROLL_DROP_ATR = 0.8
+ROLL_BELOW_ATR = 2.0
+#: Deep V: from the first touch the closes fall more than V_DEPTH_ATR ATR(14) under the line and
+#: fewer than V_MIN_TOP_FRAC of them sit in its band (`pivot_band`).
+V_DEPTH_ATR = 4.15
+V_MIN_TOP_FRAC = 0.62
+#: Loose / choppy: a base of at least LOOSE_MIN_BARS bars (first touch to the last bar) wider than
+#: BCFLAT_MAX_RANGE_ATR ATR(14) high-to-low (flat_range_verdict's 4.8 stays for flat_base).
+LOOSE_MIN_BARS = 45
+BCFLAT_MAX_RANGE_ATR = 4.4
 
 
 def _index(bars) -> dict:
@@ -948,6 +973,92 @@ def flat_top_verdict(bars: list, start_t, end_t, price):
         return False, "thin_base"
     if price - min(float(bars[j]["c"]) for j in range(s, e + 1)) > BASE_MAX_CLOSE_DEPTH_ATR * at:
         return False, "deep_base"
+    return True, None
+
+
+def swing_peaks(bars: list, s: int, e: int, w: int = SWING_PEAK_BARS) -> list:
+    """Indices j in s..e whose high is the highest of bars max(s, j-w)..min(e, j+w): one index per
+    swing high, so the lower neighbours of a spike / climax bar are never touches of their own. Bars
+    tied at exactly the same high are each kept (a flat top's repeated highs are repeated touches)."""
+    out = []
+    for j in range(s, e + 1):
+        h = float(bars[j]["h"])
+        if all(float(bars[k]["h"]) <= h for k in range(max(s, j - w), min(e, j + w) + 1)):
+            out.append(j)
+    return out
+
+
+def resistance_top(bars: list, s: int, e: int, at):
+    """Round 6 (REPORT_BCFLAT_C2.md: the line still sat on one spike / climax high above the base's
+    highs). The base's resistance level over bars s..e: walking the SWING PEAKS (`swing_peaks`)
+    from the highest down, the first with at least TOP_MIN_TOUCHES peaks (itself included) within
+    TOP_CLUSTER_ATR ATR at or below it, the line on the (upper) median of that cluster -- one bar's
+    real high. robust_top's rule, but a touch is a SWING: round 4 counted the two or three bars of
+    one spike / climax as separate touches, so the spike made a "cluster" of its own and the line
+    stayed on it (lab cases 108, 625, 984). A swing high left above the line is judged by
+    `bcflat_right_verdict` (overhead_high). robust_top over s..e when fewer than TOP_MIN_TOUCHES
+    peaks cluster or ATR is unknown; None for an empty span."""
+    if e < s:
+        return None
+    if not at:
+        return robust_top(bars, s, e, at)
+    tol = TOP_CLUSTER_ATR * at
+    ph = sorted((float(bars[j]["h"]) for j in swing_peaks(bars, s, e)), reverse=True)
+    for h in ph:
+        cl = [x for x in ph if h - tol <= x <= h]
+        if len(cl) >= TOP_MIN_TOUCHES:
+            cl.sort()
+            return cl[len(cl) // 2]
+    return robust_top(bars, s, e, at)
+
+
+def first_touch(bars: list, s: int, e: int, price, at):
+    """The first index in s..e whose high reaches within TOP_TOUCH_ATR ATR of `price` (where the base
+    topped); None when no bar does or the inputs are unknown."""
+    if price is None or not at or e < s:
+        return None
+    return next((j for j in range(s, e + 1) if float(bars[j]["h"]) >= float(price) - TOP_TOUCH_ATR * at), None)
+
+
+def bcflat_right_verdict(bars: list, start_t, end_t, price):
+    """Round 6 (REPORT_BCFLAT_C2.md) -- bc:flat-base only. (draw, reason) for a pivot line at `price`
+    drawn from `start_t` (its first touch) to `end_t`, the base running to the last bar:
+      overhead_high  a high before the last bar sits more than OVERHEAD_MAX_ATR ATR above the line:
+                     the base is a pullback-and-recovery under a climax / double top, and the line
+                     on the lower cluster would run through that high;
+      rolling_over   the last ROLL_BARS closes fall more than ROLL_DROP_ATR ATR (least-squares) and
+                     the last close sits more than ROLL_BELOW_ATR ATR under the line;
+      v_recovery     the closes from the start fall more than V_DEPTH_ATR ATR under the line and
+                     fewer than V_MIN_TOP_FRAC of them sit in the band (`pivot_band`): a V-shaped
+                     swing, not a base that held near its top;
+      loose_base     a base of at least LOOSE_MIN_BARS bars whose high-to-low range from the start
+                     exceeds BCFLAT_MAX_RANGE_ATR ATR.
+    (True, None) when the span or ATR is unknown."""
+    pos = _index(bars)
+    s, e = pos.get(start_t), pos.get(end_t)
+    at = atr14(bars)
+    if s is None or e is None or price is None or not at:
+        return True, None
+    s = min(s, e)
+    price = float(price)
+    last = len(bars) - 1
+    if last > s and max(float(b["h"]) for b in bars[s:last]) - price > OVERHEAD_MAX_ATR * at:
+        return False, "overhead_high"
+    cl = [float(b["c"]) for b in bars[max(s, last - ROLL_BARS + 1):last + 1]]
+    if len(cl) >= 3:
+        xs = list(range(len(cl)))
+        slope, _b = _lsq(xs, cl)
+        if -slope * (len(cl) - 1) > ROLL_DROP_ATR * at and price - cl[-1] > ROLL_BELOW_ATR * at:
+            return False, "rolling_over"
+    base = bars[s:last + 1]
+    lo, hi = pivot_band(price, at)
+    closes = [float(b["c"]) for b in base]
+    if price - min(closes) > V_DEPTH_ATR * at and \
+            sum(1 for c in closes if lo <= c <= hi) < V_MIN_TOP_FRAC * len(closes):
+        return False, "v_recovery"
+    if len(base) >= LOOSE_MIN_BARS and \
+            max(float(b["h"]) for b in base) - min(float(b["l"]) for b in base) > BCFLAT_MAX_RANGE_ATR * at:
+        return False, "loose_base"
     return True, None
 
 

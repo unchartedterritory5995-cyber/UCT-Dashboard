@@ -101,7 +101,8 @@ def test_bc_flat_base_draws_the_pivot_line_only():
     ex = d["geometry"]["extras"]
     assert ex["draw_box"] is False
     # round 4: the line sits on the base's top cluster of highs (100.5), not base_catalog's pivot
-    assert ex["draw_pivot"] == {"start_t": ymd_t(5), "end_t": ymd_t(20), "price": 100.5}
+    # round 6: the DRAWN line starts at its first touch (bar 7, high 100.5), not on bar 5 (high 99.5)
+    assert ex["draw_pivot"] == {"start_t": ymd_t(7), "end_t": ymd_t(20), "price": 100.5}
     assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(20), "price": 89.5}]
     # no pivot from base_catalog: the box top is the line
     nop = auto_structures.box_to_detection("ZZZ", {**box, "pivot": None}, bars)

@@ -208,15 +208,22 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
                 extras["stale_reason"] = "broke_down"
                 return
             pv = _display.pivot_line(ext, start_t, end_t, price)
-            # round 4: the line on the base's top CLUSTER of highs, never one spike / failed-
-            # breakout wick, and never the last (breakout) bar's high
+            # round 4: the line on the base's top CLUSTER of highs, never the last (breakout)
+            # bar's high; round 6 (lab REPORT_BCFLAT_C2.md): the cluster is counted per SWING
+            # peak (one spike's bars are one touch), and the drawn line starts at its first
+            # touch, not over the run-up
             pos = _display._index(bars)
             s, e = pos.get(pv["start_t"]), pos.get(pv["end_t"])
+            touch_t = pv["start_t"]
             if s is not None and e is not None:
                 e = min(e, len(bars) - 2) if e > s else e
-                top = _display.robust_top(bars, min(s, e), max(s, e), _display.atr14(bars))
+                at = _display.atr14(bars)
+                top = _display.resistance_top(bars, min(s, e), max(s, e), at)
                 if top is not None:
                     pv["price"] = float(top)
+                    j = _display.first_touch(bars, min(s, e), max(s, e), top, at)
+                    if j is not None:
+                        touch_t = int(bars[j]["t"])
             # round 2: a real base under the line, and the line near price
             ok, why = _display.pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
             if ok:   # round 3: and a FLAT base -- no stair-step, no deep V
@@ -225,10 +232,15 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
                 ok, why = _display.flat_range_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
             if ok:   # round 5: a base under the line -- no fresh high, no thin or rounded base
                 ok, why = _display.flat_top_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 6: no right side rolling over, no V / pullback-recovery, no loose base
+                ok, why = _display.bcflat_right_verdict(bars, touch_t, pv["end_t"], pv["price"])
             if not ok:
                 extras["stale"] = True
                 extras["stale_reason"] = why
                 return
+            # round 6: rounds 2-5 judge the base over the consolidation span; the DRAWN line starts
+            # where the base topped (its first touch), not over the run-up bars below it
+            pv["start_t"] = touch_t
             extras["draw_pivot"] = pv
         else:   # bc:cup-with-handle: the rim line, from the LEFT LIP to the breakout bar
             subs0 = extras.get("sub_boxes") or []
