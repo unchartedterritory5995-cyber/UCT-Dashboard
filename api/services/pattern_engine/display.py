@@ -453,6 +453,15 @@ PRIOR_PEAK_REACH_ATR = 1.5
 #: cup's low); the lip and rim then sit on it, and every later cup rule (prior_peak, short_of_rim, the handle)
 #: reads the moved start.  Display only: the detector's state, firing, pivot and levels are untouched.
 CUP_START_LOOKBACK_BARS = 1
+# -- Cup round 9 (lab REPORT_CUP_R8.md, 2026-10-17). Calibrated on the 107 bc:cup-with-handle cases judged in
+# team rounds 1-8 (lab out_cup_r9/judged_r8code.json).
+#: handle_pivot: a right side that stalls MORE than RIM_REACH_ATR but at most HANDLE_PIVOT_REACH_ATR ATR(14)
+#: under the rim is no longer short_of_rim when it has a handle (`pullback_handle`): the PIVOT is drawn at the
+#: handle high (the right side's latest peak, the handle box's top) and the rim stays as a faint reference
+#: (extras.draw_rim_ref). Within RIM_REACH_ATR nothing changes -- the rim is the pivot. Every judged cup with a
+#: right side 0.80-1.12 ATR short scored 1-2 (858 / 103 / 665 1, 883 / 544 2); every one further short scored
+#: 0-1 (936 1.21, 748 1.38, 975 1.68, 728 1.80, 740 2.63). Any value in [1.12, 1.21) keeps the same judged set.
+HANDLE_PIVOT_REACH_ATR = 1.15
 
 
 def _index(bars) -> dict:
@@ -1087,6 +1096,45 @@ def pullback_handle(bars: list, cup_start_t, cup_end_t, rim):
         return None, "deep"
     return {"start_t": bars[pk]["t"], "end_t": bars[end]["t"],
             "top": max(floor, min(float(bars[pk]["h"]), rim_p)), "floor": floor}, None
+
+
+def handle_pivot(bars: list, cup_start_t, cup_end_t, rim):
+    """Round 9 (lab REPORT_CUP_R8.md; R7 571 / 707 / 788 / 789, R8 750 / 816 / 821: "a trader would set the pivot
+    at the handle high"): (pivot, handle_box, reason) for a cup whose right side stalled under the rim. When the
+    right side's highest high since the cup's low sits more than RIM_REACH_ATR but at most
+    HANDLE_PIVOT_REACH_ATR ATR(14) under the rim, it has a handle (`pullback_handle`) and no prior_peak, the
+    pivot is {start_t, end_t, price} at the HANDLE HIGH (the handle box's top: the right side's latest peak),
+    from the handle's first bar to the rim's end. (None, None, reason) otherwise:
+      in_reach        within RIM_REACH_ATR -- the rim itself is the pivot (unchanged);
+      short_of_rim    further than HANDLE_PIVOT_REACH_ATR under the rim, or no handle to put a pivot on
+                      (`pullback_handle` found no pullback, a short / long one, or a deep one);
+      prior_peak      the right side never reached the higher peak just before the cup's start;
+      unknown         a span, the rim or the ATR is unknown.
+    Display only."""
+    pos = _index(bars)
+    cs, ce = pos.get(cup_start_t), pos.get(cup_end_t)
+    rim_p = (rim or {}).get("price")
+    at = atr14(bars)
+    last = len(bars) - 1
+    if cs is None or ce is None or rim_p is None or not at:
+        return None, None, "unknown"
+    if cs > ce:
+        cs, ce = ce, cs
+    low_j = min(range(cs, ce + 1), key=lambda j: float(bars[j]["l"]))
+    if low_j >= last:
+        return None, None, "unknown"
+    short = float(rim_p) - max(float(b["h"]) for b in bars[low_j + 1:last + 1])
+    if short <= RIM_REACH_ATR * at:
+        return None, None, "in_reach"
+    if short > HANDLE_PIVOT_REACH_ATR * at:
+        return None, None, "short_of_rim"
+    if prior_peak(bars, cs, low_j):
+        return None, None, "prior_peak"
+    box, why = pullback_handle(bars, cup_start_t, cup_end_t, rim)
+    if not box:
+        return None, None, "short_of_rim"
+    return ({"start_t": box["start_t"], "end_t": rim.get("end_t", bars[last]["t"]), "price": float(box["top"])},
+            box, None)
 
 
 def flat_top_verdict(bars: list, start_t, end_t, price):

@@ -4,6 +4,8 @@
 //   draw_pivot  a base's breakout / pivot line, solid, labelled "Pivot <price>"
 //   draw_box    false -> the base box itself is not drawn (line only)
 //   draw_handle a cup's capped handle, drawn as a box
+//   draw_rim_ref (cup round 9) the rim as a faint dashed reference, labelled "Rim <price>", beside a
+//               pivot at the handle high labelled "Pivot <price> · handle high"
 //   stale       a base that broke down: nothing drawn
 //   draw_ema    the MA pullback's tagged MA (kind ema|sma) + the tag-bar marker; the flat
 //               `tagged_ma` secondary level is then skipped, the stop level stays
@@ -217,5 +219,46 @@ describe('PatternOverlay — team set: the MA pullback', () => {
     const { container } = renderOverlay([pullback('sma', 50)])
     expect(container.textContent).toContain('50 SMA')
     expect(container.textContent).not.toContain('50 EMA')
+  })
+})
+
+// Cup round 9 (lab REPORT_CUP_R8.md): a right side stalled under the rim pivots at the HANDLE HIGH; the rim stays
+// as a faint reference. The two lines must be told apart by what RENDERS: label, dash and opacity.
+describe('PatternOverlay — cup round 9: handle-high pivot + faint rim reference', () => {
+  const cup = (extras) => box('c9', 'bc:cup-with-handle', {
+    draw_box: false,
+    draw_pivot: { start_t: 20261001, end_t: 20261013, price: 51.5 },
+    draw_handle: { start_t: 20261001, end_t: 20261009, top: 51.5, floor: 49 },
+    ...extras,
+  })
+  const seg = (c, role) => c.querySelector(`[data-shape="level-segment"][data-role="${role}"]`)
+
+  it('draws the pivot at the handle high and the rim as a separate, faint, labelled reference', () => {
+    const { container } = renderOverlay([cup({ draw_rim_ref: { start_t: 20260901, end_t: 20261013, price: 52.1 } })])
+    const pivot = seg(container, 'pivot')
+    const rim = seg(container, 'rim-ref')
+    expect(pivot).not.toBeNull()
+    expect(rim).not.toBeNull()
+    expect(pivot.textContent).toBe('Pivot 51.50 · handle high')
+    expect(rim.textContent).toBe('Rim 52.10')
+    const pl = pivot.querySelector('line')
+    const rl = rim.querySelector('line')
+    expect(pl.getAttribute('stroke-dasharray')).toBeNull()          // the pivot stays solid
+    expect(rl.getAttribute('stroke-dasharray')).toBe('2,4')         // the rim is a sparse dash
+    expect(Number(rl.getAttribute('opacity'))).toBeLessThan(Number(pl.getAttribute('opacity')))
+    expect(Number(rl.getAttribute('stroke-width'))).toBeLessThan(Number(pl.getAttribute('stroke-width')))
+    expect(Number(rl.getAttribute('y1'))).not.toBe(Number(pl.getAttribute('y1')))   // two prices, two lines
+  })
+
+  it('control: without draw_rim_ref the cup draws ONE line, labelled as a plain pivot', () => {
+    const { container } = renderOverlay([cup({})])
+    expect(container.querySelectorAll('[data-shape="level-segment"]')).toHaveLength(1)
+    expect(seg(container, 'rim-ref')).toBeNull()
+    expect(seg(container, 'pivot').textContent).toBe('Pivot 51.50')
+  })
+
+  it('a rim reference without a pivot is not drawn on its own', () => {
+    const { container } = renderOverlay([cup({ draw_pivot: undefined, draw_rim_ref: { start_t: 20260901, end_t: 20261013, price: 52.1 } })])
+    expect(seg(container, 'rim-ref')).toBeNull()
   })
 })

@@ -36,7 +36,8 @@
 // ⭐ TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET = the trusted tier):
 //   `trustedOnly` draws it (members always; admins by default, "All" shows everything). Its
 //   display-only extras: `draw_pivot` (a base's breakout / pivot line, solid, extended right),
-//   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `stale` (a base
+//   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `draw_rim_ref` (cup
+//   round 9: the rim as a faint, labelled reference when the pivot is the handle high), `stale` (a base
 //   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
 //   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped)
 //   and `draw_stop` (round 5: the stop secondary re-anchored to start at the tag bar).
@@ -297,6 +298,9 @@ export default function PatternOverlay({
         const Renderer = hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape])
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
+        // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
+        // as a faint, separately labelled reference so the two lines are never read as one.
+        const rimRef = pivot && ex.draw_rim_ref && Number.isFinite(Number(ex.draw_rim_ref.price)) ? ex.draw_rim_ref : null
         // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
         // the stop to start at the TAG bar (the detector's own stop secondary runs from the
         // 10-session high, far left) — same price, same label, display only.
@@ -340,7 +344,9 @@ export default function PatternOverlay({
                   confidence: null,
                   geometry: {
                     shape: 'horizontal_line',
-                    label: `Pivot ${Number(pivot.price).toFixed(2)}`,
+                    label: rimRef
+                      ? `Pivot ${Number(pivot.price).toFixed(2)} · handle high`
+                      : `Pivot ${Number(pivot.price).toFixed(2)}`,
                     anchors: [
                       { t: pivot.start_t, price: Number(pivot.price) },
                       { t: pivot.end_t, price: Number(pivot.price) },
@@ -352,6 +358,30 @@ export default function PatternOverlay({
                 onClick={onDetectionClick}
                 extendRight={40}
                 dashed={false}
+                role="pivot"
+              />
+            )}
+            {rimRef && (
+              <LevelSegment
+                detection={{
+                  ...d,
+                  id: `${d.id}:rim-ref`,
+                  confidence: null,
+                  geometry: {
+                    shape: 'horizontal_line',
+                    label: `Rim ${Number(rimRef.price).toFixed(2)}`,
+                    anchors: [
+                      { t: rimRef.start_t, price: Number(rimRef.price) },
+                      { t: rimRef.end_t, price: Number(rimRef.price) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
+                onClick={onDetectionClick}
+                extendRight={40}
+                faint
+                role="rim-ref"
               />
             )}
             {handle && (

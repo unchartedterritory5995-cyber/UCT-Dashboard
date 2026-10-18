@@ -273,6 +273,18 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
             # round 5 (display.cup_reach_verdict): no rim too old for the chart, none on a
             # pre-gap-down high, none the right side never came back to
             ok, why = _display.cup_shape_verdict(bars, cup.get("start_t"), cup.get("end_t"), rim)
+            if not ok and why == "short_of_rim":
+                # round 9 (display.handle_pivot): a right side stalled further under the rim than
+                # RIM_REACH_ATR but within HANDLE_PIVOT_REACH_ATR, with a handle, draws its PIVOT at the
+                # handle high and keeps the rim as a faint reference line (extras.draw_rim_ref)
+                hp, hbox, _hwhy = _display.handle_pivot(bars, cup.get("start_t"), cup.get("end_t"), rim)
+                if hp:
+                    extras["draw_pivot"] = hp
+                    extras["draw_rim_ref"] = rim
+                    extras["draw_handle"] = hbox
+                    extras["draw_box"] = False
+                    return
+                extras["handle_pivot_reason"] = _hwhy
             if not ok:
                 extras["stale"] = True
                 extras["stale_reason"] = why
