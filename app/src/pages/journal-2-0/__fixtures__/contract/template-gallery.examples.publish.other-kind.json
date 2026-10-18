@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/examples",
+    "path": "/api/j2/template-gallery/examples",
+    "requestBody": {
+      "noteId": "e206b8cc479743f9b298566b2d911b73",
+      "styleItemId": "6730bd10d99640b791724391e58b6806",
+      "title": "A thesis"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "This note is a different kind from the style."
+  }
+}

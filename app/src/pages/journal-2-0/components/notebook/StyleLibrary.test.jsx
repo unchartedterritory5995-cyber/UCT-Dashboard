@@ -152,7 +152,11 @@ describe('the switch', () => {
     flags()
     await openGallery()
     const types = await screen.findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...ITEM_TYPES.map((t) => t.label)])
+    // P3b (R-P3b-2): an example note is never a chip of its own
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...ITEM_TYPES.filter((t) => t.key !== 'example_note').map((t) => t.label)])
+    expect(within(types).queryByRole('button', { name: 'Example notes' })).toBeNull()
+    expect(ITEM_TYPES.some((t) => t.key === 'example_note')).toBe(true)
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })
     expect(within(ts).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...TRADING_STYLES.map((t) => t.label)])
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(LIBRARY_SORTS.map((s) => s.label))

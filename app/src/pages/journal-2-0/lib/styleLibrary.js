@@ -21,6 +21,9 @@ import { styleLibraryEnabled } from './styleLibraryFlag'
 export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
   { key: 'style', label: 'Styles' },
+  // P3b: an example note belongs to a style and is never listed on its own (R-P3b-2). It is in this list so the
+  // server's ITEM_TYPES and this one stay one fact; the library's type chips skip it at render.
+  { key: 'example_note', label: 'Example notes' },
 ])
 
 export const TRADING_STYLES = Object.freeze([

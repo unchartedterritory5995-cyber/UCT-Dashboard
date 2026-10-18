@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
 import uuid
@@ -62,8 +63,10 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import example_sanitize
 from api.services.journal_two import public_note_payload as public
-from api.services.notebook_flags import flag_on
+from api.services.journal_two import sample_marker
+from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 
@@ -72,9 +75,19 @@ FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 #: PARSES the client file and holds the two equal.
 CATEGORIES = ("trade_plan", "journal", "research", "review")
 LIBRARY_FLAG = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
+#: P3b (R-P3b-6): the example-note switch. SERVER-ONLY -- it is not in `auth.NOTEBOOK_FLAGS` and has no
+#: client fallback row; the lazy library list reports it as `capabilities.exampleNotes`. Read per call by
+#: `example_enabled`, with a plain `os.environ.get` so the feature-flag index sees it (a `flag_on` call is
+#: for payload flags only, `notebook_flags.py`'s rule) and the ledger declares it.
+EXAMPLE_FLAG = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
+#: The item type of an example note (P3b). An example belongs to a style (R-P3b-2) and is NEVER listed on its
+#: own: no list, section, filter, author page or feed returns one, and the library's type chips skip it.
+EXAMPLE_ITEM = "example_note"
 #: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
 #: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
-ITEM_TYPES = ("outline", "style")
+ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM)
+#: The item types a member can list or filter by: every type but the example note (R-P3b-2).
+LISTED_ITEM_TYPES = tuple(t for t in ITEM_TYPES if t != EXAMPLE_ITEM)
 TRADING_STYLES = ("swing", "day", "prop", "options", "earnings", "long_term")
 SORTS = ("newest", "most_used", "trending")
 TRENDING_DAYS = 7
@@ -135,6 +148,14 @@ def enabled() -> bool:
 def library_enabled() -> bool:
     """P3a's gate, read PER CALL through the one Notebook flag parse (default OFF)."""
     return flag_on(LIBRARY_FLAG, False)
+
+
+def example_enabled() -> bool:
+    """P3b's gate (R-P3b-6): `NOTEBOOK_EXAMPLE_NOTES_ENABLED` AND the library switch, read PER CALL.
+
+    Default OFF, and an unrecognised value is OFF: for a default-off gate that is exactly `flag_on`'s
+    truth table, so the one TRUTHY set decides (`notebook_flags.TRUTHY`)."""
+    return library_enabled() and (os.environ.get(EXAMPLE_FLAG) or "").strip().lower() in TRUTHY
 
 
 def _now() -> str:
@@ -260,12 +281,16 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
         ("source_style_id", "TEXT"),
         ("pending_json", "TEXT"),
         ("pending_at", "TEXT"),
+        # P3b: the author's own note an example note was reduced from (a snapshot: the row never reads it again).
+        ("source_note_id", "TEXT"),
     ):
         if name not in columns:
             conn.execute(f"ALTER TABLE j2_template_gallery ADD COLUMN {name} {ddl}")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_style_source"
                  " ON j2_template_gallery(user_id, source_style_id)"
                  " WHERE user_id IS NOT NULL AND source_style_id IS NOT NULL")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_template_gallery_note_source"
+                 " ON j2_template_gallery(user_id, source_note_id) WHERE source_note_id IS NOT NULL")
     conn.commit()
     try:
         seed_firm_templates(conn)
@@ -602,6 +627,9 @@ def _check_select_shapes() -> None:
 
 _check_select_shapes()
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
+#: R-P3b-2: an example note belongs to a style and is never a list row of its own. Every list read (the gallery's
+#: three sections, an author's page and its count, the feed) carries this.
+_NEVER_LISTED = f"g.item_type != '{EXAMPLE_ITEM}'"
 
 
 def _read(conn: sqlite3.Connection, viewer_id: str | None, where: str, args: Any = (), *,
@@ -636,13 +664,14 @@ def list_gallery(
                            else "Sort by newest or most used.")
     if category not in (None, "", *CATEGORIES):
         raise GalleryError("Unknown category.")
-    if item_type not in (None, "", *ITEM_TYPES):
-        raise GalleryError("Unknown item type.")
+    if item_type not in (None, "", *LISTED_ITEM_TYPES):
+        raise GalleryError("Unknown item type.")         # an example note is never listed on its own (R-P3b-2)
     if trading_style not in (None, "", *TRADING_STYLES):
         raise GalleryError("Unknown trading style.")
     query = q.strip()[:MAX_QUERY_CHARS] if isinstance(q, str) else ""
     where: list[str] = []
     args: list[Any] = []
+    where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
         args.append(viewer_id)
@@ -690,7 +719,12 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
 
 def _library_hides(row: sqlite3.Row) -> bool:
     """R-T3-w1 (R-P3-10: every style route 404s while the library is off). A style row reads exactly
-    like one that does not exist: for the author and an admin as much as for a browsing member."""
+    like one that does not exist: for the author and an admin as much as for a browsing member.
+
+    P3b (R-P3b-6): an example-note row reads the same way while ITS switch is off (which the library switch
+    being off implies). Stored, never deleted: arming the switch again brings it back as it was."""
+    if row["item_type"] == EXAMPLE_ITEM:
+        return not example_enabled()
     return row["item_type"] == "style" and not library_enabled()
 
 
@@ -727,6 +761,14 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
                 rev = _pending_revision(row)
                 if rev is not None:
                     out["pendingRevision"] = rev
+        elif row["item_type"] == EXAMPLE_ITEM:
+            # P3b: an example's LISTED snapshot (`payload_json`, never `pending_json`) and, for a reviewer only, its
+            # held revision -- the same rule as a style's, so a revision is seen before it is approved.
+            out["payload"] = _safe_example(_listed_payload(row))
+            if is_admin:
+                rev = _pending_revision(row)
+                if rev is not None:
+                    out["pendingRevision"] = rev
         return out
     finally:
         if owned:
@@ -750,9 +792,11 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     if not isinstance(rev, dict):
         return None
     text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
+    payload = (_safe_example(rev.get("payload")) if row["item_type"] == EXAMPLE_ITEM
+               else _safe_listed(rev.get("payload")))
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
-            "tradingStyle": text("tradingStyle"), "payload": _safe_listed(rev.get("payload"))}
+            "tradingStyle": text("tradingStyle"), "payload": payload}
 
 
 # ── the author ──────────────────────────────────────────────────────────────────────────
@@ -1046,6 +1090,296 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             conn.close()
 
 
+# ── example notes: the preview, the publish, held revisions (P3b Task 3) ──────────────────────
+#
+# An EXAMPLE NOTE is a reduced SNAPSHOT of one of the author's own notes, shown on one of their shared styles
+# so browsers see the style in use (R-P3b-1, R-P3b-2). It is reduced by the ONE reducer in its `example` mode
+# (`public_note_payload.reduce`), on the server, from the note as the DATABASE holds it: a request never
+# carries a body, and anything one sends is ignored. `payload_json` holds
+# `{"bodyJson", "linkedItemId", "noteKind"}`; a later edit to the note never reaches it.
+#
+# ⛔ A change entry's `before` is the author's own text (R-P3b-4). The preview hands it to the AUTHOR and
+# nowhere else; publish asks the reducer for no report at all, so there is nothing of it to store or log.
+
+EXAMPLE_STYLE_SENTENCE = "Pick one of your own shared styles."
+EXAMPLE_KIND_SENTENCE = "This note is a different kind from the style."
+EXAMPLE_TOO_LONG_SENTENCE = "That note is too long to share as an example. Trim it and try again."
+#: The gallery image route an example's switched-on image is rewritten to (Task 4 serves it); `n` is the
+#: image's place in the reduced body, from 0. It must match `public.EXAMPLE_IMAGE_ROUTE`.
+EXAMPLE_IMAGE_PATH = "/api/j2/template-gallery/{item_id}/images/"
+#: The preview's stand-in item id. The reducer keeps an image only on the gallery route, so the preview
+#: reduces against this one and then points each kept image back at the author's own address: a preview is
+#: the author's own view of their own images.
+_PREVIEW_ITEM_ID = "preview"
+#: The OCR states an image is listed with (R-P3b-5).
+OCR_STATES = ("ready", "no_text", "processing", "unavailable")
+
+
+def _example_note(conn: sqlite3.Connection, user_id: str, note_id: Any) -> dict | None:
+    """The note an example is made from, or None when it may not be one: not this member's, trashed,
+    archived, unreadable, or written by the sample notebook (ruling P3b-R11 -- a sample is never shown to
+    other members as a member's own example). A PLAIN SELECT: reading a note to reduce it writes nothing."""
+    from api.services.journal_two.note_kinds import NOTE_KIND_PROPERTY
+    if not isinstance(note_id, str) or not note_id.strip():
+        return None
+    row = conn.execute(
+        "SELECT id, title, body_json, properties_json, import_source FROM j2_notes"
+        " WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+        (note_id, user_id)).fetchone()
+    if row is None or sample_marker.is_sample(row["import_source"]):
+        return None
+    try:
+        body = json.loads(row["body_json"] or '{"type": "doc", "content": []}')
+    except (TypeError, ValueError, RecursionError):
+        return None
+    try:
+        props = json.loads(row["properties_json"] or "{}")
+    except (TypeError, ValueError, RecursionError):
+        props = {}
+    kind = props.get(NOTE_KIND_PROPERTY) if isinstance(props, dict) else None
+    return {"id": row["id"], "title": row["title"] or "", "body": body,
+            "kind": kind if isinstance(kind, str) and kind else None}
+
+
+def _author_brokers(conn: sqlite3.Connection, user_id: str) -> tuple[str, ...]:
+    """The author's own brokerage institution names (V6: `j2_broker_accounts.brokerage_name`), for the
+    reducer's broker pass. The house `BROKER_NAMES` always apply on top (example_sanitize, fail closed), so
+    a member with no connected broker still gets them."""
+    try:
+        rows = conn.execute("SELECT DISTINCT brokerage_name FROM j2_broker_accounts"
+                            " WHERE user_id = ? AND brokerage_name IS NOT NULL", (user_id,)).fetchall()
+    except sqlite3.OperationalError:
+        return ()
+    return tuple(sorted({r[0].strip() for r in rows if isinstance(r[0], str) and r[0].strip()}))
+
+
+def _image_nodes(doc: Any):
+    """Every image node in a document, in body order."""
+    if isinstance(doc, dict):
+        if doc.get("type") == "image" and isinstance(doc.get("attrs"), dict):
+            yield doc
+        for c in doc.get("content") or []:
+            yield from _image_nodes(c)
+
+
+def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, brokers: tuple[str, ...],
+                    item_id: str, report: list | None) -> tuple[dict, list[str]]:
+    """The example copy of a note's body, and the ORIGINAL address of each image it keeps, by its `n`.
+
+    Each switched-on image the reducer keeps is rewritten to `EXAMPLE_IMAGE_PATH` with its `n`: its place
+    among the kept images in BODY order, from 0 (the same image twice is one `n`). The numbers are assigned
+    on the reduced body, so an image the reducer called for and then dropped leaves no gap."""
+    prefix = EXAMPLE_IMAGE_PATH.format(item_id=item_id)
+    called: list[str] = []
+
+    def src_for(src: str) -> str:
+        if src not in called:
+            called.append(src)
+        return f"{prefix}{called.index(src)}"
+
+    reduced = public.reduce(body, mode="example", owner_id=user_id, note_id=note_id, attachment_base="",
+                            images_on=frozenset(s for s in images_on or () if isinstance(s, str)),
+                            brokers=brokers, image_src_for=src_for, report=report)
+    kept: list[str] = []
+    for node in _image_nodes(reduced):
+        src = node["attrs"].get("src")
+        tail = src[len(prefix):] if isinstance(src, str) and src.startswith(prefix) else ""
+        if not tail.isdigit() or int(tail) >= len(called):
+            continue                     # the reducer only keeps an image it rewrote; anything else is left as is
+        original = called[int(tail)]
+        if original not in kept:
+            kept.append(original)
+        node["attrs"] = {**node["attrs"], "src": f"{prefix}{kept.index(original)}"}
+    return reduced, kept
+
+
+def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
+    """A line of the author's text (the title) through the SAME example text pass the body takes: one
+    paragraph reduced in `example` mode. Anything that is not text is returned as it is, for `_clean_text`
+    to refuse."""
+    if not isinstance(raw, str):
+        return raw
+    doc = public.reduce({"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": raw}]}]},
+                        mode="example", owner_id="", note_id="", attachment_base="", brokers=brokers)
+    return _node_text(doc)
+
+
+def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
+               brokers: tuple[str, ...]) -> tuple[str, list[dict]]:
+    """An image's OCR state and its warnings (R-P3b-5), read from the document pipeline that already runs on
+    pasted images. Looked up by (note_id, attachment_url) through the existing document lookup (ruling
+    P3b-R8); no document row -- the image documents switch off, or never made -- is `unavailable`.
+
+    `ready` (the page holds text) warns about amounts, digit runs of 6+ and broker names; `no_text` has none;
+    `processing` (still being read) and `unavailable` (failed, or nothing will read it) carry none either,
+    and the client asks its second question for them. A warning never blocks: the author decides."""
+    from api.services.journal_two import document_extraction as dx
+    from api.services.journal_two import document_ocr as docr
+    try:
+        doc = dx.get_document_by_attachment(user_id, note_id, src, conn=conn)
+        if not doc or not doc.get("id"):
+            return "unavailable", []
+        state = docr.document_text_state(conn, user_id, doc["id"])
+        if not state.get("exists"):
+            return "unavailable", []
+        if state.get("pages_with_text"):
+            page = docr.page_transcript(user_id, doc["id"], 1, conn=conn)
+            text = page.get("text") if isinstance(page, dict) else ""
+            return "ready", example_sanitize.ocr_warnings(text if isinstance(text, str) else "", brokers)
+        if state.get("ocr_unavailable") or state.get("status") == dx._STATUS_FAILED:
+            return "unavailable", []
+        if state.get("pages_awaiting_ocr") or state.get("status") == dx._STATUS_PENDING:
+            return "processing", []
+        return "no_text", []
+    except Exception as e:  # noqa: BLE001 -- an unreadable state is "we couldn't read it", never a failed preview
+        print(f"[template-gallery] example OCR state unread: {type(e).__name__}")
+        return "unavailable", []
+
+
+def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, images_on: Any) -> dict | None:
+    """Exactly what other members would see of this note, for its author (R-P3b-4). None when the switch is
+    off or the note may not be an example (the route answers 404). Writes nothing.
+
+    `{"bodyJson": reduced, "changes": [{kind, before, after, path}], "counts": {kind: n},
+      "images": [{src, name, ocr, warnings}]}` -- `images` lists every image of this note the author may
+    switch on, in body order, at the author's own address; a switched-on one appears in `bodyJson` at that
+    address too. `before` is the author's own text and goes to the author only."""
+    if not example_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        brokers = _author_brokers(conn, user_id)
+        changes: list[dict] = []
+        body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                     brokers=brokers, item_id=_PREVIEW_ITEM_ID, report=changes)
+        prefix = EXAMPLE_IMAGE_PATH.format(item_id=_PREVIEW_ITEM_ID)
+        for node in _image_nodes(body):
+            tail = str(node["attrs"].get("src") or "")[len(prefix):]
+            if tail.isdigit() and int(tail) < len(kept):
+                node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
+        # The images the author may switch on: the reducer's own answer (its own-attachment check), asked by
+        # reducing once with every image of the note switched on. Never a second copy of that check.
+        candidates = [n["attrs"].get("src") for n in _image_nodes(note["body"])]
+        _, offered = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=candidates,
+                                     brokers=(), item_id=_PREVIEW_ITEM_ID, report=None)
+        images = []
+        for src in offered:
+            state, warnings = _image_ocr(conn, user_id, note["id"], src, brokers)
+            images.append({"src": src, "name": src.rsplit("/", 1)[-1], "ocr": state, "warnings": warnings})
+        counts: dict[str, int] = {}
+        for c in changes:
+            counts[c["kind"]] = counts.get(c["kind"], 0) + 1
+        return {"bodyJson": body, "changes": changes, "counts": counts, "images": images}
+    finally:
+        if owned:
+            conn.close()
+
+
+def _linkable_style(conn: sqlite3.Connection, user_id: str, style_item_id: Any) -> sqlite3.Row:
+    """The style an example is linked to (R-P3b-2): the author's OWN style item, listed or pending, not
+    withdrawn. Anything else -- someone else's, an outline, rejected, hidden, withdrawn (unpublish deletes
+    the row) or not an id -- is `EXAMPLE_STYLE_SENTENCE`."""
+    if not isinstance(style_item_id, str) or not style_item_id:
+        raise GalleryError(EXAMPLE_STYLE_SENTENCE)
+    row = conn.execute(
+        "SELECT * FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'"
+        " AND item_type = 'style' AND status IN ('approved', 'pending') AND hidden = 0",
+        (style_item_id, user_id)).fetchone()
+    if row is None:
+        raise GalleryError(EXAMPLE_STYLE_SENTENCE)
+    return row
+
+
+def _safe_example(payload: Any) -> dict:
+    """An example's payload in its one shape, whatever is stored: a body document, the linked style's id and
+    the note's kind (None when unreadable)."""
+    raw = payload if isinstance(payload, dict) else {}
+    body, link, kind = raw.get("bodyJson"), raw.get("linkedItemId"), raw.get("noteKind")
+    return {"bodyJson": body if isinstance(body, dict) else {"type": "doc", "content": []},
+            "linkedItemId": link if isinstance(link, str) else None,
+            "noteKind": kind if isinstance(kind, str) else None}
+
+
+def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, style_item_id: Any,
+                    images_on: Any, title: Any) -> dict | None:
+    """Submit (or resubmit) one of the member's own notes as an example of one of their shared styles.
+
+    None when the switch is off or the note may not be an example (the route answers 404).
+    `GalleryError` for a style that is not theirs to link (`EXAMPLE_STYLE_SENTENCE`), a note of another
+    kind (`EXAMPLE_KIND_SENTENCE`), or a bad title.
+
+    The server reads the note and reduces it ITSELF; nothing a client sends is a body. First publish: a
+    PENDING `example_note` item. Again (same author, note and style) while pending or rejected: replaced in
+    place, back to pending. Again while APPROVED: the new version is HELD in `pending_json` and the approved
+    one stays listed, as a style's does (R-P3-3)."""
+    if not example_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        style = _linkable_style(conn, user_id, style_item_id)
+        kind = _safe_listed(_listed_payload(style))["kindId"]
+        if not note["kind"] or note["kind"] != kind:
+            raise GalleryError(EXAMPLE_KIND_SENTENCE)
+        brokers = _author_brokers(conn, user_id)
+        clean_title = _clean_text(_example_text(title, brokers), field="title", limit=MAX_TITLE_CHARS,
+                                  required=True)
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")     # the lookup and the write below cannot interleave with a twin
+        existing = conn.execute(
+            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ? AND item_type = ?"
+            " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
+            (user_id, note["id"], EXAMPLE_ITEM, style["id"])).fetchone()
+        gid = existing["id"] if existing else uuid.uuid4().hex
+        body, _kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                      brokers=brokers, item_id=gid, report=None)
+        payload = {"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind}
+        payload_json = json.dumps(payload)
+        if len(payload_json.encode("utf-8")) > MAX_BODY_BYTES:
+            raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
+        preview = preview_lines(body)
+        now = _now()
+        if existing and existing["status"] == "approved":
+            revision = {"title": clean_title, "description": "", "category": style["category"],
+                        "tradingStyle": style["trading_style"], "payload": payload, "preview": preview}
+            conn.execute(
+                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+                " updated_at = ? WHERE id = ?", (json.dumps(revision), now, now, gid))
+        elif existing:
+            conn.execute(
+                "UPDATE j2_template_gallery SET title = ?, description = '', category = ?, trading_style = ?,"
+                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
+                " pending_json = NULL, pending_at = NULL WHERE id = ?",
+                (clean_title, style["category"], style["trading_style"], json.dumps(body), payload_json, now,
+                 json.dumps(preview), gid))
+        else:
+            conn.execute(
+                "INSERT INTO j2_template_gallery (id, user_id, source_note_id, kind, title, description,"
+                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+                " payload_json, version, trading_style)"
+                " VALUES (?, ?, ?, 'member', ?, '', ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+                (gid, user_id, note["id"], clean_title, style["category"], json.dumps(body), now, now,
+                 json.dumps(preview), EXAMPLE_ITEM, payload_json, style["trading_style"]))
+        conn.commit()
+        return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── every member ────────────────────────────────────────────────────────────────────────
 
 def _ensure_property(user_id: str, d: dict, conn: sqlite3.Connection) -> str:
@@ -1085,7 +1419,8 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if not _can_see(row, user_id, False):
+        # An example note is a snapshot of another member's note shown on their style, never a template to copy.
+        if not _can_see(row, user_id, False) or row["item_type"] == EXAMPLE_ITEM:
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),
@@ -1504,7 +1839,7 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND g.user_id = ?"
+        where = f"{_VISIBLE} AND {_NEVER_LISTED} AND g.user_id = ?"
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -1554,7 +1889,8 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
+                     f"{_VISIBLE} AND {_NEVER_LISTED}"
+                     " AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
     finally:
@@ -1572,7 +1908,13 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     try:
         # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
         # held revision) is reviewable only while the library is on.
-        outlines_only = "" if library_enabled() else " AND g.item_type = 'outline'"
+        # P3b: an example note is reviewable only while ITS switch is on, the same rule one level down.
+        if not library_enabled():
+            outlines_only = " AND g.item_type = 'outline'"
+        elif not example_enabled():
+            outlines_only = f" AND {_NEVER_LISTED}"
+        else:
+            outlines_only = ""
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
@@ -1641,7 +1983,9 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                 # statement as a first approval, and bump the version members see.
                 try:
                     rev = json.loads(row["pending_json"])
-                    new_body = rev["payload"].get("outlineBodyJson") or {"type": "doc", "content": []}
+                    # A style's listed body is its outline; an example note's is its reduced snapshot (P3b).
+                    body_key = "bodyJson" if row["item_type"] == EXAMPLE_ITEM else "outlineBodyJson"
+                    new_body = rev["payload"].get(body_key) or {"type": "doc", "content": []}
                     args = (rev["title"], rev["description"], rev["category"], rev.get("tradingStyle"),
                             json.dumps(rev["payload"]), json.dumps(new_body),
                             json.dumps(rev.get("preview") or preview_lines(new_body)),

@@ -7,6 +7,8 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
   member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
+  member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b; 404 while its switch is off)
+  member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b; 404 while off)
   member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
   member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
@@ -40,7 +42,8 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
     each in `daily_usage_counters` (survives deploys; fails open on a database error). Adopting
     a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day. Helpful (`notebook-gallery-helpful`)
     and follow (`notebook-gallery-follow`) are 60/hour each, in-process only; marking and unmarking share a budget.
-  * THE LITERAL `/updates`, `/feed` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
+    Publishing an example note (P3b, R-P3b-8) SHARES the publish scopes: the same 10/hour and durable 10/day.
+  * THE LITERAL `/updates`, `/feed`, `/examples` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
     `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
     Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
@@ -100,6 +103,14 @@ def _require_library() -> None:
     answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
     exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
     if not gallery.library_enabled():
+        raise public.not_found()
+
+
+def _require_example() -> None:
+    """P3b's gate for the EXAMPLE routes (R-P3b-6), the same shape as `_require_library`: a route dependency, so
+    an off switch (or the library off, which `example_enabled` includes) answers the one 404 before the plan
+    check and the body."""
+    if not gallery.example_enabled():
         raise public.not_found()
 
 
@@ -188,7 +199,9 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
                                      trading_style=trading_style or None, is_admin=_is_admin(user))
     except gallery.GalleryError as e:
         raise _bad(e)
-    return {"templates": items, "viewer": {"admin": _is_admin(user)}}
+    # R-P3b-6 (ruling P3b-R6): what the lazy library may offer, additively. A client reads a missing key as false.
+    return {"templates": items, "viewer": {"admin": _is_admin(user)},
+            "capabilities": {"exampleNotes": gallery.example_enabled()}}
 
 
 @router.get("/admin/queue")
@@ -215,6 +228,65 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
         raise public.not_found()
     dropped = item.pop("droppedProperties", 0)
     return {"template": item, "droppedProperties": dropped}
+
+
+# ⛔ The literal `/examples` routes (P3b) are declared BEFORE `/{gallery_id}`, and gated by `_require_example`, a
+# route dependency: an off switch answers every caller the one 404 before the plan check and the body. The body is
+# `{noteId, imagesOn}` / `{noteId, styleItemId, imagesOn, title}`; the SERVER reads and reduces the note, and any
+# body a client sends alongside is ignored (R-P3b, Global Constraints).
+
+IMAGES_ON_SENTENCE = "imagesOn must be a list of image addresses."
+MAX_IMAGES_ON = 100
+MAX_IMAGE_ADDRESS_CHARS = 2048
+
+
+def _images_on(body: dict[str, Any]) -> list[str]:
+    """The ORIGINAL addresses of the images the author switched on. Absent is none; anything but a short list of
+    non-empty strings is a 400. Which of them the example may keep is the reducer's decision, not this one's."""
+    raw = body.get("imagesOn")
+    if raw is None:
+        return []
+    if (not isinstance(raw, list) or len(raw) > MAX_IMAGES_ON
+            or not all(isinstance(s, str) and 0 < len(s) <= MAX_IMAGE_ADDRESS_CHARS for s in raw)):
+        raise HTTPException(status_code=400, detail=IMAGES_ON_SENTENCE)
+    return raw
+
+
+@router.post("/examples/preview", dependencies=[Depends(_require_example)])
+def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
+                             user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{noteId, imagesOn?}` -> `{bodyJson, changes, counts, images}`: exactly what other members would see, for
+    the author. Writes nothing. 404 when the note is not theirs, not live, or the sample notebook's."""
+    images_on = _images_on(body)
+    out = gallery.preview_example(None, user["id"], body.get("noteId"), images_on)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.post("/examples", dependencies=[Depends(_require_example)])
+def publish_example_endpoint(body: dict[str, Any] = Depends(paid_body),
+                             user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{noteId, styleItemId, imagesOn?, title}` -> `{template}`: a PENDING example note linked to the style, or a
+    held revision of an approved one. 400 for a style that is not theirs to link or a note of another kind; 404 for
+    a note that may not be an example. Rate-limited with sharing a style (R-P3b-8); a refused or failed publish
+    gives the day's charge back."""
+    images_on = _images_on(body)
+    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+    try:
+        item = gallery.publish_example(None, user["id"], body.get("noteId"), body.get("styleItemId"), images_on,
+                                       body.get("title"))
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise
+    if item is None:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise public.not_found()
+    return {"template": item}
 
 
 # ⛔ The literal `/updates` routes are declared BEFORE `GET /{gallery_id}`: that route would take "updates"

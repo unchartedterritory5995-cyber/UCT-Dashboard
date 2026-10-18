@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/examples/preview",
+    "path": "/api/j2/template-gallery/examples/preview",
+    "requestBody": {
+      "imagesOn": "chart.png",
+      "noteId": "a75a4833a646480f8cef01f6ca89e016"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "imagesOn must be a list of image addresses."
+  }
+}

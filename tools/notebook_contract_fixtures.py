@@ -85,6 +85,8 @@ FLAGS = (
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
     # Notebook P3a: the community style library (share, adopt, helpful, follow, feed).
     "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+    # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
 )
 
 
@@ -2214,6 +2216,54 @@ def trader_prep_review(w: World) -> None:
 def style_library(w: World) -> None:
     """P3a Task 8: the community library's routes. LAST, so adding it moved no earlier builder's ids."""
     _style_library(w)
+    w.as_user(MEMBER)
+
+
+@builder
+def example_notes(w: World) -> None:
+    """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). LAST, so adding it moved no
+    earlier builder's ids. A member of its own shares a style, then previews and publishes one of their notes as
+    an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`."""
+    from api.services.journal_two import journal_styles as js
+    base = "/api/j2/template-gallery"
+    author = w.member("exampler", "Erin Example")
+    c = w.conn()
+    try:
+        style = js.create_style(author, {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
+                                         "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
+        note = create_note(c, author, "My weekend plan", doc(para("x")))
+        image = f"/api/j2/notes/attachments/{author}/{note['id']}/inline/chart.png"
+        body = doc(para("made $1,240 on NVDA, up 3.2R, at Schwab. Watching 132.40 on Monday."),
+                   {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ?, properties_json = ? WHERE id = ?",
+                  (json.dumps(body), json.dumps({"builtin:note_kind": "weekend_prep"}), note["id"]))
+        other = create_note(c, author, "A thesis", doc(para("Long NVDA into earnings.")))
+        c.execute("UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+                  (json.dumps({"builtin:note_kind": "thesis"}), other["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    shared = w.client.post(f"{base}/styles", json={"styleId": style["id"], "title": "Weekend prep",
+                                                    "category": "journal"})
+    assert shared.status_code == 200, f"setup: sharing the style answered {shared.status_code}"
+    sid = shared.json()["template"]["id"]
+    w.record("template-gallery.examples.preview", "POST", f"{base}/examples/preview", case="success", expect=200,
+             json_body={"noteId": note["id"], "imagesOn": [image]},
+             note="Exactly what other members would see, for the author: the changes (with the author's own text "
+                  "in `before`, never stored), counts by kind, and each image with its OCR state.")
+    w.record("template-gallery.examples.preview.not-found", "POST", f"{base}/examples/preview", case="error",
+             expect=404, json_body={"noteId": "nope"},
+             note="Not the caller's live note (or the sample notebook's): the one 404.")
+    w.record("template-gallery.examples.preview.bad-images", "POST", f"{base}/examples/preview", case="error",
+             expect=400, json_body={"noteId": note["id"], "imagesOn": "chart.png"})
+    w.record("template-gallery.examples.publish", "POST", f"{base}/examples", case="success", expect=200,
+             json_body={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image], "title": "My weekend plan"},
+             note="A PENDING example note linked to the style, reduced by the server from the note itself.")
+    w.record("template-gallery.examples.publish.not-my-style", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": note["id"], "styleItemId": "nope", "title": "My weekend plan"})
+    w.record("template-gallery.examples.publish.other-kind", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": other["id"], "styleItemId": sid, "title": "A thesis"})
     w.as_user(MEMBER)
 
 

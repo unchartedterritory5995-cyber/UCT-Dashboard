@@ -1893,6 +1893,12 @@
       "where": ["web"],
       "note": "P3a. Gates sharing journal styles to the community gallery, adopting them, Helpful, author pages, follow and the feed. Off: the gallery lists outline items only and every style route answers 404. Payload key notebook_style_library_enabled. Adopt also needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Arm: railway variables --service web --set NOTEBOOK_STYLE_LIBRARY_ENABLED=1 (the owner's). Rollback: set it to 0; adopted styles stay as ordinary styles."
     },
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": {
+      "member_facing": { "label": "Example notes on community styles", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "P3b. Server-only (no client fallback row); gates example-note preview, publish and the In use section. Needs NOTEBOOK_STYLE_LIBRARY_ENABLED. Arm: railway variables --service web --set NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 (the owner's). Rollback: 0; stored examples stay stored and unlisted."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

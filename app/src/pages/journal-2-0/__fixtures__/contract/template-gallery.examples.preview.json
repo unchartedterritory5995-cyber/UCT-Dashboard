@@ -1,0 +1,80 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/examples/preview",
+    "note": "Exactly what other members would see, for the author: the changes (with the author's own text in `before`, never stored), counts by kind, and each image with its OCR state.",
+    "path": "/api/j2/template-gallery/examples/preview",
+    "requestBody": {
+      "imagesOn": [
+        "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+      ],
+      "noteId": "a75a4833a646480f8cef01f6ca89e016"
+    },
+    "status": 200
+  },
+  "body": {
+    "bodyJson": {
+      "content": [
+        {
+          "content": [
+            {
+              "text": "made your value here on NVDA, up your value here, at your broker. Watching 132.40 on Monday.",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "attrs": {
+            "alt": "NVDA daily",
+            "src": "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+          },
+          "type": "image"
+        }
+      ],
+      "type": "doc"
+    },
+    "changes": [
+      {
+        "after": "your value here",
+        "before": "$1,240",
+        "kind": "money",
+        "path": [
+          0,
+          0
+        ]
+      },
+      {
+        "after": "your value here",
+        "before": "3.2R",
+        "kind": "pnl_figure",
+        "path": [
+          0,
+          0
+        ]
+      },
+      {
+        "after": "your broker",
+        "before": "Schwab",
+        "kind": "broker",
+        "path": [
+          0,
+          0
+        ]
+      }
+    ],
+    "counts": {
+      "broker": 1,
+      "money": 1,
+      "pnl_figure": 1
+    },
+    "images": [
+      {
+        "name": "chart.png",
+        "ocr": "unavailable",
+        "src": "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png",
+        "warnings": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/examples",
+    "note": "A PENDING example note linked to the style, reduced by the server from the note itself.",
+    "path": "/api/j2/template-gallery/examples",
+    "requestBody": {
+      "imagesOn": [
+        "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+      ],
+      "noteId": "a75a4833a646480f8cef01f6ca89e016",
+      "styleItemId": "6730bd10d99640b791724391e58b6806",
+      "title": "My weekend plan"
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Erin Example",
+      "authorHandle": "gcra2MCZaDHz",
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "117159d2c7664c21ae0df9569b417283",
+      "itemType": "example_note",
+      "listedAt": null,
+      "mine": true,
+      "preview": [
+        {
+          "kind": "text",
+          "text": "made your value here on NVDA, up your value here, at your broker. Watch…"
+        }
+      ],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": null,
+      "status": "pending",
+      "title": "My weekend plan",
+      "tradingStyle": null,
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

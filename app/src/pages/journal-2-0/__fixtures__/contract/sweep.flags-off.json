@@ -445,6 +445,18 @@
       },
       "status": 404
     },
+    "POST /api/j2/template-gallery/examples": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/examples/preview": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "POST /api/j2/template-gallery/styles": {
       "body": {
         "detail": "Not found"

@@ -273,7 +273,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
-  const [itemType, setItemType] = useState(() => (libraryOn && ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  const [itemType, setItemType] = useState(() => (libraryOn && ITEM_TYPES.some((t) => t.key === initialType && t.key !== 'example_note') ? initialType : ALL))
   const [tradingStyle, setTradingStyle] = useState(ALL)
   const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
@@ -471,7 +471,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type">
-                {[{ key: ALL, label: 'All' }, ...ITEM_TYPES].map((t) => (
+                {[{ key: ALL, label: 'All' }, ...ITEM_TYPES.filter((t) => t.key !== 'example_note')].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>

@@ -409,6 +409,9 @@ GUARDED = {
     "api/services/journal_two/followup_prefill.py": "the earnings follow-up links the member's own prep note on "
                                                      "the ticker; an example prep note is never linked into a real "
                                                      "follow-up",
+    "api/services/journal_two/template_gallery.py": "an example note (P3b) shows a member's own note to other "
+                                                     "members as their work; a sample note is never published or "
+                                                     "previewed as one (ruling P3b-R11, the not-live 404)",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
