@@ -4,8 +4,8 @@
     "endpoint": "POST /api/j2/template-gallery/examples",
     "path": "/api/j2/template-gallery/examples",
     "requestBody": {
-      "noteId": "e206b8cc479743f9b298566b2d911b73",
-      "styleItemId": "6730bd10d99640b791724391e58b6806",
+      "noteId": "161a326a94e34c8e93bb226dedd1b3d9",
+      "styleItemId": "c56b4ed84d6f452db201026b9614b0cb",
       "title": "A thesis"
     },
     "status": 400

@@ -9,6 +9,7 @@ import { createEarningsPrepNote, earningsPrepEnabled } from '../../lib/earningsP
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { openSpanningCitation } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
+import { notebookTickerHref } from '../../lib/notebookTickerLink'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -180,7 +181,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
 
   const { identity, notes, activeTheses, pastTheses, facts, documents, tradeSummary } = summary
   const isEmpty = notes.length === 0 && activeTheses.length === 0 && pastTheses.length === 0 && documents.length === 0
-  const viewAllHref = `/journal/notebook?view=all&ticker=${encodeURIComponent(symbol)}`
+  const viewAllHref = notebookTickerHref(symbol)
 
   return (
     <div className={styles.workspace} data-export-exclude>

@@ -1,0 +1,264 @@
+// The TEAM DRAWING SET (owner direction 2026-10-17): what the overlay draws for the team's own
+// setups, asserted by what RENDERS. The server stamps display-only extras
+// (api/services/pattern_engine/display.py + auto_structures.box_to_detection):
+//   draw_pivot  a base's breakout / pivot line, solid, labelled "Pivot <price>"
+//   draw_box    false -> the base box itself is not drawn (line only)
+//   draw_handle a cup's capped handle, drawn as a box
+//   draw_rim_ref (cup round 9) the rim as a faint dashed reference, labelled "Rim <price>", beside a
+//               pivot at the handle high labelled "Pivot <price> · handle high"
+//   stale       a base that broke down: nothing drawn
+//   draw_ema    the MA pullback's tagged MA (kind ema|sma) + the tag-bar marker; the flat
+//               `tagged_ma` secondary level is then skipped, the stop level stays
+import { describe, it, expect, vi } from 'vitest'
+import { render } from '@testing-library/react'
+import { createRef } from 'react'
+import PatternOverlay, { selectDrawable } from './PatternOverlay'
+
+function weekdays(from, to) {
+  const out = []
+  const d = new Date(`${from}T12:00:00Z`)
+  const end = new Date(`${to}T12:00:00Z`)
+  while (d <= end) {
+    const wd = d.getUTCDay()
+    if (wd !== 0 && wd !== 6) out.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return out
+}
+const BAR_TIMES = weekdays('2026-08-24', '2026-10-16')
+
+function makeDailyChart(barTimes) {
+  const index = new Map(barTimes.map((t, i) => [t, i * 10]))
+  return {
+    timeScale: () => ({
+      timeToCoordinate: (t) => (index.has(t) ? index.get(t) : null),
+      subscribeVisibleTimeRangeChange: vi.fn(),
+      subscribeVisibleLogicalRangeChange: vi.fn(),
+      unsubscribeVisibleTimeRangeChange: vi.fn(),
+      unsubscribeVisibleLogicalRangeChange: vi.fn(),
+      options: () => ({ barSpacing: 8 }),
+    }),
+  }
+}
+const makeSeries = () => ({ priceToCoordinate: (price) => 1000 - price * 10 })
+function makeContainerRef() {
+  const ref = createRef()
+  ref.current = { clientWidth: 800, clientHeight: 400 }
+  return ref
+}
+function renderOverlay(detections) {
+  return render(
+    <PatternOverlay chart={makeDailyChart(BAR_TIMES)} series={makeSeries()} containerRef={makeContainerRef()}
+      enabled={true} tf="D" barTimes={BAR_TIMES} detections={detections} trustedOnly={true} />,
+  )
+}
+
+const box = (id, pattern_id, extras) => ({
+  id, pattern_id, pattern_name: pattern_id, confidence: null,
+  display_tier: 'trusted', display_layer: 'structures',
+  geometry: {
+    shape: 'base_box',
+    anchors: [{ t: 20260901, price: 52 }, { t: 20261015, price: 44 }],
+    extras: { top: 52, floor: 44, pivot: 52.1, sub_boxes: [], ...extras },
+  },
+})
+
+describe('PatternOverlay — team set: bases draw their pivot line', () => {
+  it('bc:flat-base with draw_box false draws ONLY the pivot line, labelled with its price', () => {
+    const { container } = renderOverlay([box('fb', 'bc:flat-base', {
+      draw_box: false, draw_pivot: { start_t: 20260915, end_t: 20261015, price: 52.1 },
+    })])
+    expect(container.querySelector('[data-shape="base-box"]')).toBeNull()
+    const lines = [...container.querySelectorAll('[data-shape="level-segment"]')]
+    expect(lines).toHaveLength(1)
+    expect(lines[0].textContent).toBe('Pivot 52.10')
+    // solid: a breakout line, not a dashed secondary level
+    expect(lines[0].querySelector('line').getAttribute('stroke-dasharray')).toBeNull()
+  })
+
+  it('control: the same box WITHOUT draw_box false draws its box', () => {
+    const { container } = renderOverlay([box('fb', 'bc:flat-base', {})])
+    expect(container.querySelector('[data-shape="base-box"]')).not.toBeNull()
+    expect(container.textContent).not.toContain('Pivot')
+  })
+
+  it('a cup draws its rim line and its capped handle, not the cup box', () => {
+    const { container } = renderOverlay([box('c', 'bc:cup-with-handle', {
+      draw_box: false,
+      draw_pivot: { start_t: 20260901, end_t: 20261013, price: 52.1 },
+      draw_handle: { start_t: 20261001, end_t: 20261009, top: 51.5, floor: 49 },
+    })])
+    expect(container.querySelector('[data-shape="base-box"]')).toBeNull()
+    expect(container.textContent).toContain('Pivot 52.10')
+    expect(container.querySelectorAll('rect').length).toBeGreaterThan(0)
+  })
+
+  it('a stale (broken-down) base draws nothing and is not drawable', () => {
+    const stale = box('s', 'flat_base', { stale: true, stale_reason: 'broke_down' })
+    const { container } = renderOverlay([stale])
+    expect(container.querySelector('[data-detection]')).toBeNull()
+    expect(selectDrawable([stale], { tf: 'D', trustedOnly: true })).toEqual([])
+  })
+})
+
+// Round 2 (lab REPORT_TEAM_SET.md): the server marks a flag that is not a pause (a rising channel
+// past the pole high) or that overlaps a more confident one as `stale`; the overlay must draw
+// nothing for it -- before, an overlapped flag kept its pole and entry line, so a run showed two.
+describe('PatternOverlay — team set round 2: one flag per run', () => {
+  const flag = (id, extras) => ({
+    id, pattern_id: 'bull_flag', pattern_name: 'Bull Flag', confidence: 70,
+    display_tier: 'trusted', display_layer: 'structures', direction: 'bullish', draw_entry: true,
+    levels: { entry: 51.6 },
+    geometry: {
+      shape: 'trendline_pair', semantic_subtype: 'parallel_channel',
+      anchors: [{ t: 20261001, price: 51.5 }, { t: 20261015, price: 50.8 },
+        { t: 20261001, price: 49.5 }, { t: 20261015, price: 48.8 }],
+      extras: { draw_lanes: true, draw_pole: [{ t: 20260915, price: 44 }, { t: 20260930, price: 52 }], ...extras },
+    },
+  })
+
+  it('draws the kept flag and nothing at all for a stale (overlapped / not-a-pause) one', () => {
+    const kept = flag('a', {})
+    const overlapped = flag('b', { draw_lanes: false, lanes_reason: 'overlapped', stale: true, stale_reason: 'overlapped' })
+    const leg = flag('c', { draw_lanes: false, stale: true, stale_reason: 'past_pole_high' })
+    const { container } = renderOverlay([kept, overlapped, leg])
+    const drawn = [...container.querySelectorAll('[data-detection]')]
+    expect(drawn).toHaveLength(1)
+    expect(selectDrawable([kept, overlapped, leg], { tf: 'D', trustedOnly: true })).toEqual([kept])
+  })
+
+  it('round 6: draw_entry_price moves the DRAWN entry line off the wick; levels.entry stays', () => {
+    const d = flag('a', { draw_entry_price: 50.9 })
+    const { container } = renderOverlay([d])
+    const labels = [...container.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(labels).toContain('Entry 50.90')
+    expect(labels).not.toContain('Entry 51.60')
+    expect(d.levels.entry).toBe(51.6)
+    // control: without it the line sits at the detector's levels.entry
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = [...c2.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(l2).toContain('Entry 51.60')
+  })
+
+  it('round 7: draw_anchors (the refitted lanes) are the lanes DRAWN; the detector anchors stay', () => {
+    const lanes = [{ t: 20261002, price: 51.2 }, { t: 20261015, price: 50.6 },
+      { t: 20261002, price: 49.0 }, { t: 20261015, price: 48.4 }]
+    const d = flag('a', { draw_anchors: lanes })
+    const { container } = renderOverlay([d])
+    const lower = container.querySelector('[data-role="lower"]').getAttribute('d')
+    const upper = container.querySelector('[data-role="upper"]').getAttribute('d')
+    // priceToCoordinate = 1000 - 10 * price: the refit's 49.0 / 48.4 and 51.2 / 50.6
+    expect(lower).toMatch(/,510(\D|$)/)
+    expect(lower).toMatch(/,516(\D|$)/)
+    expect(upper).toMatch(/,488(\D|$)/)
+    expect(d.geometry.anchors[2].price).toBe(49.5)          // the detector's own lanes are untouched
+    // control: without it the lanes sit on the detector's anchors (49.5 / 48.8)
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = c2.querySelector('[data-role="lower"]').getAttribute('d')
+    expect(l2).toMatch(/,505(\D|$)/)
+    expect(l2).not.toMatch(/,510(\D|$)/)
+  })
+
+  it('control: without the stale stamp both flags draw', () => {
+    const { container } = renderOverlay([flag('a', {}), flag('b', { draw_lanes: false })])
+    expect(container.querySelectorAll('[data-detection]')).toHaveLength(2)
+  })
+})
+
+describe('PatternOverlay — team set: the MA pullback', () => {
+  const pullback = (kind, period) => ({
+    id: 'pb', pattern_id: 'uct_pullback_ma_v5', pattern_name: 'UCT MA Pullback v5', confidence: 80,
+    display_tier: 'trusted', display_layer: 'structures', direction: 'bullish',
+    geometry: {
+      shape: 'candle_mark',
+      anchors: [{ t: 20261016, price: 48 }, { t: 20261015, price: 47.2 }],
+      secondary: [
+        { shape: 'horizontal_line', role: 'tagged_ma', label: '21-day EMA 48.00',
+          anchors: [{ t: 20261002, price: 48 }, { t: 20261016, price: 48 }] },
+        { shape: 'horizontal_line', role: 'stop', label: 'Tag-bar low 47.20',
+          anchors: [{ t: 20261002, price: 47.2 }, { t: 20261016, price: 47.2 }] },
+      ],
+      extras: {
+        draw_ema: {
+          kind, period,
+          points: [{ t: 20261002, price: 46 }, { t: 20261009, price: 47 }, { t: 20261016, price: 48 }],
+          tag: { t: 20261015, price: 47.2 },
+        },
+      },
+    },
+  })
+
+  it('draws the tagged EMA as a curve, marks the tag bar, and keeps only the stop level', () => {
+    const { container } = renderOverlay([pullback('ema', 21)])
+    expect(container.querySelector('[data-shape="ema-segment"]')).not.toBeNull()
+    expect(container.textContent).toContain('21 EMA')
+    expect(container.querySelector('[data-role="tag-bar"]')).not.toBeNull()
+    const levels = [...container.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(levels).toEqual(['Tag-bar low 47.20'])
+  })
+
+  it('round 5: draw_stop re-anchors the stop to start at the TAG bar, extended right, same label', () => {
+    const d = pullback('ema', 21)
+    d.geometry.extras.draw_stop = { start_t: 20261015, end_t: 20261016, price: 47.2 }
+    const { container } = renderOverlay([d])
+    const segs = [...container.querySelectorAll('[data-shape="level-segment"]')]
+    expect(segs.map((g) => g.textContent)).toEqual(['Tag-bar low 47.20'])
+    const line = segs[0].querySelector('line')
+    const tagX = BAR_TIMES.indexOf('2026-10-15') * 10
+    const lastX = BAR_TIMES.indexOf('2026-10-16') * 10
+    expect(Number(line.getAttribute('x1'))).toBe(tagX)
+    expect(Number(line.getAttribute('x2'))).toBe(lastX + 40)
+    // control: without draw_stop the stop runs from the 10-session high (far left)
+    const { container: c2 } = renderOverlay([pullback('ema', 21)])
+    const x1 = Number(c2.querySelector('[data-shape="level-segment"] line').getAttribute('x1'))
+    expect(x1).toBe(BAR_TIMES.indexOf('2026-10-02') * 10)
+    expect(x1).toBeLessThan(tagX)
+  })
+
+  it('a 50 SMA tag is labelled as an SMA', () => {
+    const { container } = renderOverlay([pullback('sma', 50)])
+    expect(container.textContent).toContain('50 SMA')
+    expect(container.textContent).not.toContain('50 EMA')
+  })
+})
+
+// Cup round 9 (lab REPORT_CUP_R8.md): a right side stalled under the rim pivots at the HANDLE HIGH; the rim stays
+// as a faint reference. The two lines must be told apart by what RENDERS: label, dash and opacity.
+describe('PatternOverlay — cup round 9: handle-high pivot + faint rim reference', () => {
+  const cup = (extras) => box('c9', 'bc:cup-with-handle', {
+    draw_box: false,
+    draw_pivot: { start_t: 20261001, end_t: 20261013, price: 51.5 },
+    draw_handle: { start_t: 20261001, end_t: 20261009, top: 51.5, floor: 49 },
+    ...extras,
+  })
+  const seg = (c, role) => c.querySelector(`[data-shape="level-segment"][data-role="${role}"]`)
+
+  it('draws the pivot at the handle high and the rim as a separate, faint, labelled reference', () => {
+    const { container } = renderOverlay([cup({ draw_rim_ref: { start_t: 20260901, end_t: 20261013, price: 52.1 } })])
+    const pivot = seg(container, 'pivot')
+    const rim = seg(container, 'rim-ref')
+    expect(pivot).not.toBeNull()
+    expect(rim).not.toBeNull()
+    expect(pivot.textContent).toBe('Pivot 51.50 · handle high')
+    expect(rim.textContent).toBe('Rim 52.10')
+    const pl = pivot.querySelector('line')
+    const rl = rim.querySelector('line')
+    expect(pl.getAttribute('stroke-dasharray')).toBeNull()          // the pivot stays solid
+    expect(rl.getAttribute('stroke-dasharray')).toBe('2,4')         // the rim is a sparse dash
+    expect(Number(rl.getAttribute('opacity'))).toBeLessThan(Number(pl.getAttribute('opacity')))
+    expect(Number(rl.getAttribute('stroke-width'))).toBeLessThan(Number(pl.getAttribute('stroke-width')))
+    expect(Number(rl.getAttribute('y1'))).not.toBe(Number(pl.getAttribute('y1')))   // two prices, two lines
+  })
+
+  it('control: without draw_rim_ref the cup draws ONE line, labelled as a plain pivot', () => {
+    const { container } = renderOverlay([cup({})])
+    expect(container.querySelectorAll('[data-shape="level-segment"]')).toHaveLength(1)
+    expect(seg(container, 'rim-ref')).toBeNull()
+    expect(seg(container, 'pivot').textContent).toBe('Pivot 51.50')
+  })
+
+  it('a rim reference without a pivot is not drawn on its own', () => {
+    const { container } = renderOverlay([cup({ draw_pivot: undefined, draw_rim_ref: { start_t: 20260901, end_t: 20261013, price: 52.1 } })])
+    expect(seg(container, 'rim-ref')).toBeNull()
+  })
+})

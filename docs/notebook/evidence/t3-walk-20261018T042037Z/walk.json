@@ -1,0 +1,840 @@
+{
+ "tool": "tools/journal_tier3_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "insert the check-in from the slash menu, Good and Focused, leave within 1.5 s, reopen",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "left the note within 1.5 s of the second pick",
+     "ok": true,
+     "read": "4.7 ms"
+    },
+    {
+     "what": "the save carrying both picks landed (HTTP 2xx)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "reopened: Good is picked",
+     "ok": true,
+     "read": "Mood: Good aria-pressed=true"
+    },
+    {
+     "what": "reopened: Focused is picked",
+     "ok": true,
+     "read": "Focus: Focused aria-pressed=true"
+    },
+    {
+     "what": "the server's copy holds one check-in, mood 4 and focus 4, for today ET",
+     "ok": true,
+     "read": "{\"blocks\": 1, \"params\": {\"mood\": \"4\", \"focus\": \"4\", \"day\": \"2026-10-18\"}, \"today_et\": \"2026-10-18\"}"
+    },
+    {
+     "what": "no conflicted copy appeared",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "slash option",
+     "text": "Mood and focus check-in\nHow you feel and how focused you are today"
+    },
+    {
+     "what": "the inserted block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nPick how you feel and how focused you are."
+    },
+    {
+     "what": "the reopened block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nChecked in for Oct 18"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "Insights > Psychology > By check-in shows the day",
+   "checks": [
+    {
+     "what": "it counts the one check-in day",
+     "ok": true,
+     "read": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t"
+    },
+    {
+     "what": "Mood: Good shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus: Focused shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "the day's closed trades are on it",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "By check-in",
+     "text": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t2\t0%\t-$50.00\nGreatToo few trades\t0\t0\t—\t—"
+    },
+    {
+     "what": "Mood row Good [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus row Focused [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "Checklist from my winners: a suggestion, accept it, a new trade plan's checklist lists it",
+   "checks": [
+    {
+     "what": "at least one suggestion is shown (patient)",
+     "ok": true,
+     "read": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, "
+    },
+    {
+     "what": "the panel says it was added",
+     "ok": true,
+     "read": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the account holds the rule, marked before entry (the rules read)",
+     "ok": true,
+     "read": "[{\"id\": \"1424cc82d34b42319fe8f7f8acd2e7dd\", \"accountId\": \"5b6762c5-873d-486f-a153-d50df245b941\", \"label\": \"Before entry: am I patient?\", \"evidence\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\", \"sourceType\": \"psychology\", \"sourceId\": \"winners:patient\", \"status\": \"active\", \"createdAt\": \"2026-10-18T04:22:20.768465+00:00\", \"updatedAt\": \"2026-10-18T04:22:21.930482+00:00\", \"beforeEn"
+    },
+    {
+     "what": "the pre-entry checklist lists the accepted rule",
+     "ok": true,
+     "read": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Checklist from my winners",
+     "text": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, 2026 · +2.40R\nTSLA · Aug 11, 2025 · +2.40R\nTSLA · Oct 3, 2026 · +2.20R\nAMD · Jul 10, 2025 · +2.20R\nAMD · Oct 7, 2026 · +2.00R\nNVDA · Jun 12, 2025 · +2.00R\nNVDA · Oct 11, 2026 · +1.80R\nMSFT · May 11, 2025 · +1.80R\nNVDA · Sep 1, 2026 · +1.60R\nAAPL · Apr 10, 2025 · +1.60R\nMSFT · Sep 5, 2026 · +1.40R\nTSLA · Mar 12, 2025 · +1.40R\nAAPL · Sep 9, 2026 · +1.20R\nAMD · Feb 11, 2025 · +1.20R\nAdd to my checklist"
+    },
+    {
+     "what": "the confirm",
+     "text": "YOUR RULE\n\nOn 20 of your 20 best trades (100%) · on 20% of the rest\n\nCancel\nSave rule\n[Your rule] Before entry: am I patient?"
+    },
+    {
+     "what": "status",
+     "text": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the new trade plan",
+     "text": "The setup\n‹\nMore\n\nWhat is the pattern, and why now?\n\nAdd a ticker to this note, then type /chart to add the chart.\n\nEntry, stop and target\n\nEntry:\n\nStop:\n\nTarget:\n\nSize and risk\n\nHow much am I risking, and is it within my rules?"
+    },
+    {
+     "what": "the pre-entry checklist",
+     "text": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "Report > Your year in trading shows four sections",
+   "checks": [
+    {
+     "what": "Earlier years offers 2025",
+     "ok": true,
+     "read": "[\"2025\"]"
+    },
+    {
+     "what": "the page shows its four sections",
+     "ok": true,
+     "read": "[\"Best setups\", \"Most-written tickers\", \"Discipline trend\", \"Lessons you wrote into your rules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the door",
+     "text": "Earlier years\n2025\nYour 2025 in trading"
+    },
+    {
+     "what": "the header",
+     "text": "All Accounts"
+    },
+    {
+     "what": "section: Best setups",
+     "text": "BEST SETUPS\nSetup\tTrades\tExpectancy\tSample\nVCP\t9\t\ntoo few to judge\n\tn=9 Too few trades to rank\nBreakout\t5\t\ntoo few to judge\n\tn=5 Too few trades to rank"
+    },
+    {
+     "what": "section: Most-written tickers",
+     "text": "MOST-WRITTEN TICKERS\n\nThese counts cover all your notes, not just this account.\n\nNothing here yet."
+    },
+    {
+     "what": "section: Discipline trend",
+     "text": "DISCIPLINE TREND\n\nNo adherence recorded this year.\n\nJanuary\n—\n2 trades\nFebruary\n—\n2 trades\nMarch\n—\n1 trade\nApril\n—\n1 trade\nMay\n—\n1 trade\nJune\n—\n1 trade\nJuly\n—\n1 trade\nAugust\n—\n1 trade\nSeptember\n—\n1 trade\nOctober\n—\n1 trade\nNovember\n—\n1 trade\nDecember\n—\n1 trade"
+    },
+    {
+     "what": "section: Lessons you wrote into your rules",
+     "text": "LESSONS YOU WROTE INTO YOUR RULES\n\nNothing here yet."
+    }
+   ],
+   "verdict": "PASS",
+   "events": []
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "insert the check-in from the slash menu, Good and Focused, leave within 1.5 s, reopen",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "left the note within 1.5 s of the second pick",
+     "ok": true,
+     "read": "5.4 ms"
+    },
+    {
+     "what": "the save carrying both picks landed (HTTP 2xx)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "reopened: Good is picked",
+     "ok": true,
+     "read": "Mood: Good aria-pressed=true"
+    },
+    {
+     "what": "reopened: Focused is picked",
+     "ok": true,
+     "read": "Focus: Focused aria-pressed=true"
+    },
+    {
+     "what": "the server's copy holds one check-in, mood 4 and focus 4, for today ET",
+     "ok": true,
+     "read": "{\"blocks\": 1, \"params\": {\"mood\": \"4\", \"focus\": \"4\", \"day\": \"2026-10-18\"}, \"today_et\": \"2026-10-18\"}"
+    },
+    {
+     "what": "no conflicted copy appeared",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "slash option",
+     "text": "Mood and focus check-in\nHow you feel and how focused you are today"
+    },
+    {
+     "what": "the inserted block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nPick how you feel and how focused you are."
+    },
+    {
+     "what": "the reopened block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nChecked in for Oct 18"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "Insights > Psychology > By check-in shows the day",
+   "checks": [
+    {
+     "what": "it counts the one check-in day",
+     "ok": true,
+     "read": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t"
+    },
+    {
+     "what": "Mood: Good shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus: Focused shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "the day's closed trades are on it",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "By check-in",
+     "text": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t2\t0%\t-$50.00\nGreatToo few trades\t0\t0\t—\t—"
+    },
+    {
+     "what": "Mood row Good [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus row Focused [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "Checklist from my winners: a suggestion, accept it, a new trade plan's checklist lists it",
+   "checks": [
+    {
+     "what": "at least one suggestion is shown (patient)",
+     "ok": true,
+     "read": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, "
+    },
+    {
+     "what": "the panel says it was added",
+     "ok": true,
+     "read": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the account holds the rule, marked before entry (the rules read)",
+     "ok": true,
+     "read": "[{\"id\": \"8f547c716a1b45879cb07ba4cbf84ba2\", \"accountId\": \"05229ef9-6bbe-4880-8c86-38cd2a769454\", \"label\": \"Before entry: am I patient?\", \"evidence\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\", \"sourceType\": \"psychology\", \"sourceId\": \"winners:patient\", \"status\": \"active\", \"createdAt\": \"2026-10-18T04:23:33.382165+00:00\", \"updatedAt\": \"2026-10-18T04:23:33.439204+00:00\", \"beforeEn"
+    },
+    {
+     "what": "the pre-entry checklist lists the accepted rule",
+     "ok": true,
+     "read": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Checklist from my winners",
+     "text": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, 2026 · +2.40R\nTSLA · Aug 11, 2025 · +2.40R\nTSLA · Oct 3, 2026 · +2.20R\nAMD · Jul 10, 2025 · +2.20R\nAMD · Oct 7, 2026 · +2.00R\nNVDA · Jun 12, 2025 · +2.00R\nNVDA · Oct 11, 2026 · +1.80R\nMSFT · May 11, 2025 · +1.80R\nNVDA · Sep 1, 2026 · +1.60R\nAAPL · Apr 10, 2025 · +1.60R\nMSFT · Sep 5, 2026 · +1.40R\nTSLA · Mar 12, 2025 · +1.40R\nAAPL · Sep 9, 2026 · +1.20R\nAMD · Feb 11, 2025 · +1.20R\nAdd to my checklist"
+    },
+    {
+     "what": "the confirm",
+     "text": "YOUR RULE\n\nOn 20 of your 20 best trades (100%) · on 20% of the rest\n\nCancel\nSave rule\n[Your rule] Before entry: am I patient?"
+    },
+    {
+     "what": "status",
+     "text": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the new trade plan",
+     "text": "The setup\n‹\nMore\n\nWhat is the pattern, and why now?\n\nAdd a ticker to this note, then type /chart to add the chart.\n\nEntry, stop and target\n\nEntry:\n\nStop:\n\nTarget:\n\nSize and risk\n\nHow much am I risking, and is it within my rules?"
+    },
+    {
+     "what": "the pre-entry checklist",
+     "text": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "Report > Your year in trading shows four sections",
+   "checks": [
+    {
+     "what": "Earlier years offers 2025",
+     "ok": true,
+     "read": "[\"2025\"]"
+    },
+    {
+     "what": "the page shows its four sections",
+     "ok": true,
+     "read": "[\"Best setups\", \"Most-written tickers\", \"Discipline trend\", \"Lessons you wrote into your rules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the door",
+     "text": "Earlier years\n2025\nYour 2025 in trading"
+    },
+    {
+     "what": "the header",
+     "text": "All Accounts"
+    },
+    {
+     "what": "section: Best setups",
+     "text": "BEST SETUPS\nSetup\tTrades\tExpectancy\tSample\nVCP\t9\t\ntoo few to judge\n\tn=9 Too few trades to rank\nBreakout\t5\t\ntoo few to judge\n\tn=5 Too few trades to rank"
+    },
+    {
+     "what": "section: Most-written tickers",
+     "text": "MOST-WRITTEN TICKERS\n\nThese counts cover all your notes, not just this account.\n\nNothing here yet."
+    },
+    {
+     "what": "section: Discipline trend",
+     "text": "DISCIPLINE TREND\n\nNo adherence recorded this year.\n\nJanuary\n—\n2 trades\nFebruary\n—\n2 trades\nMarch\n—\n1 trade\nApril\n—\n1 trade\nMay\n—\n1 trade\nJune\n—\n1 trade\nJuly\n—\n1 trade\nAugust\n—\n1 trade\nSeptember\n—\n1 trade\nOctober\n—\n1 trade\nNovember\n—\n1 trade\nDecember\n—\n1 trade"
+    },
+    {
+     "what": "section: Lessons you wrote into your rules",
+     "text": "LESSONS YOU WROTE INTO YOUR RULES\n\nNothing here yet."
+    }
+   ],
+   "verdict": "PASS",
+   "events": []
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "insert the check-in from the slash menu, Good and Focused, leave within 1.5 s, reopen",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "left the note within 1.5 s of the second pick",
+     "ok": true,
+     "read": "4.8 ms"
+    },
+    {
+     "what": "the save carrying both picks landed (HTTP 2xx)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "reopened: Good is picked",
+     "ok": true,
+     "read": "Mood: Good aria-pressed=true"
+    },
+    {
+     "what": "reopened: Focused is picked",
+     "ok": true,
+     "read": "Focus: Focused aria-pressed=true"
+    },
+    {
+     "what": "the server's copy holds one check-in, mood 4 and focus 4, for today ET",
+     "ok": true,
+     "read": "{\"blocks\": 1, \"params\": {\"mood\": \"4\", \"focus\": \"4\", \"day\": \"2026-10-18\"}, \"today_et\": \"2026-10-18\"}"
+    },
+    {
+     "what": "no conflicted copy appeared",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "slash option",
+     "text": "Mood and focus check-in\nHow you feel and how focused you are today"
+    },
+    {
+     "what": "the inserted block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nPick how you feel and how focused you are."
+    },
+    {
+     "what": "the reopened block",
+     "text": "Mood and focus check-in\nRemove\nMood\nRough\nLow\nOkay\nGood\nGreat\nFocus\nScattered\nDistracted\nSteady\nFocused\nLocked in\n\nChecked in for Oct 18"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "Insights > Psychology > By check-in shows the day",
+   "checks": [
+    {
+     "what": "it counts the one check-in day",
+     "ok": true,
+     "read": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t"
+    },
+    {
+     "what": "Mood: Good shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus: Focused shows the day",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "the day's closed trades are on it",
+     "ok": true,
+     "read": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "By check-in",
+     "text": "By check-in\n\nYour trades grouped by the day's mood and focus check-in. 1 check-in day, 2 trades on them. A day with two check-ins takes their average.\n\nMood\nFocus\nLevel\tDays\tTrades\tWin rate\tAvg P&L\nRoughToo few trades\t0\t0\t—\t—\nLowToo few trades\t0\t0\t—\t—\nOkayToo few trades\t0\t0\t—\t—\nGoodToo few trades\t1\t2\t0%\t-$50.00\nGreatToo few trades\t0\t0\t—\t—"
+    },
+    {
+     "what": "Mood row Good [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    },
+    {
+     "what": "Focus row Focused [days, trades, win rate, avg P&L]",
+     "text": "[\"1\", \"2\", \"0%\", \"-$50.00\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "Checklist from my winners: a suggestion, accept it, a new trade plan's checklist lists it",
+   "checks": [
+    {
+     "what": "at least one suggestion is shown (patient)",
+     "ok": true,
+     "read": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, "
+    },
+    {
+     "what": "the panel says it was added",
+     "ok": true,
+     "read": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the account holds the rule, marked before entry (the rules read)",
+     "ok": true,
+     "read": "[{\"id\": \"19a48ebb1b3b4a65a057f906e17d0861\", \"accountId\": \"d1313afb-9d10-4d25-a3b1-1376374e0ab8\", \"label\": \"Before entry: am I patient?\", \"evidence\": \"On 20 of your 20 best trades (100%) \\u00b7 on 20% of the rest\", \"sourceType\": \"psychology\", \"sourceId\": \"winners:patient\", \"status\": \"active\", \"createdAt\": \"2026-10-18T04:24:45.305182+00:00\", \"updatedAt\": \"2026-10-18T04:24:45.354792+00:00\", \"beforeEn"
+    },
+    {
+     "what": "the pre-entry checklist lists the accepted rule",
+     "ok": true,
+     "read": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Checklist from my winners",
+     "text": "Checklist from my winners\n\nEmotion tags that show up far more on your best winning trades than on the rest. Nothing is added until you choose it.\n\npatient\nOn 20 of your 20 best trades (100%) · on 20% of the rest\nAMD · Sep 17, 2026 · +3.00R\nNVDA · Nov 11, 2025 · +3.00R\nNVDA · Sep 21, 2026 · +2.80R\nMSFT · Oct 10, 2025 · +2.80R\nMSFT · Sep 25, 2026 · +2.60R\nAAPL · Sep 12, 2025 · +2.60R\nAAPL · Sep 29, 2026 · +2.40R\nTSLA · Aug 11, 2025 · +2.40R\nTSLA · Oct 3, 2026 · +2.20R\nAMD · Jul 10, 2025 · +2.20R\nAMD · Oct 7, 2026 · +2.00R\nNVDA · Jun 12, 2025 · +2.00R\nNVDA · Oct 11, 2026 · +1.80R\nMSFT · May 11, 2025 · +1.80R\nNVDA · Sep 1, 2026 · +1.60R\nAAPL · Apr 10, 2025 · +1.60R\nMSFT · Sep 5, 2026 · +1.40R\nTSLA · Mar 12, 2025 · +1.40R\nAAPL · Sep 9, 2026 · +1.20R\nAMD · Feb 11, 2025 · +1.20R\nAdd to my checklist"
+    },
+    {
+     "what": "the confirm",
+     "text": "YOUR RULE\n\nOn 20 of your 20 best trades (100%) · on 20% of the rest\n\nCancel\nSave rule\n[Your rule] Before entry: am I patient?"
+    },
+    {
+     "what": "status",
+     "text": "Added. It will show in your pre-entry checklist."
+    },
+    {
+     "what": "the new trade plan",
+     "text": "The setup\n‹\n⋯\nMore\nMARKET CONTEXT\nMarket phase\n—\nUCT Exposure\n72\nBreadth score\n62\nDistribution days\n0\n% above 50-day\n61%\n% above 200-day\n55%\nPower trend\n—\nRegime\nYellow\nUCT Exposure Rating, as of 2026-01-02\nSPY\nNo SPY quote could be read just now.\nQQQ\nNo QQQ quote could be read just now.\nVIX\nVIX unavailable\nTo see your notes by the regime they were written in, open your notes as a Board and group by \"Regime when written\".\nWire 2026-01-02 · updated 12:24 AM ET\n\nWhat is the pattern, and why now?\n\nAdd a ticker to this note, then type /chart to add the chart.\n\nPre-entry checklist\nRemove\n\nLoading…"
+    },
+    {
+     "what": "the pre-entry checklist",
+     "text": "Pre-entry checklist for VCP\n\nVolume dry-up\nBefore entry: am I patient?\n\n0 of 2 ticked\n\nChange setup"
+    }
+   ],
+   "verdict": "PASS",
+   "events": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "Report > Your year in trading shows four sections",
+   "checks": [
+    {
+     "what": "Earlier years offers 2025",
+     "ok": true,
+     "read": "[\"2025\"]"
+    },
+    {
+     "what": "the page shows its four sections",
+     "ok": true,
+     "read": "[\"Best setups\", \"Most-written tickers\", \"Discipline trend\", \"Lessons you wrote into your rules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the door",
+     "text": "Earlier years\n2025\nYour 2025 in trading"
+    },
+    {
+     "what": "the header",
+     "text": "All Accounts · 14 closed trades"
+    },
+    {
+     "what": "section: Best setups",
+     "text": "BEST SETUPS\nSetup\tTrades\tExpectancy\tSample\nVCP\t9\t\ntoo few to judge\n\tn=9 Too few trades to rank\nBreakout\t5\t\ntoo few to judge\n\tn=5 Too few trades to rank"
+    },
+    {
+     "what": "section: Most-written tickers",
+     "text": "MOST-WRITTEN TICKERS\n\nThese counts cover all your notes, not just this account.\n\nNothing here yet."
+    },
+    {
+     "what": "section: Discipline trend",
+     "text": "DISCIPLINE TREND\n\nNo adherence recorded this year.\n\nJanuary\n—\n2 trades\nFebruary\n—\n2 trades\nMarch\n—\n1 trade\nApril\n—\n1 trade\nMay\n—\n1 trade\nJune\n—\n1 trade\nJuly\n—\n1 trade\nAugust\n—\n1 trade\nSeptember\n—\n1 trade\nOctober\n—\n1 trade\nNovember\n—\n1 trade\nDecember\n—\n1 trade"
+    },
+    {
+     "what": "section: Lessons you wrote into your rules",
+     "text": "LESSONS YOU WROTE INTO YOUR RULES\n\nNothing here yet."
+    }
+   ],
+   "verdict": "PASS",
+   "events": []
+  }
+ ],
+ "setup": [
+  {
+   "viewport": "1280",
+   "account": "t3walk-1280@local.dev",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "journal_tier3_enabled": true,
+   "notebook_journal_styles_enabled": true,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "1280",
+   "what": "30 closed trades with emotion tags, setups VCP and Breakout",
+   "trade_posts": [
+    200
+   ],
+   "trades_listed": 30,
+   "account": "5b6762c5-873d-486f-a153-d50df245b941",
+   "settings_put": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "820",
+   "account": "t3walk-820@local.dev",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "journal_tier3_enabled": true,
+   "notebook_journal_styles_enabled": true,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "820",
+   "what": "30 closed trades with emotion tags, setups VCP and Breakout",
+   "trade_posts": [
+    200
+   ],
+   "trades_listed": 30,
+   "account": "05229ef9-6bbe-4880-8c86-38cd2a769454",
+   "settings_put": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "390",
+   "account": "t3walk-390@local.dev",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "journal_tier3_enabled": true,
+   "notebook_journal_styles_enabled": true,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "390",
+   "what": "30 closed trades with emotion tags, setups VCP and Breakout",
+   "trade_posts": [
+    200
+   ],
+   "trades_listed": 30,
+   "account": "d1313afb-9d10-4d25-a3b1-1376374e0ab8",
+   "settings_put": 200,
+   "verdict": "INFO"
+  }
+ ],
+ "tip": "4f50a8ba72",
+ "tool_tree": "90d217e2121622fa1d86ac8216830627db3cc626",
+ "base": "http://127.0.0.1:8081",
+ "data_dir": "C:\\data-t3walk",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "JOURNAL_TIER3_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "today_et": "2026-10-18",
+ "started": "2026-10-18T04:20:38+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8081 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-t3\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T23-20-39.md (identity 52c054c8436a..., data dir C:\\data-t3walk)"
+ },
+ "viewports": {
+  "1280": {
+   "checkin_note": "da179f8b870945af94aa231296d37cd5",
+   "rule_label": "Before entry: am I patient?"
+  },
+  "820": {
+   "checkin_note": "93f9219cc9424ff0acfcab192f4e7424",
+   "rule_label": "Before entry: am I patient?"
+  },
+  "390": {
+   "checkin_note": "714dca7aa7074e6985337fb44ada09ec",
+   "rule_label": "Before entry: am I patient?"
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\t3-walk-20261018T042037Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-17 23:20:44",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-17 23:21:22",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-17 23:23:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-17 23:25:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\t3-walk-20261018T042037Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 12,
+  "FAIL": 0,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-18T04:25:46+00:00"
+}

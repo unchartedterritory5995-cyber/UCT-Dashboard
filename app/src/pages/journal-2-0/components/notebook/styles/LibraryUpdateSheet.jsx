@@ -16,6 +16,7 @@ import { applyStyleUpdate, getUpdatePlan } from '../../../lib/styleLibrary'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { DocBody } from '../TemplatePreview'
 import { libraryError } from './styleErrors'
+import { usableBaseline } from '../../../lib/offline/baseline'
 import styles from './StylesManager.module.css'
 
 export const TAKE_OUTLINE_LABEL = "Use the author's new outline"
@@ -61,7 +62,7 @@ export default function LibraryUpdateSheet({ styleId, onClose, onApplied }) {
       (plan) => {
         if (!live) return
         setState({ phase: 'plan', plan })
-        setBase(copyRef.current?.updatedAt ?? null)
+        setBase(usableBaseline(copyRef.current?.updatedAt))
       },
       (e) => {
         if (!live) return
@@ -73,7 +74,7 @@ export default function LibraryUpdateSheet({ styleId, onClose, onApplied }) {
 
   // The plan landed before the copy's list did (a cold cache): capture the base once, when the copy appears.
   useEffect(() => {
-    if (state.phase === 'plan' && base == null && copy) setBase(copy.updatedAt)
+    if (state.phase === 'plan' && base == null && copy) setBase(usableBaseline(copy.updatedAt))
   }, [state.phase, base, copy])
 
   // A 409 means the copy or the listed version moved: re-read the copy (the new base) and the plan together, and

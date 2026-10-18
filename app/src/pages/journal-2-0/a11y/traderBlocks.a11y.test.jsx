@@ -39,11 +39,11 @@ axeSurface('trader-block-platform', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => contractBody('trader-blocks.review.trades') })))
   render(<div>
     {['preEntryChecklist', 'priceStamps', 'positionSizing',
-      'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview'].map((id) => (
+      'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn'].map((id) => (
       <BlockNodeView key={id} node={node(id)} editor={editor} updateAttributes={() => {}} deleteNode={() => {}} />
     ))}
   </div>)
-  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing', ...PART_B]) {
+  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing', ...PART_B, 'Mood and focus check-in']) {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
@@ -70,6 +70,10 @@ axeSurface('trader-block-platform', async () => {
   expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
   // M2: no part b body still says the stub sentence.
   for (const name of PART_B) expect(group(name).queryByText('This block is being built.')).toBeNull()
+  // P2 Tier 3 Task 3: the check-in, unpicked, offers its levels and the prompt (its own states are
+  // audited in traderBlockCheckin.a11y.test.jsx).
+  expect(await group('Mood and focus check-in').findByRole('button', { name: 'Mood: Rough' })).toBeTruthy()
+  expect(group('Mood and focus check-in').getByText('Pick how you feel and how focused you are.')).toBeTruthy()
 })
 
 axeSurface('trader-block-platform:error', async () => {

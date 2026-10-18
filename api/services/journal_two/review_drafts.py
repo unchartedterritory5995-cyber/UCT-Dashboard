@@ -47,8 +47,8 @@ helper below and by `leak_finder.py`):
 own trade fetch both resolve a Compass-style account id (a real id, or the unified sentinel
 `'_all_'`, via `resolve_account_scope`). `playbook_stats` and `verdict_scorecard` are NOT
 Compass-scoped -- they read `None` as "every account" and would read the literal string
-`'_all_'` as an account id that matches nothing. `_plain_account_id` converts between the two,
-once, so every caller below uses the right one.
+`'_all_'` as an account id that matches nothing. `unified_coach.plain_account_id` (the one
+helper, beside the sentinel) converts between the two, so every caller below uses the right one.
 """
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ from api.services.journal_two.plan_grading import (
 )
 from api.services.journal_two.plan_grading import enabled as plan_grading_enabled
 from api.services.journal_two.trade_refs import trade_ref_for_row
-from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
+from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID, plain_account_id
 from api.services.notebook_flags import flag_on
 
 FLAG = "NOTEBOOK_REVIEW_DRAFTS_ENABLED"
@@ -93,12 +93,6 @@ DISCIPLINE_OFF = {
 def enabled() -> bool:
     """The gate, read per call through the one parser (unset = OFF)."""
     return flag_on(FLAG, False)
-
-
-def _plain_account_id(account_id: str | None) -> str | None:
-    """`None` for `playbook_stats` / `verdict_scorecard` (which read falsy as "every
-    account"); the Compass sentinel never reaches them, where it would match nothing."""
-    return None if account_id in (None, UNIFIED_ACCOUNT_ID) else account_id
 
 
 # ── period boundaries ──────────────────────────────────────────────────────────────────────
@@ -307,7 +301,7 @@ def _setup_changes(conn: sqlite3.Connection, user_id: str, account_id: str,
                    enriched: list[dict[str, Any]]) -> list[dict[str, Any]]:
     all_time = {
         r["setup"]: r
-        for r in playbook_stats.get_playbook_stats(user_id, _plain_account_id(account_id), conn=conn)
+        for r in playbook_stats.get_playbook_stats(user_id, plain_account_id(account_id), conn=conn)
     }
     by_setup: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for t in enriched:
@@ -568,7 +562,7 @@ def _assemble(
     spec = FilterSpec(date_from=range_["start"], date_to=range_["end"])
     try:
         vs_payload = verdict_scorecard.get_verdict_scorecard(
-            user_id, _plain_account_id(account_id), spec=spec, conn=conn,
+            user_id, plain_account_id(account_id), spec=spec, conn=conn,
         )
     except Exception:  # noqa: BLE001 -- the scorecard is one detector's input, not the draft
         vs_payload = None

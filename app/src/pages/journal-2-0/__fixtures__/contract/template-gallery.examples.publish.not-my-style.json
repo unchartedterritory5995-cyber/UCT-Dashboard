@@ -4,7 +4,7 @@
     "endpoint": "POST /api/j2/template-gallery/examples",
     "path": "/api/j2/template-gallery/examples",
     "requestBody": {
-      "noteId": "a75a4833a646480f8cef01f6ca89e016",
+      "noteId": "82409fcb795f46ee93ccfa66e386523b",
       "styleItemId": "nope",
       "title": "My weekend plan"
     },

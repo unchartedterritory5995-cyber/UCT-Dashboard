@@ -1,0 +1,28 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx > PriceStampsBlock holds the price-stamp plugin > mounted and on: the plugin is registered FIRST, and Enter stamps
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx > PriceStampsBlock holds the price-stamp plugin > two stamps blocks: ONE plugin; removing one keeps stamping; removing both unregisters
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx > PriceStampsBlock holds the price-stamp plugin > the block switched off: unregistered, and Enter stamps nothing
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx > PriceStampsBlock holds the price-stamp plugin > the block removed from the note: unregistered, and Enter stamps nothing
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx > PriceStampsBlock holds the price-stamp plugin > the journal styles switch off: nothing registers, even with on = yes (S24)
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/PriceStampsBlock.test.jsx (11 tests) 461ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  10:44:19
+   Duration  2.02s (transform 605ms, setup 209ms, import 793ms, tests 461ms, environment 450ms)
+

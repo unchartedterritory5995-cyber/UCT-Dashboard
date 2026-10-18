@@ -6,9 +6,9 @@
     "path": "/api/j2/template-gallery/examples/preview",
     "requestBody": {
       "imagesOn": [
-        "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+        "/api/j2/notes/attachments/contract-exampler/82409fcb795f46ee93ccfa66e386523b/inline/chart.png"
       ],
-      "noteId": "a75a4833a646480f8cef01f6ca89e016"
+      "noteId": "82409fcb795f46ee93ccfa66e386523b"
     },
     "status": 200
   },
@@ -27,7 +27,7 @@
         {
           "attrs": {
             "alt": "NVDA daily",
-            "src": "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+            "src": "/api/j2/notes/attachments/contract-exampler/82409fcb795f46ee93ccfa66e386523b/inline/chart.png"
           },
           "type": "image"
         }
@@ -72,7 +72,7 @@
       {
         "name": "chart.png",
         "ocr": "unavailable",
-        "src": "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png",
+        "src": "/api/j2/notes/attachments/contract-exampler/82409fcb795f46ee93ccfa66e386523b/inline/chart.png",
         "warnings": []
       }
     ],

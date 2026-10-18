@@ -1,0 +1,46 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4a/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/surfaces/TodaySurface.test.jsx[2m > [22m[2mTodaySurface — session leads (concrete account with data)[2m > [22m[2mmarket (broker account) → the BrokerAccountHero lead renders
+[22m[39mAn update to SyncFreshnessChip inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/surfaces/TodaySurface.test.jsx[2m > [22m[2mTodaySurface — I1 cold-cache loading gate[2m > [22m[2monce settled with data, renders the real lead (no skeleton)
+[22m[39mAn update to SyncFreshnessChip inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/surfaces/TodaySurface.test.jsx[2m > [22m[2mTodaySurface — First Edge Report lead (P0 First-Insight)[2m > [22m[2mdoes NOT show the report when the trigger is off (the normal lead renders)
+[22m[39mAn update to SyncFreshnessChip inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/surfaces/TodaySurface.test.jsx [2m([22m[2m26 tests[22m[2m)[22m[33m 981[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m26 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 08:29:41
+[2m   Duration [22m 65.36s[2m (transform 3.52s, setup 11.49s, import 3.52s, tests 981ms, environment 47.02s)[22m
+

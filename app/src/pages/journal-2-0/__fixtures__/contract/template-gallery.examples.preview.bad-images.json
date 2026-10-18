@@ -5,7 +5,7 @@
     "path": "/api/j2/template-gallery/examples/preview",
     "requestBody": {
       "imagesOn": "chart.png",
-      "noteId": "a75a4833a646480f8cef01f6ca89e016"
+      "noteId": "82409fcb795f46ee93ccfa66e386523b"
     },
     "status": 400
   },

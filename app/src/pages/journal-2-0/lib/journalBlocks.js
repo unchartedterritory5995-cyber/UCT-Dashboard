@@ -54,6 +54,8 @@ export const BLOCK_KINDS = Object.freeze([
   Object.freeze({ id: 'prepMovers', label: 'My movers', search: '[my movers]', settings: Object.freeze([]) }),
   Object.freeze({ id: 'prepLevels', label: 'Key levels from my plans', search: '[key levels from my plans]', settings: Object.freeze([]) }),
   Object.freeze({ id: 'tradeReview', label: 'Post-trade review', search: '[post-trade review]', settings: Object.freeze([]) }),
+  // P2 Tier 3: no settings (R-T3-V1). Creating one is gated by tier3Flag.isTier3Block, never by a copied id.
+  Object.freeze({ id: 'moodCheckIn', label: 'Mood and focus check-in', search: '[mood and focus check-in]', settings: Object.freeze([]) }),
   Object.freeze({
     id: 'marketcontext',
     label: 'Market context',

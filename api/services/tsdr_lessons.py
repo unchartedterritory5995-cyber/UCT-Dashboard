@@ -63,6 +63,12 @@ _DISCORD_EPOCH_MS = 1420070400000
 
 TSDR_CHANNEL_ID = "882459873823043655"        # docs/wisdom/discord-sources.json
 PATRICK_USER_ID = "339816805805588480"        # docs/wisdom/authors.json (author tsdr)
+BRACCO_CHANNEL_ID = "882460017352130630"      # docs/wisdom/discord-sources.json
+BRACCO_USER_ID = "427798118935953410"         # docs/wisdom/authors.json (author bracco)
+# Who is speaking (for the recap) and the label on their YouTube titles. An
+# author not listed here reads as Patrick, the original and default source.
+AUTHOR_NAMES = {PATRICK_USER_ID: ("Patrick", "TSDR"), BRACCO_USER_ID: ("Bracco", "Bracco")}
+CHANNEL_NAMES = {TSDR_CHANNEL_ID: "tsdr", BRACCO_CHANNEL_ID: "bracco"}
 DEFAULT_GUILD_ID = "882293203485720596"
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
@@ -131,6 +137,18 @@ def source_channels() -> list[str]:
 
 def author_ids() -> set[str]:
     return set(_csv_env("TSDR_LESSONS_AUTHOR_IDS", PATRICK_USER_ID))
+
+
+def speaker_name(lesson: dict) -> str:
+    return AUTHOR_NAMES.get(str(lesson.get("author_id") or ""), AUTHOR_NAMES[PATRICK_USER_ID])[0]
+
+
+def speaker_label(lesson: dict) -> str:
+    return AUTHOR_NAMES.get(str(lesson.get("author_id") or ""), AUTHOR_NAMES[PATRICK_USER_ID])[1]
+
+
+def source_name(lesson: dict) -> str:
+    return CHANNEL_NAMES.get(str(lesson.get("channel_id") or ""), "tsdr")
 
 
 def since_date() -> datetime:
@@ -235,7 +253,9 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons_state (
 # Columns added after the table first shipped; CREATE TABLE IF NOT EXISTS never
 # adds a column to a table that already exists.
 _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
-                  ("section", "TEXT"))
+                  ("section", "TEXT"),
+                  # 1 = a transcript arrived for a posted link lesson: rewrite it
+                  ("redo", "INTEGER NOT NULL DEFAULT 0"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -339,6 +359,29 @@ def _discord(method: str, path: str, *, params: Optional[dict] = None,
     raise DiscordError(429, "rate limited twice")
 
 
+# A YouTube link in an author's message is a video too. Its row is keyed
+# "yt:<video id>", so the same video shared twice is one lesson, and it never
+# collides with a Discord attachment id (those are all digits).
+_YOUTUBE_LINK = re.compile(
+    r"(?:https?://)?(?:www\.|m\.)?(?:youtu\.be/|youtube\.com/(?:watch\?(?:[^\s]*&)?v=|live/|shorts/|embed/))"
+    r"([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])")
+LINK_PREFIX = "yt:"
+
+
+def youtube_ids_in(text: str) -> list[str]:
+    out = []
+    for vid in _YOUTUBE_LINK.findall(text or ""):
+        if vid not in out:
+            out.append(vid)
+    return out
+
+
+def link_video_id(row: dict) -> str:
+    """The YouTube id of a lesson that came from a link, else ""."""
+    aid = str(row.get("attachment_id") or "")
+    return aid[len(LINK_PREFIX):] if aid.startswith(LINK_PREFIX) else ""
+
+
 def is_video_attachment(a: dict) -> bool:
     ctype = str(a.get("content_type") or "").lower()
     name = str(a.get("filename") or "").lower()
@@ -372,6 +415,17 @@ def record_message(msg: dict, channel_id: str) -> int:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (str(a["id"]), str(msg["id"]), str(channel_id), author,
                  int(posted.timestamp()), a.get("filename"), a.get("size"),
+                 (msg.get("content") or "")[:4000],
+                 1 if int(msg.get("type") or 0) == 19 else 0, now, now))
+            added += cur.rowcount
+        for vid in youtube_ids_in(msg.get("content") or ""):
+            cur = c.execute(
+                """INSERT OR IGNORE INTO tsdr_lessons
+                   (attachment_id, message_id, channel_id, author_id, posted_at, filename,
+                    size, caption, is_reply, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (LINK_PREFIX + vid, str(msg["id"]), str(channel_id), author,
+                 int(posted.timestamp()), f"https://youtu.be/{vid}", 0,
                  (msg.get("content") or "")[:4000],
                  1 if int(msg.get("type") or 0) == 19 else 0, now, now))
             added += cur.rowcount
@@ -550,14 +604,19 @@ SECTIONS = (
      "Reading the indexes, sectors and conditions, and what they mean for exposure."),
     ("mindset", "Mindset & Process",
      "Psychology, routine and reviewing your own trades."),
+    ("clips", "Clips & Quick Takes",
+     "Quick looks, short clips and anything that is not a full lesson."),
 )
 _SECTION_KEYS = tuple(k for k, _, _ in SECTIONS)
 # A lesson's section is the one its FIRST tag belongs to (the model lists the
 # main topic first). Every tag in TAGS maps to exactly one section.
 _TAG_SECTION = {"setups": "setups", "entries": "setups", "exits": "management",
                 "risk": "management", "market": "market", "psychology": "mindset",
-                "process": "mindset", "review": "mindset"}
+                "process": "mindset", "review": "mindset", "clip": "clips"}
 _DEFAULT_SECTION = "mindset"
+# Every video is posted, lesson or not: a clip that teaches nothing (or says
+# nothing) carries this tag, which puts it in the Clips & Quick Takes thread.
+CLIP_TAG = "clip"
 
 
 def section_for(lesson: dict) -> str:
@@ -632,8 +691,9 @@ def forward_body(lesson: dict) -> dict:
 
 def youtube_video_body(lesson: dict) -> dict:
     """The fallback when Discord will not forward the video: the lesson's
-    unlisted YouTube copy, which Discord shows as a playable video in place."""
-    return {"content": f"https://youtu.be/{lesson['youtube_id']}"}
+    unlisted YouTube copy, which Discord shows as a playable video in place.
+    A lesson that came from a YouTube link shows that video."""
+    return {"content": f"https://youtu.be/{link_video_id(lesson) or lesson['youtube_id']}"}
 
 
 def post_to_section(lesson: dict, link: str) -> dict:
@@ -654,8 +714,10 @@ def post_to_section(lesson: dict, link: str) -> dict:
             set_state(_thread_state_key(key), "")
     forward_id = ""
     try:
+        # a linked video is shown by its link; there is no file to forward
         fwd = _in_thread("POST", thread, f"/channels/{thread}/messages",
-                         forward_body(lesson)) or {}
+                         youtube_video_body(lesson) if link_video_id(lesson)
+                         else forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
     except DiscordError as e:
         # Measured 2026-10-17: two lessons were refused every tick for 90 min
@@ -720,6 +782,31 @@ def transcribe(video: Path, work: Path) -> tuple[str, float]:
     return text, float(seconds)
 
 
+def youtube_transcript(video_id: str) -> str:
+    """The video's captions as plain text, or "" when YouTube has none or
+    refuses (it often refuses a server's address); the lesson is then written
+    from the title and caption instead."""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        fetched = YouTubeTranscriptApi().fetch(video_id, languages=["en", "en-US"])
+        return " ".join(str(getattr(sn, "text", "") or "") for sn in fetched).strip()
+    except Exception as e:  # noqa: BLE001 — no captions is an ordinary answer
+        log.info("[tsdr-lessons] no captions for %s: %s", video_id, str(e)[:160])
+        return ""
+
+
+def youtube_video_title(video_id: str) -> str:
+    """The video's own title from YouTube's public oEmbed, or ""."""
+    import httpx
+    try:
+        r = httpx.get("https://www.youtube.com/oembed",
+                      params={"url": f"https://www.youtube.com/watch?v={video_id}",
+                              "format": "json"}, timeout=15.0)
+        return str(r.json().get("title") or "").strip() if r.status_code == 200 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 # ── the recap ────────────────────────────────────────────────────────────────
 
 # Lowercase single words, the same shape as the library's existing tags
@@ -728,15 +815,16 @@ TAGS = ("setups", "entries", "exits", "risk", "market", "psychology", "process",
 _TICKER = re.compile(r"^[A-Z]{1,5}(?:\.[A-Z])?$")
 
 _SYS = (
-    "You write the lesson log for a stock-trading community's Discord. The head trader "
-    "records short videos during and after the trading day, and each one becomes a "
+    "You write the lesson log for a stock-trading community's Discord. The community's "
+    "traders record short videos during and after the trading day, and each one becomes a "
     "post in an education channel so members can find the lesson later.\n"
-    "You get the video's transcript, the caption he posted with it, its date, and, when "
+    "You get who is speaking, the video's transcript, the caption they posted with it, "
+    "its date, and, when "
     "the video answered a member's question, that question.\n"
     "Return ONLY a JSON object with these keys:\n"
     '  "title": 4-10 words naming the lesson (not the date, no emoji, no quotes).\n'
     '  "recap": 4 to 6 complete sentences, one paragraph, in third person '
-    '("Patrick explains..." is fine). Say what the lesson is, the reasoning, and the '
+    '("<SPEAKER> explains..." is fine, using the SPEAKER name given). Say what the lesson is, the reasoning, and the '
     "takeaway a member should apply. Name tickers, setups and levels exactly as said.\n"
     '  "question_needed": true only if the recap would not make sense without knowing '
     "what was asked.\n"
@@ -746,7 +834,9 @@ _SYS = (
     '  "tickers": the stock/ETF symbols actually discussed, uppercase, no "$", at most 8.\n'
     f'  "tags": 1 to 3 topics, chosen ONLY from: {", ".join(TAGS)}.\n'
     '  "is_lesson": false when the clip teaches nothing (a joke, a quick "look at this" '
-    "with no explanation, a tech test, an announcement); true otherwise.\n"
+    "with no explanation, a tech test, an announcement); true otherwise. Every clip is "
+    "still posted, so when is_lesson is false still give a title and a recap of 1 to 3 "
+    "sentences saying what the clip shows.\n"
     "Rules: ground every claim in the transcript or caption; never invent tickers, prices "
     "or results; no position sizes or share counts; no hype; plain text, no markdown."
 )
@@ -769,13 +859,14 @@ def _parse_json_object(text: str) -> dict:
 
 
 def generate_recap(*, transcript: str, caption: str, posted: datetime,
-                   question: str = "") -> dict:
+                   question: str = "", speaker: str = "Patrick") -> dict:
     """{is_lesson, title, recap, question, takeaway, tickers, tags} from Claude.
     Raises on an unusable reply."""
     from api.services.engine import _get_anthropic_client
 
     et = posted.astimezone(_ET)
-    user = f"DATE: {et:%A, %B} {et.day}, {et.year}\n"
+    user = f"SPEAKER: {speaker}\n"
+    user += f"DATE: {et:%A, %B} {et.day}, {et.year}\n"
     user += f"CAPTION: {caption.strip() or '(none)'}\n"
     if question.strip():
         user += f"MEMBER QUESTION THIS VIDEO ANSWERS: {question.strip()[:1500]}\n"
@@ -793,11 +884,12 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         raise ValueError("the model declined to write this recap")
     text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
     data = _parse_json_object(text)
-    if data.get("is_lesson") is False:
-        return {"is_lesson": False}
+    is_lesson = data.get("is_lesson") is not False
     title = re.sub(r"\s+", " ", str(data.get("title") or "")).strip().strip('"')[:120]
     sentences = split_sentences(str(data.get("recap") or ""))
-    if not title or len(sentences) < 3:
+    if not title or len(sentences) < (3 if is_lesson else 1):
+        if not is_lesson:
+            return {"is_lesson": False}     # the caller writes a plain clip entry
         raise ValueError("model reply was missing a title or a recap")
     q = str(data.get("question") or "").strip() if data.get("question_needed") else ""
     tickers = []
@@ -810,7 +902,7 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         tag = str(t).strip().lower()
         if tag in TAGS and tag not in tags:
             tags.append(tag)
-    return {"is_lesson": True, "title": title, "recap": " ".join(sentences[:6]),
+    return {"is_lesson": is_lesson, "title": title, "recap": " ".join(sentences[:6]),
             "question": q[:400], "takeaway": str(data.get("takeaway") or "").strip()[:300],
             "tickers": tickers[:8], "tags": tags[:3]}
 
@@ -857,7 +949,7 @@ def build_embed(lesson: dict, link: str) -> dict:
         minutes = f" · {s // 60}:{s % 60:02d}"
     return {"title": lesson["title"][:256], "url": link, "description": body,
             "color": _EMBED_COLOR, "timestamp": posted.isoformat(),
-            "footer": {"text": f"From #tsdr{minutes}"}}
+            "footer": {"text": f"From #{source_name(lesson)}{minutes}"}}
 
 
 def _lesson_body(lesson: dict, link: str) -> dict:
@@ -891,34 +983,65 @@ def _question_for(msg: dict) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def as_clip(recap: dict, row: dict, caption: str, title: str = "") -> dict:
+    """A recap for a video that is not a full lesson: whatever the model wrote,
+    with a plain title and description filled in where it wrote nothing, and
+    the clip tag first so it goes to the Clips thread."""
+    posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc).astimezone(_ET)
+    day = f"{posted:%b} {posted.day}, {posted.year}"
+    text = re.sub(r"\s+", " ", caption).strip()
+    title = (recap.get("title") or title
+             or (text[:80].rstrip() if text else f"Quick clip, {day}"))
+    body = recap.get("recap") or (
+        text[:600] if text else
+        f"A short clip {speaker_name(row)} shared in #{source_name(row)} on {day}, "
+        "with no spoken commentary. Watch the video below.")
+    tags = [CLIP_TAG] + [t for t in recap.get("tags") or [] if t != CLIP_TAG]
+    return {"title": title, "recap": body, "question": recap.get("question") or "",
+            "takeaway": recap.get("takeaway") or "", "tickers": recap.get("tickers") or [],
+            "tags": tags[:3]}
+
+
 def process_lesson(row: dict, lesson_channel: str) -> str:
     """One video, start to finish. Returns the row's new status."""
     aid = row["attachment_id"]
     msg = fetch_message(row["channel_id"], row["message_id"])
-    att = next((a for a in (msg or {}).get("attachments") or []
-                if str(a.get("id")) == aid), None)
-    if not msg or not att:
-        _update(aid, status="skipped", last_error="message or video was deleted")
-        return "skipped"
-    work = Path(tempfile.mkdtemp(prefix="tsdr-lesson-"))
-    try:
-        video = work / ("video" + (Path(str(att.get("filename") or "")).suffix or ".mp4"))
-        download(str(att.get("url") or att.get("proxy_url")), video)
-        transcript, seconds = transcribe(video, work)
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    vid = link_video_id(row)
+    yt_title = ""
+    if vid:
+        if not msg or vid not in youtube_ids_in(msg.get("content") or ""):
+            _update(aid, status="skipped", last_error="message or video was deleted")
+            return "skipped"
+        # a transcript sent in from outside (store_link_transcript) wins:
+        # YouTube refuses captions to this server more often than not
+        transcript = (row.get("transcript") or "").strip() or youtube_transcript(vid)
+        seconds = None
+        yt_title = youtube_video_title(vid)
+    else:
+        att = next((a for a in (msg or {}).get("attachments") or []
+                    if str(a.get("id")) == aid), None)
+        if not msg or not att:
+            _update(aid, status="skipped", last_error="message or video was deleted")
+            return "skipped"
+        work = Path(tempfile.mkdtemp(prefix="tsdr-lesson-"))
+        try:
+            video = work / ("video" + (Path(str(att.get("filename") or "")).suffix or ".mp4"))
+            download(str(att.get("url") or att.get("proxy_url")), video)
+            transcript, seconds = transcribe(video, work)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
     caption = row.get("caption") or ""
-    if len(transcript.split()) < MIN_WORDS and len(caption.split()) < MIN_WORDS:
-        _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
-                last_error="no spoken lesson to recap")
-        return "skipped"
+    if yt_title:
+        caption = f"{caption}\n(YouTube video title: {yt_title})".strip()
     posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc)
-    recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
-                           question=_question_for(msg) if row.get("is_reply") else "")
-    if not recap.pop("is_lesson", True):
-        _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
-                last_error="not a lesson")
-        return "skipped"
+    if len(transcript.split()) < MIN_WORDS and len(caption.split()) < MIN_WORDS:
+        recap = as_clip({}, row, row.get("caption") or "", yt_title)   # nothing said
+    else:
+        recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
+                               question=_question_for(msg) if row.get("is_reply") else "",
+                               speaker=speaker_name(row))
+        if not recap.pop("is_lesson", True):
+            recap = as_clip(recap, row, row.get("caption") or "", yt_title)
     _update(aid, duration_s=seconds, transcript=transcript, title=recap["title"],
             recap=recap["recap"], question=recap["question"], takeaway=recap["takeaway"],
             tickers=json.dumps(recap["tickers"]), tags=json.dumps(recap["tags"]))
@@ -1080,7 +1203,7 @@ def _yt_spend(now: Optional[datetime] = None) -> None:
 
 def youtube_title(lesson: dict) -> str:
     posted = datetime.fromtimestamp(int(lesson["posted_at"]), tz=timezone.utc).astimezone(_ET)
-    suffix = f" | TSDR {posted.month}/{posted.day}/{posted.year % 100:02d}"
+    suffix = f" | {speaker_label(lesson)} {posted.month}/{posted.day}/{posted.year % 100:02d}"
     return lesson["title"][:100 - len(suffix)].rstrip() + suffix
 
 
@@ -1092,7 +1215,7 @@ def youtube_description(lesson: dict) -> str:
     text += lesson["recap"]
     if lesson.get("takeaway"):
         text += f"\n\nKey takeaway: {lesson['takeaway']}"
-    text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#tsdr) on "
+    text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#{source_name(lesson)}) on "
              f"{posted:%B} {posted.day}, {posted.year}.")
     return text.replace("<", "").replace(">", "")[:4900]
 
@@ -1168,7 +1291,7 @@ def run_youtube(*, deadline: float) -> dict:
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             f"SELECT * FROM tsdr_lessons WHERE status = 'posted' AND youtube_id IS NULL "
-            f"AND yt_attempts < ? "
+            f"AND yt_attempts < ? AND attachment_id NOT LIKE '{LINK_PREFIX}%' "
             # a lesson in a thread without its video goes first: its YouTube
             # copy is the video run_video_refill posts
             f"{_queue_order_sql().replace('ORDER BY ', _NEEDS_VIDEO_FIRST, 1)} LIMIT ?",
@@ -1191,6 +1314,109 @@ def run_youtube(*, deadline: float) -> dict:
     return out
 
 
+# Skip reasons from before every clip was posted. Rows skipped for them are
+# put back in the queue once; a deleted message stays skipped.
+_REOPEN_REASONS = ("not a lesson", "no spoken lesson to recap")
+_REOPEN_DONE_KEY = "reopened_skipped_clips"
+
+
+def links_needing_transcript(limit: int = 500) -> list[dict]:
+    """Posted link lessons whose recap had no transcript to work from."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"SELECT attachment_id, title FROM tsdr_lessons WHERE attachment_id LIKE "
+            f"'{LINK_PREFIX}%' AND status = 'posted' AND redo = 0 "
+            f"AND (transcript IS NULL OR transcript = '') ORDER BY posted_at LIMIT ?",
+            (int(limit),)).fetchall()
+    return [{"video_id": r["attachment_id"][len(LINK_PREFIX):], "title": r["title"]}
+            for r in rows]
+
+
+def store_link_transcript(video_id: str, transcript: str) -> str:
+    """Keep a transcript for a link lesson and mark it to be rewritten.
+    "queued" | "too short" (nothing to recap; the clip stays) | "unknown"."""
+    text = re.sub(r"\s+", " ", transcript or "").strip()[:400_000]
+    aid = LINK_PREFIX + str(video_id)
+    row = get_lesson(aid)
+    if not row:
+        return "unknown"
+    if len(text.split()) < MIN_WORDS:
+        return "too short"
+    redo = 1 if row["status"] == "posted" else 0     # an unposted one just uses it
+    _update(aid, transcript=text, redo=redo)
+    return "queued"
+
+
+def run_link_redo(*, deadline: float, limit: int = 20) -> dict:
+    """Take down the plain clip posts of link lessons that now have a
+    transcript and put them back in the queue, so run_lessons writes the full
+    recap into the right thread. A post already gone is fine."""
+    out = {"requeued": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE redo = 1 AND status = 'posted' LIMIT ?",
+            (int(limit),)).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        where = row.get("post_channel_id") or ""
+        try:
+            for mid in (row.get("discord_post_id"), row.get("forward_post_id")):
+                if where and mid:
+                    try:
+                        _in_thread("DELETE", where, f"/channels/{where}/messages/{mid}", None)
+                    except DiscordError as e:
+                        if e.status != 404:
+                            raise
+        except Exception as e:  # noqa: BLE001 — try again next tick
+            log.warning("[tsdr-lessons] could not take down %s for its rewrite: %s",
+                        row["attachment_id"], e)
+            out["errors"] += 1
+            continue
+        _update(row["attachment_id"], status="new", attempts=0, redo=0, last_error=None,
+                discord_post_id=None, forward_post_id=None, post_channel_id=None,
+                section=None)
+        out["requeued"] += 1
+    return out
+
+
+_LINK_RESCAN_KEY = "rescanned_for_youtube_links"
+
+
+def rescan_for_links() -> bool:
+    """Once: re-read every source channel's history, which was scanned before
+    YouTube links counted as videos. The backfill restarts from the newest
+    message; rows already recorded are ignored, so only the links are new."""
+    if get_state(_LINK_RESCAN_KEY):
+        return False
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        for ch in source_channels():
+            newest = c.execute("SELECT value FROM tsdr_lessons_state WHERE key = ?",
+                               (f"cursor:{ch}",)).fetchone()
+            if not newest:
+                continue                      # never scanned: the normal scan reads it all
+            c.execute("DELETE FROM tsdr_lessons_state WHERE key = ?", (f"backfill_done:{ch}",))
+            c.execute("INSERT INTO tsdr_lessons_state(key, value) VALUES (?, ?) "
+                      "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                      (f"backfill:{ch}", str(int(newest[0]) + 1)))
+        c.commit()
+    set_state(_LINK_RESCAN_KEY, "1")
+    return True
+
+
+def reopen_skipped_clips() -> int:
+    if get_state(_REOPEN_DONE_KEY):
+        return 0
+    marks = ",".join("?" * len(_REOPEN_REASONS))
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        n = c.execute(f"UPDATE tsdr_lessons SET status = 'new', attempts = 0, last_error = NULL "
+                      f"WHERE status = 'skipped' AND last_error IN ({marks})",
+                      _REOPEN_REASONS).rowcount
+        c.commit()
+    set_state(_REOPEN_DONE_KEY, "1")
+    return n
+
+
 # ── the scheduled entry point ────────────────────────────────────────────────
 
 def tick() -> dict:
@@ -1202,12 +1428,29 @@ def tick() -> dict:
     deadline = time.time() + TICK_BUDGET_S
     out: dict = {"ran": True}
     try:
+        try:
+            if rescan_for_links():
+                out["rescan_for_links"] = True
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not start the link rescan: %s", e)
         for ch in source_channels():
             try:
                 out[f"scan:{ch}"] = scan_channel(ch)
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] scan of %s failed: %s", ch, e)
                 out[f"scan:{ch}"] = {"error": str(e)[:200]}
+        try:
+            redo = run_link_redo(deadline=deadline)
+            if redo["requeued"] or redo["errors"]:
+                out["link_redo"] = redo
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] link rewrite stage failed: %s", e)
+        try:
+            reopened = reopen_skipped_clips()
+            if reopened:
+                out["reopened"] = reopened
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not reopen skipped clips: %s", e)
         try:
             out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
                                          deadline=deadline)

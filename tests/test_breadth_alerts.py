@@ -175,3 +175,15 @@ def test_nothing_to_resolve_posts_nothing(env):
     posts, post = env
     assert all(not r["sent"] for r in ba.resolve_eod_row("2026-10-12", post=post).values())
     assert posts == []
+
+
+def test_send_on_change_posts_new_or_changed_and_reminds_otherwise(env):
+    posts, post = env
+    assert ba.send_on_change("c", "T", ["a"], "s1", 100, post=post, now=1000)["sent"]
+    assert ba.send_on_change("c", "T", ["a"], "s1", 100, post=post, now=1050)["reason"] == "unchanged"
+    assert ba.send_on_change("c", "T", ["b"], "s2", 100, post=post, now=1060)["changed"]
+    assert ba.send_on_change("c", "T", ["b"], "s2", 100, post=post, now=1200)["sent"]
+    assert len(posts) == 3 and "(still unresolved)" in posts[2][1] and "still" not in posts[1][1]
+    assert ba.signature("c") == "s2"
+    ba.clear("c")
+    assert ba.signature("c") is None and not ba._load()          # the signature goes with the key

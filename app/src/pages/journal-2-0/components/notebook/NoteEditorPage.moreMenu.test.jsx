@@ -163,6 +163,31 @@ describe('the door keeps the keyboard contract (K2)', () => {
   })
 })
 
+// P2 Tier 3 final fix I1: Duplicate note is a COPY door. Its create asks the server for a copy
+// (`isCopy: true`), so every check-in in the copy starts unpicked (trader_blocks.unpick_checkins,
+// railed end to end in tests/test_checkin_copy_doors.py). The request is read off the wire.
+describe('Duplicate note asks the server for a copy (I1)', () => {
+  const posted = () => global.fetch.mock.calls
+    .filter(([url, init]) => url === '/api/j2/notes' && init?.method === 'POST')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('sends isCopy: true with the saved body, and nothing else is a copy', async () => {
+    const realFetch = global.fetch
+    global.fetch = vi.fn((url, init) => (url === '/api/j2/notes' && init?.method === 'POST'
+      ? Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'n9' } }) })
+      : realFetch(url, init)))
+    await renderEditor()
+    expect(posted()).toEqual([])                       // control: opening a note creates nothing
+    fireEvent.click(more())
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(posted()).toHaveLength(1))
+    const [body] = posted()
+    expect(body.isCopy).toBe(true)
+    expect(body.title).toBe('Copy of Original Title')
+    expect(body.bodyJson).toEqual(NOTE.bodyJson)
+  })
+})
+
 // Wave 10 lane K2, fix round 1.
 describe('fix round 1 (K2 review)', () => {
   const realRect = HTMLElement.prototype.getBoundingClientRect

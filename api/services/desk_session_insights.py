@@ -1725,8 +1725,43 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
     # and never touches Zoom (stored transcript only).
     _run_ticker_backfill(results, errors)
     _run_repolish_backfill(results, errors)
+    _refresh_call_moments(results, errors)      # derived consumers (registered, never imported)
     _RECENT_PASSES.append({"ts": int(time.time()), "results": list(results), "errors": errors})
     return results
+
+
+#: Pass actions that wrote new ticker_moments, so anything DERIVED from them is stale.
+_MOMENT_ACTIONS = frozenset({"generated", "ticker_backfill"})
+
+#: Callbacks run after a pass in which a video gained ticker moments. Consumers that derive
+#: from the stored moments register themselves here (on_moments_changed); this module never
+#: imports them, so nothing they hold can flow back into the moments, which feed public
+#: outputs (YouTube descriptions, the public recap).
+_MOMENTS_CHANGED: list = []
+
+
+def on_moments_changed(fn) -> None:
+    """Register `fn()` to run after a pass that wrote ticker moments. Idempotent per function."""
+    if fn not in _MOMENTS_CHANGED:
+        _MOMENTS_CHANGED.append(fn)
+
+
+def _refresh_call_moments(results: list[dict], errors: list[dict]) -> None:
+    """5) Tell registered consumers the stored ticker moments changed. Runs only when a video
+    gained moments this pass, and a failing consumer never raises into the pass (it is logged
+    and recorded in `errors`)."""
+    if not any(r.get("action") in _MOMENT_ACTIONS for r in results):
+        return
+    for fn in list(_MOMENTS_CHANGED):
+        try:
+            out = fn()
+        except Exception as e:  # noqa: BLE001
+            name = getattr(fn, "__name__", "callback")
+            print(f"[session-insights] moments-changed {name} failed (non-fatal): {e}")
+            errors.append({"id": None, "error": f"moments_changed {name}: {str(e)[:280]}"})
+            continue
+        if out:      # logged, not appended: `results` is one entry per VIDEO (main.py counts it)
+            print(f"[session-insights] moments-changed {getattr(fn, '__name__', 'callback')}: {out}")
 
 
 def repolish_video(video_id: int) -> dict:

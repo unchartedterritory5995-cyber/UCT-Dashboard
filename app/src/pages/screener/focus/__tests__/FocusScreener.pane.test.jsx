@@ -19,7 +19,7 @@ vi.mock('../../../../hooks/useRealtimePrices', async () => {
   return { default: useRealtimePrices }
 })
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import FocusScreener from '../FocusScreener'
 
 const META = { filters: [], categories: [], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }

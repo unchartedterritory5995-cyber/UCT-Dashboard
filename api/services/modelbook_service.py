@@ -1036,6 +1036,13 @@ def get_year_recap(year: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
+def list_year_recaps() -> list[dict]:
+    """Every stored year recap, newest year first (one read for /catalog)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute("SELECT * FROM modelbook_year_recaps ORDER BY year DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
 def save_year_recap(year: int, data: dict) -> None:
     """Upsert a generated year recap. Stamps recap_at as the don't-loop marker."""
     payload = {

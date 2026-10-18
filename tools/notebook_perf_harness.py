@@ -562,11 +562,12 @@ def paragraphs_doc(n: int, tag: str) -> tuple[dict, str]:
 
 
 #: The trader blocks and the market context stamp `--with-blocks` seeds, in the order they go in: the
-#: nine block ids (part a's three, P2a Task 13; part b's six, P2b Task 13), then the stamp. The block
-#: ids are trader_blocks.BLOCK_IDS, in its order; the dry run proves this list is exactly that.
+#: ten block ids (part a's three, P2a Task 13; part b's six, P2b Task 13; Tier 3's mood and focus
+#: check-in, P2 T3 Task 3), then the stamp. The block ids are trader_blocks.BLOCK_IDS, in its order; the
+#: dry run proves this list is exactly that.
 TRADER_BLOCK_KINDS = ("preEntryChecklist", "priceStamps", "positionSizing",
                       "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
-                      "marketcontext")
+                      "moodCheckIn", "marketcontext")
 
 
 def trader_block_nodes() -> list[dict]:

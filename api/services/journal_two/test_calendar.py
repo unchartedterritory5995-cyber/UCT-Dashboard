@@ -398,6 +398,90 @@ def test_upsert_caps_notes_at_10000_chars(db_conn):
         upsert_day_notes("u1", "2026-04-19", {"notes": "x" * 10_001}, conn=db_conn)
 
 
+def test_a_key_left_out_keeps_its_stored_value(db_conn):
+    """The 2026-10-17 day-page defect: a save carrying only notes/attachments/rules (what the old hook
+    sent, and what an unreloaded tab still sends) must not blank prep, mid-day or recap."""
+    from api.services.journal_two.calendar import (
+        upsert_day_notes, get_day_notes,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    upsert_day_notes("u1", "2026-04-19", {
+        "notes": "general", "prepNotes": "watch NVDA 132", "midDayNotes": "held the plan",
+        "recapNotes": "two good fills",
+        "attachments": [{"kind": "link", "url": "https://tradingview.com/x/abc", "label": "chart"}],
+        "rules": [{"id": "r1", "label": "Wait for confirmation", "checked": False}],
+    }, conn=db_conn)
+
+    # The old hook's exact shape: a rule tick, three keys only.
+    upsert_day_notes("u1", "2026-04-19", {
+        "notes": "general",
+        "attachments": [{"kind": "link", "url": "https://tradingview.com/x/abc", "label": "chart"}],
+        "rules": [{"id": "r1", "label": "Wait for confirmation", "checked": True}],
+    }, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["prepNotes"] == "watch NVDA 132"
+    assert got["midDayNotes"] == "held the plan"
+    assert got["recapNotes"] == "two good fills"
+    assert got["rules"][0]["checked"] is True
+
+    # A save that leaves out attachments and rules keeps them too.
+    upsert_day_notes("u1", "2026-04-19", {"recapNotes": "two good fills, one late exit"}, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["recapNotes"] == "two good fills, one late exit"
+    assert got["notes"] == "general"
+    assert len(got["attachments"]) == 1
+    assert got["rules"][0]["checked"] is True
+
+
+def test_a_key_sent_empty_still_clears(db_conn):
+    """Keeping a left-out key must not stop a member clearing a field on purpose."""
+    from api.services.journal_two.calendar import (
+        upsert_day_notes, get_day_notes,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    upsert_day_notes("u1", "2026-04-19", {
+        "prepNotes": "watch NVDA", "rules": [{"id": "r1", "label": "x", "checked": True}],
+    }, conn=db_conn)
+    upsert_day_notes("u1", "2026-04-19", {"prepNotes": "", "rules": []}, conn=db_conn)
+    got = get_day_notes("u1", "2026-04-19", conn=db_conn)
+    assert got["prepNotes"] == ""
+    assert got["rules"] == []
+
+
+def test_the_kept_values_are_read_inside_the_write_lock(db_conn):
+    """P4a m3: the SELECT that supplies a left-out key's stored value and the write are one
+    BEGIN IMMEDIATE transaction, so two saves that leave out different keys cannot both read the
+    same row and undo each other."""
+    from api.services.journal_two.calendar import upsert_day_notes
+    _add_user(db_conn, "u1", "u1@x.com")
+    upsert_day_notes("u1", "2026-04-19", {"prepNotes": "watch NVDA"}, conn=db_conn)
+
+    statements = []
+    db_conn.set_trace_callback(statements.append)
+    try:
+        upsert_day_notes("u1", "2026-04-19", {"rules": []}, conn=db_conn)
+    finally:
+        db_conn.set_trace_callback(None)
+    norm = [" ".join(s.split()).upper() for s in statements]
+    begin = next(i for i, s in enumerate(norm) if s.startswith("BEGIN"))
+    select = next(i for i, s in enumerate(norm) if s.startswith("SELECT") and "J2_DAY_NOTES" in s)
+    update = next(i for i, s in enumerate(norm) if s.startswith("UPDATE J2_DAY_NOTES"))
+    commit = next(i for i, s in enumerate(norm) if s.startswith("COMMIT"))
+    assert norm[begin] == "BEGIN IMMEDIATE"
+    assert begin < select < update < commit
+    assert not any(s.startswith("COMMIT") for s in norm[select:update])
+
+
+def test_a_refused_write_rolls_back_the_lock(db_conn, monkeypatch):
+    """A failure after the lock is taken releases it: the connection is not left in a transaction."""
+    from api.services.journal_two import calendar
+    _add_user(db_conn, "u1", "u1@x.com")
+    monkeypatch.setattr(calendar, "_now_iso", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError):
+        calendar.upsert_day_notes("u1", "2026-04-19", {"notes": "x"}, conn=db_conn)
+    assert db_conn.in_transaction is False
+
+
 def test_upsert_rejects_invalid_attachment_kind(db_conn):
     from api.services.journal_two.calendar import (
         upsert_day_notes, DayNotesValidationError,

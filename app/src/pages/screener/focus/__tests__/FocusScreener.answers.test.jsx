@@ -10,7 +10,7 @@ vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-te
 vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import FocusScreener from '../FocusScreener'
 import { SPEC_PARAM, DEFAULT_SORT, encodeSpec, decodeSpec } from '../../shell/specUrl'
 
@@ -118,7 +118,9 @@ test('A→B→C quickly with B answering last-but-one: B is never listed, and un
   expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
-  expect(scanBodies().at(-1).filters).toEqual([])
+  // Undo restores the earlier screen; since 2026-10-17 its answer comes from this mount's
+  // kept answers, so no request has to go out. The unfiltered screen is what is shown.
+  expect(screen.getByRole('button', { name: 'Filters, 0 active' })).toBeInTheDocument()
 })
 
 test('row actions do nothing while the new screen is pending: Enter does not leave for the chart', async () => {
@@ -199,7 +201,9 @@ test('undo survives a 0→0 step and still goes back to the last screen with row
   expect(screen.getByText(/took the list from 2 to 0/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
-  expect(scanBodies().at(-1).filters).toEqual([])
+  // Undo restores the earlier screen; since 2026-10-17 its answer comes from this mount's
+  // kept answers, so no request has to go out. The unfiltered screen is what is shown.
+  expect(screen.getByRole('button', { name: 'Filters, 0 active' })).toBeInTheDocument()
 })
 
 const STARTERS = [{ id: 'starter_momentum_leaders', name: 'Momentum leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 90 }] } }]
@@ -355,7 +359,7 @@ test('Minor 2: a dropped answer never describes the listed screen: its coverage 
   await act(async () => { releaseA() })
   await sleep(50)
   expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument()
-  expect(screen.queryByText(/could not be checked/)).toBeNull()
+  expect(screen.queryByText(/not in this list/)).toBeNull()
 })
 test('Minor 2: after a scan error the old screen coverage note is gone with its list', async () => {
   extra = (url, opts) => {
@@ -364,8 +368,23 @@ test('Minor 2: after a scan error the old screen coverage note is gone with its 
     return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-12', coverage: { evaluated: 10, answered: 7, dropped: 3, not_computable: 0 } }) }
   }
   mount()
-  await waitFor(() => expect(screen.getByText(/3 stocks could not be checked/)).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText(/3 stocks have no value for one of these filters/)).toBeInTheDocument())
   goTo({ universe: UCT })
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
+  expect(screen.queryByText(/not in this list/)).toBeNull()
+})
+
+test('an RS screen says why smaller stocks are missing, calmly (member walk 2026-10-17)', async () => {
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const rs = keysOf(JSON.parse(opts.body)).includes('rs_rank')
+    return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-16',
+      coverage: { evaluated: 10, answered: 3, dropped: 0, not_computable: rs ? 7 : 0 } }) }
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ rs_rank: RS90 })
+  await waitFor(() => expect(screen.getByText('7 smaller stocks are not in this list: RS Rank covers stocks over about $300M in market cap.')).toBeInTheDocument())
   expect(screen.queryByText(/could not be checked/)).toBeNull()
 })
+

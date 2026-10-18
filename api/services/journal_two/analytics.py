@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import excursions_store, revenge_detect
+from api.services.journal_two import excursions_store, revenge_detect, sample_marker
 from api.services.journal_two.calendar import (
     _row_et_day,
     _strategy_scope_where,
@@ -168,7 +168,15 @@ def get_analytics(
             # `suppressed_pairs` (dismissed revenge pairs) default to empty here —
             # the dismissal-persistence wiring is a later frontend task; the
             # param exists on `_psychology_section` so it can be threaded then.
-            "psychology": _psychology_section(rows),
+            # P2 Tier 3 Task 5: `checkIns` rides beside the existing keys, which
+            # are untouched. The check-in days are read for the same date range.
+            "psychology": {
+                **_psychology_section(rows),
+                "checkIns": _checkin_section(
+                    conn, user_id, rows,
+                    date_from=spec.date_from, date_to=spec.date_to,
+                ),
+            },
         }
     finally:
         if owned:
@@ -1144,6 +1152,136 @@ def _psychology_section(
         "revenge": revenge,
         "tilt": tilt,
         "taggedTradeCount": tagged_trade_count,
+    }
+
+
+# ── Section: By check-in (P2 Tier 3, Task 5) ─────────────────────────────────
+
+# ⛔ ONE FACT IN TWO FILES: these are the words of
+# `app/src/pages/journal-2-0/lib/blocks/checkinWords.js` (MOOD_WORDS / FOCUS_WORDS),
+# level 1 first. `tests/test_analytics_checkins.py` RUNS that module through Node and
+# compares, so a word changed on one side alone goes red.
+MOOD_WORDS: tuple[str, ...] = ("Rough", "Low", "Okay", "Good", "Great")
+FOCUS_WORDS: tuple[str, ...] = ("Scattered", "Distracted", "Steady", "Focused", "Locked in")
+_CHECKIN_LEVELS = (1, 2, 3, 4, 5)
+
+
+def _round_half_up_mean(values: list[int]) -> int:
+    """The mean of whole levels, rounded HALF UP to a whole level (ruling R-T3-T5-R1).
+
+    ⛔ Never Python's ``round()``: it rounds half to EVEN, so a 2-and-3 day would read 2.
+    Integer arithmetic, so no float can land a hair under a half:
+    floor(sum/n + 1/2) == (2*sum + n) // (2*n) for positive sum and n.
+    """
+    n = len(values)
+    return (2 * sum(values) + n) // (2 * n)
+
+
+def _checkin_section(
+    conn: sqlite3.Connection,
+    user_id: str,
+    rows: list[sqlite3.Row],
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict[str, Any]:
+    """The "By check-in" view: trade outcomes grouped by the day's mood and focus level.
+
+    Check-ins come from ``j2_note_checkins`` for THIS member only, ``day`` inside the
+    analytics date range, from LIVE notes only: the join on ``j2_notes.deleted_at IS NULL``
+    is what keeps a trashed note out and lets it count again on restore (R-T3-V3; trash and
+    restore never touch the sidecar). A sample-notebook note's check-in counts nowhere
+    (``sample_marker``, fin-data I3). An ARCHIVED note's check-in counts: ONE rule for Tier 3's
+    note readers, the year page's too (``wrapped._tickers``, final fix M3), railed by
+    tests/test_wrapped.py over one note set. ``created_at`` is a projection time and is never read.
+
+    R-T3-3: a check-in counts for the ET day in its ``day`` param. A day with several
+    check-ins takes, per dimension, the mean of the check-ins that picked that dimension,
+    rounded half up (``_round_half_up_mean``). Trades join on ``trading_day_et``:
+
+      - ``joinedTrades``: trades whose day has a check-in (mood or focus);
+      - ``unjoined``: trades with no ``trading_day_et`` (they cannot be placed on a day);
+      - a trade on a day with no check-in is in neither, and in no level.
+
+    Each of ``mood`` / ``focus`` lists EVERY level 1..5 (so the client can grey thin ones)
+    as ``{level, word, days, tradeCount, decisiveCount, avgPnl, winRate}``. ``avgPnl`` is the
+    mean NET P&L with each trade rounded to cents FIRST, then averaged and rounded again,
+    exactly as ``_psychology_section``'s ``pnlDollarNet`` does, so the two panels never show a
+    cent apart. ``winRate`` is wins / (wins + losses), breakevens out of the denominator.
+    ``decisiveCount`` is that denominator (wins + losses): the n the rate rests on, which the
+    client's sample band keys on (ruling R-T3-T5-R4), never ``tradeCount``. A level with no
+    trades, or no decisive trade for the win rate, reads None, never 0 (ruling R-T3-T5-R2).
+
+    ``rows`` are ``_fetch_trades``' rows, already scoped by account and FilterSpec.
+    """
+    sql = (
+        "SELECT c.day, c.mood, c.focus"
+        "  FROM j2_note_checkins c"
+        "  JOIN j2_notes n ON n.id = c.note_id"
+        " WHERE c.user_id = ? AND n.user_id = ? AND n.deleted_at IS NULL"
+        # fin-data I3: a check-in inside a sample-notebook note is an example, never the member's day.
+        " AND " + sample_marker.not_sample_sql("n")
+    )
+    params: list[Any] = [user_id, user_id]
+    if date_from:
+        sql += " AND c.day >= ?"
+        params.append(date_from)
+    if date_to:
+        sql += " AND c.day <= ?"
+        params.append(date_to)
+
+    picks: dict[str, dict[str, list[int]]] = defaultdict(lambda: {"mood": [], "focus": []})
+    for r in conn.execute(sql, params).fetchall():
+        day_picks = picks[r["day"]]
+        for dim in ("mood", "focus"):
+            v = r[dim]
+            if isinstance(v, int) and v in _CHECKIN_LEVELS:
+                day_picks[dim].append(v)
+
+    # day -> {"mood": level|None, "focus": level|None}
+    day_level: dict[str, dict[str, int | None]] = {}
+    for day, d in picks.items():
+        lv = {dim: (_round_half_up_mean(vs) if vs else None) for dim, vs in d.items()}
+        if lv["mood"] is not None or lv["focus"] is not None:
+            day_level[day] = lv
+
+    trades_by_day: dict[str, list[sqlite3.Row]] = defaultdict(list)
+    unjoined = 0
+    joined = 0
+    for r in rows:
+        day = r["trading_day_et"] if "trading_day_et" in r.keys() else None
+        if not day:
+            unjoined += 1
+            continue
+        if day in day_level:
+            joined += 1
+            trades_by_day[day].append(r)
+
+    def levels(dim: str, words: tuple[str, ...]) -> list[dict[str, Any]]:
+        out = []
+        for level in _CHECKIN_LEVELS:
+            days = [d for d, lv in day_level.items() if lv[dim] == level]
+            trades = [t for d in days for t in trades_by_day.get(d, ())]
+            nets = [round(_net_pnl(t), 2) for t in trades]   # cents first, like pnlDollarNet
+            wins = sum(1 for t in trades if t["result"] == "Win")
+            losses = sum(1 for t in trades if t["result"] == "Loss")
+            out.append({
+                "level": level,
+                "word": words[level - 1],
+                "days": len(days),
+                "tradeCount": len(trades),
+                "decisiveCount": wins + losses,
+                "avgPnl": round(sum(nets) / len(nets), 2) if nets else None,
+                "winRate": wins / (wins + losses) if (wins + losses) else None,
+            })
+        return out
+
+    return {
+        "checkInDays": len(day_level),
+        "joinedTrades": joined,
+        "unjoined": unjoined,
+        "mood": levels("mood", MOOD_WORDS),
+        "focus": levels("focus", FOCUS_WORDS),
     }
 
 

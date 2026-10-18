@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "GET /api/j2/template-gallery/6730bd10d99640b791724391e58b6806",
+    "endpoint": "GET /api/j2/template-gallery/c56b4ed84d6f452db201026b9614b0cb",
     "note": "A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its images on the gallery image route.",
-    "path": "/api/j2/template-gallery/6730bd10d99640b791724391e58b6806",
+    "path": "/api/j2/template-gallery/c56b4ed84d6f452db201026b9614b0cb",
     "status": 200
   },
   "body": {
@@ -42,14 +42,14 @@
               {
                 "attrs": {
                   "alt": "NVDA daily",
-                  "src": "/api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/0"
+                  "src": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/0"
                 },
                 "type": "image"
               }
             ],
             "type": "doc"
           },
-          "id": "117159d2c7664c21ae0df9569b417283",
+          "id": "bf1ea35b5c8e49689378a7e94a37fead",
           "title": "My weekend plan",
           "updatedAt": "2026-10-05T14:30:00+00:00"
         }
@@ -58,7 +58,7 @@
       "firm": false,
       "helpedByMe": false,
       "helpfulCount": 0,
-      "id": "6730bd10d99640b791724391e58b6806",
+      "id": "c56b4ed84d6f452db201026b9614b0cb",
       "itemType": "style",
       "listedAt": "2026-10-05T14:30:00+00:00",
       "mine": false,

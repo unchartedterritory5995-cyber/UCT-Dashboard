@@ -112,3 +112,35 @@ describe('ChartToolbar — Auto Structures member flip', () => {
     expect(autoStructuresAllowed({ ...MEMBER, isPaid: true, autoStructuresMembersEnabled: true })).toBe(false)
   })
 })
+
+// TEAM DRAWING SET (owner direction 2026-10-17): an admin's chart draws the team set by default;
+// one "Team"/"All" control shows every tier. Members never get it (they only ever see the team set).
+describe('ChartToolbar — Team / All drawings control', () => {
+  const ALL = 'Toggle all drawing tiers'
+  const LEVELS = 'Toggle key levels layer'
+
+  it('admin: the control reads Team by default and the Levels layer waits for All', () => {
+    mount({ ...ADMIN, autoStructuresEnabled: true }, { showAllDrawings: false, onToggleAllDrawings: vi.fn() })
+    expect(screen.getByLabelText(ALL).textContent).toBe('Team')
+    expect(screen.queryByLabelText(LEVELS)).toBeNull()
+  })
+
+  it('admin in All mode: the control reads All and Levels is back', () => {
+    mount({ ...ADMIN, autoStructuresEnabled: true }, { showAllDrawings: true, onToggleAllDrawings: vi.fn() })
+    expect(screen.getByLabelText(ALL).textContent).toBe('All')
+    expect(screen.getByLabelText(LEVELS)).toBeTruthy()
+  })
+
+  it('clicking it asks for the other mode', () => {
+    const onToggle = vi.fn()
+    mount({ ...ADMIN, autoStructuresEnabled: true }, { showAllDrawings: false, onToggleAllDrawings: onToggle })
+    screen.getByLabelText(ALL).click()
+    expect(onToggle).toHaveBeenCalledWith(true)
+  })
+
+  it('a member never gets the control', () => {
+    mount({ ...MEMBER, isPaid: true, autoStructuresMembersEnabled: true },
+      { showAllDrawings: false, onToggleAllDrawings: vi.fn() })
+    expect(screen.queryByLabelText(ALL)).toBeNull()
+  })
+})

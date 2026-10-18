@@ -104,9 +104,10 @@ _PM_COLUMNS = frozenset(_pm_mod.COLUMNS)
 def _pm_from_sql() -> str:
     cols = ", ".join(f'"{c}" AS "pm_{c}"' for c in _pm_mod.COLUMNS)
     return (f' LEFT JOIN (SELECT ticker AS pm_ticker, session_ymd AS pm_session_ymd, '
-            f'premarket_asof AS pm_asof, {cols} FROM {_pm_mod.TABLE}) {_PM} '
+            f'premarket_asof AS pm_asof, ext_session AS pm_ext_session, {cols} '
+            f'FROM {_pm_mod.TABLE}) {_PM} '
             f'ON {_PM}.pm_ticker = {_ROWS}.ticker AND {_PM}.pm_session_ymd = ? '
-            f'AND {_PM}.pm_asof >= ?')
+            f'AND {_PM}.pm_asof >= ? AND {_PM}.pm_ext_session = ?')
 
 
 class _Overlay:
@@ -343,28 +344,44 @@ def _readiness_refusal(label: str) -> ValueError:
     return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
+# ⭐ "VOLUME VS USUAL BY NOW" SORTS ON LAST SESSION'S VOLUME WHEN THE MARKET IS CLOSED.
+# `rvol_live` is blank outside the session (and before 09:45 ET), and members scan
+# mostly after hours and on weekends: sorted by it alone, every live-volume screen
+# came out in ticker order then. Outside the session the sort reads `vol_ratio` (the
+# last session's full-day volume vs its average), the same "live, else last session"
+# rule the volume starters filter on (`saved_screens._live_volume_or_nightly`).
+_SORT_FALLBACK = {"rvol_live": "vol_ratio"}
+
+
+def _sort_expr(overlay, sort_key):
+    fb = _SORT_FALLBACK.get(sort_key)
+    if fb is None:
+        return overlay.col_expr(sort_key)
+    return f"COALESCE({overlay.col_expr(sort_key)}, {overlay.col_expr(fb)})"
+
+
 def _overlay(conn, user=None) -> _Overlay:
-    """The live decision (`_live_overlay`, unchanged) plus the pre-market one.
+    """The live decision (`_live_overlay`, unchanged) plus the extended-hours one.
 
     ⭐ `pm` is served only when ALL hold: the flag reaches THIS user
-    (`premarket.served_to`), the session is pre-market (`live_tier._session()`,
-    the one clock), and the table exists. Its join then binds today's session
-    date and `now - MAX_AGE_S`, so yesterday's rows and a dead sweeper's rows
-    serve NULL. Anything unanswerable ⇒ `pm_on=False`, which serves NULL.
+    (`premarket.served_to`), the table exists WITH `ext_session` (a table from before
+    2026-10-17 gains it on the first sweep), and `premarket.serve_params` names rows to
+    serve: today's pre-market or after-hours rows under MAX_AGE_S old in those windows,
+    the newest after-hours rows while the market is closed, nothing in the session.
+    Anything unanswerable ⇒ `pm_on=False`, which serves NULL.
     ⛔ The live decision is never touched by any of this.
     """
     ov = _live_overlay(conn)
     if ov is OFF:                        # never mutate the shared singleton
         ov = _Overlay(reason=OFF.reason)
     try:
-        mod = _live_tier_module()
-        if (mod is not None and _pm_mod.served_to(user)
-                and mod._session() == "pre_market"
-                and _table_exists(conn, _pm_mod.TABLE)):
-            import time as _time  # noqa: PLC0415
-            ov.pm_params = [int(mod.session_ymd(mod._now_et())),
-                            _time.time() - _pm_mod.MAX_AGE_S]
-            ov.pm_on = True
+        if (_pm_mod.served_to(user) and _table_exists(conn, _pm_mod.TABLE)
+                and "ext_session" in {r[1] for r in conn.execute(
+                    f"PRAGMA table_info({_pm_mod.TABLE})")}):
+            params = _pm_mod.serve_params(conn)
+            if params is not None:
+                ov.pm_params = list(params)
+                ov.pm_on = True
     except Exception:  # noqa: BLE001 — pre-market must not take the screen down
         ov.pm_on, ov.pm_params = False, []
     return ov
@@ -1500,7 +1517,7 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         tiebreak = ("" if sort_key == "ticker"
                     else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
-               f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST"
+               f"ORDER BY {_sort_expr(overlay, sort_key)} {sort_dir} NULLS LAST"
                f"{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
@@ -1569,6 +1586,34 @@ def _criterion_keys(spec) -> list[str]:
     return out
 
 
+def _blank_decided_keys(spec) -> set[str]:
+    """Keys whose BLANK the screen's own logic tree decides, so a blank one is
+    not "no value". `logic.to_sql` is two-valued: a blank fails its leaf, so a
+    leaf under an odd number of `none`/`not` PASSES on a blank. A tree that tests
+    a key there has said what a blank means (the live-or-nightly volume group's
+    `none: [rvol_live >= 0]` is "rvol_live is blank"; `none: [sector in X]`
+    keeps an unknown sector). A key the FLAT filters also read is never excused:
+    a flat clause drops a blank row whatever the tree says."""
+    from . import logic as _logic
+    out: set[str] = set()
+
+    def walk(node, negated):
+        k = _logic._kind(node)
+        if k == "leaf":
+            if negated and node.get("key"):
+                out.add(node["key"])
+            return
+        if k == "not":
+            walk(node["not"], not negated)
+            return
+        for c in node[k]:
+            walk(c, (not negated) if k == "none" else negated)
+    if spec.get("logic"):
+        walk(spec["logic"], False)
+    flat = {f.get("key") for f in (spec.get("filters") or [])}
+    return out - flat
+
+
 def coverage_for(spec, user_id=None, user=None) -> dict:
     """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
 
@@ -1617,7 +1662,8 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
             where = f"{where}{joiner}{stale['sql']}"
             base = [*base, *stale["params"]]
         cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
-        cols = [(k, c) for k, c in cols if c in known]
+        decided = _blank_decided_keys(spec)
+        cols = [(k, c) for k, c in cols if c in known and k not in decided]
         not_computable = 0
         if cols:
             null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
@@ -1767,8 +1813,8 @@ def _snapshot_stamp(conn, overlay):
         if overlay.pm_on:
             pmv = conn.execute(
                 f'SELECT COUNT(*), MAX(premarket_asof) FROM "{_pm_mod.TABLE}"').fetchone()
-            ymd, age_cut = overlay.pm_params
-            parts.append(("pm-on", tuple(pmv), ymd, int(age_cut // COUNT_CACHE_TTL_S)))
+            ymd, age_cut, ext = overlay.pm_params
+            parts.append(("pm-on", tuple(pmv), ymd, int(age_cut // COUNT_CACHE_TTL_S), ext))
         else:
             parts.append("pm-off")
         return repr(parts)
@@ -1924,12 +1970,14 @@ def run_scan(spec, user_id=None, user=None):
             # cutoff the join bound, so the clock describes exactly the values served.
             premarket_block = None
             if plan["overlay"].pm_on:
-                ymd, age_cut = plan["overlay"].pm_params
+                ymd, age_cut, ext = plan["overlay"].pm_params
                 pm_asof = conn.execute(
                     f"SELECT MAX(premarket_asof) FROM {_pm_mod.TABLE} "
-                    "WHERE session_ymd = ? AND premarket_asof >= ?",
-                    (ymd, age_cut)).fetchone()[0]
-                premarket_block = {"state": "premarket", "as_of": pm_asof}
+                    "WHERE session_ymd = ? AND premarket_asof >= ? AND ext_session = ?",
+                    (ymd, age_cut, ext)).fetchone()[0]
+                # `state` stays "premarket" for clients that read it; `session` says which
+                # window the values are from ('pre' | 'post').
+                premarket_block = {"state": "premarket", "session": ext, "as_of": pm_asof}
     out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_

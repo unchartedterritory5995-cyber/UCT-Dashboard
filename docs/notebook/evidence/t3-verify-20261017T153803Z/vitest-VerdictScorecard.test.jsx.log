@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/VerdictScorecard.test.jsx (7 tests) 76ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  10:45:49
+   Duration  925ms (transform 170ms, setup 209ms, import 104ms, tests 76ms, environment 426ms)
+

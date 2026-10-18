@@ -105,6 +105,9 @@ export const IMPORT_ALLOW = {
   // P2b Task 8 (ruling R-PF-B8): the My rules block's ONE read seam. Its write is rulesApi.js (a block
   // file, WRITE_EXCEPTIONS above); the seam hands back the rules, their state and a re-read only.
   'app/src/pages/journal-2-0/hooks/useMyRulesSources': 'the My rules read seam: the selected account\'s rules, their state, one re-read and the saved rule shown at once (an SWR cache write, never a server write); create and dismiss are unreachable (members)',
+  // P2 Tier 3 Task 3 (ruling R-T3-V2): the check-in's day is todayET, the Journal's ONE Intl-based ET
+  // date (never local time, and never lib/tradeCanvas's second copy). calendar.js has no imports.
+  'app/src/pages/journal-2-0/lib/calendar': "todayET: the ET date of the check-in's first pick; pure date math over Intl, no imports, no network, no writes",
 }
 
 /**

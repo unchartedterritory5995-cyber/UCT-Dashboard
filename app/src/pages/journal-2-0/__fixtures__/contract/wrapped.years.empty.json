@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/wrapped/years",
+    "note": "A member with no closed trades: no years to pick.",
+    "path": "/api/j2/wrapped/years",
+    "status": 200
+  },
+  "body": {
+    "years": []
+  }
+}

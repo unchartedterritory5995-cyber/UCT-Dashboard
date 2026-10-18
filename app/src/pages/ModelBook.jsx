@@ -1,7 +1,7 @@
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import useSWR, { preload } from 'swr'
+import useSWR, { preload, mutate } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
 import IntradayDayPopover from '../components/IntradayDayPopover'
@@ -1890,13 +1890,43 @@ export default function ModelBook() {
   }
   useEffect(() => () => clearTimeout(recapTimer.current), [])
 
-  // Warm the client cache for EVERY year's recap as soon as the page opens, so
-  // hovering a year is instant (served from SWR cache, no per-hover round-trip).
-  // Trickled ~70ms apart so it's a gentle background fetch, not a 30-request burst.
+  // ONE request for every year's gallery list, gain stats and stored recap (2026-10-17), filed
+  // under the per-year keys the page reads, so a year switch or a recap hover is served from
+  // cache. It replaced ~100 per-year requests on open that made the landed-on year wait up
+  // to 8 s behind them (measured on production). A key already holding an answer keeps it.
+  // `catalog` is null until it settles; a failure settles it empty, and the per-year warms
+  // below then cover every year exactly as before.
+  const [catalog, setCatalog] = useState(null)
   useEffect(() => {
-    if (!years.length) return
+    let cancelled = false
+    const done = (lists, recaps) => { if (!cancelled) setCatalog({ lists, recaps }) }
+    fetch('/api/modelbook/catalog', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(c => {
+        const lists = new Set(), recaps = new Set()
+        const keep = fresh => have => have ?? fresh
+        for (const [y, part] of Object.entries(c?.by_year || {})) {
+          mutate(`/api/modelbook/stocks?year=${y}`, keep(part.stocks), { revalidate: false })
+          mutate(`/api/modelbook/year-stats?year=${y}`, keep(part.stats), { revalidate: false })
+          lists.add(Number(y))
+        }
+        for (const [y, r] of Object.entries(c?.recaps || {})) {
+          mutate(`/api/modelbook/year-recap?year=${y}`, keep(r), { revalidate: false })
+          recaps.add(Number(y))
+        }
+        done(lists, recaps)
+      })
+      .catch(() => done(new Set(), new Set()))
+    return () => { cancelled = true }
+  }, [])
+
+  // Warm the client cache for every year's recap the catalog did not carry (not written yet:
+  // asking starts it), so hovering a year is instant. Trickled ~70ms apart so it's a gentle
+  // background fetch, not a burst.
+  useEffect(() => {
+    if (!years.length || !catalog) return
     let i = 0, cancelled = false
-    const list = [...years]
+    const list = years.filter(y => !catalog.recaps.has(y))
     const tick = () => {
       if (cancelled || i >= list.length) return
       preload(`/api/modelbook/year-recap?year=${list[i]}`, fetcher)
@@ -1905,7 +1935,7 @@ export default function ModelBook() {
     }
     tick()
     return () => { cancelled = true }
-  }, [years])
+  }, [years, catalog])
 
   // Warm EVERY stock in the OPEN year (chart bars + detail + custom bars +
   // earnings) the moment the year loads — with PRIORITY so this year's charts jump
@@ -1939,10 +1969,10 @@ export default function ModelBook() {
   // priority) — so switching to ANY year and scrolling its tickers is instant on
   // first view after a refresh, not just the year you happened to land on.
   useEffect(() => {
-    if (!years.length) return
-    // Gallery lists + gain stats for every year → the stock list + gains paint
-    // instantly the moment you click a different year (tiny JSON, fire now).
-    years.forEach(y => {
+    if (!years.length || !catalog) return
+    // Gallery lists + gain stats for every year the catalog did not carry → the stock list +
+    // gains paint instantly the moment you click a different year (tiny JSON, fire now).
+    years.filter(y => !catalog.lists.has(y)).forEach(y => {
       preload(`/api/modelbook/stocks?year=${y}`, fetcher)
       preload(`/api/modelbook/year-stats?year=${y}`, fetcher)
     })
@@ -1952,7 +1982,7 @@ export default function ModelBook() {
     // per-stock detail/bars/earnings now warms ON DEMAND when you open that year
     // (the current-year effect above re-runs on year change), and the backend
     // keeps the Model Book set hot, so switching to a cold year is still fast.
-  }, [years])
+  }, [years, catalog])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.

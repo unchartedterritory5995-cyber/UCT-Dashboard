@@ -91,6 +91,12 @@
       },
       "status": 401
     },
+    "GET /api/j2/insights/checklist-suggestions": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/journal-styles": {
       "body": {
         "detail": "Not authenticated"
@@ -320,6 +326,18 @@
       "status": 401
     },
     "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/wrapped/years": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/wrapped/{year}": {
       "body": {
         "detail": "Not authenticated"
       },

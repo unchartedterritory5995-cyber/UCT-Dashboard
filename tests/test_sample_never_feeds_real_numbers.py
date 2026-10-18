@@ -409,6 +409,10 @@ GUARDED = {
     "api/services/journal_two/followup_prefill.py": "the earnings follow-up links the member's own prep note on "
                                                      "the ticker; an example prep note is never linked into a real "
                                                      "follow-up",
+    "api/services/journal_two/wrapped.py": "Your trading year's most-written tickers: an example note's ticker "
+                                            "or $mention is never a note the member wrote",
+    "api/services/journal_two/analytics.py": "the psychology view's By check-in levels: a check-in inside an "
+                                              "example note is never the member's mood or focus that day",
     "api/services/journal_two/template_gallery.py": "an example note (P3b) shows a member's own note to other "
                                                      "members as their work; a sample note is never published or "
                                                      "previewed as one (ruling P3b-R11, the not-live 404)",

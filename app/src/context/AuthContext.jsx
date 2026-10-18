@@ -40,6 +40,8 @@ export function AuthProvider({ children }) {
   // must all read as "not enabled".
   const [decisionRecordEnabled, setDecisionRecordEnabled] = useState(false)
   const [tickerHistoryEnabled, setTickerHistoryEnabled] = useState(false)
+  // The chart's Team history panel (TSDR archive): WISDOM_TICKER_HISTORY_ENABLED + WISDOM_ARCHIVE_ENABLED.
+  const [wisdomTickerHistoryEnabled, setWisdomTickerHistoryEnabled] = useState(false)
   const [addressSpaceEnabled, setAddressSpaceEnabled] = useState(false)
   const [optionsChainEnabled, setOptionsChainEnabled] = useState(false)
   const [optionsVolSurfaceEnabled, setOptionsVolSurfaceEnabled] = useState(false)
@@ -141,6 +143,7 @@ export function AuthProvider({ children }) {
     ['research_flow_tab_enabled', (d) => d.research_flow_tab_enabled === true, setResearchFlowTabEnabled],
     ['decision_record_enabled', (d) => d.decision_record_enabled === true, setDecisionRecordEnabled],
     ['ticker_history_enabled', (d) => d.ticker_history_enabled === true, setTickerHistoryEnabled],
+    ['wisdom_ticker_history_enabled', (d) => d.wisdom_ticker_history_enabled === true, setWisdomTickerHistoryEnabled],
     ['address_space_enabled', (d) => d.address_space_enabled === true, setAddressSpaceEnabled],
     ['options_chain_enabled', (d) => d.options_chain_enabled === true, setOptionsChainEnabled],
     ['options_vol_surface_enabled', (d) => d.options_vol_surface_enabled === true, setOptionsVolSurfaceEnabled],
@@ -387,7 +390,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

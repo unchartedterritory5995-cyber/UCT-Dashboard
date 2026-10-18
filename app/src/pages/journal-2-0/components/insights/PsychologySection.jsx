@@ -38,6 +38,7 @@ import { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import { journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { lazyLeaf } from '../../lib/lazyChunk'
+import { tier3Enabled } from '../../lib/tier3Flag'
 import ConfidenceStat from '../analytics/ConfidenceStat'
 import RapidTagFlow from '../psychology/RapidTagFlow'
 import MakeRuleButton from './MakeRuleButton'
@@ -49,6 +50,10 @@ import styles from './PsychologySection.module.css'
 // chunk failure under lazyChunk reloads the page, or lands on the route's error screen, for one
 // optional card. A card that cannot load is simply absent; the rest of Insights stands.
 const RuleBeforeAfterCard = lazyLeaf(() => import('./RuleBeforeAfterCard'))
+// P2 Tier 3 Task 5: the "By check-in" view, its own chunk, only while the Tier 3 switch is on.
+// The same lazyLeaf + quiet boundary as above. It reads the check-ins, not the tags, so it sits
+// OUTSIDE the tagged / pitch-card branch: an untagged book can still have check-ins.
+const CheckInOutcomes = lazyLeaf(() => import('./CheckInOutcomes'))
 
 class QuietBoundary extends Component {
   constructor(props) { super(props); this.state = { failed: false } }
@@ -131,8 +136,9 @@ export default function PsychologySection({ analytics, accountId, onStartRapidTa
       <div className={styles.head}>
         <h4 className={styles.title}>Trading psychology</h4>
         <p className={styles.sub}>
-          How your tagged emotions and mistakes show up in your P&amp;L. Everything
-          here needs tags — the more of your trades you tag, the sharper it gets.
+          How your tagged emotions and mistakes show up in your P&amp;L. The emotion
+          and mistake panels need tags — the more of your trades you tag, the sharper
+          they get.
         </p>
       </div>
 
@@ -152,6 +158,12 @@ export default function PsychologySection({ analytics, accountId, onStartRapidTa
             </QuietBoundary>
           )}
         </>
+      )}
+
+      {tier3Enabled() && (
+        <QuietBoundary>
+          <Suspense fallback={null}><CheckInOutcomes checkIns={psy.checkIns} /></Suspense>
+        </QuietBoundary>
       )}
 
       {rapidTagOpen && (

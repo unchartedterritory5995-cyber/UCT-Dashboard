@@ -6,10 +6,10 @@
     "path": "/api/j2/template-gallery/examples",
     "requestBody": {
       "imagesOn": [
-        "/api/j2/notes/attachments/contract-exampler/a75a4833a646480f8cef01f6ca89e016/inline/chart.png"
+        "/api/j2/notes/attachments/contract-exampler/82409fcb795f46ee93ccfa66e386523b/inline/chart.png"
       ],
-      "noteId": "a75a4833a646480f8cef01f6ca89e016",
-      "styleItemId": "6730bd10d99640b791724391e58b6806",
+      "noteId": "82409fcb795f46ee93ccfa66e386523b",
+      "styleItemId": "c56b4ed84d6f452db201026b9614b0cb",
       "title": "My weekend plan"
     },
     "status": 200
@@ -27,7 +27,7 @@
       "helpedByMe": false,
       "helpfulCount": 0,
       "hidden": false,
-      "id": "117159d2c7664c21ae0df9569b417283",
+      "id": "bf1ea35b5c8e49689378a7e94a37fead",
       "itemType": "example_note",
       "listedAt": null,
       "mine": true,

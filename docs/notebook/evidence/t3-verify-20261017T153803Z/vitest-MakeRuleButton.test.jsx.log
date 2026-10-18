@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/MakeRuleButton.test.jsx (6 tests) 179ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  10:45:11
+   Duration  1.03s (transform 146ms, setup 203ms, import 84ms, tests 179ms, environment 458ms)
+

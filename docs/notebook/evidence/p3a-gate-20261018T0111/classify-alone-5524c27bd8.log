@@ -1,0 +1,86 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p3a-gate/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/baseline.test.js [2m([22m[2m8 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 261[2mms[22m[39m
+     [32m✓[39m ⛔ treats the EMPTY STRING as no baseline — the whole point[32m 2[2mms[22m[39m
+     [32m✓[39m ⛔ treats null and undefined the same way, and normalises both to null[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ returns the first USABLE candidate, not merely the first non-nullish one[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ refuses a non-string that happens to be truthy[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐ CONTROL — an ordinary ISO timestamp passes through untouched[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐ the sweep reads this wave (non-vacuity control)[32m 1[2mms[22m[39m
+[31m     [31m×[31m ⛔ no `?? ` coalescing over a baseline anywhere under journal-2-0[39m[32m 254[2mms[22m[39m
+     [32m✓[39m ⭐ the matcher SEES the defect shape, and ignores an unrelated `??`[32m 0[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/unreadableNoticeCallSites.test.js [2m([22m[2m2 tests[22m[2m)[22m[33m 1210[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: the search finds the known call sites [33m 662[2mms[22m[39m
+     [33m[2m✓[22m[39m every <UnreadableNoteNotice> passes an editor= prop [33m 546[2mms[22m[39m
+[90mstdout[2m | src/components/chart/engine/ast/pineStrictCensus.test.js[2m > [22m[2mstrict census
+[22m[39m{
+ "scripts": 129,
+ "translate_lenient_ok": 71,
+ "translate_strict_ok": 76,
+ "translate_lenient_only": 9,
+ "runtime_ok": 40,
+ "runtime_ok_and_all_plots_present": 40,
+ "runtime_ok_but_dropped_plots": 0,
+ "HOSTABLE_strict_translate_AND_runtime": 35,
+ "runtime_ok_but_translate_lenient_only": 0
+}
+
+-- lenient-but-not-strict (silent partials), first 12 --
+   oos1/high_engagement__10-rsi-divergence-faytterro.pine  outputs=3 null=2
+   oos1/high_engagement__22-reversal-probability-profile-algoalpha.pine  outputs=8 null=6
+   oos1/mid_engagement__17-volume-surge-radar.pine  outputs=28 null=26
+   oos1/mid_engagement__22-rsi-levels-regime-map.pine  outputs=28 null=2
+   community/23-higher-timeframe-ema.pine  outputs=1 null=0
+   community/24-multi-timeframe-rsi.pine  outputs=8 null=6
+   community/25-spy-expected-move-by-vix.pine  outputs=21 null=20
+   curated/03-rsi-directional-momentum-scanner.pine  outputs=20 null=4
+   curated/15-anchored-vwap.pine  outputs=11 null=10
+
+-- runtime ok but DROPPED plots, first 12 --
+
+ [31m❯[39m src/components/chart/engine/ast/pineStrictCensus.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 17861[2mms[22m[39m
+[31m   [31m×[31m strict census[39m[33m 17859[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/pineStrictCensus.test.js[2m > [22mstrict census
+[31m[1mError[22m: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m src/components/chart/engine/ast/pineStrictCensus.test.js:[2m53:3[22m[39m
+    [90m 51| [39mconst declaredPlots = (src) => (src.match(/^\s*(?:\w+\s*=\s*)?(?:plot|…
+    [90m 52| [39m
+    [90m 53| [39m[34mit[39m([32m'strict census'[39m[33m,[39m () [33m=>[39m {
+    [90m   | [39m  [31m^[39m
+    [90m 54| [39m  [35mconst[39m rows [33m=[39m []
+    [90m 55| [39m  [35mfor[39m ([35mconst[39m [label[33m,[39m rel] [35mof[39m [33mCORPORA[39m) {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/baseline.test.js[2m > [22m⛔ every baseline choice goes through the one authority[2m > [22m⛔ no `?? ` coalescing over a baseline anywhere under journal-2-0
+[31m[1mAssertionError[22m: expected [ Array(1) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "LibraryUpdateSheet.jsx:64 — setBase(copyRef.current?.updatedAt ?? null)",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/baseline.test.js:[2m101:23[22m[39m
+    [90m 99| [39m      })
+    [90m100| [39m    }
+    [90m101| [39m    [34mexpect[39m(offenders)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                      [31m^[39m
+    [90m102| [39m  })
+    [90m103| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m9 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 01:20:06
+[2m   Duration [22m 22.98s[2m (transform 2.71s, setup 1.73s, import 2.92s, tests 19.33s, environment 4.17s)[22m
+

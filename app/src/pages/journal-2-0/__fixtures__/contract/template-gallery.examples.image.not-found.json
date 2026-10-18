@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "GET /api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/7",
+    "endpoint": "GET /api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/7",
     "note": "No copy with that number: the one 404.",
-    "path": "/api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/7",
+    "path": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/7",
     "status": 404
   },
   "body": {
