@@ -125,7 +125,7 @@ These are the input classes the spec implies, most likely first. Each is pinned 
    - The list shows outlines only.
    - Every style route answers 404.
    - Helpful, follow and feed answer 404.
-   - Pinned in Task 3: `test_library_off_hides_every_style_row_and_route`.
+   - Pinned in Task 3: `test_library_off_hides_every_style_row_in_the_list` (the route and unpublish-ring halves have their own rails; renamed in the final fix, M-11).
 7. **A deleted account.**
    - Its helpful marks, follows (both directions), handle and watches are removed.
    - Other members' adopted copies of its styles stay.
