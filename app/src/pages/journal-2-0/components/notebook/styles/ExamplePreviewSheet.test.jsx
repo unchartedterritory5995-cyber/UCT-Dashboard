@@ -117,7 +117,7 @@ describe('the recorded answers hold what these rails read (non-vacuity)', () => 
 describe('one fact in two files: the client\'s copies of the server\'s lists', () => {
   it('CHANGE_KINDS names every change kind, in the order of example_sanitize.KINDS', () => {
     const src = readRepo('api/services/journal_two/example_sanitize.py')
-    const m = /^KINDS: tuple\[str, \.\.\.\] = \(([\s\S]*?)\)\n/m.exec(src)
+    const m = /^KINDS: tuple\[str, \.\.\.\] = \(([\s\S]*?)\)\r?\n/m.exec(src)
     expect(m).not.toBeNull()
     const kinds = [...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1])
     expect(kinds.length).toBeGreaterThan(5)
