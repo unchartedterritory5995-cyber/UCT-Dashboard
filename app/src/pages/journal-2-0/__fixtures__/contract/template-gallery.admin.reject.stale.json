@@ -11,6 +11,6 @@
     "status": 409
   },
   "body": {
-    "detail": "This template changed after you opened it. Nothing was rejected. Look at it again, then reject."
+    "detail": "This item changed since you opened it. Reload the review queue to see the current version."
   }
 }

@@ -2545,6 +2545,10 @@ def example_notes(w: World) -> None:
              json_body={"noteId": note["id"], "imagesOn": [image]},
              note="Exactly what other members would see, for the author: the changes (with the author's own text "
                   "in `before`, never stored), counts by kind, and each image with its OCR state.")
+    w.record("template-gallery.examples.preview.title-only", "POST", f"{base}/examples/preview", case="success",
+             expect=200, json_body={"noteId": note["id"], "title": "Weekend plan", "titleOnly": True},
+             note="P3b-F2-R2: the typed title alone, as other members would see it. It reduces none of the note and "
+                  "is not charged to the preview limit.")
     w.record("template-gallery.examples.preview.not-found", "POST", f"{base}/examples/preview", case="error",
              expect=404, json_body={"noteId": "nope"},
              note="Not the caller's live note (or the sample notebook's): the one 404.")

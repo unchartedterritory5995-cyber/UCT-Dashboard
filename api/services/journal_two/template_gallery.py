@@ -126,9 +126,9 @@ _PREVIEW_LINE_CHARS = 72
 #: What an admin reads when the template they are approving is not the one they looked at.
 APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
                           "Look at it again, then approve.")
-#: ...and when the template they are rejecting is not the one they looked at (P3b-F-R4).
-REJECT_STALE_SENTENCE = ("This template changed after you opened it. Nothing was rejected. "
-                         "Look at it again, then reject.")
+#: ...and when the template they are rejecting is not the one they looked at (P3b-F-R4), or the tab names no version
+#: at all -- a tab still on a bundle from before reject was pinned (P3b-F2-R3): reloading the queue is the fix either way.
+REJECT_STALE_SENTENCE = "This item changed since you opened it. Reload the review queue to see the current version."
 
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
@@ -1297,28 +1297,12 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
 
 #: `_example_title` caps by truncation after the scrubs, so gallery's `_clean_text` is asked for no cap of its own.
 _NO_TITLE_LIMIT = 10 ** 9
-#: ⛔ Ruling P3b-F-R1: the scrubs read at most this much of a typed title. The request body may be 256 KB, and a
-#: title is never refused for its length (P3b-T3-R5), so without this bound a crafted title cost a full scrub
-#: of everything it holds on every preview. Four times the shown cap leaves the replacements room to grow the
-#: text well past the 80-character cut, so the words the window cut short are never the words shown.
-_TITLE_SCRUB_CHARS = 4 * MAX_TITLE_CHARS
-#: ...and when the scrubbed window is still short (a long address shrinks to "link"), the window doubles, up to
-#: this many characters, so a cut never lands inside what the title shows.
-_TITLE_SCRUB_MAX_CHARS = 64 * MAX_TITLE_CHARS
-
-
-def _title_window(raw: Any, chars: int) -> tuple[Any, bool]:
-    """`(text, cut)`: a typed title at most `chars` long for the scrubs, and whether anything was left out. A title
-    that fits is returned exactly as typed; a longer one has its spaces collapsed (as `_clean_text` would) and is
-    cut at the last space within `chars`, so no word reaches the scrubs half-written. Not text: returned as it is,
-    for `_clean_text` to refuse."""
-    if not isinstance(raw, str) or len(raw) <= chars:
-        return raw, False
-    flat = " ".join(raw.split())
-    if len(flat) <= chars:
-        return flat, False
-    at = flat.rfind(" ", 0, chars + 1)
-    return flat[:at if at > 0 else chars], True
+#: ⛔ Ruling P3b-F2-R1 (final re-review N-1): a typed title is scrubbed WHOLE -- the scrub is linear -- and a raw
+#: title longer than this is refused. A window over a longer one failed OPEN: a value whose deciding words sat past
+#: the cut ("3.2R ... loss", a card number after a long address) was shown. Only a hand-built request reaches the
+#: refusal: the sheet's field holds 80 characters and a note's title 300.
+MAX_RAW_TITLE_CHARS = 2_000
+RAW_TITLE_TOO_LONG_SENTENCE = "A title can be at most 2,000 characters."
 
 
 def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
@@ -1335,22 +1319,17 @@ def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
 def _example_title(raw: Any, brokers: tuple[str, ...], *, required: bool = True) -> str:
     """The title other members see (P3b-T3-R5). SCRUBBED FIRST -- gallery's text scrub (`_clean_text`, which also
     refuses anything but text, and an empty title when one is required), then the example text pass -- and only
-    then capped at `MAX_TITLE_CHARS` by shortening it with an ellipsis. A title is never refused for its length:
-    a scrub grows text ("$1" becomes "your value here", an email "email address"), so a length the author never
-    typed must never be the reason. The preview, with or without a typed title, shows this same title.
+    then capped at `MAX_TITLE_CHARS` by shortening it with an ellipsis. A scrub grows text ("$1" becomes "your
+    value here", an email "email address"), so the SHOWN length is never a reason to refuse. The preview, with or
+    without a typed title, shows this same title; the preview, the publish and a held revision all come here.
 
-    P3b-F-R1: only a bounded window of the raw title is scrubbed (`_title_window`): the scrubs cost what the
-    window holds, never what the request body holds. The window grows only while its scrubbed text is too short
-    to be cut at the shown cap with room to spare, so what is shown never depends on where the window ended."""
-    chars = _TITLE_SCRUB_CHARS
-    while True:
-        cut, more = _title_window(raw, chars)
-        cleaned = _clean_text(cut, field="title", limit=_NO_TITLE_LIMIT, required=required)
-        scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
-        if not more or len(scrubbed) >= 2 * MAX_TITLE_CHARS or chars >= _TITLE_SCRUB_MAX_CHARS:
-            break
-        chars *= 2
-    if len(scrubbed) > MAX_TITLE_CHARS or (more and scrubbed):
+    P3b-F2-R1: the WHOLE raw title is scrubbed, never a window of it, and a raw title over `MAX_RAW_TITLE_CHARS`
+    is refused (`RAW_TITLE_TOO_LONG_SENTENCE`), so the scrub's cost is bounded by what it reads."""
+    if isinstance(raw, str) and len(raw) > MAX_RAW_TITLE_CHARS:
+        raise GalleryError(RAW_TITLE_TOO_LONG_SENTENCE)
+    cleaned = _clean_text(raw, field="title", limit=_NO_TITLE_LIMIT, required=required)
+    scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
+    if len(scrubbed) > MAX_TITLE_CHARS:
         scrubbed = scrubbed[: MAX_TITLE_CHARS - 1].rstrip() + "…"
     return scrubbed
 
@@ -1395,6 +1374,26 @@ def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
     except Exception as e:  # noqa: BLE001 -- an unreadable state is "we couldn't read it", never a failed preview
         print(f"[template-gallery] example OCR state unread: {type(e).__name__}")
         return "unavailable", []
+
+
+def preview_example_title(conn: sqlite3.Connection | None, user_id: str, note_id: Any, title: Any) -> dict | None:
+    """P3b-F2-R2: the title alone, as other members would see it: `{"title": str}`. It scrubs the typed title (at most
+    `MAX_RAW_TITLE_CHARS`) and reduces NOTHING of the note, so a member typing a title never re-reduces the body.
+    The note must still be one that may be an example (None, the route's 404, otherwise); its body is not read
+    beyond `_example_note`'s own checks. Writes nothing."""
+    if not example_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        brokers = _author_brokers(conn, user_id)
+        return {"title": _example_title(note["title"] if title is None else title, brokers, required=False)}
+    finally:
+        if owned:
+            conn.close()
 
 
 def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, images_on: Any,

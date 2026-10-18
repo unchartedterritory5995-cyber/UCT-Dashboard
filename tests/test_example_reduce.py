@@ -1298,9 +1298,10 @@ _WORST_UNITS = ("made 1,240 profit balance 12,345 up 2k down 1,500 acct 12345678
                 "stop loss 145 take profit 1,240 realized card ending in 4421 fiscal year 2025 # 2024 ",
                 "145 150 155 160 ", "1 1 1 1 1 1 1 1 ", "1;2;3;4;5;6;7;8;", "$1 $2 1 240 € ", "1\u00a01\u00a0",
                 "1234567890", "123,456,789,", "ab+cd+")
-#: ⛔ The stated bound for a 200 KB worst-case body (measured well under it on this box; the old scrub took
-#: minutes): through `scrub_text`, and through the reducer in example mode, as one text node.
-COST_BOUND_S = 30.0
+#: ⛔ The stated bound for a 200 KB worst-case body, through `scrub_text` and through the reducer in example mode, as
+#: one text node. P3b-F2-R4: about 3x the worst measured -- 1.25 s through the reducer on a loaded box (fix round 1);
+#: 0.34 s / 0.38 s on a quiet one (fix round 2, three runs). The old scrub took minutes.
+COST_BOUND_S = 4.0
 
 
 def _worst_text(n_bytes: int) -> str:

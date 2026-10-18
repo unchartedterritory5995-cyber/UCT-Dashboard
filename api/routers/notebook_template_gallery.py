@@ -288,16 +288,23 @@ def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
                              user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{noteId, imagesOn?, title?}` -> `{bodyJson, changes, counts, images, title}`: exactly what other members
     would see, for the author, the title included (the note's own when none is sent). Writes nothing. 404 when
-    the note is not theirs, not live, or the sample notebook's; 400 for a note too long to be an example.
+    the note is not theirs, not live, or the sample notebook's; 400 for a note too long to be an example, or a
+    raw title over 2,000 characters. `{noteId, title, titleOnly: true}` -> `{title}`: the title alone (P3b-F2-R2).
 
     Its cost is bounded three ways: a note over the example ceiling is refused before it is reduced, it is
     reduced once, in linear time (P3b-F-R1), and a member may run `PREVIEW_RATE` of them (429 after; P3b-F-R1
     reversed review M-2's "not rate-limited", whose premise -- the size bounds the cost -- the final review's
     measurement disproved)."""
-    public.enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW, f"member:{user['id']}", PREVIEW_RATE_SENTENCE, public=False)
-    images_on = _images_on(body)
+    # P3b-F2-R2: `titleOnly: true` scrubs the typed title alone (at most 2,000 characters) and reduces nothing of the
+    # note, so it is not charged to the preview budget: typing a title never spends the whole-note reductions.
+    title_only = body.get("titleOnly") is True
+    if not title_only:
+        public.enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW, f"member:{user['id']}", PREVIEW_RATE_SENTENCE, public=False)
     try:
-        out = gallery.preview_example(None, user["id"], body.get("noteId"), images_on, body.get("title"))
+        if title_only:
+            out = gallery.preview_example_title(None, user["id"], body.get("noteId"), body.get("title"))
+        else:
+            out = gallery.preview_example(None, user["id"], body.get("noteId"), _images_on(body), body.get("title"))
     except gallery.GalleryError as e:
         raise _bad(e)
     if out is None:

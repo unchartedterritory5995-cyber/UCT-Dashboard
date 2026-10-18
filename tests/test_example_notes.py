@@ -1056,39 +1056,93 @@ def test_a_style_hidden_while_the_note_is_reduced_is_refused_too(api, conn, ex_o
 
 # ── the final review's fixes (P3b-F-R1, R2, R4) ──────────────────────────────────────────────
 
-def test_F_R1_a_240_kb_title_is_scrubbed_in_a_bounded_window_and_reads_as_a_short_one(api, conn, ex_on, ocr,
-                                                                                       monkeypatch):
-    """The scrubs read a bounded window of a typed title, never the whole request body; what is shown is what the
-    scrub-then-cap rule (P3b-T3-R5) shows for the same words, and a long title is never refused."""
+def _full_scrub(raw):
+    """The reference: the WHOLE raw title through the same two scrubs, then the R5 cap -- what the title was before
+    any window existed. `_example_title` must equal it for every title it accepts (P3b-F2-R1)."""
+    cleaned = gallery._clean_text(raw, field="title", limit=10 ** 9, required=False)
+    out = " ".join(str(gallery._example_text(cleaned, ())).split())
+    if len(out) > gallery.MAX_TITLE_CHARS:
+        out = out[: gallery.MAX_TITLE_CHARS - 1].rstrip() + "…"
+    return out
+
+
+#: The reviewer's crafted shapes (final re-review N-1): each puts the words that decide the scrub far from the start,
+#: so a scrub of only a prefix shows a value, card digits or a broker name. Every one is at most 2,000 characters.
+_CRAFTED_TITLES = {
+    "an R value whose deciding word is late": "NVDA 3.2R " + "x" * 306 + " loss on the day",
+    "card digits after a long address": "https://example.com/" + "a" * 1850 + " 1234 5678 9012 3456 tail",
+    "a long spaced number then a currency": "1" + " 240" * 120 + " € end",
+    "a broker name after a long address": "https://example.com/" + "a" * 1700 + " Charles Schwab statement",
+    "a value after 1,900 characters of words": "word " * 380 + "$1,240 at Schwab",
+    "an email after a long word": "z" * 1500 + " reach me at trader@example.com",
+}
+
+
+def test_F2_R1_every_crafted_title_shows_what_the_whole_scrub_shows():
+    for label, raw in _CRAFTED_TITLES.items():
+        assert len(raw) <= gallery.MAX_RAW_TITLE_CHARS, label
+        shown = gallery._example_title(raw, ())
+        assert shown == _full_scrub(raw), label
+        assert len(shown) <= gallery.MAX_TITLE_CHARS, label
+    # non-vacuity: the shapes really do decide the result past the first 80 characters
+    # (a scrub of only the first 400 characters shows something else for these shapes)
+    differs = [label for label, raw in _CRAFTED_TITLES.items() if _full_scrub(raw[:400]) != _full_scrub(raw)]
+    assert len(differs) >= 3, differs
+    assert "1234" not in gallery._example_title(_CRAFTED_TITLES["card digits after a long address"], ())
+    # a title that fits is exactly as before: no ellipsis
+    assert gallery._example_title("made $1 at Schwab", ()) == "made your value here at your broker"
+
+
+def test_F2_R1_a_raw_title_over_2000_characters_is_refused_on_preview_and_publish(api, conn, ex_on, ocr):
     sid = _shared_style(conn)
     nid = _note(conn)
-    words = "made $1,240 at Schwab "
-    huge = words * (240_000 // len(words))                                # just under the 256 KB body cap
-    seen = []
-    real = gallery._example_text
+    edge = "x" * gallery.MAX_RAW_TITLE_CHARS                                # the limit itself is accepted
+    assert api.post(f"{EX}/preview", json={"noteId": nid, "title": edge}).status_code == 200
+    long_title = "y" * 5_000 + " 1234 5678 9012 3456"                      # 5k of text, then card digits
+    for path, body in ((f"{EX}/preview", {"noteId": nid, "title": long_title}),
+                       (f"{EX}/preview", {"noteId": nid, "title": long_title, "titleOnly": True}),
+                       (EX, {"noteId": nid, "styleItemId": sid, "title": long_title})):
+        r = api.post(path, json=body)
+        assert (r.status_code, r.json()["detail"]) == (400, gallery.RAW_TITLE_TOO_LONG_SENTENCE), path
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE item_type = 'example_note'").fetchone()[0] == 0
+    # a held revision of a listed example comes through the same door
+    first = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).json()["template"]
+    gallery.admin_act("admin", first["id"], "approve", reviewed_updated_at=first["updatedAt"], conn=conn)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": long_title})
+    assert (r.status_code, r.json()["detail"]) == (400, gallery.RAW_TITLE_TOO_LONG_SENTENCE)
+    assert _row(conn, first["id"])["pending_json"] in (None, "")               # nothing was held
 
-    def recording(raw, brokers):
-        seen.append(len(raw) if isinstance(raw, str) else 0)
-        return real(raw, brokers)
-    monkeypatch.setattr(gallery, "_example_text", recording)
-    pv = api.post(f"{EX}/preview", json={"noteId": nid, "title": huge})
-    assert pv.status_code == 200, pv.text
-    short = gallery._example_title(words * 20, ())
-    assert pv.json()["title"] == short and short.endswith("…") and "$" not in short
-    assert seen and max(seen) <= gallery._TITLE_SCRUB_MAX_CHARS                      # bounded, every call
-    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": huge})
-    assert r.status_code == 200 and r.json()["template"]["title"] == short
 
+def test_F2_R2_a_title_only_preview_scrubs_the_title_reduces_nothing_and_is_not_charged(api, conn, ex_on, ocr,
+                                                                                         monkeypatch):
+    from api.routers import notebook_template_gallery as router_mod
+    nid = _note(conn)
+    reduced = []
+    real = gallery._reduce_example
 
-def test_F_R1_a_window_that_scrubs_short_grows_so_the_cut_never_decides_what_is_shown():
-    """A long address shrinks to "link": the window doubles until the scrubbed text has room past the cap, so a
-    broker name just past the first window is still read whole (never shown half-scrubbed)."""
-    url = "https://example.com/" + "a" * (gallery._TITLE_SCRUB_CHARS + 20)
-    title = gallery._example_title(f"{url} Charles Schwab statement", ())
-    assert title == "link your broker statement"
-    assert "Charles" not in title and "Schwab" not in title
-    # a title that fits is exactly as before: no window, no ellipsis
-    assert gallery._example_title("made $1 at Schwab", ()) == "made your value here at your broker"
+    def counting(*a, **k):
+        reduced.append(1)
+        return real(*a, **k)
+    monkeypatch.setattr(gallery, "_reduce_example", counting)
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "title": "made $1 at Schwab", "titleOnly": True})
+    assert (r.status_code, r.json()) == (200, {"title": "made your value here at your broker"})
+    assert reduced == []                                                   # the note was not reduced
+    full = api.post(f"{EX}/preview", json={"noteId": nid, "title": "made $1 at Schwab"})
+    assert full.status_code == 200 and full.json()["title"] == r.json()["title"] and reduced == [1]  # control
+    for _ in range(59):
+        assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 200
+    r = api.post(f"{EX}/preview", json={"noteId": nid})
+    assert (r.status_code, r.json()["detail"]) == (429, router_mod.PREVIEW_RATE_SENTENCE)   # the budget is spent
+    for _ in range(5):                                                     # ...and a typed title still previews
+        t = api.post(f"{EX}/preview", json={"noteId": nid, "title": "Plan", "titleOnly": True})
+        assert (t.status_code, t.json()) == (200, {"title": "Plan"})
+    # only `true` means title-only: anything else is a full (charged) preview
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "title": "Plan", "titleOnly": "yes"})
+    assert r.status_code == 429
+    # the note is still checked: a stranger's note is the same 404
+    _as(api, "stranger")
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "title": "Plan", "titleOnly": True})
+    assert r.status_code == 404
 
 
 def test_F_R2_a_report_on_an_example_whose_style_is_not_shown_is_absent(api, conn, ex_on, ocr):
