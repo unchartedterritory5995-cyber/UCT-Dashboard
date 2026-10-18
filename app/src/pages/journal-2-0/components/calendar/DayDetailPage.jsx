@@ -8,7 +8,8 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
-import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
+import usePreferences from '../../../../hooks/usePreferences'
+import { effectiveDayBasis } from '../../lib/dayBasis'
 import useJ2DayNotesMutation from '../../hooks/useJ2DayNotesMutation'
 import MiniMonthNav from './MiniMonthNav'
 import DayReflection from './DayReflection'
@@ -75,12 +76,8 @@ export default function DayDetailPage() {
   const navigate = useNavigate()
   const [drawerTrade, setDrawerTrade] = useState(null)
   const { accountId, account } = useJ2SelectedAccount()
-  const isBroker =
-    !!account && account.balanceSource && account.balanceSource !== 'manual'
   const { prefs } = usePreferences()
-  const effectiveBasis = isBroker
-    ? parsePref(prefs.j2_calendar_pnl_basis, 'account')
-    : 'closed'
+  const effectiveBasis = effectiveDayBasis(account, prefs)
   const valid = isValidDate(date || '')
   const { metrics, trades, strategies, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId, effectiveBasis)
   const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
