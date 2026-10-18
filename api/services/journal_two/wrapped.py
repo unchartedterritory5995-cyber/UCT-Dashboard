@@ -7,14 +7,16 @@ The four sections and where each number comes from (R-T3-9):
     (`analytics_included=True`, R-T3-T7-R3). Expectancy is THAT record's `expectancyR`, never
     recomputed here. The band (R-T3-V5: `too_few` | `thin` | `normal`, `sample_size`'s own) is the
     band of the count `expectancyR` rests on, the trades that carry an R: the record's
-    `avgRStat.band` (R-T3-T7-R5, the R-T3-T5-R4 principle), never `tradeCount`'s. Setups that can be
+    `avgRStat.band` (R-T3-T7-R5, the R-T3-T5-R4 principle), never `tradeCount`'s; `sampleN` is that
+    record's n, so the page prints the count the band describes. Setups that can be
     ranked (anything but `too_few`) come first, by expectancy R; a `too_few` setup cannot be ranked,
     so it only fills a slot the ranked setups leave open (the page says "Too few trades to rank").
   * tickers: MEMBER-WIDE whatever account is picked (R-T3-T7-R4: notes carry no account, and no
     other surface scopes notes by account), so the payload says `tickersScope: "all"`. Live notes
     (`deleted_at IS NULL AND archived_at IS NULL`) created in the year, each counted ONCE per symbol
     over `j2_notes.ticker` and the `j2_note_mentions` projection (the cashtag sidecar
-    `notes._sync_note_mentions` keeps; bodies are never re-parsed). Top 5.
+    `notes._sync_note_mentions` keeps; bodies are never re-parsed). Sample-notebook notes count
+    nowhere (`sample_marker`, fin-data I3). Top 5.
   * discipline: twelve months, Jan to Dec. A month's adherence is the mean `adherencePct` of the
     month's closed trades that HAVE a record, joined through `trader_blocks.adherence_of_trade`
     (THE one join, R-PF-N7) on the trade's ref. A month with trades and no records reads
@@ -36,7 +38,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from api.services.journal_two import adherence_store, checklist_suggestions, playbook_stats
+from api.services.journal_two import adherence_store, checklist_suggestions, playbook_stats, sample_marker
 from api.services.journal_two.calendar import et_today
 from api.services.journal_two.filters import _DAY, ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where  # noqa: PLC2701 -- the ONE trading-day spine
 from api.services.journal_two.timeutil import compute_trading_day_et
@@ -97,16 +99,19 @@ def _closed_trades(conn: sqlite3.Connection, user_id: str, year: int, account_id
 
 
 def _rank_key_sampled(rec: dict) -> tuple:
+    """Expectancy R descending (None last); a tie goes to the larger R-bearing count (`sampleN`,
+    the n the expectancy rests on), then the larger trade count, then the name."""
     e = rec["expectancyR"]
-    return (e is None, -(e or 0.0), -rec["tradeCount"], rec["setup"])
+    return (e is None, -(e or 0.0), -rec["sampleN"], -rec["tradeCount"], rec["setup"])
 
 
 def _best_setups(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> list[dict]:
     records = playbook_stats.get_playbook_stats(user_id, account_id, spec=_year_spec(year), conn=conn,
                                                 analytics_included=True)
-    # The band of the n behind expectancyR (the R-bearing trades), worded by sample_size itself.
+    # The band AND its n come from ONE record, `avgRStat` (sample_size.mean_stat over the R-bearing
+    # trades the expectancy rests on), so the label and the count printed beside it cannot drift.
     rows = [{"setup": r["setup"], "tradeCount": r["tradeCount"], "expectancyR": r["expectancyR"],
-             "sample": r["avgRStat"]["band"]} for r in records]
+             "sample": r["avgRStat"]["band"], "sampleN": r["avgRStat"]["n"]} for r in records]
     ranked = sorted((r for r in rows if r["sample"] != "too_few"), key=_rank_key_sampled)
     unranked = sorted((r for r in rows if r["sample"] == "too_few"),
                       key=lambda r: (-r["tradeCount"], r["setup"]))
@@ -124,8 +129,9 @@ def _tickers(conn: sqlite3.Connection, user_id: str, year: int) -> list[dict]:
     """Member-wide (R-T3-T7-R4): no account predicate, because notes are written without one."""
     # A one-day margin each side in SQL (created_at is a UTC stamp); the ET year is decided below.
     lo, hi = f"{year - 1}-12-31", f"{year + 1}-01-02"
+    # fin-data I3: a sample-notebook note is an example to read, never a fact about the member.
     where = ("n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
-             " AND n.created_at >= ? AND n.created_at < ?")
+             " AND n.created_at >= ? AND n.created_at < ? AND " + sample_marker.not_sample_sql("n"))
     args: list[Any] = [user_id, lo, hi]
     notes = {r["id"]: r for r in conn.execute(
         f"SELECT n.id, n.ticker, n.created_at FROM j2_notes n WHERE {where}", args).fetchall()

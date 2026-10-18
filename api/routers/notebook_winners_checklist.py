@@ -15,7 +15,7 @@ The rules (the My Playbook router's shape, `notebook_playbook.py`; fix round 1, 
   * MEMBER-SCOPED: every read is keyed on the session member's id; `account_id` only narrows the
     member's OWN trades and rules (another member's account id matches nothing). The picker's
     All Accounts value `'_all_'` and an empty value both mean no account (ruling R-T3-T7-R6,
-    `notebook_wrapped.plain_account_id`).
+    `unified_coach.plain_account_id`).
 """
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.routers.notebook_wrapped import plain_account_id
 from api.services.journal_two import checklist_suggestions
+from api.services.journal_two.unified_coach import plain_account_id
 
 
 def _require_tier3() -> None:

@@ -160,9 +160,9 @@ def test_the_top_three_setups_by_expectancy_with_counts_and_bands(conn):
     out = wrapped.year_wrapped(conn, "u1", 2025, None)
     assert out["available"] is True and out["year"] == 2025 and out["tradeCount"] == 63
     assert out["bestSetups"] == [
-        {"setup": "A", "tradeCount": 12, "expectancyR": 2.0, "sample": "thin"},
-        {"setup": "B", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin"},
-        {"setup": "C", "tradeCount": 30, "expectancyR": 0.5, "sample": "normal"},
+        {"setup": "A", "tradeCount": 12, "expectancyR": 2.0, "sample": "thin", "sampleN": 12},
+        {"setup": "B", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin", "sampleN": 10},
+        {"setup": "C", "tradeCount": 30, "expectancyR": 0.5, "sample": "normal", "sampleN": 30},
     ]
 
 
@@ -183,9 +183,18 @@ def test_the_band_follows_the_r_bearing_trades_so_two_r_values_in_thirty_cannot_
     _setup_trades(conn, aid, "VCP", [1.2] * 25)                  # 25 trades, all with an R
     best = wrapped.year_wrapped(conn, "u1", 2025, None)["bestSetups"]
     assert best == [
-        {"setup": "VCP", "tradeCount": 25, "expectancyR": 1.2, "sample": "normal"},
-        {"setup": "EP", "tradeCount": 30, "expectancyR": 4.0, "sample": "too_few"},
+        {"setup": "VCP", "tradeCount": 25, "expectancyR": 1.2, "sample": "normal", "sampleN": 25},
+        {"setup": "EP", "tradeCount": 30, "expectancyR": 4.0, "sample": "too_few", "sampleN": 2},
     ]
+
+
+def test_an_expectancy_tie_goes_to_the_larger_r_bearing_count_not_the_larger_trade_count(conn):
+    """N3: the tie-break follows the n the expectancy rests on (sampleN), like the band."""
+    aid = _account(conn)
+    _setup_trades(conn, aid, "X", [1.0] * 10 + [None] * 10)     # 20 trades, 10 with an R
+    _setup_trades(conn, aid, "Y", [1.0] * 15)                   # 15 trades, 15 with an R
+    best = wrapped.year_wrapped(conn, "u1", 2025, None)["bestSetups"]
+    assert [(b["setup"], b["tradeCount"], b["sampleN"]) for b in best] == [("Y", 15, 15), ("X", 20, 10)]
 
 
 def test_expectancy_is_playbook_stats_own_number_never_recomputed(conn, monkeypatch):
@@ -217,6 +226,21 @@ def test_a_note_counts_once_per_symbol_and_trashed_and_archived_notes_count_nowh
     _note(conn, created="2025-06-01T15:00:00Z", ticker="NVDA", user_id="u2")         # another member
     assert wrapped.year_wrapped(conn, "u1", 2025, None)["tickers"] == [
         {"symbol": "NVDA", "noteCount": 3}, {"symbol": "AMD", "noteCount": 1}]
+
+
+def test_a_sample_notebook_note_is_never_a_note_the_member_wrote(conn):
+    """fin-data I3: the sample's example notes name real tickers; they count nowhere."""
+    from api.services.journal_two import sample_marker
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+    sample = _note(conn, created="2025-02-01T15:00:00Z", ticker="NVDA", mentions=["AAPL"])
+    conn.execute("UPDATE j2_notes SET import_source = ? WHERE id = ?", (sample_marker.SAMPLE_SOURCE, sample))
+    _note(conn, created="2025-02-02T15:00:00Z", ticker="MSFT")                     # control: the member's own
+    conn.commit()
+    assert wrapped.year_wrapped(conn, "u1", 2025, None)["tickers"] == [{"symbol": "MSFT", "noteCount": 1}]
+    conn.execute("UPDATE j2_notes SET import_source = 'file' WHERE id = ?", (sample,))  # same note, imported
+    conn.commit()
+    assert {t["symbol"] for t in wrapped.year_wrapped(conn, "u1", 2025, None)["tickers"]} == {"NVDA", "AAPL", "MSFT"}
 
 
 def test_a_note_is_in_the_year_of_its_et_day_and_the_list_stops_at_five(conn):
@@ -265,7 +289,8 @@ def test_an_analytics_excluded_trade_counts_nowhere(conn):
     out = wrapped.year_wrapped(conn, "u1", 2025, None)
     assert out["tradeCount"] == 10
     assert {d["month"]: d["tradeCount"] for d in out["discipline"]}["2025-03"] == 10
-    assert out["bestSetups"] == [{"setup": "VCP", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin"}]
+    assert out["bestSetups"] == [{"setup": "VCP", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin",
+                                  "sampleN": 10}]
     assert sum(s["tradeCount"] for s in out["bestSetups"]) <= out["tradeCount"]
 
 
@@ -476,6 +501,17 @@ def test_the_pickers_all_accounts_value_means_no_account(client, conn):
     for value in ("_all_", ""):
         body = client.get(f"{URL}/2025", params={"account_id": value}).json()
         assert (body["tradeCount"], body["available"]) == (2, True), value
+
+
+def test_the_one_all_accounts_helper_beside_the_sentinel():
+    """N2: unified_coach.plain_account_id is the only copy; the routers and review_drafts import it."""
+    from api.routers import notebook_winners_checklist, notebook_wrapped
+    from api.services.journal_two import review_drafts, unified_coach
+    f = unified_coach.plain_account_id
+    assert [f(None), f(""), f(unified_coach.UNIFIED_ACCOUNT_ID), f("acct-1")] == [None, None, None, "acct-1"]
+    assert notebook_wrapped.plain_account_id is f
+    assert notebook_winners_checklist.plain_account_id is f
+    assert review_drafts.plain_account_id is f and not hasattr(review_drafts, "_plain_account_id")
 
 
 def test_an_overlong_account_id_is_refused(client):

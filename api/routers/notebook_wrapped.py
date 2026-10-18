@@ -13,8 +13,8 @@ R-T3-T7-R1):
     refused them (tests/test_user_definitions_auth.py reads the sentence as a literal).
   * MEMBER-SCOPED: every read is keyed on the session member's id; `account_id` only narrows the
     member's OWN trades and rules (another member's account id matches nothing). The picker's
-    All Accounts value `'_all_'` (unified_coach.UNIFIED_ACCOUNT_ID) and an empty value both mean
-    no account (ruling R-T3-T7-R6); the service never sees the sentinel.
+    All Accounts value `'_all_'` and an empty value both mean no account (ruling R-T3-T7-R6,
+    `unified_coach.plain_account_id`, beside the sentinel); the service never sees the sentinel.
   * THE YEAR: 2000 up to the current ET year, else 400 with wrapped.YEAR_UNAVAILABLE_SENTENCE.
 """
 from __future__ import annotations
@@ -25,12 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import wrapped
-from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
-
-
-def plain_account_id(account_id: str | None) -> str | None:
-    """R-T3-T7-R6: `'_all_'` and empty mean All Accounts, which the services spell None."""
-    return None if not account_id or account_id == UNIFIED_ACCOUNT_ID else account_id
+from api.services.journal_two.unified_coach import plain_account_id
 
 
 def _require_tier3() -> None:

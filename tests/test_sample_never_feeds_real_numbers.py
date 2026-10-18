@@ -409,6 +409,8 @@ GUARDED = {
     "api/services/journal_two/followup_prefill.py": "the earnings follow-up links the member's own prep note on "
                                                      "the ticker; an example prep note is never linked into a real "
                                                      "follow-up",
+    "api/services/journal_two/wrapped.py": "Your trading year's most-written tickers: an example note's ticker "
+                                            "or $mention is never a note the member wrote",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
