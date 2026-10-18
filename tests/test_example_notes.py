@@ -749,9 +749,13 @@ def test_the_title_is_capped_as_typed_and_its_scrubbed_form_is_previewed(api, co
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": typed})
     assert r.status_code == 200, r.text
     assert r.json()["template"]["title"] == pv["title"]
+    # P3b-T3-R5: never refused for length -- scrubbed first, then shortened
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "x" * (gallery.MAX_TITLE_CHARS + 1)})
-    assert (r.status_code, r.json()["detail"]) == (400, "The title can be at most 80 characters.")
+    assert r.status_code == 200, r.text
+    assert r.json()["template"]["title"] == "x" * (gallery.MAX_TITLE_CHARS - 1) + "…"
     assert api.post(f"{EX}/preview", json={"noteId": nid, "title": 7}).status_code == 400
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "   "})
+    assert (r.status_code, r.json()["detail"]) == (400, "A gallery template needs a title.")
 
 
 def test_the_preview_reduces_the_note_once(api, conn, ex_on, ocr, monkeypatch):
@@ -809,3 +813,116 @@ def test_every_publish_route_charges_and_refunds_the_same_way(api, conn, ex_on, 
         assert daily_counters.value(et_today(), "notebook_gallery_publish", "author") == before, name
     src = Path(router_mod.__file__).read_text(encoding="utf-8")
     assert src.count("_daily_take(DAILY_PUBLISH_SCOPE") == 1                              # one copy
+
+
+# ── fix round 2 ─────────────────────────────────────────────────────────────────────────────
+
+def test_six_emails_in_a_title_are_scrubbed_then_shortened_never_refused(api, conn, ex_on, ocr):
+    """P3b-T3-R5 (re-review N-3): the reviewer's case. 41 typed characters grow past 80 under the scrub; the
+    title is scrubbed first and then shortened, on the preview and on publish alike."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    typed = "a@b.co " * 6
+    assert len(typed.strip()) <= gallery.MAX_TITLE_CHARS
+    pv = api.post(f"{EX}/preview", json={"noteId": nid, "title": typed})
+    assert pv.status_code == 200, pv.text
+    title = pv.json()["title"]
+    assert "@" not in title and len(title) <= gallery.MAX_TITLE_CHARS and title.endswith("\u2026")
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": typed})
+    assert r.status_code == 200, r.text
+    assert r.json()["template"]["title"] == title
+
+
+def test_a_preview_with_no_title_takes_the_notes_title_through_the_same_path(api, conn, ex_on, ocr):
+    """R5: a note title that grows under the scrub never fails the preview; it is shortened like a typed one."""
+    nid = _note(conn, title="mail a@b.co " * 6 + "made $1,240")
+    pv = api.post(f"{EX}/preview", json={"noteId": nid})
+    assert pv.status_code == 200, pv.text
+    t = pv.json()["title"]
+    assert "@" not in t and "$" not in t and len(t) <= gallery.MAX_TITLE_CHARS
+    assert t == api.post(f"{EX}/preview", json={"noteId": nid, "title": "mail a@b.co " * 6 + "made $1,240"}).json()["title"]
+
+
+def test_the_preview_offers_only_images_the_full_reduction_can_keep(api, conn, ex_on, ocr):
+    """P3b-T3-R4 (re-review N-2): an image inside a node the policy drops is never offered."""
+    nid = _note(conn, images=("slow.png",))
+    body = json.loads(conn.execute("SELECT body_json FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0])
+    body["content"].insert(0, {"type": "askInsert", "attrs": {}, "content": [
+        {"type": "image", "attrs": {"src": _src("author", nid, "read.png")}}]})
+    conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (json.dumps(body), nid))
+    conn.commit()
+    every = [_src("author", nid, n) for n in ("read.png", "slow.png")]
+    out = api.post(f"{EX}/preview", json={"noteId": nid, "imagesOn": every}).json()
+    assert _images(out["bodyJson"]) == [_src("author", nid, "slow.png")]
+    assert [i["name"] for i in out["images"]] == ["slow.png"]                 # read.png is never offered
+    off = api.post(f"{EX}/preview", json={"noteId": nid}).json()
+    assert [i["name"] for i in off["images"]] == ["slow.png"]                 # and not when nothing is on
+
+
+def test_author_handle_ends_its_own_transaction_when_it_loses_the_mint_race(conn, monkeypatch):
+    """P3b-T3-R3 (re-review N-1): another request mints this author's handle between the read and the insert."""
+    conn.execute("DELETE FROM j2_gallery_authors WHERE user_id = 'racer'")
+    conn.commit()
+    real = gallery.secrets.token_urlsafe
+
+    def winner_first(n):
+        other = sqlite3.connect(os.environ["AUTH_DB_PATH"])
+        other.execute("INSERT INTO j2_gallery_authors (user_id, handle, created_at) VALUES ('racer', 'won-it', 'x')")
+        other.commit()
+        other.close()
+        return real(n)
+    monkeypatch.setattr(gallery.secrets, "token_urlsafe", winner_first)
+    assert gallery.author_handle("racer", conn) == "won-it"
+    assert not conn.in_transaction
+
+
+def test_a_publish_that_loses_the_handle_mint_race_still_publishes(api, conn, ex_on, ocr, monkeypatch):
+    """R3, end to end: the lost race leaves no transaction behind, so the publish takes its write lock."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    conn.execute("DELETE FROM j2_gallery_authors WHERE user_id = 'author'")
+    conn.commit()
+    real = gallery.secrets.token_urlsafe
+
+    def winner_first(n):
+        other = sqlite3.connect(os.environ["AUTH_DB_PATH"])
+        other.execute("INSERT OR IGNORE INTO j2_gallery_authors (user_id, handle, created_at)"
+                      " VALUES ('author', 'won-it', 'x')")
+        other.commit()
+        other.close()
+        return real(n)
+    monkeypatch.setattr(gallery.secrets, "token_urlsafe", winner_first)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert r.status_code == 200, r.text
+    assert r.json()["template"]["authorHandle"] == "won-it"
+
+
+def test_a_style_withdrawn_while_the_note_is_reduced_is_refused_under_the_lock(api, conn, ex_on, ocr, monkeypatch):
+    """P3b-T3-R6 (re-review N-4): the style is checked again inside the lock, just before the write."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    real = gallery._reduce_example
+
+    def withdraw_meanwhile(*a, **k):
+        out = real(*a, **k)
+        if k.get("item_id") != gallery._PREVIEW_ITEM_ID:
+            assert gallery.unpublish("author", sid)                  # another tab, its own connection
+        return out
+    monkeypatch.setattr(gallery, "_reduce_example", withdraw_meanwhile)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, "Pick one of your own shared styles.")
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE item_type = 'example_note'").fetchone()[0] == 0
+
+
+def test_a_style_hidden_while_the_note_is_reduced_is_refused_too(api, conn, ex_on, ocr, monkeypatch):
+    sid = _shared_style(conn, approve=True)
+    nid = _note(conn)
+    real = gallery._reduce_example
+
+    def hide_meanwhile(*a, **k):
+        out = real(*a, **k)
+        gallery.admin_act("admin", sid, "hide")
+        return out
+    monkeypatch.setattr(gallery, "_reduce_example", hide_meanwhile)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, "Pick one of your own shared styles.")

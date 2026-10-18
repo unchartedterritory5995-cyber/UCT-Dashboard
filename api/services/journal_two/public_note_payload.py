@@ -1027,7 +1027,7 @@ class _Ctx:
                  note_links: Mapping[str, tuple[str, str]], attachment_base: str = "", *,
                  images_on: frozenset = frozenset(), brokers: tuple[str, ...] = (),
                  image_src_for: Callable[[str], str] | None = None, report: list | None = None,
-                 owner_id: str = "", note_id: str = ""):
+                 owner_id: str = "", note_id: str = "", offered: list | None = None):
         self.mode = mode
         self.facts = facts
         self.note_links = note_links
@@ -1041,6 +1041,8 @@ class _Ctx:
         #: the AUTHOR'S institution names; example_sanitize always adds the house list (fail closed)
         self.brokers = tuple(brokers or ()) if self.example else ()
         self.report = report if self.example and isinstance(report, list) else None
+        #: P3b-T3-R4: every image of THIS note the walk reaches (so one the author may switch on), in walk order
+        self.offered = offered if self.example and isinstance(offered, list) else None
         self.path: list[int] = []                     # child indices from the doc root (change entries)
         self.attr_policy = _example_attr_policy(self) if self.example else ATTR_POLICY_BY_MODE[mode]
 
@@ -1394,6 +1396,8 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
     if action == "opt-in-image":                     # example mode: the author's switch (P3b-R3)
         attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
         src = attrs.get("src")
+        if ctx.offered is not None and _own_attachment(src, ctx) and src not in ctx.offered:
+            ctx.offered.append(src)                  # P3b-T3-R4: reached by THIS walk, so it can be kept
         # P3b-T2-R13: THIS note's own attachment AND switched on, whatever images_on says; and the
         # rewritten address must be the gallery image route, nothing else.
         public = ctx.image_src_for(src) if (_own_attachment(src, ctx) and src in ctx.images_on
@@ -1464,6 +1468,7 @@ def reduce(
     brokers: tuple[str, ...] = (),
     image_src_for: Callable[[str], str] | None = None,
     report: list | None = None,
+    offered: list | None = None,
 ) -> dict:
     """The public copy of one note's body.
 
@@ -1479,7 +1484,9 @@ def reduce(
     `BROKER_NAMES` always apply, any case); `report`, when a list, receives one
     `{kind, before, after, path}` change entry per replacement -- `path` addresses the REDUCED
     body (see the module docstring's table), and `before` (at most 60 characters of the author's
-    text) is for the author's preview only.
+    text) is for the author's preview only. `offered`, when a list, receives the ORIGINAL `src` of each of
+    THIS note's own images the walk reaches, switched on or not -- the images the author may switch on: one
+    inside a node the policy drops is never reached, so never offered (P3b-T3-R4).
     """
     if mode not in MODES:
         raise ValueError(f"unknown public mode {mode!r}")
@@ -1490,7 +1497,8 @@ def reduce(
         # never through this note's share/publish proxy
         raw = raw.replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
     ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base, images_on=images_on, brokers=brokers,
-               image_src_for=image_src_for, report=report, owner_id=owner_id, note_id=note_id)
+               image_src_for=image_src_for, report=report, owner_id=owner_id, note_id=note_id,
+               offered=offered)
     reduced = _reduce_node(json.loads(raw), ctx)
     if not reduced or reduced[0].get("type") != "doc":
         return {"type": "doc", "content": [{"type": "paragraph"}]}

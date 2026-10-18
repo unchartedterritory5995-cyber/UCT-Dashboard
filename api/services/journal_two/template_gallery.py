@@ -453,7 +453,9 @@ def author_handle(user_id: str, conn: sqlite3.Connection) -> str:
             return handle
         except sqlite3.IntegrityError:
             # Either the handle is taken (draw again) or another request minted this author's handle first
-            # (use theirs: one author, one handle).
+            # (use theirs: one author, one handle). P3b-T3-R3: the failed insert left the implicit transaction
+            # open; end it here, as the success path's commit does, so no caller inherits it.
+            conn.rollback()
             row = conn.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (user_id,)).fetchone()
             if row:
                 return row["handle"]
@@ -1169,7 +1171,7 @@ def _image_nodes(doc: Any):
 
 
 def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, brokers: tuple[str, ...],
-                    item_id: str, report: list | None) -> tuple[dict, list[str]]:
+                    item_id: str, report: list | None, offered: list | None = None) -> tuple[dict, list[str]]:
     """The example copy of a note's body, and the ORIGINAL address of each image it keeps, by its `n`.
 
     Each switched-on image the reducer keeps is rewritten to `EXAMPLE_IMAGE_PATH` with its `n`: its place
@@ -1185,7 +1187,7 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
 
     reduced = public.reduce(body, mode="example", owner_id=user_id, note_id=note_id, attachment_base="",
                             images_on=frozenset(s for s in images_on or () if isinstance(s, str)),
-                            brokers=brokers, image_src_for=src_for, report=report)
+                            brokers=brokers, image_src_for=src_for, report=report, offered=offered)
     kept: list[str] = []
     for node in _image_nodes(reduced):
         src = node["attrs"].get("src")
@@ -1197,6 +1199,11 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
             kept.append(original)
         node["attrs"] = {**node["attrs"], "src": f"{prefix}{kept.index(original)}"}
     return reduced, kept
+
+
+#: `_example_title` caps by truncation after the scrubs, so gallery's `_clean_text` is asked for no cap of its own.
+#: The request body is already capped (the router's MAX_BODY_BYTES), which bounds the text the scrubs read.
+_NO_TITLE_LIMIT = 10 ** 9
 
 
 def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
@@ -1211,12 +1218,13 @@ def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
 
 
 def _example_title(raw: Any, brokers: tuple[str, ...], *, required: bool = True) -> str:
-    """The title other members see (review M-3). The 80-character cap is on what the author TYPED (gallery's
-    `_clean_text`, which also refuses anything but text); then the example text pass runs, and a scrubbed title
-    that grew past the cap ("$1" becomes "your value here") is shortened with an ellipsis rather than refused
-    for a length the author never typed. The preview shows this same title."""
-    typed = _clean_text(raw, field="title", limit=MAX_TITLE_CHARS, required=required)
-    scrubbed = " ".join(str(_example_text(typed, brokers)).split())
+    """The title other members see (P3b-T3-R5). SCRUBBED FIRST -- gallery's text scrub (`_clean_text`, which also
+    refuses anything but text, and an empty title when one is required), then the example text pass -- and only
+    then capped at `MAX_TITLE_CHARS` by shortening it with an ellipsis. A title is never refused for its length:
+    a scrub grows text ("$1" becomes "your value here", an email "email address"), so a length the author never
+    typed must never be the reason. The preview, with or without a typed title, shows this same title."""
+    cleaned = _clean_text(raw, field="title", limit=_NO_TITLE_LIMIT, required=required)
+    scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
     if len(scrubbed) > MAX_TITLE_CHARS:
         scrubbed = scrubbed[: MAX_TITLE_CHARS - 1].rstrip() + "…"
     return scrubbed
@@ -1274,24 +1282,19 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         if note is None:
             return None
         brokers = _author_brokers(conn, user_id)
-        shown_title = _example_title(note["title"][:MAX_TITLE_CHARS] if title is None else title, brokers,
-                                     required=False)
+        shown_title = _example_title(note["title"] if title is None else title, brokers, required=False)
         changes: list[dict] = []
+        # The images the author may switch on are the ones THIS reduction's walk reaches (P3b-T3-R4): the reducer
+        # records each of this note's own images it meets, switched on or not, so one inside a node the policy
+        # drops is never offered. One reduction, one walk, never a second copy of the own-attachment check.
+        offered: list[str] = []
         body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
-                                     brokers=brokers, item_id=_PREVIEW_ITEM_ID, report=changes)
+                                     brokers=brokers, item_id=_PREVIEW_ITEM_ID, report=changes, offered=offered)
         prefix = EXAMPLE_IMAGE_PATH.format(item_id=_PREVIEW_ITEM_ID)
         for node in _image_nodes(body):
             tail = str(node["attrs"].get("src") or "")[len(prefix):]
             if tail.isdigit() and int(tail) < len(kept):
                 node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
-        # The images the author may switch on: the reducer's own answer (its own-attachment check), asked of a
-        # document holding ONLY the note's images, every one switched on (review M-2: never a second reduction
-        # of the whole note). Never a second copy of that check.
-        images_only = {"type": "doc", "content": [{"type": "image", "attrs": dict(n["attrs"])}
-                                                  for n in _image_nodes(note["body"])]}
-        candidates = [n["attrs"].get("src") for n in images_only["content"]]
-        _, offered = _reduce_example(images_only, user_id=user_id, note_id=note["id"], images_on=candidates,
-                                     brokers=(), item_id=_PREVIEW_ITEM_ID, report=None)
         images = []
         for src in offered:
             state, warnings = _image_ocr(conn, user_id, note["id"], src, brokers)
@@ -1385,7 +1388,11 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
             raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
         preview = json.dumps(preview_lines(body))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
-        conn.execute("BEGIN IMMEDIATE")              # the lookup and the write cannot interleave with a twin
+        if not conn.in_transaction:                  # P3b-T3-R3 (M-8 refuses a caller's open transaction above)
+            conn.execute("BEGIN IMMEDIATE")          # the lookup and the write cannot interleave with a twin
+        # P3b-T3-R6: the style is linkable AGAIN, under the lock, just before the write -- one withdrawn, hidden
+        # or rejected while the note was being reduced is the same sentence, and nothing is written.
+        style = _linkable_style(conn, user_id, style["id"])
         existing = conn.execute(
             "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ? AND item_type = ?"
             " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
