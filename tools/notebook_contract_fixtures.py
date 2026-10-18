@@ -91,6 +91,8 @@ FLAGS = (
 
     # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
     "JOURNAL_TIER3_ENABLED",
+    # Notebook P4b: sharing a page layout through the library (server-only; needs the library and page layouts too).
+    "NOTEBOOK_LAYOUT_SHARING_ENABLED",
 )
 
 

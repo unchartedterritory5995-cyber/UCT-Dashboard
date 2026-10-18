@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
 import uuid
@@ -63,7 +64,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import public_note_payload as public
-from api.services.notebook_flags import flag_on
+from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 
@@ -135,6 +136,23 @@ def enabled() -> bool:
 def library_enabled() -> bool:
     """P3a's gate, read PER CALL through the one Notebook flag parse (default OFF)."""
     return flag_on(LIBRARY_FLAG, False)
+
+
+#: P4b (R-P4b-10): the layout-sharing switch. SERVER-ONLY: it is not in `auth.NOTEBOOK_FLAGS` and has no client
+#: fallback row (a payload key would cost first-open bytes); the lazy library list reports it as
+#: `capabilities.layoutSharing` and `GET /layouts/status` answers 404 while it is off. Read per call with a plain
+#: `os.environ.get` (a `flag_on` call is for payload flags), and it needs the library AND page layouts too.
+LAYOUT_SHARING_FLAG = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
+PAGE_LAYOUTS_FLAG = "JOURNAL_PAGE_LAYOUTS_ENABLED"
+
+
+def layout_sharing_enabled() -> bool:
+    """P4b's gate: all three switches on, read PER CALL. Default OFF; an unrecognised value is OFF.
+
+    The fourth switch, the gallery's own (`FLAG`), is the router's dependency, not part of this function,
+    exactly as `library_enabled` leaves it to the router: every route that calls this is behind it."""
+    return (library_enabled() and flag_on(PAGE_LAYOUTS_FLAG, False)
+            and (os.environ.get(LAYOUT_SHARING_FLAG) or "").strip().lower() in TRUTHY)
 
 
 def _now() -> str:
