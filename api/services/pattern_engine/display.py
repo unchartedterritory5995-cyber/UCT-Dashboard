@@ -40,7 +40,15 @@ defects. `annotate` also stamps the display-only fixes for them, again under
   draw_round    bull_flag: BULL_FLAG_DRAW_ROUND, set only on a flag that came
                 through every verdict and the overlap pass and is drawn. The
                 member set reads it (auto_structures.member_rows); nothing draws
-                from it.
+                from it. uct_flat_top_breakout: FLAT_TOP_DRAW_ROUND, set only
+                beside draw_flat_top.
+  draw_flat_top uct_flat_top_breakout: {price, start_t, end_t, touches, label,
+                variant} -- the "flat top" ceiling (base top cluster) and one
+                marker per touch group, drawn only when the detection's
+                trigger IS the scan's last bar and the lab v2 rule holds there
+                (`flat_top_drawing`). Every other uct_flat_top_breakout row is
+                left exactly as the detector built it: no key is added, so it
+                draws for admins as before and never reaches a member.
 
 v3 follow-ups (REPORT_TIERS_V3.md, 2026-10-17), still display-only:
   * draw_ema always spans at least PULLBACK_EMA_MIN_BARS bars ending on the
@@ -425,6 +433,24 @@ LANE_MIN_BODY_ATR = 0.5
 #: older drawing code, or whose verdicts crashed part-way, never reaches a member. Bump it with every
 #: new bull_flag drawing round.
 BULL_FLAG_DRAW_ROUND = 9
+# -- uct_flat_top_breakout: the member "flat top" ceiling (lab flattop_draw_v2, 2026-10-18). v1 (every
+# confirmed fire) failed its blind packet: lines hanging from one old wick spike. v2 draws only when the
+# ceiling was really tested, and passed two fresh blind packets: 2.60 [2.30, 2.83] and 2.57 [2.30, 2.80].
+#: The flat-top drawing round this code IS (the v2 draw condition). A uct_flat_top_breakout drawn by
+#: `flat_top_drawing` carries extras.draw_round = FLAT_TOP_DRAW_ROUND; the member set serves only that
+#: round (auto_structures.MEMBER_FLAT_TOP_ROUND, a literal). Bump it with every new flat-top drawing.
+FLAT_TOP_DRAW_ROUND = 2
+#: Confirmed fires only: the breakout variant, or at_line closing no more than this many ATR under H.
+FLAT_TOP_CONFIRMED_POS_ATR = -0.5
+#: G1: at least this many touch groups BEFORE the as-of approach (the approach is not a touch).
+FLAT_TOP_MIN_PRIOR_GROUPS = 3
+#: G2: at least this many of those groups top out within FLAT_TOP_BAND_ATR ATR of the drawn line
+#: (not one isolated spike).
+FLAT_TOP_MIN_BAND_GROUPS = 2
+FLAT_TOP_BAND_ATR = 0.25
+#: G3: price has not run far past the line: (close - line) / ATR at most this.
+FLAT_TOP_MAX_EXT_ATR = 1.5
+FLAT_TOP_LABEL = "flat top"
 # -- Cup round 6 (lab REPORT_TEAM_SET_R5.md, 2026-10-17). Calibrated on the 62 bc:cup-with-handle cases
 # judged in team rounds 1-5 (35 of them drawn at the round-5 code); no threshold removes a cup judged 3.
 #: cup handle: the box is the PULLBACK from the right side's peak (`pullback_handle`), at most this many
@@ -1212,6 +1238,59 @@ def flat_top_verdict(bars: list, start_t, end_t, price):
     return True, None
 
 
+def flat_top_drawing(bars: list, i: int):
+    """(drawing, reason) for the member "flat top" ceiling of a uct_flat_top_breakout fire at bar
+    `i`, from bars[:i+1] only. The rule, ATR and touches are the detector's own (features / decide /
+    series, parity-pinned to the lab); the line is `robust_top` over first touch .. i-1 (the base's
+    top cluster). Drawn only when ALL hold, else (None, reason):
+      unconfirmed   at_line closing more than FLAT_TOP_CONFIRMED_POS_ATR ATR under the ceiling;
+      few_touches   fewer than FLAT_TOP_MIN_PRIOR_GROUPS touch groups once the as-of APPROACH is
+                    dropped (the last group, when its last touch is at i-2 or later: under the rule's
+                    own 3-session grouping it would join bar i's group);
+      single_spike  fewer than FLAT_TOP_MIN_BAND_GROUPS of those groups top out within
+                    FLAT_TOP_BAND_ATR ATR of the line;
+      extended      the close more than FLAT_TOP_MAX_EXT_ATR ATR above the line;
+      no_fire       the rule does not fire at i.
+    drawing = {price, start_t, end_t, touches: [{t, price}] (the highest high of EVERY touch group,
+    the approach included), label, variant}."""
+    from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
+    from api.services.pattern_engine.detectors.uct import uct_setups_common as U
+    if not isinstance(i, int) or isinstance(i, bool) or i < 1 or i >= len(bars):
+        return None, "no_fire"
+    b = bars[:i + 1]
+    S = U.series(b)
+    f = FT.features(b, S, i)
+    v = FT.decide(f) if f is not None else None
+    if v is None:
+        return None, "no_fire"
+    if not (v == "breakout" or (v == "at_line" and f["pos"] >= FLAT_TOP_CONFIRMED_POS_ATR)):
+        return None, "unconfirmed"
+    a = S["atr"][i]
+    groups, last = [], -99
+    for j in f["touch_idx"]:
+        if j - last >= FT.FT_GAP:
+            groups.append([])
+        groups[-1].append(j)
+        last = j
+    k0 = groups[0][0]
+    line = robust_top(b, k0, i - 1, a)
+    if line is None:
+        return None, "no_fire"
+    approach = groups[-1][-1] >= i - (FT.FT_GAP - 1)
+    prior = groups[:-1] if approach else groups
+    if len(prior) < FLAT_TOP_MIN_PRIOR_GROUPS:
+        return None, "few_touches"
+    tops = [max(float(b[j]["h"]) for j in g) for g in prior]
+    if sum(1 for t in tops if abs(t - line) <= FLAT_TOP_BAND_ATR * a) < FLAT_TOP_MIN_BAND_GROUPS:
+        return None, "single_spike"
+    if (float(b[i]["c"]) - line) / a > FLAT_TOP_MAX_EXT_ATR:
+        return None, "extended"
+    touches = [max(g, key=lambda j: (float(b[j]["h"]), j)) for g in groups]
+    return {"price": float(line), "start_t": b[k0]["t"], "end_t": b[i]["t"],
+            "touches": [{"t": b[j]["t"], "price": float(b[j]["h"])} for j in touches],
+            "label": FLAT_TOP_LABEL, "variant": v}, None
+
+
 def flag_shape_verdict(bars: list, pos: dict, d: dict):
     """(draw, reason) for a bull_flag's SHAPE. Round 4 (REPORT_TEAM_SET_R3.md: slow-grind poles,
     2-3 bar flags, flags sloping up):
@@ -1898,6 +1977,19 @@ def draw_geometry(detections: list, bars: list) -> list:
                           for j in range(start, len(bars)) if series[j] is not None]
                 if len(points) >= 2:
                     geom.setdefault("extras", {})["draw_ema"] = {"period": period, "points": points}
+            elif pid == "uct_flat_top_breakout":
+                # The member "flat top" ceiling (lab flattop_draw_v2): the lab drew it AS OF the fire's
+                # own session, on bars up to that session. So it is drawn only when the trigger is the
+                # last bar here (trigger_bars_ago == 0) and the v2 rule holds there; an older trigger
+                # (the bars after it were never judged), a malformed offset or any failed condition
+                # adds NOTHING to the row.
+                ex = geom.get("extras")
+                ago = ex.get("trigger_bars_ago") if isinstance(ex, dict) else None
+                if type(ago) is int and ago == 0:
+                    ft, _why = flat_top_drawing(bars, len(bars) - 1)
+                    if ft is not None:
+                        ex["draw_flat_top"] = ft
+                        ex["draw_round"] = FLAT_TOP_DRAW_ROUND
             elif pid == "bull_flag":
                 extras = geom.setdefault("extras", {})
                 pts = d.get("pivot_ts") or []
