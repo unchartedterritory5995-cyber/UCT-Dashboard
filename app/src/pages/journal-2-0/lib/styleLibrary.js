@@ -1,5 +1,6 @@
 /**
- * P3a: the community STYLE library's client lists and calls. LAZY-ONLY: import this file only from
+ * P3a: the community STYLE library's client lists and calls; P4b adds shared PAGE LAYOUTS (the
+ * `page_layout` item type and the `layoutSharing` capability). LAZY-ONLY: import this file only from
  * the lazy TemplateGallery chunk or the lazy styles chunk, never from an eager Notebook
  * file (the first-open byte budget, R-P3-5).
  *
@@ -21,6 +22,7 @@ import { styleLibraryEnabled } from './styleLibraryFlag'
 export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
   { key: 'style', label: 'Styles' },
+  { key: 'page_layout', label: 'Page layouts' },
 ])
 
 export const TRADING_STYLES = Object.freeze([
@@ -85,10 +87,18 @@ export function libraryListKey({ q = '', category = '', sort = 'newest', section
   return qs ? `${GALLERY_KEY}?${qs}` : GALLERY_KEY
 }
 
-/** One view of the library: `{templates, isAdmin, error, isLoading, refresh}`. */
+/** One view of the library: `{templates, isAdmin, layoutSharing, error, isLoading, refresh}`. P4b:
+ *  `layoutSharing` is the server-only switch as the list answer reports it; a missing key is false. */
 export function useLibraryList(filters, { enabled = true } = {}) {
   const { data, error, isLoading, mutate } = useSWR(enabled ? libraryListKey(filters) : null, fetcher, SWR_OPTS)
-  return { templates: data?.templates || [], isAdmin: Boolean(data?.viewer?.admin), error, isLoading, refresh: mutate }
+  return {
+    templates: data?.templates || [],
+    isAdmin: Boolean(data?.viewer?.admin),
+    layoutSharing: data?.capabilities?.layoutSharing === true,
+    error,
+    isLoading,
+    refresh: mutate,
+  }
 }
 
 /** What the authors this member follows have listed (the Following view). */

@@ -322,7 +322,7 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     # P3a Task 11 — the community style library.
     "library_viewed": {
-        "type": ("all", "outline", "style"),
+        "type": ("all", "outline", "style", "page_layout"),
         "view": ("browse", "following", "author"),
     },
     "style_adopted": {

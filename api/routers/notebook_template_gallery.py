@@ -181,14 +181,19 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
     queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
     `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
     library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
-    either while the switch is off, so a member sees today's gallery (final review M-13, item 4)."""
+    either while the switch is off, so a member sees today's gallery (final review M-13, item 4).
+
+    P4b: `capabilities.layoutSharing` is the server-only layout-sharing switch as this answer saw it (R-P4b-10);
+    the lazy library reads it from here, so it costs the first-open closure nothing. `?type=page_layout` passes
+    the service's own check, which refuses it (400) while that switch is off."""
     try:
         items = gallery.list_gallery(user["id"], q=q, category=category or None, sort=sort,
                                      section=section, item_type=item_type or None,
                                      trading_style=trading_style or None, is_admin=_is_admin(user))
     except gallery.GalleryError as e:
         raise _bad(e)
-    return {"templates": items, "viewer": {"admin": _is_admin(user)}}
+    return {"templates": items, "viewer": {"admin": _is_admin(user)},
+            "capabilities": {"layoutSharing": gallery.layout_sharing_enabled()}}
 
 
 @router.get("/admin/queue")

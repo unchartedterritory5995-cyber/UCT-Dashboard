@@ -64,6 +64,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two.page_layout_share import LAYOUT_ITEM
 from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -75,7 +76,7 @@ CATEGORIES = ("trade_plan", "journal", "research", "review")
 LIBRARY_FLAG = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
 #: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
 #: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
-ITEM_TYPES = ("outline", "style")
+ITEM_TYPES = ("outline", "style", LAYOUT_ITEM)
 TRADING_STYLES = ("swing", "day", "prop", "options", "earnings", "long_term")
 SORTS = ("newest", "most_used", "trending")
 TRENDING_DAYS = 7
@@ -278,12 +279,17 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
         ("source_style_id", "TEXT"),
         ("pending_json", "TEXT"),
         ("pending_at", "TEXT"),
+        ("source_page", "TEXT"),
     ):
         if name not in columns:
             conn.execute(f"ALTER TABLE j2_template_gallery ADD COLUMN {name} {ddl}")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_style_source"
                  " ON j2_template_gallery(user_id, source_style_id)"
                  " WHERE user_id IS NOT NULL AND source_style_id IS NOT NULL")
+    # P4b: one live gallery copy per (author, page) -- sharing a page's layout again UPDATES it.
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_layout_source"
+                 " ON j2_template_gallery(user_id, source_page)"
+                 " WHERE user_id IS NOT NULL AND source_page IS NOT NULL")
     conn.commit()
     try:
         seed_firm_templates(conn)
@@ -530,6 +536,8 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "itemType": row["item_type"] if "item_type" in keys else "outline",
         "version": int(row["version"] or 1) if "version" in keys else 1,
         "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
+        # P4b: which page a shared layout is for ('today' | 'trade'); None for every other type.
+        "layoutPage": row["source_page"] if row["item_type"] == LAYOUT_ITEM and "source_page" in keys else None,
         "trendingCount": int(row["trending_count"] or 0) if "trending_count" in keys else 0,
         # P3a Task 6. The count is everyone's; `helpedByMe` is THIS viewer's (the select binds them).
         "helpfulCount": int(row["helpful_count"] or 0) if "helpful_count" in keys else 0,
@@ -578,7 +586,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 #                                      unreadable revision must not take the whole queue down.
 _LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
                  " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
+                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_page,")
 _REVISION_TITLE = ("CASE WHEN json_valid(g.pending_json)"
                    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
 _COMPUTED = (
@@ -671,11 +679,12 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    if not library_enabled():
-        if item_type == "style" or trading_style:
-            raise GalleryError("Unknown item type.")
-        where.append("g.item_type = 'outline'")
-    elif item_type:
+    # ⛔ P4b: the ONE type rule (`_hidden_item_types`). A hidden type asked for by name is unknown (the same 400
+    # as before it existed); a trading-style filter is a library filter, so it still refuses while that is off.
+    if item_type in _hidden_item_types() or (trading_style and not library_enabled()):
+        raise GalleryError("Unknown item type.")
+    where.append(_type_visible_clause())
+    if item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
     if trading_style:
@@ -706,10 +715,27 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
+def _hidden_item_types() -> tuple[str, ...]:
+    """⛔ THE ONE RULE for which item TYPES are absent right now (R-P3-10, R-P4b-10). Every read and write path
+    asks this, never its own copy: list, get, author page, feed, the queue, Helpful, report, adopt, publish."""
+    hidden = []
+    if not library_enabled():
+        hidden.append("style")
+    if not layout_sharing_enabled():
+        hidden.append(LAYOUT_ITEM)
+    return tuple(hidden)
+
+
+def _type_visible_clause() -> str:
+    hidden = _hidden_item_types()
+    return "1" if not hidden else "g.item_type NOT IN (" + ", ".join(f"'{t}'" for t in hidden) + ")"
+
+
 def _library_hides(row: sqlite3.Row) -> bool:
-    """R-T3-w1 (R-P3-10: every style route 404s while the library is off). A style row reads exactly
-    like one that does not exist: for the author and an admin as much as for a browsing member."""
-    return row["item_type"] == "style" and not library_enabled()
+    """R-T3-w1 (R-P3-10: every style route 404s while the library is off; R-P4b-10: every layout route while
+    layout sharing is off). A hidden type's row reads exactly like one that does not exist: for the author and
+    an admin as much as for a browsing member. The decision is `_hidden_item_types`, never a copy here."""
+    return row["item_type"] in _hidden_item_types()
 
 
 def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool) -> bool:
@@ -1522,7 +1548,7 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND g.user_id = ?"
+        where = f"{_VISIBLE} AND g.user_id = ? AND {_type_visible_clause()}"
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -1572,7 +1598,8 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
+                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)"
+                     f" AND {_type_visible_clause()}",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
     finally:
@@ -1588,14 +1615,15 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
-        # held revision) is reviewable only while the library is on.
-        outlines_only = "" if library_enabled() else " AND g.item_type = 'outline'"
+        # R-T3-R2: with the library off the queue is today's -- no style rows. A style row (and its held
+        # revision) is reviewable only while the library is on; a layout row only while layout sharing is on
+        # (R-P4b-10). The decision is the one type rule.
+        visible_types = f" AND {_type_visible_clause()}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in _read(conn, None, f"({where}){outlines_only}", (), list_only=True, queue=queue,
+                    for r in _read(conn, None, f"({where}){visible_types}", (), list_only=True, queue=queue,
                                    tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never
