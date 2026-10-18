@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/wrapped/2027",
+    "note": "A year after the current ET year: the plain sentence, nothing read.",
+    "path": "/api/j2/wrapped/2027",
+    "status": 400
+  },
+  "body": {
+    "detail": "That year isn't available."
+  }
+}

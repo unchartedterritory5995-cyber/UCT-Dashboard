@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/wrapped/2026",
+    "note": "The current ET year before December 1: not_ready, whatever its trades.",
+    "path": "/api/j2/wrapped/2026",
+    "status": 200
+  },
+  "body": {
+    "available": false,
+    "bestSetups": [],
+    "discipline": [],
+    "lessons": [],
+    "tickers": [],
+    "tickersScope": "all",
+    "tradeCount": 2,
+    "unavailableReason": "not_ready",
+    "year": 2026
+  }
+}

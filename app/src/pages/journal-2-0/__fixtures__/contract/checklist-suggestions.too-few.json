@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/insights/checklist-suggestions",
+    "note": "Five winners: under the ten it needs, so nothing is suggested.",
+    "path": "/api/j2/insights/checklist-suggestions",
+    "status": 200
+  },
+  "body": {
+    "bestCount": 0,
+    "restCount": 0,
+    "status": "too_few",
+    "suggestions": [],
+    "winnerCount": 5
+  }
+}

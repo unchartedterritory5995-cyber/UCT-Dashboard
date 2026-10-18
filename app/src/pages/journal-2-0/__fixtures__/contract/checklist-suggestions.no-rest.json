@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/insights/checklist-suggestions",
+    "note": "Twelve winners and no other trade: all are among the best, so there is no rest to compare with (restCount 0) and nothing is suggested.",
+    "path": "/api/j2/insights/checklist-suggestions",
+    "status": 200
+  },
+  "body": {
+    "bestCount": 12,
+    "restCount": 0,
+    "status": "ok",
+    "suggestions": [],
+    "winnerCount": 12
+  }
+}

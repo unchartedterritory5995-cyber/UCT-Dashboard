@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/wrapped/2024",
+    "note": "A past year with no closed trade: no_trades.",
+    "path": "/api/j2/wrapped/2024",
+    "status": 200
+  },
+  "body": {
+    "available": false,
+    "bestSetups": [],
+    "discipline": [],
+    "lessons": [],
+    "tickers": [],
+    "tickersScope": "all",
+    "tradeCount": 0,
+    "unavailableReason": "no_trades",
+    "year": 2024
+  }
+}

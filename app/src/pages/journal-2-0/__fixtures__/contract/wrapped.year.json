@@ -1,0 +1,140 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/wrapped/2025",
+    "note": "An available year: three setups (normal, thin with sampleN under tradeCount, too few to rank), member-wide tickers, twelve months with adherence only in February and March, and three rule versions, the newest stamped January 1 UTC and bucketed on December 31 ET.",
+    "path": "/api/j2/wrapped/2025",
+    "status": 200
+  },
+  "body": {
+    "available": true,
+    "bestSetups": [
+      {
+        "expectancyR": 0.9615,
+        "sample": "normal",
+        "sampleN": 26,
+        "setup": "VCP",
+        "tradeCount": 26
+      },
+      {
+        "expectancyR": 0.25,
+        "sample": "thin",
+        "sampleN": 12,
+        "setup": "Breakout",
+        "tradeCount": 14
+      },
+      {
+        "expectancyR": 4.0,
+        "sample": "too_few",
+        "sampleN": 3,
+        "setup": "EP",
+        "tradeCount": 3
+      }
+    ],
+    "discipline": [
+      {
+        "adherence": null,
+        "month": "2025-01",
+        "tradeCount": 5
+      },
+      {
+        "adherence": 0.5833,
+        "month": "2025-02",
+        "tradeCount": 6
+      },
+      {
+        "adherence": 0.9,
+        "month": "2025-03",
+        "tradeCount": 5
+      },
+      {
+        "adherence": null,
+        "month": "2025-04",
+        "tradeCount": 5
+      },
+      {
+        "adherence": null,
+        "month": "2025-05",
+        "tradeCount": 4
+      },
+      {
+        "adherence": null,
+        "month": "2025-06",
+        "tradeCount": 6
+      },
+      {
+        "adherence": null,
+        "month": "2025-07",
+        "tradeCount": 3
+      },
+      {
+        "adherence": null,
+        "month": "2025-08",
+        "tradeCount": 3
+      },
+      {
+        "adherence": null,
+        "month": "2025-09",
+        "tradeCount": 3
+      },
+      {
+        "adherence": null,
+        "month": "2025-10",
+        "tradeCount": 3
+      },
+      {
+        "adherence": null,
+        "month": "2025-11",
+        "tradeCount": 0
+      },
+      {
+        "adherence": null,
+        "month": "2025-12",
+        "tradeCount": 0
+      }
+    ],
+    "lessons": [
+      {
+        "changeNote": "Thirty minutes was too late.",
+        "changedAt": "2026-01-01T01:30:00+00:00",
+        "changedDay": "2025-12-31",
+        "label": "Wait 15 minutes after the open",
+        "ruleId": "ee082e500ac446189dc4dcfc866e0e8a",
+        "version": 2
+      },
+      {
+        "changeNote": null,
+        "changedAt": "2025-09-01T15:00:00+00:00",
+        "changedDay": "2025-09-01",
+        "label": "No adds to losers",
+        "ruleId": "aab5192d339143419be1b264ca91fd6f",
+        "version": 1
+      },
+      {
+        "changeNote": null,
+        "changedAt": "2025-03-03T15:00:00+00:00",
+        "changedDay": "2025-03-03",
+        "label": "Wait 30 minutes after the open",
+        "ruleId": "ee082e500ac446189dc4dcfc866e0e8a",
+        "version": 1
+      }
+    ],
+    "tickers": [
+      {
+        "noteCount": 3,
+        "symbol": "NVDA"
+      },
+      {
+        "noteCount": 2,
+        "symbol": "TSLA"
+      },
+      {
+        "noteCount": 1,
+        "symbol": "AMD"
+      }
+    ],
+    "tickersScope": "all",
+    "tradeCount": 43,
+    "year": 2025
+  }
+}
