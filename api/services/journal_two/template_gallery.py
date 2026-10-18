@@ -1019,8 +1019,10 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             "SELECT item_type, title FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id)).fetchone()
         # The same rule as the update ring: only a watcher whose copy still exists is told ("your copy is
-        # yours" is a sentence about that copy).
-        watchers = [] if item is None or item["item_type"] != "style" else [
+        # yours" is a sentence about that copy). While the library is off the delete still happens (taking
+        # your own content down is always possible) but nobody is rung: a withdraw notice is a library effect,
+        # and a library-off pod must look exactly like today (R-P3-10; final review M-8).
+        watchers = [] if (item is None or item["item_type"] != "style" or not library_enabled()) else [
             r["user_id"] for r in conn.execute(
                 "SELECT w.user_id FROM j2_gallery_watches w JOIN j2_journal_styles s"
                 " ON s.id = w.style_id AND s.user_id = w.user_id AND s.deleted_at IS NULL"
@@ -1190,8 +1192,8 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     """The member's own copy of a listed style (R-P3-10).
 
     A new `j2_journal_styles` row through `journal_styles.create_style` (so every rule a style obeys on
-    save is applied to it), then `source_gallery_id`, `source_version` and `source_block_ids` written beside
-    it. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
+    save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
+    `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
     Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
     as a second use. `notify` records a watch row so a later task can tell them about an update."""
     from api.services.journal_two import journal_styles as js
@@ -1214,21 +1216,25 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
             # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
             # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
             raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
+        version = int(row["version"] or 1)
+        now = _now()
+        # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
+        # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
+        # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
+        # handle (R3/R5), and "Nothing was changed" would be false.
         try:
             style = js.create_style(user_id, {
                 "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
                 "kindId": payload["kindId"], "blocks": payload["blocks"],
                 "outlineBodyJson": payload["outlineBodyJson"],
-                "properties": payload["properties"]}, conn)
+                "properties": payload["properties"]}, conn,
+                provenance=(row["id"], version, json.dumps(_block_ids(payload)),
+                            _outline_hash(payload["outlineBodyJson"])),
+                commit=False)
         except js.StyleValidationError as e:
+            if conn.in_transaction:
+                conn.rollback()
             raise GalleryError(str(e)) from e
-        version = int(row["version"] or 1)
-        now = _now()
-        conn.execute(
-            "UPDATE j2_journal_styles SET source_gallery_id = ?, source_version = ?, source_block_ids = ?,"
-            " source_outline_hash = ? WHERE id = ? AND user_id = ?",
-            (row["id"], version, json.dumps(_block_ids(payload)), _outline_hash(payload["outlineBodyJson"]),
-             style["id"], user_id))
         if row["user_id"] != user_id:
             conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
                          " VALUES (?, ?, ?)", (row["id"], user_id, now))
@@ -1242,6 +1248,10 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         return {"style": js.get_style(user_id, style["id"], conn),
                 "notify": bool(notify),
                 "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -1376,9 +1386,14 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             # is let go so the outline they chose to take is the one that is used.
             patch["outlineBodyJson"] = theirs["outlineBodyJson"]
             patch["outlineTemplateId"] = None
+        # ⛔ ONE transaction (ruling P3a-FIN-R1): the patch is left uncommitted (`commit=False`) so it and the
+        # `source_*` record below commit together under the BEGIN IMMEDIATE above. Before this, update_style's
+        # own commit ended the lock, and a failed second write left the blocks added while the member read
+        # "Nothing was changed" and was offered the same update again. The watch moves too (ruling P3a-T5-R2,
+        # "and on apply"): a member who applied this version is never rung about it later.
         try:
             if patch:
-                js.update_style(user_id, style_id, patch, conn)
+                js.update_style(user_id, style_id, patch, conn, commit=False)
         except js.StyleValidationError as e:
             conn.rollback()
             raise GalleryError(str(e)) from e
@@ -1387,6 +1402,9 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             " WHERE id = ? AND user_id = ?",
             (plan["toVersion"], json.dumps(_block_ids(theirs)), _outline_hash(theirs["outlineBodyJson"]),
              style_id, user_id))
+        conn.execute(
+            "UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
+            " WHERE user_id = ? AND style_id = ?", (plan["toVersion"], user_id, style_id))
         conn.commit()
         return js.get_style(user_id, style_id, conn)
     except Exception:

@@ -82,8 +82,8 @@ def test_hide_and_reject_do_not_ring_and_unhide_does(conn, lib_on):
 def test_every_watcher_gets_a_durable_notice_and_the_ring_never_waits_on_its_own_lock(conn, lib_on, monkeypatch):
     """Review C1. The REAL add_alert, whose durable copy is written through a SECOND connection to the same
     database. An open write transaction across the loop would make each later insert wait out its busy timeout
-    and fail silently, while the watch was marked delivered. (It cannot force two ids into one millisecond;
-    that shared alerts.py property is recorded as an open item, not tested here.)"""
+    and fail silently, while the watch was marked delivered. (Two ids in one millisecond is the separate case
+    the `..._same_millisecond_...` tests below force, since ruling P3a-FIN-R2.)"""
     from api.services import alert_durability
     monkeypatch.setattr(alert_durability, "_DB_PATH", conn.execute("PRAGMA database_list").fetchone()[2])
     alert_durability.init_schema()
@@ -196,3 +196,52 @@ def test_every_library_notice_is_private(conn, lib_on):
         gallery.unpublish("author", item["id"], conn=conn)
     assert add.call_count == 2
     assert all(c.kwargs.get("user_id") == "w1" for c in add.call_args_list)
+
+
+def _same_millisecond(monkeypatch, conn):
+    """The REAL add_alert and its REAL durable copy, with the clock it stamps ids from frozen, so every notice
+    in a loop is minted in one millisecond: the bulk-producer case OI-P3a-1 names."""
+    import types
+    from api.services import alert_durability, alerts
+    monkeypatch.setattr(alert_durability, "_DB_PATH", conn.execute("PRAGMA database_list").fetchone()[2])
+    alert_durability.init_schema()
+    monkeypatch.setattr(alerts, "time", types.SimpleNamespace(time=lambda: 1760000000.123))
+
+
+def _durable_rows(conn):
+    return sorted(r[0] for r in conn.execute("SELECT user_id FROM user_alerts WHERE type = ?",
+                                             (gallery.LIBRARY_NOTICE_SOURCE,)).fetchall())
+
+
+def test_two_watchers_rung_in_the_same_millisecond_both_get_a_durable_update_notice(conn, lib_on, monkeypatch):
+    """Ruling P3a-FIN-R2 (final review I-3, closes OI-P3a-1). Before the fix both ids were `type_<ms>` and the
+    second INSERT OR IGNORE dropped the second member's durable row, while the ring recorded it delivered."""
+    item = listed_style(conn)
+    for name in ("w1", "w2"):
+        gallery.adopt_style(name, item["id"], notify=True, conn=conn)
+    _same_millisecond(monkeypatch, conn)
+    bump_and_approve(conn, item, **NEXT)
+    assert _durable_rows(conn) == ["w1", "w2"]
+    ids = [r[0] for r in conn.execute("SELECT id FROM user_alerts").fetchall()]
+    assert len(set(ids)) == 2 and all(i.startswith(f"{gallery.LIBRARY_NOTICE_SOURCE}_1760000000123_") for i in ids)
+
+
+def test_two_watchers_rung_in_the_same_millisecond_both_get_a_durable_withdraw_notice(conn, lib_on, monkeypatch):
+    item = listed_style(conn)
+    for name in ("w1", "w2"):
+        gallery.adopt_style(name, item["id"], notify=True, conn=conn)
+    _same_millisecond(monkeypatch, conn)
+    assert gallery.unpublish("author", item["id"], conn=conn) is True
+    assert _durable_rows(conn) == ["w1", "w2"]
+
+
+def test_unpublishing_a_style_while_the_library_is_off_deletes_it_and_rings_no_one(conn, lib_on, monkeypatch):
+    """Final review M-8: deleting your own item is always possible, but a withdraw notice is a library effect and
+    a library-off pod must look exactly like today (R-P3-10)."""
+    item = listed_style(conn)
+    gallery.adopt_style("w1", item["id"], notify=True, conn=conn)
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    with mock.patch(ADD) as add:
+        assert gallery.unpublish("author", item["id"], conn=conn) is True
+    assert add.call_count == 0
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == 0

@@ -778,3 +778,79 @@ def test_a_stranger_cannot_apply_another_members_update(api, conn, lib_on):
     ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"],
                                                         "toVersion": 2})
     assert ok.status_code == 200
+
+
+# Ruling P3a-FIN-R1 (final review I-2): adopt and apply each write in ONE transaction. A failure on the second
+# write is injected with a real SQLite trigger (the statement itself raises inside the database, as "database is
+# locked" would), and nothing may be left behind: no provenance-less copy, no half-applied patch.
+
+def _fail_on(conn, name, when):
+    conn.execute(f"CREATE TRIGGER {name} {when} BEGIN SELECT RAISE(ABORT, 'injected failure'); END")
+    conn.commit()
+
+
+def _adopter_rows(conn, user_id):
+    return conn.execute("SELECT id, source_gallery_id FROM j2_journal_styles WHERE user_id = ?", (user_id,)).fetchall()
+
+
+def test_adopt_whose_provenance_write_fails_leaves_no_copy_behind(conn, lib_on):
+    item = listed_style(conn)
+    _fail_on(conn, "fail_provenance", "BEFORE UPDATE OF source_gallery_id ON j2_journal_styles")
+    with pytest.raises(sqlite3.IntegrityError):
+        gallery.adopt_style("member", item["id"], notify=True, conn=conn)
+    assert _adopter_rows(conn, "member") == []                       # no copy that reads as the member's own
+    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_watches").fetchone()[0] == 0
+    conn.execute("DROP TRIGGER fail_provenance")                     # control: the same adopt now lands, whole
+    conn.commit()
+    out = gallery.adopt_style("member", item["id"], notify=True, conn=conn)
+    assert [tuple(r) for r in _adopter_rows(conn, "member")] == [(out["style"]["id"], item["id"])]
+
+
+def test_adopt_whose_use_count_write_fails_leaves_no_copy_behind(conn, lib_on):
+    item = listed_style(conn)
+    _fail_on(conn, "fail_use", "BEFORE INSERT ON j2_template_gallery_uses")
+    with pytest.raises(sqlite3.IntegrityError):
+        gallery.adopt_style("member", item["id"], notify=True, conn=conn)
+    assert _adopter_rows(conn, "member") == []
+    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_watches").fetchone()[0] == 0
+    assert not conn.in_transaction                                   # rolled back, not left open
+
+
+def test_apply_whose_source_record_write_fails_changes_nothing(conn, lib_on):
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=True, conn=conn)["style"]
+    _bump(conn, item, blocks=[_blk("myRules")])
+    before = conn.execute("SELECT blocks_json, version, source_version, source_block_ids, updated_at"
+                          " FROM j2_journal_styles WHERE id = ?", (mine["id"],)).fetchone()
+    _fail_on(conn, "fail_source", "BEFORE UPDATE OF source_version ON j2_journal_styles")
+    with pytest.raises(sqlite3.IntegrityError):
+        gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=mine["updatedAt"],
+                             to_version=2, conn=conn)
+    after = conn.execute("SELECT blocks_json, version, source_version, source_block_ids, updated_at"
+                         " FROM j2_journal_styles WHERE id = ?", (mine["id"],)).fetchone()
+    assert tuple(after) == tuple(before)                             # the blocks were NOT added
+    assert gallery.plan_update("member", mine["id"], conn=conn)["addBlocks"] == ["myRules"]  # still offered, truly
+    conn.execute("DROP TRIGGER fail_source")                         # control: the same apply now lands
+    conn.commit()
+    out = gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=mine["updatedAt"],
+                               to_version=2, conn=conn)
+    assert [b["block"] for b in out["blocks"]] == ["myRules"] and out["sourceVersion"] == 2
+
+
+# Ruling P3a-T5-R2, "and on apply" (final review M-6): applying a version moves the watch to it, so a later review
+# action (Feature) never rings the member about a version they already have.
+
+def test_applying_a_version_moves_the_watch_so_feature_never_rings_about_it(conn, lib_on):
+    from unittest import mock
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=True, conn=conn)["style"]
+    with mock.patch("api.services.alerts.add_alert", side_effect=RuntimeError("down")):
+        _bump(conn, item, blocks=[_blk("myRules")])                  # the v2 notice fails: the watch stays at 1
+    watch = "SELECT notified_version FROM j2_gallery_watches WHERE user_id = 'member' AND gallery_id = ?"
+    assert conn.execute(watch, (item["id"],)).fetchone()[0] == 1     # non-vacuity: the member IS behind
+    gallery.apply_update("member", mine["id"], take_outline=False, base_updated_at=mine["updatedAt"],
+                         to_version=2, conn=conn)
+    assert conn.execute(watch, (item["id"],)).fetchone()[0] == 2
+    with mock.patch("api.services.alerts.add_alert") as add:
+        gallery.admin_act("admin", item["id"], "feature", conn=conn)
+    assert add.call_count == 0

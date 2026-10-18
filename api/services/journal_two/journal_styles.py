@@ -427,10 +427,14 @@ def _provenance_of(user_id: str, style_id: Any, conn: sqlite3.Connection) -> tup
 
 
 def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = None, *,
-                 provenance: tuple | None = None) -> dict:
+                 provenance: tuple | None = None, commit: bool = True) -> dict:
     """A new style. `payload.duplicateOf` (P3a-T10-R6) names the member's own style this one duplicates: its
     library provenance, if it has any, is carried to the copy. `provenance` is the internal form of the same (the
-    note path, create_style_from_note)."""
+    note path, create_style_from_note; the library's adopt).
+
+    `commit=False` (ruling P3a-FIN-R1) leaves the write open on the CALLER's connection, so a caller that has more
+    to write (adopt: the use count, the watch) commits once and a failure leaves nothing behind. Ignored when this
+    function opened the connection itself."""
     if not isinstance(payload, dict):
         raise StyleValidationError("Send a style object.")
     owned = conn is None
@@ -463,7 +467,8 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
         if provenance:
             conn.execute("UPDATE j2_journal_styles SET " + ", ".join(f"{c} = ?" for c in _PROVENANCE_COLS)
                          + " WHERE id = ? AND user_id = ?", (*provenance, sid, user_id))
-        conn.commit()
+        if commit or owned:
+            conn.commit()
         return get_style(user_id, sid, conn)
     finally:
         if owned:
@@ -474,7 +479,11 @@ _CONTENT_KEYS = {"kindId": "kind_id", "outlineTemplateId": "outline_template_id"
                  "outlineBodyJson": "outline_body_json", "blocks": "blocks_json", "properties": "properties_json"}
 
 
-def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connection | None = None, *,
+                 commit: bool = True) -> dict | None:
+    """Patch one of the member's styles. `commit=False` (ruling P3a-FIN-R1) leaves the write open on the caller's
+    connection, so the library's apply commits the patch and its `source_*` record as ONE transaction under its
+    `BEGIN IMMEDIATE`. Ignored when this function opened the connection itself."""
     if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
         raise StyleValidationError("Built-in styles can't be changed. Duplicate it to make your own.")
     if not isinstance(patch, dict):
@@ -526,7 +535,8 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
         sets.append("updated_at = ?"); params.append(_now())
         conn.execute(f"UPDATE j2_journal_styles SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
                      (*params, style_id, user_id))
-        conn.commit()
+        if commit or owned:
+            conn.commit()
         return get_style(user_id, style_id, conn)
     finally:
         if owned:

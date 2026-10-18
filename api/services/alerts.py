@@ -108,6 +108,7 @@ which is where the rest of the per-member alert state already lives.
 
 import os
 import time
+import uuid
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -418,7 +419,13 @@ def add_alert(
     not assume the whole call failed just because it did not finish.
     """
     alert = {
-        "id": f"{alert_type}_{int(time.time() * 1000)}",
+        # ⛔ Unique within a millisecond (ruling P3a-FIN-R2, closes OI-P3a-1). `user_alerts.id` is a global
+        # PRIMARY KEY written with INSERT OR IGNORE, so two alerts minted in one millisecond by a bulk producer
+        # (the style library rings its watchers back to back) shared `type_<ms>` and the second member's durable
+        # copy was silently dropped: their notice lived only in the in-memory cache and was gone at the next
+        # deploy. No reader parses this id's shape (checked 2026-10-17: only `startswith` on the S7 prefix and
+        # equality lookups), so the `type_<ms>` prefix is kept and a short random suffix makes it unique.
+        "id": f"{alert_type}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}",
         "type": alert_type,
         "severity": severity or _TYPE_SEVERITY.get(alert_type, SEVERITY_INFO),
         "title": title,
