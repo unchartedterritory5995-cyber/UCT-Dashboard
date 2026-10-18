@@ -1439,7 +1439,8 @@ def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
     None while layout sharing is off or when the item is not a listed `page_layout` (`_listed_row`: the one rule,
     approved, not hidden). `version` must be the whole number the member previewed and equal the listed version,
     else `GalleryConflict(LAYOUT_MOVED_SENTENCE)` and nothing is written. A stored payload `safe_layout` cannot
-    read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`.
+    read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`; a list that keeps
+    no panel is dropped from the answer (P4b-T5-R1).
 
     Otherwise the one write is the use record (`_record_use`: once per member, never the author), committed, and
     the answer is `{layout, version, credit}`. ⛔ It writes NO preference: the member's `journal_page_layout` is
@@ -1457,7 +1458,12 @@ def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
         # ⛔ `payload_json` through `_listed_payload` (never `pending_json`), then `safe_layout`: whatever is
         # stored leaves as registry ids in `{id, shown}` entries, so an unknown panel never reaches an adopter.
         layout = pls.safe_layout(_listed_payload(row))
-        if layout is None or not any(layout["lists"].values()):
+        if layout is not None:
+            # P4b-T5-R1: a list registry drift has emptied (every panel it held has left the registry) is dropped,
+            # never handed over as an empty list. Publishing never stores an empty list (`layout_payload` leaves
+            # one out), so an empty list here is only ever drift. Nothing left at all is the refusal below.
+            layout["lists"] = {name: entries for name, entries in layout["lists"].items() if entries}
+        if layout is None or not layout["lists"]:
             raise GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)
         _record_use(conn, row, user_id, _now())
         conn.commit()

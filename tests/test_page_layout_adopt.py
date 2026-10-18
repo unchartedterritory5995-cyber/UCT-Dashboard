@@ -109,6 +109,35 @@ def test_a_stored_unknown_panel_never_reaches_an_adopter(conn, sharing_on):
     assert gallery.get_item("member", gid, conn=conn)["payload"]["lists"] == {"trade": TRADE}
 
 
+def test_a_list_whose_only_panels_left_the_registry_is_dropped_not_handed_over_empty(conn, sharing_on):
+    """P4b-T5-R1: a stored today layout whose `market` list held only panels that have since left the registry.
+    The adopter gets the lists that still hold a panel, and no empty `market` list."""
+    gid = _listed_layout(conn)
+    kept = [{"id": "regime", "shown": True}, {"id": "todayNote", "shown": False}]
+    conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(
+        {"page": "today", "lists": {"premarket": kept, "market": [{"id": "retiredPanel", "shown": True}],
+                                    "postclose": kept}}), gid))
+    conn.commit()
+    out = gallery.adopt_layout("member", gid, version=1, conn=conn)
+    assert out["layout"] == {"page": "today", "lists": {"premarket": kept, "postclose": kept}}
+    assert "market" not in out["layout"]["lists"]
+    assert _uses(conn, gid) == ["member"]
+
+
+def test_a_stored_row_whose_only_panels_all_left_the_registry_is_refused(conn, sharing_on):
+    """P4b-T5-R1: every list emptied by registry drift leaves nothing to adopt: the unsupported refusal, and no
+    use recorded."""
+    gid = _listed_layout(conn)
+    gone = [{"id": "retiredPanel", "shown": True}]
+    conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(
+        {"page": "today", "lists": {"premarket": gone, "market": gone, "postclose": gone}}), gid))
+    conn.commit()
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.adopt_layout("member", gid, version=1, conn=conn)
+    assert str(e.value) == gallery.LAYOUT_UNSUPPORTED_SENTENCE
+    assert _uses(conn, gid) == []
+
+
 @pytest.mark.parametrize("stored", [
     "{not json",
     json.dumps([1, 2]),

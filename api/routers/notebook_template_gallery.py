@@ -85,7 +85,7 @@ HELPFUL_RATE_SENTENCE = "You've marked a lot of styles helpful. Try again later.
 FOLLOW_RATE_SENTENCE = "You've followed or unfollowed a lot of authors. Try again later."
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
-ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
+ADOPT_RATE_SENTENCE = "You've adopted a lot from the library today. Try again later."
 MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
 
