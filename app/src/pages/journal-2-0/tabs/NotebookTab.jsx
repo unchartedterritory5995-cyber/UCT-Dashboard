@@ -2507,7 +2507,7 @@ export default function NotebookTab() {
               <span className={styles.actionLabel}>Import</span>
             </button>
             {stylesOn && (
-              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog">
+              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
                 <span className={styles.actionLabel}>Styles</span>
               </button>

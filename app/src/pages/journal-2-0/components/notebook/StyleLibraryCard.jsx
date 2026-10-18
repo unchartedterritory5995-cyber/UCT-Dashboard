@@ -117,7 +117,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         {!item.mine && (
           <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
             onClick={() => (confirming ? closeConfirm() : setConfirming(true))} disabled={busy}
-            aria-expanded={confirming} aria-label={`Adopt ${item.title}`}>
+            aria-expanded={confirming} aria-label={`Adopt ${item.title}`} data-tour="library-adopt">
             Adopt
           </button>
         )}

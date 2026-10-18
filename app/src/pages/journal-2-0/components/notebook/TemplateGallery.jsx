@@ -470,7 +470,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
               aria-label="Search the community gallery"
             />
             {libraryOn && (
-              <div className={styles.chipRow} role="group" aria-label="Filter by type">
+              <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
                 {[{ key: ALL, label: 'All' }, ...ITEM_TYPES].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
