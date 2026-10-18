@@ -331,9 +331,10 @@ def test_a_submission_is_pending_and_invisible_until_an_admin_approves_it(svc):
 
 def test_a_rejection_needs_a_reason_and_the_author_reads_it(svc):
     gid = _publish(svc)["id"]
+    seen = svc.get_item(ADMIN, gid, is_admin=True)["updatedAt"]
     with pytest.raises(svc.GalleryError):
-        svc.admin_act(ADMIN, gid, "reject", note="")
-    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.")
+        svc.admin_act(ADMIN, gid, "reject", note="", reviewed_updated_at=seen)
+    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.", reviewed_updated_at=seen)
     mine = svc.list_gallery(A, section="mine")[0]
     assert mine["status"] == "rejected" and mine["reviewNote"] == "Too thin -- add your exit rules."
     assert gid not in _listed(svc, B)

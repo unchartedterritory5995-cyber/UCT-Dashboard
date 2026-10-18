@@ -80,9 +80,13 @@ def test_an_approval_that_names_no_version_is_refused(svc):
 
 
 def test_the_other_review_actions_need_no_version(svc):
-    """Only approval lists content. Reject, hide, unhide, feature and unfeature are unchanged."""
+    """Approval lists content, and since P3b-F-R4 (final review M-3) a rejection declines a version too, so both
+    name the one reviewed. Hide, unhide, feature and unfeature are unchanged."""
     gid = _publish(svc)["id"]
-    svc.admin_act(ADMIN, gid, "reject", note="Add your exit rules.")
+    with pytest.raises(svc.GalleryConflict):
+        svc.admin_act(ADMIN, gid, "reject", note="Add your exit rules.")              # no version: refused
+    assert _row(gid)["status"] == "pending"
+    svc.admin_act(ADMIN, gid, "reject", note="Add your exit rules.", reviewed_updated_at=_row(gid)["updated_at"])
     svc.admin_act(ADMIN, gid, "hide")
     svc.admin_act(ADMIN, gid, "unhide")
     row = _row(gid)

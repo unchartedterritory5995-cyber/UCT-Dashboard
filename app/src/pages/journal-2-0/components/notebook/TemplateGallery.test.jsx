@@ -336,9 +336,9 @@ describe('the review queue', () => {
     await user.type(within(reject).getByLabelText(/The author reads this/), 'Too thin')
     await user.click(within(reject).getByRole('button', { name: 'Reject' }))
     expect(await screen.findByText(new RegExp(`Rejected “${waiting.title}”`))).toBeInTheDocument()
-    // the same two fields the recorded rejection carried
+    // the same fields the recorded rejection carried: since P3b-F-R4 it names the version seen, as an approval does
     const rejectBody = sentTo(`/api/j2/template-gallery/admin/items/${waiting.id}`, 'PATCH').at(-1).body
-    expect(rejectBody).toEqual({ action: 'reject', note: 'Too thin' })
+    expect(rejectBody).toEqual({ action: 'reject', note: 'Too thin', reviewedUpdatedAt: waiting.updatedAt })
     expect(Object.keys(rejectBody).sort()).toEqual(Object.keys(contract('template-gallery.admin.reject')._contract.requestBody).sort())
     // the report the member really sent: its reason worded, its note quoted
     const [report] = reported.reports

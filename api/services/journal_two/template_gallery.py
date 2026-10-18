@@ -126,6 +126,9 @@ _PREVIEW_LINE_CHARS = 72
 #: What an admin reads when the template they are approving is not the one they looked at.
 APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
                           "Look at it again, then approve.")
+#: ...and when the template they are rejecting is not the one they looked at (P3b-F-R4).
+REJECT_STALE_SENTENCE = ("This template changed after you opened it. Nothing was rejected. "
+                         "Look at it again, then reject.")
 
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
@@ -1293,8 +1296,29 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
 
 
 #: `_example_title` caps by truncation after the scrubs, so gallery's `_clean_text` is asked for no cap of its own.
-#: The request body is already capped (the router's MAX_BODY_BYTES), which bounds the text the scrubs read.
 _NO_TITLE_LIMIT = 10 ** 9
+#: ⛔ Ruling P3b-F-R1: the scrubs read at most this much of a typed title. The request body may be 256 KB, and a
+#: title is never refused for its length (P3b-T3-R5), so without this bound a crafted title cost a full scrub
+#: of everything it holds on every preview. Four times the shown cap leaves the replacements room to grow the
+#: text well past the 80-character cut, so the words the window cut short are never the words shown.
+_TITLE_SCRUB_CHARS = 4 * MAX_TITLE_CHARS
+#: ...and when the scrubbed window is still short (a long address shrinks to "link"), the window doubles, up to
+#: this many characters, so a cut never lands inside what the title shows.
+_TITLE_SCRUB_MAX_CHARS = 64 * MAX_TITLE_CHARS
+
+
+def _title_window(raw: Any, chars: int) -> tuple[Any, bool]:
+    """`(text, cut)`: a typed title at most `chars` long for the scrubs, and whether anything was left out. A title
+    that fits is returned exactly as typed; a longer one has its spaces collapsed (as `_clean_text` would) and is
+    cut at the last space within `chars`, so no word reaches the scrubs half-written. Not text: returned as it is,
+    for `_clean_text` to refuse."""
+    if not isinstance(raw, str) or len(raw) <= chars:
+        return raw, False
+    flat = " ".join(raw.split())
+    if len(flat) <= chars:
+        return flat, False
+    at = flat.rfind(" ", 0, chars + 1)
+    return flat[:at if at > 0 else chars], True
 
 
 def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
@@ -1313,10 +1337,20 @@ def _example_title(raw: Any, brokers: tuple[str, ...], *, required: bool = True)
     refuses anything but text, and an empty title when one is required), then the example text pass -- and only
     then capped at `MAX_TITLE_CHARS` by shortening it with an ellipsis. A title is never refused for its length:
     a scrub grows text ("$1" becomes "your value here", an email "email address"), so a length the author never
-    typed must never be the reason. The preview, with or without a typed title, shows this same title."""
-    cleaned = _clean_text(raw, field="title", limit=_NO_TITLE_LIMIT, required=required)
-    scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
-    if len(scrubbed) > MAX_TITLE_CHARS:
+    typed must never be the reason. The preview, with or without a typed title, shows this same title.
+
+    P3b-F-R1: only a bounded window of the raw title is scrubbed (`_title_window`): the scrubs cost what the
+    window holds, never what the request body holds. The window grows only while its scrubbed text is too short
+    to be cut at the shown cap with room to spare, so what is shown never depends on where the window ended."""
+    chars = _TITLE_SCRUB_CHARS
+    while True:
+        cut, more = _title_window(raw, chars)
+        cleaned = _clean_text(cut, field="title", limit=_NO_TITLE_LIMIT, required=required)
+        scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
+        if not more or len(scrubbed) >= 2 * MAX_TITLE_CHARS or chars >= _TITLE_SCRUB_MAX_CHARS:
+            break
+        chars *= 2
+    if len(scrubbed) > MAX_TITLE_CHARS or (more and scrubbed):
         scrubbed = scrubbed[: MAX_TITLE_CHARS - 1].rstrip() + "…"
     return scrubbed
 
@@ -1561,6 +1595,24 @@ def _example_sources(kept: list[str], user_id: str, note_id: str) -> list[tuple[
     return out
 
 
+def _assert_copy_headroom(sources: list[tuple[Path, str]]) -> None:
+    """P3b-F-R7 (final review M-6): the copies ask the volume the question every upload and import asks first --
+    `notes_quota.assert_import_headroom`, with the sources' summed size -- and a refusal is that check's own
+    sentence (a 400, as an upload's is), before anything is copied. Up to 12 MB a publish, 10 a day a member,
+    would otherwise be written past the reserve the uploads keep."""
+    if not sources:
+        return
+    from api.services.journal_two import notes_quota
+    try:
+        wanted = sum(path.stat().st_size for path, _ in sources)
+    except OSError as e:
+        raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+    try:
+        notes_quota.assert_import_headroom(wanted)
+    except notes_quota.NoteQuotaExceeded as e:
+        raise GalleryError(str(e)) from e
+
+
 def _stage_images(sources: list[tuple[Path, str]]) -> Path | None:
     """Copy every source into a fresh staging directory as `<n>.<ext>`. None when there is nothing to copy. On any
     failure the staging directory is removed and `GalleryServerError(EXAMPLE_COPY_SENTENCE)` raised."""
@@ -1747,6 +1799,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
         # P3b Task 4: the copies are made HERE, before the write lock, into a staging directory. A failed copy is
         # 500 `EXAMPLE_COPY_SENTENCE` with nothing left behind; under the lock the staged directory is renamed in.
+        _assert_copy_headroom(sources)               # P3b-F-R7: room on the volume first, as an upload asks
         stage = _stage_images(sources)
         if not conn.in_transaction:                  # P3b-T3-R3 (M-8 refuses a caller's open transaction above)
             conn.execute("BEGIN IMMEDIATE")          # the lookup and the write cannot interleave with a twin
@@ -2182,7 +2235,11 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
 def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
            conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """Report a listed template. None when the member cannot see it. One report per
-    member per template: a second one answers `already: true` and changes nothing."""
+    member per template: a second one answers `already: true` and changes nothing.
+
+    P3b-F-R2 (final review M-1): "cannot see it" is THE visibility rule, `_can_see` -- the same gate Helpful
+    takes -- so an approved example whose style is pending, rejected or hidden is absent here too, never an
+    accepted report that tells the reporter the example exists."""
     if reason not in REPORT_REASONS:
         raise GalleryError("Pick a reason for the report.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
@@ -2190,7 +2247,7 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if row is None or row["status"] != "approved" or row["hidden"] or _library_hides(row):
+        if not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]:
             return None
         if row["user_id"] == user_id:
             raise GalleryError("You can't report your own template. Unpublish it instead.")
@@ -2390,7 +2447,11 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
     its own WHERE clause, so there is no gap between the check and the write: publishing
     again replaces the body and moves `updated_at`, and an approval of the earlier version
     then changes nothing and raises `GalleryConflict` (409). An approval that names no
-    version is refused the same way -- nothing may be listed unseen."""
+    version is refused the same way -- nothing may be listed unseen.
+
+    ⛔ A REJECTION NAMES IT TOO (P3b-F-R4, final review M-3), for a style and an example alike: the same
+    `reviewed_updated_at`, the same conditional UPDATE. Unpinned, an author re-publishing while the reviewer
+    read would have the NEW revision declined -- its copies set aside -- and a note about a version nobody saw."""
     if action not in ADMIN_ACTIONS:
         raise GalleryError("Unknown review action.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
@@ -2445,25 +2506,31 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")
+            if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
+                raise GalleryConflict(REJECT_STALE_SENTENCE)
             if row["pending_json"]:
                 # A held revision is declined; the APPROVED listing stays exactly as it was (status,
                 # listed_at, featured). The author reads the note; the revision is cleared.
-                conn.execute(
+                cur = conn.execute(
                     "UPDATE j2_template_gallery SET pending_json = NULL, pending_at = NULL, review_note = ?,"
-                    " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
-                    (clean_note, admin_id, now, now, gallery_id))
-                # P3b-R14 + P3b-T4-R6(a): the declined revision's copies are moved aside UNDER THE LOCK, before the
-                # commit, and deleted after it. Deleting `v<N>` after the commit could hit the copies a republish
-                # wrote there the moment the lock was released (review I-1).
-                if is_example:
-                    moves.set_aside(_item_dir(gallery_id, held_version))
-                conn.commit()
-                moves.finish()
-                return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
-            conn.execute(
-                "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
-                " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ?",
-                (clean_note, admin_id, now, now, gallery_id))
+                    " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ? AND updated_at = ?",
+                    (clean_note, admin_id, now, now, gallery_id, reviewed_updated_at))
+            else:
+                cur = conn.execute(
+                    "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
+                    " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ? AND updated_at = ?",
+                    (clean_note, admin_id, now, now, gallery_id, reviewed_updated_at))
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise GalleryConflict(REJECT_STALE_SENTENCE)
+            if is_example:
+                # P3b-R14 + P3b-T4-R6(a): the declined copies are moved aside UNDER THE LOCK, before the commit,
+                # and deleted after it (`moves.finish()` below). Deleting after the commit could hit copies a
+                # republish wrote the moment the lock was released (review I-1). A held revision's are its
+                # `v<N>` folder; a first submission's (P3b-F-R6, final review M-5) are the item's whole folder --
+                # an example declined for what an image shows must not keep that image on the volume. The
+                # author's next publish writes a fresh set.
+                moves.set_aside(_item_dir(gallery_id, held_version) if row["pending_json"] else _item_dir(gallery_id))
         elif action == "hide":
             conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_by = ?, hidden_at = ?"
                          " WHERE id = ?", (admin_id, now, gallery_id))

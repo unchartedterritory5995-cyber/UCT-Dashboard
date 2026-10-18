@@ -422,7 +422,8 @@ def test_approving_a_held_revision_moves_its_copies_into_place_and_deletes_the_o
 
 def test_rejecting_a_held_revision_deletes_its_copies_and_keeps_the_listed_ones(api, conn, ex_on, ocr, att):
     _sid, _nid, gid = _held(api, conn, att)
-    gallery.admin_act("admin", gid, "reject", note="Crop the account number.", conn=conn)
+    gallery.admin_act("admin", gid, "reject", note="Crop the account number.",
+                      reviewed_updated_at=_row(conn, gid)["updated_at"], conn=conn)
     assert _row(conn, gid)["pending_json"] is None and _row(conn, gid)["status"] == "approved"
     assert _files(_gallery_root(att) / gid) == {"0.png": b"old"}
     _as(api, "stranger")
@@ -500,7 +501,8 @@ def test_a_republish_right_after_a_reject_commits_keeps_its_held_copies(api, con
             assert _publish(api, nid, sid, [_src("author", nid, "a.png")], title="Fresh").status_code == 200
         return real(path)
     monkeypatch.setattr(gallery, "_remove_dir", republish_first)
-    gallery.admin_act("admin", gid, "reject", note="Crop the account number.", conn=conn)
+    gallery.admin_act("admin", gid, "reject", note="Crop the account number.",
+                      reviewed_updated_at=_row(conn, gid)["updated_at"], conn=conn)
     monkeypatch.setattr(gallery, "_remove_dir", real)
     assert fired                                                                          # non-vacuity: the gap ran
     assert json.loads(_row(conn, gid)["pending_json"])["title"] == "Fresh"               # the republish is held
@@ -582,3 +584,110 @@ def test_an_item_id_with_a_trailing_newline_is_not_one_segment(att):
     assert gallery.remove_example_images(["abc" + chr(10)]) == 0
     assert (_gallery_root(att) / "abc").is_dir()
     assert gallery.remove_example_images(["abc"]) == 1                                     # control
+
+
+# ── the final review's fixes (P3b-F-R3, R6, R7) ──────────────────────────────────────────────
+
+def test_F_R6_rejecting_a_first_submission_deletes_its_copies_after_the_commit(api, conn, ex_on, ocr, att,
+                                                                              monkeypatch):
+    """An example declined for what an image shows must not keep that image on the volume: a first submission's
+    whole directory is set aside under the lock and deleted only once the rejection has committed."""
+    sid = _shared_style(conn)
+    nid = _note_with_files(conn, att, files=(("a.png", b"account 12345678"),))
+    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
+    assert _files(_gallery_root(att) / gid) == {"0.png": b"account 12345678"}           # non-vacuity
+    real, removed = gallery._remove_dir, []
+
+    def after_commit(path):
+        other = sqlite3.connect(os.environ["AUTH_DB_PATH"])                               # sees committed rows only
+        try:
+            status = other.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0]
+        finally:
+            other.close()
+        removed.append((path.name, status))
+        return real(path)
+    monkeypatch.setattr(gallery, "_remove_dir", after_commit)
+    gallery.admin_act("admin", gid, "reject", note="Crop the account number.",
+                      reviewed_updated_at=_row(conn, gid)["updated_at"], conn=conn)
+    assert _row(conn, gid)["status"] == "rejected"
+    assert not (_gallery_root(att) / gid).exists()
+    assert [s for _, s in removed] == ["rejected"] and removed[0][0].startswith(".trash-")  # set aside, then gone
+    assert sorted(p.name for p in _gallery_root(att).iterdir()) == []                      # nothing left behind
+
+
+def test_F_R6_a_reject_that_fails_before_its_commit_puts_the_copies_back(api, conn, ex_on, ocr, att, monkeypatch):
+    sid = _shared_style(conn)
+    nid = _note_with_files(conn, att, files=(("a.png", b"a"),))
+    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
+    real_aside = gallery._DirMoves.set_aside
+
+    def aside_then_fail(self, path):
+        real_aside(self, path)
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(gallery._DirMoves, "set_aside", aside_then_fail)
+    with pytest.raises(sqlite3.OperationalError):
+        gallery.admin_act("admin", gid, "reject", note="No.", reviewed_updated_at=_row(conn, gid)["updated_at"],
+                          conn=conn)
+    assert _row(conn, gid)["status"] == "pending"                                          # rolled back
+    assert _files(_gallery_root(att) / gid) == {"0.png": b"a"}                              # and the copies back
+
+
+def test_F_R7_the_copies_ask_for_room_on_the_volume_first_with_the_uploads_sentence(api, conn, ex_on, ocr, att,
+                                                                                   monkeypatch):
+    from api.services import daily_counters
+    from api.services.journal_two import notes_quota
+    from api.services.journal_two.calendar import et_today
+    sid = _shared_style(conn)
+    nid = _note_with_files(conn, att, files=(("a.png", b"x" * 1000), ("b.png", b"y" * 2000)))
+    on = [_src("author", nid, "a.png"), _src("author", nid, "b.png")]
+    asked = []
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 10)                            # a full volume
+    real = notes_quota.assert_import_headroom
+
+    def recording(wanted):
+        asked.append(wanted)
+        return real(wanted)
+    monkeypatch.setattr(notes_quota, "assert_import_headroom", recording)
+    with pytest.raises(notes_quota.NoteQuotaExceeded) as e:
+        real(3000)
+    expected = str(e.value)                                                                # the check's own sentence
+    charged = daily_counters.value(et_today(), "notebook_gallery_publish", "author")
+    r = _publish(api, nid, sid, on)
+    assert (r.status_code, r.json()["detail"]) == (400, expected)
+    assert asked == [3000]                                                                 # the summed sizes
+    assert not _gallery_root(att).exists() or list(_gallery_root(att).iterdir()) == []      # nothing was copied
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE item_type = 'example_note'").fetchone()[0] == 0
+    assert daily_counters.value(et_today(), "notebook_gallery_publish", "author") == charged   # given back
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 10 ** 15)                      # control: room again
+    assert _publish(api, nid, sid, on).status_code == 200
+
+
+def test_F_R3_purge_reads_the_example_ids_in_the_same_transaction_as_the_deletes(api, conn, ex_on, ocr, att,
+                                                                                monkeypatch):
+    """The ids are read under the deletes' own write lock: no other connection can commit an example between the
+    read and the delete (it would lose its row and leave its directory behind, orphaned)."""
+    from api.services.journal_two import account_purge as ap
+    sid = _shared_style(conn, "author")
+    nid = _note_with_files(conn, att, "author", files=(("a.png", b"mine"),))
+    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
+    real, probe = gallery.example_image_ids, []
+
+    def under_the_lock(c, user_id):
+        ids = real(c, user_id)
+        other = sqlite3.connect(os.environ["AUTH_DB_PATH"], timeout=0, isolation_level=None)
+        try:
+            other.execute("BEGIN IMMEDIATE")                                               # a twin publish's lock
+            probe.append("free")
+            other.execute("ROLLBACK")
+        except sqlite3.OperationalError as e:
+            probe.append(str(e))
+        finally:
+            other.close()
+        probe.append(c.in_transaction)
+        return ids
+    monkeypatch.setattr(gallery, "example_image_ids", under_the_lock)
+    report = ap.purge_user_data("author", conn)
+    assert report["ok"] is True, report
+    assert probe == ["database is locked", True]
+    assert report["example_image_dirs_removed"] == 1 and not (_gallery_root(att) / gid).exists()
+    assert _row(conn, gid) is None

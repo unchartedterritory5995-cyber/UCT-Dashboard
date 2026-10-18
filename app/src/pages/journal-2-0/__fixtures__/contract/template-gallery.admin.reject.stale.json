@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/5a0bbe1fc29544bdb71b275fb117a0d1",
+    "note": "A rejection that does not name the version the reviewer saw is refused, and nothing changes.",
+    "path": "/api/j2/template-gallery/admin/items/5a0bbe1fc29544bdb71b275fb117a0d1",
+    "requestBody": {
+      "action": "reject",
+      "note": "Too thin to be useful yet."
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "This template changed after you opened it. Nothing was rejected. Look at it again, then reject."
+  }
+}

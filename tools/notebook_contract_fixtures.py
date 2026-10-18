@@ -1409,8 +1409,13 @@ def template_gallery(w: World) -> None:
     w.record("template-gallery.admin.approve.stale", "PATCH", f"{base}/admin/items/{third}", case="error",
              expect=409, json_body={"action": "approve"},
              note="An approval that does not name the version the reviewer saw is refused.")
+    # P3b-F-R4: a rejection names the version the reviewer saw too, read off the same queue answer.
+    w.record("template-gallery.admin.reject.stale", "PATCH", f"{base}/admin/items/{second}", case="error",
+             expect=409, json_body={"action": "reject", "note": "Too thin to be useful yet."},
+             note="A rejection that does not name the version the reviewer saw is refused, and nothing changes.")
+    seen_second = next(row["updatedAt"] for row in first_queue["pending"] if row["id"] == second)
     w.record("template-gallery.admin.reject", "PATCH", f"{base}/admin/items/{second}", case="success", expect=200,
-             json_body={"action": "reject", "note": "Too thin to be useful yet."})
+             json_body={"action": "reject", "note": "Too thin to be useful yet.", "reviewedUpdatedAt": seen_second})
     w.record("template-gallery.admin.bad-action", "PATCH", f"{base}/admin/items/{gid}", case="error", expect=400,
              json_body={"action": "explode"})
     w.as_user(author)

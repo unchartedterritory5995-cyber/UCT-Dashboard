@@ -251,15 +251,11 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
                 "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
 
     # P3b Task 4: the member's example notes keep their image COPIES under `attachment_root()/gallery/<item_id>`,
-    # outside the per-member tree below, so their ids are read BEFORE the rows go and the directories removed after.
+    # outside the per-member tree below, so their ids are needed after the rows are gone. P3b-F-R3 (final review
+    # M-2): they are read INSIDE the deletes' own write transaction, so an example committed between a separate
+    # read and the deletes can no longer lose its row while its directory stays behind, orphaned.
     example_ids: list[str] = []
-    try:
-        from api.services.journal_two import template_gallery
-        example_ids = template_gallery.example_image_ids(conn, user_id)
-    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
-        log.warning("journal_two example image lookup failed for %s: %s", user_id, e)
-
-    report = purge_user_rows(user_id, conn)
+    report = purge_user_rows(user_id, conn, example_ids=example_ids)
     errors = report["errors"]
 
     # On-disk attachments: notebook inline/hero images AND trade screenshots
@@ -317,13 +313,28 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
     }
 
 
-def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
+def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
+                    example_ids: list[str] | None = None) -> dict[str, Any]:
     """The DATABASE half of `purge_user_data`: every row of the family, and nothing on
     disk, and no tombstone. ⛔ This is what a RESTORE replays (account_tombstones.replay_on_db):
     on the machine running a restore drill the attachment directories are not the
-    deleted member's, so a replay must never touch a filesystem."""
+    deleted member's, so a replay must never touch a filesystem.
+
+    `example_ids` (P3b-F-R3): a list the caller passes to learn which example notes' image directories to
+    remove. It is filled under `BEGIN IMMEDIATE`, in the SAME write transaction as the deletes below, so no
+    example can be committed between the read and the delete. A replay passes none and reads nothing."""
     errors: list[str] = []
     deleted: dict[str, int] = {}
+
+    if example_ids is not None:
+        try:
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")      # the ids and the deletes: one transaction, committed below
+            from api.services.journal_two import template_gallery
+            example_ids.extend(template_gallery.example_image_ids(conn, user_id))
+        except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+            errors.append(f"example images: {e}")
+            log.warning("journal_two example image lookup failed for %s: %s", user_id, e)
 
     def _run(table: str, sql: str, params: tuple) -> int:
         try:

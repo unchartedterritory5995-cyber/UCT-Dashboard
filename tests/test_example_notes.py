@@ -438,7 +438,7 @@ def test_a_withdrawn_style_is_refused(api, conn, ex_on, ocr):
 
 def test_a_rejected_style_or_an_outline_is_not_one_to_link(api, conn, ex_on, ocr):
     sid = _shared_style(conn)
-    gallery.admin_act("admin", sid, "reject", note="no", conn=conn)
+    gallery.admin_act("admin", sid, "reject", note="no", reviewed_updated_at=_row(conn, sid)["updated_at"], conn=conn)
     nid = _note(conn)
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
     assert (r.status_code, r.json()["detail"]) == (400, "Pick one of your own shared styles.")
@@ -817,7 +817,7 @@ def test_publishing_again_after_a_rejection_replaces_it_and_goes_back_to_pending
     sid = _shared_style(conn)
     nid = _note(conn)
     item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "One"}).json()["template"]
-    gallery.admin_act("admin", item["id"], "reject", note="Too thin", conn=conn)
+    gallery.admin_act("admin", item["id"], "reject", note="Too thin", reviewed_updated_at=item["updatedAt"], conn=conn)
     assert _row(conn, item["id"])["status"] == "rejected"
     conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?",
                  (json.dumps({"type": "doc", "content": [_para("fuller version")]}), nid))
@@ -836,7 +836,8 @@ def test_rejecting_a_held_example_revision_keeps_the_listed_one(api, conn, ex_on
     listed = dict(_row(conn, item["id"]))
     api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Revised"})
     assert _row(conn, item["id"])["pending_json"]
-    gallery.admin_act("admin", item["id"], "reject", note="Keep the old one", conn=conn)
+    gallery.admin_act("admin", item["id"], "reject", note="Keep the old one",
+                      reviewed_updated_at=_row(conn, item["id"])["updated_at"], conn=conn)
     now = dict(_row(conn, item["id"]))
     assert now["pending_json"] is None and now["pending_at"] is None and now["review_note"] == "Keep the old one"
     for col in ("status", "listed_at", "title", "body_json", "payload_json", "version"):
@@ -1051,3 +1052,108 @@ def test_a_style_hidden_while_the_note_is_reduced_is_refused_too(api, conn, ex_o
     monkeypatch.setattr(gallery, "_reduce_example", hide_meanwhile)
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
     assert (r.status_code, r.json()["detail"]) == (400, "Pick one of your own shared styles.")
+
+
+# ── the final review's fixes (P3b-F-R1, R2, R4) ──────────────────────────────────────────────
+
+def test_F_R1_a_240_kb_title_is_scrubbed_in_a_bounded_window_and_reads_as_a_short_one(api, conn, ex_on, ocr,
+                                                                                       monkeypatch):
+    """The scrubs read a bounded window of a typed title, never the whole request body; what is shown is what the
+    scrub-then-cap rule (P3b-T3-R5) shows for the same words, and a long title is never refused."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    words = "made $1,240 at Schwab "
+    huge = words * (240_000 // len(words))                                # just under the 256 KB body cap
+    seen = []
+    real = gallery._example_text
+
+    def recording(raw, brokers):
+        seen.append(len(raw) if isinstance(raw, str) else 0)
+        return real(raw, brokers)
+    monkeypatch.setattr(gallery, "_example_text", recording)
+    pv = api.post(f"{EX}/preview", json={"noteId": nid, "title": huge})
+    assert pv.status_code == 200, pv.text
+    short = gallery._example_title(words * 20, ())
+    assert pv.json()["title"] == short and short.endswith("…") and "$" not in short
+    assert seen and max(seen) <= gallery._TITLE_SCRUB_MAX_CHARS                      # bounded, every call
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": huge})
+    assert r.status_code == 200 and r.json()["template"]["title"] == short
+
+
+def test_F_R1_a_window_that_scrubs_short_grows_so_the_cut_never_decides_what_is_shown():
+    """A long address shrinks to "link": the window doubles until the scrubbed text has room past the cap, so a
+    broker name just past the first window is still read whole (never shown half-scrubbed)."""
+    url = "https://example.com/" + "a" * (gallery._TITLE_SCRUB_CHARS + 20)
+    title = gallery._example_title(f"{url} Charles Schwab statement", ())
+    assert title == "link your broker statement"
+    assert "Charles" not in title and "Schwab" not in title
+    # a title that fits is exactly as before: no window, no ellipsis
+    assert gallery._example_title("made $1 at Schwab", ()) == "made your value here at your broker"
+
+
+def test_F_R2_a_report_on_an_example_whose_style_is_not_shown_is_absent(api, conn, ex_on, ocr):
+    """The one visibility rule (`_can_see`, the gate Helpful takes) decides a report too: an approved example whose
+    style is pending -- or hidden -- is the one 404, and no report row is written."""
+    sid = _shared_style(conn, approve=False)                               # the style is still waiting
+    item = api.post(EX, json={"noteId": _note(conn), "styleItemId": sid, "title": "Plan"}).json()["template"]
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    _as(api, "stranger")
+    missing = api.post(f"{URL}/nope/report", json={"reason": "spam"})
+    r = api.post(f"{URL}/{item['id']}/report", json={"reason": "spam"})
+    assert (r.status_code, r.json()) == (404, missing.json())               # the same 404 as no such item
+    assert gallery.report("stranger", item["id"], reason="spam", conn=conn) is None
+    assert gallery.set_helpful("stranger", item["id"], True, conn=conn) is None   # the gate Helpful already takes
+    count = "SELECT COUNT(*) FROM j2_template_gallery_reports WHERE gallery_id = ?"
+    assert conn.execute(count, (item["id"],)).fetchone()[0] == 0
+    seen = conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?", (sid,)).fetchone()[0]
+    gallery.admin_act("admin", sid, "approve", reviewed_updated_at=seen, conn=conn)
+    assert api.post(f"{URL}/{item['id']}/report", json={"reason": "spam"}).json() == {"reported": True,
+                                                                                    "already": False}  # control
+    gallery.admin_act("admin", sid, "hide", conn=conn)
+    assert gallery.report("other", item["id"], reason="spam", conn=conn) is None    # hidden style: absent again
+    assert conn.execute(count, (item["id"],)).fetchone()[0] == 1
+
+
+def _republished(api, conn, sid, nid, title):
+    out = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": title})
+    assert out.status_code == 200, out.text
+    return out.json()["template"]
+
+
+def test_F_R4_a_reject_names_the_version_it_reviewed_and_a_stale_one_changes_nothing(api, conn, ex_on, ocr):
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    first = _republished(api, conn, sid, nid, "Seen")
+    seen = first["updatedAt"]
+    later = _republished(api, conn, sid, nid, "Unseen")                    # the author publishes again meanwhile
+    assert later["id"] == first["id"] and later["updatedAt"] != seen       # non-vacuity: the version moved
+    for token in (seen, None, ""):
+        with pytest.raises(gallery.GalleryConflict) as e:
+            gallery.admin_act("admin", first["id"], "reject", note="No.", reviewed_updated_at=token, conn=conn)
+        assert str(e.value) == gallery.REJECT_STALE_SENTENCE
+    row = _row(conn, first["id"])
+    assert (row["status"], row["title"], row["review_note"]) == ("pending", "Unseen", None)   # nothing changed
+    # through the route: the same 409 and sentence
+    _as(api, "admin", role="admin")
+    url = f"{URL}/admin/items/{first['id']}"
+    r = api.patch(url, json={"action": "reject", "note": "No.", "reviewedUpdatedAt": seen})
+    assert (r.status_code, r.json()["detail"]) == (409, gallery.REJECT_STALE_SENTENCE)
+    r = api.patch(url, json={"action": "reject", "note": "No.", "reviewedUpdatedAt": later["updatedAt"]})
+    assert r.status_code == 200 and _row(conn, first["id"])["status"] == "rejected"       # control: the one seen
+
+
+def test_F_R4_a_style_reject_is_pinned_the_same_way(api, conn, ex_on, ocr):
+    """The shared path: a held revision of a LISTED style, declined against a version the reviewer never saw."""
+    s = _style(conn)
+    item = gallery.publish_style("author", s["id"], title="V1", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    held = gallery.publish_style("author", s["id"], title="V2", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    seen = _row(conn, item["id"])["updated_at"]
+    gallery.publish_style("author", s["id"], title="V3", description="", category="journal",
+                          trading_style=None, conn=conn)                   # again, while the reviewer reads V2
+    assert held["id"] == item["id"] and _row(conn, item["id"])["updated_at"] != seen
+    with pytest.raises(gallery.GalleryConflict):
+        gallery.admin_act("admin", item["id"], "reject", note="No.", reviewed_updated_at=seen, conn=conn)
+    assert json.loads(_row(conn, item["id"])["pending_json"])["title"] == "V3"         # the new revision stands

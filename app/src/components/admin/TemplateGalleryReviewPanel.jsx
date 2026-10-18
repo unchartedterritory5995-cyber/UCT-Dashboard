@@ -136,7 +136,10 @@ function ExampleReviewDetails({ item, onRead }) {
   )
 }
 
-function RejectForm({ item, onDone, onCancel }) {
+// P3b-F-R4: a rejection names the version the reviewer saw (`reviewedUpdatedAt`, the same token Approve sends: the
+// read the details card shows, else the queue row's). A 409 means the author published again: the panel shows what
+// is there now, exactly as a refused approval does.
+function RejectForm({ item, reviewedUpdatedAt, onDone, onCancel, onStale }) {
   const uid = useId()
   const [note, setNote] = useState('')
   const [working, setWorking] = useState(false)
@@ -147,11 +150,12 @@ function RejectForm({ item, onDone, onCancel }) {
     setWorking(true)
     setError(null)
     try {
-      await reviewGalleryTemplate(item.id, 'reject', note)
+      await reviewGalleryTemplate(item.id, 'reject', note, reviewedUpdatedAt)
       onDone(`Rejected “${item.title}”. The author sees your reason.`)
     } catch (err) {
       setError(err?.message || "Couldn't reject that template.")
       setWorking(false)
+      if (err?.status === 409) onStale()
     }
   }
   return (
@@ -276,7 +280,8 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
                 aria-label={`Reject ${item.title}`}>Reject…</button>
             </div>
             {rejecting === item.id && (
-              <RejectForm item={item} onCancel={() => setRejecting(null)}
+              <RejectForm item={item} reviewedUpdatedAt={seen[item.id] || item.updatedAt} onCancel={() => setRejecting(null)}
+                onStale={() => { setSeen({}); refresh() }}
                 onDone={(text) => { clearRefreshed(item.id); setRejecting(null); onMessage({ tone: 'ok', text }); refresh() }} />
             )}
           </div>

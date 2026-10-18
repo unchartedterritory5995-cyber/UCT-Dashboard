@@ -519,9 +519,9 @@ def report_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
 def admin_item_endpoint(gallery_id: str, body: dict[str, Any] = Depends(admin_body),
                         admin: dict = Depends(require_admin)) -> dict[str, Any]:
     """`{action: approve|reject|hide|unhide|feature|unfeature, note?, reviewedUpdatedAt?}`.
-    Hide is a visibility state; nothing here deletes a member's template. An approval must
-    carry `reviewedUpdatedAt`, the `updatedAt` of the version the reviewer saw; if the
-    template changed since, the answer is 409 and nothing is listed."""
+    Hide is a visibility state; nothing here deletes a member's template. An approval and a
+    rejection (P3b-F-R4) must carry `reviewedUpdatedAt`, the `updatedAt` of the version the
+    reviewer saw; if the template changed since, the answer is 409 and nothing changes."""
     try:
         item = gallery.admin_act(admin["id"], gallery_id, body.get("action"), note=body.get("note"),
                                  reviewed_updated_at=body.get("reviewedUpdatedAt"))

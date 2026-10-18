@@ -160,14 +160,16 @@ export async function reportGalleryTemplate(id, { reason, note = '' }) {
 /**
  * approve | reject | hide | unhide | feature | unfeature (admins).
  *
- * An APPROVAL names the version the reviewer saw: `reviewedUpdatedAt` is that template's
- * `updatedAt` (the queue row and the preview both carry it). If the author published again
- * in between, the server answers 409 with a sentence saying to look again, and lists nothing.
+ * An APPROVAL and a REJECTION name the version the reviewer saw (P3b-F-R4): `reviewedUpdatedAt`
+ * is that template's `updatedAt` (the queue row and the preview both carry it). If the author
+ * published again in between, the server answers 409 with a sentence saying to look again, and
+ * changes nothing.
  */
+const PINNED_ACTIONS = new Set(['approve', 'reject'])
 export async function reviewGalleryTemplate(id, action, note = '', reviewedUpdatedAt = null) {
   const { template } = await call(`${GALLERY_KEY}/admin/items/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(action === 'approve' ? { action, note, reviewedUpdatedAt } : { action, note }),
+    body: JSON.stringify(PINNED_ACTIONS.has(action) ? { action, note, reviewedUpdatedAt } : { action, note }),
   })
   await refreshGallery()
   return template

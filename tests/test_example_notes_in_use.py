@@ -73,7 +73,8 @@ def test_examples_holds_approved_ones_only_at_most_three_newest_first(api, conn,
     listed = [_example(conn, sid, title=f"Plan {i}")[0] for i in range(1, 6)]
     _example(conn, sid, title="Waiting", approve=False)                     # pending: never shown
     rejected, _ = _example(conn, sid, title="Declined", approve=False)
-    gallery.admin_act("admin", rejected, "reject", note="Not an example.", conn=conn)
+    gallery.admin_act("admin", rejected, "reject", note="Not an example.", conn=conn,
+                      reviewed_updated_at=conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?", (rejected,)).fetchone()[0])
     out = _item(api, sid)["examples"]
     assert [e["id"] for e in out] == [listed[4], listed[3], listed[2]]      # the three newest listed, newest first
     assert [e["title"] for e in out] == ["Plan 5", "Plan 4", "Plan 3"]
