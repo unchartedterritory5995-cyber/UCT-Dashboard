@@ -144,16 +144,31 @@ def _read_finalized(since: str) -> dict:
 
 
 def check(now: Optional[datetime] = None, post=None, **kw) -> dict:
-    """Status + ONE #breadth-alerts message per stuck stage (cleared when it recovers)."""
+    """Status + ONE #breadth-alerts message per stuck stage, and ONE resolution when it recovers.
+
+    ⭐ (2026-10-17) A recovery is SAID, not silently cleared: the 10-12..10-15 incident cleared
+    late on a Friday and the channel's last word stayed "not finalized" all weekend.
+    ⛔ "Unknown" is not "recovered": while any session's finalized store is unreadable the
+    condition is neither alerted nor resolved — the key is left exactly as it was."""
     from api.services import breadth_alerts
     res = status(now, **kw)
     sent = {}
-    for cls, title in (("collection", "Breadth session not collected"),
-                       ("finalization", "Breadth session collected but not finalized")):
+    blind = any(r["stage"] == "unknown" for r in res["sessions"])
+    for cls, title, done in (("collection", "Breadth session not collected",
+                              "Breadth sessions collected again"),
+                             ("finalization", "Breadth session collected but not finalized",
+                              "Breadth sessions finalized again")):
         items = res["problems"][cls]
-        if not items:
-            breadth_alerts.clear(f"pipeline:{cls}")
+        if items:
+            sent[cls] = breadth_alerts.send(f"pipeline:{cls}", title, items[:10], post=post)
             continue
-        sent[cls] = breadth_alerts.send(f"pipeline:{cls}", title, items[:10], post=post)
+        if blind:
+            continue
+        lines = (["latest stored session: %s" % res["latest_raw"]] if cls == "collection" else
+                 ["latest finalized: " + ", ".join("%s %s" % (u.upper(), res["latest_finalized"].get(u) or "?")
+                                                   for u in FINAL_UNIVERSES)])
+        r = breadth_alerts.resolve(f"pipeline:{cls}", done, lines, post=post)
+        if r.get("sent"):
+            sent[cls] = r
     res["sent"] = sent
     return res
