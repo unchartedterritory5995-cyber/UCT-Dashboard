@@ -60,7 +60,7 @@ import LearnedDrawn from './patternShapes/LearnedDrawn'
 import EmaSegment from './patternShapes/EmaSegment'
 import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
-import { getColor, getOpacity } from './patternShapes/style'
+import { getColor, getOpacity, FLAGGING_TIER } from './patternShapes/style'
 
 const SHAPE_RENDERERS = {
   trendline_pair: TrendlinePair,
@@ -137,6 +137,27 @@ export function trendlineBreakLine(d) {
 }
 
 /**
+ * The bull_flag "flagging" tier (lab flag_vocab, 2026-10-18). The server keeps such a flag `stale`
+ * (the strict round stopped it) and stamps its own key, `extras.flagging` {tier, draw_round,
+ * draw_lanes, draw_anchors?}. This returns the row as it DRAWS -- not stale, its own lanes, tagged
+ * `flag_tier: 'flagging'` (style.js draws it dotted, faint and labelled "flagging") and with NO entry
+ * line, because its geometry measured at chance against the team's lines -- or null for any row
+ * that is not exactly that. The server is the gate for members (auto_structures.member_rows).
+ * Pure — exported for tests.
+ */
+export function flaggingView(d) {
+  if (d?.pattern_id !== 'bull_flag') return null
+  const g = d?.geometry
+  const ex = g?.extras
+  const stamp = ex?.flagging
+  if (!ex?.stale || !stamp || typeof stamp !== 'object' || stamp.tier !== FLAGGING_TIER) return null
+  // draw_entry false is the ONE guard against an entry line (the overlay draws one only with it)
+  const extras = { ...ex, stale: false, draw_lanes: stamp.draw_lanes === true }
+  if (Array.isArray(stamp.draw_anchors) && stamp.draw_anchors.length) extras.draw_anchors = stamp.draw_anchors
+  return { ...d, flag_tier: FLAGGING_TIER, draw_entry: false, geometry: { ...g, extras } }
+}
+
+/**
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
  */
@@ -144,8 +165,9 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
   const dateTf = tf == null ? false : isDateTf(tf)
   const structures = []
   const levels = []
-  for (const d of detections || []) {
-    if (!d) continue
+  for (const row of detections || []) {
+    if (!row) continue
+    const d = flaggingView(row) || row
     if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
     if (d.geometry?.extras?.stale) continue
@@ -326,7 +348,7 @@ export default function PatternOverlay({
         const anchors = d?.geometry?.anchors || []
         const tlBreak = trendlineBreakLine(d)
         return (
-          <g key={d.id} data-detection={d.pattern_id}>
+          <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
               <Renderer
                 detection={d}

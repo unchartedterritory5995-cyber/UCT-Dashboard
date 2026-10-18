@@ -9,7 +9,9 @@ Nothing else: not bc:cup-with-handle, not another internal uct_* id, not an expe
 levels-layer row, not a bc:flat-base whose pivot stamp is missing (that would draw the full box,
 which nobody judged), and not a bull_flag that is stale or does not carry the round-9 stamp
 (extras.draw_round, written by display.draw_geometry only on a finished, drawn flag): a row stored
-by older drawing code, or one whose verdicts never finished, was never judged.
+by older drawing code, or one whose verdicts never finished, was never judged. The one exception is
+the "flagging" tier, which carries its own stamp (extras.flagging) and its own rails in
+tests/test_flag_tiers.py.
 
 The fake detection store below honours `pattern_ids` and `include_internal` the way
 memory.get_active_detections does, so a route that asked for too much would be SERVED too much.
@@ -242,24 +244,29 @@ def test_a_stale_or_unconfirmed_bull_flag_is_never_served_to_a_member(monkeypatc
     assert {"r14", "r15", "r16"} <= set(admin_ids)
 
 
-def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_does_not(monkeypatch):
+def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_as_flagging(monkeypatch):
     """End to end through the REAL display.draw_geometry (the round-9 test fixtures): a flag every
-    verdict passes is stamped with the round and served; a short-pole flag is stale and dropped."""
+    verdict passes is stamped with the round and served as confirmed; a short-pole flag is stale,
+    never stamped with the round, and reaches a member ONLY through its "flagging" stamp -- the same
+    row with that stamp removed is dropped (test_flag_tiers.py covers the tier itself)."""
     good, _ = _drawn(*_flag_after(TALL_LEG))
     bad, _ = _drawn(*_flag_after(SHORT_LEG))
     assert not good.get("stale") and good["draw_round"] == CONFIRMED_ROUND
     assert bad["stale"] is True and bad["stale_reason"] == "short_pole"
     assert "draw_round" not in bad                      # a stale flag is never stamped
-    rows = [_flag("g", **good), _flag("b", **bad)]
+    assert bad["flagging"]["tier"] == "flagging"
+    unstamped = {k: v for k, v in bad.items() if k != "flagging"}
+    rows = [_flag("g", **good), _flag("b", **bad), _flag("u", **unstamped)]
     _flags(monkeypatch, True, True)
     _store(monkeypatch, rows)
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
-    assert [r["id"] for r in body["detections"]] == ["g"]
+    assert [r["id"] for r in body["detections"]] == ["g", "b"]
     assert body["detections"][0]["geometry"]["extras"]["draw_pole"] == good["draw_pole"]
+    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
     admin = _get(ADMIN).json()
-    assert [r["id"] for r in admin["detections"]] == ["g", "b"]
+    assert [r["id"] for r in admin["detections"]] == ["g", "b", "u"]
 
 
 def test_a_flag_drawn_by_a_newer_round_is_not_served_until_confirmed(monkeypatch):
