@@ -20,14 +20,19 @@ What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
      * money -> VALUE_TEXT (kind `money`): the plan's verbatim `$` pattern; a currency code or
        sign before or after (`_CURRENCY`: USD EUR GBP CAD CHF JPY AUD NZD HKD SGD, the euro,
        pound, yen, rupee, won, rouble and bitcoin signs, the full-width dollar and yen, `C$`, `A$`);
-       a 1-3 capital-letter prefix glued to `$` (US$, CA$, HK$...) or a `$` glued to a word, when a
-       digit follows (R19; a `$NVDA` cashtag stays); a trailing `$`; "N dollars|bucks|grand";
+       a 1-3 capital-letter prefix glued to `$` (US$, CA$, HK$...) or a `$` glued to a word or to
+       the amount before it ("$500$600" is two amounts, R28), when a digit follows (R19; a `$NVDA`
+       cashtag stays); a currency CODE glued to a lower-case word ("madeUSD 1,240", R28; an
+       all-capitals pair such as "BTCUSD 65000" is a quote and stays); a trailing `$`; "N dollars|bucks|grand";
        "N k|m profit|loss|gain|down|up"; a currency amount with space-grouped thousands, whole
        ("$1 240", "1 240 €", R22); and a BARE number (R11, R20) within 3 words after a balance
        word (3+ digits, a decimal or k/m), a P&L word (3+ digits, a comma group or k/m) or up/down
        (only k/m, or a comma-grouped 1,000 or more, so "up to 5850" stays a level) -- never a
-       percent or an R figure. A P&L word inside a plan phrase is no trigger (R24: "profit target
-       150", "stop loss 145", "take profit 160", "loss level 140", "profit taking at 155" stay).
+       percent or an R figure. A declared plan phrase (`PLAN_PHRASES`, R27: an exact list) keeps
+       the number that is its VERY NEXT token, at most one `PLAN_CONNECTORS` entry between (R26:
+       "profit target 150", "stop loss @ 98.5", "profit taking at 155" stay). Any other word between
+       ("stop loss hit for 2k"), or a P&L word right after the number ("take profit 1,240 realized"),
+       and the phrase's P&L word is a trigger again.
        An amount runs on over a trailing `,digits` (`$1,24` is one amount).
      * a P&L figure -> VALUE_TEXT (kind `pnl_figure`): an `R`/`r` or `%` figure with a P&L word
        among the 3 words BEFORE it, or a loss|profit|gain|drawdown|return|win rate word among the
@@ -91,8 +96,9 @@ _NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
 #: Ruling P3b-T2-R22: thousands grouped by a space (or a no-break space), "1 240".
 _NUM_SPACED = r"\d{1,3}(?:[   ]\d{3})+(?:[.,]\d+)?"
 #: Rulings P3b-T2-R11 and R22: the currency codes and signs.
-_CURRENCY = (r"(?:USD|EUR|GBP|CAD|CHF|JPY|AUD|NZD|HKD|SGD"
-             r"|€|£|¥|₹|₩|₽|₿|＄|￥|C\$|A\$)")
+_CURRENCY_CODES: tuple[str, ...] = ("USD", "EUR", "GBP", "CAD", "CHF", "JPY", "AUD", "NZD", "HKD", "SGD")
+_CURRENCY = (r"(?:" + "|".join(_CURRENCY_CODES)
+             + r"|€|£|¥|₹|₩|₽|₿|＄|￥|C\$|A\$)")
 #: Ruling P3b-T2-R11 (and R22's currencies): the money forms beyond the plan's `$` pattern.
 MONEY_EXTRA_PATTERNS: tuple[str, ...] = (
     rf"(?<![\w$])[+-]?{_CURRENCY}\s?{_NUM}[kKmM]?(?!\w)",      # USD 1,240 / €1,240 / C$500
@@ -104,11 +110,14 @@ MONEY_EXTRA_PATTERNS: tuple[str, ...] = (
     rf"(?<![\w.,$]){_NUM_SPACED}\s?(?:{_CURRENCY}|\$)(?!\w)",                 # 1 240 €
 )
 #: Ruling P3b-T2-R19: a dollar sign with a 1-3 letter country prefix glued to it (US$, CA$, HK$, S$,
-#: R$, NZ$, A$, C$), and a `$` glued to the word before it -- each only when a DIGIT follows, so a
-#: `$NVDA` cashtag is never money. Case-sensitive: the prefix is capital letters.
+#: R$, NZ$, A$, C$), and a `$` glued to the word before it -- or, ruling P3b-T2-R28, to the amount
+#: before it ("$500$600" is two amounts) -- each only when a DIGIT follows, so a `$NVDA` cashtag is
+#: never money. R28 also: a currency CODE glued to a lower-case word ("madeUSD 1,240"); after a
+#: capital it is a pair ("BTCUSD 65000", "EURUSD 1.0850"), a quote, and stays. Case-sensitive.
 MONEY_DOLLAR_PREFIX_PATTERNS: tuple[str, ...] = (
     rf"(?<![\w$])[+-]?[A-Z]{{1,3}}\$\s?(?=\d){_NUM}[kKmM]?(?!\w)",
-    rf"(?<=[A-Za-z])\$\s?(?=\d){_NUM}[kKmM]?(?!\w)",
+    rf"(?<=[A-Za-z0-9])\$\s?(?=\d){_NUM}[kKmM]?(?!\w)",
+    r"(?<=[a-z])(?:" + "|".join(_CURRENCY_CODES) + rf")\s?(?=\d){_NUM}[kKmM]?(?!\w)",
 )
 #: Rulings P3b-T2-R11 and R20: a BARE number (no currency sign) is money when, within 3 words
 #: after one of these words, it has the named shape. Never a percent or an R figure (those are
@@ -121,14 +130,34 @@ PNL_MONEY_WORDS: tuple[str, ...] = ("pnl", "p&l", "p/l", "made", "lost", "profit
 #:   up / down      -> ONLY a k/m suffix or a comma-grouped amount of 1,000 or more, so "up to 5850"
 #:                     and "down to 132.40" stay levels
 UP_DOWN_WORDS: tuple[str, ...] = ("up", "down")
-#: Ruling P3b-T2-R24: a P&L word in a PLAN phrase is not a P&L trigger -- one followed by these
-#: words ("profit target 150", "loss level 140", "profit taking at 155") or preceded by stop|take
-#: ("stop loss 145", "take profit 160"). A level in a plan is the example's point.
-PLAN_WORDS_AFTER: tuple[str, ...] = ("target", "targets", "level", "levels", "zone", "area", "taking")
-PLAN_WORDS_BEFORE: tuple[str, ...] = ("stop", "take")
+#: Ruling P3b-T2-R27 (narrowing R24): the ONLY plan phrases whose P&L word is not a trigger -- an
+#: EXACT list, declared here and nowhere else, never "take|stop + any P&L word" ("take gain 1,240",
+#: "stop profit 1,240" are money). A level in a plan is the example's point.
+PLAN_PHRASES: tuple[str, ...] = ("stop loss", "take profit", "profit target", "profit targets", "loss level",
+                                 "loss levels", "profit taking")
+#: Ruling P3b-T2-R26: the phrase keeps a number only when the number is its VERY NEXT token, with at
+#: most ONE of these between ("profit taking at 155", "stop loss @ 98.5", "stop loss: 145").
+PLAN_CONNECTORS: tuple[str, ...] = ("at", "@", ":", "of", "near", "~")
 BARE_MONEY_WINDOW = 3
 _BARE_NUM = re.compile(r"(?<![\w.,$])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?[kKmM]?(?!\w)(?![.,]\d)")
 _PERCENT_OR_R_AFTER = re.compile(r"\s?(?:%|[Rr](?!\w))")
+
+
+def _phrase_alternation(phrases: tuple[str, ...]) -> str:
+    return "|".join(r"\s+".join(re.escape(w) for w in p.split()) for p in sorted(phrases, key=len, reverse=True))
+
+
+#: R26 + R27: text that ENDS in a plan phrase plus at most one connector -- matched against the text
+#: just before a number, so a number with any other word between is never a plan level.
+_PLAN_LEVEL = re.compile(
+    r"(?<![\w&/])(?:" + _phrase_alternation(PLAN_PHRASES) + r")"
+    + r"(?:\s+(?:" + "|".join(re.escape(c) for c in PLAN_CONNECTORS if c.isalpha()) + r")\s+"
+    + r"|\s*[" + "".join(re.escape(c) for c in PLAN_CONNECTORS if not c.isalpha()) + r"]\s*"
+    + r"|\s+)$", re.IGNORECASE)
+_PLAN_PHRASE_AT = re.compile(r"(?:" + _phrase_alternation(PLAN_PHRASES) + r")(?![\w&/])", re.IGNORECASE)
+#: How far back a plan phrase is looked for (a longer gap is never "the very next token").
+_PLAN_LOOKBACK = 64
+_NEXT_WORD = re.compile(r"\s+([A-Za-z][A-Za-z&/]*)")
 
 #: Task 2's P&L figure pattern, with the corrections ruled since: the trailing `\b` is `(?!\w)`
 #: (P3b-T2-R1), `r` counts as `R` (P3b-T2-R12), and the number may carry thousands groups (M-3,
@@ -291,20 +320,28 @@ def scrub_urls(text: str, changes: list | None) -> str:
     return _URL.sub(repl, text)
 
 
-def _pnl_money_trigger_before(text: str, at: int) -> bool:
-    """R20 + R24: a P&L money word among the BARE_MONEY_WINDOW words before `at`, that is not part
-    of a plan phrase (followed by a PLAN_WORDS_AFTER word, or preceded by stop|take)."""
-    words = _words(text[:at])
-    first = max(0, len(words) - BARE_MONEY_WINDOW)
-    for i in range(first, len(words)):
-        if words[i] not in PNL_MONEY_WORDS:
-            continue
-        nxt = words[i + 1] if i + 1 < len(words) else ""
-        prev = words[i - 1] if i > 0 else ""
-        if nxt in PLAN_WORDS_AFTER or prev in PLAN_WORDS_BEFORE:
-            continue                                   # R24: "profit target", "stop loss", ...
-        return True
-    return False
+def _plan_level_start(text: str, start: int, end: int) -> int | None:
+    """Rulings P3b-T2-R26 + R27: where the plan phrase starts, when the number `text[start:end]` is
+    the VERY NEXT token after a PLAN_PHRASES entry (at most one PLAN_CONNECTORS entry between) and no
+    P&L word follows the number; otherwise None. "take profit 1,240 realized": the P&L word after the
+    figure wins, unless it opens the next plan phrase ("stop loss 145 profit target 160")."""
+    m = _PLAN_LEVEL.search(text, max(0, start - _PLAN_LOOKBACK), start)
+    if m is None:
+        return None
+    nxt = _NEXT_WORD.match(text, end)
+    if nxt and nxt.group(1).casefold() in PNL_MONEY_WORDS and not _PLAN_PHRASE_AT.match(text, nxt.start(1)):
+        return None
+    return m.start()
+
+
+def _pnl_money_trigger_before(text: str, start: int, end: int) -> bool:
+    """R20 + R26: a P&L money word among the BARE_MONEY_WINDOW words before the number
+    `text[start:end]`, leaving out only the words of the plan phrase the number directly follows."""
+    words = _words(text[:start])[-BARE_MONEY_WINDOW:]
+    plan = _plan_level_start(text, start, end)
+    if plan is not None:
+        words = words[:max(0, len(words) - len(_words(text[plan:start])))]
+    return _has_word(words, PNL_MONEY_WORDS)
 
 
 def _bare_money_spans(text: str) -> list[tuple[int, int]]:
@@ -320,7 +357,7 @@ def _bare_money_spans(text: str) -> list[tuple[int, int]]:
         at = m.start()
         if _word_before(text, at, BALANCE_WORDS, BARE_MONEY_WINDOW) and (digits >= 3 or "." in tok or suffix):
             spans.append((m.start(), m.end()))
-        elif _pnl_money_trigger_before(text, at) and (digits >= 3 or grouped or suffix):
+        elif _pnl_money_trigger_before(text, at, m.end()) and (digits >= 3 or grouped or suffix):
             spans.append((m.start(), m.end()))
         elif _word_before(text, at, UP_DOWN_WORDS, BARE_MONEY_WINDOW) and (
                 suffix or (grouped and float(tok.lstrip("+-").replace(",", "")) >= 1000)):
@@ -453,6 +490,7 @@ def ocr_warnings(text: str, brokers: tuple[str, ...]) -> list[dict]:
 __all__ = [
     "BROKER_NAMES", "VALUE_TEXT", "BROKER_TEXT", "LINK_TEXT", "BEFORE_MAX", "KINDS", "MONEY_PATTERN",
     "MONEY_EXTRA_PATTERNS", "MONEY_DOLLAR_PREFIX_PATTERNS", "BALANCE_WORDS", "PNL_MONEY_WORDS", "UP_DOWN_WORDS",
+    "PLAN_PHRASES", "PLAN_CONNECTORS",
     "URL_TLDS", "ACCOUNT_YEAR_WORDS", "PNL_PATTERN", "PNL_WORDS", "PNL_WINDOW", "PNL_WORDS_AFTER",
     "PNL_WINDOW_AFTER", "ACCOUNT_DIGITS_MIN", "ACCOUNT_WORDS", "ACCOUNT_WORD_DIGITS_MIN", "DIGITS_PATTERN",
     "MIN_AUTHOR_BROKER_CHARS", "broker_patterns", "scrub_urls", "scrub_text", "ocr_warnings",

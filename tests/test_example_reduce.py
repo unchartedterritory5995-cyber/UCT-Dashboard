@@ -425,9 +425,10 @@ def test_R23_accepted_over_redaction_is_pinned(line, want):
     assert set(kinds(changes)) == {"account"}
 
 
+#: "loss zone 140" and "profit area 150" left this list in fix round 4: ruling P3b-T2-R27 makes the
+#: plan phrases an EXACT list that names neither, so both are replaced now (see the R27 test below).
 @pytest.mark.parametrize("line", ["profit target 150", "stop loss 145", "take profit 160", "loss level 140",
-                                  "profit taking at 155", "profit targets 150 and 160", "loss zone 140",
-                                  "profit area 150"])
+                                  "profit taking at 155", "profit targets 150 and 160"])
 def test_R24_plan_level_phrases_survive_the_pnl_word_money_rule(line):
     changes: list = []
     assert texts_in(ex(text_doc(line), report=changes)) == [line]
@@ -464,6 +465,115 @@ def test_R25_a_replacement_glued_to_the_word_before_gets_one_space(line, want, k
 def test_R25_CONTROL_never_a_double_space_and_never_after_punctuation(line, want):
     out = texts_in(ex(text_doc(line)))
     assert out == [want] and "  " not in out[0]
+
+
+# ── fix round 4 (rulings P3b-T2-R26..R28) ───────────────────────────────────────────────
+
+#: Ruling P3b-T2-R26's survive rows verbatim, then the connectors it names and the level lists that
+#: must stay levels: a plan phrase keeps a number only when the number is the VERY NEXT token after
+#: it, with at most one connector (at, @, ":", of, near, ~) between.
+R26_SURVIVE = ["profit target 150", "stop loss 145", "take profit 160", "loss level 140", "profit taking at 155",
+               "stop loss @ 98.5",
+               "stop loss: 145", "stop loss ~145", "stop loss near 145", "stop loss of 145", "profit target at 150",
+               "loss levels 140", "Stop Loss 145", "profit targets 150 and 160", "stop loss 145 profit target 160",
+               "stop loss 145 take profit 160"]
+
+
+@pytest.mark.parametrize("line", R26_SURVIVE)
+def test_R26_a_level_directly_after_a_plan_phrase_survives(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+#: Review finding I-1's rows (task-2-r3-rereview.md), the ruling's nine verbatim first: a P&L figure
+#: written after a plan phrase, with words between, is replaced. "stop loss of 1,240" is NOT here:
+#: R26 names "of" as a connector, so it reads as a level (R26_SURVIVE's "stop loss of 145").
+I1_ROWS = [
+    ("stop loss hit for 2k", f"stop loss hit for {V}"),
+    ("stop loss hit -2,000", f"stop loss hit {V}"),
+    ("stop loss cost 2,000", f"stop loss cost {V}"),
+    ("stop loss triggered 1,500", f"stop loss triggered {V}"),
+    ("profit target hit +1,240", f"profit target hit {V}"),
+    ("profit target hit: 1240", f"profit target hit: {V}"),
+    ("take profit and banked 1,240", f"take profit and banked {V}"),
+    ("profit taking netted 1,240", f"profit taking netted {V}"),
+    ("take profit 1,240 realized", f"take profit {V} realized"),     # a P&L word AFTER wins (R26)
+    ("stop loss hit -2k", f"stop loss hit {V}"),
+    ("stop loss hit, 2k", f"stop loss hit, {V}"),
+    ("stop loss cost me 2k", f"stop loss cost me {V}"),
+    ("profit target hit 1,240", f"profit target hit {V}"),
+    ("loss level hit 1,240", f"loss level hit {V}"),
+    ("Stop Loss hit for 2k", f"Stop Loss hit for {V}"),
+    ("STOP LOSS HIT FOR 2K", f"STOP LOSS HIT FOR {V}"),
+    ("stop loss at @ 145", f"stop loss at @ {V}"),                    # two connectors: not adjacent
+]
+
+
+@pytest.mark.parametrize("line, want", I1_ROWS)
+def test_R26_a_pnl_figure_after_a_plan_phrase_with_words_between_is_replaced(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+#: Ruling P3b-T2-R27 (review M-1): the exempt phrases are an EXACT list, not take|stop + any P&L
+#: word. The ruling's three rows verbatim, then R24's zone/area forms, which the exact list leaves out.
+@pytest.mark.parametrize("line, want", [
+    ("take gain 1,240", f"take gain {V}"), ("take loss 1,240", f"take loss {V}"),
+    ("stop profit 1,240", f"stop profit {V}"),
+    ("loss zone 140", f"loss zone {V}"), ("profit area 150", f"profit area {V}"),
+    ("loss target 140", f"loss target {V}"), ("profit level 150", f"profit level {V}"),
+])
+def test_R27_only_the_declared_plan_phrases_are_exempt(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+def test_R27_the_plan_phrases_and_connectors_are_the_ruled_lists():
+    assert xs.PLAN_PHRASES == ("stop loss", "take profit", "profit target", "profit targets", "loss level",
+                               "loss levels", "profit taking")
+    assert xs.PLAN_CONNECTORS == ("at", "@", ":", "of", "near", "~")
+
+
+def test_R27_the_plan_phrases_are_declared_once():
+    """Each plan phrase is ONE string constant in example_sanitize (its declared tuple), and the R24
+    take|stop word lists are gone, so nothing else can grant the exemption."""
+    tree = ast.parse(SANITIZE_PY.read_text(encoding="utf-8"))
+    docstrings = {id(n.body[0].value) for n in ast.walk(tree)
+                  if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and n.body
+                  and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+    consts = [n.value.casefold() for n in ast.walk(tree)
+              if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docstrings]
+    for phrase in xs.PLAN_PHRASES:
+        assert consts.count(phrase) == 1, phrase
+    bound = [n for n in ast.walk(tree)
+             if (isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "PLAN_PHRASES" for t in n.targets))
+             or (isinstance(n, ast.AnnAssign) and getattr(n.target, "id", "") == "PLAN_PHRASES")]
+    assert len(bound) == 1, bound
+    assert not hasattr(xs, "PLAN_WORDS_AFTER") and not hasattr(xs, "PLAN_WORDS_BEFORE")
+
+
+#: Ruling P3b-T2-R28: the two pre-existing leaks (task-2-r3-rereview.md, out-of-scope observations).
+@pytest.mark.parametrize("line, want, n", [
+    ("$500$600", f"{V} {V}", 2),                       # a second `$` amount glued to the first
+    ("made$1,240$500", f"made {V} {V}", 2),
+    ("madeUSD 1,240", f"made {V}", 1),                 # a currency code glued to a word, R25's spacing
+    ("netEUR 500", f"net {V}", 1),
+])
+def test_R28_glued_amounts_and_a_glued_currency_code_are_money(line, want, n):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"] * n, changes
+    assert all(c["after"] == V for c in changes)       # the entry carries no space (R25)
+
+
+@pytest.mark.parametrize("line", ["BTCUSD 65000", "EURUSD 1.0850", "fraud 500", "USDCAD 1.36"])
+def test_R28_CONTROL_a_currency_pair_and_an_ordinary_word_stay(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
 
 
 # ── 6, 7, P3b-R10: trader blocks reset through their builder's NO-READ output ─────────────
