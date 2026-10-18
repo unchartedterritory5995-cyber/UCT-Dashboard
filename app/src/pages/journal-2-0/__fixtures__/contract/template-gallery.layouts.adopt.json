@@ -1,0 +1,35 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "note": "The listed layout for the member's own client to apply and save; the server writes no preference.",
+    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "requestBody": {
+      "version": 1
+    },
+    "status": 200
+  },
+  "body": {
+    "credit": "Based on Lane Layout's Prop trade page",
+    "layout": {
+      "lists": {
+        "trade": [
+          {
+            "id": "story",
+            "shown": true
+          },
+          {
+            "id": "chart",
+            "shown": false
+          },
+          {
+            "id": "outcome",
+            "shown": true
+          }
+        ]
+      },
+      "page": "trade"
+    },
+    "version": 1
+  }
+}

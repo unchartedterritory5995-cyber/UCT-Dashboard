@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/layouts",
+    "note": "No saved layout for this page: nothing to share.",
+    "path": "/api/j2/template-gallery/layouts",
+    "requestBody": {
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "page": "trade",
+      "title": "Prop trade page",
+      "tradingStyle": "swing"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "You haven't changed this page's layout yet, so there is nothing to share."
+  }
+}

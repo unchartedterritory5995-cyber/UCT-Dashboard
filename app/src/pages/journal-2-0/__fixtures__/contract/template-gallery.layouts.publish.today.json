@@ -1,0 +1,49 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/layouts",
+    "note": "Today's page: one list per phase the member customised.",
+    "path": "/api/j2/template-gallery/layouts",
+    "requestBody": {
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "page": "today",
+      "title": "Calm morning",
+      "tradingStyle": "swing"
+    },
+    "status": 200
+  },
+  "body": {
+    "droppedPanels": 0,
+    "template": {
+      "author": "Lane Layout",
+      "authorHandle": "gcra2MCZaDHz",
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "Story first, then the outcome.",
+      "featured": false,
+      "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "161a326a94e34c8e93bb226dedd1b3d9",
+      "itemType": "page_layout",
+      "layoutPage": "today",
+      "listedAt": null,
+      "mine": true,
+      "preview": [],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": null,
+      "status": "pending",
+      "title": "Calm morning",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

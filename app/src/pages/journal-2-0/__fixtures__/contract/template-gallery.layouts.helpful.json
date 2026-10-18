@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/helpful",
+    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/helpful",
+    "status": 200
+  },
+  "body": {
+    "count": 1,
+    "helpful": true
+  }
+}

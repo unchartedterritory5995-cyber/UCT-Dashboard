@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/report",
+    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/report",
+    "requestBody": {
+      "note": "Checking the report door on a layout.",
+      "reason": "other"
+    },
+    "status": 200
+  },
+  "body": {
+    "already": false,
+    "reported": true
+  }
+}

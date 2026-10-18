@@ -1,0 +1,49 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/layouts",
+    "note": "The trade page, built by the server from the member's own saved layout: pending until an admin reviews it.",
+    "path": "/api/j2/template-gallery/layouts",
+    "requestBody": {
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "page": "trade",
+      "title": "Prop trade page",
+      "tradingStyle": "swing"
+    },
+    "status": 200
+  },
+  "body": {
+    "droppedPanels": 0,
+    "template": {
+      "author": "Lane Layout",
+      "authorHandle": "gcra2MCZaDHz",
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "Story first, then the outcome.",
+      "featured": false,
+      "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "a2e205cbae944883907d244b102bd32b",
+      "itemType": "page_layout",
+      "layoutPage": "trade",
+      "listedAt": null,
+      "mine": true,
+      "preview": [],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": null,
+      "status": "pending",
+      "title": "Prop trade page",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

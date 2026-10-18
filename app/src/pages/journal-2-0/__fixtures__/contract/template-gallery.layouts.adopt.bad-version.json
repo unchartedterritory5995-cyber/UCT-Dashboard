@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "requestBody": {
+      "version": "1"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Say which version you previewed: version must be a whole number."
+  }
+}

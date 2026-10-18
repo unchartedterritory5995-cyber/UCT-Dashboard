@@ -2498,6 +2498,90 @@ def checklist_from_winners_too_few_others(w: World) -> None:
     w.as_user(MEMBER)
 
 
+# ── Notebook P4b: sharing a page layout through the library (NOTEBOOK_LAYOUT_SHARING_ENABLED, in FLAGS). ──
+# Registered at the VERY END of the builder list (P4b-R-X7), with members of its own, so no earlier builder's
+# seeded ids, rows or answers move. The signed-out and flags-off sweeps reach these routes through
+# `route_table`; "sharing off with the library and page layouts on" is a pytest route test, not a fixture
+# (tests/test_page_layout_share.py and tests/test_page_layout_adopt.py), because the flags-off sweep turns
+# every flag off at once.
+
+@builder
+def layout_library(w: World) -> None:
+    """P4b Task 6: share a page layout, read the status, list and open a shared layout, adopt it, mark it
+    Helpful and report it; then the author's next version is held, read by an admin, approved, and an adopt
+    of the old version is refused. Every admin approval is a CHECKED setup call, as the style library's are."""
+    from api.services import auth_service
+    from api.services.journal_two import page_layout_share as pls
+    base = "/api/j2/template-gallery"
+    author = w.member("layout-author", "Lane Layout")
+    viewer = w.member("layout-viewer", "Val Viewer")
+    trade = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}, {"id": "outcome", "shown": True}]
+    today = {"premarket": [{"id": "regime", "shown": True}, {"id": "checklistToday", "shown": True}],
+             "market": [{"id": "todayNote", "shown": True}, {"id": "coachStrip", "shown": False}]}
+
+    def save_pref(blob: Any) -> None:
+        auth_service.set_user_preference(author, pls.LAYOUT_PREF, blob if isinstance(blob, str) else json.dumps(blob))
+
+    def approve(gid: str) -> None:
+        q = w.client.get(f"{base}/admin/queue")
+        assert q.status_code == 200, f"setup: the review queue answered {q.status_code}"
+        seen = next(r["updatedAt"] for r in q.json()["pending"] if r["id"] == gid)
+        res = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+        assert res.status_code == 200, f"setup: approving {gid} answered {res.status_code}"
+
+    share = {"page": "trade", "title": "Prop trade page", "description": "Story first, then the outcome.",
+             "category": "journal", "tradingStyle": "swing"}
+    w.as_user(author)
+    w.record("template-gallery.layouts.status.none", "GET", f"{base}/layouts/status", case="empty", expect=200,
+             note="Nothing shared yet: both pages are null.")
+    w.record("template-gallery.layouts.publish.nothing-to-share", "POST", f"{base}/layouts", case="error",
+             expect=400, json_body=share, note="No saved layout for this page: nothing to share.")
+    w.record("template-gallery.layouts.publish.unknown-page", "POST", f"{base}/layouts", case="error",
+             expect=400, json_body={**share, "page": "sidebar"})
+    save_pref({"version": 2, "trade": trade})
+    w.record("template-gallery.layouts.publish.unreadable", "POST", f"{base}/layouts", case="error", expect=400,
+             json_body=share, note="A saved layout this server cannot read (not version 1): nothing is shared.")
+    save_pref({"version": 1, "trade": trade, "today": today})
+    shared = w.record("template-gallery.layouts.publish", "POST", f"{base}/layouts", case="success", expect=200,
+                      json_body=share, note="The trade page, built by the server from the member's own saved "
+                                            "layout: pending until an admin reviews it.")
+    tid = shared["template"]["id"]
+    w.record("template-gallery.layouts.status.pending", "GET", f"{base}/layouts/status", case="success",
+             expect=200, note="The trade page shared and pending; Today not shared.")
+    w.record("template-gallery.layouts.publish.today", "POST", f"{base}/layouts", case="success", expect=200,
+             json_body={**share, "page": "today", "title": "Calm morning"},
+             note="Today's page: one list per phase the member customised.")
+    w.as_user(ADMIN)
+    approve(tid)
+    w.as_user(viewer)
+    w.record("template-gallery.list.layouts", "GET", f"{base}?type=page_layout", case="success", expect=200,
+             note="The Page layouts chip: `capabilities.layoutSharing` is true and each item names its `layoutPage`.")
+    w.record("template-gallery.layouts.item", "GET", f"{base}/{tid}", case="success", expect=200,
+             note="A listed layout in full: `payload` is the listed layout, registry panels only.")
+    w.record("template-gallery.layouts.adopt", "POST", f"{base}/{tid}/adopt-layout", case="success", expect=200,
+             json_body={"version": 1}, note="The listed layout for the member's own client to apply and save; "
+                                            "the server writes no preference.")
+    w.record("template-gallery.layouts.adopt.bad-version", "POST", f"{base}/{tid}/adopt-layout", case="error",
+             expect=400, json_body={"version": "1"})
+    w.record("template-gallery.layouts.helpful", "POST", f"{base}/{tid}/helpful", case="success", expect=200)
+    w.record("template-gallery.layouts.report", "POST", f"{base}/{tid}/report", case="success", expect=200,
+             json_body={"reason": "other", "note": "Checking the report door on a layout."})
+    # The author's next version: held as a revision, read by an admin, approved; the old version then 409s.
+    w.as_user(author)
+    save_pref({"version": 1, "trade": list(reversed(trade)), "today": today})
+    resubmitted = w.client.post(f"{base}/layouts", json=share)
+    assert resubmitted.status_code == 200, f"setup: resharing the trade page answered {resubmitted.status_code}"
+    w.as_user(ADMIN)
+    w.record("template-gallery.layouts.item.revision.admin", "GET", f"{base}/{tid}", case="success", expect=200,
+             note="An admin's read of a listed layout with a held revision: `pendingRevision` is what approving lists.")
+    approve(tid)
+    w.as_user(viewer)
+    w.record("template-gallery.layouts.adopt.version-moved", "POST", f"{base}/{tid}/adopt-layout", case="error",
+             expect=409, json_body={"version": 1},
+             note="The member previewed version 1 and version 2 is listed now: nothing is adopted.")
+    w.as_user(MEMBER)
+
+
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────
 
 #: Every value the normaliser rewrote in the last run (for `--explain`, and for the rail).

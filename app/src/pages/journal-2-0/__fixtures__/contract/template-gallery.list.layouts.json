@@ -1,0 +1,42 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery",
+    "note": "The Page layouts chip: `capabilities.layoutSharing` is true and each item names its `layoutPage`.",
+    "path": "/api/j2/template-gallery?type=page_layout",
+    "status": 200
+  },
+  "body": {
+    "capabilities": {
+      "layoutSharing": true
+    },
+    "templates": [
+      {
+        "author": "Lane Layout",
+        "authorHandle": "gcra2MCZaDHz",
+        "category": "journal",
+        "description": "Story first, then the outcome.",
+        "featured": false,
+        "firm": false,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "a2e205cbae944883907d244b102bd32b",
+        "itemType": "page_layout",
+        "layoutPage": "trade",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [],
+        "propertyCount": 0,
+        "title": "Prop trade page",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      }
+    ],
+    "viewer": {
+      "admin": false
+    }
+  }
+}
