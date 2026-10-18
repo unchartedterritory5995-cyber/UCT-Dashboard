@@ -331,7 +331,7 @@ def test_R18_CONTROL_tickers_abbreviations_versions_and_prices_are_not_domains(l
 COUNTRY_DOLLAR_CASES = [
     ("made US$1,240", f"made {V}"), ("made CA$1,240", f"made {V}"), ("made HK$500", f"made {V}"),
     ("made S$500", f"made {V}"), ("made R$500", f"made {V}"), ("made NZ$500", f"made {V}"),
-    ("made$1,240", f"made{V}"),
+    ("made$1,240", f"made {V}"),                     # R25: one space where the replacement was glued
 ]
 
 
@@ -409,6 +409,61 @@ def test_R22_more_currencies_and_space_grouped_thousands_are_one_money_entry(lin
     changes: list = []
     assert texts_in(ex(text_doc(line), report=changes)) == [want]
     assert kinds(changes) == ["money"], changes
+
+
+# ── fix round 3 (rulings P3b-T2-R23..R25) ───────────────────────────────────────────────
+
+@pytest.mark.parametrize("line, want", [
+    ("ES 5850 5875 5900 5925", f"ES {V}"),                     # four 4-digit levels join: card-shaped
+    ("card 1234 5678 9012", f"card {V} {V} {V}"),              # each group after "card", one by one
+])
+def test_R23_accepted_over_redaction_is_pinned(line, want):
+    """Ruling P3b-T2-R23: privacy-safe over-redaction, visible in the preview, ACCEPTED -- pinned so
+    it stays a decision rather than an accident."""
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert set(kinds(changes)) == {"account"}
+
+
+@pytest.mark.parametrize("line", ["profit target 150", "stop loss 145", "take profit 160", "loss level 140",
+                                  "profit taking at 155", "profit targets 150 and 160", "loss zone 140",
+                                  "profit area 150"])
+def test_R24_plan_level_phrases_survive_the_pnl_word_money_rule(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+@pytest.mark.parametrize("line, want", [
+    ("made 1,240 on NVDA", f"made {V} on NVDA"), ("lost 2k", f"lost {V}"), ("P&L 1,240", f"P&L {V}"),
+    ("made 1,240 shares of NVDA", f"made {V} shares of NVDA"),   # share counts after a P&L word: as ruled
+    ("stop loss 145, lost 2k", f"stop loss 145, lost {V}"),      # only the plan phrase is skipped
+])
+def test_R24_CONTROL_dollar_pnl_and_share_counts_are_still_replaced(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+@pytest.mark.parametrize("line, want, kind", [
+    ("made$1,240", f"made {V}", "money"),
+    ("ref abc12345678 here", f"ref abc {V} here", "account"),
+    ("up3.2R today", f"up {V} today", "pnl_figure"),
+])
+def test_R25_a_replacement_glued_to_the_word_before_gets_one_space(line, want, kind):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == [kind]
+    assert changes[0]["after"] == {"money": V, "account": V, "pnl_figure": V}[kind]   # the entry has no space
+
+
+@pytest.mark.parametrize("line, want", [
+    ("made $1,240", f"made {V}"), ("(-$500) on it", f"({V}) on it"), ("account #12345678", f"account #{V}"),
+    ("acct ...4821", f"acct ...{V}"), ("see https://x.com/a now", "see link now"),
+])
+def test_R25_CONTROL_never_a_double_space_and_never_after_punctuation(line, want):
+    out = texts_in(ex(text_doc(line)))
+    assert out == [want] and "  " not in out[0]
 
 
 # ── 6, 7, P3b-R10: trader blocks reset through their builder's NO-READ output ─────────────

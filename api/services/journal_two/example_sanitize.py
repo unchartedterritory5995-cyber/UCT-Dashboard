@@ -26,7 +26,9 @@ What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
        ("$1 240", "1 240 €", R22); and a BARE number (R11, R20) within 3 words after a balance
        word (3+ digits, a decimal or k/m), a P&L word (3+ digits, a comma group or k/m) or up/down
        (only k/m, or a comma-grouped 1,000 or more, so "up to 5850" stays a level) -- never a
-       percent or an R figure. An amount runs on over a trailing `,digits` (`$1,24` is one amount).
+       percent or an R figure. A P&L word inside a plan phrase is no trigger (R24: "profit target
+       150", "stop loss 145", "take profit 160", "loss level 140", "profit taking at 155" stay).
+       An amount runs on over a trailing `,digits` (`$1,24` is one amount).
      * a P&L figure -> VALUE_TEXT (kind `pnl_figure`): an `R`/`r` or `%` figure with a P&L word
        among the 3 words BEFORE it, or a loss|profit|gain|drawdown|return|win rate word among the
        2 words AFTER it. "NVDA 3.2R target" stays: no P&L word on either side.
@@ -44,6 +46,10 @@ What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
        word everywhere). Longest name first.
 A price with no `$` ("NVDA 132.40") is kept: a level in a plan is the example's point, and the
 author sees every replacement in the preview.
+
+A replacement glued to the word before it gets ONE space (ruling P3b-T2-R25: "made$1,240" reads
+"made your value here"), every kind alike; never after a space or punctuation. (The address, email
+and in-app passes cannot match glued to a word: their lookbehinds refuse it.)
 
 ⚠️ KNOWN LIMIT (ruling P3b-T2-R7): each text node is scrubbed on its own, so an amount split across
 marks -- "made $1," then a bold "240" -- is split across text nodes too, and only the part a
@@ -115,6 +121,11 @@ PNL_MONEY_WORDS: tuple[str, ...] = ("pnl", "p&l", "p/l", "made", "lost", "profit
 #:   up / down      -> ONLY a k/m suffix or a comma-grouped amount of 1,000 or more, so "up to 5850"
 #:                     and "down to 132.40" stay levels
 UP_DOWN_WORDS: tuple[str, ...] = ("up", "down")
+#: Ruling P3b-T2-R24: a P&L word in a PLAN phrase is not a P&L trigger -- one followed by these
+#: words ("profit target 150", "loss level 140", "profit taking at 155") or preceded by stop|take
+#: ("stop loss 145", "take profit 160"). A level in a plan is the example's point.
+PLAN_WORDS_AFTER: tuple[str, ...] = ("target", "targets", "level", "levels", "zone", "area", "taking")
+PLAN_WORDS_BEFORE: tuple[str, ...] = ("stop", "take")
 BARE_MONEY_WINDOW = 3
 _BARE_NUM = re.compile(r"(?<![\w.,$])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?[kKmM]?(?!\w)(?![.,]\d)")
 _PERCENT_OR_R_AFTER = re.compile(r"\s?(?:%|[Rr](?!\w))")
@@ -256,6 +267,13 @@ def _after(text: str, at: int, n: int) -> list[str]:
     return _words(text[at:])[:n]
 
 
+def _glued(text: str, start: int) -> str:
+    """Ruling P3b-T2-R25: a replacement glued to the word before it ("made$1,240") gets ONE space,
+    so it reads "made your value here". Only after a letter or digit: never after a space (no double
+    space) and never after punctuation ("(your value here)", "#your value here")."""
+    return " " if start > 0 and text[start - 1].isalnum() else ""
+
+
 def scrub_urls(text: str, changes: list | None) -> str:
     """`text` with every URL written in prose replaced WHOLE by LINK_TEXT (kind `link`)."""
     if not isinstance(text, str) or not text:
@@ -268,8 +286,25 @@ def scrub_urls(text: str, changes: list | None) -> str:
             return s
         if changes is not None:
             changes.append({"kind": "link", "before": core[:BEFORE_MAX], "after": LINK_TEXT})
-        return LINK_TEXT + s[len(core):]
+        return _glued(m.string, m.start()) + LINK_TEXT + s[len(core):]   # R25 (the URL lookbehind
+        #                                                                  already refuses a glued word)
     return _URL.sub(repl, text)
+
+
+def _pnl_money_trigger_before(text: str, at: int) -> bool:
+    """R20 + R24: a P&L money word among the BARE_MONEY_WINDOW words before `at`, that is not part
+    of a plan phrase (followed by a PLAN_WORDS_AFTER word, or preceded by stop|take)."""
+    words = _words(text[:at])
+    first = max(0, len(words) - BARE_MONEY_WINDOW)
+    for i in range(first, len(words)):
+        if words[i] not in PNL_MONEY_WORDS:
+            continue
+        nxt = words[i + 1] if i + 1 < len(words) else ""
+        prev = words[i - 1] if i > 0 else ""
+        if nxt in PLAN_WORDS_AFTER or prev in PLAN_WORDS_BEFORE:
+            continue                                   # R24: "profit target", "stop loss", ...
+        return True
+    return False
 
 
 def _bare_money_spans(text: str) -> list[tuple[int, int]]:
@@ -285,7 +320,7 @@ def _bare_money_spans(text: str) -> list[tuple[int, int]]:
         at = m.start()
         if _word_before(text, at, BALANCE_WORDS, BARE_MONEY_WINDOW) and (digits >= 3 or "." in tok or suffix):
             spans.append((m.start(), m.end()))
-        elif _word_before(text, at, PNL_MONEY_WORDS, BARE_MONEY_WINDOW) and (digits >= 3 or grouped or suffix):
+        elif _pnl_money_trigger_before(text, at) and (digits >= 3 or grouped or suffix):
             spans.append((m.start(), m.end()))
         elif _word_before(text, at, UP_DOWN_WORDS, BARE_MONEY_WINDOW) and (
                 suffix or (grouped and float(tok.lstrip("+-").replace(",", "")) >= 1000)):
@@ -389,7 +424,7 @@ def scrub_text(text: str, brokers: tuple[str, ...], changes: list | None) -> str
     at = 0
     for start, end, kind in spans:
         parts.append(text[at:start])
-        parts.append(_AFTER[kind])
+        parts.append(_glued(text, start) + _AFTER[kind])
         if changes is not None:
             changes.append({"kind": kind, "before": text[start:end][:BEFORE_MAX], "after": _AFTER[kind]})
         at = end
