@@ -1,12 +1,15 @@
 import styles from './FocusScreener.module.css'
 
-// List | Table. Exported so Table mode, which renders today's page under a slim bar, shows the same control.
+// List | Charts | Table. Exported so Table mode, which renders today's page under a slim bar, shows the same control.
+// Charts is the screen's results on the /charts Multi-Chart grid (ScreenerChartGrid).
+export const MODES = [['list', 'List'], ['grid', 'Charts'], ['table', 'Table']]
+
 export function ModeSwitch({ mode, onMode }) {
   return (
     <div role="group" aria-label="View" className={styles.seg}>
-      {['list', 'table'].map(m => (
+      {MODES.map(([m, label]) => (
         <button key={m} type="button" aria-pressed={mode === m} className={mode === m ? styles.segOn : styles.segOff} onClick={() => onMode(m)}>
-          {m === 'list' ? 'List' : 'Table'}
+          {label}
         </button>
       ))}
     </div>

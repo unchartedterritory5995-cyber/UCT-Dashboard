@@ -101,6 +101,8 @@ const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ
 const SHEET_MARK = 'uctFocusChartSheet'
 // Table mode is today's page, loaded only when a member switches to it (List never ships it).
 const ScannerShell = lazy(() => import('../shell/ScannerShell'))
+// The Charts view (the /charts Multi-Chart grid), likewise loaded only when a member opens it.
+const ScreenerChartGrid = lazy(() => import('./ScreenerChartGrid'))
 
 // The comparable part of a screen: its criteria, never its pool, sort or columns.
 function normalSpec(sp) {
@@ -132,7 +134,10 @@ function rememberNamed(item) {
 }
 
 export default function FocusScreener() {
-  const [mode, setMode] = useState(() => (readLS(MODE_KEY, 'list') === 'table' ? 'table' : 'list'))
+  const [mode, setMode] = useState(() => {
+    const m = readLS(MODE_KEY, 'list')
+    return m === 'table' || m === 'grid' ? m : 'list'
+  })
   const onMode = useCallback(m => { setMode(m); writeLS(MODE_KEY, m) }, [])
   if (mode === 'table') {
     return (
@@ -148,10 +153,12 @@ export default function FocusScreener() {
       </div>
     )
   }
-  return <FocusList onMode={onMode} />
+  return <FocusList mode={mode} onMode={onMode} />
 }
 
-function FocusList({ onMode }) {
+// `mode` is 'list' (the list and its chart pane) or 'grid' (the same results on the chart grid):
+// one screen, one set of rows, two ways to look at them.
+function FocusList({ mode, onMode }) {
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const viewColumnsFor = useMemo(() => {
@@ -785,6 +792,13 @@ function FocusList({ onMode }) {
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
     body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
       pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+  } else if (mode === 'grid') {
+    body = (
+      <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
+        <ScreenerChartGrid rows={listRows} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
+          onLoadMore={s.loadMore} resetKey={rowsKey} phone={isPhoneNow()} />
+      </Suspense>
+    )
   } else {
     body = (
       <div className={styles.body}>
@@ -820,7 +834,7 @@ function FocusList({ onMode }) {
           myScans={myScans} onUseScan={applyScanFilter} meta={meta} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} premarket={listed?.snapshot?.premarket} coverage={listed?.coverage} />}
-        mode="list" onMode={m => { s.flush(); onMode(m) }}
+        mode={mode} onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
             <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && !pending && total > 0}
