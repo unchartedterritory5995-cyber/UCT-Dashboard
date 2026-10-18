@@ -85,3 +85,43 @@ def test_one_alert_per_problem_class(monkeypatch, tmp_path):
 
 def test_weekends_do_not_run_the_evening_check():
     assert bh.run(datetime(2026, 10, 10, 21, 30, tzinfo=_ET), rows=[])["ran"] is False
+
+
+def _alerting(monkeypatch, tmp_path):
+    monkeypatch.setenv("BREADTH_ALERTS_STATE", str(tmp_path / "s.json"))
+    monkeypatch.setenv("DISCORD_BREADTH_WEBHOOK_URL", "https://discord.test/b")
+    monkeypatch.setattr(bh, "check_sentiment", lambda now: [])
+    posts = []
+
+    class _R:
+        status_code = 204
+    return posts, (lambda url, **k: posts.append(k["json"]["content"]) or _R())
+
+
+def test_a_recovery_posts_ONE_resolution_then_silence(monkeypatch, tmp_path):
+    """(2026-10-17, owner) the missing-days alert used to clear silently, so the channel never
+    said the 10-12..10-14 holes were filled."""
+    posts, post = _alerting(monkeypatch, tmp_path)
+    seq = iter([{"stale": [], "gaps": ["UCTA50: 3 missing (2026-10-12, 2026-10-13, 2026-10-14)"],
+                 "values": [], "checked": 153, "skipped": 0},
+                {"stale": [], "gaps": [], "values": [], "checked": 153, "skipped": 0},
+                {"stale": [], "gaps": [], "values": [], "checked": 153, "skipped": 0}])
+    monkeypatch.setattr(bh, "check_series", lambda rows, now, morning: next(seq))
+    bh.run(EVE, post=post, rows=[])
+    bh.run(EVE, post=post, rows=[])
+    bh.run(EVE, post=post, rows=[])
+    assert len(posts) == 2 and "missing days" in posts[0]
+    assert posts[1].startswith("✅") and "no missing days" in posts[1] and "153 checked" in posts[1]
+
+
+def test_a_pass_that_checked_nothing_cannot_resolve(monkeypatch, tmp_path):
+    """⛔ every series cold (all skipped) = nothing was looked at: the alert stays open."""
+    from api.services import breadth_alerts
+    posts, post = _alerting(monkeypatch, tmp_path)
+    seq = iter([{"stale": [], "gaps": ["UCTA50: 1 missing (2026-10-12)"], "values": [],
+                 "checked": 153, "skipped": 0},
+                {"stale": [], "gaps": [], "values": [], "checked": 0, "skipped": 153}])
+    monkeypatch.setattr(bh, "check_series", lambda rows, now, morning: next(seq))
+    bh.run(EVE, post=post, rows=[])
+    bh.run(EVE, post=post, rows=[])
+    assert len(posts) == 1 and breadth_alerts._load().get("health:gaps")

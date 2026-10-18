@@ -62,21 +62,32 @@ def _loop():
         return
     _STATE["lock"] = lock
     while True:
-        if os.path.exists(os.path.join(prod.ROOT, "HOLD")):
-            _STATE["parked"] = "HOLD"
-        else:
-            _STATE["parked"] = None
-            try:
-                _STATE["last_result"] = prod.tick()
-            except Exception as e:  # noqa: BLE001 — a tick failure never kills the loop
-                _STATE["last_result"] = {"error": "%s: %s" % (type(e).__name__, e),
-                                         "trace": traceback.format_exc()[-2000:]}
-                print("[bv2-producer] tick error: %s" % _STATE["last_result"]["error"], flush=True)
-            _STATE["last_tick"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            if _EXCH["on"]:
-                from api.services import breadth_exchange_runner as exr
-                exr.kick()                      # AFTER the tick returned: US V2 publication → exchange
+        _iterate()
         time.sleep(tick_secs)
+
+
+def _iterate() -> None:
+    """One loop pass: tick (unless HOLD), kick the exchange runner, then the #breadth-alerts check.
+    The alert check runs on EVERY pass — a HOLD park or a failing tick is exactly when it matters."""
+    if os.path.exists(os.path.join(prod.ROOT, "HOLD")):
+        _STATE["parked"] = "HOLD"
+    else:
+        _STATE["parked"] = None
+        try:
+            _STATE["last_result"] = prod.tick()
+        except Exception as e:  # noqa: BLE001 — a tick failure never kills the loop
+            _STATE["last_result"] = {"error": "%s: %s" % (type(e).__name__, e),
+                                     "trace": traceback.format_exc()[-2000:]}
+            print("[bv2-producer] tick error: %s" % _STATE["last_result"]["error"], flush=True)
+        _STATE["last_tick"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if _EXCH["on"]:
+            from api.services import breadth_exchange_runner as exr
+            exr.kick()                      # AFTER the tick returned: US V2 publication → exchange
+    try:                                    # (2026-10-17) the producer's own failure states → Discord
+        from api.services import breadth_producer_alerts as bpa
+        _STATE["alerts"] = bpa.check(last_result=_STATE.get("last_result"))
+    except Exception as e:  # noqa: BLE001 — an alert failure never touches the loop
+        _STATE["alerts"] = {"error": "%s: %s" % (type(e).__name__, e)}
 
 
 def main() -> None:
