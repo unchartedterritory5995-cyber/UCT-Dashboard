@@ -698,6 +698,9 @@ export const indicatorDraftsKind = {
   landed: () => true,
   // ⛔ F6: what an approval of this plan binds to (useAgent keeps it with the proposal card)
   seal: (p) => sealSave(p.snap, p.after),
+  // the approval binding compares the planned Save without the approval's own seal (added at Apply);
+  // the seal itself is validated by validateSaveSeal
+  approvalPatch: (patch) => (patch && Array.isArray(patch.ops) ? { ...patch, ops: patch.ops.map((o) => { const { seal: _sealed, ...rest } = o; return rest }) } : patch),
   // Authoring Undo = the specialist's exact step (stepId); a Save has none (D7); advice/questions none.
   undoPatch: (item) => (item.undoData ? { undo: item.undoData } : null),
   // staleness is the specialist's (expectedRevision / expectedStepId at call time)

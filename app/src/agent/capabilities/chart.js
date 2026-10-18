@@ -231,6 +231,14 @@ export const chartKind = {
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
+  // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
+  // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
+  // Unreadable, or no way to check → the approval fails closed.
+  async refreshForApproval(host, ref) {
+    if (typeof host?.widgetInSync !== 'function') return { ok: false, what: 'that chart' }
+    const r = await host.widgetInSync(String(ref).split('~')[0])
+    return r.ok ? { ok: true } : { ok: false, what: 'that chart', why: r.reason || null }
+  },
   // A chart that does not exist yet (created earlier in the same request): the
   // product's defaults for a new chart, used ONLY to validate the plan before the
   // first write. The runtime re-plans against the real chart once it exists.
@@ -673,8 +681,10 @@ const CAPABILITIES = [
     args: { type: 'object', properties: {
       add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } }, clear: { type: 'boolean' },
     }, required: ['add', 'remove', 'clear'], additionalProperties: false },
+    // (`trusted`: tickers UCT itself showed — a screen's rows, Gate C "compare it to the others" — are
+    // not looked up again, exactly as chart.setSymbol; anything the member or the model typed still is)
     async prepare(ops) {
-      const syms = ops.flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
+      const syms = ops.filter(o => !o.trusted).flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
     check(st, { add, remove, clear }, env) {

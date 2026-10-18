@@ -243,6 +243,20 @@ export const layoutsKind = {
     return null
   },
   fingerprint: (snap) => JSON.stringify([snap.active?.id ?? null, snap.entries.map(e => [e.id, e.name])]),
+  // ⛔ APPROVAL BINDING: saving into the open layout, saving it as a new one, and opening another over
+  // unsaved edits all act on THE BOARD AS IT IS — its exact widgets and their content (settings
+  // included, not only the arrangement) and whether it has unsaved edits are part of what was approved.
+  approvalState(snap, patch, host) {
+    const base = [snap.active?.id ?? null, snap.entries.map(e => [e.id, e.name, e.scope || null])]
+    const boardBound = patch && (patch.saveCurrent || patch.saveAs || (patch.open && patch.discarded))
+    if (!boardBound) return base
+    const board = host?.widgets?.snapshot?.()?.widgets || null
+    return [...base, !!snap.unsaved, board ? board.map(w => [w.id, w.type, w.x, w.y, w.w, w.h, w.color ?? null, w.optsSig ?? null]) : '#unreadable']
+  },
+  // the layout list is re-read before "do it" re-plans (renamed / deleted in another tab)
+  async refreshForApproval(host) {
+    try { await host?.layouts?.refresh?.(); return { ok: true } } catch { return { ok: false, what: 'your layouts' } }
+  },
   // Stale undo: a switch is stale once the member changes the board or opens another
   // layout; a rename is stale once that layout is renamed again (or its old name taken).
   fingerprintFor(host, snap, item) {

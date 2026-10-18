@@ -231,6 +231,15 @@ export const watchlistKind = {
     return Object.keys(out).length ? out : null
   },
   fingerprint: (snap) => (snap ? sigOf(snap.items) + '|' + snap.name : 'gone'),
+  // ⛔ APPROVAL BINDING: before "do it" re-plans, the list is re-read from the SERVER (another tab, the
+  // Watchlists page or another device may have changed it). A list that is gone reads as gone (the
+  // re-plan then refuses); a list that can't be read now fails the approval closed.
+  async refreshForApproval(host, ref) {
+    if (!host?.watchlists?.fetchList) return { ok: false, what: 'that watchlist' }
+    try { await host.watchlists.fetchList(ref); return { ok: true } } catch (e) {
+      return /\(404\)|not found/i.test(String(e?.message || '')) ? { ok: true } : { ok: false, what: 'that watchlist' }
+    }
+  },
   // Stale undo, delta-aware: an ADD can be taken back while every row it created is
   // still there (other edits to the list are left alone); a REMOVE restores the old
   // order, so it needs the list exactly as the Agent left it; a RENAME needs the name.
