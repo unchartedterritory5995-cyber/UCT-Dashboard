@@ -30,9 +30,11 @@ What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
        (only k/m, or a comma-grouped 1,000 or more, so "up to 5850" stays a level) -- never a
        percent or an R figure. A declared plan phrase (`PLAN_PHRASES`, R27: an exact list) keeps
        the number that is its VERY NEXT token, at most one `PLAN_CONNECTORS` entry between (R26:
-       "profit target 150", "stop loss @ 98.5", "profit taking at 155" stay). Any other word between
-       ("stop loss hit for 2k"), or a P&L word right after the number ("take profit 1,240 realized"),
-       and the phrase's P&L word is a trigger again.
+       "profit target 150", "stop loss @ 98.5", "profit taking at 155" stay), and only when the
+       number is unsigned with no k/m suffix (R31: "stop loss 5,850" stays, "stop loss 2k" and "take
+       profit +1,240" do not). Any other word between ("stop loss hit for 2k", "stop loss of 1,240" --
+       R30: "of" is no connector), or a P&L word right after the number ("take profit 1,240
+       realized"), and the phrase's P&L word is a trigger again.
        An amount runs on over a trailing `,digits` (`$1,24` is one amount).
      * a P&L figure -> VALUE_TEXT (kind `pnl_figure`): an `R`/`r` or `%` figure with a P&L word
        among the 3 words BEFORE it, or a loss|profit|gain|drawdown|return|win rate word among the
@@ -136,8 +138,9 @@ UP_DOWN_WORDS: tuple[str, ...] = ("up", "down")
 PLAN_PHRASES: tuple[str, ...] = ("stop loss", "take profit", "profit target", "profit targets", "loss level",
                                  "loss levels", "profit taking")
 #: Ruling P3b-T2-R26: the phrase keeps a number only when the number is its VERY NEXT token, with at
-#: most ONE of these between ("profit taking at 155", "stop loss @ 98.5", "stop loss: 145").
-PLAN_CONNECTORS: tuple[str, ...] = ("at", "@", ":", "of", "near", "~")
+#: most ONE of these between ("profit taking at 155", "stop loss @ 98.5", "stop loss: 145"). Ruling
+#: P3b-T2-R30 removed "of": "stop loss of 1,240" reads as a dollar loss.
+PLAN_CONNECTORS: tuple[str, ...] = ("at", "@", ":", "near", "~")
 BARE_MONEY_WINDOW = 3
 _BARE_NUM = re.compile(r"(?<![\w.,$])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?[kKmM]?(?!\w)(?![.,]\d)")
 _PERCENT_OR_R_AFTER = re.compile(r"\s?(?:%|[Rr](?!\w))")
@@ -324,7 +327,11 @@ def _plan_level_start(text: str, start: int, end: int) -> int | None:
     """Rulings P3b-T2-R26 + R27: where the plan phrase starts, when the number `text[start:end]` is
     the VERY NEXT token after a PLAN_PHRASES entry (at most one PLAN_CONNECTORS entry between) and no
     P&L word follows the number; otherwise None. "take profit 1,240 realized": the P&L word after the
-    figure wins, unless it opens the next plan phrase ("stop loss 145 profit target 160")."""
+    figure wins, unless it opens the next plan phrase ("stop loss 145 profit target 160"). Ruling
+    P3b-T2-R31: a signed or k/m-suffixed number is never a level ("stop loss 2k", "take profit +1,240")."""
+    token = text[start:end]
+    if token[:1] in "+-" or token[-1:] in "kKmM":
+        return None
     m = _PLAN_LEVEL.search(text, max(0, start - _PLAN_LOOKBACK), start)
     if m is None:
         return None

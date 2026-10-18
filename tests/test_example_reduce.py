@@ -471,10 +471,12 @@ def test_R25_CONTROL_never_a_double_space_and_never_after_punctuation(line, want
 
 #: Ruling P3b-T2-R26's survive rows verbatim, then the connectors it names and the level lists that
 #: must stay levels: a plan phrase keeps a number only when the number is the VERY NEXT token after
-#: it, with at most one connector (at, @, ":", of, near, ~) between.
+#: it, with at most one connector (at, @, ":", near, ~) between -- "of" left the list in round 5
+#: (ruling P3b-T2-R30) -- and is unsigned with no k/m suffix (P3b-T2-R31; comma groups are fine).
 R26_SURVIVE = ["profit target 150", "stop loss 145", "take profit 160", "loss level 140", "profit taking at 155",
                "stop loss @ 98.5",
-               "stop loss: 145", "stop loss ~145", "stop loss near 145", "stop loss of 145", "profit target at 150",
+               "stop loss: 145", "stop loss ~145", "stop loss near 145", "profit target at 150",
+               "stop loss 5,850", "profit target 1,250.50",
                "loss levels 140", "Stop Loss 145", "profit targets 150 and 160", "stop loss 145 profit target 160",
                "stop loss 145 take profit 160"]
 
@@ -487,8 +489,7 @@ def test_R26_a_level_directly_after_a_plan_phrase_survives(line):
 
 
 #: Review finding I-1's rows (task-2-r3-rereview.md), the ruling's nine verbatim first: a P&L figure
-#: written after a plan phrase, with words between, is replaced. "stop loss of 1,240" is NOT here:
-#: R26 names "of" as a connector, so it reads as a level (R26_SURVIVE's "stop loss of 145").
+#: written after a plan phrase, with words between, is replaced. (R30 and R31's rows are below.)
 I1_ROWS = [
     ("stop loss hit for 2k", f"stop loss hit for {V}"),
     ("stop loss hit -2,000", f"stop loss hit {V}"),
@@ -534,7 +535,7 @@ def test_R27_only_the_declared_plan_phrases_are_exempt(line, want):
 def test_R27_the_plan_phrases_and_connectors_are_the_ruled_lists():
     assert xs.PLAN_PHRASES == ("stop loss", "take profit", "profit target", "profit targets", "loss level",
                                "loss levels", "profit taking")
-    assert xs.PLAN_CONNECTORS == ("at", "@", ":", "of", "near", "~")
+    assert xs.PLAN_CONNECTORS == ("at", "@", ":", "near", "~")     # R30: "of" removed
 
 
 def test_R27_the_plan_phrases_are_declared_once():
@@ -553,6 +554,31 @@ def test_R27_the_plan_phrases_are_declared_once():
              or (isinstance(n, ast.AnnAssign) and getattr(n.target, "id", "") == "PLAN_PHRASES")]
     assert len(bound) == 1, bound
     assert not hasattr(xs, "PLAN_WORDS_AFTER") and not hasattr(xs, "PLAN_WORDS_BEFORE")
+
+
+# ── fix round 5 (rulings P3b-T2-R30, R31) ───────────────────────────────────────────────
+
+#: R30: "of" is no connector ("stop loss of 1,240" reads as a dollar loss). R31: the exemption keeps
+#: only an UNSIGNED number with no k/m suffix. The rulings' rows verbatim, then the obvious kin.
+@pytest.mark.parametrize("line, want", [
+    ("stop loss of 1,240", f"stop loss of {V}"), ("stop loss of 145", f"stop loss of {V}"),
+    ("stop loss 2k", f"stop loss {V}"), ("stop loss -2,000", f"stop loss {V}"),
+    ("take profit +1,240", f"take profit {V}"), ("profit target 1.2k", f"profit target {V}"),
+    ("stop loss @ -500", f"stop loss @ {V}"), ("loss level 3M", f"loss level {V}"),
+    ("profit taking at +2k", f"profit taking at {V}"),
+])
+def test_R30_R31_of_signed_and_k_m_numbers_are_not_plan_levels(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+@pytest.mark.parametrize("line", ["stop loss 5,850", "stop loss 145", "profit target 150", "take profit 160",
+                                  "profit taking at 155", "stop loss @ 98.5"])
+def test_R31_CONTROL_an_unsigned_plain_or_comma_grouped_level_survives(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
 
 
 #: Ruling P3b-T2-R28: the two pre-existing leaks (task-2-r3-rereview.md, out-of-scope observations).
