@@ -147,6 +147,9 @@ const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trad
 // Wave 13 lane 13B: My Playbook (dark behind notebook_playbook_enabled; the page sends the member
 // back to Insights while it is off, and its API answers 404).
 const J2MyPlaybook = lazy(() => import('./pages/journal-2-0/components/insights/MyPlaybook'))
+// P2 Tier 3 Task 8: Your <year> in trading (dark behind journal_tier3_enabled; the page sends the
+// member back to the Report page while it is off, and its API answers 404).
+const J2WrappedSurface = lazy(() => import('./pages/journal-2-0/surfaces/WrappedSurface'))
 // Finish program, lane KEYS: the standalone Journal pages land keyboard focus on arrival
 // (Journal routes only). Lazy, so the app entry does not grow.
 const J2RouteFocus = lazy(() => import('./pages/journal-2-0/lib/routeFocus'))
@@ -745,6 +748,8 @@ export default function App() {
                 <Route path="/journal-2-0/trade/:id" element={<><J2RouteFocus /><J2TradeDetailPage /></>} />
                 {/* Wave 13 lane 13B: My Playbook, reached from Insights > Playbook. */}
                 <Route path="/journal-2-0/playbook" element={<><J2RouteFocus /><J2MyPlaybook /></>} />
+                {/* P2 Tier 3 Task 8: Your <year> in trading, reached from the Report page's door. */}
+                <Route path="/journal-2-0/wrapped/:year" element={<><J2RouteFocus /><J2WrappedSurface /></>} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

@@ -1,5 +1,6 @@
 """Your trading year: the data (P2 Tier 3, Task 7). One read, `year_wrapped`, behind
-GET /api/j2/wrapped/{year} (api/routers/notebook_wrapped.py).
+GET /api/j2/wrapped/{year} (api/routers/notebook_wrapped.py), and the years it can open,
+`years_with_trades`, behind GET /api/j2/wrapped/years (Task 8, the Report page door's picker).
 
 The four sections and where each number comes from (R-T3-9):
 
@@ -197,6 +198,22 @@ def _lessons(conn: sqlite3.Connection, user_id: str, year: int, account_id: str 
                         "changeNote": None, "changedAt": r["created_at"]})
     out.sort(key=lambda x: (x["changedAt"], x["version"], x["ruleId"]), reverse=True)
     return out[:TOP_LESSONS]
+
+
+def years_with_trades(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[int]:
+    """The years the year page can open, newest first (Task 8, R-T3-V6): every year with a closed,
+    analytics-included trade (the `_closed_trades` rule, without the year), on the same ET day
+    spine, scoped to the member and, when picked, to one of the member's own accounts. A year
+    outside `year_in_range` is left out, because `/{year}` would refuse it. The current year is
+    listed like any other; whether it is open yet is the page's `available`, not this list's."""
+    sql = f"SELECT DISTINCT substr({_DAY}, 1, 4) AS y FROM j2_trades WHERE user_id = ? " + ANALYTICS_INCLUDED_SQL
+    args: list[Any] = [user_id]
+    if account_id:
+        sql += " AND account_id = ?"
+        args.append(account_id)
+    years = {int(r["y"]) for r in conn.execute(sql, args).fetchall()
+             if isinstance(r["y"], str) and r["y"].isdigit()}
+    return sorted((y for y in years if year_in_range(y)), reverse=True)
 
 
 def _empty(year: int, trade_count: int) -> dict:

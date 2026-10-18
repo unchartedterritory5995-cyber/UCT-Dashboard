@@ -529,6 +529,85 @@ def test_journal_two_has_no_wrapped_route_and_keeps_its_ask_sentence(db_path):
     assert not any(getattr(r, "path", "").startswith("/api/j2/wrapped") for r in journal_two.router.routes)
 
 
+# ── 9. the years the page can open (Task 8, R-T3-V6) ─────────────────────────
+
+def test_years_are_the_years_with_an_included_closed_trade_newest_first(conn):
+    aid = _account(conn)
+    _trade(conn, aid, "2023-05-05")
+    _trade(conn, aid, "2025-03-03")
+    _trade(conn, aid, "2025-07-07")                                    # two in one year: listed once
+    _trade(conn, aid, "2024-12-31", exit_iso="2025-01-01T03:00:00Z")   # the ET day decides: 2024
+    assert wrapped.years_with_trades(conn, "u1", None) == [2025, 2024, 2023]
+
+
+def test_years_leave_out_an_excluded_trade_and_a_year_the_page_would_refuse(conn):
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+    _trade(conn, aid, "2022-03-03", excluded=True)                     # analytics-excluded: no year
+    _trade(conn, aid, "1999-03-03")                                    # before MIN_YEAR: a 400 page
+    _trade(conn, aid, "2027-03-03")                                    # after the ET year: a 400 page
+    assert wrapped.years_with_trades(conn, "u1", None) == [2025]
+    conn.execute("UPDATE j2_trades SET analytics_excluded = 0")        # control: the rule is the filter
+    conn.commit()
+    assert wrapped.years_with_trades(conn, "u1", None) == [2025, 2022]
+
+
+def test_years_honour_the_account_and_never_read_another_member(conn):
+    a, b = _account(conn), _account(conn)
+    _trade(conn, a, "2024-03-03")
+    _trade(conn, b, "2025-03-03")
+    other = _account(conn, user_id="u2")
+    _trade(conn, other, "2021-03-03", user_id="u2")
+    assert wrapped.years_with_trades(conn, "u2", None) == [2021]       # control: u2 sees its own
+    assert wrapped.years_with_trades(conn, "u1", None) == [2025, 2024]
+    assert wrapped.years_with_trades(conn, "u1", a) == [2024]
+    assert wrapped.years_with_trades(conn, "u1", b) == [2025]
+    assert wrapped.years_with_trades(conn, "u1", other) == []          # their account id reads nothing
+
+
+def test_years_are_empty_with_no_trades_and_a_note_alone_opens_no_year(conn):
+    _account(conn)
+    _note(conn, created="2025-03-03T15:00:00Z", ticker="NVDA")
+    assert wrapped.years_with_trades(conn, "u1", None) == []
+
+
+def test_years_is_reached_and_not_swallowed_by_the_year_route(client, conn):
+    """R-T3-T7-R1: `/years` is declared above `/{year}`. Declared below, `/{year}` takes the
+    segment "years" and answers 422, so this rail is red the moment the order flips."""
+    aid = _account(conn)
+    _trade(conn, aid, "2024-03-03")
+    _trade(conn, aid, "2025-03-03")
+    _as(client)
+    r = client.get(f"{URL}/years")
+    assert (r.status_code, r.json()) == (200, {"years": [2025, 2024]})
+    assert client.get(f"{URL}/years", params={"account_id": aid}).json() == {"years": [2025, 2024]}
+    assert client.get(f"{URL}/years", params={"account_id": "_all_"}).json() == {"years": [2025, 2024]}
+    assert client.get(f"{URL}/2025").status_code == 200                # control: the year route still answers
+
+
+def test_years_takes_the_same_switch_paid_gate_and_account_bound(client, monkeypatch):
+    assert client.get(f"{URL}/years").status_code == 401
+    _as(client, plan="free")
+    r = client.get(f"{URL}/years")
+    assert r.status_code == 402 and r.json()["detail"] == "Your trading year requires a paid plan"
+    _as(client)
+    assert client.get(f"{URL}/years").json() == {"years": []}
+    assert client.get(f"{URL}/years", params={"account_id": "x" * 129}).status_code == 422
+    monkeypatch.setenv(wrapped.FLAG, "0")
+    assert (client.get(f"{URL}/years").status_code, client.get(f"{URL}/years").json()) == (404, {"detail": "Not found"})
+
+
+def test_the_door_and_the_server_open_the_current_year_on_the_same_day():
+    """Task 8: the Report page door decides "from December 1 ET" with lib/wrappedLink.js's OPENS_ON.
+    ONE fact in two files, so this reads the client file rather than restating the date."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "journal-2-0" / "lib"
+           / "wrappedLink.js").read_text(encoding="utf-8")
+    found = re.findall(r"^export const OPENS_ON = '(\d\d-\d\d)'$", src, flags=re.M)
+    assert found == [wrapped.OPENS_ON] == ["12-01"]
+
+
 def test_the_switch_is_read_per_request(monkeypatch):
     monkeypatch.delenv(wrapped.FLAG, raising=False)
     assert wrapped.enabled() is False

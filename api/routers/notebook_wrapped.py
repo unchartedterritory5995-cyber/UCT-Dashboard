@@ -1,5 +1,6 @@
 """Your trading year (P2 Tier 3, Task 7): the read behind the year review page.
 
+  member  GET  /api/j2/wrapped/years?account_id=    paid   {"years": [...]}, newest first (wrapped.years_with_trades)
   member  GET  /api/j2/wrapped/{year}?account_id=   paid   the year's four sections (wrapped.year_wrapped)
 
 ONE AUTHORITY. Every number is `wrapped.year_wrapped`; this router only gates, checks the year and
@@ -49,12 +50,23 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
-# ⛔ ROUTE ORDER (Task 8): `GET /years` belongs in THIS router and must be declared ABOVE this
-# route. FastAPI answers on first match, and `/{year}` matches the segment "years" (then fails the
-# int check with a 422), so a `/years` declared below it is never reached. A `/{year:int}`
-# convertor would make the path itself refuse "years" (and turn a non-integer year into a 404),
-# but a convertor alone is not a guarantee anybody can see: either keep `/years` declared first,
-# or carry a rail that `GET /api/j2/wrapped/years` answers 200. Task 8 adds that rail.
+# ⛔ ROUTE ORDER (Task 8): `GET /years` is declared ABOVE `/{year}`. FastAPI answers on first
+# match, and `/{year}` matches the segment "years" (then fails the int check with a 422), so a
+# `/years` declared below it is never reached. The rail is
+# tests/test_wrapped.py::test_years_is_reached_and_not_swallowed_by_the_year_route.
+@router.get("/years")
+def get_wrapped_years(account_id: str | None = Query(None, max_length=128),
+                      user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only. The years with a closed, analytics-included trade, newest first (the Report page
+    door's picker). `account_id` absent means All Accounts."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        return {"years": wrapped.years_with_trades(conn, user["id"], plain_account_id(account_id))}
+    finally:
+        conn.close()
+
+
 @router.get("/{year}")
 def get_wrapped(year: int,
                 account_id: str | None = Query(None, max_length=128),
