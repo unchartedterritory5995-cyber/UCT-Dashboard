@@ -214,7 +214,10 @@ def test_expectancy_is_playbook_stats_own_number_never_recomputed(conn, monkeypa
 
 # ── 2. tickers ───────────────────────────────────────────────────────────────
 
-def test_a_note_counts_once_per_symbol_and_trashed_and_archived_notes_count_nowhere(conn):
+def test_a_note_counts_once_per_symbol_a_trashed_note_nowhere_and_an_archived_note_still_counts(conn):
+    """Final fix M3: ONE rule for Tier 3's note readers, the By check-in view's. A trashed note counts
+    nowhere; an ARCHIVED note still counts (archiving files a note away, it does not take back what it
+    records)."""
     aid = _account(conn)
     _trade(conn, aid, "2025-03-03")
     _note(conn, created="2025-02-01T15:00:00Z", ticker="NVDA", mentions=["NVDA"])  # $NVDA twice + ticker
@@ -225,7 +228,35 @@ def test_a_note_counts_once_per_symbol_and_trashed_and_archived_notes_count_nowh
     _note(conn, created="2024-12-30T15:00:00Z", ticker="NVDA")                      # the year before
     _note(conn, created="2025-06-01T15:00:00Z", ticker="NVDA", user_id="u2")         # another member
     assert wrapped.year_wrapped(conn, "u1", 2025, None)["tickers"] == [
-        {"symbol": "NVDA", "noteCount": 3}, {"symbol": "AMD", "noteCount": 1}]
+        {"symbol": "NVDA", "noteCount": 4}, {"symbol": "AMD", "noteCount": 2}]
+
+
+def test_archived_and_trashed_notes_follow_one_rule_in_the_year_page_and_the_check_in_view(conn):
+    """M3: the year page and By check-in read the SAME note set. One archived note and one trashed
+    note, each with a ticker and a check-in: both readers count the archived one and neither the
+    trashed one."""
+    from api.services.journal_two import analytics
+    from api.services.journal_two import notes as notes_service
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+
+    def checkin_note(ticker, day):
+        body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {
+            "v": 1, "widgetId": "moodCheckIn", "embedId": f"ci-{ticker}", "mode": "snapshot",
+            "params": {"mood": "4", "focus": "", "day": day}}}]}
+        n = notes_service.create_note("u1", {"title": ticker, "ticker": ticker, "bodyJson": body}, conn=conn)
+        conn.execute("UPDATE j2_notes SET created_at = ? WHERE id = ?", (f"{day}T15:00:00Z", n["id"]))
+        return n["id"]
+
+    archived = checkin_note("ARCH", "2025-05-02")
+    trashed = checkin_note("TRSH", "2025-05-03")
+    conn.execute("UPDATE j2_notes SET archived_at = ? WHERE id = ?", (NOW, archived))
+    conn.execute("UPDATE j2_notes SET deleted_at = ? WHERE id = ?", (NOW, trashed))
+    conn.commit()
+    tickers = {t["symbol"] for t in wrapped.year_wrapped(conn, "u1", 2025, None)["tickers"]}
+    checkin_days = analytics._checkin_section(conn, "u1", [], date_from="2025-01-01", date_to="2025-12-31")
+    assert tickers == {"ARCH"}
+    assert checkin_days["checkInDays"] == 1        # 2025-05-02, the archived note's; not the trashed one's
 
 
 def test_a_sample_notebook_note_is_never_a_note_the_member_wrote(conn):
@@ -262,7 +293,7 @@ def test_a_note_is_in_the_year_of_its_et_day_and_the_list_stops_at_five(conn):
 
 # ── 3. discipline ────────────────────────────────────────────────────────────
 
-def test_twelve_months_and_a_month_without_adherence_reads_none_with_its_trade_count(conn):
+def test_twelve_months_and_a_month_without_adherence_reads_none_with_no_records(conn):
     aid = _account(conn)
     t1 = _trade(conn, aid, "2025-03-04")
     t2 = _trade(conn, aid, "2025-03-05")
@@ -270,14 +301,38 @@ def test_twelve_months_and_a_month_without_adherence_reads_none_with_its_trade_c
     _adherence(conn, t2, 1.0)
     april = [_trade(conn, aid, f"2025-04-0{d}") for d in (1, 2, 3)]
     _adherence(conn, april[0], 1.0, user_id="u2")       # another member's row on the same ref
-    _trade(conn, aid, "2025-12-31", exit_iso="2026-01-01T03:00:00Z")  # the ET day decides
+    dec = _trade(conn, aid, "2025-12-31", exit_iso="2026-01-01T03:00:00Z")  # the ET day decides
+    _adherence(conn, dec, 1.0)
     disc = wrapped.year_wrapped(conn, "u1", 2025, None)["discipline"]
     assert [d["month"] for d in disc] == [f"2025-{m:02d}" for m in range(1, 13)]
     by = {d["month"]: d for d in disc}
-    assert by["2025-03"] == {"month": "2025-03", "adherence": 0.75, "tradeCount": 2}
-    assert by["2025-04"] == {"month": "2025-04", "adherence": None, "tradeCount": 3}
-    assert by["2025-01"] == {"month": "2025-01", "adherence": None, "tradeCount": 0}
-    assert by["2025-12"]["tradeCount"] == 1
+    assert by["2025-03"] == {"month": "2025-03", "adherence": 0.75, "sample": "too_few", "sampleN": 2}
+    assert by["2025-04"] == {"month": "2025-04", "adherence": None, "sample": "too_few", "sampleN": 0}
+    assert by["2025-01"] == {"month": "2025-01", "adherence": None, "sample": "too_few", "sampleN": 0}
+    assert by["2025-12"]["sampleN"] == 1
+
+
+def test_a_months_n_and_band_are_its_adherence_records_never_its_trades(conn):
+    """Final fix I2: the mean rests on the records, so the n and the band are the records' (sample_size's
+    own band, the R-T3-T5-R4 principle). The month's trade count is not in the row at all: twenty trades
+    with one record read n=1, too few to judge."""
+    from api.services.journal_two import sample_size
+    aid = _account(conn)
+    march = [_trade(conn, aid, f"2025-03-{d:02d}") for d in range(1, 21)]
+    _adherence(conn, march[0], 1.0)
+    may = [_trade(conn, aid, f"2025-05-{d:02d}") for d in range(1, 13)]
+    for t in may:
+        _adherence(conn, t, 0.5)
+    june = [_trade(conn, aid, f"2025-06-{d:02d}") for d in range(1, 26)]
+    for t in june:
+        _adherence(conn, t, 1.0)
+    by = {d["month"]: d for d in wrapped.year_wrapped(conn, "u1", 2025, None)["discipline"]}
+    assert by["2025-03"] == {"month": "2025-03", "adherence": 1.0, "sample": "too_few", "sampleN": 1}
+    assert (by["2025-05"]["sampleN"], by["2025-05"]["sample"]) == (12, "thin")
+    assert (by["2025-06"]["sampleN"], by["2025-06"]["sample"]) == (25, "normal")
+    for row in by.values():
+        assert "tradeCount" not in row
+        assert row["sample"] == sample_size.band(row["sampleN"])      # the helper's band, never restated
 
 
 def test_an_analytics_excluded_trade_counts_nowhere(conn):
@@ -285,10 +340,12 @@ def test_an_analytics_excluded_trade_counts_nowhere(conn):
     aid = _account(conn)
     for d in range(1, 11):
         _trade(conn, aid, f"2025-03-{d:02d}", r=1.0, setup="VCP")
-    _trade(conn, aid, "2025-03-20", r=-9.0, setup="VCP", excluded=True)
+    excluded = _trade(conn, aid, "2025-03-20", r=-9.0, setup="VCP", excluded=True)
+    _adherence(conn, excluded, 0.0)                     # its record must not reach the month either
     out = wrapped.year_wrapped(conn, "u1", 2025, None)
     assert out["tradeCount"] == 10
-    assert {d["month"]: d["tradeCount"] for d in out["discipline"]}["2025-03"] == 10
+    march = {d["month"]: d for d in out["discipline"]}["2025-03"]
+    assert (march["sampleN"], march["adherence"]) == (0, None)
     assert out["bestSetups"] == [{"setup": "VCP", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin",
                                   "sampleN": 10}]
     assert sum(s["tradeCount"] for s in out["bestSetups"]) <= out["tradeCount"]

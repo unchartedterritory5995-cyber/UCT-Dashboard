@@ -5,7 +5,8 @@
  * api/services/journal_two/wrapped.py): best setups (playbook_stats' own expectancy R, each row's n
  * is `sampleN`, the count the band describes, and its trades are `tradeCount` in their own column),
  * most-written tickers (member-wide: `tickersScope: "all"`, so the section says so), a twelve-month
- * discipline list (a month with no adherence record reads "—", never 0) and the rule changes of the
+ * discipline list (a month with no adherence record reads "—", never 0; each month's n is its
+ * adherence RECORDS, `sampleN`, and never its trades: final fix I2) and the rule changes of the
  * year. Sample wording is `sampleSize.js`'s, through `wordStat`; nothing here restates a word or a
  * threshold. Ticker chips open the Notebook's own ticker filter (`notebookTickerHref`).
  *
@@ -138,21 +139,38 @@ function Tickers({ rows, scope, year }) {
 function Discipline({ rows }) {
   if (!rows.length) return <p className={styles.nothing}>{NOTHING}</p>
   // Review Focus 6: a year with no adherence record says so ABOVE the twelve rows, which still each
-  // read "—" with their trade count.
+  // read "—" with their record count.
   const none = rows.every((d) => typeof d.adherence !== 'number')
   return (
     <>
       {none ? <p className={styles.nothing} data-testid="wrapped-no-adherence">{NO_ADHERENCE}</p> : null}
       <ol className={styles.months} data-testid="wrapped-discipline">
       {rows.map((d) => {
+        // Final fix I2: the mean rests on the month's adherence RECORDS (`sampleN`), so the n printed is
+        // theirs and the words are their band's (`sample`, through wordStat); a trade count is never
+        // printed here. Too few: the percent is behind the reveal and the bar is drawn empty, as a
+        // too-few setup's expectancy is hidden above.
+        const has = typeof d.adherence === 'number'
+        const word = wordStat({ band: d.sample, n: d.sampleN })
+        const hidden = has && word.hidden
         const pct = fmtPct(d.adherence)
-        const width = typeof d.adherence === 'number' ? `${Math.max(0, Math.min(1, d.adherence)) * 100}%` : '0%'
+        const width = has && !hidden ? `${Math.max(0, Math.min(1, d.adherence)) * 100}%` : '0%'
         return (
           <li key={d.month} className={styles.month} data-month={d.month}>
             <span className={styles.monthName}>{monthName(d.month)}</span>
             <span className={styles.bar} aria-hidden="true"><span className={styles.fill} style={{ width }} /></span>
-            <span className={styles.pct}>{pct}</span>
-            <span className={styles.trades}>{plural(d.tradeCount, 'trade', 'trades')}</span>
+            <span className={styles.pct}>
+              {hidden ? (
+                <details className={styles.reveal}>
+                  <summary className={styles.summary}>{word.label}</summary>
+                  <span>{pct}</span>
+                </details>
+              ) : pct}
+            </span>
+            <span className={styles.records}>
+              <span data-n={d.sampleN}>{plural(d.sampleN ?? 0, 'record', 'records')}</span>
+              {has && word.label && !hidden ? <span className={styles.word}> {word.label}</span> : null}
+            </span>
           </li>
         )
       })}

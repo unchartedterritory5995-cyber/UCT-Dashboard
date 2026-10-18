@@ -13,16 +13,21 @@ The four sections and where each number comes from (R-T3-9):
     ranked (anything but `too_few`) come first, by expectancy R; a `too_few` setup cannot be ranked,
     so it only fills a slot the ranked setups leave open (the page says "Too few trades to rank").
   * tickers: MEMBER-WIDE whatever account is picked (R-T3-T7-R4: notes carry no account, and no
-    other surface scopes notes by account), so the payload says `tickersScope: "all"`. Live notes
-    (`deleted_at IS NULL AND archived_at IS NULL`) created in the year, each counted ONCE per symbol
+    other surface scopes notes by account), so the payload says `tickersScope: "all"`. Notes not in
+    the trash (`deleted_at IS NULL`) created in the year, each counted ONCE per symbol
     over `j2_notes.ticker` and the `j2_note_mentions` projection (the cashtag sidecar
     `notes._sync_note_mentions` keeps; bodies are never re-parsed). Sample-notebook notes count
     nowhere (`sample_marker`, fin-data I3). Top 5.
+    ONE RULE FOR TIER 3'S NOTE READERS (final fix M3): a note counts unless it is in the trash or is
+    a sample-notebook note. An ARCHIVED note counts, here and in the By check-in view
+    (`analytics._checkin_section`): archiving files a note away, it does not take back what it
+    records. Railed by tests/test_wrapped.py, which runs both readers over one note set.
   * discipline: twelve months, Jan to Dec. A month's adherence is the mean `adherencePct` of the
     month's closed trades that HAVE a record, joined through `trader_blocks.adherence_of_trade`
     (THE one join, R-PF-N7) on the trade's ref. A month with trades and no records reads
     `adherence: None`, never 0 (`adherence_pct` is never NULL on a stored row, so None can only
-    mean "no record").
+    mean "no record"). `sampleN` is the number of RECORDS the mean rests on and `sample` its band
+    (`sample_size.band`, final fix I2); the month's trade count is not in the row.
   * lessons: rule versions whose words changed within the year (`j2_journal_rule_versions`),
     newest first, at most TOP_LESSONS (R-T3-7). A dismissed rule is gone and teaches nothing.
     Each carries `changedDay`, the ET day it was put in the year by, so the page prints the day
@@ -44,7 +49,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from api.services.journal_two import adherence_store, checklist_suggestions, playbook_stats, sample_marker
+from api.services.journal_two import (adherence_store, checklist_suggestions, playbook_stats, sample_marker,
+                                      sample_size)
 from api.services.journal_two.calendar import et_today
 from api.services.journal_two.filters import _DAY, ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where  # noqa: PLC2701 -- the ONE trading-day spine
 from api.services.journal_two.timeutil import compute_trading_day_et
@@ -136,7 +142,9 @@ def _tickers(conn: sqlite3.Connection, user_id: str, year: int) -> list[dict]:
     # A one-day margin each side in SQL (created_at is a UTC stamp); the ET year is decided below.
     lo, hi = f"{year - 1}-12-31", f"{year + 1}-01-02"
     # fin-data I3: a sample-notebook note is an example to read, never a fact about the member.
-    where = ("n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
+    # Final fix M3: an archived note COUNTS, as it does in the By check-in view (one rule, see the
+    # module docstring); only the trash (`deleted_at`) and the sample notebook leave a note out.
+    where = ("n.user_id = ? AND n.deleted_at IS NULL"
              " AND n.created_at >= ? AND n.created_at < ? AND " + sample_marker.not_sample_sql("n"))
     args: list[Any] = [user_id, lo, hi]
     notes = {r["id"]: r for r in conn.execute(
@@ -164,19 +172,22 @@ def _tickers(conn: sqlite3.Connection, user_id: str, year: int) -> list[dict]:
 
 def _discipline(conn: sqlite3.Connection, user_id: str, year: int, trades: list) -> list[dict]:
     adh = adherence_store.list_adherence_for_user(user_id, conn=conn)
-    months = {f"{year}-{m:02d}": {"count": 0, "pcts": []} for m in range(1, 13)}
+    months: dict[str, list[float]] = {f"{year}-{m:02d}": [] for m in range(1, 13)}
     for t in trades:
-        bucket = months.get((t["day"] or "")[:7])   # the SQL spine's own answer, never restated
-        if bucket is None:
+        pcts = months.get((t["day"] or "")[:7])     # the SQL spine's own answer, never restated
+        if pcts is None:
             continue
-        bucket["count"] += 1
         rec = adherence_of_trade(adh.get, trade_ref_for_row(t), t["position_id"])
         if rec is not None and rec.get("adherencePct") is not None:
-            bucket["pcts"].append(float(rec["adherencePct"]))
+            pcts.append(float(rec["adherencePct"]))
+    # Final fix I2: the mean rests on the RECORDS, so `sampleN` is the record count and `sample` its
+    # band (sample_size's own); the month's trade count is not in the row, so it cannot be printed
+    # beside a mean it does not describe.
     return [{"month": month,
-             "adherence": round(sum(b["pcts"]) / len(b["pcts"]), 4) if b["pcts"] else None,
-             "tradeCount": b["count"]}
-            for month, b in months.items()]
+             "adherence": round(sum(pcts) / len(pcts), 4) if pcts else None,
+             "sample": sample_size.band(len(pcts)),
+             "sampleN": len(pcts)}
+            for month, pcts in months.items()]
 
 
 def _lessons(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> list[dict]:

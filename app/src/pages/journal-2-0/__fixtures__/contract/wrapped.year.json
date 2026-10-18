@@ -35,62 +35,74 @@
       {
         "adherence": null,
         "month": "2025-01",
-        "tradeCount": 5
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": 0.5833,
         "month": "2025-02",
-        "tradeCount": 6
+        "sample": "too_few",
+        "sampleN": 6
       },
       {
         "adherence": 0.9,
         "month": "2025-03",
-        "tradeCount": 5
+        "sample": "too_few",
+        "sampleN": 5
       },
       {
         "adherence": null,
         "month": "2025-04",
-        "tradeCount": 5
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-05",
-        "tradeCount": 4
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-06",
-        "tradeCount": 6
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-07",
-        "tradeCount": 3
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-08",
-        "tradeCount": 3
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-09",
-        "tradeCount": 3
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-10",
-        "tradeCount": 3
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-11",
-        "tradeCount": 0
+        "sample": "too_few",
+        "sampleN": 0
       },
       {
         "adherence": null,
         "month": "2025-12",
-        "tradeCount": 0
+        "sample": "too_few",
+        "sampleN": 0
       }
     ],
     "lessons": [

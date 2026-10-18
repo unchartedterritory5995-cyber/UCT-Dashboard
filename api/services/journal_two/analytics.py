@@ -1191,7 +1191,9 @@ def _checkin_section(
     analytics date range, from LIVE notes only: the join on ``j2_notes.deleted_at IS NULL``
     is what keeps a trashed note out and lets it count again on restore (R-T3-V3; trash and
     restore never touch the sidecar). A sample-notebook note's check-in counts nowhere
-    (``sample_marker``, fin-data I3). ``created_at`` is a projection time and is never read.
+    (``sample_marker``, fin-data I3). An ARCHIVED note's check-in counts: ONE rule for Tier 3's
+    note readers, the year page's too (``wrapped._tickers``, final fix M3), railed by
+    tests/test_wrapped.py over one note set. ``created_at`` is a projection time and is never read.
 
     R-T3-3: a check-in counts for the ET day in its ``day`` param. A day with several
     check-ins takes, per dimension, the mean of the check-ins that picked that dimension,

@@ -9,6 +9,9 @@
 //  3. The not-ready, no-trades and nothing-here sentences, by text. Not-ready vs no-trades is the
 //     PAYLOAD's `unavailableReason` (R-T3-T8-R3), never the device clock and never `tradeCount`.
 //  4. A month with no adherence record reads "—"; a year with none says Review Focus 6's sentence.
+//     Final fix I2: each month prints the number of RECORDS its mean rests on (`sampleN`) and its
+//     band's words (sampleSize.js), never a trade count; a too-few month's percent is behind the
+//     reveal, as a too-few setup's expectancy is.
 //  6. Every heading, link and region has an accessible name, and every state carries a landing named
 //     by the page's title (M1).
 //  R-T3-T8-R2: the page reads the account its URL names (`_all_` = All Accounts), else the Journal pick,
@@ -23,9 +26,11 @@ import { SWRConfig } from 'swr'
 import { computeAccessibleName } from 'dom-accessibility-api'
 import WrappedSurface from './WrappedSurface'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
-import { WORDING } from '../lib/sampleSize'
+import { WORDING, band } from '../lib/sampleSize'
 
-const month = (m, adherence, tradeCount) => ({ month: `2025-${String(m).padStart(2, '0')}`, adherence, tradeCount })
+// The server's month row (wrapped._discipline): the band is sample_size's own, of the record count.
+const month = (m, adherence, sampleN) =>
+  ({ month: `2025-${String(m).padStart(2, '0')}`, adherence, sample: band(sampleN), sampleN })
 const PAYLOAD = {
   year: 2025,
   tradeCount: 63,
@@ -37,8 +42,8 @@ const PAYLOAD = {
   tickers: [{ symbol: 'NVDA', noteCount: 3 }, { symbol: 'AMD', noteCount: 1 }],
   tickersScope: 'all',
   discipline: [
-    month(1, null, 0), month(2, 0.5, 4), month(3, 0.75, 2), month(4, null, 3), month(5, 1, 1), month(6, null, 0),
-    month(7, null, 0), month(8, null, 0), month(9, null, 0), month(10, null, 0), month(11, null, 0), month(12, 0.9, 5),
+    month(1, null, 0), month(2, 0.5, 4), month(3, 0.75, 2), month(4, null, 0), month(5, 1, 12), month(6, null, 0),
+    month(7, null, 0), month(8, null, 0), month(9, null, 0), month(10, null, 0), month(11, null, 0), month(12, 0.9, 25),
   ],
   lessons: [
     { ruleId: 'r3', label: 'Edited late on New Year’s Eve', version: 2, changeNote: null,
@@ -172,9 +177,21 @@ describe('Your <year> in trading (P2 Tier 3, Task 8)', () => {
     expect(items.map((li) => li.getAttribute('data-month'))).toEqual(PAYLOAD.discipline.map((d) => d.month))
     const march = items[2]
     expect(within(march).getByText('March')).toBeTruthy()
-    expect(within(march).getByText('75%')).toBeTruthy()
-    expect(within(march).getByText('2 trades')).toBeTruthy()
-    expect(within(items[4]).getByText('1 trade')).toBeTruthy()
+    expect(within(march).getByText('2 records')).toBeTruthy()          // the n is the records
+    const marchWord = within(march).getByText(WORDING.too_few)
+    expect(marchWord.tagName).toBe('SUMMARY')                          // too few: the percent is behind it
+    expect(marchWord.closest('details').open).toBe(false)
+    expect(within(marchWord.closest('details')).getByText('75%')).toBeTruthy()
+    const may = items[4]
+    expect(within(may).getByText('12 records')).toBeTruthy()
+    expect(within(may).getByText('100%')).toBeTruthy()
+    expect(within(may).getByText(WORDING.thin)).toBeTruthy()          // thin: shown, and worded
+    expect(may.querySelector('details')).toBeNull()
+    const dec = items[11]
+    expect(within(dec).getByText('25 records')).toBeTruthy()
+    expect(within(dec).getByText('90%')).toBeTruthy()
+    expect(dec.textContent).not.toMatch(/thin sample|too few/)         // normal: shown plainly
+    expect(disc.textContent).not.toMatch(/trade/)                      // no trade count anywhere in it
     expect(within(disc).queryByText('No adherence recorded this year.')).toBeNull()   // some months have one
 
     const lessons = screen.getByRole('region', { name: 'Lessons you wrote into your rules' })
@@ -187,14 +204,28 @@ describe('Your <year> in trading (P2 Tier 3, Task 8)', () => {
     expect(lessons.textContent).not.toContain('2026-01-01')
   })
 
-  it('a month with no adherence record reads "—", with its trade count', async () => {
+  it('a month with no adherence record reads "—", with no records', async () => {
     renderPage()
     const disc = await screen.findByRole('region', { name: 'Discipline trend' })
     const april = within(disc).getAllByRole('listitem')[3]
     expect(april.getAttribute('data-month')).toBe('2025-04')
     expect(within(april).getByText('—')).toBeTruthy()
-    expect(within(april).getByText('3 trades')).toBeTruthy()
+    expect(within(april).getByText('0 records')).toBeTruthy()
     expect(april.textContent).not.toContain('0%')                    // None is never 0
+    expect(april.textContent).not.toContain(WORDING.too_few)         // nothing to judge: no reveal
+  })
+
+  it('I2: twenty trades with one record read "1 record", too few to judge; the trade count is never printed', async () => {
+    const one = { ...month(3, 1, 1), tradeCount: 20 }                 // even if a server sent one
+    answer = () => json({ ...PAYLOAD, discipline: PAYLOAD.discipline.map((d, i) => (i === 2 ? one : d)) })
+    renderPage()
+    const disc = await screen.findByRole('region', { name: 'Discipline trend' })
+    const march = within(disc).getAllByRole('listitem')[2]
+    expect(within(march).getByText('1 record')).toBeTruthy()
+    expect(within(march).getByText(WORDING.too_few).tagName).toBe('SUMMARY')
+    expect(march.textContent).not.toContain('20')
+    // The bar is the value too: behind the reveal it is drawn empty, not at 100%.
+    expect(march.querySelector('[aria-hidden="true"] > span').style.width).toBe('0%')
   })
 
   it('a year with no adherence record says so above twelve "—" months (Review Focus 6)', async () => {

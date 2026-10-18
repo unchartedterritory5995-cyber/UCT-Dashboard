@@ -83,16 +83,18 @@
 .months { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .month {
   display: grid;
-  grid-template-columns: 6.5em minmax(60px, 1fr) 3.5em 6em;
+  /* Final fix I2: the value column fits the "too few to judge" reveal; the record count sits on its
+   * own line under the bar. */
+  grid-template-columns: 6.5em minmax(60px, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
   font-size: 13px;
 }
 .monthName { color: var(--text-muted, #8a8a8a); }
 .bar { height: 8px; border-radius: 4px; background: var(--border, #2a2a2e); overflow: hidden; }
 .fill { display: block; height: 100%; background: var(--accent, #dcbb5e); }
 .pct { text-align: right; font-variant-numeric: tabular-nums; }
-.trades { color: var(--text-muted, #8a8a8a); font-variant-numeric: tabular-nums; }
+.records { grid-column: 2 / -1; color: var(--text-muted, #8a8a8a); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 /* Lessons */
 .lessons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -110,6 +112,6 @@
 .lessonNote { color: var(--text-muted, #8a8a8a); font-style: italic; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
-  .month { grid-template-columns: 5.5em minmax(40px, 1fr) 3em 5em; gap: 6px; }
+  .month { grid-template-columns: 5.5em minmax(40px, 1fr) auto; column-gap: 6px; }
   .table th, .table td { padding: 6px 4px; }
 }

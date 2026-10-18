@@ -112,10 +112,14 @@ describe('Your <year> in trading reads the recorded GET /api/j2/wrapped/{year}',
     expect(items.map((li) => within(li).getByText(/^[A-Z][a-z]+$/).textContent)).toEqual([
       'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
       'November', 'December'])
-    expect(items[0].textContent).toBe('January—5 trades')
-    expect(items[1].textContent).toBe('February58%6 trades')
-    expect(items[2].textContent).toBe('March90%5 trades')
-    expect(items[11].textContent).toBe('December—0 trades')
+    // Final fix I2: each month's n is its adherence RECORDS (`sampleN`), never its trades. February's
+    // six records are too few to judge, so its 58% is behind the reveal.
+    expect(items[0].textContent).toBe('January—0 records')
+    expect(items[1].textContent).toBe('Februarytoo few to judge58%6 records')
+    expect(within(items[1]).getByText('too few to judge').tagName).toBe('SUMMARY')
+    expect(items[2].textContent).toBe('Marchtoo few to judge90%5 records')
+    expect(items[11].textContent).toBe('December—0 records')
+    expect(disc.textContent).not.toMatch(/trade/)
     expect(within(disc).queryByText('No adherence recorded this year.')).not.toBeInTheDocument()
   })
 
