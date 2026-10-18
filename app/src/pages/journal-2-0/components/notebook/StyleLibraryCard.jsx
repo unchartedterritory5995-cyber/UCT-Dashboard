@@ -3,7 +3,8 @@
 // alone, which is itself a lazy chunk (TemplatePicker.jsx), so none of this is in the first open.
 //
 // The card's controls are SIBLINGS (never a button in a button): Preview, Adopt, Helpful, Report, and
-// the author's name as its own button when the author has a handle.
+// the author's name as its own button when the author has a handle. An admin also gets Feature/Unfeature
+// and Hide (GalleryAdminActions, the one copy GalleryCard renders too; P5 fix round 1).
 //   * Adopt opens an inline confirm: "Notify me when the author updates" (off by default), then Adopt
 //     and Cancel. The copy is the member's own style row; the server makes it (adoptStyle).
 //   * Helpful is a toggle (aria-pressed). It is not offered on your own item (the server refuses it too).
@@ -17,6 +18,7 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
 import { libraryError } from './styles/styleErrors'
+import GalleryAdminActions from './GalleryAdminActions'
 import styles from './TemplateGallery.module.css'
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
@@ -29,7 +31,7 @@ export function refusalSentence(err, fallback) {
 
 const withStop = (s) => (/[.!?]$/.test(s) ? s : `${s}.`)
 
-export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, busy = false }) {
+export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false }) {
   const uid = useId()
   const [confirming, setConfirming] = useState(false)
   const [notify, setNotify] = useState(false)
@@ -133,6 +135,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
             Report
           </button>
         )}
+        {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
       {confirming && (
         <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>

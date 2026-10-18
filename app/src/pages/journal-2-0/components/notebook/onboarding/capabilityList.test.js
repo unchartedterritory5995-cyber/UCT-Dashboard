@@ -86,7 +86,7 @@ describe('capabilityList -- the list', () => {
     expect(s, 'journal-styles must be in the list').toBeTruthy()
     expect(s.flag).toBe('notebook_journal_styles_enabled')
     expect(s.label).toBe('Journal styles')
-    expect(s.line).toBe('Pick a kind of note and a style, and every new note starts with your checklist, sizing and outline.')
+    expect(s.line).toBe('Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.')
     const l = CAPABILITY_PREVIEW.find((c) => c.id === 'style-library')
     expect(l, 'style-library must be in the list').toBeTruthy()
     expect(l.flag).toBe('notebook_style_library_enabled')
