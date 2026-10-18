@@ -3,21 +3,25 @@ GET /api/j2/wrapped/{year} (api/routers/notebook_wrapped.py).
 
 The four sections and where each number comes from (R-T3-9):
 
-  * bestSetups: `playbook_stats.get_playbook_stats` over the year's closed trades. Expectancy is
-    THAT record's `expectancyR`, never recomputed here. The band is `sample_size.band` (the one
-    home of the thresholds, R-T3-V5): `too_few` | `thin` | `normal`. Setups that can be ranked
-    (anything but `too_few`) come first, by expectancy R; a `too_few` setup cannot be ranked, so
-    it only fills a slot the ranked setups leave open (the page says "Too few trades to rank").
-  * tickers: live notes (`deleted_at IS NULL AND archived_at IS NULL`) created in the year, each
-    counted ONCE per symbol over `j2_notes.ticker` and the `j2_note_mentions` projection (the
-    cashtag sidecar `notes._sync_note_mentions` keeps; bodies are never re-parsed). Top 5.
+  * bestSetups: `playbook_stats.get_playbook_stats` over the year's INCLUDED closed trades
+    (`analytics_included=True`, R-T3-T7-R3). Expectancy is THAT record's `expectancyR`, never
+    recomputed here. The band (R-T3-V5: `too_few` | `thin` | `normal`, `sample_size`'s own) is the
+    band of the count `expectancyR` rests on, the trades that carry an R: the record's
+    `avgRStat.band` (R-T3-T7-R5, the R-T3-T5-R4 principle), never `tradeCount`'s. Setups that can be
+    ranked (anything but `too_few`) come first, by expectancy R; a `too_few` setup cannot be ranked,
+    so it only fills a slot the ranked setups leave open (the page says "Too few trades to rank").
+  * tickers: MEMBER-WIDE whatever account is picked (R-T3-T7-R4: notes carry no account, and no
+    other surface scopes notes by account), so the payload says `tickersScope: "all"`. Live notes
+    (`deleted_at IS NULL AND archived_at IS NULL`) created in the year, each counted ONCE per symbol
+    over `j2_notes.ticker` and the `j2_note_mentions` projection (the cashtag sidecar
+    `notes._sync_note_mentions` keeps; bodies are never re-parsed). Top 5.
   * discipline: twelve months, Jan to Dec. A month's adherence is the mean `adherencePct` of the
     month's closed trades that HAVE a record, joined through `trader_blocks.adherence_of_trade`
     (THE one join, R-PF-N7) on the trade's ref. A month with trades and no records reads
     `adherence: None`, never 0 (`adherence_pct` is never NULL on a stored row, so None can only
     mean "no record").
   * lessons: rule versions whose words changed within the year (`j2_journal_rule_versions`),
-    newest first. A dismissed rule is gone and teaches nothing.
+    newest first, at most TOP_LESSONS (R-T3-7). A dismissed rule is gone and teaches nothing.
 
 The year is the ET trading day throughout: a trade by the `filters.trades_where` day spine, a
 note and a version by `timeutil.compute_trading_day_et` of their stamp. `available` is False for
@@ -25,16 +29,16 @@ the current ET year before December 1 and for any year with no closed trade; whe
 array is empty, so the page shows its "not ready" sentence.
 
 ISOLATION: every query is keyed on the member's id; `account_id` only narrows the member's OWN
-trades, notes and rules, so another member's account id matches nothing.
+trades and rules (never notes, see tickers), so another member's account id matches nothing.
 """
 from __future__ import annotations
 
 import sqlite3
 from typing import Any
 
-from api.services.journal_two import adherence_store, checklist_suggestions, playbook_stats, sample_size
+from api.services.journal_two import adherence_store, checklist_suggestions, playbook_stats
 from api.services.journal_two.calendar import et_today
-from api.services.journal_two.filters import ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where
+from api.services.journal_two.filters import _DAY, ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where  # noqa: PLC2701 -- the ONE trading-day spine
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.trader_blocks import adherence_of_trade
@@ -52,6 +56,9 @@ OPENS_ON = "12-01"
 
 TOP_SETUPS = 3
 TOP_TICKERS = 5
+TOP_LESSONS = 12
+#: Tickers are member-wide whatever account is picked (R-T3-T7-R4); Task 8 labels it from this.
+TICKERS_SCOPE = "all"
 
 
 def enabled() -> bool:
@@ -79,7 +86,7 @@ def _in_year(stamp: str | None, year: int) -> bool:
 def _closed_trades(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> list:
     """The year's closed trades, scoped, on the analytics inclusion rule."""
     frag, params = trades_where(_year_spec(year))
-    sql = ("SELECT id, external_id, source, position_id, exit_date, trading_day_et FROM j2_trades"
+    sql = (f"SELECT id, external_id, source, position_id, {_DAY} AS day FROM j2_trades"
            " WHERE user_id = ? " + ANALYTICS_INCLUDED_SQL)
     args: list[Any] = [user_id]
     if account_id:
@@ -95,9 +102,11 @@ def _rank_key_sampled(rec: dict) -> tuple:
 
 
 def _best_setups(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> list[dict]:
-    records = playbook_stats.get_playbook_stats(user_id, account_id, spec=_year_spec(year), conn=conn)
+    records = playbook_stats.get_playbook_stats(user_id, account_id, spec=_year_spec(year), conn=conn,
+                                                analytics_included=True)
+    # The band of the n behind expectancyR (the R-bearing trades), worded by sample_size itself.
     rows = [{"setup": r["setup"], "tradeCount": r["tradeCount"], "expectancyR": r["expectancyR"],
-             "sample": sample_size.band(r["tradeCount"])} for r in records]
+             "sample": r["avgRStat"]["band"]} for r in records]
     ranked = sorted((r for r in rows if r["sample"] != "too_few"), key=_rank_key_sampled)
     unranked = sorted((r for r in rows if r["sample"] == "too_few"),
                       key=lambda r: (-r["tradeCount"], r["setup"]))
@@ -111,15 +120,13 @@ def _norm_symbol(raw: Any) -> str | None:
     return sym or None
 
 
-def _tickers(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> list[dict]:
+def _tickers(conn: sqlite3.Connection, user_id: str, year: int) -> list[dict]:
+    """Member-wide (R-T3-T7-R4): no account predicate, because notes are written without one."""
     # A one-day margin each side in SQL (created_at is a UTC stamp); the ET year is decided below.
     lo, hi = f"{year - 1}-12-31", f"{year + 1}-01-02"
     where = ("n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
              " AND n.created_at >= ? AND n.created_at < ?")
     args: list[Any] = [user_id, lo, hi]
-    if account_id:
-        where += " AND n.account_id = ?"
-        args.append(account_id)
     notes = {r["id"]: r for r in conn.execute(
         f"SELECT n.id, n.ticker, n.created_at FROM j2_notes n WHERE {where}", args).fetchall()
         if _in_year(r["created_at"], year)}
@@ -147,8 +154,7 @@ def _discipline(conn: sqlite3.Connection, user_id: str, year: int, trades: list)
     adh = adherence_store.list_adherence_for_user(user_id, conn=conn)
     months = {f"{year}-{m:02d}": {"count": 0, "pcts": []} for m in range(1, 13)}
     for t in trades:
-        day = t["trading_day_et"] or (t["exit_date"] or "")[:10]
-        bucket = months.get(day[:7])
+        bucket = months.get((t["day"] or "")[:7])   # the SQL spine's own answer, never restated
         if bucket is None:
             continue
         bucket["count"] += 1
@@ -184,16 +190,17 @@ def _lessons(conn: sqlite3.Connection, user_id: str, year: int, account_id: str 
             out.append({"ruleId": r["id"], "label": r["label"], "version": 1,
                         "changeNote": None, "changedAt": r["created_at"]})
     out.sort(key=lambda x: (x["changedAt"], x["version"], x["ruleId"]), reverse=True)
-    return out
+    return out[:TOP_LESSONS]
 
 
 def _empty(year: int, trade_count: int) -> dict:
     return {"year": year, "tradeCount": trade_count, "bestSetups": [], "tickers": [],
-            "discipline": [], "lessons": [], "available": False}
+            "tickersScope": TICKERS_SCOPE, "discipline": [], "lessons": [], "available": False}
 
 
 def year_wrapped(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> dict:
-    """{"year", "tradeCount", "bestSetups", "tickers", "discipline", "lessons", "available"}.
+    """{"year", "tradeCount", "bestSetups", "tickers", "tickersScope", "discipline", "lessons",
+    "available"}.
     The caller has checked `year_in_range`."""
     account_id = account_id or None
     today = et_today()
@@ -204,7 +211,8 @@ def year_wrapped(conn: sqlite3.Connection, user_id: str, year: int, account_id: 
         "year": year,
         "tradeCount": len(trades),
         "bestSetups": _best_setups(conn, user_id, year, account_id),
-        "tickers": _tickers(conn, user_id, year, account_id),
+        "tickers": _tickers(conn, user_id, year),
+        "tickersScope": TICKERS_SCOPE,
         "discipline": _discipline(conn, user_id, year, trades),
         "lessons": _lessons(conn, user_id, year, account_id),
         "available": True,

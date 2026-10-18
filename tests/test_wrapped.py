@@ -91,7 +91,7 @@ def _trade(conn, aid, day, *, r=1.0, setup="VCP", user_id="u1", exit_iso=None, e
     """A closed equity trade on ET day `day` (YYYY-MM-DD)."""
     tid = str(uuid.uuid4())
     exit_iso = exit_iso or f"{day}T18:00:00Z"
-    pnl = 100.0 * r
+    pnl = 100.0 * (1.0 if r is None else r)
     conn.execute(
         """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price,
                entry_date, exit_price, exit_date, original_stop, setup, notes, pnl_dollar,
@@ -176,6 +176,18 @@ def test_a_four_trade_setup_reads_too_few_and_is_not_ranked_above_a_sampled_one(
     assert best[2]["tradeCount"] == 4
 
 
+def test_the_band_follows_the_r_bearing_trades_so_two_r_values_in_thirty_cannot_rank_first(conn):
+    """R-T3-T7-R5: expectancyR rests on the trades that carry an R, so its band is theirs."""
+    aid = _account(conn)
+    _setup_trades(conn, aid, "EP", [4.0, 4.0] + [None] * 28)    # 30 trades, 2 with an R
+    _setup_trades(conn, aid, "VCP", [1.2] * 25)                  # 25 trades, all with an R
+    best = wrapped.year_wrapped(conn, "u1", 2025, None)["bestSetups"]
+    assert best == [
+        {"setup": "VCP", "tradeCount": 25, "expectancyR": 1.2, "sample": "normal"},
+        {"setup": "EP", "tradeCount": 30, "expectancyR": 4.0, "sample": "too_few"},
+    ]
+
+
 def test_expectancy_is_playbook_stats_own_number_never_recomputed(conn, monkeypatch):
     aid = _account(conn)
     _setup_trades(conn, aid, "A", [2.0] * 12)
@@ -245,12 +257,16 @@ def test_twelve_months_and_a_month_without_adherence_reads_none_with_its_trade_c
 
 
 def test_an_analytics_excluded_trade_counts_nowhere(conn):
+    """R-T3-T7-R3: not in tradeCount, not in discipline, and not in bestSetups."""
     aid = _account(conn)
-    _trade(conn, aid, "2025-03-04")
-    _trade(conn, aid, "2025-03-05", excluded=True)
+    for d in range(1, 11):
+        _trade(conn, aid, f"2025-03-{d:02d}", r=1.0, setup="VCP")
+    _trade(conn, aid, "2025-03-20", r=-9.0, setup="VCP", excluded=True)
     out = wrapped.year_wrapped(conn, "u1", 2025, None)
-    assert out["tradeCount"] == 1
-    assert {d["month"]: d["tradeCount"] for d in out["discipline"]}["2025-03"] == 1
+    assert out["tradeCount"] == 10
+    assert {d["month"]: d["tradeCount"] for d in out["discipline"]}["2025-03"] == 10
+    assert out["bestSetups"] == [{"setup": "VCP", "tradeCount": 10, "expectancyR": 1.0, "sample": "thin"}]
+    assert sum(s["tradeCount"] for s in out["bestSetups"]) <= out["tradeCount"]
 
 
 # ── 4. lessons ───────────────────────────────────────────────────────────────
@@ -273,6 +289,18 @@ def test_three_versions_in_the_year_and_one_before_read_three_newest_first(conn)
         {"ruleId": r1, "label": "Wait 15 minutes after the open", "version": 2, "changeNote": "too early",
          "changedAt": "2025-02-01T15:00:00Z"},
     ]
+
+
+def test_lessons_stop_at_the_newest_twelve(conn):
+    """R-T3-7: at most 12, newest first."""
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+    rid = _rule(conn, aid, "Rule")
+    for v in range(1, 14):                    # 13 versions, the 5th and 15th of Jan..Jul, in order
+        _version(conn, rid, v, f"Rule v{v}", f"2025-{(v - 1) // 2 + 1:02d}-{(1 - v % 2) * 10 + 5:02d}T15:00:00Z")
+    lessons = wrapped.year_wrapped(conn, "u1", 2025, None)["lessons"]
+    assert wrapped.TOP_LESSONS == 12
+    assert [l["version"] for l in lessons] == list(range(13, 1, -1))
 
 
 def test_dismissed_rules_and_other_members_rules_teach_nothing_and_a_legacy_rule_reads_its_v1(conn):
@@ -306,8 +334,8 @@ def test_the_current_year_is_not_ready_before_december_and_is_in_december(conn, 
     _full_year(conn, aid, 2026)
     monkeypatch.setattr(wrapped, "et_today", lambda: "2026-11-30")
     out = wrapped.year_wrapped(conn, "u1", 2026, None)
-    assert out == {"year": 2026, "tradeCount": 1, "bestSetups": [], "tickers": [], "discipline": [],
-                   "lessons": [], "available": False}
+    assert out == {"year": 2026, "tradeCount": 1, "bestSetups": [], "tickers": [], "tickersScope": "all",
+                   "discipline": [], "lessons": [], "available": False}
     monkeypatch.setattr(wrapped, "et_today", lambda: "2026-12-01")
     out = wrapped.year_wrapped(conn, "u1", 2026, None)
     assert out["available"] is True and len(out["discipline"]) == 12
@@ -330,8 +358,9 @@ def test_the_account_scope_is_honoured_in_every_section(conn):
     a, b = _account(conn), _account(conn)
     _setup_trades(conn, a, "A", [1.0] * 10)
     _setup_trades(conn, b, "B", [2.0] * 10)
-    _note(conn, created="2025-03-03T15:00:00Z", ticker="AAA", aid=a)
-    _note(conn, created="2025-03-03T15:00:00Z", ticker="BBB", aid=b)
+    # Real notes carry no account (notes.create_note: payload accountId is never sent).
+    _note(conn, created="2025-03-03T15:00:00Z", ticker="AAA")
+    _note(conn, created="2025-03-03T15:00:00Z", ticker="BBB")
     ra = _rule(conn, a, "Rule A")
     _version(conn, ra, 1, "Rule A", "2025-03-03T15:00:00Z")
     rb = _rule(conn, b, "Rule B")
@@ -339,7 +368,9 @@ def test_the_account_scope_is_honoured_in_every_section(conn):
     out = wrapped.year_wrapped(conn, "u1", 2025, a)
     assert out["tradeCount"] == 10
     assert [s["setup"] for s in out["bestSetups"]] == ["A"]
-    assert out["tickers"] == [{"symbol": "AAA", "noteCount": 1}]
+    # R-T3-T7-R4: tickers are member-wide whatever the picker says, and the payload says so.
+    assert out["tickers"] == [{"symbol": "AAA", "noteCount": 1}, {"symbol": "BBB", "noteCount": 1}]
+    assert out["tickersScope"] == "all"
     assert [l["ruleId"] for l in out["lessons"]] == [ra]
     every = wrapped.year_wrapped(conn, "u1", 2025, None)            # All Accounts: both
     assert every["tradeCount"] == 20 and len(every["lessons"]) == 2 and len(every["tickers"]) == 2
@@ -397,7 +428,8 @@ def test_the_route_answers_the_year_for_a_paid_member(client, conn):
     r = client.get(f"{URL}/2025", params={"account_id": aid})
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"year", "tradeCount", "bestSetups", "tickers", "discipline", "lessons", "available"}
+    assert set(body) == {"year", "tradeCount", "bestSetups", "tickers", "tickersScope", "discipline",
+                         "lessons", "available"}
     assert body["available"] is True and body["tradeCount"] == 1
     assert client.get(f"{URL}/2025").json()["tradeCount"] == 1        # All Accounts
 
@@ -432,6 +464,18 @@ def test_a_year_outside_2000_to_the_current_et_year_is_a_400(client, monkeypatch
     monkeypatch.setattr(wrapped, "et_today", lambda: "2027-01-01")     # the ET year moves the edge
     assert client.get(f"{URL}/2027").status_code == 200
     assert client.get(f"{URL}/abc").status_code == 422
+
+
+def test_the_pickers_all_accounts_value_means_no_account(client, conn):
+    """R-T3-T7-R6: '_all_' (and empty) read as All Accounts, never as an account id."""
+    a, b = _account(conn), _account(conn)
+    _trade(conn, a, "2025-03-03")
+    _trade(conn, b, "2025-03-04")
+    _as(client)
+    assert client.get(f"{URL}/2025", params={"account_id": a}).json()["tradeCount"] == 1  # control
+    for value in ("_all_", ""):
+        body = client.get(f"{URL}/2025", params={"account_id": value}).json()
+        assert (body["tradeCount"], body["available"]) == (2, True), value
 
 
 def test_an_overlong_account_id_is_refused(client):

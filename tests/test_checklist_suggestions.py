@@ -463,6 +463,17 @@ def test_the_route_reads_nothing_of_another_members_account(client, conn):
     assert (body["winnerCount"], body["suggestions"]) == (0, [])
 
 
+def test_the_pickers_all_accounts_value_means_no_account(client, conn):
+    """R-T3-T7-R6: '_all_' (and empty) read as All Accounts, never as an account id."""
+    a, b = _account(conn), _account(conn)
+    _book(conn, a, winners=10, losers=0)
+    _book(conn, b, winners=10, losers=0)
+    _as(client)
+    assert client.get(URL, params={"account_id": a}).json()["winnerCount"] == 10    # control
+    for value in ("_all_", ""):
+        assert client.get(URL, params={"account_id": value}).json()["winnerCount"] == 20, value
+
+
 def test_an_overlong_account_id_is_refused(client):
     _as(client)
     assert client.get(URL, params={"account_id": "x" * 129}).status_code == 422

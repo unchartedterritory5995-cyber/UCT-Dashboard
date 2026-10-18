@@ -12,7 +12,9 @@ R-T3-T7-R1):
   * ITS OWN `require_paid`, with its own 402 sentence, so a refused member reads which surface
     refused them (tests/test_user_definitions_auth.py reads the sentence as a literal).
   * MEMBER-SCOPED: every read is keyed on the session member's id; `account_id` only narrows the
-    member's OWN trades, notes and rules (another member's account id matches nothing).
+    member's OWN trades and rules (another member's account id matches nothing). The picker's
+    All Accounts value `'_all_'` (unified_coach.UNIFIED_ACCOUNT_ID) and an empty value both mean
+    no account (ruling R-T3-T7-R6); the service never sees the sentinel.
   * THE YEAR: 2000 up to the current ET year, else 400 with wrapped.YEAR_UNAVAILABLE_SENTENCE.
 """
 from __future__ import annotations
@@ -23,6 +25,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import wrapped
+from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
+
+
+def plain_account_id(account_id: str | None) -> str | None:
+    """R-T3-T7-R6: `'_all_'` and empty mean All Accounts, which the services spell None."""
+    return None if not account_id or account_id == UNIFIED_ACCOUNT_ID else account_id
 
 
 def _require_tier3() -> None:
@@ -48,7 +56,10 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 # ⛔ ROUTE ORDER (Task 8): `GET /years` belongs in THIS router and must be declared ABOVE this
 # route. FastAPI answers on first match, and `/{year}` matches the segment "years" (then fails the
-# int check with a 422), so a `/years` declared below it is never reached.
+# int check with a 422), so a `/years` declared below it is never reached. A `/{year:int}`
+# convertor would make the path itself refuse "years" (and turn a non-integer year into a 404),
+# but a convertor alone is not a guarantee anybody can see: either keep `/years` declared first,
+# or carry a rail that `GET /api/j2/wrapped/years` answers 200. Task 8 adds that rail.
 @router.get("/{year}")
 def get_wrapped(year: int,
                 account_id: str | None = Query(None, max_length=128),
@@ -59,6 +70,6 @@ def get_wrapped(year: int,
     from api.services.auth_db import get_connection
     conn = get_connection()
     try:
-        return wrapped.year_wrapped(conn, user["id"], year, account_id or None)
+        return wrapped.year_wrapped(conn, user["id"], year, plain_account_id(account_id))
     finally:
         conn.close()

@@ -13,7 +13,9 @@ The rules (the My Playbook router's shape, `notebook_playbook.py`; fix round 1, 
   * ITS OWN `require_paid`, with its own 402 sentence, so a refused member reads which surface
     refused them (tests/test_user_definitions_auth.py reads the sentence as a literal).
   * MEMBER-SCOPED: every read is keyed on the session member's id; `account_id` only narrows the
-    member's OWN trades and rules (another member's account id matches nothing).
+    member's OWN trades and rules (another member's account id matches nothing). The picker's
+    All Accounts value `'_all_'` and an empty value both mean no account (ruling R-T3-T7-R6,
+    `notebook_wrapped.plain_account_id`).
 """
 from __future__ import annotations
 
@@ -22,6 +24,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.routers.notebook_wrapped import plain_account_id
 from api.services.journal_two import checklist_suggestions
 
 
@@ -53,6 +56,6 @@ def get_checklist_suggestions(account_id: str | None = Query(None, max_length=12
     from api.services.auth_db import get_connection
     conn = get_connection()
     try:
-        return checklist_suggestions.suggest(conn, user["id"], account_id or None)
+        return checklist_suggestions.suggest(conn, user["id"], plain_account_id(account_id))
     finally:
         conn.close()
