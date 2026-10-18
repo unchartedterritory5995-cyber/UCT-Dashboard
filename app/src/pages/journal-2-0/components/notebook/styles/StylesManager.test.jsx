@@ -382,6 +382,8 @@ describe('the Styles manager', () => {
     expect(sent).toMatchObject({ name: 'Swing plan', kindId: 'thesis', outlineTemplateId: null, outlineBodyJson: null })
     expect(sent.blocks).toEqual([{ block: 'chart', enabled: true, settings: { tf: 'D' } }])
     await screen.findByText('Saved Swing plan.')
+    // P5 Task 6: the style editor's create counts as style_created from the editor, and nothing else rides along.
+    expect(called('POST', /^\/api\/j2\/telemetry$/).map((c) => c.body)).toEqual([{ event: 'style_created', props: { via: 'editor' } }])
   })
 
   it('P2 Tier 3 (R-T3-1): the mood check-in is offered in Add a block only while Tier 3 is on', async () => {
@@ -441,6 +443,8 @@ describe('the Styles manager', () => {
     await waitFor(() => expect(called('POST', /journal-styles$/)).toHaveLength(1))
     expect(called('POST', /journal-styles$/)[0].body).toMatchObject({ name: 'Trade plan copy', kindId: 'trade_plan' })
     await screen.findByRole('form', { name: 'Edit style Trade plan copy' })
+    // P5 Task 6: a duplicate counts as style_created from 'duplicate', never from the editor it then opens.
+    expect(called('POST', /^\/api\/j2\/telemetry$/).map((c) => c.body)).toEqual([{ event: 'style_created', props: { via: 'duplicate' } }])
   })
 
   it('a duplicate of a long name is cut so "copy" still fits the 80 character limit', async () => {

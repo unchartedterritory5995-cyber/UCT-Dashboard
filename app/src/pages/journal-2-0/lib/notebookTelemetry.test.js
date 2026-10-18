@@ -8,6 +8,8 @@ import {
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
 import { ITEM_TYPES } from './styleLibrary'
+import { BLOCK_KINDS } from './journalBlocks'
+import { WIDGET_IDS, isTraderBlock } from '../../../widgets/registry'
 
 const QUERY = 'nvda earnings gap'
 const TITLE = 'My NVDA thesis for Q4'
@@ -19,12 +21,14 @@ function fakeFetch() {
 }
 
 describe('the event set', () => {
-  it('is the core Notebook actions (the seven of wave 6, the R-16 eight of wave 10, and the two of P3a), each with a schema', () => {
+  // P5 (Task 6, ruling P5-R-C7): 17 + P5's three = 20 names.
+  it('is the core Notebook actions (the seven of wave 6, the R-16 eight of wave 10, the two of P3a and the three of P5), each with a schema', () => {
     expect(Object.values(NOTEBOOK_EVENTS).sort()).toEqual([
-      'ask_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
+      'ask_used', 'block_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
       'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'save_failed', 'save_success', 'search_used',
-      'share_used', 'style_adopted', 'switcher_used', 'writing_help_used',
+      'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'writing_help_used',
     ])
+    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(20)
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
 })
@@ -136,5 +140,34 @@ describe('R-16 — every core action has an event that fires on its success', ()
   it('export_used.format covers every EXPORT_FORMATS id, plus png and print', () => {
     const want = [...EXPORT_FORMATS.map((f) => f.id), 'png', 'print'].sort()
     expect([...EVENT_SCHEMAS.export_used.format.values].sort()).toEqual(want)
+  })
+})
+
+// P5 Task 6: the three journal-style events. Closed enums only, never a style id, a name or a block's params.
+describe('P5 - style_applied, style_created and block_used', () => {
+  it('each carries one closed-enum prop and nothing else', () => {
+    expect(Object.keys(EVENT_SCHEMAS.style_applied)).toEqual(['via'])
+    expect(Object.keys(EVENT_SCHEMAS.style_created)).toEqual(['via'])
+    expect(Object.keys(EVENT_SCHEMAS.block_used)).toEqual(['kind'])
+    expect([...EVENT_SCHEMAS.style_applied.via.values]).toEqual(['new_note', 'switch', 'update'])
+    expect([...EVENT_SCHEMAS.style_created.via.values]).toEqual(['editor', 'duplicate', 'from_note'])
+  })
+
+  it('block_used.kind is exactly the BLOCK_KINDS ids, in BLOCK_KINDS order (P5-R-C8: 13, read not typed)', () => {
+    const ids = BLOCK_KINDS.map((k) => k.id)
+    expect(ids).toHaveLength(13)                                     // control: the catalog was read
+    expect([...EVENT_SCHEMAS.block_used.kind.values]).toEqual(ids)
+  })
+
+  it('every trader block in the registry is a block_used kind, so none can be sent as "other"', () => {
+    const blocks = WIDGET_IDS.filter(isTraderBlock)
+    expect(blocks.length).toBeGreaterThanOrEqual(10)                 // control: the registry was read
+    for (const id of blocks) expect(EVENT_SCHEMAS.block_used.kind.values.has(id), id).toBe(true)
+  })
+
+  it('a style id, a name or a typed word cannot ride along', () => {
+    expect(sanitizeProps('style_applied', { via: 'switch', styleId: 's1', name: TITLE })).toEqual({ via: 'switch' })
+    expect(sanitizeProps('style_created', { via: TITLE })).toEqual({ via: 'other' })
+    expect(sanitizeProps('block_used', { kind: 'free text', params: { entry: 1 } })).toEqual({ kind: 'other' })
   })
 })

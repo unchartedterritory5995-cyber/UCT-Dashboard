@@ -52,7 +52,10 @@ const TRADE_PLAN_IDS = listFixture.body.styles.filter((x) => x.kindId === 'trade
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 const refusal = (status, detail) => ({ ok: false, status, json: async () => (detail ? { detail } : {}) })
-const lastCall = () => globalThis.fetch.mock.calls.at(-1)
+// P5 Task 6: a created style also posts `style_created` to the telemetry door; the wire rails read the call the
+// client made to the STYLES server, so they skip that one (it is railed on its own below).
+const TELEMETRY = '/api/j2/telemetry'
+const lastCall = () => globalThis.fetch.mock.calls.filter(([url]) => url !== TELEMETRY).at(-1)
 const sent = () => { const [url, init] = lastCall(); return { url, method: init.method, body: init.body ? JSON.parse(init.body) : undefined, init } }
 
 beforeEach(() => {
@@ -395,5 +398,31 @@ describe('the module stays out of the first-open path', () => {
     const code = journalStylesSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
     expect(code).toMatch(/from '\.\/offline\/settleNoteWrite'/)
     expect(code).not.toMatch(/useDurableNote/)
+  })
+})
+
+// P5 Task 6: `createJournalStyle(body, { via })` counts one `style_created` after the server said yes, carrying
+// only the door it came from. A refusal counts nothing, and the style's name never leaves.
+describe('createJournalStyle and style_created', () => {
+  const telemetry = () => globalThis.fetch.mock.calls.filter(([url]) => url === TELEMETRY).map(([, init]) => JSON.parse(init.body))
+
+  it.each(['editor', 'duplicate', 'from_note'])("fires style_created {via: '%s'} once, after the create", async (via) => {
+    globalThis.fetch.mockResolvedValue(ok(contractBody('journal-styles.create.from-note')))
+    await createJournalStyle({ name: 'My NVDA swing plan' }, { via })
+    expect(telemetry()).toEqual([{ event: 'style_created', props: { via } }])
+    expect(globalThis.fetch.mock.calls.map(([u]) => u)).toEqual([STYLES_URL, TELEMETRY])
+    expect(JSON.stringify(telemetry())).not.toContain('NVDA')
+  })
+
+  it('a refused create fires nothing', async () => {
+    globalThis.fetch.mockResolvedValue(contractResponse('journal-styles.create.bad-kind'))
+    await expect(createJournalStyle({ name: 'x' }, { via: 'editor' })).rejects.toBeTruthy()
+    expect(telemetry()).toEqual([])
+  })
+
+  it('a door the enum does not know is sent as "other", never as its own words', async () => {
+    globalThis.fetch.mockResolvedValue(ok(contractBody('journal-styles.create.from-note')))
+    await createJournalStyle({ name: 'x' }, { via: 'My NVDA door' })
+    expect(telemetry()).toEqual([{ event: 'style_created', props: { via: 'other' } }])
   })
 })

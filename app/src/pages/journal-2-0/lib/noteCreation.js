@@ -11,6 +11,7 @@
 import { assembleTemplateContext } from './templateContext'
 import { getTemplate } from './notebookTemplates'
 import { settleNoteWrite } from './offline/settleNoteWrite'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 /** Create a note. Mirrors NotebookTab's own `createNote` request shape
  * exactly (title/bodyJson/tags/ticker/folderId), plus the same best-effort
@@ -63,6 +64,9 @@ export async function createNoteViaApi({
     throw err
   }
   let created = (await res.json()).note
+  // P5 Task 6: a create the server composed from a style (a styleId, or a kindId it resolves to that kind's style)
+  // counts once, after its yes. Best effort: the helper never throws into this create.
+  if (styleId || kindId) trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_APPLIED, { via: 'new_note' })
   if (properties && Object.keys(properties).length) {
     try {
       const putRes = await fetch(`/api/j2/notes/${created.id}`, {

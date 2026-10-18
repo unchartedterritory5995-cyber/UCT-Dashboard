@@ -227,7 +227,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (full.outlineBodyJson) body.outlineBodyJson = full.outlineBodyJson
     // P3a-T10-R6: the server carries the original's community-library provenance to the copy.
     if (!full.builtin) body.duplicateOf = full.id
-    const out = await createJournalStyle(body)
+    const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
   })
