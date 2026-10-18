@@ -146,8 +146,9 @@ def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_ha
     assert ex["draw_box"] is False
     assert ex["draw_pivot"] == {"start_t": ymd_t(2), "end_t": ymd_t(14), "price": 100.5}
     # round 6 (tests/test_cup_r6.py): the handle box is the pullback from the right side's peak (the
-    # bar-9 spike) to the bar before the breakout close (bar 14) -- round 3 drew none ("long")
-    assert ex["draw_handle"] == {"start_t": ymd_t(9), "end_t": ymd_t(13), "top": 104.0, "floor": 93.0}
+    # bar-9 spike) to the bar before the breakout close (bar 14) -- round 3 drew none ("long");
+    # round 7 (tests/test_cup_r7.py): the box's top is capped at the rim, never the spike over it
+    assert ex["draw_handle"] == {"start_t": ymd_t(9), "end_t": ymd_t(13), "top": 100.5, "floor": 93.0}
     # the detector's handle broke out on its first bar: the box is still that pullback, never the
     # cup's own sub-box
     gone = auto_structures.box_to_detection("ZZZ", {**cup, "sub_boxes": [

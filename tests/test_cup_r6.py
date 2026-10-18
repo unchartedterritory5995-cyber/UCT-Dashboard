@@ -10,6 +10,7 @@ bars only (public repo). Each rule has a firing case and a control.
                       more than HANDLE_MAX_PULLBACK_BARS after the peak, or floored in the cup's lower half
   2. wiring           box_to_detection draws that box, never the detector's last sub-box
   3. spike_rim        a lip that is a wick spike above the bodies around it AND is followed by a crash
+                      (round 7 dropped the crash half: tests/test_cup_r7.py)
   4. short_of_rim     the right side must come within RIM_REACH_ATR (0.8) ATR; no 2%-of-price allowance
 """
 from __future__ import annotations
@@ -24,7 +25,8 @@ from tests.test_team_drawing_set_r3 import _cup_bars, _cup_box
 def test_the_constants_are_the_round_6_calibration():
     assert display.HANDLE_MIN_BARS == 3
     assert display.HANDLE_MAX_PULLBACK_BARS == 20
-    assert (display.SPIKE_RIM_ATR, display.SPIKE_RIM_BARS, display.CRASH_FALL_ATR) == (0.75, 5, 5.0)
+    # round 7 (tests/test_cup_r7.py) dropped spike_rim's crash half and lowered it to 0.6 ATR
+    assert (display.SPIKE_RIM_ATR, display.SPIKE_RIM_BARS) == (0.6, 5)
     assert display.RIM_REACH_ATR == 0.8
     assert not hasattr(display, "RIM_REACH_FRAC")          # the 2%-of-price allowance is gone
     assert not hasattr(display, "handle_verdict")          # superseded by pullback_handle
@@ -118,9 +120,10 @@ def _spike_bars(lip_high=102.0, after=(99.0, 96.0, 94.0, 93.0, 92.0)):
 
 def test_a_wick_spike_lip_followed_by_a_crash_is_a_spike_rim():
     assert display.spike_rim(_spike_bars(), 20) is True    # 1.8 above the bodies, a 10-point fall
-    # controls -- each half alone is a real lip
+    # control: a lip on its bodies is a real lip, crash or not
     assert display.spike_rim(_spike_bars(lip_high=100.7), 20) is False            # no wick over the bodies
-    assert display.spike_rim(_spike_bars(after=(99.8, 99.6, 99.4, 99.2, 99.0)), 20) is False   # no crash
+    # round 7: the crash half is gone -- the same wick over a slow decline is a spike rim too
+    assert display.spike_rim(_spike_bars(after=(99.8, 99.6, 99.4, 99.2, 99.0)), 20) is True
     assert display.spike_rim(_spike_bars(), None) is False
 
 
