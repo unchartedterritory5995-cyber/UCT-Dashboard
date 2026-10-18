@@ -1,0 +1,1500 @@
+{
+ "tool": "tools/notebook_style_library_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "author creates a style and shares it",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"1f5117158c6d4ad0ad47cd7e58871f6c\",\"name\":\"P3a walk 1280 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":"
+    },
+    {
+     "what": "the new style is a row in the Styles manager",
+     "ok": true,
+     "read": "P3a walk 1280 030002"
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style row",
+     "text": "P3a walk 1280 030002\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete"
+    },
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "admin approves it in the review panel",
+   "checks": [
+    {
+     "what": "the row is the author's style, with its kind and trading style",
+     "ok": true,
+     "read": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 1280 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 1280 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "member browses Styles, Swing, previews, adopts with notify, Helpful, author page, follows",
+   "checks": [
+    {
+     "what": "the style is listed under Styles, filtered Swing",
+     "ok": true,
+     "read": "P3a walk 1280 030002"
+    },
+    {
+     "what": "Preview shows the style's outline",
+     "ok": true,
+     "read": "P3a walk 1280 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "Notify me starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the gallery says the style was added",
+     "ok": true,
+     "read": "Added \"P3a walk 1280 030002\" to your styles. Based on P3a Author's P3a walk 1280 030002."
+    },
+    {
+     "what": "Helpful is pressed and counted",
+     "ok": true,
+     "read": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "Follow became Following",
+     "ok": true,
+     "read": "Following aria-pressed=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "card",
+     "text": "P3a walk 1280 030002\nP3a Author · Swing\nAdopted by 0 · 0 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "preview",
+     "text": "P3a walk 1280 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Added \"P3a walk 1280 030002\" to your styles. Based on P3a Author's P3a walk 1280 030002."
+    },
+    {
+     "what": "helpful",
+     "text": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "author page",
+     "text": "Community styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they are listed. Using one copies it into Your templates; it is yours to change.\n\nBrowse\nYour submissions\nFollowing\nAdded \"P3a walk 1280 030002\" to your styles. Based on P3a Author's P3a walk 1280 030002.\nBack to the library\nP3a Author\n1 published\nFollow\nP3a walk 1280 030002\nby P3a Author · Swing\nAdopted by 1 · 1 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "follow toggle",
+     "text": "Following aria-pressed=true"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "author updates and shares again; the listed version is unchanged",
+   "checks": [
+    {
+     "what": "the author's change was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"1f5117158c6d4ad0ad47cd7e58871f6c\",\"name\":\"P3a walk 1280 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":2,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":"
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the member still sees the LISTED title, not the held update",
+     "ok": true,
+     "read": "P3a walk 1280 030002"
+    },
+    {
+     "what": "the listed version is still 1 (the item read)",
+     "ok": true,
+     "read": "version=1 title=P3a walk 1280 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the member's card title",
+     "text": "P3a walk 1280 030002"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "admin approves the revision",
+   "checks": [
+    {
+     "what": "the row says it is an update to a listed style",
+     "ok": true,
+     "read": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 1280 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's own title",
+     "ok": true,
+     "read": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 1280 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's added block",
+     "ok": true,
+     "read": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 1280 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 1280 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 1280 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 1280 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 1280 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "member sees the notice, opens Updates, Adds blocks, updates without the outline, own words kept",
+   "checks": [
+    {
+     "what": "the update notice shows in Notices",
+     "ok": false,
+     "read": "P3a walk 1280 030002 v2 has a new version from its author. Open it to see what changed."
+    },
+    {
+     "what": "the sheet says \"Adds blocks\" with the new block",
+     "ok": true,
+     "read": "Adds blocks: My rules"
+    },
+    {
+     "what": "the author's outline box starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the Styles manager says the copy was updated",
+     "ok": true,
+     "read": "Updated P3a walk 1280 030002 to the author's version 2."
+    },
+    {
+     "what": "the own-words outline is kept (the copy read)",
+     "ok": true,
+     "read": "My own words for 1280: wait for the base to tighten."
+    },
+    {
+     "what": "the copy gained the block",
+     "ok": true,
+     "read": "[\"positionSizing\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "updates button",
+     "text": "Updates (1)"
+    },
+    {
+     "what": "adds blocks",
+     "text": "Adds blocks: My rules"
+    },
+    {
+     "what": "status line",
+     "text": "Updated P3a walk 1280 030002 to the author's version 2."
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3a Author\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nSent for review. The version listed now stays listed until an admin approves this update.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nm",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3a Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nUpdated P3a walk 1280 030002 to the author's version 2.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\n",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "author unpublishes; the member's copy remains and the withdraw notice shows",
+   "checks": [
+    {
+     "what": "the gallery says it was unpublished and copies stay",
+     "ok": true,
+     "read": "Unpublished “P3a walk 1280 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the withdraw notice shows in the member's Notices",
+     "ok": false,
+     "read": "P3a walk 1280 030002 v2 was taken down by its author. Your copy is yours and has not changed."
+    },
+    {
+     "what": "the member's copy is still in their styles",
+     "ok": true,
+     "read": "P3a walk 1280 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3a walk 1280 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "copy row",
+     "text": "P3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3a Author\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\n",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3a Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicroso",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "author creates a style and shares it",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"2cba0818e1e146a4bbc5dc3712f8698c\",\"name\":\"P3a walk 820 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "the new style is a row in the Styles manager",
+     "ok": true,
+     "read": "P3a walk 820 030002"
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style row",
+     "text": "P3a walk 820 030002\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete"
+    },
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "admin approves it in the review panel",
+   "checks": [
+    {
+     "what": "the row is the author's style, with its kind and trading style",
+     "ok": true,
+     "read": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 820 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 820 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "member browses Styles, Swing, previews, adopts with notify, Helpful, author page, follows",
+   "checks": [
+    {
+     "what": "the style is listed under Styles, filtered Swing",
+     "ok": true,
+     "read": "P3a walk 820 030002"
+    },
+    {
+     "what": "Preview shows the style's outline",
+     "ok": true,
+     "read": "P3a walk 820 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "Notify me starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the gallery says the style was added",
+     "ok": true,
+     "read": "Added \"P3a walk 820 030002\" to your styles. Based on P3a Author's P3a walk 820 030002."
+    },
+    {
+     "what": "Helpful is pressed and counted",
+     "ok": true,
+     "read": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "Follow became Following",
+     "ok": true,
+     "read": "Following aria-pressed=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "card",
+     "text": "P3a walk 820 030002\nP3a Author · Swing\nAdopted by 0 · 0 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "preview",
+     "text": "P3a walk 820 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Added \"P3a walk 820 030002\" to your styles. Based on P3a Author's P3a walk 820 030002."
+    },
+    {
+     "what": "helpful",
+     "text": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "author page",
+     "text": "Community styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they are listed. Using one copies it into Your templates; it is yours to change.\n\nBrowse\nYour submissions\nFollowing\nAdded \"P3a walk 820 030002\" to your styles. Based on P3a Author's P3a walk 820 030002.\nBack to the library\nP3a Author\n1 published\nFollow\nP3a walk 820 030002\nby P3a Author · Swing\nAdopted by 1 · 1 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "follow toggle",
+     "text": "Following aria-pressed=true"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "author updates and shares again; the listed version is unchanged",
+   "checks": [
+    {
+     "what": "the author's change was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"2cba0818e1e146a4bbc5dc3712f8698c\",\"name\":\"P3a walk 820 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":2,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the member still sees the LISTED title, not the held update",
+     "ok": true,
+     "read": "P3a walk 820 030002"
+    },
+    {
+     "what": "the listed version is still 1 (the item read)",
+     "ok": true,
+     "read": "version=1 title=P3a walk 820 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the member's card title",
+     "text": "P3a walk 820 030002"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "admin approves the revision",
+   "checks": [
+    {
+     "what": "the row says it is an update to a listed style",
+     "ok": true,
+     "read": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 820 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's own title",
+     "ok": true,
+     "read": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 820 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's added block",
+     "ok": true,
+     "read": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 820 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 820 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 820 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 820 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 820 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "member sees the notice, opens Updates, Adds blocks, updates without the outline, own words kept",
+   "checks": [
+    {
+     "what": "the update notice shows in Notices",
+     "ok": false,
+     "read": "P3a walk 820 030002 v2 has a new version from its author. Open it to see what changed."
+    },
+    {
+     "what": "the sheet says \"Adds blocks\" with the new block",
+     "ok": true,
+     "read": "Adds blocks: My rules"
+    },
+    {
+     "what": "the author's outline box starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the Styles manager says the copy was updated",
+     "ok": true,
+     "read": "Updated P3a walk 820 030002 to the author's version 2."
+    },
+    {
+     "what": "the own-words outline is kept (the copy read)",
+     "ok": true,
+     "read": "My own words for 820: wait for the base to tighten."
+    },
+    {
+     "what": "the copy gained the block",
+     "ok": true,
+     "read": "[\"positionSizing\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "updates button",
+     "text": "Updates (1)"
+    },
+    {
+     "what": "adds blocks",
+     "text": "Adds blocks: My rules"
+    },
+    {
+     "what": "status line",
+     "text": "Updated P3a walk 820 030002 to the author's version 2."
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nSent for review. The version listed now stays listed until an admin approves this update.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 820 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPic",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\n3\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nUpdated P3a walk 820 030002 to the author's version 2.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 820 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by "
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "author unpublishes; the member's copy remains and the withdraw notice shows",
+   "checks": [
+    {
+     "what": "the gallery says it was unpublished and copies stay",
+     "ok": true,
+     "read": "Unpublished “P3a walk 820 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the withdraw notice shows in the member's Notices",
+     "ok": false,
+     "read": "P3a walk 820 030002 v2 was taken down by its author. Your copy is yours and has not changed."
+    },
+    {
+     "what": "the member's copy is still in their styles",
+     "ok": true,
+     "read": "P3a walk 820 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3a walk 820 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "copy row",
+     "text": "P3a walk 820 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 820 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity galle",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\n4\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 820 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by "
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "author creates a style and shares it",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"fe36a549f35b4d82a0eef06867b718b8\",\"name\":\"P3a walk 390 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "the new style is a row in the Styles manager",
+     "ok": true,
+     "read": "P3a walk 390 030002"
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style row",
+     "text": "P3a walk 390 030002\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete"
+    },
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "admin approves it in the review panel",
+   "checks": [
+    {
+     "what": "the row is the author's style, with its kind and trading style",
+     "ok": true,
+     "read": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 390 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 390 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "member browses Styles, Swing, previews, adopts with notify, Helpful, author page, follows",
+   "checks": [
+    {
+     "what": "the style is listed under Styles, filtered Swing",
+     "ok": true,
+     "read": "P3a walk 390 030002"
+    },
+    {
+     "what": "Preview shows the style's outline",
+     "ok": true,
+     "read": "P3a walk 390 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "Notify me starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the gallery says the style was added",
+     "ok": true,
+     "read": "Added \"P3a walk 390 030002\" to your styles. Based on P3a Author's P3a walk 390 030002."
+    },
+    {
+     "what": "Helpful is pressed and counted",
+     "ok": true,
+     "read": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "Follow became Following",
+     "ok": true,
+     "read": "Following aria-pressed=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "card",
+     "text": "P3a walk 390 030002\nP3a Author · Swing\nAdopted by 0 · 0 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "preview",
+     "text": "P3a walk 390 030002\n×\n\nby P3a Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline, version one.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Added \"P3a walk 390 030002\" to your styles. Based on P3a Author's P3a walk 390 030002."
+    },
+    {
+     "what": "helpful",
+     "text": "aria-pressed=true; 1 found this helpful"
+    },
+    {
+     "what": "author page",
+     "text": "Community styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they are listed. Using one copies it into Your templates; it is yours to change.\n\nBrowse\nYour submissions\nFollowing\nAdded \"P3a walk 390 030002\" to your styles. Based on P3a Author's P3a walk 390 030002.\nBack to the library\nP3a Author\n1 published\nFollow\nP3a walk 390 030002\nby P3a Author · Swing\nAdopted by 1 · 1 found this helpful\nAuthor outline, version one.\nPreview\nAdopt\nHelpful\nReport"
+    },
+    {
+     "what": "follow toggle",
+     "text": "Following aria-pressed=true"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "author updates and shares again; the listed version is unchanged",
+   "checks": [
+    {
+     "what": "the author's change was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"fe36a549f35b4d82a0eef06867b718b8\",\"name\":\"P3a walk 390 030002\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":2,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "the Styles manager says what happened",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the member still sees the LISTED title, not the held update",
+     "ok": true,
+     "read": "P3a walk 390 030002"
+    },
+    {
+     "what": "the listed version is still 1 (the item read)",
+     "ok": true,
+     "read": "version=1 title=P3a walk 390 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the member's card title",
+     "text": "P3a walk 390 030002"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "admin approves the revision",
+   "checks": [
+    {
+     "what": "the row says it is an update to a listed style",
+     "ok": true,
+     "read": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 390 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's own title",
+     "ok": true,
+     "read": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 390 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the row shows the update's added block",
+     "ok": true,
+     "read": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 390 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the gallery says it is listed",
+     "ok": true,
+     "read": "Approved “P3a walk 390 030002”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P3a walk 390 030002\nby P3a Author · Trade plan\n\nUpdate to a listed style (version 1). Approving lists it; the current version stays until then.\n\nTitle in this update: P3a walk 390 030002 v2\n\nCategory in this update: Trade plan\n\nKind of note: Trade plan\n\nBlocks: Position sizing, My rules\n\nTrading style: Swing\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3a walk 390 030002”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "member sees the notice, opens Updates, Adds blocks, updates without the outline, own words kept",
+   "checks": [
+    {
+     "what": "the update notice shows in Notices",
+     "ok": false,
+     "read": "P3a walk 390 030002 v2 has a new version from its author. Open it to see what changed."
+    },
+    {
+     "what": "the sheet says \"Adds blocks\" with the new block",
+     "ok": true,
+     "read": "Adds blocks: My rules"
+    },
+    {
+     "what": "the author's outline box starts unticked",
+     "ok": true,
+     "read": "unchecked"
+    },
+    {
+     "what": "the Styles manager says the copy was updated",
+     "ok": true,
+     "read": "Updated P3a walk 390 030002 to the author's version 2."
+    },
+    {
+     "what": "the own-words outline is kept (the copy read)",
+     "ok": true,
+     "read": "My own words for 390: wait for the base to tighten."
+    },
+    {
+     "what": "the copy gained the block",
+     "ok": true,
+     "read": "[\"positionSizing\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "updates button",
+     "text": "Updates (1)"
+    },
+    {
+     "what": "adds blocks",
+     "text": "Adds blocks: My rules"
+    },
+    {
+     "what": "status line",
+     "text": "Updated P3a walk 390 030002 to the author's version 2."
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nSent for review. The version listed now stays listed until an admin approves this update.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 820 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 390 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicro",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\n5\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\nUpdated P3a walk 390 030002 to the author's version 2.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 820 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 390 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make ",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they "
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "author unpublishes; the member's copy remains and the withdraw notice shows",
+   "checks": [
+    {
+     "what": "the gallery says it was unpublished and copies stay",
+     "ok": true,
+     "read": "Unpublished “P3a walk 390 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the withdraw notice shows in the member's Notices",
+     "ok": false,
+     "read": "P3a walk 390 030002 v2 was taken down by its author. Your copy is yours and has not changed."
+    },
+    {
+     "what": "the member's copy is still in their styles",
+     "ok": true,
+     "read": "P3a walk 390 030002"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3a walk 390 030002 v2”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "notices",
+     "text": ""
+    },
+    {
+     "what": "copy row",
+     "text": "P3a walk 390 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 820 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nP3a walk 390 030002\nv2\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\n6\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3a walk 1280 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 820 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nP3a walk 390 030002\nv3\nEdit\nDuplicate\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they "
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P3a Author",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "P3a Member",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin",
+   "paid_equiv": true
+  },
+  {
+   "viewport": "1280",
+   "what": "the member writes their own words into the copy's outline",
+   "copy_found": true,
+   "status": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "1280",
+   "what": "unfollow after the story",
+   "status": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "820",
+   "what": "the member writes their own words into the copy's outline",
+   "copy_found": true,
+   "status": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "820",
+   "what": "unfollow after the story",
+   "status": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "390",
+   "what": "the member writes their own words into the copy's outline",
+   "copy_found": true,
+   "status": 200,
+   "verdict": "INFO"
+  },
+  {
+   "viewport": "390",
+   "what": "unfollow after the story",
+   "status": 200,
+   "verdict": "INFO"
+  }
+ ],
+ "tip": "59f18473521eca64522148099def00d74079d129",
+ "tool_tree": "59f18473521eca64522148099def00d74079d129",
+ "base": "http://127.0.0.1:8079",
+ "data_dir": "C:\\data-p3awalk-r2",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "started": "2026-10-18T02:59:21+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8079 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p3a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-17T21-59-23.md (identity 72ed906302eb..., data dir C:\\data-p3awalk-r2)"
+ },
+ "stories": {
+  "1280": {
+   "name": "P3a walk 1280 030002",
+   "v2": "P3a walk 1280 030002 v2",
+   "style_id": "1f5117158c6d4ad0ad47cd7e58871f6c",
+   "gid": "ad335b4e7cd14802a61ea706168a7ea0",
+   "handle": "3ezglfXGQ0Wx",
+   "copy_id": "8f0bac6101e34a509614d9842c2c8419",
+   "copy_name": "P3a walk 1280 030002"
+  },
+  "820": {
+   "name": "P3a walk 820 030002",
+   "v2": "P3a walk 820 030002 v2",
+   "style_id": "2cba0818e1e146a4bbc5dc3712f8698c",
+   "gid": "f87ce3d20f0c404eb5f4968f1ed2be34",
+   "handle": "3ezglfXGQ0Wx",
+   "copy_id": "0fc4a6c1624a4d3d9de1b6e8436215be",
+   "copy_name": "P3a walk 820 030002"
+  },
+  "390": {
+   "name": "P3a walk 390 030002",
+   "v2": "P3a walk 390 030002 v2",
+   "style_id": "fe36a549f35b4d82a0eef06867b718b8",
+   "gid": "dec487c245f048b283bdcf88c41af507",
+   "handle": "3ezglfXGQ0Wx",
+   "copy_id": "c697866522b84467b5c810afb8870cf7",
+   "copy_name": "P3a walk 390 030002"
+  }
+ },
+ "stop": "graceful (rc 0)",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p3a-walk-20261017T2159\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-17 21:59:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-17 22:00:00",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-17 22:01:52",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-17 22:17:41",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: docs\\notebook\\evidence\\p3a-walk-20261017T2159\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 15,
+  "FAIL": 6,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-18T03:17:44+00:00"
+}
