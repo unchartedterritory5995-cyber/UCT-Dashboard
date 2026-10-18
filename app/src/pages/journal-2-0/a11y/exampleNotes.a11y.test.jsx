@@ -11,7 +11,10 @@
 //                                     spans marked in place, and the image row with its OCR line and switch (off);
 //   * example-preview-confirm      -- the same sheet with an UNREAD image's second confirm open (R-P3b-5);
 //   * example-in-use               -- a library style's Preview with its "In use" section: one approved example, its
-//                                     title, its stored reduced body and its image on the gallery route.
+//                                     title, its stored reduced body, its image on the gallery route, and its own
+//                                     Report control (P3b-F-R8);
+//   * example-in-use-report        -- the same, with that card's Report form OPEN (the gallery's ReportForm).
+// P3b-F-R5: example-preview-sheet also proves the line under the title field -- the server's title for what is typed.
 // The fake server answers with the recorded contract fixtures (`__fixtures__/contract`). Two answers are DERIVED from a
 // recorded one, never retyped: the preview while every image is off is the recorded preview without its image node
 // (as the server answers it), and the picker's notes list -- which has no recorded fixture -- is the recorded styled
@@ -25,7 +28,7 @@ import { axeSurface } from './surface'
 import AddExampleNoteDoor, { ADD_EXAMPLE_LABEL } from '../components/notebook/styles/AddExampleNoteDoor'
 import { PICKER_TITLE, noteDate } from '../components/notebook/styles/ExampleNotePicker'
 import ExamplePreviewSheet, {
-  CONFIRM_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE, SHARE_IMAGE_LABEL, countsSentence,
+  CONFIRM_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE, SHARE_IMAGE_LABEL, countsSentence, shownTitleSentence,
 } from '../components/notebook/styles/ExamplePreviewSheet'
 import StyleItemPreview from '../components/notebook/styles/StyleItemPreview'
 import { IN_USE_HEADING } from '../components/notebook/styles/ExamplesInUse'
@@ -122,7 +125,12 @@ describe('P3b surfaces (example notes)', () => {
   axeSurface('example-preview-sheet', async () => {
     openSheet()
     const { dialog } = await sheetPainted()
-    within(dialog).getByRole('textbox', { name: 'Title in the library' })
+    const field = within(dialog).getByRole('textbox', { name: 'Title in the library' })
+    // P3b-F-R5: the server's title for what the field holds, under it and describing it (an effect-set state)
+    const shown = await within(dialog).findByText(shownTitleSentence(PREVIEW.title))
+    await waitFor(() => {
+      if (field.getAttribute('aria-describedby') !== shown.id) throw new Error('the title field is not described by it')
+    })
     within(dialog).getByRole('button', { name: 'Submit for review' })
     await settle()
   })
@@ -148,7 +156,7 @@ describe('P3b surfaces (example notes)', () => {
     render(
       <Providers>
         <StyleItemPreview open onClose={() => {}} title={STYLE_ITEM.title} subtitle="Style"
-          body={STYLE_ITEM.payload.outlineBodyJson} examples={examples} />
+          body={STYLE_ITEM.payload.outlineBodyJson} examples={examples} examplesReportable />
       </Providers>,
     )
     const dialog = await screen.findByRole('dialog', { name: STYLE_ITEM.title })
@@ -160,6 +168,30 @@ describe('P3b surfaces (example notes)', () => {
       throw new Error('the In use image is not on the gallery image route')
     }
     within(section).getByText(/your value here/)
+    within(section).getByRole('button', { name: `Report ${example.title}` })            // P3b-F-R8
+    await settle()
+  })
+
+  axeSurface('example-in-use-report', async () => {
+    const [example] = styleExamples(STYLE_ITEM)
+    if (!example) throw new Error('the recorded style item carries no example')
+    const user = userEvent.setup()
+    render(
+      <Providers>
+        <StyleItemPreview open onClose={() => {}} title={STYLE_ITEM.title} subtitle="Style"
+          body={STYLE_ITEM.payload.outlineBodyJson} examples={[example]} examplesReportable />
+      </Providers>,
+    )
+    const dialog = await screen.findByRole('dialog', { name: STYLE_ITEM.title })
+    const section = await within(dialog).findByRole('region', { name: IN_USE_HEADING })
+    const button = within(section).getByRole('button', { name: `Report ${example.title}` })
+    await user.click(button)
+    const form = await within(section).findByRole('form', { name: `Report ${example.title}` })
+    within(form).getByRole('combobox', { name: 'Why are you reporting it?' })
+    within(form).getByRole('button', { name: 'Send report' })
+    await waitFor(() => {
+      if (button.getAttribute('aria-expanded') !== 'true') throw new Error('the Report button does not say it is open')
+    })
     await settle()
   })
 })

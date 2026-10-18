@@ -8,7 +8,8 @@ import { DocBody } from '../TemplatePreview'
 import ExamplesInUse from './ExamplesInUse'
 import styles from '../TemplateGallery.module.css'
 
-export default function StyleItemPreview({ open, onClose, title, subtitle, body, examples, loading = false, loadError = null }) {
+export default function StyleItemPreview({ open, onClose, title, subtitle, body, examples, examplesReportable = false,
+  loading = false, loadError = null }) {
   return (
     <Sheet open={open} onClose={onClose} title={title || 'Preview'} labelledByTitle variant="auto" maxWidth={640}>
       <div className={styles.spWrap}>
@@ -20,7 +21,7 @@ export default function StyleItemPreview({ open, onClose, title, subtitle, body,
         ) : (
           <>
             <DocBody body={body} />
-            <ExamplesInUse examples={examples} />
+            <ExamplesInUse examples={examples} reportable={examplesReportable} />
           </>
         )}
         <div className={styles.spActions}>

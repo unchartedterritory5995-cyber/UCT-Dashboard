@@ -8,7 +8,9 @@
 //     own view), its OCR line, and "Share this image", OFF until they switch it on. An image with OCR warnings,
 //     or one nobody could read yet, asks a second question first (R-P3b-5). Each switch re-runs the preview, so
 //     the body shows the image in place. The server's image limits are said here, before Submit (P3b-T4-R2).
-//   * Bottom: the title (the note's, as the server scrubbed it) and Submit for review / Cancel.
+//   * Bottom: the title (the note's, as the server scrubbed it) and Submit for review / Cancel. P3b-F-R5: a title
+//     the author types is previewed too, a moment after they stop typing, and the server's answer -- the title
+//     members will see -- is shown under the field. Submit waits for that answer, as it waits for an image switch.
 // ⛔ Lazy-only: AddExampleNoteDoor.jsx imports this, and that door is loaded on demand from the lazy styles chunk
 //    and the lazy gallery.
 // ⛔ The body is NEVER sent: publishExample's body is exactly {noteId, styleItemId, imagesOn, title}; the server
@@ -39,6 +41,10 @@ const PREVIEW_FAILED = "Couldn't show what this example would look like. Nothing
 const SEND_FAILED = "Couldn't send that example. Nothing was sent."
 const SEE_SENTENCE = 'Here is exactly what other members will see.'
 const MAX_TITLE = 80                     // template_gallery.MAX_TITLE_CHARS (the server shortens a longer one)
+/** How long after the last keystroke a typed title is previewed (P3b-F-R5). */
+export const TITLE_PREVIEW_DELAY_MS = 400
+/** The line under the title field: the SERVER's title for what the author typed, never one this file computes. */
+export const shownTitleSentence = (title) => `Members will see the title “${title}”.`
 
 /** Every change kind the reducer reports, in example_sanitize.KINDS's order (ExamplePreviewSheet.test.jsx reads
  *  that tuple and holds this equal): `[one, many, the kind in words]`. `image_off` and `dropped` are what was
@@ -230,21 +236,29 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
   const [appliedOn, setAppliedOn] = useState(null)     // the imagesOn the preview ON SCREEN was made from
   const [asking, setAsking] = useState(null)          // the src a second question is open for
   const [title, setTitle] = useState(null)            // null until the first answer prefills it
+  const [appliedTitle, setAppliedTitle] = useState(null)   // the title text the preview ON SCREEN was made from
+  const [shownTitle, setShownTitle] = useState(null)       // the server's title for it: what members will see
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState(null)
   const seq = useRef(0)
+  const imagesOnNow = useRef(imagesOn)
+  imagesOnNow.current = imagesOn
 
-  const run = useCallback(async (on) => {
+  // `typed`: the title text to preview, or undefined for the note's own (the first run, before the field holds one).
+  const run = useCallback(async (on, typed) => {
     const mine = ++seq.current
     setLoading(true)
     try {
-      const out = await previewExample({ noteId: note?.id, imagesOn: on })
+      const out = await previewExample({ noteId: note?.id, imagesOn: on, title: typed })
       if (mine !== seq.current) return
+      const prefill = String(out?.title || note?.title || '').slice(0, MAX_TITLE)
       setPreview(out)
       setAppliedOn(on)
       setRevision((r) => r + 1)
       setLoadError(null)
-      setTitle((t) => (t == null ? String(out?.title || note?.title || '').slice(0, MAX_TITLE) : t))
+      setTitle((t) => (t == null ? prefill : t))
+      setAppliedTitle(typeof typed === 'string' ? typed : prefill)
+      setShownTitle(String(out?.title || ''))
     } catch (err) {
       if (mine !== seq.current) return
       setLoadError(exampleError(err, PREVIEW_FAILED))
@@ -255,13 +269,20 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
 
   useEffect(() => { run([]) }, [run])
 
+  // P3b-F-R5: a typed title is previewed once the author pauses, with the images as they are switched now.
+  useEffect(() => {
+    if (title == null || appliedTitle == null || title === appliedTitle) return undefined
+    const timer = setTimeout(() => run(imagesOnNow.current, title), TITLE_PREVIEW_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [title, appliedTitle, run])
+
   const describedBy = useCallback((kind) => `${uid}-kind-${CHANGE_KINDS[kind] ? kind : 'other'}`, [uid])
 
   const turn = (src, on) => {
     const next = on ? [...imagesOn.filter((s) => s !== src), src] : imagesOn.filter((s) => s !== src)
     setImagesOn(next)
     setAsking(null)
-    run(next)
+    run(next, title == null ? undefined : title)
   }
   const flip = (image) => {
     const on = imagesOn.includes(image.src)
@@ -275,6 +296,7 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
   // body and the counts sentence were not built from.
   const current = Boolean(preview) && !loading && !loadError && Array.isArray(appliedOn)
     && appliedOn.length === imagesOn.length && appliedOn.every((s) => imagesOn.includes(s))
+    && appliedTitle === title                         // P3b-F-R5: and the title on screen is the one typed
   const submit = async () => {
     const t = String(title || '').trim()
     if (sending || !current || !t) return
@@ -300,7 +322,13 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
           <div className={styles.field}>
             <label htmlFor={`${uid}-title`}>Title in the library</label>
             <input id={`${uid}-title`} type="text" className={styles.titleInput} value={title ?? ''} maxLength={MAX_TITLE}
-              required onChange={(e) => setTitle(e.target.value)} />
+              required onChange={(e) => setTitle(e.target.value)}
+              aria-describedby={shownTitle ? `${uid}-shown-title` : undefined} />
+            {shownTitle && (
+              <p className={styles.hint} id={`${uid}-shown-title`} data-example-shown-title="">
+                {shownTitleSentence(shownTitle)}
+              </p>
+            )}
           </div>
           {sendError && <p className={styles.error} role="alert">{sendError}</p>}
           <div className={styles.actions}>

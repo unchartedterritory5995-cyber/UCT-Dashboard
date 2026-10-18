@@ -389,7 +389,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         <br />Your own property defaults are not shared.
       </>
     )
-    const base = { label: item.title, subtitle, style: true }
+    // P3b-F-R8: a style's examples are its author's own, so its author gets no Report control on them.
+    const base = { label: item.title, subtitle, style: true, examplesReportable: !item.mine }
     setPreview({ ...base, body: null, loading: true })
     try {
       const out = await previewLibraryStyle(item)
@@ -595,6 +596,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         subtitle={preview?.subtitle}
         body={preview?.body}
         examples={preview?.examples}
+        examplesReportable={Boolean(preview?.examplesReportable)}
         loading={Boolean(preview?.loading)}
         loadError={preview?.loadError || null}
       />

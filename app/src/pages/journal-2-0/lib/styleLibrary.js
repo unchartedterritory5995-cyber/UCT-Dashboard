@@ -245,10 +245,12 @@ export function useExampleCandidates(kindId) {
 /** Exactly what other members would see of one of the member's notes, written nowhere:
  *  `{bodyJson, changes: [{kind, before, after, path}], counts, images: [{src, name, ocr, warnings}], title}`.
  *  ⛔ `before` is the author's own text: it is shown in the author's preview and nowhere else. */
-export async function previewExample({ noteId, imagesOn = [] }) {
+export async function previewExample({ noteId, imagesOn = [], title }) {
+  // P3b-F-R5: the title the author has TYPED is previewed too (the server scrubs it as it will at publish); with
+  // none, the server previews the note's own title.
   return call(`${GALLERY_KEY}/examples/preview`, {
     method: 'POST',
-    body: JSON.stringify({ noteId, imagesOn }),
+    body: JSON.stringify(typeof title === 'string' ? { noteId, imagesOn, title } : { noteId, imagesOn }),
   })
 }
 

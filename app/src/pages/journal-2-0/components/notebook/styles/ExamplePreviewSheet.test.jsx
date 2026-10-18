@@ -18,7 +18,7 @@ import {
 } from '../../../lib/styleLibrary'
 import ExamplePreviewSheet, {
   CHANGE_KINDS, CONFIRM_SENTENCE, EXAMPLE_SENT_SENTENCE, NOT_AN_EXAMPLE_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE,
-  SHARE_IMAGE_LABEL, countsSentence, needsSecondConfirm,
+  SHARE_IMAGE_LABEL, TITLE_PREVIEW_DELAY_MS, countsSentence, needsSecondConfirm, shownTitleSentence,
 } from './ExamplePreviewSheet'
 
 // ── the server's answers ──
@@ -230,7 +230,8 @@ describe('the preview sheet', () => {
     const ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
     fireEvent.click(within(ask).getByRole('button', { name: 'Share it' }))
     await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2))
-    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, imagesOn: [IMAGE.src] })
+    // P3b-F-R5: a re-run previews the title on screen too (the server's prefill, until the author types one)
+    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, imagesOn: [IMAGE.src], title: PREVIEW.title })
     await waitFor(() => expect(dialog.querySelector('[data-template-preview-body] img')).not.toBeNull())
     expect(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })).toHaveAttribute('aria-checked', 'true')
   })
@@ -285,7 +286,11 @@ describe('the preview sheet', () => {
     const title = await within(dialog).findByLabelText('Title in the library')
     await waitFor(() => expect(title).toHaveValue(PREVIEW.title))                    // prefilled with the note title
     fireEvent.change(title, { target: { value: 'My Monday plan' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit for review' }))
+    // P3b-F-R5: Submit waits for the preview of the typed title, as it waits for an image switch
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    expect(submit).toBeDisabled()
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(submit)
     await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
     const sent = posted(PUBLISH_PATH)[0].body
     expect(sent).toEqual({ noteId: NOTE.id, styleItemId: STYLE_ITEM_ID, imagesOn: [], title: 'My Monday plan' })
@@ -296,6 +301,31 @@ describe('the preview sheet', () => {
     }
     await waitFor(() => expect(onSent).toHaveBeenCalledWith(EXAMPLE_SENT_SENTENCE))
     expect(EXAMPLE_SENT_SENTENCE).toBe('Sent for review. It will show on your style once approved.')
+  })
+
+  it('F-R5: a typed title is previewed once the author pauses, and the SERVER\'s title is shown under the field', async () => {
+    const TYPED = 'Made $1,240 at Schwab'
+    const SERVER_TITLE = 'Made your value here at your broker (as the server scrubbed it)'   // no client could make this
+    previewAnswer = (body) => ({ ...withoutImages(PREVIEW), title: body?.title === TYPED ? SERVER_TITLE : PREVIEW.title })
+    open()
+    const dialog = await sheet()
+    const field = await within(dialog).findByLabelText('Title in the library')
+    await waitFor(() => expect(field).toHaveValue(PREVIEW.title))
+    expect(within(dialog).getByText(shownTitleSentence(PREVIEW.title))).toBeInTheDocument()   // the prefill's own
+    for (const v of ['M', 'Made $1', TYPED]) fireEvent.change(field, { target: { value: v } })  // typing, no pause
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    expect(submit).toBeDisabled()
+    expect(posted(PREVIEW_PATH)).toHaveLength(1)                                   // nothing sent while typing
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2), { timeout: TITLE_PREVIEW_DELAY_MS + 2000 })
+    expect(posted(PREVIEW_PATH)[1].body).toEqual({ noteId: NOTE.id, imagesOn: [], title: TYPED })   // one, the last
+    const shown = await within(dialog).findByText(shownTitleSentence(SERVER_TITLE))
+    expect(shown).toHaveAttribute('data-example-shown-title')
+    expect(field).toHaveAccessibleDescription(shownTitleSentence(SERVER_TITLE))
+    expect(within(dialog).queryByText(shownTitleSentence(TYPED))).toBeNull()       // never the typed text itself
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(submit)
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    expect(posted(PUBLISH_PATH)[0].body.title).toBe(TYPED)
   })
 
   it('7. a failed submit keeps the sheet open with the server\'s sentence', async () => {

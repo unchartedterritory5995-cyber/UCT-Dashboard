@@ -21,7 +21,7 @@ import {
   EXAMPLE_REV_PENDING, exampleImagePrefix, styleExamples, withHeldImages,
 } from '../../../lib/styleLibrary'
 import TemplateGallery from '../TemplateGallery'
-import ExamplesInUse, { IN_USE_HEADING } from './ExamplesInUse'
+import ExamplesInUse, { IN_USE_HEADING, REPORT_EXAMPLE_LABEL } from './ExamplesInUse'
 
 const STYLE = contractBody('template-gallery.list.styles').templates[0]
 const WITH_EXAMPLES = contractBody('template-gallery.examples.style-item').template
@@ -33,8 +33,12 @@ const imagesOf = (doc) => (doc?.content || []).filter((n) => n.type === 'image')
 const readRepo = (rel) => readFileSync(resolve(process.cwd(), '..', rel), 'utf8')
 
 let itemAnswer
+let listMine
+let reports
 beforeEach(() => {
   itemAnswer = { ...WITH_EXAMPLES, id: STYLE.id }
+  listMine = false
+  reports = []
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const u = new URL(String(url), 'http://x')
     const method = (init.method || 'GET').toUpperCase()
@@ -42,7 +46,13 @@ beforeEach(() => {
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
       const list = contractBody('template-gallery.list.styles')
       const picks = u.searchParams.get('section') === 'picks'
-      return json({ ...list, templates: list.templates.filter((t) => !picks || t.featured), viewer: { admin: false } })
+      return json({ ...list, templates: list.templates.filter((t) => !picks || t.featured).map((t) => ({ ...t, mine: listMine })),
+        viewer: { admin: false } })
+    }
+    const reported = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/report$/)
+    if (reported && method === 'POST') {
+      reports.push({ id: reported[1], body: JSON.parse(init.body) })
+      return json(contractBody('template-gallery.report'))
     }
     if (u.pathname === '/api/j2/journal-styles/preview' && method === 'POST') {
       return json(contractBody('template-gallery.styles.preview'))
@@ -104,10 +114,11 @@ describe('In use, in the style\'s Preview', () => {
       expect(within(cards[i]).getByRole('heading', { name: e.title })).toBeInTheDocument()
       expect(within(cards[i]).getByText(textOf(e.bodyJson))).toBeInTheDocument()
     })
-    // read-only: no editor, nothing to type into, no action on an example
+    // read-only: no editor, nothing to type into, and the one action on an example is its Report (P3b-F-R8)
     expect(section.querySelector('[contenteditable]')).toBeNull()
     expect(within(section).queryAllByRole('textbox')).toHaveLength(0)
-    expect(within(section).queryAllByRole('button')).toHaveLength(0)
+    expect(within(section).getAllByRole('button').map((b) => b.getAttribute('aria-label')))
+      .toEqual(EXAMPLES.map((e) => `Report ${e.title}`))
   })
 
   it('an image src points at the gallery route (the approved copy, never `?rev=pending`)', async () => {
@@ -137,6 +148,48 @@ describe('In use, in the style\'s Preview', () => {
     itemAnswer = { ...noKey, id: STYLE.id }
     const sheet = await openPreview()
     expect(within(sheet).queryByText(IN_USE_HEADING)).toBeNull()
+  })
+})
+
+describe('P3b-F-R8: Report on an In use card', () => {
+  it('reports THAT example through the gallery\'s own report flow, and says so on its card', async () => {
+    const user = userEvent.setup()
+    const sheet = await openPreview()
+    const section = within(sheet).getByRole('region', { name: IN_USE_HEADING })
+    const [card] = within(section).getAllByRole('listitem')
+    const [e] = EXAMPLES
+    const button = within(card).getByRole('button', { name: `Report ${e.title}` })
+    expect(button).toHaveTextContent(REPORT_EXAMPLE_LABEL)
+    expect(button.querySelector('svg')).not.toBeNull()                                 // a UIcon, never an emoji
+    expect(button.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    await user.click(button)
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    const form = within(card).getByRole('form', { name: `Report ${e.title}` })      // the gallery's ReportForm
+    await user.selectOptions(within(form).getByLabelText('Why are you reporting it?'), 'broken')
+    await user.type(within(form).getByLabelText(/Anything a moderator should know/), 'An account number shows.')
+    await user.click(within(form).getByRole('button', { name: 'Send report' }))
+    expect(await within(card).findByText(`Thanks. A moderator will review “${e.title}”.`)).toHaveAttribute('role', 'status')
+    expect(reports).toEqual([{ id: e.id, body: { reason: 'broken', note: 'An account number shows.' } }])
+    expect(e.id).not.toBe(STYLE.id)                                                     // the example's, not the style's
+    expect(within(card).queryByRole('form')).toBeNull()
+    expect(button).toHaveFocus()                                                         // focus back on Report
+  })
+
+  it('the style\'s own author gets no Report on its examples (they are theirs)', async () => {
+    listMine = true
+    const sheet = await openPreview()
+    const section = within(sheet).getByRole('region', { name: IN_USE_HEADING })
+    expect(within(section).getAllByRole('listitem')).toHaveLength(EXAMPLES.length)    // non-vacuity: the cards are there
+    expect(within(section).queryAllByRole('button')).toHaveLength(0)
+  })
+
+  it('the control is a full touch target, coloured from tokens', () => {
+    const css = readRepo('app/src/pages/journal-2-0/components/notebook/TemplateGallery.module.css')
+    const rule = /\.inUseReport \{([^}]*)\}/.exec(css)?.[1] || ''
+    expect(rule).toMatch(/min-height: var\(--tap-min, 44px\)/)
+    expect(rule).toMatch(/min-width: var\(--tap-min, 44px\)/)
+    expect(rule).not.toMatch(/#[0-9a-f]{3,8}\b|rgb/i)                                   // no colour literal of its own
   })
 })
 

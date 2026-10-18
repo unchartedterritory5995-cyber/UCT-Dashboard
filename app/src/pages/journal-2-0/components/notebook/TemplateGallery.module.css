@@ -416,3 +416,16 @@
   font-size: 13px;
   font-weight: 600;
 }
+/* P3b-F-R8: an example card's own Report control, beside its title. Small to look at, a full touch target to hit. */
+.inUseHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.inUseReport {
+  flex: none;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  justify-content: center;
+}
