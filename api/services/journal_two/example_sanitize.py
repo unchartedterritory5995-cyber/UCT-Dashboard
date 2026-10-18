@@ -23,8 +23,9 @@ What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
      * a P&L figure -> VALUE_TEXT (kind `pnl_figure`): an `R`/`r` or `%` figure with a P&L word
        among the 3 words BEFORE it, or a loss|profit|gain|drawdown|return|win rate word among the
        2 words AFTER it. "NVDA 3.2R target" stays: no P&L word on either side.
-     * an account id -> VALUE_TEXT (kind `account`): a digit run of 8 or more digits (spaces and
-       dashes inside the run removed; an ISO date such as 2026-10-17 is not one); a run of 4 or
+     * an account id -> VALUE_TEXT (kind `account`): a digit run of 8 or more digits (a run joins
+       across separators only as 4-digit groups or across dashes, P3b-T2-R16, so a list of levels
+       "145 150 155" stays; an ISO date such as 2026-10-17 is not one); a run of 4 or
        more digits within 3 words after acct|account|a/c|#|ending|ends in|last four|routing|card;
        a broker-style id `[A-Z]{1,2}` + 6 or more digits anywhere.
      * a broker name -> BROKER_TEXT (kind `broker`): the house list whole-word in ANY case, and
@@ -223,16 +224,34 @@ def _money_spans(text: str) -> list[tuple[int, int]]:
     return out
 
 
+def _joins(run: str) -> bool:
+    """Ruling P3b-T2-R16: may the groups of `run` be read as ONE number? Only as card/account-style
+    4-digit groups ("1234 5678 9012 3456") or across dashes ("12-3456-789"). A space-separated list
+    of levels ("targets 145 150 155") is several numbers, and a level in a plan is the example's point."""
+    seps = _RUN_SEPARATOR.findall(run)
+    if not seps:
+        return True
+    if all(len(g) == 4 for g in _RUN_SEPARATOR.split(run)):
+        return True
+    return all(set(s) == {"-"} for s in seps)
+
+
+_RUN_SEPARATOR = re.compile(r"[ -]+")
+
+
 def _account_spans(text: str) -> list[tuple[int, int]]:
     spans = []
     for m in _DIGIT_CANDIDATE.finditer(text):
-        run = m.group(0)
-        digits = re.sub(r"[ -]", "", run)
-        if len(digits) >= ACCOUNT_DIGITS_MIN and not _ISO_DATE.fullmatch(run):
-            spans.append((m.start(), m.end()))
-        elif len(digits) >= ACCOUNT_WORD_DIGITS_MIN and _word_before(text, m.start(), ACCOUNT_WORDS,
-                                                                       ACCOUNT_WINDOW):
-            spans.append((m.start(), m.end()))
+        pieces = ([(m.start(), m.end())] if _joins(m.group(0))
+                  else [(m.start() + g.start(), m.start() + g.end()) for g in re.finditer(r"\d+", m.group(0))])
+        for start, end in pieces:
+            run = text[start:end]
+            digits = re.sub(r"[ -]", "", run)
+            if len(digits) >= ACCOUNT_DIGITS_MIN and not _ISO_DATE.fullmatch(run):
+                spans.append((start, end))
+            elif len(digits) >= ACCOUNT_WORD_DIGITS_MIN and _word_before(text, start, ACCOUNT_WORDS,
+                                                                           ACCOUNT_WINDOW):
+                spans.append((start, end))
     spans += [(m.start(), m.end()) for m in _BROKER_STYLE_ID.finditer(text)]
     return spans
 

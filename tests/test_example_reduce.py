@@ -227,6 +227,9 @@ ACCOUNT_CASES = [
     ("acct ending 4821", f"acct ending {V}", ["account"]), ("IBKR U1234567", f"{B} {V}", ["broker", "account"]),
     ("card 1234 5678 9012 3456", f"card {V}", ["account"]), ("routing 0210 0002", f"routing {V}", ["account"]),
     ("ref 98765432", f"ref {V}", ["account"]), ("it ends in 4821", f"it ends in {V}", ["account"]),
+    # P3b-T2-R16: a run joins across separators only as 4-digit groups or across dashes
+    ("1234 5678 9012 3456 on file", f"{V} on file", ["account"]), ("ref 12-3456-789 here", f"ref {V} here", ["account"]),
+    ("it was 12345678 then", f"it was {V} then", ["account"]),
 ]
 
 
@@ -238,7 +241,9 @@ def test_R10_account_ids_in_text_are_replaced(line, want, kind):
 
 
 @pytest.mark.parametrize("line", ["NVDA 132.40 support", "bought 1500 shares", "on 2026-10-17 we met",
-                                  "acct up 12 today"])
+                                  "acct up 12 today",
+                                  # P3b-T2-R16: price levels survive -- a level in a plan is the point
+                                  "targets 145 150 155", "levels 132.40 135 140", "stops 98 95"])
 def test_R10_CONTROL_prices_counts_and_dates_are_not_account_ids(line):
     changes: list = []
     assert texts_in(ex(text_doc(line), report=changes)) == [line]
