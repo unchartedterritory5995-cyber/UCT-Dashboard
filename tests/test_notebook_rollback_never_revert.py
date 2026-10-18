@@ -230,8 +230,9 @@ LANDING_TABLES = (
     # drop, and a member's rows must still leave with their account.
     "j2_trade_plan_misses",
     # P3a (Tasks 5 and 6, ruling P3a-T5-R1): the community library's per-member rows. `j2_gallery_follows`
-    # is not here: it has no `user_id` (two member ids), so its purge is pinned in
-    # tests/test_journal_two_account_purge.py instead.
+    # is not here: it has no `user_id` (two member ids), so it has its own minimal-DDL test below
+    # (`test_a_deleted_members_follows_leave_in_both_directions`, final review I-4(a)). The purge test in
+    # tests/test_journal_two_account_purge.py imports the library modules and cannot run on a rolled-back tree.
     "j2_gallery_watches", "j2_gallery_helpful", "j2_gallery_authors",
 )
 
@@ -279,6 +280,30 @@ def test_a_deleted_members_rows_leave_every_landing_table_and_nobody_elses_do():
     assert set(_rows(conn, "member-leaving").values()) == {0}, _rows(conn, "member-leaving")
     assert set(_rows(conn, "member-staying").values()) == {1}, _rows(conn, "member-staying")
     assert all(report["rows_deleted"][t] == 1 for t in LANDING_TABLES)
+
+
+def test_a_deleted_members_follows_leave_in_both_directions():
+    """Final review I-4(a). `j2_gallery_follows` holds TWO member ids and no `user_id`: the leaving member as a
+    follower AND as an author someone follows. Minimal DDL, no library import, so this runs on a rolled-back
+    tree too; a rollback that reverts account_purge.py's follows step reds here."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute('CREATE TABLE "j2_gallery_follows" (follower_id TEXT, author_id TEXT, v TEXT)')
+    conn.executemany('INSERT INTO "j2_gallery_follows" (follower_id, author_id, v) VALUES (?, ?, ?)',
+                     [("member-leaving", "member-staying", "they follow"),
+                      ("member-staying", "member-leaving", "followed as an author"),
+                      ("member-staying", "member-other", "not theirs")])
+    conn.commit()
+
+    def count(col):
+        return conn.execute(f'SELECT COUNT(*) FROM "j2_gallery_follows" WHERE {col} = ?',
+                            ("member-leaving",)).fetchone()[0]
+    assert count("follower_id") == 1 and count("author_id") == 1                      # non-vacuity, both keys
+    report = ap.purge_user_rows("member-leaving", conn)
+    assert report["errors"] == [], report["errors"]
+    assert count("follower_id") == 0 and count("author_id") == 0
+    assert report["rows_deleted"]["j2_gallery_follows"] == 2
+    assert [tuple(r) for r in conn.execute('SELECT follower_id, author_id FROM "j2_gallery_follows"')] == [
+        ("member-staying", "member-other")]                                         # nobody else's row
 
 
 def test_a_list_without_those_rows_leaves_the_members_data_behind(monkeypatch):

@@ -274,14 +274,16 @@ NOT_REHEARSED = {
                                           "row and a delivered notice (the fin walk's followup group); "
                                           "waits for the owner's arming (docs/notebook/t2b-arming.md)",
     # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
-    # update and a withdraw, read off the rendered pages in a sandbox) and the recorded flags-off sweep,
-    # where every library route answers 404 -- not a rendered probe here. (Task 11 reworded this: it used
-    # to cite a fin-walk library group and 404 routes that did not exist yet.)
+    # update and a withdraw, read off the rendered pages in a sandbox) and the route-off tests -- not a
+    # rendered probe here. (Task 11 reworded this from a fin-walk library group that did not exist; the final
+    # review M-3 then struck its sweep.flags-off.json citation: in that "every flag off" sweep the router's
+    # own gallery switch answers 404 before `_require_library` runs, so it cannot show THIS switch's 404.)
     "NOTEBOOK_STYLE_LIBRARY_ENABLED": "dark (P3a): the community style library -- sharing a style, adopting "
                                       "one, Helpful, author pages, follow and the feed; every library route "
-                                      "answers 404 while off (the contract fixtures' sweep.flags-off.json "
-                                      "records it); evidence is tools/notebook_style_library_walk.py in a "
-                                      "sandbox and that sweep, not a rendered probe; waits for the owner's arming",
+                                      "answers 404 while off with the gallery on (tests/test_style_library_adopt.py "
+                                      "and tests/test_style_library_social.py, the ..._404_for_everyone_while_"
+                                      "the_library_is_off tests); evidence is tools/notebook_style_library_walk.py "
+                                      "in a sandbox and those tests, not a rendered probe; waits for the owner's arming",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "

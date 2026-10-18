@@ -68,7 +68,12 @@ def test_existing_rows_read_as_outlines(tmp_path, monkeypatch):
         c.close()
 
 
-def test_library_off_hides_every_style_row_and_route(conn, monkeypatch):
+def test_library_off_hides_every_style_row_in_the_list(conn, monkeypatch):
+    """Review Focus 6, the LIST half. Renamed from `..._and_route` (final review M-11): it never asserted a route.
+    The route 404s are railed in tests/test_style_library_adopt.py
+    (`test_every_style_route_is_the_one_404_for_everyone_while_the_library_is_off`) and
+    tests/test_style_library_social.py; the library-off unpublish ring in tests/test_style_library_notices.py
+    (`test_unpublishing_a_style_while_the_library_is_off_deletes_it_and_rings_no_one`)."""
     monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
     _row(conn, item_type="outline", title="O")
     _row(conn, item_type="style", title="S")
