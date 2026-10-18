@@ -7,7 +7,11 @@ here (the numbers in the test names are the brief's).
 
 ⛔ "GALLERY'S RULE" IS THE SAME CODE PATH (ruling P3b-R3). The example decision for a node type
 is ONE lookup over `NODE_POLICY` that falls back to the gallery column, except a DECLARED override
-set (image, imageFigure, imageCaption). The rail below derives the rows from `NODE_POLICY` itself.
+set (image, imageFigure, imageCaption; and since ruling P3b-T2-R8 linkPreview, webEmbed and the link
+mark). The rail below derives the rows from `NODE_POLICY` itself.
+
+Fix round 1 (rulings P3b-T2-R3..R13): the reviewer's probe inputs
+(scratchpad `p3b_t2_review_probe.py`, groups A-P) are used verbatim as cases below.
 
 ⛔ THE OLD MODES DO NOT MOVE (test 16). `tests/fixtures/example_reduce_old_mode_goldens.json` was
 captured on the base before the reducer changed; every case is re-reduced and compared as JSON text.
@@ -38,12 +42,12 @@ GOLDENS = ROOT / "tests" / "fixtures" / "example_reduce_old_mode_goldens.json"
 
 V, B = xs.VALUE_TEXT, xs.BROKER_TEXT
 NEUTRAL = pnp.NEUTRAL_LINE
-KINDS = {"money", "pnl_figure", "broker", "email", "block_reset", "fact", "market_data", "trade_link",
-         "image_off", "dropped"}
+KINDS = {"money", "pnl_figure", "broker", "account", "link", "email", "block_reset", "fact", "market_data",
+         "trade_link", "image_off", "dropped"}
 GALLERY_IMG = "/api/j2/template-gallery/ITEM/images/"
 
 
-def ex(body: dict, *, report: list | None = None, images_on=frozenset(), brokers=xs.BROKER_NAMES,
+def ex(body: dict, *, report: list | None = None, images_on=frozenset(), brokers=(),
        image_src_for=None) -> dict:
     return pnp.reduce(copy.deepcopy(body), mode="example", owner_id=OWNER, note_id=NOTE,
                       attachment_base="", facts=FACTS, note_links={}, images_on=frozenset(images_on),
@@ -61,6 +65,20 @@ def text_doc(*lines: str) -> dict:
 
 def kinds(changes: list) -> list[str]:
     return [c["kind"] for c in changes]
+
+
+def at_path(body: dict, path: list) -> dict:
+    """The node of the REDUCED body a change entry's `path` names (ruling P3b-T2-R5)."""
+    node = body
+    for i in path:
+        node = node["content"][i]
+    return node
+
+
+def assert_paths_point_at_their_after(out: dict, changes: list) -> None:
+    for c in changes:
+        if c["after"]:
+            assert c["after"] in json.dumps(at_path(out, c["path"])), (c, out)
 
 
 def block(widget_id: str, params: dict, **extra) -> dict:
@@ -90,8 +108,9 @@ def test_1_money_pnl_and_broker_in_one_sentence():
     assert [c["before"] for c in changes] == ["$1,240", "3.2R", "Schwab"]
     assert [c["after"] for c in changes] == [V, V, B]
     assert all(c["path"] == [0, 0] for c in changes), changes      # doc > paragraph 0 > text 0
+    assert_paths_point_at_their_after(out, changes)
     direct: list = []
-    assert xs.scrub_text("made $1,240 on NVDA, up 3.2R, at Schwab", xs.BROKER_NAMES, direct) == \
+    assert xs.scrub_text("made $1,240 on NVDA, up 3.2R, at Schwab", (), direct) == \
         "made your value here on NVDA, up your value here, at your broker"
     assert kinds(direct) == ["money", "pnl_figure", "broker"]
 
@@ -139,6 +158,23 @@ def test_4_the_longest_broker_name_wins_and_is_one_entry(name):
     assert kinds(report) == ["broker"]
 
 
+def test_4_the_authors_own_names_are_matched_longest_first_too():
+    """The house list's prefix pairs are already in order in the tuple; an author's names arrive in
+    any order, so this is the case the sort is for."""
+    changes: list = []
+    assert xs.scrub_text("cleared via Acme Clearing desk", ("Acme", "Acme Clearing"), changes) == \
+        f"cleared via {B} desk"
+    assert changes == [{"kind": "broker", "before": "Acme Clearing", "after": B}]
+
+
+def test_R3_author_names_match_case_sensitively_and_only_at_four_or_more_characters():
+    """Probe J verbatim: an institution recorded as an ordinary word does not wipe the word."""
+    out = ex(text_doc("Ally said the Public library is public"), brokers=("Ally", "Public", "IB"))
+    assert texts_in(out) == [f"{B} said the {B} library is public"]
+    assert xs.scrub_text("IB desk and ib", ("IB",), None) == "IB desk and ib"       # 2 chars: ignored
+    assert xs.scrub_text("FIDELITY and fidelity", (), None) == f"{B} and {B}"     # the house list: any case
+
+
 def test_4_a_broker_name_matches_whole_words_only():
     assert xs.scrub_text("Fidelityish and unSchwab", xs.BROKER_NAMES, None) == "Fidelityish and unSchwab"
     assert xs.scrub_text("via E*TRADE, Public.com.", xs.BROKER_NAMES, None) == f"via {B}, {B}."
@@ -163,6 +199,92 @@ def test_5_the_window_counts_the_words_the_author_wrote_not_the_replacement():
     assert xs.scrub_text("made $1,240 3R", (), None) == f"made {V} {V}"
 
 
+# ── fix round 1: the wider text rules (rulings P3b-T2-R9..R12, minors M-3) ─────────────
+
+#: Probe A verbatim (money forms), plus ruling R11's other named forms.
+MONEY_CASES = [
+    ("paid $ 1,240 fees", f"paid {V} fees"), ("USD 1,240 profit", f"{V} profit"),
+    ("1,240 dollars made", f"{V} made"), ("made $1.2k", f"made {V}"), ("(-$500) on it", f"({V}) on it"),
+    ("made €1,240", f"made {V}"), ("lost £500", f"lost {V}"), ("made 1240$", f"made {V}"),
+    ("made $1,240.50", f"made {V}"), ("lost -$1.2M", f"lost {V}"), ("1.2k profit", f"{V} profit"),
+    ("+$1,240", V), ("made $1,24", f"made {V}"), ("balance 48,210.55", f"balance {V}"),
+    ("C$500 gain", f"{V} gain"), ("1,240 USD back", f"{V} back"), ("5 grand", V),
+    ("buying power 25,000", f"buying power {V}"), ("cash 0.5 left", f"cash {V} left"),
+]
+
+
+@pytest.mark.parametrize("line, want", MONEY_CASES)
+def test_R11_money_forms_are_one_money_entry_each(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+#: Probe B verbatim (account ids in text), plus ruling R10's other named forms.
+ACCOUNT_CASES = [
+    ("acct ...4821", f"acct ...{V}", ["account"]), ("account #12345678", f"account #{V}", ["account"]),
+    ("Acct 12345678 at the desk", f"Acct {V} at the desk", ["account"]),
+    ("acct ending 4821", f"acct ending {V}", ["account"]), ("IBKR U1234567", f"{B} {V}", ["broker", "account"]),
+    ("card 1234 5678 9012 3456", f"card {V}", ["account"]), ("routing 0210 0002", f"routing {V}", ["account"]),
+    ("ref 98765432", f"ref {V}", ["account"]), ("it ends in 4821", f"it ends in {V}", ["account"]),
+]
+
+
+@pytest.mark.parametrize("line, want, kind", ACCOUNT_CASES)
+def test_R10_account_ids_in_text_are_replaced(line, want, kind):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == kind, changes
+
+
+@pytest.mark.parametrize("line", ["NVDA 132.40 support", "bought 1500 shares", "on 2026-10-17 we met",
+                                  "acct up 12 today"])
+def test_R10_CONTROL_prices_counts_and_dates_are_not_account_ids(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+#: Probe C verbatim (P&L figures and the trigger list).
+PNL_CASES = [
+    ("P/L 3.2R", f"P/L {V}"), ("PnL +2.5R", f"PnL {V}"), ("net +4.5%", f"net {V}"),
+    ("realized 2R", f"realized {V}"), ("drawdown 8%", f"drawdown {V}"), ("returned 15%", f"returned {V}"),
+    ("closed +3.2R", f"closed {V}"), ("4% loss today", f"{V} loss today"), ("stopped -1R", f"stopped {V}"),
+    ("win rate 62%", f"win rate {V}"), ("account down 12%", f"account down {V}"), ("up 1,240%", f"up {V}"),
+    ("made 3.2r", f"made {V}"), ("booked +2R", f"booked {V}"), ("2R profit on it", f"{V} profit on it"),
+]
+
+
+@pytest.mark.parametrize("line, want", PNL_CASES)
+def test_R12_pnl_figures_with_the_wider_trigger_list(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["pnl_figure"], changes
+
+
+@pytest.mark.parametrize("line", ["R:R 3", "the 3rd attempt", "NVDA 3.2R target then", "a 12% move later on"])
+def test_R12_CONTROL_no_trigger_on_either_side_keeps_the_figure(line):
+    assert texts_in(ex(text_doc(line))) == [line]
+
+
+@pytest.mark.parametrize("line, want", [
+    ("see https://www.fidelity.com/acct/12345678 for it", "see link for it"),     # probe D verbatim
+    ("visit www.schwab.com.", "visit link."),
+    ("(https://example.com/a?b=1)", "(link)"),
+])
+def test_R9_a_url_in_prose_is_replaced_whole(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["link"]
+
+
+def test_R9_the_url_pass_runs_first_so_no_other_pass_edits_inside_an_address():
+    changes: list = []
+    out = ex(text_doc("see https://x.com/u/me@example.com/12345678?p=$1,240 now"), report=changes)
+    assert texts_in(out) == ["see link now"]
+    assert kinds(changes) == ["link"]
+
+
 # ── 6, 7, P3b-R10: trader blocks reset through their builder's NO-READ output ─────────────
 
 def test_6_position_sizing_comes_out_with_the_builders_empty_params():
@@ -173,7 +295,7 @@ def test_6_position_sizing_comes_out_with_the_builders_empty_params():
     assert w[0]["attrs"]["params"] == empty_params("positionSizing") == {"grade": "A"}
     blob = json.dumps(out)
     assert "25000" not in blob and "my caption" not in blob and "e-author" not in blob
-    assert w[0]["attrs"]["capturedAt"] is None and w[0]["attrs"]["embedId"] is None   # never today's stamp
+    assert w[0]["attrs"]["capturedAt"] is None and w[0]["attrs"].get("embedId") is None   # never today's stamp
     assert "block_reset" in kinds(changes)
     reset = [c for c in changes if c["kind"] == "block_reset"][0]
     assert "25000" in reset["before"] and len(reset["before"]) <= xs.BEFORE_MAX
@@ -187,12 +309,42 @@ def test_7_a_trade_review_block_loses_its_trade():
     assert "block_reset" in kinds(changes)
 
 
-#: The trader-block readers (trader_blocks.READS_ON_CREATE's builders and what they call), plus the
-#: database door. A reset must reach none of them.
-READERS = ("_regime_field", "_breadth", "_quotes", "price_stamp_quote", "market_context_params",
-           "prep_part", "_my_names", "_cached_quote", "_last_close", "_frozen_close",
-           "recent_closed_trades", "trade_review", "save_pre_entry", "_prep_wire", "_prep_earnings",
-           "_prep_movers", "_prep_levels")
+#: The readers a review named (trader_blocks.READS_ON_CREATE's builders and what they call). A FLOOR:
+#: the set the spy patches is DERIVED below (M-5), and must hold every one of these.
+KNOWN_READERS = ("_regime_field", "_breadth", "_quotes", "price_stamp_quote", "market_context_params",
+                 "prep_part", "_my_names", "_cached_quote", "_last_close", "_frozen_close",
+                 "recent_closed_trades", "trade_review", "save_pre_entry", "_prep_wire", "_prep_earnings",
+                 "_prep_movers", "_prep_levels")
+#: The one importing function a reset may call: `_node` imports journal_styles for a block's static label.
+RESET_MAY_CALL = {"_node"}
+
+
+def derived_readers() -> list[str]:
+    """Every top-level function in trader_blocks.py that imports a module inside its body (a store, a
+    vendor, the engine, the database), or calls one that does, transitively: the doors a read goes
+    through. A new reader is covered the day it lands. The block BUILDERS themselves are left out:
+    the reset calls them, and their no-read branch is exactly what the spy proves."""
+    tree = ast.parse((ROOT / "api" / "services" / "journal_two" / "trader_blocks.py").read_text(encoding="utf-8"))
+    funcs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    calls = {name: {c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+             for name, fn in funcs.items()}
+    readers = {name for name, fn in funcs.items()
+               if name not in RESET_MAY_CALL and any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(fn))}
+    while True:
+        more = {name for name in funcs if name not in readers and name not in RESET_MAY_CALL
+                and calls[name] & readers}
+        if not more:
+            break
+        readers |= more
+    builders = {getattr(f, "__name__", "") for f in tb.BUILDERS.values()}
+    return sorted(readers - builders)
+
+
+READERS = tuple(derived_readers())
+
+
+def test_M5_the_reader_set_is_derived_and_holds_the_known_ones():
+    assert set(KNOWN_READERS) <= set(READERS), sorted(set(KNOWN_READERS) - set(READERS))
 
 
 def test_R10_every_block_resets_through_its_builder_and_reads_nothing(monkeypatch):
@@ -297,7 +449,7 @@ def test_12_an_image_left_off_is_dropped_and_one_switched_on_is_kept_rewritten()
     out = ex(body, images_on={on}, image_src_for=_src_for, report=changes)
     srcs = [i["attrs"]["src"] for i in find(out, "image")]
     assert srcs == [GALLERY_IMG + "a", GALLERY_IMG + "a"]
-    assert find(out, "image")[0]["attrs"] == {"src": GALLERY_IMG + "a", "width": 300}
+    assert find(out, "image")[0]["attrs"] == {"src": GALLERY_IMG + "a", "alt": "my account page", "width": 300}
     assert len(find(out, "imageFigure")) == 1                     # the off image's figure went with it
     assert texts_in(out) == [f"made {V}"]                         # the kept caption is scrubbed
     assert "/notes/attachments/" not in json.dumps(out)
@@ -311,17 +463,94 @@ def test_12_CONTROLS_an_image_on_with_no_rewriter_or_a_bad_rewrite_is_dropped():
     assert "image" not in types_in(ex(body, images_on={src}))                      # nothing to rewrite with
     assert "image" not in types_in(ex(body, images_on={src}, image_src_for=lambda s: ""))
     assert "image" not in types_in(ex(body, images_on={src}, image_src_for=lambda s: 'x" onerror="'))
+    assert "image" not in types_in(ex(body, images_on={src}, image_src_for=lambda s: "https://cdn.example/a.png"))
     assert "image" not in types_in(ex(body))                                       # off by default
     # the switch names the ORIGINAL src: the attachment prefix is not rewritten in example mode
     assert "image" in types_in(ex(body, images_on={src}, image_src_for=_src_for))
 
 
-def test_12_a_link_cards_image_stays_nulled_exactly_as_gallery_does():
-    body = doc({"type": "linkPreview", "attrs": {"url": "https://example.com/a", "title": "A card",
-                                                 "domain": "example.com", "image": "https://example.com/i.png"}})
-    out = ex(body)
-    assert find(out, "linkPreview")[0]["attrs"]["image"] is None
-    assert out == gallery(body)
+#: Probe I verbatim: switched on, and still not this note's own attachment.
+FOREIGN_IMAGES = {
+    "another member's attachment": ("/api/j2/notes/attachments/VICTIM/THEIR-NOTE/inline/secret.png",
+                                    lambda s: "/api/j2/template-gallery/I/images/x"),
+    "an external tracker": ("https://tracker.example/pixel.png?u=owner-1", lambda s: s),
+    "another note of this member": (f"{OTHER_ATT}inline/c.png", _src_for),
+    "a path that climbs out": (f"{OWN_ATT}inline/../../{OTHER}/inline/c.png", _src_for),
+}
+
+
+@pytest.mark.parametrize("case", sorted(FOREIGN_IMAGES))
+def test_R13_an_image_is_kept_only_when_it_is_this_notes_own_attachment(case):
+    src, src_for = FOREIGN_IMAGES[case]
+    changes: list = []
+    out = ex(doc({"type": "image", "attrs": {"src": src}}), images_on={src}, image_src_for=src_for, report=changes)
+    assert "image" not in types_in(out), out
+    assert "secret" not in json.dumps(out) and "tracker" not in json.dumps(out)
+    assert kinds(changes) == ["image_off"]
+
+
+# ── P3b-T2-R8: links, link cards and web embeds ─────────────────────────────────────────
+
+def test_R8_a_link_mark_is_removed_and_its_words_stay_scrubbed():
+    """Probe D verbatim: the href carried a broker domain, an account number and an email."""
+    changes: list = []
+    link = {"type": "link", "attrs": {"href": "https://client.schwab.com/accounts/12345678?email=me@example.com"}}
+    out = ex(doc(p(t("my statement", link)), p(t("at Schwab", {"type": "link", "attrs": {"href": "https://example.com"}}))),
+             report=changes)
+    assert texts_in(out) == ["my statement", f"at {B}"]
+    blob = json.dumps(out)
+    assert '"link"' not in blob and "schwab" not in blob.lower() and "12345678" not in blob and "@" not in blob
+    assert kinds(changes) == ["link", "broker", "link"]           # a node's text, then its marks
+    assert_paths_point_at_their_after(out, changes)
+
+
+def test_R8_a_link_card_is_dropped():
+    changes: list = []
+    out = ex(doc({"type": "linkPreview", "attrs": {
+        "url": "https://client.schwab.com/accounts/12345678", "title": "Schwab account 12345678",
+        "description": "Balance $48,210", "domain": "client.schwab.com", "image": None}}, p(t("kept"))), report=changes)
+    assert texts_in(out) == ["kept"] and "linkPreview" not in types_in(out)
+    assert "schwab" not in json.dumps(out).lower()
+    assert kinds(changes) == ["dropped"]
+
+
+def test_R8_a_web_embed_is_dropped():
+    changes: list = []
+    out = ex(doc({"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "abcdefghijk",
+                                                "url": "https://robinhood.com/account/12345678"}}), report=changes)
+    assert "webEmbed" not in types_in(out) and "robinhood" not in json.dumps(out)
+    assert kinds(changes) == ["dropped"]
+
+
+# ── P3b-T2-R7: a formula holding a replacement is replaced whole ───────────────────────
+
+def test_R7_an_inline_formula_with_an_amount_becomes_your_value_here():
+    """Probe E verbatim."""
+    changes: list = []
+    out = ex(doc(p(t("x "), {"type": "inlineMath", "attrs": {"latex": r"\$1,240 \times 3"}})), report=changes)
+    assert texts_in(out) == ["x ", V] and "inlineMath" not in types_in(out)
+    assert kinds(changes) == ["money"] and changes[0]["path"] == [0, 1]
+    assert_paths_point_at_their_after(out, changes)
+
+
+def test_R7_a_block_formula_with_an_amount_becomes_a_paragraph():
+    changes: list = []
+    out = ex(doc({"type": "blockMath", "attrs": {"latex": r"P = \$48,210"}}), report=changes)
+    assert out["content"] == [{"type": "paragraph", "content": [{"type": "text", "text": V}]}]
+    assert kinds(changes) == ["money"]
+
+
+def test_R7_CONTROL_a_formula_with_nothing_to_replace_is_kept_verbatim():
+    body = doc(p({"type": "inlineMath", "attrs": {"latex": r"\pi r^2"}}), {"type": "blockMath", "attrs": {"latex": "E=mc^2"}})
+    changes: list = []
+    assert ex(body, report=changes) == gallery(body) and changes == []
+
+
+def test_R7_the_split_across_marks_limit_is_recorded():
+    """A known limit by ruling, not a fix: the docstring says so, and so does this pin (probe H)."""
+    assert "split across" in (xs.__doc__ or "") and "KNOWN LIMIT" in (xs.__doc__ or "")
+    out = ex(doc(p(t("made $1,"), t("240", {"type": "bold"}), t(" today"))))
+    assert texts_in(out)[1] == "240"
 
 
 # ── 13-15: gallery's rules, the existing rules ──────────────────────────────────────────
@@ -426,12 +655,78 @@ def test_the_authors_own_institution_names_are_scrubbed():
     assert texts_in(out) == [f"cleared through {B}"]
 
 
-def test_attribute_text_is_scrubbed_too():
+def test_R4_a_kept_images_alt_text_is_kept_and_scrubbed_and_its_title_goes():
+    """Probe F verbatim (ruling P3b-T2-R4; the dropped title is reported, M-1)."""
+    src = f"{OWN_ATT}inline/a.png"
     changes: list = []
-    out = ex(doc({"type": "linkPreview", "attrs": {"url": "https://example.com/a", "title": "I made $5,000 at Schwab",
-                                                   "domain": "example.com"}}), report=changes)
-    assert find(out, "linkPreview")[0]["attrs"]["title"] == f"I made {V} at {B}"
-    assert {"money", "broker"} <= set(kinds(changes))
+    out = ex(doc({"type": "image", "attrs": {"src": src, "alt": "made $1,240 at Schwab", "title": "acct 12345678"}}),
+             images_on={src}, image_src_for=_src_for, report=changes)
+    img = find(out, "image")[0]["attrs"]
+    assert img == {"src": GALLERY_IMG + "a", "alt": f"made {V} at {B}"}
+    assert kinds(changes) == ["money", "broker", "dropped"]
+    assert_paths_point_at_their_after(out, changes)
+
+
+# ── P3b-T2-R5: a change entry's path addresses the REDUCED body ────────────────────────
+
+def test_R5_the_path_skips_what_was_dropped_before_it():
+    """Probe K verbatim: the paragraph is at reduced index 0, not author index 2."""
+    changes: list = []
+    out = ex(doc({"type": "attachmentChip", "attrs": {}}, {"type": "widgetEmbed", "attrs": {"widgetId": "notebook"}},
+                 p(t("made $1,240"))), report=changes)
+    assert [c.get("type") for c in out["content"]] == ["paragraph"]
+    money = [c for c in changes if c["kind"] == "money"]
+    assert [c["path"] for c in money] == [[0, 0]]
+    assert_paths_point_at_their_after(out, changes)
+    assert [c["path"] for c in changes if c["kind"] == "dropped"] == [[0], [0]]   # the insertion point
+
+
+def test_R5_nested_drops_collapsed_neutral_lines_and_a_reset_block_point_at_the_reduced_node():
+    changes: list = []
+    body = doc({"type": "callout", "attrs": {"variant": "note"}, "content": [
+                   {"type": "askInsert", "attrs": {"question": "q"}, "content": [p(t("an answer"))]},
+                   p(t("lost $500 at Fidelity"))]},
+               block("chart", {}), block("themes", {}), block("positionSizing", {"accountSize": 25000}),
+               {"type": "financialFact", "attrs": {"factId": "fact-fmp"}})
+    out = ex(body, report=changes)
+    assert_paths_point_at_their_after(out, changes)
+    by_kind = {}
+    for c in changes:
+        by_kind.setdefault(c["kind"], []).append(c["path"])
+    assert by_kind["money"] == [[0, 0, 0]] and by_kind["broker"] == [[0, 0, 0]]
+    assert by_kind["market_data"] == [[1], [1]]                    # ONE neutral line for the run
+    assert by_kind["block_reset"] == [[2]] and by_kind["fact"] == [[3]]
+    assert at_path(out, [2])["attrs"]["widgetId"] == "positionSizing"
+
+
+# ── M-1, M-2: nothing goes silently; the reset block carries only the allowlist ────────
+
+def test_M1_a_dropped_formula_an_unknown_mark_and_an_unknown_node_are_reported():
+    changes: list = []
+    out = ex(doc(p(t("a "), {"type": "inlineMath", "attrs": {"latex": r"\href{x}{y}"}}),       # probe O
+                 p(t("word", {"type": "comment", "attrs": {"id": "c1"}})),
+                 {"type": "brandNewNode"}), report=changes)
+    assert texts_in(out) == ["a ", "word"]
+    assert kinds(changes) == ["dropped", "dropped", "dropped"]
+
+
+def test_M2_a_reset_block_carries_only_the_embed_allowlist():
+    """Probe L verbatim."""
+    changes: list = []
+    out = ex(doc({"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "positionSizing", "embedId": "e",
+                                                   "params": {"accountSize": 25000}, "caption": "my $25k acct",
+                                                   "tradeRef": "t-1", "ta": {"plan": 1}}}), report=changes)
+    attrs = out["content"][0]["attrs"]
+    assert set(attrs) <= set(pnp.EMBED_KEPT_ATTRS) | {"params"}, sorted(attrs)
+    assert "25k" not in json.dumps(out) and attrs["caption"] is None
+    assert sorted(kinds(changes)) == ["block_reset", "dropped", "trade_link"]   # the caption is reported
+
+
+# ── R6: every kind is documented ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("kind", sorted(KINDS))
+def test_R6_every_change_kind_is_documented_in_the_module(kind):
+    assert f"`{kind}`" in (pnp.__doc__ or ""), kind
 
 
 # ── 18: OCR warnings ────────────────────────────────────────────────────────────────────
@@ -449,7 +744,8 @@ def test_18_a_digit_run_counts_through_spaces_and_dashes_and_a_short_one_does_no
 
 # ── P3b-R3: the example decision IS gallery's, except the declared override set ─────────
 
-DECLARED_OVERRIDES = {"image", "imageFigure", "imageCaption"}
+#: P3b-R3's three, and ruling P3b-T2-R8's: a link card, a web embed and the link mark are dropped.
+DECLARED_OVERRIDES = {"image", "imageFigure", "imageCaption", "linkPreview", "webEmbed", "link"}
 
 
 def test_R3_the_override_set_is_exactly_the_declared_three():
