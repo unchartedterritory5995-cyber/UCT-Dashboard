@@ -80,14 +80,60 @@ def member_rows(rows) -> list:
 
     The one other bull_flag a member gets is the "flagging" tier (`_flagging_flag`): a flag the
     round-9 code stopped ONLY on a relaxed verdict, stamped `extras.flagging` with tier "flagging"
-    and the member round. PatternOverlay draws it light, with no entry line."""
+    and the member round. PatternOverlay draws it light, with no entry line.
+
+    A uct_flat_top_breakout passed its blind check as the "flat top" ceiling drawn
+    under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
+    it carries that round's stamp beside a well-formed `draw_flat_top`
+    (`_confirmed_flat_top`): any other flat-top row carries no stamp and is dropped.
+    Fail closed."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
             and ((r or {}).get("pattern_id") != "bull_flag"
-                 or _confirmed_flag(r) or _flagging_flag(r))]
+                 or _confirmed_flag(r) or _flagging_flag(r))
+            and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))]
+
+
+#: The flat-top drawing round the blind check confirmed for members: the v2 draw condition (lab
+#: flattop_draw_v2, 2026-10-18: packets A 2.60 [2.30, 2.83] and B 2.57 [2.30, 2.80]). A literal ON
+#: PURPOSE, not display.FLAT_TOP_DRAW_ROUND: when the drawing code moves to a new round, members stop
+#: getting the flat top until that round is confirmed and this is changed by hand.
+MEMBER_FLAT_TOP_ROUND = 2
+#: The drawn label the judges saw.
+MEMBER_FLAT_TOP_LABEL = "flat top"
+
+
+def _finite(v) -> bool:
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return False
+    return x == x and x not in (float("inf"), float("-inf"))
+
+
+def _confirmed_flat_top(row) -> bool:
+    """True when a uct_flat_top_breakout row is drawn by the confirmed round: not stale,
+    `extras.draw_round` (stamped by display.draw_geometry only beside a v2 drawing) equals
+    MEMBER_FLAT_TOP_ROUND, and `draw_flat_top` is well formed -- a finite price, a span, the
+    judged label, and at least three touch markers with finite prices. Anything else is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == MEMBER_FLAT_TOP_ROUND):
+        return False
+    ft = ex.get("draw_flat_top")
+    if not isinstance(ft, dict) or ft.get("label") != MEMBER_FLAT_TOP_LABEL:
+        return False
+    if not _finite(ft.get("price")) or ft.get("start_t") is None or ft.get("end_t") is None:
+        return False
+    touches = ft.get("touches")
+    return (isinstance(touches, list) and len(touches) >= 3
+            and all(isinstance(t, dict) and t.get("t") is not None and _finite(t.get("price"))
+                    for t in touches))
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,

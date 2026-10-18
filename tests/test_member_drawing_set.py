@@ -1,5 +1,5 @@
 """The MEMBER drawing set (owner-approved 2026-10-17): what a PAID member's chart is drawn while
-AUTO_STRUCTURES_MEMBERS_ENABLED is on. Exactly the six types that passed two independent blind
+AUTO_STRUCTURES_MEMBERS_ENABLED is on. Exactly the seven types that passed two independent blind
 packets: learned levels, learned trendlines (the `drawn` block, auto_draw.py), flat_base and the
 MA pullback v5 (uct_pullback_ma_v5, otherwise INTERNAL) at 331774fc5a; the bc:flat-base PIVOT LINE
 (box off; R5c 2.40 [2.10, 2.67] and bcflat-c2 2.30 [2.03, 2.57], lab/geometry_eval
@@ -11,7 +11,11 @@ which nobody judged), and not a bull_flag that is stale or does not carry the ro
 (extras.draw_round, written by display.draw_geometry only on a finished, drawn flag): a row stored
 by older drawing code, or one whose verdicts never finished, was never judged. The one exception is
 the "flagging" tier, which carries its own stamp (extras.flagging) and its own rails in
-tests/test_flag_tiers.py.
+tests/test_flag_tiers.py. And (2026-10-18) uct_flat_top_breakout AS THE v2 DRAWING CODE DRAWS IT --
+the "flat top" ceiling and its touch markers (lab flattop_draw_v2: A 2.60 [2.30, 2.83], B 2.57
+[2.30, 2.80]) -- only while it carries that round's stamp beside a well-formed draw_flat_top; an
+unconfirmed or non-v2 fire is never served (tests/test_flat_top_member_drawing.py carries the
+drawing and the gate in full).
 
 The fake detection store below honours `pattern_ids` and `include_internal` the way
 memory.get_active_detections does, so a route that asked for too much would be SERVED too much.
@@ -36,18 +40,34 @@ from tests.test_bull_flag_r9 import SHORT_LEG, TALL_LEG, _flag_after
 from tests.test_drawing_geometry_v2 import _bars
 from tests.test_team_drawing_set_r4 import _flag_det
 
-MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag"}
+MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
-MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag"}
+MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
+#: The internal ids a member may be drawn: each is in the member set by its own blind check.
+MEMBER_INTERNAL_IDS = {"uct_pullback_ma_v5", "uct_flat_top_breakout"}
 #: Team-set types that are NOT confirmed and must NEVER reach a member.
 NOT_MEMBER = {"bc:cup-with-handle"}
 #: The bull_flag drawing round the blind check confirmed (REPORT_BULLFLAG_R9.md). Pinned as a literal.
 CONFIRMED_ROUND = 9
+#: The flat-top drawing round the blind check confirmed (lab flattop_draw_v2). Pinned as a literal.
+FLAT_TOP_ROUND = 2
+#: A well-formed v2 flat-top drawing, as display.flat_top_drawing stamps it (synthetic prices).
+FLAT_TOP_DRAW = {"price": 50.0, "start_t": 20260901, "end_t": 20261015, "label": "flat top",
+                 "variant": "breakout",
+                 "touches": [{"t": 20260901, "price": 50.0}, {"t": 20260915, "price": 49.95},
+                             {"t": 20260929, "price": 50.0}]}
 
 
 def _flag(rid, **extras):
     """A bull_flag store row whose geometry carries `extras` (the draw_geometry stamp lives there)."""
     return {"id": rid, "pattern_id": "bull_flag", "geometry": {"extras": dict(extras)}}
+
+
+def _flat_top(rid, **extras):
+    """A uct_flat_top_breakout store row; by default stamped as the confirmed v2 drawing."""
+    ex = {"draw_round": FLAT_TOP_ROUND, "draw_flat_top": dict(FLAT_TOP_DRAW)}
+    ex.update(extras)
+    return {"id": rid, "pattern_id": "uct_flat_top_breakout", "geometry": {"extras": ex}}
 
 
 #: One row per kind a member must NOT get beside the ones it must: the rest of the team set,
@@ -71,9 +91,12 @@ STORE = [
     _flag("r14", draw_round=CONFIRMED_ROUND, stale=True, stale_reason="short_pole"),
     {"id": "r15", "pattern_id": "bull_flag"},
     _flag("r16", draw_round=CONFIRMED_ROUND - 1),
+    _flat_top("r17"),
+    _flat_top("r18", stale=True, stale_reason="few_touches"),
+    _flat_top("r19", draw_round=CONFIRMED_ROUND),
 ]
 #: The store rows a member is served, in store order.
-SERVED_ROW_IDS = ["r1", "r2", "r3"]
+SERVED_ROW_IDS = ["r1", "r2", "r3", "r17"]
 BOX = {"structure_key": "flat-base", "name": "Flat base", "label": "Flat base",
        "start_t": 20260901, "end_t": 20261015, "top": 142.1, "floor": 131.4, "pivot": 142.1,
        "bars": 23, "sub_boxes": [], "source": "flat_base_state"}
@@ -159,8 +182,8 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     assert NOT_MEMBER.isdisjoint(registry.DISPLAY_MEMBER_SET)
     # the team set minus the member set is exactly the unconfirmed remainder
     assert set(registry.DISPLAY_TEAM_SET) - set(registry.DISPLAY_MEMBER_SET) == NOT_MEMBER
-    # the one internal id a member may be drawn, and nothing else internal
-    assert registry.DISPLAY_MEMBER_SET & registry.INTERNAL_PATTERN_IDS == {"uct_pullback_ma_v5"}
+    # the internal ids a member may be drawn, and nothing else internal
+    assert registry.DISPLAY_MEMBER_SET & registry.INTERNAL_PATTERN_IDS == MEMBER_INTERNAL_IDS
     # every member id is drawable: a registered detector, or a team-set base box (pivot line)
     bc = {pid for pid in registry.DISPLAY_MEMBER_SET if pid.startswith("bc:")}
     assert bc == {"bc:flat-base"} and bc <= auto_structures.TEAM_PIVOT_BOXES
@@ -177,18 +200,19 @@ def test_the_confirmed_bull_flag_round_is_round_9_and_the_drawing_code_is_round_
 
 def test_admin_tiers_did_not_move():
     """The member set is a filter, not a re-tiering: the team set is still `trusted` for admins."""
-    for pid in ("bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5"):
+    for pid in ("bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
+                "uct_flat_top_breakout"):
         assert registry.display_policy(pid)["display_tier"] == "trusted", pid
 
 
-# -- flag ON: a member gets exactly the six types ----------------------------------------------
+# -- flag ON: a member gets exactly the seven types --------------------------------------------
 
-def test_flag_on_member_gets_exactly_the_six_confirmed_types(monkeypatch, calls):
+def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, calls):
     _flags(monkeypatch, True, True)
     body = _get(PAID_MEMBER).json()
     assert [r["id"] for r in body["detections"]] == SERVED_ROW_IDS
     assert sorted(r["pattern_id"] for r in body["detections"]) == sorted(MEMBER_ROW_IDS)
-    assert body["count"] == 3
+    assert body["count"] == 4
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
     # bc:flat-base: exactly ONE base box, the pivot-only one; the cup, the square box and the
     # unstamped flat-base are not served
@@ -196,7 +220,7 @@ def test_flag_on_member_gets_exactly_the_six_confirmed_types(monkeypatch, calls)
     drawn = body["drawn"]
     assert drawn["horizontals"] and drawn["trendlines"]    # learned levels + learned trendlines
     assert set(body) == {"sym", "tf", "detections", "count", "structures", "drawn"}
-    # The six types, and nothing else that draws.
+    # The seven types, and nothing else that draws.
     types = ({r["pattern_id"] for r in body["detections"]}
              | {s["pattern_id"] for s in body["structures"]}
              | {"learned_levels", "learned_trendlines"})
@@ -335,19 +359,21 @@ def test_flag_on_no_other_internal_or_experimental_row_reaches_a_member(monkeypa
     _flags(monkeypatch, True, True)
     body = _get(PAID_MEMBER).json()
     ids = {r["pattern_id"] for r in body["detections"] + body.get("structures", [])}
-    assert not (ids & (registry.INTERNAL_PATTERN_IDS - {"uct_pullback_ma_v5"}))
-    assert not {pid for pid in ids if pid.startswith("uct_")} - {"uct_pullback_ma_v5"}
+    assert not (ids & (registry.INTERNAL_PATTERN_IDS - MEMBER_INTERNAL_IDS))
+    assert not {pid for pid in ids if pid.startswith("uct_")} - MEMBER_INTERNAL_IDS
     assert not (ids & NOT_MEMBER)
     assert all(registry.display_policy(pid)["display_tier"] == "trusted" for pid in ids)
 
 
 def test_flag_on_every_other_type_stays_out(monkeypatch):
     """One row for EVERY registered detector id (internal ones included) and every team-set base
-    box, each carrying the bull_flag round stamp so no stamp check can be what drops it: a member
-    is served the member-set ids and nothing else."""
+    box, each carrying the bull_flag round stamp so no stamp check can be what drops it (the flat
+    top carries its OWN round's stamp, for the same reason): a member is served the member-set ids
+    and nothing else."""
     every = sorted(set(registry.list_pattern_ids()) | set(registry.DISPLAY_TEAM_SET))
     assert "bull_flag" in every and "bc:cup-with-handle" in every     # the sweep is not vacuous
-    rows = [_flag(f"x{i}", draw_round=CONFIRMED_ROUND) | {"pattern_id": pid}
+    rows = [(_flat_top(f"x{i}") if pid == "uct_flat_top_breakout"
+             else _flag(f"x{i}", draw_round=CONFIRMED_ROUND) | {"pattern_id": pid})
             for i, pid in enumerate(every)]
     _flags(monkeypatch, True, True)
     _store(monkeypatch, rows)

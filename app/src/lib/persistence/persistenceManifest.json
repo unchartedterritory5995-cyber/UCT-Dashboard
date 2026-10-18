@@ -534,6 +534,18 @@
       "files": []
     },
     {
+      "key": "screener_chart_widget",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Screener chart",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartWidget.jsx"
+      ]
+    },
+    {
       "key": "screener_column_presets",
       "store": "server-preference",
       "scope": "cross-device",
@@ -2413,6 +2425,17 @@
       ]
     },
     {
+      "key": "uct.screener.gridLayout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Charts per page",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartGrid.jsx"
+      ]
+    },
+    {
       "key": "uct.screener.landingSeed:*",
       "store": "localStorage",
       "scope": "device-local",
@@ -2430,9 +2453,20 @@
       "scope": "device-local",
       "surface": "Screener",
       "kind": "setting",
-      "label": "Focus or Table layout",
+      "label": "List, Charts, Map or Table view",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.mapGroup",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Map grouping",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerHeatMap.jsx"
       ]
     },
     {

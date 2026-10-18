@@ -41,6 +41,8 @@
 //   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
 //   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped)
 //   and `draw_stop` (round 5: the stop secondary re-anchored to start at the tag bar).
+//   uct_flat_top_breakout: `draw_flat_top` (lab flattop_draw_v2) draws ONE solid "flat top" line
+//   plus a hollow circle on each touch, and nothing else of that row (`flatTopDrawing`).
 //
 // ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
 //   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
@@ -108,8 +110,28 @@ export function drawGeometry(d) {
 }
 
 export const TRENDLINE_BREAK_ID = 'uct_trendline_break'
+export const FLAT_TOP_ID = 'uct_flat_top_breakout'
 
 const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
+
+/**
+ * The "flat top" ceiling a uct_flat_top_breakout detection draws (lab flattop_draw_v2, blind-confirmed
+ * as drawn): `extras.draw_flat_top` = {price, start_t, end_t, touches: [{t, price}], label}, stamped by
+ * the server only on a fire that meets the v2 conditions. Returns null for any other row or a malformed
+ * stamp; when it returns a drawing, that line and its touch markers are ALL the row draws (no candle
+ * mark, no secondary levels), because that is the drawing the judges scored. Pure — exported for tests.
+ */
+export function flatTopDrawing(d) {
+  if (d?.pattern_id !== FLAT_TOP_ID) return null
+  const ft = d?.geometry?.extras?.draw_flat_top
+  if (!ft || typeof ft !== 'object') return null
+  const price = Number(ft.price)
+  if (!Number.isFinite(price) || ft.start_t == null || ft.end_t == null) return null
+  const touches = (Array.isArray(ft.touches) ? ft.touches : [])
+    .filter((t) => t && t.t != null && Number.isFinite(Number(t.price)))
+    .map((t) => ({ t: t.t, price: Number(t.price) }))
+  return { price, start_t: ft.start_t, end_t: ft.end_t, touches, label: ft.label || 'flat top' }
+}
 
 /**
  * The sloped line a uct_trendline_break detection draws, as a `single_trendline` sub-detection
@@ -317,7 +339,9 @@ export default function PatternOverlay({
         const lanesOff = ex.draw_lanes === false
         // A team-set base whose box did not hold up draws its pivot line only.
         const boxOff = ex.draw_box === false
-        const Renderer = hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape])
+        // The flat-top ceiling replaces the detector's candle mark and secondary levels outright.
+        const flatTop = flatTopDrawing(d)
+        const Renderer = flatTop ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
         // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
@@ -327,7 +351,7 @@ export default function PatternOverlay({
         // the stop to start at the TAG bar (the detector's own stop secondary runs from the
         // 10-session high, far left) — same price, same label, display only.
         const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
-        const secondary = (Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : [])
+        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
           .map((sec) => (drawStop && sec?.role === 'stop'
             ? {
@@ -382,6 +406,41 @@ export default function PatternOverlay({
                 dashed={false}
                 role="pivot"
               />
+            )}
+            {flatTop && (
+              <g data-role="flat-top">
+                <LevelSegment
+                  detection={{
+                    ...d,
+                    id: `${d.id}:flat-top`,
+                    confidence: null,
+                    geometry: {
+                      shape: 'horizontal_line',
+                      label: flatTop.label,
+                      anchors: [
+                        { t: flatTop.start_t, price: flatTop.price },
+                        { t: flatTop.end_t, price: flatTop.price },
+                      ],
+                    },
+                  }}
+                  tToX={tToX}
+                  priceToY={priceToY}
+                  onClick={onDetectionClick}
+                  extendRight={40}
+                  dashed={false}
+                  role="flat-top-line"
+                />
+                {flatTop.touches.map((tch, i) => {
+                  const x = tToX(tch.t)
+                  const y = priceToY(tch.price)
+                  if (x == null || y == null) return null
+                  return (
+                    <circle key={i} data-role="flat-top-touch" cx={x} cy={y} r={4}
+                      fill="none" stroke={getColor(d)} strokeWidth={1.4} opacity={getOpacity(d)}
+                      style={{ pointerEvents: 'none' }} />
+                  )
+                })}
+              </g>
             )}
             {rimRef && (
               <LevelSegment

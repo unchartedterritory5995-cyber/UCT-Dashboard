@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
+// The pane's chart is the /charts Chart widget (ScreenerChartWidget); these tests are about which
+// stock it is handed, so the host is stubbed at its boundary.
+vi.mock('../ScreenerChartWidget', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} data-phone={p.phone ? '1' : undefined} /> }))
 vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
@@ -570,4 +573,15 @@ test('S4: a count that failed reads "Count unavailable" in the drawer, never 0',
   await waitFor(() => expect(screen.getByTestId('drawer-count-note')).toHaveTextContent('Count unavailable'))
   expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Show 0/ })).toBeNull()
+})
+test('the pane names the selected stock\'s theme from ONE batched read for the whole list, never one per step', async () => {
+  extra = url => (url === '/api/watchlists/themes-batch' ? { ok: true, json: async () => ({ results: { MU: 'Memory & Storage', ECO: null } }) } : null)
+  mount()
+  await waitFor(() => expect(screen.getByTestId('pane-theme')).toHaveTextContent('Memory & Storage'))
+  const themeCalls = () => fetch.mock.calls.filter(([u]) => String(u) === '/api/watchlists/themes-batch')
+  expect(JSON.parse(themeCalls()[0][1].body).tickers.sort()).toEqual(['ECO', 'MU'])
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'ArrowDown' })
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'ECO')
+  expect(screen.queryByTestId('pane-theme')).toBeNull()
+  expect(themeCalls()).toHaveLength(1)
 })

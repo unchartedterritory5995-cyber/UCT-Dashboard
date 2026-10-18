@@ -27,6 +27,7 @@ import { COLUMN_DEFS } from '../columnDefs'
 import { nextSort } from '../../../lib/presentation/dataGrid/gridSort'
 import { exportQuota, downloadExport } from '../../../lib/dataExport'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
+import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useFlagged } from '../../../hooks/useFlagged'
 import { prefetchBars } from '../../../utils/prefetchBars'
@@ -101,6 +102,9 @@ const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ
 const SHEET_MARK = 'uctFocusChartSheet'
 // Table mode is today's page, loaded only when a member switches to it (List never ships it).
 const ScannerShell = lazy(() => import('../shell/ScannerShell'))
+// The Charts view (the /charts Multi-Chart grid), likewise loaded only when a member opens it.
+const ScreenerChartGrid = lazy(() => import('./ScreenerChartGrid'))
+const ScreenerHeatMap = lazy(() => import('./ScreenerHeatMap'))
 
 // The comparable part of a screen: its criteria, never its pool, sort or columns.
 function normalSpec(sp) {
@@ -132,7 +136,10 @@ function rememberNamed(item) {
 }
 
 export default function FocusScreener() {
-  const [mode, setMode] = useState(() => (readLS(MODE_KEY, 'list') === 'table' ? 'table' : 'list'))
+  const [mode, setMode] = useState(() => {
+    const m = readLS(MODE_KEY, 'list')
+    return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
+  })
   const onMode = useCallback(m => { setMode(m); writeLS(MODE_KEY, m) }, [])
   if (mode === 'table') {
     return (
@@ -148,10 +155,12 @@ export default function FocusScreener() {
       </div>
     )
   }
-  return <FocusList onMode={onMode} />
+  return <FocusList mode={mode} onMode={onMode} />
 }
 
-function FocusList({ onMode }) {
+// `mode` is 'list' (the list and its chart pane), 'grid' (the same results on the chart grid) or
+// 'map' (the same results as a treemap): one screen, one set of rows, three ways to look at them.
+function FocusList({ mode, onMode }) {
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const viewColumnsFor = useMemo(() => {
@@ -264,6 +273,10 @@ function FocusList({ onMode }) {
   pendingRef.current = pending
 
   const liveTickers = useMemo(() => rows.slice(0, LIVE_WINDOW).map(r => r.ticker), [rows])
+  // Each loaded stock's primary theme, in ONE batched read per list (cached 30 min), never one
+  // per step: the pane names the selected stock's theme beside its setup.
+  const themeTickers = useMemo(() => rows.map(r => r.ticker), [rows])
+  const { themeData } = useWatchlistThemes(themeTickers)
   const { prices = {} } = useRealtimePrices(liveTickers) || {}
   useEffect(() => { if (rows.length) prefetchBars(rows.slice(0, 30).map(r => r.ticker), 'D') }, [rows])
   const [liveSortOn, setLiveSortOn] = useState(false)
@@ -391,6 +404,14 @@ function FocusList({ onMode }) {
     selectRow0(i)
     if (isPhoneNow()) openPhoneSheet()
   }, [selectRow0, openPhoneSheet])
+  // A map tile opens that stock: selected exactly as a row click selects it, then the List.
+  const openFromMap = useCallback(t => {
+    const i = listRows.findIndex(r => r.ticker === t)
+    if (i < 0) return
+    s.flush()
+    onMode('list')
+    onRowSelect(i)
+  }, [listRows, s, onMode, onRowSelect])
   // A phone rotated past the phone width (or a window widened) with the sheet open: the sheet
   // closes and the side pane, now shown, carries the same stock.
   useEffect(() => {
@@ -768,8 +789,10 @@ function FocusList({ onMode }) {
   // With no list on screen (a scan error, an empty screen) there is nothing to step: close.
   const listShowing = !error && !!result && total !== 0
   useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
-  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag,
-    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey, onRefocus: focusList,
+  // B5-style primitive: the pane gets the selected row's theme NAME, so a step re-renders only it.
+  const selTheme = selected ? themeData[selected.ticker] || null : null
+  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag, theme: selTheme,
+    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey,
     structures, busy: pending }
 
   const flagsOutsideList = <div className={styles.stateFlags} data-testid="focus-state-flags"><FlaggedActions /></div>
@@ -785,6 +808,19 @@ function FocusList({ onMode }) {
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
     body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
       pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+  } else if (mode === 'map') {
+    body = (
+      <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
+        <ScreenerHeatMap rows={listRows} themeData={themeData} livePrices={prices} onOpen={openFromMap} />
+      </Suspense>
+    )
+  } else if (mode === 'grid') {
+    body = (
+      <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
+        <ScreenerChartGrid rows={listRows} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
+          onLoadMore={s.loadMore} resetKey={rowsKey} phone={isPhoneNow()} />
+      </Suspense>
+    )
   } else {
     body = (
       <div className={styles.body}>
@@ -820,7 +856,7 @@ function FocusList({ onMode }) {
           myScans={myScans} onUseScan={applyScanFilter} meta={meta} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} premarket={listed?.snapshot?.premarket} coverage={listed?.coverage} />}
-        mode="list" onMode={m => { s.flush(); onMode(m) }}
+        mode={mode} onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
             <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && !pending && total > 0}
@@ -846,7 +882,7 @@ function FocusList({ onMode }) {
       {body}
       <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
         onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>
-        <ChartPane {...paneProps} />
+        <ChartPane {...paneProps} phone />
       </PhoneChartSheet>
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
         onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}

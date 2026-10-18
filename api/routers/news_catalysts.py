@@ -36,8 +36,9 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 @router.get("/api/news-catalysts/{sym}")
-def news_catalysts_endpoint(sym: str, _user: dict = Depends(require_paid)):
-    return news_service.feed(sym)
+def news_catalysts_endpoint(sym: str, generate: bool = True, _user: dict = Depends(require_paid)):
+    # `?generate=0` is a peek (news_service.feed): the screener's per-row strip uses it.
+    return news_service.feed(sym, generate=generate)
 
 
 @router.get("/api/news-catalysts/{sym}/debug")

@@ -179,22 +179,31 @@ def _from_fmp(ticker: str):
     }
 
 
-def _base_meta(ticker: str) -> dict:
-    ticker = (ticker or "").upper().strip()
-    if not ticker:
-        return {"name": None, "sector": None, "industry": None}
-
+def _peek_base(ticker: str):
+    """The cached base meta (memory, then the 24h disk cache), or None. NEVER a provider call:
+    the batch route answers only what this returns and names the rest missing."""
     key = f"tmeta_{ticker}"
     hit = _mem.get(key)
     if hit is not None:
         return hit
-
     disk = _disk_get(ticker)
     # A cached entry from before the `exchange` field existed is treated as STALE
     # so the exchange fills in on next request rather than only after 24h expiry.
     if disk is not None and "exchange" in disk:
         _mem.set(key, disk, ttl=_TTL)
         return disk
+    return None
+
+
+def _base_meta(ticker: str) -> dict:
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return {"name": None, "sector": None, "industry": None}
+
+    key = f"tmeta_{ticker}"
+    hit = _peek_base(ticker)
+    if hit is not None:
+        return hit
 
     data = {"name": None, "sector": None, "industry": None, "exchange": None}
     try:
@@ -272,6 +281,13 @@ def _primary_theme(ticker: str):
     except Exception as e:
         _logger.info("ticker_meta theme lookup failed for %s: %s", ticker, e)
         return None
+
+
+def peek_ticker_meta(ticker: str):
+    """get_ticker_meta for a CACHED ticker, None for any other: a cache read, never a provider."""
+    ticker = (ticker or "").upper().strip()
+    base = _peek_base(ticker) if ticker else None
+    return None if base is None else {**base, "theme": _primary_theme(ticker)}
 
 
 def get_ticker_meta(ticker: str) -> dict:

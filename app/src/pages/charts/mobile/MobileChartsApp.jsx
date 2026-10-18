@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import ChartPane from '../../../components/chart/pane/ChartPane'
+import { ChartHostOverlayContext } from '../widgets/chartHostOverlay'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import WidgetHost from '../WidgetHost'
 import { useWorkspace } from '../WorkspaceContext'
@@ -383,7 +384,12 @@ export default function MobileChartsApp({
     }
   }
 
+  // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js):
+  // the screener's phone sheet hosts this shell and adds the row's setup pivot.
+  const hostOverlay = useContext(ChartHostOverlayContext)
+  const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
   const stockChartProps = useMemo(() => ({
+    ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
     chartId: chartWidget?.id || null,
     toolbarApiRef,
     // Clean canvas by default on phone: the drawing toolbar starts collapsed
@@ -406,7 +412,7 @@ export default function MobileChartsApp({
     // Wave 10: tap a study's legend chip → its mobile editor (TradingView's
     // tap-the-legend-name). Stable callback, so the memo key stays the widget.
     onLegendStudyTap: legendStudyTap,
-  }), [chartWidget?.id, legendStudyTap])
+  }), [chartWidget?.id, legendStudyTap, hostPriceLines])
 
   // The widget page's shared pieces (used by BOTH presentations):
   // phone = full-screen overlay with a back button; tablet = docked panel with

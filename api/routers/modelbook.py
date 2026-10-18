@@ -276,9 +276,20 @@ def get_years(_user: dict = Depends(require_paid)):
     return {"years": svc.list_years()}
 
 
+# The write-ups a year LIST never needs: the gallery reads none of them, and the detail panel
+# reads every one from /stock/{id}. Shipping them in the lists made /catalog 589 KB on production.
+_LIST_OMITS = ("thesis", "company_desc", "run_story")
+
+
+def _gallery_rows(year: int) -> list[dict]:
+    """A year's gallery list: every stock column except the long write-ups. ONE helper for
+    /stocks and /catalog, whose parts the page files under /stocks' cache key."""
+    return [{k: v for k, v in s.items() if k not in _LIST_OMITS} for s in svc.get_stocks_for_year(year)]
+
+
 @router.get("/stocks")
 def get_stocks(year: int = Query(...), _user: dict = Depends(require_paid)):
-    return {"year": year, "stocks": svc.get_stocks_for_year(year)}
+    return {"year": year, "stocks": _gallery_rows(year)}
 
 
 @router.get("/all-stocks")
@@ -302,7 +313,7 @@ def catalog(_user: dict = Depends(require_paid)):
     years = svc.list_years()
     by_year = {}
     for y in years:
-        stocks = svc.get_stocks_for_year(y)
+        stocks = _gallery_rows(y)
         by_year[str(y)] = {"stocks": {"year": y, "stocks": stocks},
                            "stats": _year_stats_payload(y, stocks)}
     try:

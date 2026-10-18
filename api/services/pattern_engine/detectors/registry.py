@@ -234,6 +234,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "bull_flag",
     "flat_base", "bc:flat-base", "bc:cup-with-handle",
     "uct_pullback_ma_v5",
+    "uct_flat_top_breakout",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -261,10 +262,24 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
 #: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
 #: rows ONLY through this set (api/routers/patterns.py, member branch).
+#: uct_flat_top_breakout (lab flattop_draw_v2, 2026-10-18) passed two fresh blind packets AS DRAWN
+#: -- the "flat top" ceiling plus its touch markers, only under the v2 draw conditions: A 2.60
+#: [2.30, 2.83] and B 2.57 [2.30, 2.80]. auto_structures.member_rows serves it only while it carries
+#: extras.draw_round == MEMBER_FLAT_TOP_ROUND beside a well-formed draw_flat_top (fail closed). Its
+#: trusted tier is per ROW (DISPLAY_TRUSTED_WHEN_STAMPED / row_display_policy): an unstamped
+#: flat-top row keeps the experimental tier it always had, for admins too.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
+    "uct_flat_top_breakout",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
+#: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp
+#: named here (the extras key the blind-confirmed drawing code writes, display.draw_geometry). Every
+#: other row of that id keeps the tier it had before the id joined the team set (`experimental`),
+#: so an admin's chart draws it exactly as before and the member gate never sees it trusted.
+#: Served per row by `row_display_policy`; `display_policy(id)` alone answers for the stamped row.
+DISPLAY_TRUSTED_WHEN_STAMPED: dict = {"uct_flat_top_breakout": "draw_flat_top"}
+assert set(DISPLAY_TRUSTED_WHEN_STAMPED) <= DISPLAY_TEAM_SET
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
     "double_bottom", "double_top", "head_shoulders", "vcp",
@@ -327,6 +342,22 @@ def display_policy(pattern_id) -> dict:
         "intraday_only": pid in DISPLAY_INTRADAY_ONLY,
         "draw_entry": pid in DISPLAY_DRAW_ENTRY,
     }
+
+
+def row_display_policy(row) -> dict:
+    """`display_policy` for one detection ROW: the same, except that a row of an id in
+    DISPLAY_TRUSTED_WHEN_STAMPED is `trusted` only while its geometry.extras carries that id's stamp
+    as a dict; otherwise it is `experimental`, the tier it had before the id joined the team set."""
+    r = row if isinstance(row, dict) else {}
+    pid = r.get("pattern_id")
+    pol = display_policy(pid)
+    stamp = DISPLAY_TRUSTED_WHEN_STAMPED.get(str(pid or ""))
+    if stamp is not None and pol["display_tier"] == "trusted":
+        geom = r.get("geometry")
+        ex = geom.get("extras") if isinstance(geom, dict) else None
+        if not (isinstance(ex, dict) and isinstance(ex.get(stamp), dict)):
+            pol = {**pol, "display_tier": "experimental"}
+    return pol
 
 
 def drop_internal(rows, key: str = "pattern_id") -> list:
