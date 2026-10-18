@@ -1290,11 +1290,14 @@ def test_F_R1_every_vocabulary_entry_is_shorter_than_the_long_word_cap():
     assert max(len(w) for v in vocab for w in v.split()) < xs._WORD_CAP
 
 
-#: The worst text node P3b-F-R1's measurement found, built from the shapes that cost the most per byte: dense
-#: amounts and P&L words, a list of 3-digit levels, single digits, a token with no space in it, and a P&L figure run.
+#: The worst text node P3b-F-R1's measurement found, built from the shapes that cost the most per byte -- dense
+#: amounts and P&L words, single digits, a token with no space in it -- and one run of EACH shape a rewritten
+#: regex restarted on: a list of 3-digit levels (the spaced amount), a long digit run and a comma-grouped list
+#: (the P&L figure), and "+"-joined words (the address scheme).
 _WORST_UNITS = ("made 1,240 profit balance 12,345 up 2k down 1,500 acct 12345678 $1,240 EUR 500 3.2R loss "
                 "stop loss 145 take profit 1,240 realized card ending in 4421 fiscal year 2025 # 2024 ",
-                "145 150 155 160 ", "1 1 1 1 1 1 1 1 ", "1;2;3;4;5;6;7;8;", "$1 $2 1 240 € ", "1\u00a01\u00a0")
+                "145 150 155 160 ", "1 1 1 1 1 1 1 1 ", "1;2;3;4;5;6;7;8;", "$1 $2 1 240 € ", "1\u00a01\u00a0",
+                "1234567890", "123,456,789,", "ab+cd+")
 #: ⛔ The stated bound for a 200 KB worst-case body (measured well under it on this box; the old scrub took
 #: minutes): through `scrub_text`, and through the reducer in example mode, as one text node.
 COST_BOUND_S = 30.0
