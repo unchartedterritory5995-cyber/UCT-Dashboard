@@ -138,6 +138,25 @@ describe('PatternOverlay — team set round 2: one flag per run', () => {
     expect(l2).toContain('Entry 51.60')
   })
 
+  it('round 7: draw_anchors (the refitted lanes) are the lanes DRAWN; the detector anchors stay', () => {
+    const lanes = [{ t: 20261002, price: 51.2 }, { t: 20261015, price: 50.6 },
+      { t: 20261002, price: 49.0 }, { t: 20261015, price: 48.4 }]
+    const d = flag('a', { draw_anchors: lanes })
+    const { container } = renderOverlay([d])
+    const lower = container.querySelector('[data-role="lower"]').getAttribute('d')
+    const upper = container.querySelector('[data-role="upper"]').getAttribute('d')
+    // priceToCoordinate = 1000 - 10 * price: the refit's 49.0 / 48.4 and 51.2 / 50.6
+    expect(lower).toMatch(/,510(\D|$)/)
+    expect(lower).toMatch(/,516(\D|$)/)
+    expect(upper).toMatch(/,488(\D|$)/)
+    expect(d.geometry.anchors[2].price).toBe(49.5)          // the detector's own lanes are untouched
+    // control: without it the lanes sit on the detector's anchors (49.5 / 48.8)
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = c2.querySelector('[data-role="lower"]').getAttribute('d')
+    expect(l2).toMatch(/,505(\D|$)/)
+    expect(l2).not.toMatch(/,510(\D|$)/)
+  })
+
   it('control: without the stale stamp both flags draw', () => {
     const { container } = renderOverlay([flag('a', {}), flag('b', { draw_lanes: false })])
     expect(container.querySelectorAll('[data-detection]')).toHaveLength(2)

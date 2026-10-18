@@ -88,6 +88,12 @@ display-only:
   flat_base   the box (draw_anchors) and its pivot line span the CONTIGUOUS
               run of closes in the pivot band ending nearest the last bar
               (`band_run_extent`).
+  bull_flag (round 7, lab REPORT_BULLFLAG_R6.md) -- draw_pole starts at the FINAL leg's swing
+              low (`pole_draw_start`: after a deep mid-pole pullback, a sideways base or a
+              long-wick start bar; always on a real bar low); a stair-step grind is `stale`
+              (grind_pole); `draw_anchors` carries refitted lanes (`flag_draw_lanes`: a wide red
+              first bar left out, a flat-bottomed wedge drawn parallel, a floating lane end
+              pulled onto the bars) -- the detector's own anchors are untouched.
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `handle_verdict`
               (short / long / after_breakout; the rim stays).
@@ -296,6 +302,47 @@ ENTRY_SPIKE_ATR = 0.8
 #: breaking_down: the last close sits more than this many ATR(14) under the lower lane at the last
 #: bar (judged 1-2.5 at 0.32-1.13; the largest on a flag judged 3 was 0.25).
 FLAG_BREAKDOWN_ATR = 0.3
+# -- Round 7, bull_flag only (lab REPORT_BULLFLAG_R6.md, 2026-10-17). Every threshold is calibrated on
+# the 95 bull_flag cases judged in team rounds 1-5, the R5 confirm and R6 packet A, which the round-7
+# blind packets exclude. All display-only: the detector's pivot_ts / anchors / levels are untouched.
+#: drawn pole start: the last bar of the pole whose high has a later pullback of at least
+#: POLE_LEG_PULLBACK of the pole's height before the top starts a new leg; the drawn pole starts at
+#: that leg's swing low (multi-leg poles judged 2 at 0.36-0.78; one pole judged 3 at 0.44 is kept
+#: by the next rule) ...
+POLE_LEG_PULLBACK = 0.35
+#: ... only when that final leg is at least POLE_LEG_MIN_FRAC of the pole's height ...
+POLE_LEG_MIN_FRAC = 0.6
+#: ... a sideways base of at least POLE_BASE_BARS bars whose closes stay within POLE_BASE_BAND_ATR
+#: ATR(14) (the ATR up to the pole's low), with at least POLE_BASE_AFTER_FRAC of the pole's height
+#: still to come after it, moves the drawn start to the swing low after the base (no pole judged 3
+#: has one) ...
+POLE_BASE_BARS = 8
+POLE_BASE_BAND_ATR = 1.5
+POLE_BASE_AFTER_FRAC = 0.85
+#: ... and a start bar whose lower wick is more than POLE_WICK_ATR ATR(14) AND POLE_WICK_FRAC of the
+#: drawn pole's height, when the next bar's low is under its body, moves to the next bar (the pole
+#: line overdraws the wick and reads as starting in empty space; judged at 1.27 / 0.24).
+POLE_WICK_ATR = 1.2
+POLE_WICK_FRAC = 0.2
+#: grind_pole: the DRAWN pole's close-to-close efficiency (net close change / summed absolute close
+#: changes) under GRIND_MAX_EFF while at least GRIND_MIN_DOWN of its bars close down is a stair-step
+#: grind, not a pole (judged 1-1.5 at 0.45-0.53 with 0.41-0.50 down; poles judged 3 >= 0.52 had
+#: <= 0.32 down).
+GRIND_MAX_EFF = 0.54
+GRIND_MIN_DOWN = 0.40
+#: lanes: a first flag bar whose red body is at least FIRST_WIDE_BODY_ATR ATR(14) and whose range is
+#: at least FIRST_WIDE_RATIO x the median range of the other flag bars is left out of the lane fit
+#: (judged 2 at 0.94-1.47; no first bar of a flag judged 3 over 0.86) ...
+FIRST_WIDE_BODY_ATR = 0.9
+FIRST_WIDE_RATIO = 1.4
+#: ... lanes that converge (right width under WEDGE_CONV x the left) while the lower lane is flat
+#: (|slope| <= WEDGE_FLAT_ATR ATR per bar) are drawn as a parallel channel (judged 2-2.5; none 3) ...
+WEDGE_CONV = 0.8
+WEDGE_FLAT_ATR = 0.04
+#: ... and a lane END more than LANE_FLOAT_ATR ATR(14) beyond both its own bar and the next bar in
+#: (under their lows for the lower lane, over their highs for the upper) is pulled onto them (judged
+#: 1-2 at 0.41-1.38; the largest on a flag judged 3 was 0.37).
+LANE_FLOAT_ATR = 0.4
 
 
 def _index(bars) -> dict:
@@ -1046,6 +1093,159 @@ def flag_entry_line(bars: list, pos: dict, d: dict):
     return round(body * 1.001, 4)
 
 
+def pole_draw_start(bars: list, b0: int, top: int) -> int:
+    """Round 7 (REPORT_BULLFLAG_R6.md: the pole ran from an early low through a deep mid-pole
+    pullback, a red reversal bar or a sideways base; one started under a long wick in empty space):
+    the bar the DRAWN pole starts on, always on a real bar low between b0 and the top.
+
+      final leg  the last bar p whose high has a later pullback (before the top) of at least
+                 POLE_LEG_PULLBACK of the pole height: the start moves to the lowest low after p,
+                 when that leg is at least POLE_LEG_MIN_FRAC of the height;
+      base       the last run of >= POLE_BASE_BARS bars whose closes stay within POLE_BASE_BAND_ATR
+                 ATR: the start moves to the lowest low from its last bar on, when at least
+                 POLE_BASE_AFTER_FRAC of the height is still above it;
+      wick       a start bar whose lower wick is over POLE_WICK_ATR ATR and POLE_WICK_FRAC of the
+                 drawn height moves to the next bar when that bar's low is under its body.
+    Ties keep the LATER bar (the swing low nearest the thrust). Returns b0 when nothing applies."""
+    if not 0 <= b0 < top < len(bars):
+        return b0
+    hi = float(bars[top]["h"])
+    height = hi - float(bars[b0]["l"])
+    if height <= 0:
+        return b0
+    at = atr14(bars[:b0 + 1]) or atr14(bars[:top + 1])
+    s = b0
+
+    def low_after(j):
+        return min(range(j, top), key=lambda k: (float(bars[k]["l"]), -k))
+
+    for p in range(top - 2, b0 - 1, -1):
+        m = low_after(p + 1)
+        if float(bars[p]["h"]) - float(bars[m]["l"]) >= POLE_LEG_PULLBACK * height:
+            if hi - float(bars[m]["l"]) >= POLE_LEG_MIN_FRAC * height:
+                s = m
+            break
+    if at:
+        run_end = None
+        for i in range(s, top):
+            lo = hi_c = float(bars[i]["c"])
+            j = i
+            while j + 1 < top:
+                c = float(bars[j + 1]["c"])
+                if max(hi_c, c) - min(lo, c) > POLE_BASE_BAND_ATR * at:
+                    break
+                j += 1
+                lo, hi_c = min(lo, c), max(hi_c, c)
+            if j - i + 1 >= POLE_BASE_BARS:
+                run_end = j
+        if run_end is not None:
+            m = low_after(run_end)
+            if hi - float(bars[m]["l"]) >= POLE_BASE_AFTER_FRAC * (hi - float(bars[s]["l"])):
+                s = m
+        b = bars[s]
+        wick = min(float(b["o"]), float(b["c"])) - float(b["l"])
+        if s + 1 < top and wick > POLE_WICK_ATR * at and wick > POLE_WICK_FRAC * (hi - float(b["l"])) \
+                and float(bars[s + 1]["l"]) < min(float(b["o"]), float(b["c"])):
+            s += 1
+    return s
+
+
+def pole_impulse_verdict(bars: list, s: int, top: int):
+    """(draw, reason) for the DRAWN pole from bar `s` to the top. Round 7 (REPORT_BULLFLAG_R6.md: a
+    stair-step grind with several pullbacks read as a pole; slow_pole's ATR test passed it):
+      grind_pole  its close-to-close efficiency (net close change over the summed absolute close
+                  changes) is under GRIND_MAX_EFF while at least GRIND_MIN_DOWN of its bars close
+                  down -- a staircase, not an impulse.
+    (True, None) when the pole is unknown or a single bar."""
+    if not 0 <= s < top < len(bars):
+        return True, None
+    path = sum(abs(float(bars[j]["c"]) - float(bars[j - 1]["c"])) for j in range(s + 1, top + 1))
+    if path <= 0:
+        return True, None
+    eff = (float(bars[top]["c"]) - float(bars[s]["c"])) / path
+    down = sum(1 for j in range(s + 1, top + 1) if float(bars[j]["c"]) < float(bars[j - 1]["c"]))
+    if eff < GRIND_MAX_EFF and down >= GRIND_MIN_DOWN * (top - s):
+        return False, "grind_pole"
+    return True, None
+
+
+def _lsq(xs, ys):
+    """(slope, intercept) of the least-squares line -- the detector's own lane fit (price space)."""
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    den = sum((x - mx) ** 2 for x in xs)
+    m = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den if den else 0.0
+    return m, my - m * mx
+
+
+def flag_draw_lanes(bars: list, pos: dict, d: dict):
+    """Round 7 (REPORT_BULLFLAG_R6.md: loose flags -- a wide first red bar deepening the flag, a flat
+    lower lane drawn as a wedge, a lane end hanging off the bars): the four lane anchors to DRAW
+    ([upper start, upper end, lower start, lower end], `extras.draw_anchors`), or None to draw the
+    detector's own. The detector fits each lane by least squares on the flag's highs / lows; this
+    refits the same way, then:
+      wide first bar  a first bar with a red body >= FIRST_WIDE_BODY_ATR ATR and a range >=
+                      FIRST_WIDE_RATIO x the other bars' median range is left out of the fit (kept
+                      when leaving it out would make the lanes rise -- that is not a flag);
+      flat wedge      lanes converging under WEDGE_CONV with a lower lane flatter than WEDGE_FLAT_ATR
+                      ATR per bar become a parallel channel (one least-squares slope for both);
+      floating end    a lane end more than LANE_FLOAT_ATR ATR beyond both its bar and the next bar in
+                      is pulled onto the nearer of them.
+    Only price-space lanes are refitted; None when lanes would cross or nothing changed."""
+    g = d.get("geometry") or {}
+    spaces = list((g.get("extras") or {}).get("line_spaces") or []) + ["price", "price"]
+    lanes = _flag_lanes(bars, pos, d)
+    fb = _flag_bars(pos, d, len(bars))
+    if lanes is None or fb is None or spaces[0] != "price" or spaces[1] != "price":
+        return None
+    _b0, _b1, last = fb
+    _u, _l, left, right = lanes
+    at = atr14(bars[:last + 1])
+    if not at or right - left < 2:
+        return None
+    H = [float(b["h"]) for b in bars]
+    L = [float(b["l"]) for b in bars]
+    changed = False
+    xs = list(range(left, right + 1))
+    f = bars[left]
+    rest = sorted(H[j] - L[j] for j in xs[1:])
+    med = rest[len(rest) // 2] if len(rest) % 2 else (rest[len(rest) // 2 - 1] + rest[len(rest) // 2]) / 2.0
+    if len(xs) >= 4 and float(f["o"]) - float(f["c"]) >= FIRST_WIDE_BODY_ATR * at \
+            and med > 0 and H[left] - L[left] >= FIRST_WIDE_RATIO * med:
+        cut = xs[1:]
+        mu, _ = _lsq(cut, [H[j] for j in cut])
+        ml, _ = _lsq(cut, [L[j] for j in cut])
+        if mu + ml <= 0:
+            xs, changed = cut, True
+    mu, cu = _lsq(xs, [H[j] for j in xs])
+    ml, cl = _lsq(xs, [L[j] for j in xs])
+    x0, x1 = xs[0], xs[-1]
+    w0, w1 = (mu * x0 + cu) - (ml * x0 + cl), (mu * x1 + cu) - (ml * x1 + cl)
+    if w0 > 0 and w1 < WEDGE_CONV * w0 and abs(ml) <= WEDGE_FLAT_ATR * at:
+        # one least-squares slope for both lanes (highs and lows pooled about their own means)
+        mx = sum(xs) / len(xs)
+        den = 2 * sum((x - mx) ** 2 for x in xs)
+        m = sum((x - mx) * (H[x] + L[x]) for x in xs) / den if den else 0.0
+        mu = ml = m
+        cu = sum(H[x] - m * x for x in xs) / len(xs)
+        cl = sum(L[x] - m * x for x in xs) / len(xs)
+        changed = True
+    u = [mu * x0 + cu, mu * x1 + cu]
+    lo = [ml * x0 + cl, ml * x1 + cl]
+    for k, (x, nb) in enumerate(((x0, x0 + 1), (x1, x1 - 1))):
+        floor = min(L[x], L[nb])
+        if floor - lo[k] > LANE_FLOAT_ATR * at:
+            lo[k], changed = floor, True
+        ceil = max(H[x], H[nb])
+        if u[k] - ceil > LANE_FLOAT_ATR * at:
+            u[k], changed = ceil, True
+    if not changed or u[0] <= lo[0] or u[1] <= lo[1]:
+        return None
+    t0, t1 = bars[x0]["t"], bars[x1]["t"]
+    return [{"t": t0, "price": round(u[0], 6)}, {"t": t1, "price": round(u[1], 6)},
+            {"t": t0, "price": round(lo[0], 6)}, {"t": t1, "price": round(lo[1], 6)}]
+
+
 def ma_tag_verdict(bars: list, pos: dict, extras: dict):
     """(draw, reason) for an MA pullback's TAG (uct_pullback_ma_v5; display / tag filter only, the
     detector still fires). Round 4 (REPORT_TEAM_SET_R3.md: tags on flat or rolling-over MAs, tag
@@ -1315,9 +1515,12 @@ def draw_geometry(detections: list, bars: list) -> list:
                 pts = d.get("pivot_ts") or []
                 b0 = pos.get(pts[0]) if len(pts) > 1 else None
                 b1 = pos.get(pts[1]) if len(pts) > 1 else None
+                s = top = None
                 if b0 is not None and b1 is not None:
                     top = pole_top_index(bars, b0, b1) if b0 <= b1 else b1   # round 3: true swing high
-                    extras["draw_pole"] = [{"t": bars[b0]["t"], "price": float(bars[b0]["l"])},
+                    # round 7: the drawn pole starts at the final leg's swing low (pole_draw_start)
+                    s = pole_draw_start(bars, b0, top)
+                    extras["draw_pole"] = [{"t": bars[s]["t"], "price": float(bars[s]["l"])},
                                            {"t": bars[top]["t"], "price": float(bars[top]["h"])}]
                 ok, reason = lane_verdict(bars, geom)
                 extras["draw_lanes"] = ok
@@ -1330,10 +1533,16 @@ def draw_geometry(detections: list, bars: list) -> list:
                     pause, why = False, "diverging"
                 if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
                     pause, why = flag_edge_verdict(bars, pos, d)
+                if pause and s is not None:   # round 7: a stair-step grind is not a pole
+                    pause, why = pole_impulse_verdict(bars, s, top)
                 if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
                     ep = flag_entry_line(bars, pos, d)
                     if ep is not None:
                         extras["draw_entry_price"] = ep
+                if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
+                    lanes = flag_draw_lanes(bars, pos, d)
+                    if lanes is not None:
+                        extras["draw_anchors"] = lanes
                 if not pause:   # round 2: a second leg past the pole, not a pause
                     extras["stale"] = True
                     extras["stale_reason"] = why
