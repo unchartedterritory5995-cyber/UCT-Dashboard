@@ -709,6 +709,16 @@ BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]
 #: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
 CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID})
 
+
+def _switched_off(block_id: str) -> bool:
+    """P2 Tier 3 final fix M1: is this a Tier 3 block while JOURNAL_TIER3_ENABLED is off? Such a block is
+    DROPPED from a build (no node, no skip line), exactly as the slash menu and the style editor hide it,
+    so a style made while the switch was on creates nothing once it is off. Read per call."""
+    if block_id not in _tb.TIER3_BLOCK_IDS:
+        return False
+    from api.services.journal_two import checklist_suggestions   # the module that declares the switch
+    return not checklist_suggestions.enabled()
+
 #: A builder's `ctx["mode"]` (IR-S11, integrator ruling R-RC-1): "create" when it serves a NEW note
 #: (a market context captures), "update" when it offers a block to a note already written (it
 #: arrives uncaptured). An EMPTY note switched to a style is create-equivalent. Every caller of
@@ -791,6 +801,8 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                 skipped.append({"block": bid, "reason": reason})
 
         def build(b: dict) -> list[dict]:
+            if _switched_off(b["block"]):
+                return []                                   # M1: hidden, as the insert menu hides it
             builder = BLOCK_BUILDERS.get(b["block"])
             if builder is None:
                 note_skip(b["block"], "unknown-block")
@@ -1062,8 +1074,8 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
            "user_id": user_id}
     built, skipped = [], []
     for b in style["blocks"]:
-        if not b.get("enabled") or b["block"] in have:
-            continue
+        if not b.get("enabled") or b["block"] in have or _switched_off(b["block"]):
+            continue                                        # M1: a switched-off block is never offered
         if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
             # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,
             # and _present cannot see a task. Update layout neither offers nor lists it -- but an EMPTY

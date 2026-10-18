@@ -169,6 +169,12 @@ CHECKIN_ID = "moodCheckIn"
 CHECKIN_UNPICKED = {"mood": "", "focus": "", "day": ""}
 BUILDERS[CHECKIN_ID] = _empty(CHECKIN_ID, CHECKIN_UNPICKED)
 
+#: P2 Tier 3 final fix M1: the blocks the Tier 3 switch gates (journal_styles drops them from a build
+#: while it is off). ⛔ ONE FACT IN TWO FILES: the client's TIER3_BLOCK_IDS in
+#: app/src/pages/journal-2-0/lib/tier3Flag.js; tests/test_tier3_style_gate.py reads that file and fails
+#: when the two lists differ.
+TIER3_BLOCK_IDS = (CHECKIN_ID,)
+
 
 def unpick_checkins(body: Any) -> Any:
     """A copy of `body` with every check-in back to CHECKIN_UNPICKED: no picks and no `day`.
