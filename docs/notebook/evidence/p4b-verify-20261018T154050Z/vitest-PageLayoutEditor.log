@@ -1,0 +1,18 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/layout/PageLayoutEditor.test.jsx [2m([22m[2m36 tests[22m[2m)[22m[33m 7151[2mms[22m[39m
+     [33m[2m✓[22m[39m edits on one phase survive a trip to another tab and back [33m 332[2mms[22m[39m
+     [33m[2m✓[22m[39m posts journal_page_layout with ONLY the market list changed; every other list and unknown id is byte-equal [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m a save from the trade page replaces only the trade list [33m 311[2mms[22m[39m
+     [33m[2m✓[22m[39m edits on two phases save both lists and nothing else [33m 360[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed POST says so, stays open, saves nothing as done, and puts the server layout back in the cache [33m 342[2mms[22m[39m
+     [33m[2m✓[22m[39m a retry after a failure can succeed, and clears the failure line [33m 399[2mms[22m[39m
+     [33m[2m✓[22m[39m Reset restores THIS phase to the default and leaves the other phases as they are [33m 388[2mms[22m[39m
+     [33m[2m✓[22m[39m a close attempt during the save (Cancel, Escape, the title close button) does nothing [33m 382[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m36 passed[39m[22m[90m (36)[39m
+[2m   Start at [22m 10:42:14
+[2m   Duration [22m 8.21s[2m (transform 226ms, setup 250ms, import 175ms, tests 7.15s, environment 518ms)[22m
+
