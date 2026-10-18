@@ -124,21 +124,26 @@ def _row(conn, gid):
 
 # ── the OCR pipeline, stubbed in the shapes V4 records ──────────────────────────────────────
 
-def _state(with_text, awaiting=0, unavailable=False):
+def _state(with_text, awaiting=0, unavailable=False, read=True):
+    """`read`: an OCR job for the page COMPLETED (document_ocr's `complete`), which is what makes an empty page
+    "read and holds none" rather than "never read" (ruling P3b-T8-R1)."""
+    jobs = {"required": awaiting} if awaiting else ({"complete": 1} if read else {})
     return {"exists": True, "status": "ready" if with_text else "no_text", "pages_total": 1,
             "pages_with_text": with_text, "pages_from_ocr": with_text, "pages_awaiting_ocr": awaiting,
             "ocr_unavailable": unavailable, "pages_unreadable": max(0, 1 - with_text - awaiting),
-            "text_complete": with_text == 1, "ocr_jobs": {"required": awaiting} if awaiting else {}}
+            "text_complete": with_text == 1, "ocr_jobs": jobs}
 
 
 @pytest.fixture
 def ocr(monkeypatch):
-    """Four images: `read.png` has OCR text, `blank.png` was read and holds none, `slow.png` is still being
-    read, and `none.png` has no document row at all."""
+    """Five images: `read.png` has OCR text, `blank.png` was read and holds none, `slow.png` is still being
+    read, `never.png` has a `no_text` row that no OCR job ever read (no engine wired), and `none.png` has no
+    document row at all."""
     from api.services.journal_two import document_extraction as dx
     from api.services.journal_two import document_ocr as docr
-    docs = {"read.png": "d_read", "blank.png": "d_blank", "slow.png": "d_slow"}
-    states = {"d_read": _state(1), "d_blank": _state(0), "d_slow": _state(0, awaiting=1)}
+    docs = {"read.png": "d_read", "blank.png": "d_blank", "slow.png": "d_slow", "never.png": "d_never"}
+    states = {"d_read": _state(1), "d_blank": _state(0), "d_slow": _state(0, awaiting=1),
+              "d_never": _state(0, read=False)}
     texts = {"d_read": "Schwab statement 12345678 shows $25,000"}
     seen = []
 
@@ -191,6 +196,62 @@ def test_the_preview_returns_the_reduced_body_counts_and_the_images_with_their_o
     assert by_name["blank.png"]["warnings"] == by_name["slow.png"]["warnings"] == by_name["none.png"]["warnings"] == []
     # the OCR state is looked up by (note_id, attachment_url) through the existing document lookup (R8)
     assert ("author", nid, _src("author", nid, "slow.png")) in ocr
+
+
+def test_a_no_text_row_no_ocr_job_read_is_unavailable_never_no_text(api, conn, ex_on, ocr):
+    """Ruling P3b-T8-R1, fail-closed: `no_text` lets the client skip its second question, so it is answered only
+    for an image an OCR job actually read. A `no_text` row with no completed job was never read."""
+    nid = _note(conn, images=("blank.png", "never.png"))
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "imagesOn": []})
+    assert r.status_code == 200, r.text
+    by_name = {i["name"]: i for i in r.json()["images"]}
+    assert by_name["blank.png"]["ocr"] == "no_text"          # control: read, and holds none
+    assert by_name["never.png"]["ocr"] == "unavailable"
+    assert by_name["never.png"]["warnings"] == []
+
+
+def _png() -> bytes:
+    """A real 4x4 PNG, so the document pipeline's own `probe_image` takes it as an image."""
+    import struct
+    import zlib
+    raw = b"".join(b"\x00" + b"\x10\x20\x30" * 4 for _ in range(4))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+def test_with_no_ocr_engine_a_pasted_images_preview_row_is_unavailable(api, conn, ex_on, monkeypatch):
+    """Ruling P3b-T8-R1, end to end through the REAL document pipeline (no stub): with no OCR engine wired, a
+    pasted image's document row lands `no_text` with nothing ever reading it, and its preview row must say
+    `unavailable` -- never `no_text`. Then, once an OCR job has COMPLETED for the page and found nothing, the
+    same image is `no_text` (the control: the rule reads whether OCR ran, not merely the row's status)."""
+    from api.services.journal_two import document_extraction as dx
+    from api.services.journal_two import document_ocr as docr
+    from api.services.journal_two.attachment_root import attachment_root
+    monkeypatch.setattr(docr, "_ADAPTER", None)
+    assert docr.ocr_available() is False
+    nid = _note(conn, images=("chart.png",), write_files=False)
+    src = _src("author", nid, "chart.png")
+    folder = attachment_root() / "author" / "notes" / nid / "inline"
+    folder.mkdir(parents=True, exist_ok=True)
+    tmp = folder / ".chart.png.tmp"
+    tmp.write_bytes(_png())
+    os.replace(tmp, folder / "chart.png")
+    doc = dx.create_document("author", nid, src, "Image", conn=conn, source_kind=dx.SOURCE_KIND_IMAGE)
+    assert dx.process_document(doc["id"], conn=conn)["status"] == "no_text"     # the row says no_text...
+    docr.plan_document(doc["id"], conn=conn)                                    # ...and nothing is claimed
+    assert docr.document_text_state(conn, "author", doc["id"])["ocr_jobs"] == {}
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "imagesOn": []})
+    assert r.status_code == 200, r.text
+    assert [(i["name"], i["ocr"]) for i in r.json()["images"]] == [("chart.png", "unavailable")]
+    # control: an OCR job that completed over the page and found nothing makes it `no_text`
+    conn.execute("INSERT INTO j2_note_document_ocr_pages (document_id, user_id, page_number, status, updated_at)"
+                 " VALUES (?, ?, 1, ?, '2026-10-18T00:00:00+00:00')", (doc["id"], "author", docr.OCR_COMPLETE))
+    conn.commit()
+    r = api.post(f"{EX}/preview", json={"noteId": nid, "imagesOn": []})
+    assert [(i["name"], i["ocr"]) for i in r.json()["images"]] == [("chart.png", "no_text")]
 
 
 def test_the_preview_with_nothing_switched_on_drops_every_image_and_writes_nothing(api, conn, ex_on, ocr):

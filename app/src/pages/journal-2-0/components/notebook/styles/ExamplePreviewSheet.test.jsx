@@ -200,6 +200,24 @@ describe('the preview sheet', () => {
     expect(posted(PREVIEW_PATH)).toHaveLength(1)                                     // nothing was re-run
   })
 
+  it('P3b-T8-R1: an UNAVAILABLE image (never read: no OCR engine) says it could not be read, asks again, and Cancel leaves it off', async () => {
+    // The recorded preview's own image IS `unavailable` (no document row in the builder): no override.
+    expect(IMAGE.ocr).toBe('unavailable')
+    open()
+    const dialog = await sheet()
+    expect(await within(dialog).findByText(OCR_UNREAD_SENTENCE)).toBeInTheDocument()
+    expect(within(dialog).queryByText('We found no text in this image.')).toBeNull()
+    const sw = within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(sw)
+    const ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(within(dialog).queryByRole('group', { name: CONFIRM_SENTENCE })).toBeNull()
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    expect(posted(PREVIEW_PATH)).toHaveLength(1)                                     // nothing was re-run
+  })
+
   it('an image with OCR warnings names what it may show, asks again, and "Share it" re-runs the preview with it in place', async () => {
     previewAnswer = (body) => {
       const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)

@@ -1329,7 +1329,14 @@ def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
 
     `ready` (the page holds text) warns about amounts, digit runs of 6+ and broker names; `no_text` has none;
     `processing` (still being read) and `unavailable` (failed, or nothing will read it) carry none either,
-    and the client asks its second question for them. A warning never blocks: the author decides."""
+    and the client asks its second question for them. A warning never blocks: the author decides.
+
+    ⛔ FAIL-CLOSED (ruling P3b-T8-R1). `no_text` is a claim that the image WAS READ and holds nothing, and the
+    client lets it skip the second question. A document row's own `no_text` status does not say that: with no
+    OCR engine wired, extraction gives an image one empty native page, planning claims nothing, and the row
+    lands `no_text` without any read (document_extraction: "no engine means the row lands `no_text`"). So
+    `no_text` is answered only when an OCR job for the image actually COMPLETED; an image no engine read is
+    `unavailable`, never `no_text`. (The walk of record p3b-walk-20261018T121236Z found this, step 4.)"""
     from api.services.journal_two import document_extraction as dx
     from api.services.journal_two import document_ocr as docr
     try:
@@ -1347,6 +1354,9 @@ def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
             return "unavailable", []
         if state.get("pages_awaiting_ocr") or state.get("status") == dx.STATUS_PENDING:
             return "processing", []
+        jobs = state.get("ocr_jobs") if isinstance(state.get("ocr_jobs"), dict) else {}
+        if not jobs.get(docr.OCR_COMPLETE):
+            return "unavailable", []                 # never read: no OCR job finished for it
         return "no_text", []
     except Exception as e:  # noqa: BLE001 -- an unreadable state is "we couldn't read it", never a failed preview
         print(f"[template-gallery] example OCR state unread: {type(e).__name__}")
