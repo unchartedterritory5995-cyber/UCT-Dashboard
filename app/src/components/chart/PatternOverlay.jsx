@@ -313,7 +313,12 @@ export default function PatternOverlay({
                 ],
               }
             : sec))
-        const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
+        // Round 6 (bull_flag): `draw_entry_price` moves the DRAWN entry off a single wick /
+        // spike over the flag onto its body highs. Display only — levels.entry is untouched.
+        const drawnEntry = Number(ex.draw_entry_price)
+        const entry = d?.draw_entry
+          ? (ex.draw_entry_price != null && Number.isFinite(drawnEntry) ? drawnEntry : Number(d?.levels?.entry))
+          : NaN
         const anchors = d?.geometry?.anchors || []
         const tlBreak = trendlineBreakLine(d)
         return (

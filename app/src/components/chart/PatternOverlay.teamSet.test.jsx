@@ -125,6 +125,19 @@ describe('PatternOverlay — team set round 2: one flag per run', () => {
     expect(selectDrawable([kept, overlapped, leg], { tf: 'D', trustedOnly: true })).toEqual([kept])
   })
 
+  it('round 6: draw_entry_price moves the DRAWN entry line off the wick; levels.entry stays', () => {
+    const d = flag('a', { draw_entry_price: 50.9 })
+    const { container } = renderOverlay([d])
+    const labels = [...container.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(labels).toContain('Entry 50.90')
+    expect(labels).not.toContain('Entry 51.60')
+    expect(d.levels.entry).toBe(51.6)
+    // control: without it the line sits at the detector's levels.entry
+    const { container: c2 } = renderOverlay([flag('b', {})])
+    const l2 = [...c2.querySelectorAll('[data-shape="level-segment"]')].map((g) => g.textContent)
+    expect(l2).toContain('Entry 51.60')
+  })
+
   it('control: without the stale stamp both flags draw', () => {
     const { container } = renderOverlay([flag('a', {}), flag('b', { draw_lanes: false })])
     expect(container.querySelectorAll('[data-detection]')).toHaveLength(2)

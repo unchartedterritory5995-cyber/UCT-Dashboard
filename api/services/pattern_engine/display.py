@@ -275,6 +275,27 @@ TAG_BELOW_CLOSES = 3
 TAG_FLAT_RISE_ATR = 0.7
 #: ... and a tag bar whose LOW sits more than this many ATR(14) above the MA never tagged it.
 TAG_ABOVE_ATR = 0.18
+# -- Round 6, bull_flag only (lab REPORT_TEAM_SET_R5_CONFIRM.md, 2026-10-17). Every threshold is
+# calibrated on the bull_flag cases judged in team rounds 1-5 + the R5 confirm (80 cases), which the
+# round-6 blind packets exclude.
+#: crash_pole: the highest high of the CRASH_POLE_BARS bars up to the pole's low sits at least
+#: CRASH_POLE_FRAC of the pole's height above that low -- the pole only climbs back out of a crash
+#: (a V recovery from a gap-down / crash low), not a thrust out of a base (judged 1, 1, 2 at
+#: 1.01-1.20; the next case down was 0.87).
+CRASH_POLE_BARS = 5
+CRASH_POLE_FRAC = 0.9
+#: gap_detached: a true gap down (a bar's high under the bar before's low) of more than this many
+#: ATR(14) -- the ATR of the 14 bars before the gap -- between the pole's top and the lanes' first
+#: bar: the flag sits below a gap, not under the pole (judged 0, 1, 1, 2 at 0.58-1.33; the largest
+#: such gap on a flag judged 3 was 0.25).
+FLAG_GAP_ATR = 0.5
+#: entry: when the flag's highest high pokes more than this many ATR(14) above the upper lane at
+#: its bar -- a single wick / spike over the flag -- the entry line is set from the flag's BODY
+#: highs instead (every entry-on-a-wick complaint was 0.84-1.79; no flag judged 3 was over 0.71).
+ENTRY_SPIKE_ATR = 0.8
+#: breaking_down: the last close sits more than this many ATR(14) under the lower lane at the last
+#: bar (judged 1-2.5 at 0.32-1.13; the largest on a flag judged 3 was 0.25).
+FLAG_BREAKDOWN_ATR = 0.3
 
 
 def _index(bars) -> dict:
@@ -942,6 +963,89 @@ def flag_shape_verdict(bars: list, pos: dict, d: dict):
     return True, None
 
 
+def _flag_lanes(bars: list, pos: dict, d: dict):
+    """(upper(x), lower(x), left, right) for a bull_flag's drawn lanes, or None when unknown."""
+    g = d.get("geometry") or {}
+    a = g.get("anchors") or []
+    xs = [pos.get(p.get("t")) for p in a] if len(a) == 4 else []
+    if len(xs) != 4 or None in xs:
+        return None
+    spaces = list((g.get("extras") or {}).get("line_spaces") or []) + ["price", "price"]
+    up = ((xs[0], a[0]["price"]), (xs[1], a[1]["price"]))
+    dn = ((xs[2], a[2]["price"]), (xs[3], a[3]["price"]))
+    return (lambda x: _line_at(*up, x, spaces[0]), lambda x: _line_at(*dn, x, spaces[1]),
+            min(xs), max(xs))
+
+
+def _flag_bars(pos: dict, d: dict, n: int):
+    """(b0, b1, last): the pole's first bar, the detector's pole-top pivot, the flag's last bar."""
+    pts = d.get("pivot_ts") or []
+    b0 = pos.get(pts[0]) if len(pts) > 1 else None
+    b1 = pos.get(pts[1]) if len(pts) > 1 else None
+    if b0 is None or b1 is None or b0 > b1:
+        return None
+    last = pos.get(pts[-1]) if len(pts) > 2 else None
+    return b0, b1, (n - 1 if last is None else last)
+
+
+def flag_edge_verdict(bars: list, pos: dict, d: dict):
+    """(draw, reason) for a bull_flag. Round 6 (REPORT_TEAM_SET_R5_CONFIRM.md: a pole from a gap-down
+    crash low, flag lanes below a gap down from the pole top, flags already breaking down):
+      crash_pole    the highest high of the CRASH_POLE_BARS bars up to the pole's low is at least
+                    CRASH_POLE_FRAC of the pole's height above that low: a V back out of a crash;
+      gap_detached  a bar from the pole's top to the lanes' first bar opens a TRUE gap down (its high
+                    under the prior bar's low) of more than FLAG_GAP_ATR ATR(14) -- `detached_flag`
+                    counts bars, so a lane starting the bar after a gap down passed it;
+      breaking_down the last close is more than FLAG_BREAKDOWN_ATR ATR(14) under the lower lane.
+    (True, None) when the pole, flag or lanes are unknown."""
+    fb = _flag_bars(pos, d, len(bars))
+    if fb is None:
+        return True, None
+    b0, b1, last = fb
+    top = pole_top_index(bars, b0, b1)
+    height = float(bars[top]["h"]) - float(bars[b0]["l"])
+    if height > 0:
+        pre_hi = max(float(b["h"]) for b in bars[max(0, b0 - CRASH_POLE_BARS):b0 + 1])
+        if pre_hi - float(bars[b0]["l"]) >= CRASH_POLE_FRAC * height:
+            return False, "crash_pole"
+    lanes = _flag_lanes(bars, pos, d)
+    if lanes is None:
+        return True, None
+    upper, lower, left, _right = lanes
+    for j in range(top + 1, min(left, last) + 1):
+        at = atr14(bars[:j])
+        if at and float(bars[j - 1]["l"]) - float(bars[j]["h"]) > FLAG_GAP_ATR * at:
+            return False, "gap_detached"
+    at = atr14(bars[:last + 1])
+    if at and lower(last) - float(bars[last]["c"]) > FLAG_BREAKDOWN_ATR * at:
+        return False, "breaking_down"
+    return True, None
+
+
+def flag_entry_line(bars: list, pos: dict, d: dict):
+    """Round 6 (REPORT_TEAM_SET_R5_CONFIRM.md: the entry set on a reversal wick or spike high far
+    above the flag): the DRAWN entry price, or None to keep the detector's levels.entry.
+
+    The detector's entry is the flag's highest HIGH (x 1.001). When that high pokes more than
+    ENTRY_SPIKE_ATR ATR(14) above the upper lane at its bar, it is a single wick / spike over the
+    flag, and the line is drawn at the flag's highest BODY high (max of open, close) x 1.001
+    instead. Display-only: levels.entry -- the alert / trigger -- is untouched."""
+    fb = _flag_bars(pos, d, len(bars))
+    lanes = _flag_lanes(bars, pos, d)
+    if fb is None or lanes is None:
+        return None
+    _b0, b1, last = fb
+    flag = range(b1 + 1, last + 1)
+    if not flag:
+        return None
+    js = max(flag, key=lambda j: (float(bars[j]["h"]), -j))
+    at = atr14(bars[:last + 1])
+    if not at or float(bars[js]["h"]) - lanes[0](js) <= ENTRY_SPIKE_ATR * at:
+        return None
+    body = max(max(float(bars[j]["o"]), float(bars[j]["c"])) for j in flag)
+    return round(body * 1.001, 4)
+
+
 def ma_tag_verdict(bars: list, pos: dict, extras: dict):
     """(draw, reason) for an MA pullback's TAG (uct_pullback_ma_v5; display / tag filter only, the
     detector still fires). Round 4 (REPORT_TEAM_SET_R3.md: tags on flat or rolling-over MAs, tag
@@ -1224,6 +1328,12 @@ def draw_geometry(detections: list, bars: list) -> list:
                     pause, why = flag_shape_verdict(bars, pos, d)
                 if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
                     pause, why = False, "diverging"
+                if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
+                    pause, why = flag_edge_verdict(bars, pos, d)
+                if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
+                    ep = flag_entry_line(bars, pos, d)
+                    if ep is not None:
+                        extras["draw_entry_price"] = ep
                 if not pause:   # round 2: a second leg past the pole, not a pause
                     extras["stale"] = True
                     extras["stale_reason"] = why
