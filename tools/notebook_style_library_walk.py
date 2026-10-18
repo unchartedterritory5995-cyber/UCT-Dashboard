@@ -71,6 +71,8 @@ LIBRARY_FLAGS = ["NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_JOURNAL_STYLES_E
 AUTHOR = ("p3awalk-author@local.dev", "LocalTest2026!", "P3a Author")
 MEMBER = ("p3awalk-member@local.dev", "LocalTest2026!", "P3a Member")
 T = 30000
+# --zero-note-member turns this off: the run then walks a member on Research Home's first run.
+MEMBER_HAS_A_NOTE = True
 
 REC: dict = {"tool": "tools/notebook_style_library_walk.py", "steps": [], "setup": []}
 OUT: Path | None = None
@@ -190,6 +192,17 @@ def provision(browser, base: str) -> None:
                                      "role": me.get("role") or (me.get("user") or {}).get("role")})
                 if not me.get("paid_equiv"):
                     raise h.SetupFailed(f"{name} is not paid-equivalent (comp {comp.status}, verify {ver.status})")
+                if email == MEMBER[0] and MEMBER_HAS_A_NOTE:
+                    # Research Home renders the Notices box only once a member has notes (its first-run branch
+                    # has none: ResearchHome.jsx). Run p3a-walk-20261017T2159 walked a zero-note member and
+                    # every Notices read failed while /api/alerts held both notices; this gives the member
+                    # one note so steps 6 and 7 read the box a member with notes sees.
+                    r = c.request.post(base + "/api/j2/notes", data={"title": "P3a walk member's note",
+                                                                      "bodyJson": doc("A note of my own.")})
+                    REC["setup"].append({"what": "the member has one note (Research Home past first run)",
+                                         "status": r.status, "verdict": "INFO"})
+                    if r.status not in (200, 201):
+                        raise h.SetupFailed(f"the member's note was refused: HTTP {r.status}")
             finally:
                 c.close()
         me = admin.request.get(base + "/api/auth/me").json()
@@ -500,7 +513,11 @@ def main(argv=None) -> int:
     ap.add_argument("--tip", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--viewports", default="1280,820,390")
+    ap.add_argument("--zero-note-member", action="store_true",
+                    help="walk a member with no notes (Research Home's first run shows no Notices box)")
     args = ap.parse_args(argv)
+    global MEMBER_HAS_A_NOTE
+    MEMBER_HAS_A_NOTE = not args.zero_note_member
     why = h.refuse_shared_root(args.data_dir)
     if why:
         print(f"REFUSED: {why}")
@@ -519,7 +536,7 @@ def main(argv=None) -> int:
     fs = fw.flag_sets()
     on = set_env(fs)
     base = f"http://127.0.0.1:{args.port}"
-    REC.update({"tip": args.tip, "tool_tree": tree, "base": base, "data_dir": str(data_dir), "flags_on": on,
+    REC.update({"member_has_a_note": MEMBER_HAS_A_NOTE, "tip": args.tip, "tool_tree": tree, "base": base, "data_dir": str(data_dir), "flags_on": on,
                 "started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "INCOMPLETE (run did not finish)"})
     flush()
     sb = h.Sandbox(str(data_dir), args.port, OUT / "sandbox.log")
