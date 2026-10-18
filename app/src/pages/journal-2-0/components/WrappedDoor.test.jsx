@@ -33,7 +33,7 @@ function installFetch() {
     if (u.startsWith('/api/j2/accounts')) return json({ accounts: [{ id: 'acct-1', name: 'Main' }] })
     if (u.startsWith('/api/j2/wrapped/years')) return json({ years })
     if (u.startsWith('/api/j2/wrapped/')) return json({ year: 2025, tradeCount: 0, bestSetups: [], tickers: [],
-      tickersScope: 'all', discipline: [], lessons: [], available: false })
+      tickersScope: 'all', discipline: [], lessons: [], available: false, unavailableReason: 'no_trades' })
     return json({})
   })
 }

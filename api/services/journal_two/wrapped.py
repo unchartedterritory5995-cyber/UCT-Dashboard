@@ -31,7 +31,10 @@ The four sections and where each number comes from (R-T3-9):
 The year is the ET trading day throughout: a trade by the `filters.trades_where` day spine, a
 note and a version by `timeutil.compute_trading_day_et` of their stamp. `available` is False for
 the current ET year before December 1 and for any year with no closed trade; when False every
-array is empty, so the page shows its "not ready" sentence.
+array is empty and `unavailableReason` says which (ruling R-T3-T8-R3): `"not_ready"` for the
+current ET year before December 1 ET, whatever its trades (the plan's sentence is about the
+calendar, so it wins when both apply), else `"no_trades"`. The page picks its sentence from it and
+never from the device clock. The key is present only when `available` is False.
 
 ISOLATION: every query is keyed on the member's id; `account_id` only narrows the member's OWN
 trades and rules (never notes, see tickers), so another member's account id matches nothing.
@@ -220,20 +223,27 @@ def years_with_trades(conn: sqlite3.Connection, user_id: str, account_id: str | 
     return sorted((y for y in years if year_in_range(y)), reverse=True)
 
 
-def _empty(year: int, trade_count: int) -> dict:
+NOT_READY = "not_ready"
+NO_TRADES = "no_trades"
+
+
+def _empty(year: int, trade_count: int, reason: str) -> dict:
     return {"year": year, "tradeCount": trade_count, "bestSetups": [], "tickers": [],
-            "tickersScope": TICKERS_SCOPE, "discipline": [], "lessons": [], "available": False}
+            "tickersScope": TICKERS_SCOPE, "discipline": [], "lessons": [], "available": False,
+            "unavailableReason": reason}
 
 
 def year_wrapped(conn: sqlite3.Connection, user_id: str, year: int, account_id: str | None) -> dict:
     """{"year", "tradeCount", "bestSetups", "tickers", "tickersScope", "discipline", "lessons",
-    "available"}.
+    "available"}, plus "unavailableReason" when "available" is False.
     The caller has checked `year_in_range`."""
     account_id = account_id or None
     today = et_today()
     trades = _closed_trades(conn, user_id, year, account_id)
-    if not trades or (year == int(today[:4]) and today[5:] < OPENS_ON):
-        return _empty(year, len(trades))
+    if year == int(today[:4]) and today[5:] < OPENS_ON:
+        return _empty(year, len(trades), NOT_READY)     # the calendar wins, trades or not
+    if not trades:
+        return _empty(year, 0, NO_TRADES)
     return {
         "year": year,
         "tradeCount": len(trades),

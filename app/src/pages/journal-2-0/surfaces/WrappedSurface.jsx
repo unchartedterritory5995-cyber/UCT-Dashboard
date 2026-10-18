@@ -13,9 +13,9 @@
  * (the Report page door always writes one, `_all_` for All Accounts) wins; with none, the Journal's
  * own pick (`useJ2SelectedAccount`), as My Playbook reads it. The header names the scope.
  *
- * "Not ready" and "no closed trades" are told apart by the PAYLOAD (`available`, `tradeCount`),
- * never by this device's clock: the server returns the year's trade count even when the year is not
- * open yet, so a count above zero can only mean "not ready".
+ * "Not ready" and "no closed trades" are told apart by the PAYLOAD's `unavailableReason` (ruling
+ * R-T3-T8-R3: `not_ready` for the current ET year before December 1, trades or not; else
+ * `no_trades`), never by this device's clock.
  *
  * Dark behind `journal_tier3_enabled` (the My Playbook precedent): with the switch off nothing is
  * fetched and the route sends the member to the Journal (a bare Report page link loses its query).
@@ -212,7 +212,7 @@ export default function WrappedSurface() {
     )
   } else if (!data) {
     body = <p className={styles.sentence} data-testid="wrapped-loading">Reading your year…</p>
-  } else if (!data.available && data.tradeCount > 0) {
+  } else if (!data.available && data.unavailableReason === 'not_ready') {
     body = <p className={styles.sentence}>{`Your ${year} trading year opens on December 1.`}</p>
   } else if (!data.available) {
     body = <p className={styles.sentence}>{`No closed trades in ${year}.`}</p>

@@ -7,7 +7,7 @@
 //     chips open the Notebook's ticker filter and say so; the tickers section says its counts cover
 //     all your notes; a lesson prints the ET day the server bucketed it on.
 //  3. The not-ready, no-trades and nothing-here sentences, by text. Not-ready vs no-trades is the
-//     PAYLOAD's call (`available`, `tradeCount`), never the device clock (M2).
+//     PAYLOAD's `unavailableReason` (R-T3-T8-R3), never the device clock and never `tradeCount`.
 //  4. A month with no adherence record reads "—"; a year with none says Review Focus 6's sentence.
 //  6. Every heading, link and region has an accessible name, and every state carries a landing named
 //     by the page's title (M1).
@@ -207,10 +207,10 @@ describe('Your <year> in trading (P2 Tier 3, Task 8)', () => {
     for (const li of items) expect(within(li).getByText('—')).toBeTruthy()
   })
 
-  it('not ready comes from the payload: trades and not available, even with this clock in December', async () => {
+  it('not ready comes from the payload\'s reason, even with this clock in December', async () => {
     vi.setSystemTime(new Date('2026-12-15T16:00:00Z'))             // the device says December
     answer = () => json({ ...PAYLOAD, year: 2026, tradeCount: 40, bestSetups: [], tickers: [], discipline: [],
-      lessons: [], available: false })
+      lessons: [], available: false, unavailableReason: 'not_ready' })
     renderPage('2026')
     expect(await screen.findByText('Your 2026 trading year opens on December 1.')).toBeTruthy()
     expect(screen.queryByText(/No closed trades/)).toBeNull()
@@ -218,13 +218,30 @@ describe('Your <year> in trading (P2 Tier 3, Task 8)', () => {
     expect(landing().textContent).toBe('Your 2026 in trading')
   })
 
-  it('no trades comes from the payload too: the current year before December with none says so', async () => {
+  it('not ready with no trades: the calendar sentence wins (R-T3-T8-R3)', async () => {
     answer = () => json({ ...PAYLOAD, year: 2026, tradeCount: 0, bestSetups: [], tickers: [], discipline: [],
-      lessons: [], available: false })
+      lessons: [], available: false, unavailableReason: 'not_ready' })
+    renderPage('2026')
+    expect(await screen.findByText('Your 2026 trading year opens on December 1.')).toBeTruthy()
+    expect(screen.queryByText(/No closed trades/)).toBeNull()
+    expect(landing().textContent).toBe('Your 2026 in trading')
+  })
+
+  it('no trades comes from the payload\'s reason, even with trades on the clock\'s side of December', async () => {
+    vi.setSystemTime(new Date('2026-10-17T16:00:00Z'))             // the device says October
+    answer = () => json({ ...PAYLOAD, year: 2026, tradeCount: 0, bestSetups: [], tickers: [], discipline: [],
+      lessons: [], available: false, unavailableReason: 'no_trades' })
     renderPage('2026')
     expect(await screen.findByText('No closed trades in 2026.')).toBeTruthy()
     expect(screen.queryByText(/opens on December 1/)).toBeNull()
-    expect(landing().textContent).toBe('Your 2026 in trading')
+  })
+
+  it('a past year with no trades says so', async () => {
+    answer = () => json({ ...PAYLOAD, year: 2024, tradeCount: 0, bestSetups: [], tickers: [], discipline: [],
+      lessons: [], available: false, unavailableReason: 'no_trades' })
+    renderPage('2024')
+    expect(await screen.findByText('No closed trades in 2024.')).toBeTruthy()
+    expect(screen.queryByText(/opens on December 1/)).toBeNull()
   })
 
   it('a section with nothing says so, and the others still render', async () => {

@@ -372,7 +372,7 @@ def test_the_current_year_is_not_ready_before_december_and_is_in_december(conn, 
     monkeypatch.setattr(wrapped, "et_today", lambda: "2026-11-30")
     out = wrapped.year_wrapped(conn, "u1", 2026, None)
     assert out == {"year": 2026, "tradeCount": 1, "bestSetups": [], "tickers": [], "tickersScope": "all",
-                   "discipline": [], "lessons": [], "available": False}
+                   "discipline": [], "lessons": [], "available": False, "unavailableReason": "not_ready"}
     monkeypatch.setattr(wrapped, "et_today", lambda: "2026-12-01")
     out = wrapped.year_wrapped(conn, "u1", 2026, None)
     assert out["available"] is True and len(out["discipline"]) == 12
@@ -387,6 +387,46 @@ def test_a_year_with_no_closed_trade_is_not_available_and_its_arrays_are_empty(c
     out = wrapped.year_wrapped(conn, "u1", 2025, None)
     assert out["available"] is False and out["tradeCount"] == 0
     assert out["tickers"] == out["lessons"] == out["discipline"] == out["bestSetups"] == []
+    assert out["unavailableReason"] == "no_trades"
+
+
+# R-T3-T8-R3: the four corners of `unavailableReason`. The clock is the pinned ET day.
+def test_corner_current_year_before_december_with_no_trades_is_not_ready(conn, monkeypatch):
+    _account(conn)
+    monkeypatch.setattr(wrapped, "et_today", lambda: "2026-11-30")
+    out = wrapped.year_wrapped(conn, "u1", 2026, None)
+    assert (out["available"], out["tradeCount"], out["unavailableReason"]) == (False, 0, "not_ready")
+
+
+def test_corner_current_year_before_december_with_trades_is_not_ready(conn, monkeypatch):
+    aid = _account(conn)
+    _trade(conn, aid, "2026-03-03")
+    _trade(conn, aid, "2026-04-04")
+    monkeypatch.setattr(wrapped, "et_today", lambda: "2026-10-17")
+    out = wrapped.year_wrapped(conn, "u1", 2026, None)
+    assert (out["available"], out["tradeCount"], out["unavailableReason"]) == (False, 2, "not_ready")
+
+
+def test_corner_a_past_year_with_no_trades_is_no_trades(conn, monkeypatch):
+    aid = _account(conn)
+    _trade(conn, aid, "2026-03-03")                                    # trades elsewhere: control
+    monkeypatch.setattr(wrapped, "et_today", lambda: "2026-10-17")
+    out = wrapped.year_wrapped(conn, "u1", 2024, None)
+    assert (out["available"], out["tradeCount"], out["unavailableReason"]) == (False, 0, "no_trades")
+
+
+def test_corner_current_year_in_december_with_no_trades_is_no_trades(conn, monkeypatch):
+    _account(conn)
+    monkeypatch.setattr(wrapped, "et_today", lambda: "2026-12-01")
+    out = wrapped.year_wrapped(conn, "u1", 2026, None)
+    assert (out["available"], out["tradeCount"], out["unavailableReason"]) == (False, 0, "no_trades")
+
+
+def test_an_available_year_carries_no_unavailable_reason(conn):
+    aid = _account(conn)
+    _trade(conn, aid, "2025-03-03")
+    out = wrapped.year_wrapped(conn, "u1", 2025, None)
+    assert out["available"] is True and "unavailableReason" not in out
 
 
 # ── 6. account scope, 7. isolation ───────────────────────────────────────────
