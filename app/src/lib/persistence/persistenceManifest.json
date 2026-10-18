@@ -2453,9 +2453,20 @@
       "scope": "device-local",
       "surface": "Screener",
       "kind": "setting",
-      "label": "List, Charts or Table view",
+      "label": "List, Charts, Map or Table view",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.mapGroup",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Map grouping",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerHeatMap.jsx"
       ]
     },
     {

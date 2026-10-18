@@ -104,6 +104,7 @@ const SHEET_MARK = 'uctFocusChartSheet'
 const ScannerShell = lazy(() => import('../shell/ScannerShell'))
 // The Charts view (the /charts Multi-Chart grid), likewise loaded only when a member opens it.
 const ScreenerChartGrid = lazy(() => import('./ScreenerChartGrid'))
+const ScreenerHeatMap = lazy(() => import('./ScreenerHeatMap'))
 
 // The comparable part of a screen: its criteria, never its pool, sort or columns.
 function normalSpec(sp) {
@@ -137,7 +138,7 @@ function rememberNamed(item) {
 export default function FocusScreener() {
   const [mode, setMode] = useState(() => {
     const m = readLS(MODE_KEY, 'list')
-    return m === 'table' || m === 'grid' ? m : 'list'
+    return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
   })
   const onMode = useCallback(m => { setMode(m); writeLS(MODE_KEY, m) }, [])
   if (mode === 'table') {
@@ -157,8 +158,8 @@ export default function FocusScreener() {
   return <FocusList mode={mode} onMode={onMode} />
 }
 
-// `mode` is 'list' (the list and its chart pane) or 'grid' (the same results on the chart grid):
-// one screen, one set of rows, two ways to look at them.
+// `mode` is 'list' (the list and its chart pane), 'grid' (the same results on the chart grid) or
+// 'map' (the same results as a treemap): one screen, one set of rows, three ways to look at them.
 function FocusList({ mode, onMode }) {
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
@@ -403,6 +404,14 @@ function FocusList({ mode, onMode }) {
     selectRow0(i)
     if (isPhoneNow()) openPhoneSheet()
   }, [selectRow0, openPhoneSheet])
+  // A map tile opens that stock: selected exactly as a row click selects it, then the List.
+  const openFromMap = useCallback(t => {
+    const i = listRows.findIndex(r => r.ticker === t)
+    if (i < 0) return
+    s.flush()
+    onMode('list')
+    onRowSelect(i)
+  }, [listRows, s, onMode, onRowSelect])
   // A phone rotated past the phone width (or a window widened) with the sheet open: the sheet
   // closes and the side pane, now shown, carries the same stock.
   useEffect(() => {
@@ -799,6 +808,12 @@ function FocusList({ mode, onMode }) {
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
     body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
       pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+  } else if (mode === 'map') {
+    body = (
+      <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
+        <ScreenerHeatMap rows={listRows} themeData={themeData} livePrices={prices} onOpen={openFromMap} />
+      </Suspense>
+    )
   } else if (mode === 'grid') {
     body = (
       <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
