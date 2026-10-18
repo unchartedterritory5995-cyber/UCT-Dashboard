@@ -144,6 +144,7 @@ jobs:
             $E/runtime/__tests__/runtimePaneSafety.test.jsx $E/runtime/__tests__/runtimeAsync.test.js
             $E/__tests__/runtimeKillSwitch.test.js $E/__tests__/runtimeSwitchOn.test.js
             $E/__tests__/pineRuntimeFrontendGate.test.js
+            $E/ast/pine.stackOverflow.test.js
           )
           npx vitest run --reporter=default "${FILES[@]}" 2>&1 | tee ../vitest-security.log
           # ⛔ A run is complete only when EVERY named file ran and passed — a "passed" totals
