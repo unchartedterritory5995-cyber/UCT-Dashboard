@@ -319,3 +319,55 @@ def test_an_exception_in_adopt_layout_gives_the_day_back(api, conn, sharing_on, 
     client = TestClient(api.app, raise_server_exceptions=False)
     assert client.post(_url(gid), json={"version": 1}).status_code == 500
     assert _charged(conn) in (None, 0)
+
+
+# ── P4b-T6-R1: the preview is what adopt applies ───────────────────────────────────────────────────
+
+def _store_drifted_today(conn, gid: str, column: str = "payload_json") -> list[dict]:
+    """A stored today layout whose `market` list held only a panel that has since left the registry."""
+    kept = [{"id": "regime", "shown": True}, {"id": "todayNote", "shown": False}]
+    payload = {"page": "today", "lists": {"premarket": kept, "market": [{"id": "retiredPanel", "shown": True}],
+                                          "postclose": kept}}
+    if column == "payload_json":
+        conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(payload), gid))
+    else:
+        rev = {"title": "V2", "description": "", "category": "journal", "tradingStyle": "prop", "payload": payload}
+        conn.execute("UPDATE j2_template_gallery SET pending_json = ? WHERE id = ?", (json.dumps(rev), gid))
+    conn.commit()
+    return kept
+
+
+def test_the_preview_shows_exactly_the_lists_adopt_applies(conn, sharing_on):
+    """P4b-T6-R1: a list registry drift has emptied is left out of GET /{id} (member and the reviewer's
+    pendingRevision) exactly as adopt leaves it out. An empty list and an absent one mean different things to the
+    client (X2: a missing panel is appended hidden), so a preview carrying `market: []` would not match the adopt."""
+    gid = _listed_layout(conn)
+    kept = _store_drifted_today(conn, gid)
+    _store_drifted_today(conn, gid, column="pending_json")
+    want = {"premarket": kept, "postclose": kept}
+    adopted = gallery.adopt_layout("member", gid, version=1, conn=conn)["layout"]["lists"]
+    member = gallery.get_item("member", gid, conn=conn)["payload"]["lists"]
+    admin = gallery.get_item("admin", gid, is_admin=True, conn=conn)
+    assert adopted == want
+    assert member == adopted
+    assert admin["payload"]["lists"] == adopted
+    assert admin["pendingRevision"]["payload"]["lists"] == adopted
+    assert "market" not in member and "market" not in admin["pendingRevision"]["payload"]["lists"]
+
+
+def test_a_layout_drift_emptied_everywhere_reads_as_not_usable_never_as_an_empty_layout(conn, sharing_on):
+    """P4b-T6-R1: when every list is gone, adopt refuses (LAYOUT_UNSUPPORTED_SENTENCE) and the read serves the same
+    `payload: None` an unreadable layout gets, for the listed payload and for a held revision alike."""
+    gid = _listed_layout(conn)
+    gone = {"page": "today", "lists": {"premarket": [{"id": "retiredPanel", "shown": True}],
+                                       "market": [{"id": "retiredPanel", "shown": True}]}}
+    rev = {"title": "V2", "description": "", "category": "journal", "tradingStyle": "prop", "payload": gone}
+    conn.execute("UPDATE j2_template_gallery SET payload_json = ?, pending_json = ? WHERE id = ?",
+                 (json.dumps(gone), json.dumps(rev), gid))
+    conn.commit()
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.adopt_layout("member", gid, version=1, conn=conn)
+    assert str(e.value) == gallery.LAYOUT_UNSUPPORTED_SENTENCE
+    assert gallery.get_item("member", gid, conn=conn)["payload"] is None
+    admin = gallery.get_item("admin", gid, is_admin=True, conn=conn)
+    assert admin["payload"] is None and admin["pendingRevision"]["payload"] is None

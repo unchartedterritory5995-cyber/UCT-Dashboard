@@ -158,3 +158,18 @@ def safe_layout(p: Any) -> dict | None:
                 out.append({"id": e["id"], "shown": e["shown"]})
         lists[name] = out
     return {"page": page, "lists": lists}
+
+
+def usable_layout(p: Any) -> dict | None:
+    """What a STORED layout leaves as, on every read and on adopt (P4b-T6-R1): `safe_layout`, then any list that
+    registry drift has emptied (every panel it held has left the registry) is DROPPED, never served as an empty
+    list. Publishing never stores an empty list (`layout_payload` leaves one out), so an empty list here is only ever
+    drift. An empty list and an absent one mean different things to the client (X2: a missing panel is appended
+    hidden), so the preview and the adopt must both drop it, through this one step. None when `safe_layout` cannot
+    read the payload OR no list keeps a panel: nothing usable, the same answer either way (adopt refuses it with
+    `LAYOUT_UNSUPPORTED_SENTENCE`; a read serves `payload: None`)."""
+    layout = safe_layout(p)
+    if layout is None:
+        return None
+    lists = {name: entries for name, entries in layout["lists"].items() if entries}
+    return {"page": layout["page"], "lists": lists} if lists else None

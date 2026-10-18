@@ -799,21 +799,23 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     if not isinstance(rev, dict):
         return None
     text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
-    # P4b (P4b-R-X5): a held LAYOUT revision is read through `safe_layout`, never the style reader.
+    # P4b (P4b-R-X5): a held LAYOUT revision is read through `usable_layout` (`safe_layout`, then drift-emptied
+    # lists dropped: P4b-T6-R1), never the style reader, so a reviewer sees what adopting it would apply.
     layout = "item_type" in keys and row["item_type"] == LAYOUT_ITEM
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
             "tradingStyle": text("tradingStyle"),
-            "payload": pls.safe_layout(rev.get("payload")) if layout else _safe_listed(rev.get("payload"))}
+            "payload": pls.usable_layout(rev.get("payload")) if layout else _safe_listed(rev.get("payload"))}
 
 
 def _layout_item(out: dict[str, Any], row: sqlite3.Row, is_admin: bool) -> dict[str, Any]:
     """P4b (P4b-R-X5): what a `page_layout` row's single read serves. The LISTED payload (`payload_json`, never
-    `pending_json`), read through `safe_layout` so whatever is stored leaves as registry ids in `{id, shown}`
-    entries (None when it cannot be read: never a 500). NEVER `bodyJson` or `propertyDefs`: a layout has no
-    body and no properties, and its row's `body_json` is an empty document kept only for the outline-shaped
-    columns. A reviewer also gets the held revision, admins only, the same rule as a style's."""
-    out["payload"] = pls.safe_layout(_listed_payload(row))
+    `pending_json`), read through `usable_layout` so whatever is stored leaves as registry ids in `{id, shown}`
+    entries with drift-emptied lists dropped, exactly what `adopt_layout` applies (P4b-T6-R1). None when it cannot
+    be read or no list keeps a panel: not usable, never an empty layout, and never a 500. NEVER `bodyJson` or
+    `propertyDefs`: a layout has no body and no properties, and its row's `body_json` is an empty document kept
+    only for the outline-shaped columns. A reviewer also gets the held revision, admins only, the same rule as a style's."""
+    out["payload"] = pls.usable_layout(_listed_payload(row))
     if is_admin:
         rev = _pending_revision(row)
         if rev is not None:
@@ -1455,15 +1457,12 @@ def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
         listed = int(row["version"] or 1)
         if isinstance(version, bool) or not isinstance(version, int) or version != listed:
             raise GalleryConflict(LAYOUT_MOVED_SENTENCE)
-        # ⛔ `payload_json` through `_listed_payload` (never `pending_json`), then `safe_layout`: whatever is
-        # stored leaves as registry ids in `{id, shown}` entries, so an unknown panel never reaches an adopter.
-        layout = pls.safe_layout(_listed_payload(row))
-        if layout is not None:
-            # P4b-T5-R1: a list registry drift has emptied (every panel it held has left the registry) is dropped,
-            # never handed over as an empty list. Publishing never stores an empty list (`layout_payload` leaves
-            # one out), so an empty list here is only ever drift. Nothing left at all is the refusal below.
-            layout["lists"] = {name: entries for name, entries in layout["lists"].items() if entries}
-        if layout is None or not layout["lists"]:
+        # ⛔ `payload_json` through `_listed_payload` (never `pending_json`), then `usable_layout`: whatever is
+        # stored leaves as registry ids in `{id, shown}` entries, so an unknown panel never reaches an adopter,
+        # and a list registry drift has emptied is dropped (P4b-T5-R1) by the SAME step the item read uses
+        # (P4b-T6-R1), so the preview is exactly what adopt applies. Nothing usable is the refusal.
+        layout = pls.usable_layout(_listed_payload(row))
+        if layout is None:
             raise GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)
         _record_use(conn, row, user_id, _now())
         conn.commit()
