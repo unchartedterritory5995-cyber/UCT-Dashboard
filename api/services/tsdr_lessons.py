@@ -43,6 +43,9 @@ Owner design, 2026-10-15:
     every post carries its level and a "See also" line, a speaker's ✏️ on a
     post rewrites it, and lessons from before levels get one
     (run_level_backfill).
+  * A linked lesson whose video YouTube no longer has (oEmbed 404) is taken
+    down on the rewrite pass and never posted in the first place; a private
+    video or a network fault is not "gone".
   * Desk > Videos mirrors the sections: one shelf per section ("TSDR Lessons ·
     Setups & Entries", ...), the section and level as tags for the Filters
     chips, the recap + key moments as the description, the moments as
@@ -857,6 +860,20 @@ def youtube_video_title(video_id: str) -> str:
         return ""
 
 
+def youtube_video_gone(video_id: str) -> bool:
+    """True only when YouTube says the video no longer exists (oEmbed 404).
+    A private video (401), a block or a network fault all count as present:
+    a post comes down only on a definite answer."""
+    import httpx
+    try:
+        r = httpx.get("https://www.youtube.com/oembed",
+                      params={"url": f"https://www.youtube.com/watch?v={video_id}",
+                              "format": "json"}, timeout=15.0)
+        return r.status_code == 404
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def youtube_video_length(video_id: str) -> Optional[float]:
     """Seconds, read off the public watch page, or None. Best effort: the
     length only places key moments along a linked video."""
@@ -1237,6 +1254,9 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
     if vid:
         if not msg or vid not in youtube_ids_in(msg.get("content") or ""):
             _update(aid, status="skipped", last_error="message or video was deleted")
+            return "skipped"
+        if youtube_video_gone(vid):
+            _update(aid, status="skipped", last_error=GONE_FROM_YOUTUBE)
             return "skipped"
         # a transcript sent in from outside (store_link_transcript) wins:
         # YouTube refuses captions to this server more often than not
@@ -2168,13 +2188,18 @@ def run_related_refresh(*, deadline: float, limit: int = 5) -> dict:
     return out
 
 
+GONE_FROM_YOUTUBE = "video is no longer on YouTube"
+
+
 def run_rewrite_requests(*, deadline: float, limit: int = 25) -> dict:
     """A ✏️ reaction from a reviewer on a forum post asks for a rewrite: the
     post comes down and the lesson goes back in the queue (its transcript is
     kept, so no download). Posts are read a slice per tick, least recently
     read first, so every post is looked at within a couple of hours. A post
-    that is gone was deleted by hand: the lesson stays out."""
-    out = {"checked": 0, "rewriting": 0, "removed": 0, "errors": 0}
+    that is gone was deleted by hand: the lesson stays out. On the same pass
+    a linked lesson whose video YouTube no longer has comes down too: the
+    library never points at a dead video."""
+    out = {"checked": 0, "rewriting": 0, "removed": 0, "gone": 0, "errors": 0}
     reviewers = reviewer_ids()
     scope = "AND forum_post_id IS NOT NULL " if forum_enabled() else ""
     with contextlib.closing(_connect()) as c:
@@ -2201,6 +2226,19 @@ def run_rewrite_requests(*, deadline: float, limit: int = 25) -> dict:
             continue
         _update(aid, reaction_checked_at=int(time.time()))
         out["checked"] += 1
+        vid = link_video_id(row)
+        if vid and youtube_video_gone(vid):
+            try:
+                take_down_post(row)
+            except DiscordError as e:
+                log.warning("[tsdr-lessons] could not take down %s (video gone): %s", pid, e)
+                out["errors"] += 1
+                continue
+            _update(aid, status="skipped", last_error=GONE_FROM_YOUTUBE, discord_post_id=None,
+                    post_channel_id=None, forward_post_id=None, related=None)
+            _mark_index_dirty()
+            out["gone"] += 1
+            continue
         if not any(str(u.get("id")) in reviewers for u in users if isinstance(u, dict)):
             continue
         try:
