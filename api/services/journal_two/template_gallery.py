@@ -1256,6 +1256,61 @@ def _outline_hash(outline: Any) -> str | None:
     return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
+                      commit: bool) -> dict:
+    """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
+
+    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`) and by
+    the starter-pack install (`starter_packs.install`, behind its own two switches, `commit=False`), so every
+    rule an adopt obeys holds for both. With `commit=False` nothing here commits or rolls back: the caller
+    owns the transaction (the install wraps each row in a SAVEPOINT and commits once). Raises `GalleryError`
+    for a row that cannot be adopted: an unreadable payload, a kind that is not built in, or a style the
+    member's account refuses (the style cap among them)."""
+    from api.services.journal_two import journal_styles as js
+    raw_payload = _listed_payload(row)
+    if raw_payload is None:
+        raise GalleryError("That style could not be read, so it cannot be adopted.")
+    payload = _safe_listed(raw_payload)
+    from api.services.journal_two import note_kinds as nk
+    if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
+        # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
+        # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
+        raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
+    version = int(row["version"] or 1)
+    now = _now()
+    # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
+    # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
+    # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
+    # handle (R3/R5), and "Nothing was changed" would be false.
+    try:
+        style = js.create_style(user_id, {
+            "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
+            "kindId": payload["kindId"], "blocks": payload["blocks"],
+            "outlineBodyJson": payload["outlineBodyJson"],
+            "properties": payload["properties"]}, conn,
+            provenance=(row["id"], version, json.dumps(_block_ids(payload)),
+                        _outline_hash(payload["outlineBodyJson"])),
+            commit=False)
+    except js.StyleValidationError as e:
+        if commit and conn.in_transaction:
+            conn.rollback()
+        raise GalleryError(str(e)) from e
+    if row["user_id"] != user_id:
+        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
+    if notify:
+        conn.execute(
+            "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+            " style_id = excluded.style_id, notified_version = excluded.notified_version",
+            (row["id"], user_id, style["id"], version, now))
+    if commit:
+        conn.commit()
+    return {"style": js.get_style(user_id, style["id"], conn),
+            "notify": bool(notify),
+            "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+
+
 def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
                 conn: sqlite3.Connection | None = None) -> dict | None:
     """The member's own copy of a listed style (R-P3-10).
@@ -1264,7 +1319,8 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
     `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
     Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
-    as a second use. `notify` records a watch row so a later task can tell them about an update."""
+    as a second use. `notify` records a watch row so a later task can tell them about an update.
+    The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1)."""
     from api.services.journal_two import journal_styles as js
     if not library_enabled():
         return None
@@ -1276,47 +1332,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         row = _listed_style_row(conn, gallery_id)
         if row is None:
             return None
-        raw_payload = _listed_payload(row)
-        if raw_payload is None:
-            raise GalleryError("That style could not be read, so it cannot be adopted.")
-        payload = _safe_listed(raw_payload)
-        from api.services.journal_two import note_kinds as nk
-        if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
-            # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
-            # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
-            raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
-        version = int(row["version"] or 1)
-        now = _now()
-        # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
-        # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
-        # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
-        # handle (R3/R5), and "Nothing was changed" would be false.
-        try:
-            style = js.create_style(user_id, {
-                "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
-                "kindId": payload["kindId"], "blocks": payload["blocks"],
-                "outlineBodyJson": payload["outlineBodyJson"],
-                "properties": payload["properties"]}, conn,
-                provenance=(row["id"], version, json.dumps(_block_ids(payload)),
-                            _outline_hash(payload["outlineBodyJson"])),
-                commit=False)
-        except js.StyleValidationError as e:
-            if conn.in_transaction:
-                conn.rollback()
-            raise GalleryError(str(e)) from e
-        if row["user_id"] != user_id:
-            conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                         " VALUES (?, ?, ?)", (row["id"], user_id, now))
-        if notify:
-            conn.execute(
-                "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
-                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
-                " style_id = excluded.style_id, notified_version = excluded.notified_version",
-                (row["id"], user_id, style["id"], version, now))
-        conn.commit()
-        return {"style": js.get_style(user_id, style["id"], conn),
-                "notify": bool(notify),
-                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+        return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
     except Exception:
         if conn.in_transaction:
             conn.rollback()

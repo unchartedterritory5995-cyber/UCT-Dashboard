@@ -2498,6 +2498,27 @@ def checklist_from_winners_too_few_others(w: World) -> None:
     w.as_user(MEMBER)
 
 
+# ── Notebook P5 (NOTEBOOK_STARTER_PACKS_ENABLED). Appended after every other builder, with a member of its
+# own, so no earlier builder's seeded ids, rows or answers move. ─────────────────────────────────────────
+
+@builder
+def starter_packs(w: World) -> None:
+    """P5 Task 4: POST /api/j2/journal-styles/starter-packs/{pack} (starter_packs.install). The pack's three
+    firm styles become the member's own copies, in seed order; installing again copies nothing twice."""
+    base = "/api/j2/journal-styles/starter-packs"
+    who = w.member("starter", "Sky Starter")
+    w.as_user(who)
+    w.record("journal-styles.starter-pack.install", "POST", f"{base}/swing", case="success", expect=200,
+             note="The swing pack: three firm styles, each now the member's own copy (installed, in seed order).")
+    w.record("journal-styles.starter-pack.again", "POST", f"{base}/swing", case="success", expect=200,
+             note="The same pack again: nothing is copied twice, and all three are named in alreadyHad.")
+    w.record("journal-styles.starter-pack.unknown", "POST", f"{base}/long_term", case="error", expect=404,
+             note="A trading style that is not a starter pack: the one 404, and nothing is charged.")
+    w.as_user(who, FREE)
+    w.record("journal-styles.starter-pack.free-plan", "POST", f"{base}/swing", case="error", expect=402)
+    w.as_user(MEMBER)
+
+
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────
 
 #: Every value the normaliser rewrote in the last run (for `--explain`, and for the rail).

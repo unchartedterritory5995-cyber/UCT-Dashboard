@@ -7,6 +7,7 @@ import os
 import csv
 import io
 import json
+import re
 import sqlite3
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
@@ -2889,6 +2890,11 @@ _PREFERENCE_KEYS = {
     # Notebook P2a: Log Trade's pre-entry checklist opt-in ('off' / 'on' / 'on-warn'), written by
     # PortfolioSettingsModal. Added in the same commit as its writer.
     "notebook_log_trade_checklist": _PREF_OPAQUE,
+    # Notebook P5: the "How do you trade?" offer's seen state, {v:1, state:'installed'|'dismissed', pack?,
+    # at} (R-P5-5). Named schema (`_validate_starter_pack`), at most 512 bytes. Added here ahead of its
+    # client writer (P5 Task 5, `lib/starterPacks.js` writeStarterPackState), so its first save is not a
+    # 400; the client-writer rail drives it with its smallest valid value (`shaped`).
+    "notebook_starter_pack": "notebook_starter_pack",
     # Wave 8: the sample-notebook strip and the first-run tour each write one
     # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
     # the server answered 400 "Unknown preference key" and neither ever
@@ -3222,6 +3228,56 @@ def _validate_page_layout(raw) -> None:
         check_list(blob["trade"])
 
 
+# P5 (R-P5-5): the starter-pack offer's seen state. Exactly the two shapes the offer writes:
+#   {"v": 1, "state": "installed", "pack": <a starter_packs.PACKS key>, "at": <ISO time>}
+#   {"v": 1, "state": "dismissed", "at": <ISO time>}
+# at most 512 bytes (UTF-8). Anything else, including "", is the one 400.
+_STARTER_PACK_MAX_BYTES = 512
+_STARTER_PACK_AT_MAX = 40
+_STARTER_PACK_AT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$")
+_STARTER_PACK_REFUSAL = "That starter pack choice could not be saved. Try again."
+
+
+def _validate_starter_pack(raw) -> None:
+    """Raise HTTPException(400) unless `raw` is one of the two blobs the offer writes (see above)."""
+    from api.services.journal_two.starter_packs import PACKS
+
+    def refuse():
+        raise HTTPException(status_code=400, detail=_STARTER_PACK_REFUSAL)
+
+    def no_constant(name):
+        raise ValueError(name)  # NaN, Infinity, -Infinity: not JSON
+
+    if not isinstance(raw, str):
+        refuse()
+    try:
+        size = len(raw.encode("utf-8"))  # a lone surrogate cannot be encoded
+    except UnicodeEncodeError:
+        refuse()
+    if size > _STARTER_PACK_MAX_BYTES:
+        refuse()
+    try:
+        blob = json.loads(raw, parse_constant=no_constant)
+    except (ValueError, TypeError, RecursionError):
+        refuse()
+    if not isinstance(blob, dict):
+        refuse()
+    state = blob.get("state")
+    want = {"v", "state", "at", "pack"} if state == "installed" else {"v", "state", "at"}
+    if set(blob) != want:
+        refuse()
+    version = blob["v"]
+    if isinstance(version, bool) or version != 1:
+        refuse()
+    if state not in ("installed", "dismissed"):
+        refuse()
+    if state == "installed" and blob["pack"] not in PACKS:
+        refuse()
+    at = blob["at"]
+    if not isinstance(at, str) or len(at) > _STARTER_PACK_AT_MAX or not _STARTER_PACK_AT.match(at):
+        refuse()
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3236,6 +3292,8 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_indicator_templates(value)
     elif schema == "journal_page_layout":
         _validate_page_layout(value)
+    elif schema == "notebook_starter_pack":
+        _validate_starter_pack(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 

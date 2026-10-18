@@ -1,0 +1,27 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/starter-packs/swing",
+    "note": "The swing pack: three firm styles, each now the member's own copy (installed, in seed order).",
+    "path": "/api/j2/journal-styles/starter-packs/swing",
+    "status": 200
+  },
+  "body": {
+    "alreadyHad": [],
+    "installed": [
+      {
+        "styleId": "88361d68dbc1454a82ee73390fb52fdb",
+        "title": "Swing trade plan"
+      },
+      {
+        "styleId": "82409fcb795f46ee93ccfa66e386523b",
+        "title": "Weekend prep"
+      },
+      {
+        "styleId": "a2e205cbae944883907d244b102bd32b",
+        "title": "Swing trade review"
+      }
+    ],
+    "skipped": []
+  }
+}

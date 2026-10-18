@@ -385,6 +385,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/journal-styles/starter-packs/{pack}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "POST /api/j2/journal-styles/{style_id}/default": {
       "body": {
         "detail": "Not found"
