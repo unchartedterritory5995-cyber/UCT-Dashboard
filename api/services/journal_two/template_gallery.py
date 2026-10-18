@@ -593,7 +593,10 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 #                                      unreadable revision must not take the whole queue down.
 _LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
                  " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
+                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_style_id,")
+#: ⛔ P3b-T5-R7 (review I-1): `source_style_id` is READ by every list, and `_summary` still EMITS it only for the
+#: author and admins (`sourceStyleId`). Without it the author's Your submissions row could not say which of their
+#: styles it is, so the Share form's "Add an example note" door never found its item.
 _REVISION_TITLE = ("CASE WHEN json_valid(g.pending_json)"
                    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
 _COMPUTED = (

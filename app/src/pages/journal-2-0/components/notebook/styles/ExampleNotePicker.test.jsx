@@ -3,10 +3,11 @@
 // the hand-off to the preview sheet. Through the REAL clients (lib/styleLibrary.js) with only the network faked.
 // ⛔ Feedback is asserted by RENDERED TEXT, never by a state transition.
 //
-// CONTRACT: the gallery list (its `capabilities`), the member's own style row as Your submissions lists it (the
-// recorded style publish answer's `template`), the style item in full (its `payload.kindId`) and the example
-// preview are the server's recorded answers (`__fixtures__/contract`). A variation (the capability off, the row
-// linked to this member's style) is a spread + override of a fixture object.
+// CONTRACT: the author's Your submissions list AS THE SERVER LISTS IT (`template-gallery.examples.list.mine`: their
+// shared style with its `sourceStyleId`, their pending example, and `capabilities`), the style item in full (its
+// `payload.kindId`) and the example preview are the server's recorded answers (`__fixtures__/contract`). A
+// variation (the capability off, a hidden or rejected row) is a spread + override of a fixture object; the field
+// the Share form's door matches on is NEVER added by hand (P3b-T5-R7, review I-1).
 // ⚠️ The notes list has NO recorded fixture (Task 7 owns new fixtures): its rows below carry only the fields the
 // picker reads, in `notes._row_to_note_summary`'s names (id, title, createdAt, propertiesJson).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -24,14 +25,16 @@ import { EXAMPLE_SENT_SENTENCE, PREVIEW_TITLE } from './ExamplePreviewSheet'
 
 // ── the server's answers ──
 const LIST = contractBody('template-gallery.list')
-const MEMBER = contractBody('journal-styles.list').styles.find((s) => !s.builtin)
-const SHARED = contractBody('template-gallery.styles.publish').template     // a style row as its author lists it
-const STYLE_ITEM = contractBody('template-gallery.styles.item').template
+const MINE = contractBody('template-gallery.examples.list.mine')          // the author's own list, recorded
+const MINE_ROW = MINE.templates.find((t) => t.itemType === 'style')        // their shared style, as listed
+const EXAMPLE_ROW = MINE.templates.find((t) => t.itemType === 'example_note')
+// The member's own style row (the journal styles list's shape), the one MINE_ROW says it shares.
+const MEMBER = { ...contractBody('journal-styles.list').styles.find((s) => !s.builtin), id: MINE_ROW.sourceStyleId }
+// The style item in full, as a single read answers it, at the id the author's list names.
+const STYLE_ITEM = { ...contractBody('template-gallery.styles.item').template, id: MINE_ROW.id }
 const KIND = STYLE_ITEM.payload.kindId
 const PREVIEW = contractBody('template-gallery.examples.preview')
 const PUBLISHED = contractBody('template-gallery.examples.publish')
-// The member's own style, shared: the recorded row, linked to THIS form's style, at the item the item read answers.
-const MINE_ROW = { ...SHARED, id: STYLE_ITEM.id, sourceStyleId: MEMBER.id }
 const note = (id, title, kind, createdAt) => ({ id, title, createdAt, updatedAt: createdAt, propertiesJson: kind ? { [NOTE_KIND_PROPERTY]: kind } : {} })
 const NOTES = [
   note('n-new', 'Monday plan', KIND, '2026-10-12T13:00:00+00:00'),
@@ -72,7 +75,7 @@ function installFetch() {
 }
 const got = (path) => calls.filter((c) => c.method === 'GET' && c.path === path)
 
-const withCapability = (on, templates) => ({ ...LIST, templates, capabilities: { ...LIST.capabilities, exampleNotes: on } })
+const withCapability = (on, templates) => ({ ...MINE, templates, capabilities: { ...MINE.capabilities, exampleNotes: on } })
 
 beforeEach(() => {
   __resetNotebookFlags()
@@ -82,7 +85,7 @@ beforeEach(() => {
     notebook_style_library_enabled: true,
   })
   Element.prototype.scrollIntoView = vi.fn()
-  mineAnswer = withCapability(true, [MINE_ROW])
+  mineAnswer = MINE                                                       // the recorded answer, untouched
   installFetch()
 })
 afterEach(() => { __resetNotebookFlags() })
@@ -96,9 +99,13 @@ const shareForm = () => render(tree(<ShareStyleForm style={MEMBER} onShared={vi.
 const shareDialog = () => screen.findByRole('dialog', { name: `Share ${MEMBER.name} to community` })
 
 describe('the recorded answers hold what these rails read (non-vacuity)', () => {
-  it('the list carries capabilities, the shared row is a pending style, and the item names a kind', () => {
+  it('the author\'s list carries the capability, a pending style naming the style it shares, and an example', () => {
     expect(typeof LIST.capabilities.exampleNotes).toBe('boolean')
-    expect([SHARED.itemType, SHARED.status, SHARED.mine, SHARED.hidden]).toEqual(['style', 'pending', true, false])
+    expect(MINE.capabilities.exampleNotes).toBe(true)
+    expect([MINE_ROW.itemType, MINE_ROW.status, MINE_ROW.mine, MINE_ROW.hidden]).toEqual(['style', 'pending', true, false])
+    expect(typeof MINE_ROW.sourceStyleId).toBe('string')                   // the SERVER's field (P3b-T5-R7)
+    expect(MINE_ROW.sourceStyleId.length).toBeGreaterThan(0)
+    expect(EXAMPLE_ROW.status).toBe('pending')
     expect(typeof KIND).toBe('string')
     expect(NOTES.filter((n) => n.propertiesJson[NOTE_KIND_PROPERTY] === KIND)).toHaveLength(2)
   })
@@ -195,6 +202,39 @@ describe('2. the picker', () => {
     expect(within(share).getByRole('status')).toHaveTextContent(EXAMPLE_SENT_SENTENCE)
   })
 
+  // P3b-T5-R8 (review I-2): every way the preview closes gives focus back to the door, never to <body>.
+  const toPreview = async () => {
+    const picker = await openPicker()
+    fireEvent.click(await within(picker).findByRole('button', { name: /^Monday plan, / }))
+    const preview = await screen.findByRole('dialog', { name: PREVIEW_TITLE })
+    await waitFor(() => expect(within(preview).getByLabelText('Title in the library')).toHaveValue(PREVIEW.title))
+    return preview
+  }
+  const door = async () => within(await shareDialog()).findByRole('button', { name: ADD_EXAMPLE_LABEL })
+  it('Cancel in the preview gives focus back to the door', async () => {
+    const preview = await toPreview()
+    fireEvent.click(within(preview).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: PREVIEW_TITLE })).toBeNull())
+    const button = await door()
+    await waitFor(() => expect(document.activeElement).toBe(button))
+  })
+  it('Escape in the preview gives focus back to the door, and leaves the Share form open', async () => {
+    await toPreview()
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: PREVIEW_TITLE })).toBeNull())
+    expect(await shareDialog()).toBeInTheDocument()
+    const button = await door()
+    await waitFor(() => expect(document.activeElement).toBe(button))
+  })
+  it('a sent example gives focus back to the door, beside the sentence', async () => {
+    const preview = await toPreview()
+    fireEvent.click(within(preview).getByRole('button', { name: 'Submit for review' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: PREVIEW_TITLE })).toBeNull())
+    const button = await door()
+    await waitFor(() => expect(document.activeElement).toBe(button))
+    expect(within(await shareDialog()).getByRole('status')).toHaveTextContent(EXAMPLE_SENT_SENTENCE)
+  })
+
   it('a style whose kind cannot be read says so, and lists nothing', async () => {
     const orig = globalThis.fetch
     globalThis.fetch = vi.fn((input, init) => (String(input).startsWith(`/api/j2/template-gallery/${STYLE_ITEM.id}`)
@@ -230,7 +270,7 @@ describe('the door on the author\'s own listed style in Your submissions', () =>
     expect(within(row).queryByRole('button', { name: ADD_EXAMPLE_LABEL })).toBeNull()
   })
   it('an example of theirs is listed with its status and the reviewer\'s note (ruling P3b-R12), and has no door', async () => {
-    const example = { ...PUBLISHED.template, status: 'rejected', reviewNote: 'Shows an account number.' }
+    const example = { ...EXAMPLE_ROW, status: 'rejected', reviewNote: 'Shows an account number.' }
     mineAnswer = withCapability(true, [MINE_ROW, example])
     const list = await submissions()
     const row = (await within(list).findByText(example.title)).closest('li')
@@ -249,6 +289,17 @@ describe('the door on the author\'s own listed style in Your submissions', () =>
     fireEvent.click(within(preview).getByRole('button', { name: 'Submit for review' }))
     expect(await screen.findByText(EXAMPLE_SENT_SENTENCE)).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: PREVIEW_TITLE })).toBeNull()
+    // P3b-T5-R8: focus is back on THIS row's door, never on <body>
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: ADD_EXAMPLE_LABEL })))
+  })
+  it('an example row\'s Unpublish asks about the style, not the gallery (review M-8)', async () => {
+    mineAnswer = withCapability(true, [MINE_ROW, EXAMPLE_ROW])
+    const list = await submissions()
+    const row = (await within(list).findByText(EXAMPLE_ROW.title)).closest('li')
+    fireEvent.click(within(row).getByRole('button', { name: `Unpublish ${EXAMPLE_ROW.title}` }))
+    expect(within(row).getByText(`Withdraw the example “${EXAMPLE_ROW.title}”? It will no longer show on your style.`))
+      .toBeInTheDocument()
+    expect(within(row).queryByText(/out of the gallery/)).toBeNull()
   })
 })
 

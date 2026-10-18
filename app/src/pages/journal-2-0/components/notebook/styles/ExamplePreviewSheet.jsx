@@ -33,7 +33,8 @@ export const SHARE_IMAGE_LABEL = 'Share this image'
 export const EXAMPLE_SENT_SENTENCE = 'Sent for review. It will show on your style once approved.'
 export const OCR_UNREAD_SENTENCE = "We couldn't read this image yet. Check it yourself before switching it on."
 export const CONFIRM_SENTENCE = 'This image may show an account detail. Share it anyway?'
-export const NOT_AN_EXAMPLE_SENTENCE = "This note can't be an example. Pick another note."
+// M-8: the sheet offers no "pick another" control, so the sentence names none.
+export const NOT_AN_EXAMPLE_SENTENCE = "This note can't be shared as an example."
 const PREVIEW_FAILED = "Couldn't show what this example would look like. Nothing was sent."
 const SEND_FAILED = "Couldn't send that example. Nothing was sent."
 const SEE_SENTENCE = 'Here is exactly what other members will see.'
@@ -91,9 +92,15 @@ export function ocrLine(image) {
   return OCR_UNREAD_SENTENCE
 }
 
-/** True when switching this image on must ask again first: it carries warnings, or nobody could read it yet. */
-export const needsSecondConfirm = (image) => (Array.isArray(image?.warnings) && image.warnings.length > 0)
-  || image?.ocr === 'processing' || image?.ocr === 'unavailable' || !image?.ocr
+/** True when switching this image on must ask again first. ⛔ An ALLOW-LIST (review M-2): only an image read and
+ *  found clean (`ready` with no warnings) or read and found to hold no text (`no_text`) skips the question. Every
+ *  other state -- warnings, `processing`, `unavailable`, none, or a state the server adds later -- asks. */
+export function needsSecondConfirm(image) {
+  const warnings = Array.isArray(image?.warnings) ? image.warnings : []
+  if (image?.ocr === 'no_text' && !warnings.length) return false
+  if (image?.ocr === 'ready' && !warnings.length) return false
+  return true
+}
 
 /** The image's stored extension is one an example may show (the server refuses the rest at publish). */
 export function shareableType(image) {
@@ -149,7 +156,7 @@ export function replacedRanges(doc, changes) {
 
 /** Wrap each replaced range of the DOM `root` holds (DocBody's output) in a marked span. The body's text nodes
  *  are matched to the DOM's in document order by their text, so a node the renderer does not draw is skipped. */
-function markReplaced(root, doc, changes, describedBy, className) {
+function markReplaced(root, doc, changes, describedBy, className, hiddenClass, spoken) {
   if (!root || root.dataset.marked === '1') return
   root.dataset.marked = '1'
   const plan = replacedRanges(doc, changes)
@@ -177,6 +184,13 @@ function markReplaced(root, doc, changes, describedBy, className) {
       if (desc) span.setAttribute('aria-describedby', desc)
       middle.parentNode.replaceChild(span, middle)
       span.appendChild(middle)
+      // review M-4: a description on a plain span is seldom read in browse mode, so the kind is also SAID, as
+      // visually hidden text inside the span.
+      const note = document.createElement('span')
+      note.className = hiddenClass
+      note.setAttribute('data-replaced-note', '')
+      note.textContent = ` (replaced: ${spoken(kind)})`
+      span.appendChild(note)
     }
   }
 }
@@ -186,7 +200,7 @@ const StaticDocBody = memo(DocBody)
 function ReplacedBody({ body, changes, describedBy }) {
   const ref = useRef(null)
   useLayoutEffect(() => {
-    markReplaced(ref.current, body, changes, describedBy, styles.replaced)
+    markReplaced(ref.current, body, changes, describedBy, styles.replaced, styles.srOnly, (k) => wordsFor(k)[2])
   }, [body, changes, describedBy])
   return <div ref={ref} className={styles.body}><StaticDocBody body={body} /></div>
 }
@@ -213,6 +227,7 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
   const [loadError, setLoadError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [imagesOn, setImagesOn] = useState([])        // the ORIGINAL addresses of the images switched on
+  const [appliedOn, setAppliedOn] = useState(null)     // the imagesOn the preview ON SCREEN was made from
   const [asking, setAsking] = useState(null)          // the src a second question is open for
   const [title, setTitle] = useState(null)            // null until the first answer prefills it
   const [sending, setSending] = useState(false)
@@ -226,6 +241,7 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
       const out = await previewExample({ noteId: note?.id, imagesOn: on })
       if (mine !== seq.current) return
       setPreview(out)
+      setAppliedOn(on)
       setRevision((r) => r + 1)
       setLoadError(null)
       setTitle((t) => (t == null ? String(out?.title || note?.title || '').slice(0, MAX_TITLE) : t))
@@ -254,13 +270,18 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
     turn(image.src, true)
   }
 
+  // ⛔ P3b-T5-R9 (review I-3): what is sent is what is ON SCREEN. Submit waits while a re-run is in flight, stays
+  // off after one failed, and posts the `imagesOn` the applied preview was made from -- never a switch state the
+  // body and the counts sentence were not built from.
+  const current = Boolean(preview) && !loading && !loadError && Array.isArray(appliedOn)
+    && appliedOn.length === imagesOn.length && appliedOn.every((s) => imagesOn.includes(s))
   const submit = async () => {
     const t = String(title || '').trim()
-    if (sending || !preview || !t) return
+    if (sending || !current || !t) return
     setSending(true)
     setSendError(null)
     try {
-      await publishExample({ noteId: note?.id, styleItemId, imagesOn, title: t })
+      await publishExample({ noteId: note?.id, styleItemId, imagesOn: appliedOn, title: t })
       onSent?.(EXAMPLE_SENT_SENTENCE)
     } catch (err) {
       setSendError(exampleError(err, SEND_FAILED))
@@ -285,7 +306,7 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
           <div className={styles.actions}>
             <button type="button" className={styles.btn} onClick={onClose}>Cancel</button>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={submit}
-              disabled={sending || !preview || !String(title || '').trim()}>
+              disabled={sending || !current || !String(title || '').trim()}>
               {sending ? 'Sending…' : 'Submit for review'}
             </button>
           </div>
@@ -348,9 +369,10 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
                 </ul>
               </section>
             )}
-            {loading && <p className={styles.hint}>Updating the preview…</p>}
           </>
         )}
+        {/* review M-9: always mounted, so the re-run is announced when it starts */}
+        <p className={styles.hint} role="status">{preview && loading ? 'Updating the preview…' : ''}</p>
       </div>
     </Sheet>
   )

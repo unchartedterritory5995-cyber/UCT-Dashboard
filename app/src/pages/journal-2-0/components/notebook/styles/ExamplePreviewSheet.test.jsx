@@ -17,8 +17,8 @@ import {
   EXAMPLE_MAX_IMAGES,
 } from '../../../lib/styleLibrary'
 import ExamplePreviewSheet, {
-  CHANGE_KINDS, CONFIRM_SENTENCE, EXAMPLE_SENT_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE, SHARE_IMAGE_LABEL,
-  countsSentence,
+  CHANGE_KINDS, CONFIRM_SENTENCE, EXAMPLE_SENT_SENTENCE, NOT_AN_EXAMPLE_SENTENCE, OCR_UNREAD_SENTENCE, PREVIEW_TITLE,
+  SHARE_IMAGE_LABEL, countsSentence, needsSecondConfirm,
 } from './ExamplePreviewSheet'
 
 // ── the server's answers ──
@@ -31,6 +31,18 @@ const STYLE_ITEM_ID = contract('template-gallery.examples.publish')._contract.re
 // The preview while every image is off: the recorded one, without the image the recording had switched on.
 const withoutImages = (p) => ({ ...p, bodyJson: { ...p.bodyJson, content: p.bodyJson.content.filter((n) => n.type !== 'image') } })
 const readRepo = (rel) => readFileSync(resolve(process.cwd(), '..', rel), 'utf8')
+/** A promise the test resolves by hand: a preview answer that is still on its way. */
+function deferred() {
+  let resolve
+  const promise = new Promise((r) => { resolve = r })
+  return { promise, resolve }
+}
+/** The visible text of a node: its text without the visually hidden "(replaced: ...)" notes. */
+const visibleText = (el) => {
+  const copy = el.cloneNode(true)
+  copy.querySelectorAll('[data-replaced-note]').forEach((n) => n.remove())
+  return copy.textContent
+}
 
 let calls
 let previewAnswer
@@ -141,12 +153,16 @@ describe('the preview sheet', () => {
     })
     expect(spans.map((s) => s.getAttribute('data-replaced'))).toEqual(PREVIEW.changes.map((c) => c.kind))
     spans.forEach((s, i) => {
-      expect(s.textContent).toBe(PREVIEW.changes[i].after)
-      expect(s).toHaveAccessibleDescription(CHANGE_KINDS[PREVIEW.changes[i].kind][2])
+      const words = CHANGE_KINDS[PREVIEW.changes[i].kind][2]
+      expect(visibleText(s)).toBe(PREVIEW.changes[i].after)
+      expect(s).toHaveAccessibleDescription(words)
+      // review M-4: the kind is also SAID, as visually hidden text inside the span
+      expect(s.querySelector('[data-replaced-note]').textContent).toBe(` (replaced: ${words})`)
     })
     // the replaced text is the reduced body's own: the paragraph still reads whole, word for word
     const text = PREVIEW.bodyJson.content[0].content[0].text
-    expect(within(dialog).getByText((_, el) => el?.tagName === 'P' && el.textContent === text)).toBeInTheDocument()
+    const para = [...dialog.querySelectorAll('[data-template-preview-body] p')].find((el) => visibleText(el) === text)
+    expect(para).toBeTruthy()
     // ⛔ the author's own words (`before`) are never on screen
     for (const c of PREVIEW.changes) expect(dialog.textContent).not.toContain(c.before)
   })
@@ -280,8 +296,91 @@ describe('the preview sheet', () => {
     previewAnswer = [404, { detail: 'Not found' }]
     open()
     const dialog = await sheet()
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent("This note can't be an example. Pick another note.")
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(NOT_AN_EXAMPLE_SENTENCE)
+    expect(NOT_AN_EXAMPLE_SENTENCE).toBe("This note can't be shared as an example.")             // review M-8
     expect(within(dialog).getByRole('button', { name: 'Submit for review' })).toBeDisabled()
+  })
+
+  it('P3b-T5-R9: Submit waits while a re-run is in flight, and then sends the switches the preview was made from', async () => {
+    const later = deferred()
+    previewAnswer = (body) => {
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      const out = { ...p, images: p.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+      return (body?.imagesOn || []).length ? later.promise.then(() => out) : out
+    }
+    open()
+    const dialog = await sheet()
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL }))
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2))
+    expect(submit).toBeDisabled()                                                  // the body on screen is the OLD one
+    expect(within(dialog).getByText('Updating the preview…')).toHaveAttribute('role', 'status')       // review M-9
+    later.resolve()
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(submit)
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    expect(posted(PUBLISH_PATH)[0].body.imagesOn).toEqual([IMAGE.src])
+  })
+
+  it('P3b-T5-R9: after a failed re-run Submit stays off until a preview of the current switches is on screen', async () => {
+    previewAnswer = (body) => {
+      if ((body?.imagesOn || []).length) return [500, {}]
+      return { ...withoutImages(PREVIEW), images: PREVIEW.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+    }
+    open()
+    const dialog = await sheet()
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    const sw = within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })
+    fireEvent.click(sw)
+    expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+    fireEvent.click(submit)
+    expect(posted(PUBLISH_PATH)).toHaveLength(0)
+    fireEvent.click(sw)                                                            // back to what is on screen
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    fireEvent.click(submit)
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    expect(posted(PUBLISH_PATH)[0].body.imagesOn).toEqual([])
+  })
+
+  it('review M-1: an older answer that lands after a newer one never overwrites it', async () => {
+    const first = deferred()
+    const second = deferred()
+    let n = 0
+    previewAnswer = (body) => {
+      n += 1
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      const out = { ...p, images: p.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+      if (n === 1) return out                                                       // the opening answer
+      return (n === 2 ? first : second).promise.then(() => out)
+    }
+    open()
+    const dialog = await sheet()
+    const sw = await within(dialog).findByRole('switch', { name: SHARE_IMAGE_LABEL })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Submit for review' })).not.toBeDisabled())
+    fireEvent.click(sw)                                                            // on: answer 2, held
+    fireEvent.click(sw)                                                            // off again: answer 3, held
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(3))
+    second.resolve()                                                               // the NEWEST lands first
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Submit for review' })).not.toBeDisabled())
+    first.resolve()                                                                // then the stale one
+    await new Promise((r) => setTimeout(r, 20))
+    expect(dialog.querySelector('[data-template-preview-body] img')).toBeNull()   // still the newest: image off
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit for review' }))
+    await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
+    expect(posted(PUBLISH_PATH)[0].body.imagesOn).toEqual([])
+  })
+
+  it('review M-2: the second question is skipped ONLY for an image read clean or read and found to hold no text', () => {
+    expect(needsSecondConfirm({ ocr: 'ready', warnings: [] })).toBe(false)
+    expect(needsSecondConfirm({ ocr: 'no_text', warnings: [] })).toBe(false)
+    expect(needsSecondConfirm({ ocr: 'ready', warnings: [{ kind: 'money', match: '$1' }] })).toBe(true)
+    for (const ocr of ['processing', 'unavailable', undefined, '', 'some_state_added_later']) {
+      expect(needsSecondConfirm({ ocr, warnings: [] })).toBe(true)
+    }
   })
 
   it('8. every control has an accessible name', async () => {

@@ -527,6 +527,28 @@ def test_an_authors_examples_leave_your_submissions_while_the_switch_is_off(api,
     assert _row(conn, item["id"]) is not None                                           # stored, never deleted
 
 
+def test_your_submissions_names_the_style_a_row_shares_and_nobody_else_sees_it(api, conn, ex_on, ocr):
+    """P3b-T5-R7 (review I-1): the author's `mine` row for a shared style carries `sourceStyleId` -- the Share
+    form's door finds its item by it -- and no other member's list read (all, picks, an author's page, the feed)
+    carries the key at all. An admin's queue and reads already do, as before."""
+    s = _style(conn)
+    item = _publish(conn, s["id"], "author", title="Weekend Prep")
+    sid = item["id"]
+    gallery.admin_act("admin", sid, "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    gallery.admin_act("admin", sid, "feature", conn=conn)
+    mine = {t["id"]: t for t in gallery.list_gallery("author", section="mine", conn=conn)}
+    assert mine[sid]["sourceStyleId"] == s["id"]
+    for section in ("all", "picks"):
+        rows = [t for t in gallery.list_gallery("viewer", section=section, conn=conn) if t["id"] == sid]
+        assert rows and "sourceStyleId" not in rows[0], section
+    handle = gallery.author_handle("author", conn)
+    page = gallery.author_page("viewer", handle, conn=conn)
+    assert [i["id"] for i in page["items"]] == [sid] and "sourceStyleId" not in page["items"][0]
+    gallery.set_follow("viewer", handle, True, conn=conn)
+    fed = gallery.feed("viewer", conn=conn)
+    assert [i["id"] for i in fed] == [sid] and "sourceStyleId" not in fed[0]
+
+
 def test_the_eleventh_publish_in_an_hour_is_429_with_the_shared_sentence(api, conn, ex_on, ocr, monkeypatch):
     from api.routers import notebook_template_gallery as router_mod
     monkeypatch.setenv("NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", "1000")

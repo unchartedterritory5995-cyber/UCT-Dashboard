@@ -2275,6 +2275,12 @@ def example_notes(w: World) -> None:
              expect=400, json_body={"noteId": note["id"], "styleItemId": "nope", "title": "My weekend plan"})
     w.record("template-gallery.examples.publish.other-kind", "POST", f"{base}/examples", case="error",
              expect=400, json_body={"noteId": other["id"], "styleItemId": sid, "title": "A thesis"})
+    # P3b-T5-R7 (review I-1): the author's Your submissions AS THE SERVER LISTS IT -- the shared style (pending, with
+    # its `sourceStyleId`, which the Share form's door matches on) and the pending example (P3b-R12) -- so the door's
+    # client rails read the list's real shape, never a row with a field added by hand.
+    w.record("template-gallery.examples.list.mine", "GET", f"{base}?section=mine", case="success", expect=200,
+             note="The author's own list: their shared style, carrying the id of the style it shares, and their "
+                  "pending example note, with `capabilities.exampleNotes`.")
     gid = published["template"]["id"]
     w.as_user(MEMBER)
     w.record("template-gallery.examples.image.pending-hidden", "GET", f"{base}/{gid}/images/0", case="error",

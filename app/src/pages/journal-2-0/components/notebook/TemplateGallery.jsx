@@ -259,7 +259,11 @@ function MySubmissions({ onMessage }) {
           )}
           {confirm === item.id ? (
             <div className={styles.actions} role="group" aria-label={`Unpublish ${item.title}?`}>
-              <span className={styles.note}>Take “{item.title}” out of the gallery?</span>
+              <span className={styles.note}>
+                {item.itemType === EXAMPLE_NOTE_TYPE
+                  ? `Withdraw the example “${item.title}”? It will no longer show on your style.`
+                  : <>Take “{item.title}” out of the gallery?</>}
+              </span>
               <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                 onClick={() => unpublish(item)}>Unpublish</button>
               <button type="button" className={styles.btn} onClick={() => keep(item)} data-gallery-focus="keep">Keep it</button>

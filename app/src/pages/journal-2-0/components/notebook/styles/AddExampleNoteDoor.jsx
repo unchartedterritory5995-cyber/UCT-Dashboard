@@ -10,7 +10,7 @@
 //    never in the Notebook's first open -- a STATIC import from two lazy chunks made a shared chunk whose name rode
 //    in the eager chunk's preload list (+53 B, measured). P3b-R9: +0 B.
 // ⛔ There is no door in the note editor (eager), by design (R-P3b-9).
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import ExampleNotePicker from './ExampleNotePicker'
 import ExamplePreviewSheet from './ExamplePreviewSheet'
 import styles from './ExampleNote.module.css'
@@ -28,6 +28,14 @@ export const ADD_EXAMPLE_LABEL = 'Add an example note'
 export default function AddExampleNoteDoor({ styleItemId, describedBy, onSent }) {
   const [step, setStep] = useState(null)               // null | 'pick' | {note}
   const [said, setSaid] = useState('')
+  const doorRef = useRef(null)
+  // ⛔ P3b-T5-R8 (review I-2): the picker unmounts and the preview mounts in ONE commit, and the preview's Sheet
+  // records its opener while rendering -- the picker row being removed. Focus goes to the door FIRST, so the
+  // preview's opener is the door, and closing it (Cancel, Escape, a sent example) gives focus back to the door.
+  const pick = (note) => {
+    doorRef.current?.focus()
+    setStep({ note })
+  }
 
   const sent = (sentence) => {
     setStep(null)
@@ -37,13 +45,13 @@ export default function AddExampleNoteDoor({ styleItemId, describedBy, onSent })
 
   return (
     <div className={styles.door}>
-      <button type="button" className={styles.btn} aria-describedby={describedBy || undefined}
+      <button type="button" ref={doorRef} className={styles.btn} aria-describedby={describedBy || undefined}
         onClick={() => { setSaid(''); setStep('pick') }}>
         {ADD_EXAMPLE_LABEL}
       </button>
       {!onSent && <p className={styles.status} role="status">{said}</p>}
       {step === 'pick' && (
-        <ExampleNotePicker styleItemId={styleItemId} onClose={() => setStep(null)} onPick={(note) => setStep({ note })} />
+        <ExampleNotePicker styleItemId={styleItemId} onClose={() => setStep(null)} onPick={pick} />
       )}
       {step?.note && (
         <ExamplePreviewSheet note={step.note} styleItemId={styleItemId} onClose={() => setStep(null)} onSent={sent} />
