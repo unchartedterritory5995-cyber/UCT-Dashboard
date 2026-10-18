@@ -16,7 +16,9 @@
   min-height: var(--tap-min, 44px);
   padding: 0 12px;
   box-sizing: border-box;
-  border: 1px solid #dcbb5e;
+  /* R-T3-FIN-2 (WCAG 1.4.11, 3:1 on the #fff paper): the year picker's value, #767676 (4.54:1). The
+   * old #dcbb5e was about 1.86:1. Railed by WrappedDoor.contrast.test.js. */
+  border: 1px solid #767676;
   border-radius: var(--radius-lg);
   color: #7a5c16;
   font-weight: 600;
