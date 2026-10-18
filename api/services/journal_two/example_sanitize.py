@@ -11,23 +11,33 @@ original) is handed back to the author's preview and nowhere else: this module n
 logs or stores it, and neither may a caller (plan R-P3b-4, Global Constraints).
 
 What is replaced, in this order (rulings P3b-T2-R9..R12 on top of plan R-P3b-3):
-  1. a URL written in prose (`scheme://...` or `www....`) -> LINK_TEXT, WHOLE (kind `link`). This
-     pass runs FIRST, so no later pattern ever edits inside an address.
+  1. an address written in prose -> LINK_TEXT, WHOLE (kind `link`): `scheme://...` or `www....`
+     (R9), a bare host with a declared TLD (`URL_TLDS`), with or without a path, and any bare
+     `host.tld/path` (R18). This pass runs FIRST, so no later pattern ever edits inside an address.
+     ("Public.com" is therefore "link", not "your broker".)
   2. in ONE pass over the text that remains, every span below, matched against the ORIGINAL words
      (a replacement never feeds the next pattern; the earlier span, then the longer, wins):
      * money -> VALUE_TEXT (kind `money`): the plan's verbatim `$` pattern; a currency code or
-       symbol before or after (USD EUR GBP CAD, EUR/GBP/JPY signs, `C$`, `A$`); a trailing `$`;
-       "N dollars|bucks|grand"; "N k|m profit|loss|gain|down|up"; and a number with 4 or more
-       digits or a decimal within 3 words after balance|equity|buying power|net liq|account
-       value|cash. An amount runs on over a trailing `,digits` (`$1,24` is one amount).
+       sign before or after (`_CURRENCY`: USD EUR GBP CAD CHF JPY AUD NZD HKD SGD, the euro,
+       pound, yen, rupee, won, rouble and bitcoin signs, the full-width dollar and yen, `C$`, `A$`);
+       a 1-3 capital-letter prefix glued to `$` (US$, CA$, HK$...) or a `$` glued to a word, when a
+       digit follows (R19; a `$NVDA` cashtag stays); a trailing `$`; "N dollars|bucks|grand";
+       "N k|m profit|loss|gain|down|up"; a currency amount with space-grouped thousands, whole
+       ("$1 240", "1 240 €", R22); and a BARE number (R11, R20) within 3 words after a balance
+       word (3+ digits, a decimal or k/m), a P&L word (3+ digits, a comma group or k/m) or up/down
+       (only k/m, or a comma-grouped 1,000 or more, so "up to 5850" stays a level) -- never a
+       percent or an R figure. An amount runs on over a trailing `,digits` (`$1,24` is one amount).
      * a P&L figure -> VALUE_TEXT (kind `pnl_figure`): an `R`/`r` or `%` figure with a P&L word
        among the 3 words BEFORE it, or a loss|profit|gain|drawdown|return|win rate word among the
        2 words AFTER it. "NVDA 3.2R target" stays: no P&L word on either side.
      * an account id -> VALUE_TEXT (kind `account`): a digit run of 8 or more digits (a run joins
-       across separators only as 4-digit groups or across dashes, P3b-T2-R16, so a list of levels
-       "145 150 155" stays; an ISO date such as 2026-10-17 is not one); a run of 4 or
-       more digits within 3 words after acct|account|a/c|#|ending|ends in|last four|routing|card;
-       a broker-style id `[A-Z]{1,2}` + 6 or more digits anywhere.
+       across separators only card-shaped, exactly 4 groups of 4 digits, or across dashes with 3+
+       groups that are not a date or a two-number range -- R16, R21 -- so "SPX 5800 5850",
+       "145 150 155" and "range 5850-5900" stay; an ISO date is not one); a run of 4 or more
+       digits within 3 words after acct|account|a/c|#|ending in|ending with|ends in|last
+       four|routing|card, except a 1900-2099 year not directly after acct|account|card|routing
+       ("fiscal year ending 2025", "the card from 2024" stay); a broker-style id `[A-Z]{1,2}` + 6
+       or more digits anywhere.
      * a broker name -> BROKER_TEXT (kind `broker`): the house list whole-word in ANY case, and
        the author's own institution names whole-word in their STORED case and only at 4 or more
        characters (ruling P3b-T2-R3: an institution recorded as an ordinary word does not wipe the
@@ -61,22 +71,53 @@ LINK_TEXT = "link"
 #: How much of the original text a change entry carries.
 BEFORE_MAX = 60
 
+#: ⛔ THE change kinds, the ONE list (ruling P3b-T2-R22, review N-8). The payload docstring's table
+#: and every kind the two modules can emit (derived by AST) are railed against this tuple in
+#: tests/test_example_reduce.py; a new kind is added HERE first.
+KINDS: tuple[str, ...] = ("money", "pnl_figure", "account", "broker", "link", "email", "trade_link",
+                          "block_reset", "fact", "market_data", "image_off", "dropped")
+
 #: Task 2's money pattern, verbatim. It stays ONE alternative of the money rule.
 MONEY_PATTERN = (r"(?<![\w$])[+-]?\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?[kKmM]?\b"
                  r"|(?<![\w$])[+-]?\$\s?\d+(?:\.\d+)?[kKmM]?\b")
 #: A number as the extra money forms read it: grouped thousands or a plain run, then decimals.
 _NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
-_CURRENCY = r"(?:USD|EUR|GBP|CAD|€|£|¥|C\$|A\$)"
-#: Ruling P3b-T2-R11: the money forms beyond the plan's `$` pattern.
+#: Ruling P3b-T2-R22: thousands grouped by a space (or a no-break space), "1 240".
+_NUM_SPACED = r"\d{1,3}(?:[   ]\d{3})+(?:[.,]\d+)?"
+#: Rulings P3b-T2-R11 and R22: the currency codes and signs.
+_CURRENCY = (r"(?:USD|EUR|GBP|CAD|CHF|JPY|AUD|NZD|HKD|SGD"
+             r"|€|£|¥|₹|₩|₽|₿|＄|￥|C\$|A\$)")
+#: Ruling P3b-T2-R11 (and R22's currencies): the money forms beyond the plan's `$` pattern.
 MONEY_EXTRA_PATTERNS: tuple[str, ...] = (
     rf"(?<![\w$])[+-]?{_CURRENCY}\s?{_NUM}[kKmM]?(?!\w)",      # USD 1,240 / €1,240 / C$500
     rf"(?<![\w.,$]){_NUM}[kKmM]?\s?(?:{_CURRENCY}|\$)(?!\w)",                 # 1,240 USD / 1240$
     rf"(?<![\w.,$]){_NUM}[kKmM]?\s+(?:dollars|bucks|grand)(?!\w)",           # 1,240 dollars
     rf"(?<![\w.,$]){_NUM}[kKmM](?=\s+(?:profit|loss|gain|down|up)(?!\w))",   # 1.2k profit
+    # R22: a currency amount whose thousands are grouped by spaces is ONE amount, whole
+    rf"(?<![\w$])[+-]?(?:{_CURRENCY}|\$)\s?{_NUM_SPACED}(?!\w)",             # $1 240
+    rf"(?<![\w.,$]){_NUM_SPACED}\s?(?:{_CURRENCY}|\$)(?!\w)",                 # 1 240 €
 )
-#: The words a bare balance figure follows (within 3 words before it), and its number.
-BALANCE_WORDS: tuple[str, ...] = ("balance", "equity", "buying power", "net liq", "account value", "cash")
-_BALANCE_NUM = re.compile(rf"(?<![\w.,$]){_NUM}(?![\w])")
+#: Ruling P3b-T2-R19: a dollar sign with a 1-3 letter country prefix glued to it (US$, CA$, HK$, S$,
+#: R$, NZ$, A$, C$), and a `$` glued to the word before it -- each only when a DIGIT follows, so a
+#: `$NVDA` cashtag is never money. Case-sensitive: the prefix is capital letters.
+MONEY_DOLLAR_PREFIX_PATTERNS: tuple[str, ...] = (
+    rf"(?<![\w$])[+-]?[A-Z]{{1,3}}\$\s?(?=\d){_NUM}[kKmM]?(?!\w)",
+    rf"(?<=[A-Za-z])\$\s?(?=\d){_NUM}[kKmM]?(?!\w)",
+)
+#: Rulings P3b-T2-R11 and R20: a BARE number (no currency sign) is money when, within 3 words
+#: after one of these words, it has the named shape. Never a percent or an R figure (those are
+#: the P&L-figure rule's).
+#:   a balance word -> 3 or more digits, a decimal (R11), or a k/m suffix
+BALANCE_WORDS: tuple[str, ...] = ("bal", "balance", "equity", "net liq", "buying power", "account value", "cash")
+#:   a P&L word     -> 3 or more digits, a comma group, or a k/m suffix
+PNL_MONEY_WORDS: tuple[str, ...] = ("pnl", "p&l", "p/l", "made", "lost", "profit", "loss", "net", "realized",
+                                    "unrealized", "gain", "gained")
+#:   up / down      -> ONLY a k/m suffix or a comma-grouped amount of 1,000 or more, so "up to 5850"
+#:                     and "down to 132.40" stay levels
+UP_DOWN_WORDS: tuple[str, ...] = ("up", "down")
+BARE_MONEY_WINDOW = 3
+_BARE_NUM = re.compile(r"(?<![\w.,$])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?[kKmM]?(?!\w)(?![.,]\d)")
+_PERCENT_OR_R_AFTER = re.compile(r"\s?(?:%|[Rr](?!\w))")
 
 #: Task 2's P&L figure pattern, with the corrections ruled since: the trailing `\b` is `(?!\w)`
 #: (P3b-T2-R1), `r` counts as `R` (P3b-T2-R12), and the number may carry thousands groups (M-3,
@@ -91,14 +132,21 @@ PNL_WINDOW = 3
 PNL_WORDS_AFTER: tuple[str, ...] = ("loss", "profit", "gain", "drawdown", "return", "win rate")
 PNL_WINDOW_AFTER = 2
 
-#: Ruling P3b-T2-R10: the account-id rule.
+#: Ruling P3b-T2-R10 (narrowed by R16 and R21): the account-id rule. "ending" counts only as
+#: "ending in" / "ending with" / "ends in" (R21), so "fiscal year ending 2025" is not an account.
 ACCOUNT_DIGITS_MIN = 8
-ACCOUNT_WORDS: tuple[str, ...] = ("acct", "account", "a/c", "#", "ending", "ends in", "last four",
-                                  "routing", "card")
+ACCOUNT_WORDS: tuple[str, ...] = ("acct", "account", "a/c", "#", "ending in", "ending with", "ends in",
+                                  "last four", "routing", "card")
 ACCOUNT_WORD_DIGITS_MIN = 4
 ACCOUNT_WINDOW = 3
+#: R21: a year 1900-2099 is an account id only directly after one of these words (a "#", "no",
+#: "no." or "number" between them is allowed): "account grew in 2025" and "the card from 2024" stay.
+ACCOUNT_YEAR_WORDS: tuple[str, ...] = ("acct", "account", "card", "routing")
+_YEAR = re.compile(r"(?:19|20)\d{2}")
 _BROKER_STYLE_ID = re.compile(r"(?<![A-Za-z0-9])[A-Z]{1,2}\d{6,}(?!\d)")
 _ISO_DATE = re.compile(r"(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])")
+#: R21: a dashed run shaped like a date (YYYY-MM-DD, MM-DD-YYYY) never joins into one number.
+_DASHED_DATE = re.compile(r"\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2}-\d{4}")
 
 #: OCR only: a run of 6 or more digits once the spaces and dashes inside the run are removed.
 DIGITS_PATTERN = r"\d{6,}"
@@ -107,12 +155,27 @@ DIGITS_PATTERN = r"\d{6,}"
 #: house list is matched as written.
 MIN_AUTHOR_BROKER_CHARS = 4
 
-#: Ruling P3b-T2-R9: a URL in prose. Trailing sentence punctuation is handed back to the sentence.
-_URL = re.compile(r"(?<![\w@.-])(?:[A-Za-z][A-Za-z0-9+.-]*://|www\.)[^\s<>\"'`]+", re.IGNORECASE)
+#: Rulings P3b-T2-R9 and R18: an address in prose, replaced WHOLE. Three shapes:
+#:   * `scheme://...` or `www....` (R9);
+#:   * a bare host whose last label is a DECLARED top-level domain, with or without a path (R18);
+#:   * ANY bare `host.tld` followed by "/" and a path (R18).
+#: Not an address: a ticker class ("BRK.B"), an abbreviation ("U.S.", "e.g."), a version ("v1.2"),
+#: a figure ("3.2R") or a price ("132.40") -- no listed TLD, and no "/" after a letter TLD.
+#: Trailing sentence punctuation is handed back to the sentence.
+URL_TLDS: tuple[str, ...] = ("com", "net", "org", "io", "co", "us", "uk", "ca", "au", "app", "dev", "ai",
+                             "finance", "markets", "trade", "biz", "info")
+_HOST = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+"
+_URL_TAIL = r"[^\s<>\"'`]"
+_URL = re.compile(
+    r"(?<![\w@.-])(?:[A-Za-z][A-Za-z0-9+.-]*://|www\.)" + _URL_TAIL + r"+"
+    + r"|(?<![\w@./-])" + _HOST + r"(?:" + "|".join(URL_TLDS) + r")(?![\w-])(?:[/?#]" + _URL_TAIL + r"*)?"
+    + r"|(?<![\w@./-])" + _HOST + r"[A-Za-z]{2,}/" + _URL_TAIL + r"+",
+    re.IGNORECASE)
 _URL_TRAILING = ".,;:!?)]}'\""
 
 _MONEY = re.compile(MONEY_PATTERN)
-_MONEY_EXTRA = tuple(re.compile(p, re.IGNORECASE) for p in MONEY_EXTRA_PATTERNS)
+_MONEY_EXTRA = tuple(re.compile(p, re.IGNORECASE) for p in MONEY_EXTRA_PATTERNS) + tuple(
+    re.compile(p) for p in MONEY_DOLLAR_PREFIX_PATTERNS)
 _MONEY_RUN_ON = re.compile(r"(?:[,.]\d+)+")
 _PNL = re.compile(PNL_PATTERN)
 _DIGITS = re.compile(DIGITS_PATTERN)
@@ -209,14 +272,32 @@ def scrub_urls(text: str, changes: list | None) -> str:
     return _URL.sub(repl, text)
 
 
+def _bare_money_spans(text: str) -> list[tuple[int, int]]:
+    """Rulings P3b-T2-R11 and R20: bare numbers that are money because of the word before them."""
+    spans = []
+    for m in _BARE_NUM.finditer(text):
+        if _PERCENT_OR_R_AFTER.match(text, m.end()):
+            continue                                   # a percent or an R figure: not money (R20, R22)
+        tok = m.group(0)
+        digits = sum(c.isdigit() for c in tok)
+        suffix = tok[-1] in "kKmM"
+        grouped = "," in tok
+        at = m.start()
+        if _word_before(text, at, BALANCE_WORDS, BARE_MONEY_WINDOW) and (digits >= 3 or "." in tok or suffix):
+            spans.append((m.start(), m.end()))
+        elif _word_before(text, at, PNL_MONEY_WORDS, BARE_MONEY_WINDOW) and (digits >= 3 or grouped or suffix):
+            spans.append((m.start(), m.end()))
+        elif _word_before(text, at, UP_DOWN_WORDS, BARE_MONEY_WINDOW) and (
+                suffix or (grouped and float(tok.lstrip("+-").replace(",", "")) >= 1000)):
+            spans.append((m.start(), m.end()))
+    return spans
+
+
 def _money_spans(text: str) -> list[tuple[int, int]]:
     spans = [(m.start(), m.end()) for m in _MONEY.finditer(text)]
     for rx in _MONEY_EXTRA:
         spans += [(m.start(), m.end()) for m in rx.finditer(text)]
-    for m in _BALANCE_NUM.finditer(text):
-        digits = sum(c.isdigit() for c in m.group(0))
-        if (digits >= 4 or "." in m.group(0)) and _word_before(text, m.start(), BALANCE_WORDS, 3):
-            spans.append((m.start(), m.end()))
+    spans += _bare_money_spans(text)
     out = []
     for start, end in spans:                       # M-3: an amount runs on over a trailing ,digits
         run_on = _MONEY_RUN_ON.match(text, end)
@@ -225,15 +306,27 @@ def _money_spans(text: str) -> list[tuple[int, int]]:
 
 
 def _joins(run: str) -> bool:
-    """Ruling P3b-T2-R16: may the groups of `run` be read as ONE number? Only as card/account-style
-    4-digit groups ("1234 5678 9012 3456") or across dashes ("12-3456-789"). A space-separated list
-    of levels ("targets 145 150 155") is several numbers, and a level in a plan is the example's point."""
+    """Rulings P3b-T2-R16 and R21: may the groups of `run` be read as ONE number? Only
+      * card-shaped: EXACTLY 4 groups of 4 digits ("1234 5678 9012 3456"), or
+      * across dashes with 3 or more groups ("12-3456-789"), never date-shaped (2026-10-17,
+        10-17-2026) and never a two-number range ("5850-5900").
+    A space-separated list of levels ("SPX 5800 5850", "targets 145 150 155") is several numbers,
+    and a level in a plan is the example's point."""
     seps = _RUN_SEPARATOR.findall(run)
     if not seps:
         return True
-    if all(len(g) == 4 for g in _RUN_SEPARATOR.split(run)):
+    groups = _RUN_SEPARATOR.split(run)
+    if len(groups) == 4 and all(len(g) == 4 for g in groups):
         return True
-    return all(set(s) == {"-"} for s in seps)
+    return (all(set(s) == {"-"} for s in seps) and len(groups) >= 3
+            and not _DASHED_DATE.fullmatch(run))
+
+
+def _year_is_account(text: str, start: int) -> bool:
+    """R21: a 1900-2099 year counts only DIRECTLY after acct|account|card|routing (a "#", "no",
+    "no." or "number" may sit between)."""
+    words = [w for w in _words(text[:start]) if w not in ("#", "no", "no.", "number", "")]
+    return bool(words) and words[-1] in ACCOUNT_YEAR_WORDS
 
 
 _RUN_SEPARATOR = re.compile(r"[ -]+")
@@ -251,6 +344,8 @@ def _account_spans(text: str) -> list[tuple[int, int]]:
                 spans.append((start, end))
             elif len(digits) >= ACCOUNT_WORD_DIGITS_MIN and _word_before(text, start, ACCOUNT_WORDS,
                                                                            ACCOUNT_WINDOW):
+                if _YEAR.fullmatch(digits) and not _year_is_account(text, start):
+                    continue                           # R21: a year is not an account id
                 spans.append((start, end))
     spans += [(m.start(), m.end()) for m in _BROKER_STYLE_ID.finditer(text)]
     return spans
@@ -321,8 +416,9 @@ def ocr_warnings(text: str, brokers: tuple[str, ...]) -> list[dict]:
 
 
 __all__ = [
-    "BROKER_NAMES", "VALUE_TEXT", "BROKER_TEXT", "LINK_TEXT", "BEFORE_MAX", "MONEY_PATTERN",
-    "MONEY_EXTRA_PATTERNS", "BALANCE_WORDS", "PNL_PATTERN", "PNL_WORDS", "PNL_WINDOW", "PNL_WORDS_AFTER",
+    "BROKER_NAMES", "VALUE_TEXT", "BROKER_TEXT", "LINK_TEXT", "BEFORE_MAX", "KINDS", "MONEY_PATTERN",
+    "MONEY_EXTRA_PATTERNS", "MONEY_DOLLAR_PREFIX_PATTERNS", "BALANCE_WORDS", "PNL_MONEY_WORDS", "UP_DOWN_WORDS",
+    "URL_TLDS", "ACCOUNT_YEAR_WORDS", "PNL_PATTERN", "PNL_WORDS", "PNL_WINDOW", "PNL_WORDS_AFTER",
     "PNL_WINDOW_AFTER", "ACCOUNT_DIGITS_MIN", "ACCOUNT_WORDS", "ACCOUNT_WORD_DIGITS_MIN", "DIGITS_PATTERN",
     "MIN_AUTHOR_BROKER_CHARS", "broker_patterns", "scrub_urls", "scrub_text", "ocr_warnings",
 ]

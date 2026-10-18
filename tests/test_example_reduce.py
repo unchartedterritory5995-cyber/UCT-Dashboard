@@ -42,8 +42,9 @@ GOLDENS = ROOT / "tests" / "fixtures" / "example_reduce_old_mode_goldens.json"
 
 V, B = xs.VALUE_TEXT, xs.BROKER_TEXT
 NEUTRAL = pnp.NEUTRAL_LINE
-KINDS = {"money", "pnl_figure", "broker", "account", "link", "email", "block_reset", "fact", "market_data",
-         "trade_link", "image_off", "dropped"}
+#: P3b-T2-R22 (N-8): the ONE exported list of change kinds. Never a hand-typed copy here: the rails
+#: below check the docstring table AND every kind the code can emit (derived by AST) against it.
+KINDS = frozenset(xs.KINDS)
 GALLERY_IMG = "/api/j2/template-gallery/ITEM/images/"
 
 
@@ -177,7 +178,9 @@ def test_R3_author_names_match_case_sensitively_and_only_at_four_or_more_charact
 
 def test_4_a_broker_name_matches_whole_words_only():
     assert xs.scrub_text("Fidelityish and unSchwab", xs.BROKER_NAMES, None) == "Fidelityish and unSchwab"
-    assert xs.scrub_text("via E*TRADE, Public.com.", xs.BROKER_NAMES, None) == f"via {B}, {B}."
+    # "Public.com" is a house broker name AND a bare domain with a listed TLD (R18); the address pass
+    # runs first (R9), so it reads "link" -- replaced either way.
+    assert xs.scrub_text("via E*TRADE, Public.com.", xs.BROKER_NAMES, None) == f"via {B}, link."
 
 
 @pytest.mark.parametrize("line, want", [
@@ -225,7 +228,7 @@ ACCOUNT_CASES = [
     ("acct ...4821", f"acct ...{V}", ["account"]), ("account #12345678", f"account #{V}", ["account"]),
     ("Acct 12345678 at the desk", f"Acct {V} at the desk", ["account"]),
     ("acct ending 4821", f"acct ending {V}", ["account"]), ("IBKR U1234567", f"{B} {V}", ["broker", "account"]),
-    ("card 1234 5678 9012 3456", f"card {V}", ["account"]), ("routing 0210 0002", f"routing {V}", ["account"]),
+    ("card 1234 5678 9012 3456", f"card {V}", ["account"]), ("routing 021000021", f"routing {V}", ["account"]),
     ("ref 98765432", f"ref {V}", ["account"]), ("it ends in 4821", f"it ends in {V}", ["account"]),
     # P3b-T2-R16: a run joins across separators only as 4-digit groups or across dashes
     ("1234 5678 9012 3456 on file", f"{V} on file", ["account"]), ("ref 12-3456-789 here", f"ref {V} here", ["account"]),
@@ -288,6 +291,124 @@ def test_R9_the_url_pass_runs_first_so_no_other_pass_edits_inside_an_address():
     out = ex(text_doc("see https://x.com/u/me@example.com/12345678?p=$1,240 now"), report=changes)
     assert texts_in(out) == ["see link now"]
     assert kinds(changes) == ["link"]
+
+
+# ── fix round 2 (rulings P3b-T2-R18..R22): the re-reviewer's probe inputs, verbatim ────
+
+#: Probe group 2 verbatim, plus R18's two shapes: a listed TLD with or without a path, ANY host.tld + "/".
+BARE_DOMAIN_CASES = [
+    ("schwab.com/acct/123", "link"), ("schwab.com/acct/4821", "link"),
+    ("see client.schwab.com/accounts/482193 now", "see link now"), ("fidelity.com/12345678", "link"),
+    ("robinhood.com/account?id=4821", "link"), ("my page: tradingview.com/u/patrick482", "my page: link"),
+    ("mybank.com/acct/4821?email=me@example.com", "link"),
+    ("go to schwab.com.", "go to link."), ("ask on example.io today", "ask on link today"),
+    ("mybroker.xyz/acct/4821 here", "link here"),
+]
+
+
+@pytest.mark.parametrize("line, want", BARE_DOMAIN_CASES)
+def test_R18_a_bare_domain_is_replaced_whole(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["link"], changes
+
+
+def test_R18_a_bare_domain_in_a_code_mark_is_replaced_whole():
+    """Probe group 1 verbatim."""
+    out = ex(doc(p(t("schwab.com/acct/4821", {"type": "code"}))))
+    assert texts_in(out) == ["link"]
+
+
+@pytest.mark.parametrize("line", ["BRK.B", "U.S.", "e.g.", "3.2R", "v1.2", "NVDA 132.40",
+                                  "BRK.B and U.S. data, e.g. v1.2 at 3.2R"])
+def test_R18_CONTROL_tickers_abbreviations_versions_and_prices_are_not_domains(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+#: Probe groups 12 and 13 verbatim (R19's prefixes and glued `$`).
+COUNTRY_DOLLAR_CASES = [
+    ("made US$1,240", f"made {V}"), ("made CA$1,240", f"made {V}"), ("made HK$500", f"made {V}"),
+    ("made S$500", f"made {V}"), ("made R$500", f"made {V}"), ("made NZ$500", f"made {V}"),
+    ("made$1,240", f"made{V}"),
+]
+
+
+@pytest.mark.parametrize("line, want", COUNTRY_DOLLAR_CASES)
+def test_R19_a_country_prefix_or_a_glued_dollar_sign_is_money(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+@pytest.mark.parametrize("line", ["$NVDA ripped", "watching$NVDA", "US$ only"])
+def test_R19_CONTROL_a_cashtag_with_no_digit_stays(line):
+    assert texts_in(ex(text_doc(line))) == [line]
+
+
+#: Probe group 13 verbatim, plus R20's named controls.
+BARE_NUMBER_CASES = [
+    ("made 1,240 on NVDA", f"made {V} on NVDA"), ("P&L 1,240", f"P&L {V}"), ("P&L: -1,240", f"P&L: {V}"),
+    ("lost 2k", f"lost {V}"), ("up 5k today", f"up {V} today"), ("down 1.2k", f"down {V}"),
+    ("net liq 48k", f"net liq {V}"), ("bal 48,210", f"bal {V}"), ("up 1,240 today", f"up {V} today"),
+    ("realized 350 on it", f"realized {V} on it"), ("cash 500 idle", f"cash {V} idle"),
+]
+
+
+@pytest.mark.parametrize("line, want", BARE_NUMBER_CASES)
+def test_R20_a_bare_number_after_a_pnl_or_balance_word_is_money(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
+
+
+@pytest.mark.parametrize("line", ["up to 5850", "down to 132.40", "up 5850 then", "made 12 trades",
+                                  "equity 12.5% of book", "cash 4.5% yield", "made 0.5 BTC"])
+def test_R20_CONTROL_levels_small_counts_and_percents_stay(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+#: Probe group 14 verbatim (R21's narrowing of R16), and R21's named replacements.
+@pytest.mark.parametrize("line", ["SPX 5800 5850", "ES levels 5850 5875 5900", "range 5850-5900", "on 10-17-2026",
+                                  "on 10-17-2026 I", "fiscal year ending 2025", "the card from 2024",
+                                  "account grew in 2025", "NQ 21000 21250", "BTC 65000 66000", "on 2026-10-17",
+                                  "levels 5850 5875 5900 or 132.40"])
+def test_R21_CONTROL_levels_ranges_dates_and_years_are_not_account_ids(line):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [line]
+    assert changes == []
+
+
+@pytest.mark.parametrize("line, want", [
+    ("1234 5678 9012 3456", V), ("12-3456-789", V), ("acct 4821", f"acct {V}"),
+    ("card ending in 4821", f"card ending in {V}"), ("card ending with 4821", f"card ending with {V}"),
+    ("phone 555-123-4567", f"phone {V}"), ("acct 2025", f"acct {V}"), ("routing # 1999", f"routing # {V}"),
+])
+def test_R21_card_shaped_dashed_and_keyword_numbers_are_account_ids(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["account"], changes
+
+
+#: Probe group 12 verbatim (R22's currencies), and the space-grouped thousands (group 13).
+CURRENCY_CASES = [
+    ("made ₹1,240", f"made {V}"), ("made ₩50000", f"made {V}"), ("made ₽500", f"made {V}"),
+    ("made ₿0.5", f"made {V}"), ("made CHF 1,240", f"made {V}"), ("made JPY 50000", f"made {V}"),
+    ("made AUD 500", f"made {V}"), ("made NZD 500", f"made {V}"), ("made HKD 500", f"made {V}"),
+    ("made SGD 500", f"made {V}"), ("made ＄1,240", f"made {V}"), ("made ￥1,240", f"made {V}"),
+    ("made ¥1,240", f"made {V}"), ("made 1 240 €", f"made {V}"), ("$1 240", V),
+    ("made €1.240,50", f"made {V}"), ("made $ 1,240", f"made {V}"),
+]
+
+
+@pytest.mark.parametrize("line, want", CURRENCY_CASES)
+def test_R22_more_currencies_and_space_grouped_thousands_are_one_money_entry(line, want):
+    changes: list = []
+    assert texts_in(ex(text_doc(line), report=changes)) == [want]
+    assert kinds(changes) == ["money"], changes
 
 
 # ── 6, 7, P3b-R10: trader blocks reset through their builder's NO-READ output ─────────────
@@ -729,9 +850,62 @@ def test_M2_a_reset_block_carries_only_the_embed_allowlist():
 
 # ── R6: every kind is documented ────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("kind", sorted(KINDS))
+@pytest.mark.parametrize("kind", xs.KINDS)
 def test_R6_every_change_kind_is_documented_in_the_module(kind):
     assert f"`{kind}`" in (pnp.__doc__ or ""), kind
+
+
+def _docstring_table_kinds() -> list[str]:
+    """The kinds the payload docstring's table lists: each row starts with a backticked kind."""
+    doc_ = pnp.__doc__ or ""
+    table = doc_[doc_.index("The change entries"):]
+    return re.findall(r"^\s{4,}`([a-z_]+)`\s{2,}", table, re.M)
+
+
+def test_R22_the_docstring_table_is_exactly_the_exported_kinds():
+    rows = _docstring_table_kinds()
+    assert rows and len(rows) == len(set(rows)), rows
+    assert set(rows) == set(xs.KINDS), (sorted(set(rows) ^ set(xs.KINDS)))
+    assert len(xs.KINDS) == len(set(xs.KINDS)) and isinstance(xs.KINDS, tuple)
+
+
+def emitted_kinds() -> set[str]:
+    """Every change kind the two modules CAN emit, read by AST (review N-8): the first argument of
+    every `note(...)` / `ctx.note(...)` / `self.note(...)` call (both arms of a conditional), every
+    constant `"kind": ...` dict value, every `kind = <constant or conditional>` assignment, and the
+    keys of example_sanitize's `_AFTER` table."""
+    found: set[str] = set()
+
+    def consts(node) -> set[str]:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return {node.value}
+        if isinstance(node, ast.IfExp):
+            return consts(node.body) | consts(node.orelse)
+        return set()
+
+    for path in (SANITIZE_PY, PAYLOAD_PY):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Call) and n.args:
+                f = n.func
+                name = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else "")
+                if name == "note":
+                    found |= consts(n.args[0])
+            elif isinstance(n, ast.Dict):
+                for k, v in zip(n.keys, n.values):
+                    if isinstance(k, ast.Constant) and k.value == "kind":
+                        found |= consts(v)
+            elif isinstance(n, ast.Assign) and any(isinstance(tg, ast.Name) and tg.id == "kind" for tg in n.targets):
+                found |= consts(n.value)
+            elif isinstance(n, ast.Assign) and any(isinstance(tg, ast.Name) and tg.id == "_AFTER" for tg in n.targets):
+                found |= {k.value for k in n.value.keys if isinstance(k, ast.Constant)}
+    return found
+
+
+def test_R22_every_kind_the_code_can_emit_is_exactly_the_exported_kinds():
+    found = emitted_kinds()
+    assert "image_off" in found and "account" in found, f"non-vacuity: {sorted(found)}"
+    assert found == set(xs.KINDS), sorted(found ^ set(xs.KINDS))
 
 
 # ── 18: OCR warnings ────────────────────────────────────────────────────────────────────
@@ -753,7 +927,7 @@ def test_18_a_digit_run_counts_through_spaces_and_dashes_and_a_short_one_does_no
 DECLARED_OVERRIDES = {"image", "imageFigure", "imageCaption", "linkPreview", "webEmbed", "link"}
 
 
-def test_R3_the_override_set_is_exactly_the_declared_three():
+def test_R3_the_override_set_is_exactly_the_declared_set():
     assert set(pnp.EXAMPLE_OVERRIDES) == DECLARED_OVERRIDES
 
 
@@ -811,7 +985,7 @@ def _module_imports(path: Path) -> set[str]:
     return names
 
 
-def test_19_example_sanitize_imports_nothing_but_re_and_unicodedata():
+def test_19_example_sanitize_imports_nothing_but_re():
     tree = ast.parse(SANITIZE_PY.read_text(encoding="utf-8"))
     every = set()
     for node in ast.walk(tree):
@@ -819,7 +993,7 @@ def test_19_example_sanitize_imports_nothing_but_re_and_unicodedata():
             every |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom):
             every.add((node.module or "").split(".")[0])
-    assert every <= {"re", "unicodedata", "__future__"}, every
+    assert every <= {"re", "__future__"}, every
 
 
 def test_19_the_reducer_imports_no_web_framework_at_module_level():

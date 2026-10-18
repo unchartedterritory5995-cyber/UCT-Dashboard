@@ -59,7 +59,9 @@ What each mode does (the rows below are the authority; this is the summary):
     names. `report=` collects one change entry per replacement, `{kind, before, after, path}`.
 
     The change entries (`path`: the child indices, from the doc root, of the node in the REDUCED
-    body where `after` sits; for a node that is dropped, the index where it would have stood):
+    body where `after` sits; for a node that is dropped, the index where it would have stood). The
+    kinds are `example_sanitize.KINDS`, the one list; this table and every kind the code can emit
+    are railed against it (ruling P3b-T2-R22):
       kind           made by                                          `before` holds
       `money`        an amount in text or alt text; a formula holding   the amount (the formula)
                      any replacement (R7)
