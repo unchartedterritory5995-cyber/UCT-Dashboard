@@ -35,7 +35,7 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 // for any other ticker never re-renders the pane. `onNavKey`: ↑/↓ pressed anywhere in the pane
 // step the list (B7) — the pane is focusable, so a click on the chart keeps the keys working.
 // `busy`: the list answers the previous screen; the row actions say so (and the page ignores them).
-function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, busy = false, phone = false }) {
+function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, theme = null, busy = false, phone = false }) {
   const ink = useThemeInk(PIVOT_INK)
   // The head structure's pivot, titled for it ("Flat base pivot"), and hidden once the row's bars
   // are stale (setupLine.pivotLine). Primitives into the memo, so a tick never rebuilds the lines.
@@ -77,6 +77,8 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
         {s.detail && <span className={styles.setupTag}>{s.detail}</span>}
         {/* The pivot is the head structure's, so when another structure leads it is named. */}
         {s.alsoDetail && <span className={styles.setupTag}>{`${s.also}: ${s.alsoDetail}`}</span>}
+        {/* The theme the stock trades with (the Watchlist's Theme column, one batched read per list). */}
+        {theme && <span className={styles.setupTag} title={`Theme: ${theme}`} data-testid="pane-theme">{theme}</span>}
         {factText && <span className={styles.paneFacts}>{factText}</span>}
         {factText && earn && <span className={styles.paneFacts} aria-hidden="true">·</span>}
         {earn && (
