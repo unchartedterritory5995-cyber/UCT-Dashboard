@@ -5,7 +5,7 @@
 // (the named switch and the sentence saying how it works) and off (the switch disabled, the sentence
 // saying what it needs). Each recipe asserts what painted before axe runs, so an empty screen cannot
 // pass as a clean one.
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
@@ -30,7 +30,10 @@ axeSurface('trader-block-stamps', async () => {
   const editor = realEditor()
   render(<BlockNodeView node={node} editor={editor} updateAttributes={() => {}} deleteNode={() => {}} />)
   const sw = await screen.findByRole('switch', { name: 'Stamp prices as I write' })
-  expect(PRICE_STAMPS_KEY.get(editor.state)).toBeTruthy()                 // the body holds the plugin
+  // The body holds the plugin. It is attached from the block body's effect, so it is awaited, not
+  // read on the switch's first paint: read at once, it was undefined on a loaded CI runner (4 of 15
+  // runs, 2026-10-18).
+  await waitFor(() => expect(PRICE_STAMPS_KEY.get(editor.state)).toBeTruthy())
   expect(sw.getAttribute('aria-checked')).toBe('true')
   expect(sw.disabled).toBe(false)
   expect(screen.getByText(/Write \$NVDA and press Enter/)).toBeTruthy()
