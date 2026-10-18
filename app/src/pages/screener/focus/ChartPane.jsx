@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react'
 import WhyStrip from './WhyStrip'
+import CatalystStrip from './CatalystStrip'
 import { setupLine, pivotLine } from './setupLine'
 import { plainFact, volumeFact } from './plainWords'
 import { livePriceOf } from './livePrice'
@@ -90,6 +91,8 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
       <div className={styles.chartBox} data-testid="pane-chart-layer">
         <PaneChart sym={row.ticker} priceLines={priceLines} phone={phone} />
       </div>
+      {/* Why it moves, under the chart (a peek at the catalyst feed); the phone sheet has no room for it. */}
+      {!phone && <CatalystStrip sym={row.ticker} />}
       <div className={styles.paneFoot}>
         <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
