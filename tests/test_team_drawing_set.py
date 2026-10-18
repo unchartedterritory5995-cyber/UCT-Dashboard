@@ -217,7 +217,8 @@ def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_t
                         lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
     body = _client(PAID_MEMBER, monkeypatch, ROWS).get(URL).json()
     # registry.DISPLAY_MEMBER_SET (blind-confirmed): the pullback is served to a member through
-    # the member set only; bull_flag is team set, admin-only. The bc:flat-base box here is built
+    # the member set only; this bull_flag row carries no round-9 draw_round stamp, so it is not
+    # served (fail closed; tests/test_member_drawing_set.py). The bc:flat-base box here is built
     # without bars (no pivot stamp, so it would draw the full box): not served to a member.
     assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
     assert "structures" not in body

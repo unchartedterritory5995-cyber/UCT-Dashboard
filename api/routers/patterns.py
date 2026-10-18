@@ -810,7 +810,8 @@ def get_detections(
     # and gets ONLY the member set (registry.DISPLAY_MEMBER_SET: the types that passed the
     # blind check as drawn), filtered HERE, never by the client: member-set rows, on D/W/M
     # member-set base boxes (`structures`: bc:flat-base, pivot line only, box off) and the
-    # learned drawer's levels + trendlines (`drawn`). bull_flag, bc:cup-with-handle, the
+    # learned drawer's levels + trendlines (`drawn`), and bull_flag rows only as the
+    # confirmed round-9 drawing code stamped them (never stale). bc:cup-with-handle, the
     # levels layer and every other tier stay admin-only. With the member flag off the
     # payload is as before.
     if include_structures and not is_admin:

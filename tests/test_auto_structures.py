@@ -350,9 +350,10 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
 
 def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
     """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows and the
-    learned drawer. bull_flag is team set but NOT member set. bc:flat-base IS member set, but only
-    as its pivot line: this BOX was built without bars, so it carries no pivot stamp and would
-    draw the full box -- a member is not served it (tests/test_member_drawing_set.py)."""
+    learned drawer. bull_flag IS member set, but only as the round-9 drawing code stamped it: this
+    row carries no draw_round stamp, so it is not served (fail closed). bc:flat-base IS member set,
+    but only as its pivot line: this BOX was built without bars, so it carries no pivot stamp and
+    would draw the full box -- a member is not served it (tests/test_member_drawing_set.py)."""
     _flags(monkeypatch, True, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
     assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]
@@ -374,10 +375,13 @@ def test_member_filter_follows_the_registry_constant(monkeypatch, _box_and_drawn
     """Derived, not restated: moving DISPLAY_MEMBER_SET moves what a member gets, and a member
     id must ALSO be trusted-tier (moving DISPLAY_TRUSTED off it drops it)."""
     _flags(monkeypatch, True, True)
-    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET", frozenset({"bull_flag"}))
+    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET", frozenset({"donchian_breakout", "flat_base"}))
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
-    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"flat_base"}))
+    assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]   # donchian: not trusted
+    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"donchian_breakout"}))
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert [r["pattern_id"] for r in body["detections"]] == ["donchian_breakout"]
+    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"bull_flag"}))
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
     assert body["detections"] == []
 

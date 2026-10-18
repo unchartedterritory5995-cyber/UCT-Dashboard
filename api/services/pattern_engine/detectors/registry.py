@@ -249,12 +249,21 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: (lab/geometry_eval REPORT_BCFLAT_C2.md). It reaches a member as a base box in
 #: `structures`, and auto_structures.member_rows serves it only while it carries
 #: that pivot line with the box off, so a member is drawn exactly what was judged.
-#: NOT confirmed, so admin-only (Team/All) and never served to a member: bull_flag,
+#: bull_flag (owner-approved 2026-10-17) passed two independent blind packets AS
+#: DRAWN BY THE ROUND-9 CODE (8d033ec7d2): team_bf9a 2.43 [2.13, 2.73] and team_bf9b
+#: 2.40 [2.17, 2.63] (lab/geometry_eval REPORT_BULLFLAG_R9.md). The confirmation
+#: covers that drawing code only, so auto_structures.member_rows serves a bull_flag
+#: only while it is not stale and carries extras.draw_round equal to the confirmed
+#: round: a row stored by older drawing code, or one whose verdicts never finished,
+#: is dropped (an admin still sees it).
+#: NOT confirmed, so admin-only (Team/All) and never served to a member:
 #: bc:cup-with-handle, every other id. Admins' tiers are unchanged:
 #: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
 #: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
 #: rows ONLY through this set (api/routers/patterns.py, member branch).
-DISPLAY_MEMBER_SET: frozenset = frozenset({"flat_base", "uct_pullback_ma_v5", "bc:flat-base"})
+DISPLAY_MEMBER_SET: frozenset = frozenset({
+    "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
+})
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5

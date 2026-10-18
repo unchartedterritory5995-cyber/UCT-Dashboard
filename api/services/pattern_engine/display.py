@@ -37,6 +37,10 @@ defects. `annotate` also stamps the display-only fixes for them, again under
   draw_lanes    bull_flag: False when the flag's two lanes cross or diverge,
                 or when a higher-confidence bull_flag of the same run already
                 draws lanes over the same bars (`lanes_reason` says which).
+  draw_round    bull_flag: BULL_FLAG_DRAW_ROUND, set only on a flag that came
+                through every verdict and the overlap pass and is drawn. The
+                member set reads it (auto_structures.member_rows); nothing draws
+                from it.
 
 v3 follow-ups (REPORT_TIERS_V3.md, 2026-10-17), still display-only:
   * draw_ema always spans at least PULLBACK_EMA_MIN_BARS bars ending on the
@@ -406,6 +410,13 @@ LANE_MIN_BODY_SHARE = 0.58
 #: ... judged only when those bodies sum to at least LANE_MIN_BODY_ATR ATR(14): under it there is too
 #: little body to judge (the smallest on a drawn judged flag was 1.07).
 LANE_MIN_BODY_ATR = 0.5
+#: The bull_flag drawing round this code IS. A bull_flag that came through draw_geometry whole -- every
+#: verdict ran, the overlap pass kept it -- carries extras.draw_round = BULL_FLAG_DRAW_ROUND. Display
+#: only: nothing draws differently. It exists for the member set (auto_structures.member_rows), which
+#: serves a bull_flag only when its round is the one that passed the blind check, so a row stored by
+#: older drawing code, or whose verdicts crashed part-way, never reaches a member. Bump it with every
+#: new bull_flag drawing round.
+BULL_FLAG_DRAW_ROUND = 9
 
 
 def _index(bars) -> dict:
@@ -1748,6 +1759,8 @@ def draw_geometry(detections: list, bars: list) -> list:
                 continue
             if span:
                 kept.append(span)
+                # whole and kept: stamp the drawing round (BULL_FLAG_DRAW_ROUND; display only)
+                extras["draw_round"] = BULL_FLAG_DRAW_ROUND
         except Exception:  # noqa: BLE001
             continue
     return detections

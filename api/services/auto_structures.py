@@ -9,10 +9,11 @@ while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
 see ONLY the MEMBER SET (registry.DISPLAY_MEMBER_SET): the types that passed two
 independent blind packets as drawn -- flat_base, the MA pullback v5
 (uct_pullback_ma_v5, otherwise internal), and on D/W/M the bc:flat-base pivot line
-(box off; REPORT_BCFLAT_C2.md) and the learned `drawn` levels + trendlines. The
-rest of the team set (bull_flag, bc:cup-with-handle), experimental, hidden and the
-levels layer stay admin-only; the route filters server-side (`member_rows`), never
-the client.
+(box off; REPORT_BCFLAT_C2.md), the learned `drawn` levels + trendlines, and
+bull_flag as the round-9 drawing code draws it (REPORT_BULLFLAG_R9.md; only a row
+stamped with that round, never a stale one). The rest of the team set
+(bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
+the route filters server-side (`member_rows`), never the client.
 Display-only end to end: nothing here changes what any detector fires on, its
 confidence, HIST_SCORE or `confirmed_only`.
 """
@@ -68,12 +69,37 @@ def member_rows(rows) -> list:
 
     A team-set base box (TEAM_PIVOT_BOXES) passed its blind check as its PIVOT LINE
     with the box off, so a member gets one only in that shape (`_pivot_only`): a box
-    whose stamp failed or never ran would draw the full box, which nobody judged."""
+    whose stamp failed or never ran would draw the full box, which nobody judged.
+
+    A bull_flag passed its blind check as drawn by ONE drawing round
+    (MEMBER_BULL_FLAG_ROUND), so a member gets one only while it is that round's
+    finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
+    drawing code or never stamped at all, is dropped. Fail closed."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
-            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))]
+            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
+            and ((r or {}).get("pattern_id") != "bull_flag" or _confirmed_flag(r))]
+
+
+#: The bull_flag drawing round the blind check confirmed for members: round 9,
+#: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
+#: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
+#: stop getting bull_flag until that round is confirmed and this is changed by hand.
+MEMBER_BULL_FLAG_ROUND = 9
+
+
+def _confirmed_flag(row) -> bool:
+    """True when a bull_flag row is drawn by the confirmed round: not stale, and
+    `extras.draw_round` (stamped by display.draw_geometry only on a flag that came
+    through every verdict and the overlap pass) equals MEMBER_BULL_FLAG_ROUND.
+    Missing geometry, a missing stamp or any other round is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    return type(rnd) is int and rnd == MEMBER_BULL_FLAG_ROUND
 
 
 def _pivot_only(row) -> bool:
