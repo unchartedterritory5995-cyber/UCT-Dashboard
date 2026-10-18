@@ -7,6 +7,8 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
   member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
+  member  GET    /api/j2/template-gallery/layouts/status      paid     the member's own shared page layouts (P4b; 404 while layout sharing is off)
+  member  POST   /api/j2/template-gallery/layouts             paid     share / reshare a page of their saved layout (P4b; 404 while off; publish budget)
   member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
   member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
@@ -40,7 +42,7 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
     each in `daily_usage_counters` (survives deploys; fails open on a database error). Adopting
     a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day. Helpful (`notebook-gallery-helpful`)
     and follow (`notebook-gallery-follow`) are 60/hour each, in-process only; marking and unmarking share a budget.
-  * THE LITERAL `/updates`, `/feed` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
+  * THE LITERAL `/updates`, `/feed`, `/layouts/...` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
     `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
     Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
@@ -100,6 +102,14 @@ def _require_library() -> None:
     answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
     exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
     if not gallery.library_enabled():
+        raise public.not_found()
+
+
+def _require_layout_sharing() -> None:
+    """P4b's gate for the LAYOUT routes (R-P4b-10), the same shape as `_require_library`: a route dependency,
+    resolved before the plan check and the body, so while layout sharing is off every caller, paid or not,
+    signed in or not, gets the one 404 a route that does not exist answers."""
+    if not gallery.layout_sharing_enabled():
         raise public.not_found()
 
 
@@ -220,6 +230,44 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
         raise public.not_found()
     dropped = item.pop("droppedProperties", 0)
     return {"template": item, "droppedProperties": dropped}
+
+
+# ⛔ P4b: the literal `/layouts` routes are declared BEFORE `GET /{gallery_id}` too, each gated by
+# `_require_layout_sharing` (R-P4b-10), a route dependency ahead of the plan check and the body.
+
+@router.get("/layouts/status", dependencies=[Depends(_require_layout_sharing)])
+def layout_status_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{shared: {today, trade}}` -- each the member's own layout item for that page (with `status`, `version` and
+    `hasRevision`), or null when they have not shared it."""
+    status = gallery.layout_status(user["id"])
+    if status is None:
+        raise public.not_found()
+    return status
+
+
+@router.post("/layouts", dependencies=[Depends(_require_layout_sharing)])
+def publish_layout_endpoint(body: dict[str, Any] = Depends(paid_body),
+                            user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{page, title, description?, category, tradingStyle?}` -> `{template, droppedPanels}`. The SERVER builds the
+    layout from the member's own saved preference (R-P4b-3/4); the client names only the page. It spends the
+    publish budget exactly as `POST /styles` does (F16), and any refusal gives the day's charge back."""
+    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+    try:
+        item = gallery.publish_layout(user["id"], body.get("page"), title=body.get("title"),
+                                      description=body.get("description"), category=body.get("category"),
+                                      trading_style=body.get("tradingStyle"))
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise
+    if item is None:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise public.not_found()
+    dropped = item.pop("droppedPanels", 0)
+    return {"template": item, "droppedPanels": dropped}
 
 
 # ⛔ The literal `/updates` routes are declared BEFORE `GET /{gallery_id}`: that route would take "updates"

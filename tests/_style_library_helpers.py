@@ -67,13 +67,17 @@ def api(conn, monkeypatch):
 
 
 def _row(conn, *, item_type="outline", status="approved", trading_style=None, user_id="u1",
-         listed_at="2026-10-10T00:00:00+00:00", title="T"):
+         listed_at="2026-10-10T00:00:00+00:00", title="T", source_page=None, payload_json=None):
+    """One gallery row written directly. `source_page` and `payload_json` are for a P4b `page_layout` row
+    (P4b-R-X17: the layout tests use this insert, never a copy of it); both stay NULL for every other caller."""
     gid = uuid.uuid4().hex
     conn.execute(
         "INSERT INTO j2_template_gallery (id, user_id, kind, title, description, category, body_json,"
-        " status, listed_at, created_at, updated_at, preview_json, item_type, trading_style)"
-        " VALUES (?, ?, 'member', ?, '', 'trade_plan', '{}', ?, ?, ?, ?, '[]', ?, ?)",
-        (gid, user_id, title, status, listed_at, listed_at, listed_at, item_type, trading_style))
+        " status, listed_at, created_at, updated_at, preview_json, item_type, trading_style, source_page,"
+        " payload_json)"
+        " VALUES (?, ?, 'member', ?, '', 'trade_plan', '{}', ?, ?, ?, ?, '[]', ?, ?, ?, ?)",
+        (gid, user_id, title, status, listed_at, listed_at, listed_at, item_type, trading_style, source_page,
+         payload_json))
     conn.commit()
     return gid
 

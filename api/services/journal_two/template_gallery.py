@@ -64,7 +64,8 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import public_note_payload as public
-from api.services.journal_two.page_layout_share import LAYOUT_ITEM
+from api.services.journal_two import page_layout_share as pls
+from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
 from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -536,8 +537,10 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "itemType": row["item_type"] if "item_type" in keys else "outline",
         "version": int(row["version"] or 1) if "version" in keys else 1,
         "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
-        # P4b: which page a shared layout is for ('today' | 'trade'); None for every other type.
-        "layoutPage": row["source_page"] if row["item_type"] == LAYOUT_ITEM and "source_page" in keys else None,
+        # P4b: which page a shared layout is for ('today' | 'trade'); None for every other type. CLAMPED to
+        # LAYOUT_PAGES (P4b-R-T3-5): `source_page` is free TEXT, and the label stays a closed enum whatever is stored.
+        "layoutPage": (row["source_page"] if "source_page" in keys and "item_type" in keys
+                       and row["item_type"] == LAYOUT_ITEM and row["source_page"] in LAYOUT_PAGES else None),
         "trendingCount": int(row["trending_count"] or 0) if "trending_count" in keys else 0,
         # P3a Task 6. The count is everyone's; `helpedByMe` is THIS viewer's (the select binds them).
         "helpfulCount": int(row["helpful_count"] or 0) if "helpful_count" in keys else 0,
@@ -757,6 +760,8 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
         if not _can_see(row, viewer_id, is_admin):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
+        if row["item_type"] == LAYOUT_ITEM:
+            return _layout_item(out, row, is_admin)
         out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
         if row["item_type"] == "style":
@@ -794,9 +799,26 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     if not isinstance(rev, dict):
         return None
     text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
+    # P4b (P4b-R-X5): a held LAYOUT revision is read through `safe_layout`, never the style reader.
+    layout = "item_type" in keys and row["item_type"] == LAYOUT_ITEM
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
-            "tradingStyle": text("tradingStyle"), "payload": _safe_listed(rev.get("payload"))}
+            "tradingStyle": text("tradingStyle"),
+            "payload": pls.safe_layout(rev.get("payload")) if layout else _safe_listed(rev.get("payload"))}
+
+
+def _layout_item(out: dict[str, Any], row: sqlite3.Row, is_admin: bool) -> dict[str, Any]:
+    """P4b (P4b-R-X5): what a `page_layout` row's single read serves. The LISTED payload (`payload_json`, never
+    `pending_json`), read through `safe_layout` so whatever is stored leaves as registry ids in `{id, shown}`
+    entries (None when it cannot be read: never a 500). NEVER `bodyJson` or `propertyDefs`: a layout has no
+    body and no properties, and its row's `body_json` is an empty document kept only for the outline-shaped
+    columns. A reviewer also gets the held revision, admins only, the same rule as a style's."""
+    out["payload"] = pls.safe_layout(_listed_payload(row))
+    if is_admin:
+        rev = _pending_revision(row)
+        if rev is not None:
+            out["pendingRevision"] = rev
+    return out
 
 
 # ── the author ──────────────────────────────────────────────────────────────────────────
@@ -996,6 +1018,100 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
         out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedProperties"] = dropped
         return out
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── sharing a page layout (P4b Task 4) ─────────────────────────────────────────────────────────
+
+_LAYOUT_EMPTY_BODY = {"type": "doc", "content": []}
+
+
+def publish_layout(user_id: str, page: Any, *, title: Any, description: Any, category: Any,
+                   trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Share (or share again) one page of the member's OWN saved layout. None while layout sharing is off.
+
+    ⛔ R-P4b-3/4: the payload is built from the member's own `journal_page_layout` preference, read here through
+    `conn` (V3, P4b-R-X1: `user_preferences.pref_value`), never from anything the client sends; the client names
+    only the page. `pls.layout_payload` keeps registry panels and counts the rest (`droppedPanels`, R-P4b-6), and
+    `validate_layout_payload`, the write door, runs on that payload immediately before the write (R-P4b-6a). A
+    refusal is a `GalleryError` carrying one of the three sentences (the door's own words never reach a member).
+
+    The item is written exactly as `publish_style` writes a style, keyed on (author, page): the first share is a
+    PENDING item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED
+    the new version is HELD in `pending_json` and the approved one stays listed. The body is an empty document
+    and the preview is empty: a layout has neither. Returns the author's summary plus `droppedPanels`."""
+    if not layout_sharing_enabled():
+        return None
+    clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
+    clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
+    clean_cat = _clean_category(category)
+    clean_ts = _clean_trading_style(trading_style)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        pref = conn.execute("SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = ?",
+                            (user_id, pls.LAYOUT_PREF)).fetchone()
+        payload, dropped = pls.layout_payload(pref["pref_value"] if pref else None, page)
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
+        now = _now()
+        body_json = json.dumps(_LAYOUT_EMPTY_BODY)
+        existing = conn.execute(
+            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_page = ?",
+            (user_id, page)).fetchone()
+        pls.validate_layout_payload(payload)      # ⛔ THE WRITE DOOR, immediately before the write (R-P4b-6a)
+        payload_json = json.dumps(payload)
+        if existing and existing["status"] == "approved":
+            revision = {"title": clean_title, "description": clean_desc, "category": clean_cat,
+                        "tradingStyle": clean_ts, "payload": payload, "preview": []}
+            conn.execute(
+                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+                " updated_at = ? WHERE id = ?",
+                (json.dumps(revision), now, now, existing["id"]))
+            gid = existing["id"]
+        elif existing:
+            conn.execute(
+                "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
+                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = '[]',"
+                " pending_json = NULL, pending_at = NULL WHERE id = ?",
+                (clean_title, clean_desc, clean_cat, clean_ts, body_json, payload_json, now, existing["id"]))
+            gid = existing["id"]
+        else:
+            gid = uuid.uuid4().hex
+            conn.execute(
+                "INSERT INTO j2_template_gallery (id, user_id, source_page, kind, title, description,"
+                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+                " payload_json, version, trading_style)"
+                " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, '[]', ?, ?, 1, ?)",
+                (gid, user_id, page, clean_title, clean_desc, clean_cat, body_json, now, now, LAYOUT_ITEM,
+                 payload_json, clean_ts))
+        conn.commit()
+        out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
+        out["droppedPanels"] = dropped
+        return out
+    except pls.LayoutPayloadError as e:
+        raise GalleryError(str(e) if str(e) in pls.LAYOUT_SENTENCES else pls.UNREADABLE_SENTENCE) from None
+    finally:
+        if owned:
+            conn.close()
+
+
+def layout_status(user_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    """`{"shared": {"today": summary-or-None, "trade": summary-or-None}}`: the member's OWN layout items, one per
+    page, in every state (the author's summary carries `status`, `version` and `hasRevision`). None while layout
+    sharing is off."""
+    if not layout_sharing_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        shared: dict[str, Any] = {p: None for p in LAYOUT_PAGES}
+        for r in _read(conn, user_id, "g.user_id = ? AND g.item_type = ?", (user_id, LAYOUT_ITEM), list_only=True):
+            if r["source_page"] in shared:
+                shared[r["source_page"]] = _summary(r, viewer_id=user_id, is_admin=False)
+        return {"shared": shared}
     finally:
         if owned:
             conn.close()
@@ -1687,6 +1803,10 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                 # statement as a first approval, and bump the version members see.
                 try:
                     rev = json.loads(row["pending_json"])
+                    if row["item_type"] == LAYOUT_ITEM:
+                        # P4b (R-P4b-6a): a held layout revision passes the write door before it is listed. Its
+                        # refusal is a LayoutPayloadError, a ValueError, so it lands on the sentence below.
+                        pls.validate_layout_payload(rev["payload"])
                     new_body = rev["payload"].get("outlineBodyJson") or {"type": "doc", "content": []}
                     args = (rev["title"], rev["description"], rev["category"], rev.get("tradingStyle"),
                             json.dumps(rev["payload"]), json.dumps(new_body),
