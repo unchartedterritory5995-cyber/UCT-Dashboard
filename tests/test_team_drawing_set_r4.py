@@ -231,7 +231,9 @@ def test_a_wide_or_deep_bc_flat_base_is_stale():
 # -- 3. cup ------------------------------------------------------------------------------------------
 
 def test_a_deep_handle_draws_no_box_but_keeps_the_rim():
-    bars = _cup_bars([98, 96, 94, 95])                      # floor 93.5: 7 under the rim (> 18 / 3)
+    # round 6 (tests/test_cup_r6.py): "deep" is now a floor in the cup's LOWER half (under 91.5 here);
+    # round 4's "more than a third of the cup's depth" (the 93.5 floor this test used) draws
+    bars = _cup_bars([98, 94, 90, 91])                      # floor 89.5: under the cup's midpoint
     ex = auto_structures.box_to_detection("ZZZ", _cup_box(23), bars)["geometry"]["extras"]
     assert not ex.get("stale"), ex
     assert ex["draw_pivot"]["price"] == 100.5
@@ -241,13 +243,8 @@ def test_a_deep_handle_draws_no_box_but_keeps_the_rim():
     assert "draw_handle" in ok["geometry"]["extras"]
 
 
-def test_handle_verdict_deep_reads_the_cups_depth():
-    bars = _cup_bars([98, 96, 94, 95])
-    cs, ce = ymd_t(0), ymd_t(19)
-    rim = {"start_t": ymd_t(0), "end_t": ymd_t(23), "price": 100.5}
-    h = {"start_t": ymd_t(20), "end_t": ymd_t(23), "top": 98.5, "floor": 93.5}
-    assert display.handle_verdict(bars, h, cs, ce, rim) == (False, "deep")
-    assert display.handle_verdict(bars, {**h, "floor": 95.0}, cs, ce, rim) == (True, None)
+# round 6: handle_verdict (and this rail of its round-4 depth rule) was replaced by
+# display.pullback_handle -- tests/test_cup_r6.py::test_a_handle_floored_in_the_cups_lower_half_is_deep.
 
 
 ISLAND = [100, 100, 100, 90, 89, 88, 89, 90, 100, 100, 99, 99]     # gap down at 3, gap up at 8

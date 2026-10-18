@@ -34,8 +34,10 @@ def test_a_rim_older_than_the_charts_default_zoom_is_not_drawn():
     old = _cup_bars([98, 97.5, 97, 97.5], tail=[99.0] * 185)        # the lip 208 bars before the last
     ex = auto_structures.box_to_detection("ZZZ", _cup_box(23), old)["geometry"]["extras"]
     assert ex["stale"] is True and ex["stale_reason"] == "rim_too_old", ex
-    # control: 193 bars back (inside the 200-bar zoom) the same cup draws its rim
-    ok = auto_structures.box_to_detection("ZZZ", _cup_box(23), _cup_bars([98, 97.5, 97, 97.5], tail=[99.0] * 170))
+    # control: 193 bars back (inside the 200-bar zoom) the same cup draws its rim -- round 6: the tail sits
+    # at 99.8 (0.2 ATR under the rim); at 99.0 the right side is 1.0 ATR short and short_of_rim (0.8 ATR,
+    # tests/test_cup_r6.py) withholds it
+    ok = auto_structures.box_to_detection("ZZZ", _cup_box(23), _cup_bars([98, 97.5, 97, 97.5], tail=[99.8] * 170))
     assert not ok["geometry"]["extras"].get("stale"), ok["geometry"]["extras"]
     assert ok["geometry"]["extras"]["draw_pivot"]["price"] == 100.5
 

@@ -86,19 +86,8 @@ def _cup_bars(handle, tail=()):
     return _bars(closes, lows=lows)
 
 
-def test_handle_verdict_short_long_after_breakout_and_ok():
-    bars = _cup_bars([98, 97.5, 97, 97.5, 98, 97, 97.5, 98], tail=[101, 102])   # 30 bars
-    cs, ce = ymd_t(0), ymd_t(19)
-    rim = {"start_t": ymd_t(0), "end_t": ymd_t(28), "price": 100.5}           # close 101 at 28 > rim
-    h = lambda a, b: {"start_t": ymd_t(a), "end_t": ymd_t(b)}                  # noqa: E731
-    assert display.handle_verdict(bars, h(20, 21), cs, ce, rim) == (False, "short")
-    assert display.handle_verdict(bars, h(20, 27), cs, ce, rim) == (False, "long")  # 8 > 20/3
-    assert display.handle_verdict(bars, h(23, 28), cs, ce, rim) == (False, "after_breakout")
-    assert display.handle_verdict(bars, h(20, 23), cs, ce, rim) == (True, None)
-    # a rim that never broke out (its end bar closes under it) does not bound the handle
-    open_rim = {**rim, "end_t": ymd_t(27)}
-    assert display.handle_verdict(bars, h(22, 27), cs, ce, open_rim)[1] != "after_breakout"
-    assert display.handle_verdict(bars, h(20, 22), cs, ce, open_rim) == (True, None)
+# round 6 (tests/test_cup_r6.py): handle_verdict -- short / long (a third of the cup) / after_breakout
+# over the detector's last sub-box -- was replaced by display.pullback_handle; its rail went with it.
 
 
 def _cup_box(handle_end):
@@ -115,10 +104,11 @@ def test_a_one_bar_handle_draws_no_box_but_keeps_the_rim():
     assert not ex.get("stale")
     assert ex["draw_pivot"]["price"] == 100.5             # the rim stays
     assert "draw_handle" not in ex and ex["handle_reason"] == "short"
-    # control: a four-bar handle is drawn
+    # control: a four-bar handle is drawn -- round 6: from the right side's peak (bar 19), not the
+    # detector's sub-box start (bar 20)
     bars4 = _cup_bars([98, 97.5, 97, 97.5])
     ex4 = auto_structures.box_to_detection("ZZZ", _cup_box(23), bars4)["geometry"]["extras"]
-    assert ex4["draw_handle"]["start_t"] == ymd_t(20) and ex4["draw_handle"]["end_t"] == ymd_t(23)
+    assert ex4["draw_handle"]["start_t"] == ymd_t(19) and ex4["draw_handle"]["end_t"] == ymd_t(23)
 
 
 # -- 3. bc:flat-base: no stair-step, no deep V ----------------------------------------------------

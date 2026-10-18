@@ -272,17 +272,15 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
                 extras["stale_reason"] = why
                 return
             extras["draw_pivot"] = rim
-            subs = extras.get("draw_sub_boxes")
-            # only while the handle survived handle_extent (else the last sub-box is the cup's)
-            if isinstance(subs, list) and len(subs) >= 2 and len(subs) == len(extras["sub_boxes"]):
-                # round 3: a real handle only -- >= HANDLE_MIN_BARS bars, at most a fraction of
-                # the cup, ending before the rim's breakout bar; otherwise no box (the rim stays)
-                ok, why = _display.handle_verdict(bars, subs[-1], cup.get("start_t"),
-                                                  cup.get("end_t"), rim)
-                if ok:
-                    extras["draw_handle"] = dict(subs[-1])
-                else:
-                    extras["handle_reason"] = why
+            # round 6 (display.pullback_handle): the handle box is the pullback from the right
+            # side's peak to the last bar (or the bar before the breakout) -- at most
+            # HANDLE_MAX_PULLBACK_BARS bars after the peak, its floor in the cup's upper half;
+            # otherwise no box (the rim stays)
+            box, why = _display.pullback_handle(bars, cup.get("start_t"), cup.get("end_t"), rim)
+            if box:
+                extras["draw_handle"] = box
+            else:
+                extras["handle_reason"] = why
         extras["draw_box"] = False
     except Exception:  # noqa: BLE001 -- a drawing stamp never drops the box
         pass

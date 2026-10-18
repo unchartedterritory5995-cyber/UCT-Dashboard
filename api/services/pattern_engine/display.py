@@ -113,8 +113,10 @@ display-only:
               under_prior_high reads LEAD_BARS = 90 bars; the drawn lanes must hold
               LANE_MIN_BODY_SHARE of the bodies they span (loose_lanes, `flag_lanes_verdict`).
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
-              `flat_shape_verdict` (stair_step / deep_v) and `handle_verdict`
-              (short / long / after_breakout; the rim stays).
+              `flat_shape_verdict` (stair_step / deep_v) and `pullback_handle`
+              (round 6: the box is the pullback from the right side's peak; no_pullback / short /
+              long / deep draw no box, the rim stays). Round 6 also adds the cup rim's
+              spike_rim and tightens short_of_rim (`cup_reach_verdict`).
 """
 from __future__ import annotations
 
@@ -222,13 +224,10 @@ FLAT_MAX_SLOPE_ATR = 0.06
 #: ... and the base's lowest low sits at most this many ATR(14) below the band
 #: (PIVOT_BASE_BAND_ATR under the line): deeper is a V, not a base.
 FLAT_MAX_DIP_ATR = 3.0
-#: Round 3: a cup's handle box is drawn only with at least this many bars ...
+#: Round 3: a cup's handle box is drawn only with at least this many bars (round 6: from the right
+#: side's peak to the end, `pullback_handle`). Round 3's "at most a third of the cup's length" and round
+#: 4's "at most a third of the cup's depth" were retired in round 6 (see HANDLE_MAX_PULLBACK_BARS).
 HANDLE_MIN_BARS = 3
-#: ... and at most this fraction of the cup's own length.
-HANDLE_MAX_CUP_FRAC = 1.0 / 3.0
-#: Round 4: a cup's handle is at most this fraction of the cup's DEPTH deep (rim to handle floor),
-#: and its floor stays in the cup's upper half; otherwise no handle box (the rim stays).
-HANDLE_MAX_DEPTH_FRAC = 1.0 / 3.0
 #: Round 4: the flat_base box tolerates up to this many closes OUTSIDE the band inside its run ...
 FLAT_RUN_GAP_BARS = 2
 #: ... and the run must end within this many bars of the last bar.
@@ -275,10 +274,11 @@ RIM_MAX_AGE_BARS = 200
 #: cup: a gap down of at least this many ATR(14) (the ATR before the gap) between the lip and the
 #: cup's low makes the lip a pre-gap-down high over a crater, not a rim (calibrated).
 CRATER_GAP_ATR = 2.5
-#: cup: the right side's highest high since the cup's low must come within the larger of this
-#: fraction of the rim and RIM_REACH_ATR ATR(14) of it (calibrated).
-RIM_REACH_FRAC = 0.02
-RIM_REACH_ATR = 1.0
+#: cup: the right side's highest high since the cup's low must come within RIM_REACH_ATR ATR(14) of
+#: the rim (round 6: was the larger of 2% of the rim and 1.0 ATR -- the 2% let 1.1 ATR shortfalls
+#: through on low-volatility names; right sides 0.86-1.08 ATR short were judged 1-2 in rounds 4-5,
+#: the most on a cup judged 3 was 0.63).
+RIM_REACH_ATR = 0.8
 #: bc:flat-base: the first bar whose high touches the line (within TOP_TOUCH_ATR) is at least
 #: FRESH_HIGH_BARS bars before the last bar -- else the line is a fresh high with no base under it.
 TOP_TOUCH_ATR = 0.3
@@ -417,6 +417,21 @@ LANE_MIN_BODY_ATR = 0.5
 #: older drawing code, or whose verdicts crashed part-way, never reaches a member. Bump it with every
 #: new bull_flag drawing round.
 BULL_FLAG_DRAW_ROUND = 9
+# -- Cup round 6 (lab REPORT_TEAM_SET_R5.md, 2026-10-17). Calibrated on the 62 bc:cup-with-handle cases
+# judged in team rounds 1-5 (35 of them drawn at the round-5 code); no threshold removes a cup judged 3.
+#: cup handle: the box is the PULLBACK from the right side's peak (`pullback_handle`), at most this many
+#: bars after the peak. The handles the judges asked to have boxed ran 3-18 bars after the peak; the
+#: handle boxes they called long and loose ran 20-25 bars (R1-R3).
+HANDLE_MAX_PULLBACK_BARS = 20
+#: spike_rim: the rim's lip bar reaches more than SPIKE_RIM_ATR ATR(14) (the ATR up to the lip) above every
+#: open and close within SPIKE_RIM_BARS bars of it ... (R5 case_165, judged 1: 0.97; the most on a cup
+#: judged 3 was 0.42, on any other drawn judged cup 0.57)
+SPIKE_RIM_ATR = 0.75
+SPIKE_RIM_BARS = 5
+#: ... AND a close within SPIKE_RIM_BARS bars after the lip sits at least CRASH_FALL_ATR ATR(14) under it:
+#: a wick spike just before a crash (case_165: 6.4; the most on a cup judged 3 was 4.8).
+CRASH_FALL_ATR = 5.0
+#: short_of_rim: RIM_REACH_ATR 1.0 -> 0.8 and no 2%-of-price allowance (see RIM_REACH_ATR).
 
 
 def _index(bars) -> dict:
@@ -715,45 +730,6 @@ def flat_shape_verdict(bars: list, start_t, end_t, price):
     return True, None
 
 
-def handle_verdict(bars: list, handle, cup_start_t, cup_end_t, rim):
-    """(draw, reason) for a cup's drawn HANDLE box (the handle_extent dict) beside its rim line.
-
-    Round 3 (REPORT_TEAM_SET_R2.md: the handle box was drawn after the breakout, too long, or as a
-    single bar):
-      short            fewer than HANDLE_MIN_BARS bars;
-      long             more than HANDLE_MAX_CUP_FRAC of the cup's own length;
-      deep             (round 4) the handle floor sits more than HANDLE_MAX_DEPTH_FRAC of the
-                       cup's depth (rim to cup low) under the rim, or in the cup's lower half;
-      after_breakout   the rim line broke out (a close above it at its end bar) and the handle box
-                       does not end BEFORE that breakout bar.
-    The rim is unaffected: a dropped handle only means no handle box. (False, "unknown") when a
-    span is unknown."""
-    pos = _index(bars)
-    hs, he = pos.get((handle or {}).get("start_t")), pos.get((handle or {}).get("end_t"))
-    cs, ce = pos.get(cup_start_t), pos.get(cup_end_t)
-    if None in (hs, he, cs, ce) or he < hs or ce < cs:
-        return False, "unknown"
-    n = he - hs + 1
-    if n < HANDLE_MIN_BARS:
-        return False, "short"
-    if n > HANDLE_MAX_CUP_FRAC * (ce - cs + 1):
-        return False, "long"
-    # round 4: a shallow handle in the cup's upper half (rim to handle floor <= a third of the
-    # cup's depth) -- a long, steep sag toward the cup's midpoint is not a handle
-    rim_p = (rim or {}).get("price")
-    floor = (handle or {}).get("floor")
-    if rim_p is not None and floor is not None:
-        cup_low = min(float(bars[j]["l"]) for j in range(cs, ce + 1))
-        depth = float(rim_p) - cup_low
-        if depth > 0 and (float(rim_p) - float(floor) > HANDLE_MAX_DEPTH_FRAC * depth
-                          or float(floor) < cup_low + depth / 2.0):
-            return False, "deep"
-    rj = pos.get((rim or {}).get("end_t"))
-    if rj is not None and float(bars[rj]["c"]) > float(rim["price"]) and he >= rj:
-        return False, "after_breakout"
-    return True, None
-
-
 def pole_top_index(bars: list, b0: int, b1: int) -> int:
     """Round 3 (REPORT_TEAM_SET_R2.md: the pole's top sat on a lower or later high, so it missed the
     real peak): the pole's TRUE top, the highest high from the pole's first bar `b0` to the bar
@@ -973,7 +949,8 @@ def cup_reach_verdict(bars: list, pos: dict, low_j: int, rim: dict):
       gap_crater    a gap down (a bar's high under the prior bar's low) of at least CRATER_GAP_ATR
                     ATR(14) -- the ATR before the gap -- between the lip and the cup's low;
       short_of_rim  the highest high from the bar after the cup's low to the last bar sits further
-                    under the rim than max(RIM_REACH_FRAC x rim, RIM_REACH_ATR x ATR(14)).
+                    under the rim than RIM_REACH_ATR x ATR(14) (round 6: no percent-of-price allowance);
+      spike_rim     (round 6) the lip is a wick spike just before a crash (`spike_rim`).
     (True, None) when the lip or ATR is unknown."""
     lip_j = pos.get(rim.get("start_t"))
     last = len(bars) - 1
@@ -986,13 +963,84 @@ def cup_reach_verdict(bars: list, pos: dict, low_j: int, rim: dict):
         aj = atr14(bars[:j])
         if aj and gap >= CRATER_GAP_ATR * aj:
             return False, "gap_crater"
+    if spike_rim(bars, lip_j):
+        return False, "spike_rim"
     at = atr14(bars)
     if low_j < last and at:
         p = float(rim["price"])
         reach = max(float(b["h"]) for b in bars[low_j + 1:last + 1])
-        if p - reach > max(RIM_REACH_FRAC * p, RIM_REACH_ATR * at):
+        if p - reach > RIM_REACH_ATR * at:
             return False, "short_of_rim"
     return True, None
+
+
+def spike_rim(bars: list, lip_j: int) -> bool:
+    """Round 6 (REPORT_TEAM_SET_R5.md case_165: "Rim uses the wick spike before a gap-down crash"): True when
+    the lip bar's high sits more than SPIKE_RIM_ATR ATR(14) -- the ATR up to the lip -- above every open
+    and close within SPIKE_RIM_BARS bars of it (a wick above the bodies around it) AND a close within
+    SPIKE_RIM_BARS bars after the lip sits at least CRASH_FALL_ATR ATR(14) under the lip's high (a crash
+    off it). Both, never one: a lip with a long wick over a slow decline, or a fast decline from a lip
+    that sits on its bodies, is a real lip (judged 2-3 in rounds 1-5). False when the ATR is unknown."""
+    if lip_j is None or not 0 <= lip_j < len(bars):
+        return False
+    at = atr14(bars[:lip_j + 1])
+    if not at:
+        return False
+    hi = float(bars[lip_j]["h"])
+    lo_j, hi_j = max(0, lip_j - SPIKE_RIM_BARS), min(len(bars) - 1, lip_j + SPIKE_RIM_BARS)
+    body_top = max(max(float(bars[j]["o"]), float(bars[j]["c"])) for j in range(lo_j, hi_j + 1))
+    if hi - body_top <= SPIKE_RIM_ATR * at:
+        return False
+    after = [float(bars[j]["c"]) for j in range(lip_j + 1, hi_j + 1)]
+    return bool(after) and hi - min(after) >= CRASH_FALL_ATR * at
+
+
+def pullback_handle(bars: list, cup_start_t, cup_end_t, rim):
+    """Round 6 (REPORT_TEAM_SET_R5.md: "the handle pullback is not boxed"): (box, reason) for a cup's HANDLE
+    as the pullback a trader boxes -- from the right side's peak (the LATEST highest high after the cup's
+    low) to the last bar, or to the bar before the first close above the rim (the breakout bar is not
+    handle). box = {start_t, end_t, top, floor}, top/floor over the boxed bars. (None, reason) when:
+      no_pullback  the peak is the last boxable bar (still rising: nothing to box);
+      short        fewer than HANDLE_MIN_BARS bars from the peak to the end;
+      long         more than HANDLE_MAX_PULLBACK_BARS bars after the peak;
+      deep         the floor sits in the cup's lower half (under the midpoint of rim and cup low);
+      unknown      a span or the rim is unknown.
+    Replaces round 3-5's handle_verdict over the detector's last sub-box: that box began a fixed 5/10/15/20/25
+    bars from the end, not at the peak, and its round-4 depth rule (a third of the cup's depth) withheld 23
+    of the 35 judged cups' handles, most of them the pullbacks the judges asked to have boxed."""
+    pos = _index(bars)
+    cs, ce = pos.get(cup_start_t), pos.get(cup_end_t)
+    rim_p = (rim or {}).get("price")
+    if cs is None or ce is None or rim_p is None:
+        return None, "unknown"
+    if cs > ce:
+        cs, ce = ce, cs
+    rim_p = float(rim_p)
+    low_j = min(range(cs, ce + 1), key=lambda j: float(bars[j]["l"]))
+    end = len(bars) - 1
+    for j in range(low_j + 1, len(bars)):
+        if float(bars[j]["c"]) > rim_p:
+            end = j - 1
+            break
+    if end <= low_j:
+        return None, "no_pullback"
+    pk = low_j + 1
+    for j in range(low_j + 1, end + 1):
+        if float(bars[j]["h"]) >= float(bars[pk]["h"]):
+            pk = j
+    if pk >= end:
+        return None, "no_pullback"
+    if end - pk + 1 < HANDLE_MIN_BARS:
+        return None, "short"
+    if end - pk > HANDLE_MAX_PULLBACK_BARS:
+        return None, "long"
+    span = bars[pk:end + 1]
+    floor = min(float(b["l"]) for b in span)
+    cup_low = float(bars[low_j]["l"])
+    if floor < cup_low + (rim_p - cup_low) / 2.0:
+        return None, "deep"
+    return {"start_t": bars[pk]["t"], "end_t": bars[end]["t"],
+            "top": float(bars[pk]["h"]), "floor": floor}, None
 
 
 def flat_top_verdict(bars: list, start_t, end_t, price):
