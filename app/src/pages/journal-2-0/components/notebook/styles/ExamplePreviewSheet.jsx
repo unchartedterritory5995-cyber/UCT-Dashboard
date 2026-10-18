@@ -25,6 +25,7 @@
 //    text nodes again after they are split.
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
+import Switch from '../../../../../components/ui/Switch'
 import { DocBody } from '../TemplatePreview'
 import {
   EXAMPLE_IMAGE_COUNT_SENTENCE, EXAMPLE_IMAGE_EXTENSIONS, EXAMPLE_IMAGE_SIZE_SENTENCE, EXAMPLE_IMAGE_TYPE_SENTENCE,
@@ -414,12 +415,15 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
                           <span className={styles.hint} id={`${rid}-ocr`}>{ocrLine(image)}</span>
                           {reason && <span className={styles.hint} id={`${rid}-why`}>{reason}</span>}
                         </div>
-                        <button type="button" role="switch" aria-checked={on} className={styles.switch}
-                          aria-describedby={[`${rid}-name`, `${rid}-ocr`, reason ? `${rid}-why` : null].filter(Boolean).join(' ')}
-                          disabled={!on && Boolean(reason)} onClick={() => flip(image)}>
-                          <span className={styles.track} aria-hidden="true"><span className={styles.knob} /></span>
-                          {SHARE_IMAGE_LABEL}
-                        </button>
+                        {/* P3b-T9-G1: the shared Switch (formControls census). It renders only its knob, so the name
+                            is its aria-label and the visible words sit beside it in the label, which also passes a
+                            click on the words to the switch. */}
+                        <label className={styles.switch}>
+                          <Switch checked={on} aria-label={SHARE_IMAGE_LABEL} className={styles.track} knobClassName={styles.knob}
+                            aria-describedby={[`${rid}-name`, `${rid}-ocr`, reason ? `${rid}-why` : null].filter(Boolean).join(' ')}
+                            disabled={!on && Boolean(reason)} onClick={() => flip(image)} />
+                          <span aria-hidden="true">{SHARE_IMAGE_LABEL}</span>
+                        </label>
                         {asking === image.src && (
                           <div className={styles.confirm} role="group" aria-labelledby={`${rid}-ask`}>
                             <p className={styles.ask} id={`${rid}-ask`}>{CONFIRM_SENTENCE}</p>
