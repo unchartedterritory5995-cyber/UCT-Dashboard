@@ -119,6 +119,27 @@ def _populated(section, dim):
     return {r["level"]: (r["days"], r["tradeCount"]) for r in section[dim] if r["days"] or r["tradeCount"]}
 
 
+# ── 0. a sample-notebook check-in is never the member's day (fin-data I3) ──────
+
+def test_a_checkin_on_a_sample_note_counts_nowhere_and_the_same_checkin_on_a_real_note_counts(conn):
+    """The sample notebook's notes are examples to read. A check-in inside one is not the
+    member's mood that day. Control: the very same note, unmarked, counts."""
+    from api.services.journal_two import sample_marker
+    aid = _account(conn)
+    n = _note(conn, _checkin(mood="5", focus="4", day="2026-10-14"), title="Example day")
+    _trade(conn, aid, "2026-10-14", pnl=120.0)
+    conn.execute("UPDATE j2_notes SET import_source = ? WHERE id = ?", (sample_marker.SAMPLE_SOURCE, n["id"]))
+    conn.commit()
+    s = _checkins(conn, aid)
+    assert s["checkInDays"] == 0 and s["joinedTrades"] == 0
+    assert _populated(s, "mood") == {} and _populated(s, "focus") == {}
+    conn.execute("UPDATE j2_notes SET import_source = NULL WHERE id = ?", (n["id"],))
+    conn.commit()
+    s = _checkins(conn, aid)
+    assert s["checkInDays"] == 1 and s["joinedTrades"] == 1
+    assert _populated(s, "mood") == {5: (1, 1)} and _populated(s, "focus") == {4: (1, 1)}
+
+
 # ── 1. two check-ins on one day take the rounded mean ────────────────────────
 
 def test_two_checkins_one_day_take_the_rounded_mean(conn):

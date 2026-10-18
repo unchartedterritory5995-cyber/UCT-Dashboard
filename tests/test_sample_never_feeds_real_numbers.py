@@ -411,6 +411,8 @@ GUARDED = {
                                                      "follow-up",
     "api/services/journal_two/wrapped.py": "Your trading year's most-written tickers: an example note's ticker "
                                             "or $mention is never a note the member wrote",
+    "api/services/journal_two/analytics.py": "the psychology view's By check-in levels: a check-in inside an "
+                                              "example note is never the member's mood or focus that day",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.

@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import excursions_store, revenge_detect
+from api.services.journal_two import excursions_store, revenge_detect, sample_marker
 from api.services.journal_two.calendar import (
     _row_et_day,
     _strategy_scope_where,
@@ -1190,7 +1190,8 @@ def _checkin_section(
     Check-ins come from ``j2_note_checkins`` for THIS member only, ``day`` inside the
     analytics date range, from LIVE notes only: the join on ``j2_notes.deleted_at IS NULL``
     is what keeps a trashed note out and lets it count again on restore (R-T3-V3; trash and
-    restore never touch the sidecar). ``created_at`` is a projection time and is never read.
+    restore never touch the sidecar). A sample-notebook note's check-in counts nowhere
+    (``sample_marker``, fin-data I3). ``created_at`` is a projection time and is never read.
 
     R-T3-3: a check-in counts for the ET day in its ``day`` param. A day with several
     check-ins takes, per dimension, the mean of the check-ins that picked that dimension,
@@ -1216,6 +1217,8 @@ def _checkin_section(
         "  FROM j2_note_checkins c"
         "  JOIN j2_notes n ON n.id = c.note_id"
         " WHERE c.user_id = ? AND n.user_id = ? AND n.deleted_at IS NULL"
+        # fin-data I3: a check-in inside a sample-notebook note is an example, never the member's day.
+        " AND " + sample_marker.not_sample_sql("n")
     )
     params: list[Any] = [user_id, user_id]
     if date_from:
