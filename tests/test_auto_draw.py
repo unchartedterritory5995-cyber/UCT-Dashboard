@@ -154,22 +154,25 @@ def test_clean_bars_clips_bad_prints_and_drops_unusable_rows():
 
 # ── the chart's default drawn set ───────────────────────────────────────────
 
-def test_drawn_set_carries_ten_day_levels_nearest_first_and_no_prior_day_at_the_last_bar():
-    # team set round 2: the prior-day pair IS the last bar's range (as of the next session), so it
-    # is never drawn right at the last candle; the 10-day pair stays unless it duplicates a level
+def test_drawn_set_carries_ten_day_and_prior_day_levels_nearest_first_at_the_last_bar():
+    # CHANGED 2026-10-18 (drawn-vs-team study, config C2): this test used to assert the prior-day
+    # pair was NEVER drawn at the last bar (team set round 2). On the team's own held-out drawings
+    # that omission cost agreement, so the pair is restored after the close: like the 10-day pair it
+    # is drawn unless it duplicates a nearer level or the four nearest are already taken.
     bars = _synthetic(7)
     d = auto_draw.drawn_set(bars)
     hs = d["horizontals"]
     assert 1 <= len(hs) <= auto_draw.DRAWN_HORIZONTALS
     w10 = bars[-10:]
-    defaults = {"ten_day_high": max(b[2] for b in w10), "ten_day_low": min(b[3] for b in w10)}
+    defaults = {"ten_day_high": max(b[2] for b in w10), "ten_day_low": min(b[3] for b in w10),
+                "prior_day_high": bars[-1][2], "prior_day_low": bars[-1][3]}
     got = {h["source"]: h["price"] for h in hs}
     for src, price in defaults.items():
         assert src in got or any(abs(price - p) <= auto_draw.H_DUP_ATR * d["atr"] for p in got.values())             or len(hs) == auto_draw.DRAWN_HORIZONTALS, src
-    assert not {"prior_day_high", "prior_day_low"} & set(got)
+    assert d["omitted"] == []
     dists = [abs(h["price"] - d["last_close"]) for h in hs]
     assert dists == sorted(dists)
-    # round 4: major swings rank ahead of the learned fill, so it enters on some charts, not all
+    # control: the learned fill still enters on some charts, not all
     assert any(h["source"] == "learned" for s in range(1, 21)
                for h in auto_draw.drawn_set(_synthetic(s))["horizontals"]), \
         "control: the learned fill never entered"
