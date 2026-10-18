@@ -1046,12 +1046,21 @@ def needs_catalysts(sym: str) -> bool:
         error_retry_after=_ERROR_RETRY_AFTER, upgrade_after=_UPGRADE_AFTER)
 
 
-def feed(sym: str) -> dict:
+def feed(sym: str, generate: bool = True) -> dict:
     """The endpoint payload: merged events now + a status telling the client whether
-    historical catalysts are still generating."""
+    historical catalysts are still generating.
+
+    `generate=False` is a PEEK: what is already written, and never a generation. A
+    surface that reads the feed for every row a member steps past (the screener's
+    catalyst strip) must not start one LLM generation per row; `status` is then
+    "none" where nothing is written yet, never "generating"."""
     sym = (sym or "").upper()
     if not sym:
         return {"symbol": sym, "status": "ready", "events": [], "generated_at": int(time.time())}
+    if not generate:
+        has = _combined_has_rows(sym)
+        return {"symbol": sym, "status": "ready" if has else "none",
+                "events": _combined(sym) if has else [], "generated_at": int(time.time())}
     status = "ready"
     if needs_catalysts(sym):
         _gen_async(sym)
