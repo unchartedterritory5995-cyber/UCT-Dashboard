@@ -679,7 +679,7 @@ def test_R10_every_block_resets_through_its_builder_and_reads_nothing(monkeypatc
     from api.services import auth_db
     monkeypatch.setattr(auth_db, "get_connection", spy("auth_db.get_connection"))
     monkeypatch.setitem(tb.BUILDERS, "marketcontext", spy("build_market_context"))
-    assert len(tb.BLOCK_IDS) == 9 and set(tb.READS_ON_CREATE) - set(tb.BLOCK_IDS) == {"marketcontext"}
+    assert len(tb.BLOCK_IDS) == 10 and set(tb.READS_ON_CREATE) - set(tb.BLOCK_IDS) == {"marketcontext"}
     authored = {bid: {"secret": f"author-{bid}", "snapshot": {"rows": [1]}} for bid in tb.BLOCK_IDS}
     body = doc(*[block(bid, authored[bid]) for bid in tb.BLOCK_IDS], block("marketcontext", {"fields": "all"}))
     changes: list = []
@@ -691,7 +691,7 @@ def test_R10_every_block_resets_through_its_builder_and_reads_nothing(monkeypatc
         assert w["attrs"]["params"] == empty_params(w["attrs"]["widgetId"]), w
     assert "author-" not in json.dumps(out)
     assert texts_in(out) == [NEUTRAL]                         # marketcontext: the market-data rule
-    assert kinds(changes).count("block_reset") == 9 and kinds(changes).count("market_data") == 1
+    assert kinds(changes).count("block_reset") == len(tb.BLOCK_IDS) and kinds(changes).count("market_data") == 1
 
 
 def test_R10_marketcontext_is_a_market_data_embed_and_takes_gallerys_rule():
