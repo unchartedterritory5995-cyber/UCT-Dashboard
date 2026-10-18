@@ -315,7 +315,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const notNow = () => { setPref('notebook_kind_mapping', 'dismissed') }
 
   return (
-    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
+    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }} data-tour="styles-manager">Journal styles</h2>}
       labelledByTitle variant="auto" maxWidth={960}>
       <div className={styles.wrap}>
         {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
@@ -367,7 +367,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
             <div className={styles.listCol}>
               {starter.show && <StarterPackOffer onClose={starter.close} offline={offline} />}
               <div className={styles.rowActions}>
-                <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length}
+                <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
                   onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
                   <UIcon name="plus" size={14} gold={false} /> New style
                 </button>
@@ -400,6 +400,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 </section>
               )}
 
+              {/* P5 tour anchor (Journal styles, step 3): the styles grouped by kind of note */}
+              <div className={styles.kindGroups} data-tour="styles-kinds">
               {kinds.map((k) => {
                 const list = stylesOfKind(data, k.id)
                 return (
@@ -449,6 +451,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                   </section>
                 )
               })}
+              </div>
 
               <section className={styles.kindGroup} aria-labelledby="js-own-kinds">
                 <h3 id="js-own-kinds" className={styles.kindHead}>Your kinds of note</h3>

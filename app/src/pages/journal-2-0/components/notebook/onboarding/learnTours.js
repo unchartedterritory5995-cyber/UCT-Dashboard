@@ -41,6 +41,7 @@ export const GROUP_OF = Object.freeze({
   'notebook-basics': 'Basics', 'template-gallery': 'Basics', 'meaning-search': 'Basics',
   'writing-help': 'Writing and capture', 'image-docx-import': 'Writing and capture', 'publish-share': 'Writing and capture',
   'task-reminders': 'Writing and capture', 'formulas-rollups': 'Writing and capture', 'voice-notes': 'Writing and capture',
+  'journal-styles': 'Writing and capture', 'style-library': 'Writing and capture',
   'plan-grading': 'Trading', 'entry-context': 'Trading', 'review-drafts': 'Trading', 'my-playbook': 'Trading',
   'chart-plan-basics': 'Trading', 'chart-plan-replay': 'Trading',
   'ta-fingerprint': 'Research', 'visual-playbook': 'Research', 'setups-board': 'Research', 'earnings-prep': 'Research',
