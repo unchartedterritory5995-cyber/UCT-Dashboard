@@ -263,12 +263,46 @@ export async function publishExample({ noteId, styleItemId, imagesOn = [], title
   return out
 }
 
+// ── P3b Task 6: a style's examples ("In use") and a reviewer's view of one ──
+//
+// ⛔ ONE FACT IN TWO FILES with template_gallery.py (EXAMPLE_IMAGE_PATH, REV_PENDING): ExamplesInUse.test.jsx READS
+// that file and holds these equal. An example's images are always on the gallery image route; the stored address
+// carries no version, and `?rev=pending` asks for a HELD revision's copy (the author's and a reviewer's only).
+export const exampleImagePrefix = (itemId) => `${GALLERY_KEY}/${itemId}/images/`
+export const EXAMPLE_REV_PENDING = 'pending'
+
+/** A style item's examples as the server answers them (`examples`: up to 3 approved, newest first, each
+ *  `{id, title, bodyJson, updatedAt}`). A missing key -- the example switch off, or a pod that predates P3b -- is
+ *  none, and so is anything not in that shape. */
+export function styleExamples(template) {
+  const list = Array.isArray(template?.examples) ? template.examples : []
+  return list.filter((e) => e && typeof e.id === 'string' && e.id && e.bodyJson && typeof e.bodyJson === 'object')
+}
+
+/** A HELD revision's body as it will read once approved, for the reviewer: each image on THIS item's gallery route
+ *  is asked for on `?rev=pending` (the held copy, which approval moves into place). Nothing else is touched. */
+export function withHeldImages(body, itemId) {
+  const prefix = exampleImagePrefix(itemId)
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return node
+    let out = node
+    if (node.type === 'image' && typeof node.attrs?.src === 'string' && node.attrs.src.startsWith(prefix)
+      && !node.attrs.src.includes('?')) {
+      out = { ...node, attrs: { ...node.attrs, src: `${node.attrs.src}?rev=${EXAMPLE_REV_PENDING}` } }
+    }
+    return Array.isArray(out.content) ? { ...out, content: out.content.map(walk) } : out
+  }
+  return walk(body)
+}
+
 /** A listed style composed with the member's OWN data, written nowhere: the journal styles preview door
- *  with the item's listed `payload` as a draft. `{bodyJson, properties, skipped, ticker, ...}`. */
+ *  with the item's listed `payload` as a draft. `{bodyJson, properties, skipped, ticker, ..., examples}` --
+ *  `examples` is the style's own ("In use", P3b Task 6), from the same single read of the item. */
 export async function previewLibraryStyle(item) {
   const template = await getGalleryTemplate(item.id)
   const p = template?.payload || {}
-  return previewJournalStyle({
+  const out = await previewJournalStyle({
     style: { kindId: p.kindId, outlineBodyJson: p.outlineBodyJson, blocks: p.blocks, properties: p.properties },
   })
+  return { ...out, examples: styleExamples(template) }
 }

@@ -1,0 +1,100 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/6730bd10d99640b791724391e58b6806",
+    "note": "A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its images on the gallery image route.",
+    "path": "/api/j2/template-gallery/6730bd10d99640b791724391e58b6806",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Erin Example",
+      "authorHandle": "gcra2MCZaDHz",
+      "bodyJson": {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "What moved this week, and why?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "category": "journal",
+      "description": "",
+      "examples": [
+        {
+          "bodyJson": {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "made your value here on NVDA, up your value here, at your broker. Watching 132.40 on Monday.",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "attrs": {
+                  "alt": "NVDA daily",
+                  "src": "/api/j2/template-gallery/117159d2c7664c21ae0df9569b417283/images/0"
+                },
+                "type": "image"
+              }
+            ],
+            "type": "doc"
+          },
+          "id": "117159d2c7664c21ae0df9569b417283",
+          "title": "My weekend plan",
+          "updatedAt": "2026-10-05T14:30:00+00:00"
+        }
+      ],
+      "featured": false,
+      "firm": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "id": "6730bd10d99640b791724391e58b6806",
+      "itemType": "style",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "payload": {
+        "blocks": [],
+        "kindId": "weekend_prep",
+        "outlineBodyJson": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "What moved this week, and why?",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "properties": {}
+      },
+      "preview": [
+        {
+          "kind": "text",
+          "text": "What moved this week, and why?"
+        }
+      ],
+      "propertyCount": 0,
+      "propertyDefs": [],
+      "title": "Weekend prep",
+      "tradingStyle": null,
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

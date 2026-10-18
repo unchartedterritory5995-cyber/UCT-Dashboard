@@ -2295,6 +2295,35 @@ def example_notes(w: World) -> None:
                   "the image CSP. The body is the file's bytes.")
     w.record("template-gallery.examples.image.not-found", "GET", f"{base}/{gid}/images/7", case="error",
              expect=404, note="No copy with that number: the one 404.")
+    # P3b Task 6 (LAST, so nothing above moved): the style's "In use" section as a member reads it, and a reviewer's
+    # read of the example with a HELD revision. The style is approved first (a member may not read a pending one);
+    # then the author edits the note and publishes it again, which holds the new version beside the listed one.
+    w.as_user(ADMIN)
+    style_seen = w.client.get(f"{base}/{sid}").json()["template"]["updatedAt"]
+    listed = w.client.patch(f"{base}/admin/items/{sid}", json={"action": "approve", "reviewedUpdatedAt": style_seen})
+    assert listed.status_code == 200, f"setup: approving the style answered {listed.status_code}"
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.style-item", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest "
+                  "first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its "
+                  "images on the gallery image route.")
+    c = w.conn()
+    try:
+        revised = doc(para("made $2,480 on NVDA at Schwab. Watching 140.00 on Tuesday."),
+                      {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (json.dumps(revised), note["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    again = w.client.post(f"{base}/examples", json={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                                     "title": "My weekend plan, revised"})
+    assert again.status_code == 200, f"setup: publishing the example again answered {again.status_code}"
+    w.as_user(ADMIN)
+    w.record("template-gallery.examples.item.revision.admin", "GET", f"{base}/{gid}", case="success", expect=200,
+             note="A reviewer's read of an approved example with a HELD revision: the listed `payload`, the "
+                  "admin-only `pendingRevision` (its images are served on `?rev=pending`), and `linkedStyle`.")
+    w.as_user(MEMBER)
 
 
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────

@@ -38,6 +38,8 @@ import {
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
+// P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
+import StyleItemPreview from './styles/StyleItemPreview'
 import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
 import AuthorView from './AuthorView'
 import lazyChunk from '../../lib/lazyChunk'
@@ -391,7 +393,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
     setPreview({ ...base, body: null, loading: true })
     try {
       const out = await previewLibraryStyle(item)
-      setPreview({ ...base, body: out?.bodyJson || null })
+      setPreview({ ...base, body: out?.bodyJson || null, examples: out?.examples || [] })
     } catch (err) {
       setPreview({ ...base, body: null, loadError: refusalSentence(err, "Couldn't load this preview.") })
     }
@@ -575,14 +577,24 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
       {view === 'review' && isAdmin && <TemplateGalleryReviewPanel onMessage={setMessage} />}
 
       <TemplatePreview
-        open={Boolean(preview)}
+        open={Boolean(preview) && !preview.style}
         onClose={() => setPreview(null)}
         title={preview?.label}
         subtitle={preview?.subtitle}
         body={preview?.body}
         onUse={preview?.onUse}
-        showUse={!preview?.style}
         busy={busy || using}
+        loading={Boolean(preview?.loading)}
+        loadError={preview?.loadError || null}
+      />
+      {/* A style's Preview (P3a Task 9) is its own sheet since P3b Task 6: the same surface, plus "In use". */}
+      <StyleItemPreview
+        open={Boolean(preview?.style)}
+        onClose={() => setPreview(null)}
+        title={preview?.label}
+        subtitle={preview?.subtitle}
+        body={preview?.body}
+        examples={preview?.examples}
         loading={Boolean(preview?.loading)}
         loadError={preview?.loadError || null}
       />

@@ -777,6 +777,10 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
                 rev = _pending_revision(row)
                 if rev is not None:
                     out["pendingRevision"] = rev
+            # P3b Task 6: the style's own examples ("In use"), only while the example switch is on (absent, not
+            # empty, while it is off: the key itself is the switch's answer, as everywhere an example is absent).
+            if example_enabled():
+                out["examples"] = _style_examples(conn, row)
         elif row["item_type"] == EXAMPLE_ITEM:
             # P3b: an example's LISTED snapshot (`payload_json`, never `pending_json`) and, for a reviewer only, its
             # held revision -- the same rule as a style's, so a revision is seen before it is approved.
@@ -785,10 +789,45 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
                 rev = _pending_revision(row)
                 if rev is not None:
                     out["pendingRevision"] = rev
+            # P3b Task 6: the style it shows, by title, for whoever may see THAT style (the reviewer's "linked
+            # style's title"); None when the reader may not see it (a pending one, say), never a hint it exists.
+            out["linkedStyle"] = _linked_style(conn, out["payload"]["linkedItemId"], viewer_id, is_admin)
         return out
     finally:
         if owned:
             conn.close()
+
+
+#: P3b Task 6: how many examples a style shows ("In use").
+STYLE_EXAMPLES_SHOWN = 3
+
+
+def _style_examples(conn: sqlite3.Connection, style: sqlite3.Row) -> list[dict[str, Any]]:
+    """A style's examples as every member sees them: up to `STYLE_EXAMPLES_SHOWN` APPROVED, non-hidden example items
+    linked to it by ITS OWN author, newest listed first, each exactly `{id, title, bodyJson, updatedAt}`.
+
+    ⛔ The columns are NAMED, and `pending_json` is not among them: a held revision (an author's next version, not yet
+    reviewed) never leaves this read. ⛔ `bodyJson` is the stored LISTED example reduction (`payload.bodyJson`, ruling
+    P3b-R13), read through `_safe_example`; it is never re-reduced (gallery mode drops every image)."""
+    rows = conn.execute(
+        "SELECT id, title, payload_json, updated_at FROM j2_template_gallery g"
+        f" WHERE g.item_type = ? AND {_VISIBLE} AND g.user_id = ?"
+        " AND CASE WHEN json_valid(g.payload_json) THEN json_extract(g.payload_json, '$.linkedItemId') END = ?"
+        f" ORDER BY COALESCE(g.listed_at, g.created_at) DESC, g.rowid DESC LIMIT {STYLE_EXAMPLES_SHOWN}",
+        (EXAMPLE_ITEM, style["user_id"], style["id"])).fetchall()
+    return [{"id": r["id"], "title": r["title"], "bodyJson": _safe_example(_listed_payload(r))["bodyJson"],
+             "updatedAt": r["updated_at"]} for r in rows]
+
+
+def _linked_style(conn: sqlite3.Connection, style_id: Any, viewer_id: str, is_admin: bool) -> dict | None:
+    """The style an example shows, `{id, title}`, or None when there is none the viewer may see (`_can_see`)."""
+    if not isinstance(style_id, str) or not style_id:
+        return None
+    row = conn.execute("SELECT id, user_id, title, item_type, status, hidden FROM j2_template_gallery"
+                       " WHERE id = ? AND item_type = 'style'", (style_id,)).fetchone()
+    if not _can_see(row, viewer_id, is_admin):
+        return None
+    return {"id": row["id"], "title": row["title"]}
 
 
 def _pending_revision(row: sqlite3.Row) -> dict | None:
