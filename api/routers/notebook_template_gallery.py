@@ -45,6 +45,8 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
     a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day. Helpful (`notebook-gallery-helpful`)
     and follow (`notebook-gallery-follow`) are 60/hour each, in-process only; marking and unmarking share a budget.
     Publishing an example note (P3b, R-P3b-8) SHARES the publish scopes: the same 10/hour and durable 10/day.
+    Previewing one (P3b-F-R1) is 60/hour in `notebook-gallery-preview`, in-process only: each preview reduces
+    the whole note, measured at up to ~3 s for a 200 KB worst case even once the scrub was made linear.
   * THE LITERAL `/updates`, `/feed`, `/examples` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
     `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
     Keep them above it.
@@ -82,12 +84,19 @@ HELPFUL_RATE = "60/hour"
 SCOPE_HELPFUL = "notebook-gallery-helpful"
 FOLLOW_RATE = "60/hour"
 SCOPE_FOLLOW = "notebook-gallery-follow"
+# P3b-F-R1 (final review C-1): an example's preview reduces the whole note each time -- on open, on every image
+# switch and on every pause in a typed title -- and a 200 KB worst case still measured ~3 s once the scrub was made
+# linear, all of it holding the one web process's GIL. Per member, in-process only (no durable count: a preview
+# writes nothing and is not a charge), so a second process doubles it (the CLAUDE.md single-process roster).
+PREVIEW_RATE = "60/hour"
+SCOPE_PREVIEW = "notebook-gallery-preview"
 
 HELPFUL_RATE_SENTENCE = "You've marked a lot of styles helpful. Try again later."
 FOLLOW_RATE_SENTENCE = "You've followed or unfollowed a lot of authors. Try again later."
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
 ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
+PREVIEW_RATE_SENTENCE = "You've previewed a lot of example notes. Try again later."
 MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
 
@@ -281,8 +290,11 @@ def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
     would see, for the author, the title included (the note's own when none is sent). Writes nothing. 404 when
     the note is not theirs, not live, or the sample notebook's; 400 for a note too long to be an example.
 
-    ⚠️ Not rate-limited (review M-2): no new limiter scope is added (the single-process roster). Its cost is
-    bounded instead -- a note over the example ceiling is refused before it is reduced, and it is reduced once."""
+    Its cost is bounded three ways: a note over the example ceiling is refused before it is reduced, it is
+    reduced once, in linear time (P3b-F-R1), and a member may run `PREVIEW_RATE` of them (429 after; P3b-F-R1
+    reversed review M-2's "not rate-limited", whose premise -- the size bounds the cost -- the final review's
+    measurement disproved)."""
+    public.enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW, f"member:{user['id']}", PREVIEW_RATE_SENTENCE, public=False)
     images_on = _images_on(body)
     try:
         out = gallery.preview_example(None, user["id"], body.get("noteId"), images_on, body.get("title"))

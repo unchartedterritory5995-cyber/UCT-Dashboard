@@ -1157,3 +1157,16 @@ def test_F_R4_a_style_reject_is_pinned_the_same_way(api, conn, ex_on, ocr):
     with pytest.raises(gallery.GalleryConflict):
         gallery.admin_act("admin", item["id"], "reject", note="No.", reviewed_updated_at=seen, conn=conn)
     assert json.loads(_row(conn, item["id"])["pending_json"])["title"] == "V3"         # the new revision stands
+
+
+def test_F_R1_the_sixty_first_preview_in_an_hour_is_429_and_the_budget_is_the_members(api, conn, ex_on, ocr):
+    """A 200 KB worst case still reduces in ~3 s, so the preview has its own per-member limit (P3b-F-R1)."""
+    from api.routers import notebook_template_gallery as router_mod
+    assert (router_mod.PREVIEW_RATE, router_mod.SCOPE_PREVIEW) == ("60/hour", "notebook-gallery-preview")
+    nid = _note(conn)
+    codes = [api.post(f"{EX}/preview", json={"noteId": nid}).status_code for _ in range(60)]
+    assert codes == [200] * 60
+    r = api.post(f"{EX}/preview", json={"noteId": nid})
+    assert (r.status_code, r.json()["detail"]) == (429, router_mod.PREVIEW_RATE_SENTENCE)
+    _as(api, "other")                                                       # another member's budget is untouched
+    assert api.post(f"{EX}/preview", json={"noteId": _note(conn, "other")}).status_code == 200
