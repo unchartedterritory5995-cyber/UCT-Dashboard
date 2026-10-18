@@ -1,0 +1,53 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...F.....................                                                [100%]
+================================== FAILURES ===================================
+__________ test_every_notebook_gate_is_rehearsed_or_carries_a_reason __________
+
+t = <module 'switch_rehearsal' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-p5\\tools\\notebook_switch_rehearsal.py'>
+table = {'AWARENESS_NOTE_RESURFACE_ENABLED': False, 'COMPASS_NOTES_TOOL_ENABLED': False, 'J2_SHARE_LINKS_ENABLED': False, 'JOURNAL_PAGE_LAYOUTS_ENABLED': False, ...}
+
+    def test_every_notebook_gate_is_rehearsed_or_carries_a_reason(t, table):
+        """A gate added tomorrow reds here until someone writes a probe or a reason."""
+        _, modes = t.capability_table()
+        found = t.notebook_gates_in_index()
+        # non-vacuity: the index sees gates from both kinds of read site
+        assert "NOTEBOOK_SEMANTIC_SEARCH_ENABLED" in found and "J2_SHARE_LINKS_ENABLED" in found
+        skipped = t.not_rehearsed(table, modes)
+>       assert not [k for k, why in skipped.items() if why == "no rendered probe written"], skipped
+E       AssertionError: {'AWARENESS_NOTE_RESURFACE_ENABLED': "dark (wave 13 13D): the awareness scan's resurfacing pass; its evidence is an in...g check-in block still renders); evidence is the fin walk's Tier 3 group (Task 10); waits for the owner's arming", ...}
+E       assert not ['NOTEBOOK_TERMINAL_LINKS_ENABLED']
+
+tests\test_notebook_switch_rehearsal.py:105: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1311 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 25 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_notebook_switch_rehearsal.py::test_the_table_is_the_apps_own_table
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_switch_rehearsal.py: 13 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+tests/test_notebook_switch_rehearsal.py: 112 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+tests/test_notebook_switch_rehearsal.py: 112 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_switch_rehearsal.py::test_every_notebook_gate_is_rehearsed_or_carries_a_reason
+1 failed, 24 passed, 1574 warnings in 35.09s
+EXIT: 1
