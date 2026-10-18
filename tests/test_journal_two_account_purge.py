@@ -63,6 +63,11 @@ _WAVE_12_15_TABLE_OWNERS = {
     # whose absence means the table cannot exist. Found by the rollback rehearsal on 2026-10-07:
     # without this row the kept copy of this file failed twice on the rolled-back tree.
     "j2_trade_plan_misses": "plan_grading",
+    # P3a (ruling P3a-T5-R1): the community library's per-member tables, all created by
+    # template_gallery.ensure_gallery_schema, so that module's absence means they cannot exist.
+    "j2_gallery_watches": "template_gallery",
+    "j2_gallery_helpful": "template_gallery",
+    "j2_gallery_authors": "template_gallery",
 }
 
 
@@ -428,6 +433,78 @@ def test_j2_note_templates_is_purged_on_account_deletion(db_path):
         conn.close()
 
 
+def test_account_purge_removes_library_rows_and_keeps_copies(db_path, monkeypatch):
+    """P3a Task 7 -- the community library's rows leave with the account, in both directions.
+
+    A leaving MEMBER takes their Helpful votes, the follows they hold, their watches and their handle. A
+    leaving AUTHOR also takes the follows others hold on them and the votes and watches others left on their
+    items. Every adopted copy stays: a copy is the adopter's own style, not the author's content. Hardcoded
+    to these tables rather than read off `_DIRECT_USER_TABLES`, for the reason the template test above
+    gives -- and `j2_gallery_follows` has no `user_id` at all, so the generic manifest test cannot see it."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import template_gallery as gallery
+
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    conn = get_connection()
+    try:
+        for uid in ("author", "member", "other_author", "fan"):
+            _seed_user(conn, uid, f"{uid}@test.uct")
+        conn.commit()
+
+        def listed(owner):
+            s = js.create_style(owner, {"name": "Prep", "kindId": "weekend_prep", "blocks": [],
+                                        "outlineBodyJson": {"type": "doc", "content": []}}, conn)
+            item = gallery.publish_style(owner, s["id"], title=f"{owner} prep", description="",
+                                         category="journal", trading_style=None, conn=conn)
+            gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+            return item["id"]
+
+        mine, theirs = listed("author"), listed("other_author")
+        gallery.author_handle("author", conn)
+        gallery.author_handle("member", conn)
+        # The member: watches and adopts the author's style, marks the other author's item Helpful,
+        # follows the other author.
+        member_copy = gallery.adopt_style("member", mine, notify=True, conn=conn)["style"]
+        gallery.set_helpful("member", theirs, True, conn=conn)
+        gallery.set_follow("member", gallery.author_handle("other_author", conn), True, conn=conn)
+        # The fan: follows the author, marks the author's item Helpful, watches and adopts it.
+        fan_copy = gallery.adopt_style("fan", mine, notify=True, conn=conn)["style"]
+        gallery.set_helpful("fan", mine, True, conn=conn)
+        gallery.set_follow("fan", gallery.author_handle("author", conn), True, conn=conn)
+
+        def n(sql, *a):
+            return conn.execute(sql, a).fetchone()[0]
+
+        assert n("SELECT COUNT(*) FROM j2_gallery_watches") == 2                                # non-vacuity
+        assert n("SELECT COUNT(*) FROM j2_gallery_helpful") == 2
+        assert n("SELECT COUNT(*) FROM j2_gallery_follows") == 2
+
+        assert ap.purge_user_data("member", conn)["ok"] is True
+        assert n("SELECT COUNT(*) FROM j2_gallery_helpful WHERE user_id = 'member'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_follows WHERE follower_id = 'member'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_watches WHERE user_id = 'member'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_authors WHERE user_id = 'member'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_watches WHERE user_id = 'fan'") == 1          # others untouched
+        assert n("SELECT COUNT(*) FROM j2_gallery_follows WHERE follower_id = 'fan'") == 1
+
+        assert ap.purge_user_data("author", conn)["ok"] is True
+        assert n("SELECT COUNT(*) FROM j2_gallery_authors WHERE user_id = 'author'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_follows WHERE author_id = 'author'") == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", mine) == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_watches WHERE gallery_id = ?", mine) == 0
+        # Every adopted copy is still its adopter's own style.
+        assert n("SELECT COUNT(*) FROM j2_journal_styles WHERE id = ? AND user_id = 'fan'", fan_copy["id"]) == 1
+        assert n("SELECT COUNT(*) FROM j2_gallery_authors WHERE user_id = 'other_author'") == 1  # control
+        assert n("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", theirs) == 1
+        # The member's own copy left with the member (it was theirs), which is the direct pass.
+        assert n("SELECT COUNT(*) FROM j2_journal_styles WHERE id = ?", member_copy["id"]) == 0
+    finally:
+        conn.close()
+
+
 def test_j2_task_reminder_log_is_purged_on_account_deletion(db_path, monkeypatch):
     """Wave 6 fix round 4, R4-4 (M-5) — the daily task reminder's claim log
     (`note_tasks.run_task_reminders`) is keyed by `user_id`: which member was
@@ -552,7 +629,7 @@ def test_no_table_is_excused_while_the_module_that_owns_it_is_on_disk():
     the tip -- nothing is left out, so the manifest rails above cover the whole list."""
     from api.services.journal_two import account_purge as ap
 
-    assert len(_WAVE_12_15_TABLE_OWNERS) == 13
+    assert len(_WAVE_12_15_TABLE_OWNERS) == 16
     not_listed = sorted(set(_WAVE_12_15_TABLE_OWNERS) - set(ap._DIRECT_USER_TABLES))
     assert not not_listed, f"the deletion list no longer names: {not_listed}"
     gone = _rolled_back_tables()

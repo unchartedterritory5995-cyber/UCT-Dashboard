@@ -269,6 +269,7 @@ NOTEBOOK_FLAGS = {
     # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
     # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
     "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

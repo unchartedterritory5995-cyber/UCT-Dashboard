@@ -78,6 +78,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_smart_chips_enabled: false, // Tier 2 part A: the alert chip and the screenshot chip — absent ⇒ OFF
   notebook_earnings_followup_enabled: false, // Tier 2 part B: the earnings follow-up card and job — absent ⇒ OFF
   journal_page_layouts_enabled: false, // P4a: page layouts (Customize on Today and the trade page) — absent ⇒ OFF
+  notebook_style_library_enabled: false, // P3a: the community style library (share, adopt, helpful, follow) — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

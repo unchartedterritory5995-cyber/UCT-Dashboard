@@ -1,0 +1,9 @@
+{
+  "captured_at": "2026-10-17T17:06:24+00:00",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\p3a-capture-yhxn5ctw",
+  "producer": "template_gallery.admin_act (approve of a held revision) and template_gallery.unpublish, default delivery -> alerts.add_alert",
+  "route": "GET /api/alerts?limit=20 (api.routers.alerts, get_current_user overridden)",
+  "seams_patched": [],
+  "tip": "de0ff40daf160e458a1be4a45a0c914cbe8c3f83",
+  "tool": "tools/capture_library_notice.py"
+}

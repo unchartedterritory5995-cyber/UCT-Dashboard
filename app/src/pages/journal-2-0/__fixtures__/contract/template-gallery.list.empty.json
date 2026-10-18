@@ -10,11 +10,15 @@
     "templates": [
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "review",
         "description": "Patterns, leaks, and the ONE commitment for next week.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "0ee7e05c09ce4658a8b9531403ac30af",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -33,16 +37,23 @@
         ],
         "propertyCount": 0,
         "title": "Weekly Review",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       },
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "review",
         "description": "Setup, execution, and the lesson — while it’s fresh.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "d67736ebbf084b249b82d12629e4c6d6",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -61,16 +72,23 @@
         ],
         "propertyCount": 0,
         "title": "Trade Review",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       },
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "research",
         "description": "The report, the play, and sizing for binary risk.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "7910925934934f26a90f3a44a6fe2769",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -89,16 +107,23 @@
         ],
         "propertyCount": 0,
         "title": "Earnings Prep",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       },
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "trade_plan",
         "description": "The rules for one setup, written down so future-you trades it the same way every time.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "faad9a781240499ab0c16cf0d4a0ba31",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -117,16 +142,23 @@
         ],
         "propertyCount": 0,
         "title": "Setup Checklist",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       },
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "trade_plan",
         "description": "Entry, stop, target, size, and the line that invalidates it — written before you are in it.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "593739206a6047dda753891098973091",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -145,16 +177,23 @@
         ],
         "propertyCount": 0,
         "title": "Trade Plan",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       },
       {
         "author": "UCT",
+        "authorHandle": null,
         "category": "trade_plan",
         "description": "Regime, levels, scenarios, and your risk budget for the day.",
         "featured": true,
         "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
         "id": "d6c0ea3ad652423fa60981c7dad0a717",
+        "itemType": "outline",
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": false,
         "preview": [
@@ -173,8 +212,11 @@
         ],
         "propertyCount": 0,
         "title": "Pre-Market Plan",
+        "tradingStyle": null,
+        "trendingCount": 0,
         "updatedAt": "2026-10-05T14:30:00+00:00",
-        "usedBy": 0
+        "usedBy": 0,
+        "version": 1
       }
     ],
     "viewer": {

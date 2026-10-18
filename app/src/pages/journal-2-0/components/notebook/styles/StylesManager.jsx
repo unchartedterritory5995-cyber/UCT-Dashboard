@@ -9,7 +9,21 @@
 // Focus: opening the editor moves focus to its heading and scrolls it into view (the one-column phone layout
 // puts it far below the list); closing it returns focus to the button that opened it; after Delete focus
 // lands on Undo, after Undo on the restored row. The status line is sticky, so it is seen where the member is.
+// P3a Task 10 (the community style library, only while styleLibraryEnabled()): a member style row gains
+// "Share to community" (ShareStyleForm), the list gains a "Community" door (LibraryDoor, opened at Styles) and,
+// when an adopted copy is behind its listed version, "Updates (N)" with a list whose rows open LibraryUpdateSheet.
+// ⛔ `?libraryUpdate=<styleId>` (the bell notice's link; NotebookTab opens this manager on `?styles=1` and strips
+//    only `styles`) is read HERE, by LibraryUpdateParam, never in NotebookTab: it opens the update sheet for that
+//    copy only when the copy is in this member's own Updates list, so a server-written link to someone else's
+//    style, or to a copy already up to date, opens nothing and shows nothing broken. The param is then cleared.
+//    ⛔ It matches against a FRESH read of that list (fix round 1, I-1): the list lives in the app-wide SWR cache,
+//    so a copy that fell behind after the member last opened this manager is not in the cached answer.
+// ⛔ After "Update my copy" focus goes to the updated copy's row (I-2): the Review update button that opened the
+//    sheet is removed with its Updates row, and restoring focus to it would drop the member on <body>.
+// ⛔ Share is not offered on any style that carries library provenance (`sourceGalleryId`): an adopted copy, its
+//    duplicate, or a style saved from a note made with one (rulings P3a-T10-R3/R5/R6; the server refuses them too).
 import { useContext, useEffect, useRef, useState } from 'react'
+import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { focusableWithin } from '../../../../../components/mobile/useFocusTrap'
@@ -18,6 +32,8 @@ import usePreferences from '../../../../../hooks/usePreferences'
 import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
+import { styleLibraryEnabled } from '../../../lib/styleLibraryFlag'
+import { useStyleUpdates } from '../../../lib/styleLibrary'
 import { kindIcon } from '../../../lib/noteKinds'
 import {
   applyMappingOffer, createJournalStyle, createKind, deleteJournalStyle, deleteKind, getJournalStyle,
@@ -25,6 +41,9 @@ import {
   updateKind,
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
+import LibraryDoor from './LibraryDoor'
+import ShareStyleForm from './ShareStyleForm'
+import LibraryUpdateSheet from './LibraryUpdateSheet'
 import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
 import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
@@ -39,9 +58,46 @@ const copyName = (name) => {
   return name.length + suffix.length > MAX_STYLE_NAME ? name.slice(0, MAX_STYLE_NAME - suffix.length) + suffix : name + suffix
 }
 
+/** Reads `?libraryUpdate=<styleId>` once, hands it up, and takes it out of the URL (replace, no new entry).
+ *  Rendered only inside a router, so the manager itself still renders without one. */
+function LibraryUpdateParam({ onFound }) {
+  const [params, setParams] = useSearchParams()
+  const id = params.get('libraryUpdate')
+  useEffect(() => {
+    if (!id) return
+    onFound(id)
+    setParams((prev) => { const p = new URLSearchParams(prev); p.delete('libraryUpdate'); return p }, { replace: true })
+  }, [id, onFound, setParams])
+  return null
+}
+
 export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const on = journalStylesEnabled()
+  const libraryOn = styleLibraryEnabled()
+  const inRouter = useInRouterContext()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
+  const { updates, refresh: refreshUpdates } = useStyleUpdates({ enabled: open && on })
+  const [sharing, setSharing] = useState(null)          // the style row a Share form is open for
+  const [updating, setUpdating] = useState(null)        // the adopted copy whose update sheet is open
+  const [showUpdates, setShowUpdates] = useState(false)
+  const [linkedUpdate, setLinkedUpdate] = useState(null) // ?libraryUpdate=, waiting for the Updates list
+  // The deep link opens the sheet only for a copy in this member's own Updates list (never another's style), read
+  // afresh: a cached answer can predate the update the bell is about. Cleared after one look, so a dismissed
+  // sheet never reopens on a later render.
+  useEffect(() => {
+    if (!linkedUpdate) return undefined
+    let live = true
+    const want = linkedUpdate
+    Promise.resolve(refreshUpdates()).then(
+      (fresh) => {
+        if (!live) return
+        if ((fresh?.updates || []).some((u) => u.styleId === want)) setUpdating(want)
+        setLinkedUpdate(null)
+      },
+      () => { if (live) setLinkedUpdate(null) },
+    )
+    return () => { live = false }
+  }, [linkedUpdate, refreshUpdates])
   const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
@@ -163,6 +219,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     const body = { name: copyName(full.name), kindId: full.kindId, blocks: full.blocks || [], properties: full.properties || {} }
     if (full.outlineTemplateId) body.outlineTemplateId = full.outlineTemplateId
     if (full.outlineBodyJson) body.outlineBodyJson = full.outlineBodyJson
+    // P3a-T10-R6: the server carries the original's community-library provenance to the copy.
+    if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body)
     await mutate()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
@@ -254,6 +312,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
       labelledByTitle variant="auto" maxWidth={960}>
       <div className={styles.wrap}>
+        {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
         <p className={styles.hint}>
           A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.
         </p>
@@ -304,6 +363,33 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
                 <UIcon name="plus" size={14} gold={false} /> New style
               </button>
+              {libraryOn && (
+                <div className={styles.rowActions}>
+                  <LibraryDoor label="Community" className={styles.btn} />
+                  {updates.length > 0 && (
+                    <button type="button" className={styles.btn} aria-expanded={showUpdates} aria-controls="js-library-updates"
+                      onClick={() => setShowUpdates((v) => !v)}>{`Updates (${updates.length})`}</button>
+                  )}
+                </div>
+              )}
+              {libraryOn && showUpdates && updates.length > 0 && (
+                <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the community library">
+                  <ul className={styles.styleList}>
+                    {updates.map((u) => (
+                      <li key={u.styleId} className={styles.styleRow}>
+                        <div className={styles.rowTop}>
+                          <span className={styles.rowName}>{u.styleName}</span>
+                          <span className={styles.version}>{`version ${u.fromVersion} to ${u.toVersion}`}</span>
+                        </div>
+                        <div className={styles.rowActions}>
+                          <button type="button" className={styles.btn} disabled={locked} onClick={() => setUpdating(u.styleId)}
+                            aria-label={`Review the update to ${u.styleName}`}>Review update</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               {kinds.map((k) => {
                 const list = stylesOfKind(data, k.id)
@@ -333,6 +419,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               {!s.builtin && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={(e) => duplicate(s, e.currentTarget, { thenEdit: false })}
                                   aria-label={`Duplicate ${s.name}`}>Duplicate</button>
+                              )}
+                              {libraryOn && !s.builtin && !s.sourceGalleryId && (
+                                <button type="button" className={styles.btn} disabled={locked} onClick={() => setSharing(s)}
+                                  aria-label={`Share ${s.name} to community`}>Share to community</button>
                               )}
                               {!s.isDefault && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => makeDefault(s)}
@@ -423,6 +513,19 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
               )}
             </div>
           </div>
+        )}
+        {sharing && (
+          <ShareStyleForm style={sharing} onClose={() => setSharing(null)}
+            onShared={(sentence) => { setSharing(null); setUndo(null); setProblem(''); setStatus(sentence) }} />
+        )}
+        {updating && (
+          <LibraryUpdateSheet styleId={updating} onClose={() => setUpdating(null)}
+            onApplied={(st) => {
+              setUpdating(null); setUndo(null); setProblem('')
+              pendingFocus.current = { type: 'row', id: st?.id || updating }
+              const name = st?.name || 'your copy'
+              setStatus(st?.sourceVersion ? `Updated ${name} to the author's version ${st.sourceVersion}.` : `Updated ${name}.`)
+            }} />
         )}
       </div>
     </Sheet>

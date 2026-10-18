@@ -6,9 +6,20 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery                     paid     browse (?q ?category ?sort ?section)
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
+  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
+  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
+  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
+  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
+  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
+  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a; 404 while off)
+  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 404 while off; 60/hour)
+  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; 404 while off; same budget)
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
   admin   PATCH  /api/j2/template-gallery/admin/items/{gallery_id}     approve|reject|hide|unhide|feature|unfeature
   admin   PATCH  /api/j2/template-gallery/admin/reports/{report_id}    hide|dismiss
@@ -26,7 +37,12 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
   * RATE LIMITS, per member: publish 10/hour and report 30/hour in the in-process limiter
     (`public.enforce_rate`; ⚠️ PER-PROCESS STATE, scopes `notebook-gallery-publish` and
     `notebook-gallery-report` -- a second web process doubles both), plus a DURABLE daily cap
-    each in `daily_usage_counters` (survives deploys; fails open on a database error).
+    each in `daily_usage_counters` (survives deploys; fails open on a database error). Adopting
+    a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day. Helpful (`notebook-gallery-helpful`)
+    and follow (`notebook-gallery-follow`) are 60/hour each, in-process only; marking and unmarking share a budget.
+  * THE LITERAL `/updates`, `/feed` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
+    `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
+    Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
     cannot shadow them, and outside `/api/j2/note-templates/...`, whose `/{template_id}` would.
 """
@@ -36,7 +52,7 @@ import json
 import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
@@ -52,9 +68,21 @@ SCOPE_PUBLISH = "notebook-gallery-publish"
 SCOPE_REPORT = "notebook-gallery-report"
 DAILY_PUBLISH_SCOPE = "notebook_gallery_publish"
 DAILY_REPORT_SCOPE = "notebook_gallery_report"
+ADOPT_RATE = "30/hour"
+SCOPE_ADOPT = "notebook-gallery-adopt"
+DAILY_ADOPT_SCOPE = "notebook_gallery_adopt"
+# R-P3-11: Helpful and follow are 60/hour each, in-process only (no durable daily count: a vote or a follow is
+# a toggle, not a charge). Marking AND unmarking spend the same budget, so a toggle loop is bounded too.
+HELPFUL_RATE = "60/hour"
+SCOPE_HELPFUL = "notebook-gallery-helpful"
+FOLLOW_RATE = "60/hour"
+SCOPE_FOLLOW = "notebook-gallery-follow"
 
+HELPFUL_RATE_SENTENCE = "You've marked a lot of styles helpful. Try again later."
+FOLLOW_RATE_SENTENCE = "You've followed or unfollowed a lot of authors. Try again later."
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
+ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
 MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
 
@@ -63,6 +91,15 @@ def _require_enabled() -> None:
     """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
     session, checks no plan, parses no body, and answers the one not-found."""
     if not gallery.enabled():
+        raise public.not_found()
+
+
+def _require_library() -> None:
+    """P3a's gate for the STYLE routes (R-P3-10), a route dependency listed in `dependencies=[...]`, which
+    FastAPI resolves before the route's own parameters (the plan check, the body): a library-off pod
+    answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
+    exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
+    if not gallery.library_enabled():
         raise public.not_found()
 
 
@@ -138,12 +175,17 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
 
 @router.get("")
 def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest", section: str = "all",
+                          item_type: str = Query("", alias="type"), trading_style: str = "",
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
-    queue's door (the queue itself is admin-gated on the server)."""
+    queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
+    `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
+    library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
+    either while the switch is off, so a member sees today's gallery (final review M-13, item 4)."""
     try:
         items = gallery.list_gallery(user["id"], q=q, category=category or None, sort=sort,
-                                     section=section, is_admin=_is_admin(user))
+                                     section=section, item_type=item_type or None,
+                                     trading_style=trading_style or None, is_admin=_is_admin(user))
     except gallery.GalleryError as e:
         raise _bad(e)
     return {"templates": items, "viewer": {"admin": _is_admin(user)}}
@@ -152,6 +194,117 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
 @router.get("/admin/queue")
 def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
     return gallery.admin_queue()
+
+
+@router.post("/styles", dependencies=[Depends(_require_library)])
+def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
+    held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
+    `_require_library` route dependency, before the plan check and the body."""
+    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+    try:
+        item = gallery.publish_style(user["id"], body.get("styleId"), title=body.get("title"),
+                                     description=body.get("description"), category=body.get("category"),
+                                     trading_style=body.get("tradingStyle"))
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _bad(e)
+    if item is None:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise public.not_found()
+    dropped = item.pop("droppedProperties", 0)
+    return {"template": item, "droppedProperties": dropped}
+
+
+# ⛔ The literal `/updates` routes are declared BEFORE `GET /{gallery_id}`: that route would take "updates"
+# as an item id and answer its 404. Each is gated by `_require_library` (R-P3-10), a route dependency, so a
+# library-off pod answers every caller with the one 404 before the plan check and the body.
+
+@router.get("/updates", dependencies=[Depends(_require_library)])
+def list_updates_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{updates: [{galleryId, title, styleId, styleName, fromVersion, toVersion}]}` -- the member's adopted
+    styles whose community item is now listed at a higher version."""
+    return {"updates": gallery.list_updates(user["id"])}
+
+
+@router.get("/updates/{style_id}", dependencies=[Depends(_require_library)])
+def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{plan}` -- what "Update my copy" would add. 404 when the style is not an adopted copy of theirs or
+    nothing newer is listed."""
+    plan = gallery.plan_update(user["id"], style_id)
+    if plan is None:
+        raise public.not_found()
+    return {"plan": plan}
+
+
+TO_VERSION_SENTENCE = "Say which version you previewed: toVersion must be a whole number."
+
+
+@router.post("/updates/{style_id}", dependencies=[Depends(_require_library)])
+def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_body),
+                          user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{takeOutline?: bool, baseUpdatedAt, toVersion: int}` -> `{style}`. 409 when the copy changed since the
+    preview (`baseUpdatedAt` is the `updatedAt` the member previewed against) or a newer version is listed than
+    the `toVersion` they previewed; 404 when there is nothing to apply. `toVersion` is REQUIRED (ruling
+    P3a-T10-R4): the library never shipped, so no client predates it, and an optional field would let any caller
+    that omits it apply a version it never previewed (M-8)."""
+    take_outline = body.get("takeOutline", False)
+    if take_outline is None:
+        take_outline = False
+    if not isinstance(take_outline, bool):
+        raise HTTPException(status_code=400, detail="takeOutline must be true or false")
+    to_version = body.get("toVersion")
+    if isinstance(to_version, bool) or not isinstance(to_version, int):
+        raise HTTPException(status_code=400, detail=TO_VERSION_SENTENCE)
+    try:
+        style = gallery.apply_update(user["id"], style_id, take_outline=take_outline,
+                                     base_updated_at=body.get("baseUpdatedAt"), to_version=to_version)
+    except gallery.GalleryError as e:
+        raise _bad(e)
+    if style is None:
+        raise public.not_found()
+    return {"style": style}
+
+
+# ⛔ `/feed` and `/authors/...` (P3a Task 6) are literal paths too, declared BEFORE `GET /{gallery_id}`, and gated
+# the same way: `_require_library` ahead of the plan check (R-P3-10). Nothing here returns a user id or an
+# email (R-P3-2): an author is the opaque handle.
+
+@router.get("/feed", dependencies=[Depends(_require_library)])
+def feed_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{templates: [...]}` -- what the authors this member follows have listed, newest first. The same item
+    shape as the gallery list, so one card renders both."""
+    return {"templates": gallery.feed(user["id"])}
+
+
+@router.get("/authors/{handle}", dependencies=[Depends(_require_library)])
+def author_page_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{author: {handle, label, itemCount, following, mine}, items: [...]}` -- 404 for a handle that is not one."""
+    page = gallery.author_page(user["id"], handle)
+    if page is None:
+        raise public.not_found()
+    return page
+
+
+@router.post("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+def follow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{following: true}`. 404 for an unknown handle or your own (R-P3-11: 60/hour with unfollow)."""
+    public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
+    out = gallery.set_follow(user["id"], handle, True)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.delete("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{following: false}`. The same 404s and the same budget as following."""
+    public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
+    out = gallery.set_follow(user["id"], handle, False)
+    if out is None:
+        raise public.not_found()
+    return out
 
 
 @router.get("/{gallery_id}")
@@ -195,6 +348,54 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
         out = gallery.use_template(user["id"], gallery_id)
     except gallery.GalleryError as e:
         raise _bad(e)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
+def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+                   user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style (R-P3-10:
+    404 while the library is off, by `_require_library`, before the plan and the body). Rate-limited per
+    R-P3-11: 30/hour in-process plus a durable 50/day; a refused or failed adopt gives the day's charge back."""
+    notify = body.get("notify", False)
+    if notify is None:
+        notify = False
+    if not isinstance(notify, bool):
+        raise HTTPException(status_code=400, detail="notify must be true or false")
+    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+    try:
+        out = gallery.adopt_style(user["id"], gallery_id, notify=notify)
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise
+    if out is None:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise public.not_found()
+    return out
+
+
+@router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{helpful: true, count}`. One per member per item; 404 for an item they can't see, one that isn't listed,
+    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking)."""
+    public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
+    out = gallery.set_helpful(user["id"], gallery_id, True)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.delete("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+def unhelpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{helpful: false, count}`. The same 404s and the same budget as marking."""
+    public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
+    out = gallery.set_helpful(user["id"], gallery_id, False)
     if out is None:
         raise public.not_found()
     return out

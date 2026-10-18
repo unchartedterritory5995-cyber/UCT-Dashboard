@@ -1,0 +1,625 @@
+"""P3a: item types, trading style, sorts and the library switch on the gallery list."""
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from api.services.journal_two import template_gallery as gallery
+from tests._style_library_helpers import _publish, _row, _style, api, conn, lib_on  # noqa: F401  (fixtures + helpers)
+
+ROOT = Path(__file__).resolve().parents[1]
+STYLE_LIB = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "styleLibrary.js"
+
+
+_LEGACY_DDL = """CREATE TABLE j2_template_gallery (
+    id TEXT PRIMARY KEY, user_id TEXT, source_template_id TEXT, seed_key TEXT,
+    kind TEXT NOT NULL DEFAULT 'member', title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL, body_json TEXT NOT NULL, property_defs_json TEXT,
+    status TEXT NOT NULL DEFAULT 'pending', review_note TEXT, reviewed_by TEXT, reviewed_at TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0, hidden_by TEXT, hidden_at TEXT,
+    featured INTEGER NOT NULL DEFAULT 0, listed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+)"""
+
+
+def test_existing_rows_read_as_outlines(tmp_path, monkeypatch):
+    # A LEGACY table (no P3a columns, not even preview_json) holding a row written before them,
+    # run through the real ensure_gallery_schema. The ALTER's DEFAULTs are the only thing that
+    # can make that row an outline at version 1, so this is the test that fails without them.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    c = sqlite3.connect(str(tmp_path / "legacy.db"))
+    c.row_factory = sqlite3.Row
+    try:
+        c.execute(_LEGACY_DDL)
+        c.execute("CREATE TABLE users (id TEXT PRIMARY KEY, display_name TEXT)")
+        c.execute("CREATE TABLE j2_template_gallery_uses ("
+                  "gallery_id TEXT NOT NULL, user_id TEXT NOT NULL, used_at TEXT NOT NULL,"
+                  " PRIMARY KEY (gallery_id, user_id))")
+        c.execute("CREATE TABLE j2_template_gallery_reports ("
+                  "id TEXT PRIMARY KEY, gallery_id TEXT NOT NULL, user_id TEXT NOT NULL,"
+                  " reason TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'open',"
+                  " created_at TEXT NOT NULL, resolved_at TEXT, resolved_by TEXT)")
+        c.execute(
+            "INSERT INTO j2_template_gallery (id, user_id, kind, title, category, body_json, status,"
+            " listed_at, created_at, updated_at) VALUES ('legacy1', 'u1', 'member', 'Legacy', 'journal',"
+            " '{}', 'approved', '2026-09-01T00:00:00+00:00', '2026-09-01T00:00:00+00:00',"
+            " '2026-09-01T00:00:00+00:00')")
+        c.commit()
+        cols_before = {r[1] for r in c.execute("PRAGMA table_info(j2_template_gallery)")}
+        assert "item_type" not in cols_before and "version" not in cols_before    # really legacy
+
+        gallery.ensure_gallery_schema(c)
+
+        cols = {r[1] for r in c.execute("PRAGMA table_info(j2_template_gallery)")}
+        assert {"item_type", "payload_json", "version", "trading_style", "source_style_id",
+                "pending_json", "pending_at"} <= cols
+        assert tuple(c.execute("SELECT item_type, version FROM j2_template_gallery WHERE id = 'legacy1'"
+                               ).fetchone()) == ("outline", 1)
+        listed = {r["id"]: r for r in gallery.list_gallery("v", conn=c)}
+        assert (listed["legacy1"]["itemType"], listed["legacy1"]["version"]) == ("outline", 1)
+        # and a second pass changes nothing (the loop is idempotent)
+        gallery.ensure_gallery_schema(c)
+        assert tuple(c.execute("SELECT item_type, version FROM j2_template_gallery WHERE id = 'legacy1'"
+                               ).fetchone()) == ("outline", 1)
+    finally:
+        c.close()
+
+
+def test_library_off_hides_every_style_row_in_the_list(conn, monkeypatch):
+    """Review Focus 6, the LIST half. Renamed from `..._and_route` (final review M-11): it never asserted a route.
+    The route 404s are railed in tests/test_style_library_adopt.py
+    (`test_every_style_route_is_the_one_404_for_everyone_while_the_library_is_off`) and
+    tests/test_style_library_social.py; the library-off unpublish ring in tests/test_style_library_notices.py
+    (`test_unpublishing_a_style_while_the_library_is_off_deletes_it_and_rings_no_one`)."""
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S")
+    titles = [t["title"] for t in gallery.list_gallery("v", conn=conn)]
+    assert titles == ["O"]
+    with pytest.raises(gallery.GalleryError):
+        gallery.list_gallery("v", item_type="style", conn=conn)
+
+
+def test_library_off_hides_style_rows_in_mine_and_picks_too(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    _row(conn, item_type="outline", title="O", user_id="me")
+    sid = _row(conn, item_type="style", title="S", user_id="me")
+    oid = _row(conn, item_type="outline", title="OP", user_id="other")
+    conn.execute("UPDATE j2_template_gallery SET featured = 1 WHERE id IN (?, ?)", (sid, oid))
+    conn.commit()
+    assert [t["title"] for t in gallery.list_gallery("me", section="mine", conn=conn)] == ["O"]
+    assert [t["title"] for t in gallery.list_gallery("me", section="picks", conn=conn)] == ["OP"]
+    # non-vacuity: with the library on the same style row IS in both sections
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    assert "S" in {t["title"] for t in gallery.list_gallery("me", section="mine", conn=conn)}
+    assert "S" in {t["title"] for t in gallery.list_gallery("me", section="picks", conn=conn)}
+
+
+def test_library_off_answers_trending_exactly_as_an_unknown_sort(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    _row(conn, item_type="outline", title="O")
+    with pytest.raises(gallery.GalleryError) as unknown:
+        gallery.list_gallery("v", sort="bogus", conn=conn)
+    with pytest.raises(gallery.GalleryError) as trending:
+        gallery.list_gallery("v", sort="trending", conn=conn)
+    assert str(trending.value) == str(unknown.value) == "Sort by newest or most used."
+    # the two sorts the gallery has today still work
+    for ok in ("newest", "most_used"):
+        assert [t["title"] for t in gallery.list_gallery("v", sort=ok, conn=conn)] == ["O"]
+
+
+def test_library_on_accepts_trending_and_still_refuses_an_unknown_sort(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    _row(conn, item_type="style", title="S")
+    assert [t["title"] for t in gallery.list_gallery("v", sort="trending", conn=conn)] == ["S"]
+    with pytest.raises(gallery.GalleryError) as unknown:
+        gallery.list_gallery("v", sort="bogus", conn=conn)
+    assert "trending" in str(unknown.value)
+
+
+def test_library_on_lists_both_and_filters_by_type_and_trading_style(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S", trading_style="swing")
+    _row(conn, item_type="style", title="D", trading_style="day")
+    assert {t["title"] for t in gallery.list_gallery("v", conn=conn)} == {"O", "S", "D"}
+    assert [t["title"] for t in gallery.list_gallery("v", item_type="style", trading_style="swing",
+                                                     conn=conn)] == ["S"]
+    with pytest.raises(gallery.GalleryError):
+        gallery.list_gallery("v", trading_style="scalping", conn=conn)
+
+
+def test_trending_counts_distinct_adoptions_in_the_last_seven_days(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    old = _row(conn, item_type="style", title="Old")
+    new = _row(conn, item_type="style", title="New")
+    conn.executemany("INSERT INTO j2_template_gallery_uses (gallery_id, user_id, used_at) VALUES (?, ?, ?)",
+                     [(old, f"m{i}", "2026-09-01T00:00:00+00:00") for i in range(5)]
+                     + [(new, "m9", gallery._now())])
+    conn.commit()
+    rows = gallery.list_gallery("v", sort="trending", conn=conn)
+    assert [r["title"] for r in rows][:2] == ["New", "Old"]
+    assert rows[0]["trendingCount"] == 1 and rows[1]["trendingCount"] == 0
+
+
+def test_summary_carries_type_version_and_trading_style(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    _row(conn, item_type="style", trading_style="earnings")
+    s = gallery.list_gallery("v", conn=conn)[0]
+    assert (s["itemType"], s["version"], s["tradingStyle"]) == ("style", 1, "earnings")
+    assert "hasRevision" not in s           # a browsing member never sees review state
+
+
+def _client_keys(name: str) -> tuple[str, ...]:
+    text = STYLE_LIB.read_text(encoding="utf-8")
+    m = re.search(rf"export const {name} = Object\.freeze\(\[(.*?)\]\)", text, re.S)
+    assert m, f"{name} not found in styleLibrary.js"
+    return tuple(re.findall(r"key:\s*'([a-z_]+)'", m.group(1)))
+
+
+def test_the_client_lists_are_the_server_lists():
+    assert _client_keys("ITEM_TYPES") == gallery.ITEM_TYPES
+    assert _client_keys("TRADING_STYLES") == gallery.TRADING_STYLES
+    assert _client_keys("LIBRARY_SORTS") == gallery.SORTS
+    assert len(gallery.TRADING_STYLES) >= 2          # non-vacuity
+
+
+# ── Task 4: publishing a style, and held revisions ───────────────────────────────────────
+
+from api.services.journal_two import journal_styles as js
+
+
+def test_a_published_style_payload_goes_through_the_gallery_reducer(conn, lib_on):
+    s = _style(conn)
+    item = gallery.publish_style("author", s["id"], title="Weekend Prep", description="",
+                                 category="journal", trading_style="swing", conn=conn)
+    raw = conn.execute("SELECT payload_json, status, item_type FROM j2_template_gallery WHERE id = ?",
+                       (item["id"],)).fetchone()
+    payload = json.loads(raw["payload_json"])
+    text = json.dumps(payload)
+    assert raw["status"] == "pending" and raw["item_type"] == "style"
+    assert "a@b.com" not in text and '"image"' not in text and "/api/j2/notes/" not in text
+    assert '"checked": true' not in text
+    assert payload["kindId"] == "weekend_prep"
+
+
+def test_a_style_on_a_custom_kind_is_refused(conn, lib_on):
+    from api.services.journal_two import note_kinds as nk
+    kind = nk.create_kind("author", "My scalps", conn=conn)          # the real creator: (user_id, name, icon, conn)
+    s = _style(conn, kindId=kind["id"])
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.publish_style("author", s["id"], title="X", description="", category="journal",
+                              trading_style=None, conn=conn)
+    assert str(e.value) == gallery.CUSTOM_KIND_SENTENCE
+
+
+def test_member_property_defaults_never_travel(conn, lib_on):
+    from api.services.journal_two import note_properties as np
+    mine = np.create_property_def("author", "Conviction", "text", None, conn=conn)
+    s = _style(conn, properties={mine["id"]: "high", "builtin:confidence": "high"})
+    out = gallery.style_payload("author", s["id"], conn)
+    assert mine["id"] not in out["properties"] and out["droppedProperties"] == 1
+    # non-vacuity: a BUILT-IN user-set default does travel, so "nothing travels" cannot pass this
+    assert out["properties"] == {"builtin:confidence": "high"}
+
+
+def test_the_kind_property_never_travels_as_a_default(conn, lib_on):
+    # R-T1a: BUILTIN_USER_SET_IDS includes builtin:note_kind, and _clean_properties REFUSES it, so a
+    # style carrying it could not be saved back. A stored row can still hold it (older data).
+    from api.services.journal_two import note_properties as np
+    assert "builtin:note_kind" in np.BUILTIN_USER_SET_IDS               # the trap the builder must not fall into
+    s = _style(conn)
+    conn.execute("UPDATE j2_journal_styles SET properties_json = ? WHERE id = ?",
+                 (json.dumps({"builtin:note_kind": "thesis", "builtin:confidence": "high"}), s["id"]))
+    conn.commit()
+    out = gallery.style_payload("author", s["id"], conn)
+    assert out["properties"] == {"builtin:confidence": "high"}
+    assert out["droppedProperties"] == 0                                # the kind travels as kindId, not as a drop
+    item = _publish(conn, s["id"])
+    stored = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                     (item["id"],)).fetchone()["payload_json"])
+    assert "builtin:note_kind" not in stored["properties"]
+
+
+def test_only_known_blocks_travel(conn, lib_on):
+    # R-T1a: _clean_blocks keeps an unknown block id verbatim (a newer version's block), so the
+    # style layer holds it; the gallery must not publish an id this server cannot place.
+    s = _style(conn, blocks=[{"block": "chart"}, {"block": "futureBlock", "settings": {"x": "y"}},
+                             {"block": "myRules", "settings": {"which": "all"}}])
+    held = js.get_style("author", s["id"], conn)
+    assert [b["block"] for b in held["blocks"]] == ["chart", "futureBlock", "myRules"]    # non-vacuity
+    out = gallery.style_payload("author", s["id"], conn)
+    assert [b["block"] for b in out["blocks"]] == ["chart", "myRules"]
+    assert out["blocks"][1]["settings"] == {"which": "all"}
+
+
+def test_another_members_style_is_not_found(conn, lib_on):
+    s = _style(conn)
+    assert gallery.publish_style("intruder", s["id"], title="X", description="", category="journal",
+                                 trading_style=None, conn=conn) is None
+    assert gallery.publish_style("author", "builtin:weekend_prep", title="X", description="",
+                                 category="journal", trading_style=None, conn=conn) is None
+
+
+def test_a_bad_trading_style_is_refused(conn, lib_on):
+    s = _style(conn)
+    with pytest.raises(gallery.GalleryError):
+        _publish(conn, s["id"], trading_style="scalping")
+
+
+def test_resubmitting_a_pending_style_replaces_it_in_place(conn, lib_on):
+    s = _style(conn)
+    first = _publish(conn, s["id"], title="V1")
+    again = _publish(conn, s["id"], title="V2")
+    rows = conn.execute("SELECT title, status, pending_json, version FROM j2_template_gallery").fetchall()
+    assert again["id"] == first["id"] and len(rows) == 1
+    assert (rows[0]["title"], rows[0]["status"], rows[0]["pending_json"], rows[0]["version"]) == (
+        "V2", "pending", None, 1)
+
+
+def test_an_approved_style_update_is_held_not_listed(conn, lib_on):
+    s = _style(conn)
+    item = gallery.publish_style("author", s["id"], title="V1", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    js.update_style("author", s["id"], {"name": "Weekend Prep 2"}, conn)
+    again = gallery.publish_style("author", s["id"], title="V2", description="", category="journal",
+                                  trading_style=None, conn=conn)
+    assert again["id"] == item["id"]
+    listed = gallery.get_item("viewer", item["id"], conn=conn)
+    assert listed["title"] == "V1" and listed["version"] == 1           # still the approved version
+    queue = gallery.admin_queue(conn=conn)
+    rev = next(r for r in queue["pending"] if r["id"] == item["id"])
+    assert rev["hasRevision"] is True and rev["revisionTitle"] == "V2"
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=rev["updatedAt"], conn=conn)
+    after = gallery.get_item("viewer", item["id"], conn=conn)
+    assert after["title"] == "V2" and after["version"] == 2
+    assert gallery.get_item("author", item["id"], conn=conn)["hasRevision"] is False
+    assert tuple(conn.execute("SELECT pending_json, pending_at FROM j2_template_gallery WHERE id = ?",
+                              (item["id"],)).fetchone()) == (None, None)
+
+
+def test_a_revision_approval_names_the_version_the_reviewer_saw(conn, lib_on):
+    s = _style(conn)
+    item = _publish(conn, s["id"], title="V1")
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    _publish(conn, s["id"], title="V2")
+    seen = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
+    _publish(conn, s["id"], title="V3")                                  # the author resubmits after the review began
+    with pytest.raises(gallery.GalleryConflict):
+        gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=seen["updatedAt"], conn=conn)
+    with pytest.raises(gallery.GalleryConflict):
+        gallery.admin_act("admin", item["id"], "approve", conn=conn)     # no version named: nothing is listed unseen
+    assert gallery.get_item("viewer", item["id"], conn=conn)["title"] == "V1"
+
+
+def test_rejecting_a_revision_keeps_the_listed_version(conn, lib_on):
+    s = _style(conn)
+    item = gallery.publish_style("author", s["id"], title="V1", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    gallery.publish_style("author", s["id"], title="V2", description="", category="journal",
+                          trading_style=None, conn=conn)
+    rev = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
+    gallery.admin_act("admin", item["id"], "reject", note="Too thin", conn=conn)
+    listed = gallery.get_item("viewer", item["id"], conn=conn)
+    assert listed["title"] == "V1" and listed["version"] == 1
+    mine = gallery.get_item("author", item["id"], conn=conn)
+    assert mine["reviewNote"] == "Too thin" and mine["hasRevision"] is False
+    row = conn.execute("SELECT status, listed_at, featured FROM j2_template_gallery WHERE id = ?",
+                       (item["id"],)).fetchone()
+    assert row["status"] == "approved" and row["listed_at"] and rev["id"] == item["id"]
+    assert all(r["id"] != item["id"] for r in gallery.admin_queue(conn=conn)["pending"])
+
+
+def test_rejecting_a_first_submission_still_unlists_it(conn, lib_on):
+    # A row WITHOUT a revision keeps today's reject (status rejected, off the list).
+    s = _style(conn)
+    item = _publish(conn, s["id"])
+    gallery.admin_act("admin", item["id"], "reject", note="Needs a title", conn=conn)
+    assert conn.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == "rejected"
+
+
+def test_publish_style_is_404_with_the_library_off(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    s = _style(conn)
+    assert gallery.publish_style("author", s["id"], title="X", description="", category="journal",
+                                 trading_style=None, conn=conn) is None
+
+
+def test_the_admin_queue_lists_only_outlines_while_the_library_is_off(conn, monkeypatch):
+    # R-T3-R2, the OFF direction: a style row (pending, or hidden) is not in the reviewer's queue.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    o = _row(conn, item_type="outline", status="pending", title="O")
+    s = _row(conn, item_type="style", status="pending", title="S")
+    hs = _row(conn, item_type="style", status="approved", title="HS")
+    ho = _row(conn, item_type="outline", status="approved", title="HO")
+    conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_at = ? WHERE id IN (?, ?)",
+                 ("2026-10-11T00:00:00+00:00", hs, ho))
+    conn.commit()
+    queue = gallery.admin_queue(conn=conn)
+    assert [r["id"] for r in queue["pending"]] == [o]
+    assert [r["id"] for r in queue["hidden"]] == [ho]
+    assert s not in [r["id"] for r in queue["pending"]]
+
+
+def test_the_admin_queue_lists_style_rows_when_the_library_is_on(conn, monkeypatch):
+    # R-T3-R2, the ON direction (also the non-vacuity of the test above).
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    o = _row(conn, item_type="outline", status="pending", title="O")
+    s = _row(conn, item_type="style", status="pending", title="S")
+    hs = _row(conn, item_type="style", status="approved", title="HS")
+    conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_at = ? WHERE id = ?",
+                 ("2026-10-11T00:00:00+00:00", hs))
+    conn.commit()
+    queue = gallery.admin_queue(conn=conn)
+    assert {r["id"] for r in queue["pending"]} == {o, s}
+    assert [r["id"] for r in queue["hidden"]] == [hs]
+
+
+def test_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeypatch):
+    # R-T3-w1 (R-P3-10: every style route 404s while off).
+    gid = _row(conn, item_type="style", status="approved", user_id="author", title="S")
+    oid = _row(conn, item_type="outline", status="approved", user_id="author", title="O")
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    assert gallery.get_item("viewer", gid, conn=conn)["title"] == "S"          # non-vacuity: it reads when on
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    for viewer, admin in (("viewer", False), ("author", False), ("admin", True)):
+        assert gallery.get_item(viewer, gid, is_admin=admin, conn=conn) is None
+    assert gallery.use_template("viewer", gid, conn=conn) is None
+    assert gallery.report("viewer", gid, reason="spam", conn=conn) is None
+    assert gallery.get_item("viewer", oid, conn=conn)["title"] == "O"          # an outline is untouched
+
+
+# ── the route ────────────────────────────────────────────────────────────────────────────
+
+def test_post_styles_is_404_while_the_library_is_off(api, conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    s = _style(conn)
+    r = api.post("/api/j2/template-gallery/styles", json={"styleId": s["id"], "title": "T", "category": "journal"})
+    assert r.status_code == 404
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery").fetchone()[0] == 0
+
+
+def test_post_styles_publishes_a_pending_style_item(api, conn, lib_on):
+    from api.services.journal_two import note_properties as np
+    mine = np.create_property_def("author", "Conviction", "text", None, conn=conn)
+    s = _style(conn, properties={mine["id"]: "high"})
+    r = api.post("/api/j2/template-gallery/styles",
+                 json={"styleId": s["id"], "title": "Weekend Prep", "description": "d", "category": "journal",
+                       "tradingStyle": "swing"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["template"]["itemType"] == "style" and body["template"]["status"] == "pending"
+    assert body["template"]["tradingStyle"] == "swing"
+    assert body["droppedProperties"] == 1 and "droppedProperties" not in body["template"]
+
+
+def test_post_styles_refusals(api, conn, lib_on):
+    from api.services.journal_two import note_kinds as nk
+    s = _style(conn)
+    assert api.post("/api/j2/template-gallery/styles",
+                    json={"styleId": "nope", "title": "T", "category": "journal"}).status_code == 404
+    assert api.post("/api/j2/template-gallery/styles",
+                    json={"styleId": s["id"], "title": "", "category": "journal"}).status_code == 400
+    kind = nk.create_kind("author", "My scalps", conn=conn)
+    custom = _style(conn, kindId=kind["id"], name="Scalp")
+    r = api.post("/api/j2/template-gallery/styles", json={"styleId": custom["id"], "title": "T", "category": "journal"})
+    assert r.status_code == 400 and r.json()["detail"] == gallery.CUSTOM_KIND_SENTENCE
+
+
+def test_post_styles_is_the_one_404_for_everyone_while_the_library_is_off(api, conn, monkeypatch):
+    # R-T4-2 / R-P3-10: a library-off pod looks exactly like today, where POST /styles does not exist.
+    # The gate is a ROUTER DEPENDENCY ordered before the session, the plan and the body, so an unpaid
+    # member, a paid member and a signed-out caller all get the gallery's one 404.
+    from api.middleware import auth_middleware as authmw
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    s = _style(conn)
+    body = {"styleId": s["id"], "title": "T", "category": "journal"}
+    url = "/api/j2/template-gallery/styles"
+    paid = api.post(url, json=body)
+    api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
+    unpaid = api.post(url, json=body)
+    api.app.dependency_overrides.pop(authmw.get_current_user, None)
+    api.app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
+    signed_out = api.post(url, content=b"{bad")
+    assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404)
+    assert paid.json() == unpaid.json() == signed_out.json()                 # the SAME body, not three different 404s
+
+
+def test_post_styles_needs_a_paid_plan_while_the_library_is_on(api, conn, lib_on):
+    from api.middleware import auth_middleware as authmw
+    s = _style(conn)
+    api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
+    r = api.post("/api/j2/template-gallery/styles", json={"styleId": s["id"], "title": "T", "category": "journal"})
+    assert r.status_code == 402
+
+
+# ── fix round 2 ──────────────────────────────────────────────────────────────────────────
+
+_REVIEW_KEYS = ("hasRevision", "revisionTitle", "reviewNote")
+
+
+def test_a_held_revision_and_a_review_note_are_invisible_to_a_browsing_member(conn, lib_on):
+    # Review minor 1: the boundary is _summary's `mine or is_admin` block. A paid non-author, non-admin
+    # reads none of the review state, from the single read OR the list; the author and an admin do.
+    s = _style(conn)
+    item = _publish(conn, s["id"], title="V1")
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    _publish(conn, s["id"], title="V2")                                      # HELD
+    gid = item["id"]
+    seen_by = {
+        "viewer": gallery.get_item("viewer", gid, conn=conn),
+        "viewer-list": next(r for r in gallery.list_gallery("viewer", conn=conn) if r["id"] == gid),
+    }
+    for who, view in seen_by.items():
+        assert view["title"] == "V1", who                                   # non-vacuity: it IS the listed row
+        assert not [k for k in _REVIEW_KEYS if k in view], who
+    author = gallery.get_item("author", gid, conn=conn)
+    admin = gallery.get_item("admin", gid, is_admin=True, conn=conn)
+    for view in (author, admin):
+        assert view["hasRevision"] is True and view["revisionTitle"] == "V2"
+    for view in (next(r for r in gallery.list_gallery("author", section="mine", conn=conn) if r["id"] == gid),
+                 next(r for r in gallery.list_gallery("admin", is_admin=True, conn=conn) if r["id"] == gid)):
+        assert view["hasRevision"] is True and "revisionTitle" in view
+    # the review note: the author and an admin read it, a browsing member does not
+    gallery.admin_act("admin", gid, "reject", note="Too thin", conn=conn)
+    assert gallery.get_item("author", gid, conn=conn)["reviewNote"] == "Too thin"
+    assert gallery.get_item("admin", gid, is_admin=True, conn=conn)["reviewNote"] == "Too thin"
+    assert "reviewNote" not in gallery.get_item("viewer", gid, conn=conn)
+    assert "reviewNote" not in next(r for r in gallery.list_gallery("viewer", conn=conn) if r["id"] == gid)
+
+
+def test_the_style_route_gives_its_daily_charge_back_on_a_refusal(api, conn, lib_on, monkeypatch):
+    # Review minor 2: the durable daily counter is charged before the write and handed back when the
+    # request fails (400, 404), exactly like the outline route.
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+    url = "/api/j2/template-gallery/styles"
+    scope = "notebook_gallery_publish"
+
+    def used():
+        return daily_counters.value(et_today(), scope, "author")
+
+    s = _style(conn)
+    before = used()
+    ok = api.post(url, json={"styleId": s["id"], "title": "T", "category": "journal"})
+    assert ok.status_code == 200 and used() == before + 1                    # non-vacuity: a success IS charged
+    before = used()
+    assert api.post(url, json={"styleId": s["id"], "title": "", "category": "journal"}).status_code == 400
+    assert used() == before                                                  # the 400 gave it back
+    assert api.post(url, json={"styleId": "nope", "title": "T", "category": "journal"}).status_code == 404
+    assert used() == before                                                  # the 404 gave it back
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert api.post(url, json={"styleId": s["id"], "title": "T", "category": "journal"}).status_code == 404
+    assert used() == before                                                  # library off: never charged
+
+
+def test_admin_act_on_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeypatch):
+    # R-T4-3 (R-P3-10): a known id must not act on a style row while the library is off, whatever the
+    # action. Outline rows are unaffected; a style row with the library ON is the control.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    style = _row(conn, item_type="style", status="pending", title="S")
+    outline = _row(conn, item_type="outline", status="pending", title="O")
+
+    def status(gid):
+        return conn.execute("SELECT status, hidden, featured FROM j2_template_gallery WHERE id = ?",
+                            (gid,)).fetchone()
+
+    before = tuple(status(style))
+    for action, kw in (("approve", {}), ("reject", {"note": "no"}), ("hide", {}), ("unhide", {}),
+                       ("feature", {}), ("unfeature", {})):
+        if action == "approve":
+            kw = {"reviewed_updated_at": conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
+                                                      (style,)).fetchone()[0]}
+        assert gallery.admin_act("admin", style, action, conn=conn, **kw) is None, action
+    assert tuple(status(style)) == before                                    # nothing was written
+    # an outline row still acts
+    got = gallery.admin_act("admin", outline, "approve", conn=conn, reviewed_updated_at=conn.execute(
+        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (outline,)).fetchone()[0])
+    assert got is not None and status(outline)["status"] == "approved"
+    # control: the same style row acts once the library is on
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    got = gallery.admin_act("admin", style, "approve", conn=conn, reviewed_updated_at=conn.execute(
+        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (style,)).fetchone()[0])
+    assert got is not None and status(style)["status"] == "approved"
+
+
+def test_a_report_on_a_style_row_cannot_be_acted_on_while_the_library_is_off(conn, monkeypatch):
+    # The report queue's twin of the above: `hide` goes through admin_act, so without a guard it would
+    # answer True and hide nothing.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    gid = _row(conn, item_type="style", status="approved", user_id="author", title="S")
+    assert gallery.report("viewer", gid, reason="spam", conn=conn)["reported"] is True
+    rid = conn.execute("SELECT id FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,)).fetchone()[0]
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is False
+    assert gallery.admin_report_act("admin", rid, "dismiss", conn=conn) is False
+    assert conn.execute("SELECT status FROM j2_template_gallery_reports WHERE id = ?", (rid,)).fetchone()[0] == "open"
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")                 # control
+    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is True
+    assert conn.execute("SELECT hidden FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
+
+
+# ── P3a Task 9: what the library UI reads ───────────────────────────────────────────────────
+
+def test_the_list_route_filters_by_type_and_trading_style(api, conn, lib_on):
+    # The Styles chip and a trading-style chip reach the list as `?type=style&trading_style=swing`.
+    # The service filtered by both since Task 3; the ROUTE has to pass them on, or every chip is a no-op.
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S", trading_style="swing")
+    _row(conn, item_type="style", title="D", trading_style="day")
+    url = "/api/j2/template-gallery"
+    everything = api.get(url)
+    assert everything.status_code == 200, everything.text
+    assert {t["title"] for t in everything.json()["templates"]} == {"O", "S", "D"}      # non-vacuity
+    styles = api.get(url, params={"type": "style"})
+    assert {t["title"] for t in styles.json()["templates"]} == {"S", "D"}
+    swing = api.get(url, params={"type": "style", "trading_style": "swing"})
+    assert [t["title"] for t in swing.json()["templates"]] == ["S"]
+    assert api.get(url, params={"type": "outline"}).json()["templates"][0]["title"] == "O"
+    bad = api.get(url, params={"trading_style": "scalping"})
+    assert bad.status_code == 400 and bad.json()["detail"] == "Unknown trading style."
+
+
+def test_the_list_route_refuses_a_style_filter_while_the_library_is_off(api, conn, monkeypatch):
+    # R-P3-10: a library-off pod lists outlines only, and a style filter is the service's refusal.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S", trading_style="swing")
+    url = "/api/j2/template-gallery"
+    assert [t["title"] for t in api.get(url).json()["templates"]] == ["O"]
+    assert api.get(url, params={"type": "style"}).status_code == 400
+
+
+def test_get_item_carries_the_listed_payload_for_a_style_only(conn, lib_on):
+    # The library's Preview composes `payload` through the journal styles preview door, so a style
+    # item's full read carries it; an outline item's never does.
+    from tests._style_library_helpers import listed_style
+    item = listed_style(conn)
+    viewer = gallery.get_item("viewer", item["id"], conn=conn)
+    assert viewer is not None
+    payload = viewer["payload"]
+    assert set(payload) == {"kindId", "outlineBodyJson", "blocks", "properties"}
+    assert payload["kindId"] == "weekend_prep"
+    stored = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                     (item["id"],)).fetchone()[0])
+    assert payload["outlineBodyJson"] == stored["outlineBodyJson"]          # the LISTED payload, as stored
+    oid = _row(conn, item_type="outline", title="O")
+    assert "payload" not in gallery.get_item("viewer", oid, conn=conn)
+
+
+def test_get_item_payload_is_the_listed_version_never_a_held_revision(conn, lib_on):
+    # Review M-2: with a held revision whose outline DIFFERS, get_item still answers with the listed
+    # payload, for a browsing member, for the author and for an admin (R-P3-3: the revision is unreviewed).
+    from api.services.journal_two import journal_styles as js
+    from tests._style_library_helpers import listed_style
+    item = listed_style(conn)
+    listed_outline = gallery.get_item("viewer", item["id"], conn=conn)["payload"]["outlineBodyJson"]
+    held_outline = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "A held revision nobody approved"}]}]}
+    js.update_style("author", item["sourceStyleId"], {"outlineBodyJson": held_outline}, conn)
+    gallery.publish_style("author", item["sourceStyleId"], title=item["title"], description="",
+                          category="journal", trading_style=None, conn=conn)
+    pending = json.loads(conn.execute("SELECT pending_json FROM j2_template_gallery WHERE id = ?",
+                                      (item["id"],)).fetchone()[0])
+    # non-vacuity: the revision really is held and really differs from what is listed
+    assert "A held revision nobody approved" in json.dumps(pending["payload"]["outlineBodyJson"])
+    assert pending["payload"]["outlineBodyJson"] != listed_outline
+    for viewer, admin in (("viewer", False), ("author", False), ("admin", True)):
+        got = gallery.get_item(viewer, item["id"], is_admin=admin, conn=conn)["payload"]["outlineBodyJson"]
+        assert got == listed_outline, viewer
+        assert "A held revision nobody approved" not in json.dumps(got), viewer
+
+
+def test_get_item_reads_a_malformed_style_payload_as_an_empty_one(conn, lib_on):
+    gid = _row(conn, item_type="style", title="S")
+    conn.execute("UPDATE j2_template_gallery SET payload_json = '{not json' WHERE id = ?", (gid,))
+    conn.commit()
+    got = gallery.get_item("viewer", gid, conn=conn)
+    assert got["payload"] == {"kindId": None, "outlineBodyJson": None, "blocks": [], "properties": {}}

@@ -1,0 +1,12 @@
+c7c824df01 docs(flags): NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED armed on web 2026-10-16 12:49:03Z
+b86cc52fd9 evidence(notebook): raw typing A/B, master b4b1df534f vs Tier 2 part B tree cb5b8245ad (R-RAW, before interpretation)
+0404ac3a9b tools(notebook): the switch-rehearsal census names a reason for the follow-up gate and the programme's two armed gates
+e6d511a90e evidence(notebook): Tier 2 part B final tree, bytes reading and follow-up walk #3 (raw)
+e7af2f560f evidence(notebook): Tier 2 part B walk #2 raw output at 14298f988f (R-RAW, before interpretation)
+14298f988f docs(notebook): Tier 2 part B arming packet
+a9eb23de29 evidence(notebook): Tier 2 part B gate and first followup walk, raw (R-RAW)
+c0ada18033 test(notebook): Tier 2 part B rails, the followup walk group, door rows 66-67, NVDA rows 42-44
+8d6dae99b3 test(notebook): capture the earnings follow-up bell row from the real producer, raw first
+86e386c810 feat(notebook): earnings follow-up notices, one per member, symbol and report, at most three a day (dark)
+6875151281 feat(notebook): earnings follow-up prefill, the prep-note link and the quarter's numbers, never invented
+9281a84a07 feat(notebook): NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED switch (dark)

@@ -31,7 +31,19 @@
       },
       "status": 404
     },
+    "DELETE /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "DELETE /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "DELETE /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not found"
       },
@@ -241,6 +253,30 @@
       },
       "status": 404
     },
+    "GET /api/j2/template-gallery/authors/{handle}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/feed": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/updates": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "GET /api/j2/template-gallery/{gallery_id}": {
       "body": {
         "detail": "Not found"
@@ -398,6 +434,36 @@
       "status": 404
     },
     "POST /api/j2/template-gallery": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/styles": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/adopt": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not found"
       },

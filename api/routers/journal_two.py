@@ -216,6 +216,10 @@ _J2_TELEMETRY_EVENTS = {
     # The task -> event table is CORE_ACTION_EVENTS in notebookTelemetry.js.
     "save_success", "export_used", "import_used", "share_used", "publish_used",
     "writing_help_used", "dictation_used", "bulk_used",
+    # P3a (the community style library, Task 11) — which library view a member
+    # opened, and an adopt the server accepted. Enums and a bool only: never an
+    # item id, a title or an author handle.
+    "library_viewed", "style_adopted",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -315,6 +319,14 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
                "archive", "unarchive", "renameTag"),
         "changed": "num",
         "failed": "num",
+    },
+    # P3a Task 11 — the community style library.
+    "library_viewed": {
+        "type": ("all", "outline", "style"),
+        "view": ("browse", "following", "author"),
+    },
+    "style_adopted": {
+        "notify": "bool",
     },
 }
 

@@ -88,6 +88,8 @@ NOTEBOOK_KEYS = [
     "notebook_earnings_followup_enabled",
     # P4a: page layouts (Customize on Today and the trade page) — an enablement gate.
     "journal_page_layouts_enabled",
+    # P3a: the community style library (share, adopt, helpful, follow) — an enablement gate.
+    "notebook_style_library_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.

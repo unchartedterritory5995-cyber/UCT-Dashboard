@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/template-gallery/feed",
+    "note": "The viewer follows nobody now (they unfollowed above).",
+    "path": "/api/j2/template-gallery/feed",
+    "status": 200
+  },
+  "body": {
+    "templates": []
+  }
+}
