@@ -842,6 +842,47 @@ def _rebuild_canonical(flat: list) -> Any:
     return root
 
 
+def _dumps_iterative(value) -> str:
+    """`json.dumps(value)` without recursion, for the OUTBOUND payload.
+
+    ⛔ THE RETURN PATH WAS ALREADY FLAT (above); THIS IS ITS OTHER HALF. The census
+    hands node the corpus's 4,000-deep `too_many_nodes` tree nested, and CPython's
+    C encoder counts nesting against a compiled-in C-recursion budget that
+    `setrecursionlimit` cannot raise. It is lower on Windows builds (measured
+    2026-10-13: 2,990 levels encode, 3,000 raise `RecursionError`), so the escape
+    census could not run on Windows at all while it passed on Linux CI. Scalars and
+    keys still go through `json.dumps`, so every string, number and literal is
+    encoded exactly as before; only the walk over containers is explicit.
+    """
+    out: list = []
+    stack: list = [("value", value)]
+    while stack:
+        kind, item = stack.pop()
+        if kind == "text":
+            out.append(item)
+        elif isinstance(item, dict):
+            out.append("{")
+            pending: list = [("text", "}")]
+            entries = list(item.items())
+            for i, (k, v) in enumerate(reversed(entries)):
+                pending.append(("value", v))
+                pending.append(("text", json.dumps(str(k)) + ": "))
+                if i < len(entries) - 1:
+                    pending.append(("text", ", "))
+            stack.extend(pending)
+        elif isinstance(item, (list, tuple)):
+            out.append("[")
+            pending = [("text", "]")]
+            for i, v in enumerate(reversed(item)):
+                pending.append(("value", v))
+                if i < len(item) - 1:
+                    pending.append(("text", ", "))
+            stack.extend(pending)
+        else:
+            out.append(json.dumps(item))
+    return "".join(out)
+
+
 def _node_run(driver_source: str, payload: dict) -> dict:
     """Run ONE node process over `driver_source` with `payload` on STDIN.
 
@@ -865,7 +906,7 @@ def _node_run(driver_source: str, payload: dict) -> dict:
         with io.open(driver, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(driver_source)
         proc = subprocess.run(
-            [_node(), driver], cwd=ROOT, input=json.dumps(payload),
+            [_node(), driver], cwd=ROOT, input=_dumps_iterative(payload),
             capture_output=True, text=True, encoding="utf-8", errors="replace")
     finally:
         for path in (driver, hook):

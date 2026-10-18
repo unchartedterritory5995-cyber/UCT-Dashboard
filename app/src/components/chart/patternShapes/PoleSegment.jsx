@@ -2,7 +2,7 @@
 // before the flag), from `geometry.extras.draw_pole = [{t, price: base low}, {t, price: top
 // high}]` (api/services/pattern_engine/display.py). The v2 blind round (REPORT_TIERS_V2.md,
 // 2026-10-17) found flags drawn with no pole at all. Display only.
-import { getColor, getOpacity, getStrokeWidth } from './style'
+import { getColor, getOpacity, getStrokeWidth, isFlagging, FLAGGING_DASH } from './style'
 
 export default function PoleSegment({ detection, tToX, priceToY, onClick }) {
   const pole = detection?.geometry?.extras?.draw_pole
@@ -19,6 +19,7 @@ export default function PoleSegment({ detection, tToX, priceToY, onClick }) {
       x1={x1} y1={y1} x2={x2} y2={y2}
       stroke={getColor(detection)}
       strokeWidth={getStrokeWidth(detection)}
+      strokeDasharray={isFlagging(detection) ? FLAGGING_DASH : undefined}
       opacity={getOpacity(detection)}
       onClick={() => onClick?.(detection)}
       style={{ cursor: 'pointer', pointerEvents: 'auto' }}
