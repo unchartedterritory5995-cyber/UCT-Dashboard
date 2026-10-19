@@ -235,6 +235,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "flat_base", "bc:flat-base", "bc:cup-with-handle",
     "uct_pullback_ma_v5",
     "uct_flat_top_breakout",
+    "bc:base",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -268,9 +269,20 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: extras.draw_round == MEMBER_FLAT_TOP_ROUND beside a well-formed draw_flat_top (fail closed). Its
 #: trusted tier is per ROW (DISPLAY_TRUSTED_WHEN_STAMPED / row_display_policy): an unstamped
 #: flat-top row keeps the experimental tier it always had, for admins too.
+#: bc:base (lab base_draw, 2026-10-18) is the shape-agnostic BASE drawing -- the base's extent, its
+#: pivot on the top cluster of the candle bodies and its low (api/services/pattern_engine/base_draw.py).
+#: It passed its pre-registered team-axis pivot test on the held-out half (14 of 17 charts; a naive
+#: 20-bar highest-body line hits 13 of 17, so its value is WHEN it draws and the extent, not the pivot
+#: price) and two fresh blind packets AS DRAWN: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97], 100% of
+#: charts >= 2 in both. The extent test was NOT validated against extents the team drew (the team's
+#: base there is derived by the lab's own span rule; one comparison against team boxes). A member is
+#: served it only where no incumbent base drawing covers the same base
+#: (auto_structures.member_base_precedence). A bc:base row
+#: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
+#: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
-    "uct_flat_top_breakout",
+    "uct_flat_top_breakout", "bc:base",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

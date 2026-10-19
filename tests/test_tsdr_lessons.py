@@ -1937,3 +1937,41 @@ def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
     assert len(text) <= 1900
     empty = tl.format_search_reply("zebra stripes", [])
     assert "Nothing in the lesson library" in empty and "“zebra stripes”" in empty
+
+
+def test_a_post_whose_title_is_only_a_link_gets_the_videos_name_or_a_dated_one(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _seed_threads()
+    m = msg(sf(2026, 5, 3), content="https://youtu.be/ALIVE000001")           # a linked clip, caption = the URL
+    tl.record_message(m, TSDR)
+    aid = f"{tl.LINK_PREFIX}ALIVE000001"
+    tl._update(aid, status="posted", title="https://youtu.be/ALIVE000001", recap="A clip.", section="clips",
+               tags=json.dumps(["clip"]), discord_post_id="msg-link", post_channel_id="t-clips")
+    _thread_lesson("att", 2, title="<@&1216780250286002297> https://x.y/z", section="clips", level=None)
+    _thread_lesson("fine", 3, title="A real title")
+    monkeypatch.setattr(tl, "youtube_video_title", lambda v: "Patrick on gap fills" if v == "ALIVE000001" else "")
+    patched = {}
+    fake = FakeDiscord({("PATCH", "/channels/t-clips/messages/msg-link"): lambda p, b: patched.update(link=b) or {},
+                        ("PATCH", "/channels/t-clips/messages/msg-att"): lambda p, b: patched.update(att=b) or {}})
+    monkeypatch.setattr(tl, "_discord", fake)
+    tl.set_state("index_dirty", "")
+    assert tl.run_title_repair(deadline=9e12) == {"retitled": 2, "errors": 0}
+    assert tl.get_lesson(aid)["title"] == "Patrick on gap fills"
+    assert patched["link"]["embeds"][0]["title"] == "Patrick on gap fills"
+    assert tl.get_lesson("att")["title"] == "Quick clip, Mar 2, 2026"
+    assert patched["att"]["embeds"][0]["title"] == "Quick clip, Mar 2, 2026"
+    assert tl.get_lesson("fine")["title"] == "A real title" and not any("msg-fine" in c[1] for c in fake.calls)
+    assert tl.get_state("index_dirty") == "1"
+    assert tl.run_title_repair(deadline=9e12) == {"retitled": 0, "errors": 0}   # nothing left to rename
+    assert tl.search_lessons("gap fills")[0]["title"] == "Patrick on gap fills"   # and the search sees the new name
+
+
+def test_the_title_repair_runs_each_tick_in_thread_mode_only(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_ENABLED", "1")
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(tl, "run_lessons", lambda **k: {})
+    calls = []
+    monkeypatch.setattr(tl, "run_title_repair", lambda **k: calls.append(1) or {"retitled": 1, "errors": 0})
+    assert "titles" not in tl.tick() and calls == []
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    assert tl.tick()["titles"] == {"retitled": 1, "errors": 0} and calls == [1]
