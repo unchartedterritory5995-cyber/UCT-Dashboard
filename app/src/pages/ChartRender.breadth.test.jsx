@@ -12,6 +12,7 @@ vi.mock('../components/StockChart', () => ({
       watermark: props.watermark ?? null, watermarkName: props.watermarkName ?? null })}
     data-override={JSON.stringify({ bars: props.barsOverride ?? null, pending: !!props.barsOverridePending })}
     data-bottom-margin={String(props.priceScaleBottomMargin ?? '')}
+    data-price-format={props.priceFormat ? String(props.priceFormat.formatter(810197.4)) : ''}
     width={8} height={8} />,
 }))
 
@@ -20,11 +21,13 @@ const BREADTH_BARS = [
   { t: '2026-10-16', o: 31.4, h: 31.4, l: 31.4, c: 31.4, v: 0 },
 ]
 const fetched = []
+let doorBars = BREADTH_BARS
 beforeEach(() => {
   fetched.length = 0
+  doorBars = BREADTH_BARS
   vi.stubGlobal('fetch', vi.fn((url) => {
     fetched.push(String(url))
-    const body = String(url).startsWith('/api/r/breadth-bars/') ? { ticker: 'UCTA50', tf: 'D', bars: BREADTH_BARS } : {}
+    const body = String(url).startsWith('/api/r/breadth-bars/') ? { ticker: 'UCTA50', tf: 'D', bars: doorBars } : {}
     return Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
   }))
 })
@@ -95,5 +98,30 @@ describe('ChartRender ?breadth=', () => {
     await waitFor(() => expect(fetched.length).toBeGreaterThan(0))   // control: the page did fetch
     expect(fetched.some((u) => u.startsWith('/api/r/breadth-bars/'))).toBe(false)
     expect(override()).toEqual({ bars: null, pending: false })
+  })
+
+  // 2026-10-19: the A/D line read "810197.00 -806.00" in the header and "825000.00" on
+  // the axis. A count prints whole, with commas; a percentage keeps its decimals.
+  const priceFormat = () => screen.getByTestId('stock-chart').getAttribute('data-price-format')
+
+  it('prints a breadth COUNT as a whole number, header and axis', async () => {
+    doorBars = [
+      { t: '2026-10-15', o: 811003, h: 811003, l: 811003, c: 811003, v: 0 },
+      { t: '2026-10-16', o: 810197, h: 810197, l: 810197, c: 810197, v: 0 },
+    ]
+    mount('sym=UCTAD&tf=D&token=tok&breadth=1&bname=x')
+    await waitFor(() => expect(screen.getByText('810,197')).toBeTruthy())
+    expect(screen.getByText('-806')).toBeTruthy()
+    expect(screen.getByText('(-0.10%)')).toBeTruthy()                     // the percent keeps two places
+    expect(priceFormat()).toBe('810,197')                                   // the axis: whole, with commas
+  })
+
+  it('keeps two decimals on a percentage metric and on a stock', async () => {
+    mount('sym=UCTA50&tf=D&token=tok&breadth=1&bname=x')
+    await waitFor(() => expect(screen.getByText('31.40')).toBeTruthy())    // control: the header did paint
+    expect(priceFormat()).toBe('')
+    cleanup()
+    mount('sym=NVDA&tf=D')
+    expect(priceFormat()).toBe('')
   })
 })
