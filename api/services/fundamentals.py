@@ -6,6 +6,7 @@ sub-millisecond.
 """
 
 import logging
+import math
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -78,17 +79,29 @@ def _currency_guard(result: dict, info: dict) -> dict:
     return result
 
 
+# 🔴 NON-FINITE IS "NO VALUE", NEVER A NUMBER (screener column audit 2026-10-18).
+# Yahoo ships the STRING "Infinity" for some fields (KOPN `forwardPE`), and
+# `float("Infinity")` parses cleanly, so the old helpers returned `inf`. JSON
+# cannot carry it: `/api/fundamentals/KOPN` answered 500, and the value rode the
+# ratings store into the screener's `pe_fwd`, where it 500'd every scan page that
+# carried the row — the Valuation view sorted by Fwd P/E descending failed for
+# every member. Both helpers are the single producer of these values, so the
+# refusal lives here and nowhere else.
+def _finite(x):
+    return x if math.isfinite(x) else None
+
+
 def _round_pct(v, digits: int = 1) -> float | None:
     try:
-        return round(float(v) * 100.0, digits)
-    except (TypeError, ValueError):
+        return _finite(round(float(v) * 100.0, digits))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
 def _round(v, digits: int = 2) -> float | None:
     try:
-        return round(float(v), digits)
-    except (TypeError, ValueError):
+        return _finite(round(float(v), digits))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
