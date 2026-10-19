@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/layouts",
+    "path": "/api/j2/template-gallery/layouts",
+    "requestBody": {
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "page": "sidebar",
+      "title": "Prop trade page",
+      "tradingStyle": "swing"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Pick Today or the trade page."
+  }
+}

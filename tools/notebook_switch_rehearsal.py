@@ -318,6 +318,7 @@ NOT_REHEARSED = {
                                       "NOTEBOOK_STYLE_LIBRARY_ENABLED is on too; installing a pack writes "
                                       "the member's own styles, so there is no rendered on/off probe in "
                                       "this tool; waits for the owner's arming",
+    "NOTEBOOK_LAYOUT_SHARING_ENABLED": "dark (P4b): sharing and adopting page layouts; server-only, rehearsed by the P4b walk (tools/notebook_layout_library_walk.py)",
 }
 
 

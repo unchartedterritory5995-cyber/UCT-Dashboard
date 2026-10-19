@@ -1,0 +1,102 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/TemplateGallery.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 10849[2mms[22m[39m
+     [33m[2m✓[22m[39m is absent while the gate is off, and nothing else in the picker changes [33m 632[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the gallery with focus on its heading, and Back returns focus to the door [33m 1179[2mms[22m[39m
+     [33m[2m✓[22m[39m shows UCT picks above the community, each with its author, and filters by search and category [33m 800[2mms[22m[39m
+     [33m[2m✓[22m[39m previews read-only, and Use template copies it, says so, then makes a note through the member door [33m 965[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused Use is the server’s own sentence on screen [33m 625[2mms[22m[39m
+     [33m[2m✓[22m[39m reports with a reason and an optional note, and thanks the member in words [33m 1109[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused report is the server’s own sentence on screen [33m 753[2mms[22m[39m
+     [33m[2m✓[22m[39m Share on one of Your templates submits it for review and says what is left out [33m 1011[2mms[22m[39m
+     [33m[2m✓[22m[39m Your submissions shows where each one stands and Unpublish asks once [33m 730[2mms[22m[39m
+     [33m[2m✓[22m[39m tells the author about a held update and a declined one on a listed item (final review I-1) [33m 625[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the gallery exactly as it is: no Styles chip, no trading-style row, no Following view [33m 568[2mms[22m[39m
+     [33m[2m✓[22m[39m is not offered to a member [33m 552[2mms[22m[39m
+     [33m[2m✓[22m[39m lets an admin approve, reject with a reason, hide a reported one and unhide [33m 1294[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/StyleLibrary.test.jsx [2m([22m[2m31 tests[22m[2m)[22m[33m 16664[2mms[22m[39m
+     [33m[2m✓[22m[39m off: the gallery renders exactly as before — no Styles chip, no trading-style row, no Following [33m 859[2mms[22m[39m
+     [33m[2m✓[22m[39m on: the type chips, the library sorts and a Following view chip are offered [33m 461[2mms[22m[39m
+     [33m[2m✓[22m[39m lists style items with their trading-style label, and a trading-style chip filters the request [33m 701[2mms[22m[39m
+     [33m[2m✓[22m[39m with "Notify me" ticked posts notify: true and says what was added, with the credit [33m 670[2mms[22m[39m
+     [33m[2m✓[22m[39m without ticking it posts notify: false [33m 605[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 refusal shows the server’s fixed sentence, and nothing says "Added" [33m 579[2mms[22m[39m
+     [33m[2m✓[22m[39m a body-less 429 (a proxy’s own page) is our fixed sentence, never "request failed (429)" (final review M-7) [33m 574[2mms[22m[39m
+     [33m[2m✓[22m[39m a missing item is our own fixed sentence, never the server’s bare "Not found" [33m 541[2mms[22m[39m
+     [33m[2m✓[22m[39m flips aria-pressed and the count text after the response [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m is absent on your own item (as are Adopt and Report); Preview stays [33m 463[2mms[22m[39m
+     [33m[2m✓[22m[39m fires once after an adopt the server accepted, with the member’s notify choice and nothing of the item [33m 663[2mms[22m[39m
+     [33m[2m✓[22m[39m sends notify: false when the box was left unticked [33m 545[2mms[22m[39m
+     [33m[2m✓[22m[39m sends nothing when the server refused the adopt [33m 545[2mms[22m[39m
+     [33m[2m✓[22m[39m fires once per view change while the switch is on, and never for Your submissions [33m 1076[2mms[22m[39m
+     [33m[2m✓[22m[39m sends nothing with the switch off (the gallery is today’s) [33m 359[2mms[22m[39m
+     [33m[2m✓[22m[39m opens from the author name; Follow flips to Following; Back returns to the list with the filters kept [33m 808[2mms[22m[39m
+     [33m[2m✓[22m[39m lists what the authors you follow listed [33m 503[2mms[22m[39m
+     [33m[2m✓[22m[39m says how to fill it when it is empty [33m 482[2mms[22m[39m
+     [33m[2m✓[22m[39m composes the item’s payload through the journal styles preview door and renders it [33m 518[2mms[22m[39m
+     [33m[2m✓[22m[39m every new control is named, with the adopt confirm open [33m 783[2mms[22m[39m
+     [33m[2m✓[22m[39m I-1: Follow and Unfollow keep focus on the toggle, through the page’s refetch [33m 832[2mms[22m[39m
+     [33m[2m✓[22m[39m M-7: an adopt refreshes each open library list once [33m 677[2mms[22m[39m
+     [33m[2m✓[22m[39m M-1: after a successful adopt, focus returns to the card’s Adopt button, never the page [33m 607[2mms[22m[39m
+     [33m[2m✓[22m[39m a member sees no Feature, Unfeature or Hide on a style card [33m 461[2mms[22m[39m
+     [33m[2m✓[22m[39m an admin features a style: the button reads Feature, the PATCH says feature, and the sentence says so [33m 517[2mms[22m[39m
+     [33m[2m✓[22m[39m an admin unfeatures a featured style: the button reads Unfeature and the PATCH says unfeature [33m 502[2mms[22m[39m
+     [33m[2m✓[22m[39m an admin hides a style: the PATCH says hide and the sentence says it stays in the Review queue [33m 502[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/LayoutLibrary.test.jsx [2m([22m[2m34 tests[22m[2m)[22m[33m 9755[2mms[22m[39m
+     [33m[2m✓[22m[39m false: no Page layouts chip, and a page_layout row in a stale cache renders nothing [33m 515[2mms[22m[39m
+     [33m[2m✓[22m[39m a layout whose payload is null says it cannot be used yet, offers no Use, and never reads its lists (T6b-R1) [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m confirm shows what changes; Use posts {version}, writes trade only, and Undo puts the old list back exactly [33m 408[2mms[22m[39m
+     [33m[2m✓[22m[39m an Undo the server refuses says so and points at Customize [33m 320[2mms[22m[39m
+     [33m[2m✓[22m[39m {ok: false} says nothing was changed, and Try again posts the preference only [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m every new control has an accessible name; the preview tabs run the phase tabs, then the actions [33m 344[2mms[22m[39m
+     [33m[2m✓[22m[39m a 502 on the preferences read before Undo: no preference POST, and the failure sentence renders [33m 377[2mms[22m[39m
+     [33m[2m✓[22m[39m Undo pressed twice runs once [33m 353[2mms[22m[39m
+     [33m[2m✓[22m[39m after a failed write, pressing Use does NOT call adopt-layout [33m 350[2mms[22m[39m
+     [33m[2m✓[22m[39m fail, Try again (after the held read lands), then Undo: the restored trade list is the original [33m 485[2mms[22m[39m
+     [33m[2m✓[22m[39m a re-read that never answers still lets the member press Cancel and close the sheet [33m 328[2mms[22m[39m
+     [33m[2m✓[22m[39m fail the write, fail the re-read, Cancel, adopt again, Undo: the trade list is the original [33m 496[2mms[22m[39m
+     [33m[2m✓[22m[39m M-2: Try again stays hidden past the bound while the read itself has not settled, and a late answer never lands [33m 656[2mms[22m[39m
+     [33m[2m✓[22m[39m M-3: a hung re-read is aborted at the bound, and then Try again appears [33m 591[2mms[22m[39m
+     [33m[2m✓[22m[39m M-3: a re-read that answers in time clears its timer, so nothing is aborted later [33m 372[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/layout/LayoutSharingDoors.test.jsx [2m([22m[2m20 tests[22m[2m)[22m[33m 6792[2mms[22m[39m
+     [33m[2m✓[22m[39m today: Customize offers no Share and no Find, and says nothing about sharing [33m 632[2mms[22m[39m
+     [33m[2m✓[22m[39m Share opens the form in the same sheet; Submit posts exactly the page and the fields; the sent sentence renders [33m 1319[2mms[22m[39m
+     [33m[2m✓[22m[39m Today: the title starts as My Today layout, and one dropped panel is said in the singular [33m 326[2mms[22m[39m
+     [33m[2m✓[22m[39m a refusal says the server’s sentence and nothing was sent; Cancel goes back to the editor [33m 445[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape and the close button do nothing until the answer lands; then the sent sentence renders [33m 405[2mms[22m[39m
+     [33m[2m✓[22m[39m control: with no share in flight, Escape closes the form back to the editor [33m 340[2mms[22m[39m
+     [33m[2m✓[22m[39m after a refused share, Escape closes the form again (the guard is released) [33m 375[2mms[22m[39m
+     [33m[2m✓[22m[39m an unsaved toggle disables Share with the hint; Save, reopen Customize, and Share is enabled [33m 905[2mms[22m[39m
+     [33m[2m✓[22m[39m approved: the status line reads Listed. Version 1. and a new share says the listed version stays [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m the door opens the library at Page layouts in one sheet, and renders nothing while closed [33m 372[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/pageLayouts.a11y.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 3651[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "page-layout-editor-premarket": axe finds 0 violations [33m 454[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "page-layout-editor-market": axe finds 0 violations [33m 306[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "today-page-layout-panels": axe finds 0 violations [33m 732[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "today-page-layout-panels-states": axe finds 0 violations [33m 340[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "page-layout-share-controls": axe finds 0 violations [33m 313[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "page-layout-share-form": axe finds 0 violations [33m 389[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-door": axe finds 0 violations [33m 562[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/trade/TradeDetailPage.layout.test.jsx [2m([22m[2m23 tests[22m[2m)[22m[33m 3312[2mms[22m[39m
+     [33m[2m✓[22m[39m test_default_trade_layout_renders_todays_order: the switch off, and on with no saved layout, give the base order [33m 458[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/layoutLibrary.a11y.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3031[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-card": axe finds 0 violations [33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-preview": axe finds 0 violations [33m 395[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-preview-phase-premarket": axe finds 0 violations [33m 389[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-preview-phase-market": axe finds 0 violations [33m 417[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-preview-phase-postclose": axe finds 0 violations [33m 340[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-card-unsupported": axe finds 0 violations [33m 344[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "layout-library-share-drop-line": axe finds 0 violations [33m 547[2mms[22m[39m
+ [32m✓[39m src/components/admin/TemplateGalleryReviewPanel.test.jsx [2m([22m[2m30 tests[22m[2m)[22m[33m 2519[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/surfaces/TodaySurface.layout.test.jsx [2m([22m[2m26 tests[22m[2m)[22m[33m 749[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/LibraryCard.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/hooks/usePreferences.revision.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 899[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/pageLayouts.test.js [2m([22m[2m48 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/ariaCoverage.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m      Tests [22m [1m[32m267 passed[39m[22m[90m (267)[39m
+[2m   Start at [22m 03:44:46
+[2m   Duration [22m 36.48s[2m (transform 2.64s, setup 1.79s, import 5.24s, tests 58.26s, environment 5.69s)[22m
+

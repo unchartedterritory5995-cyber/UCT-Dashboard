@@ -1,0 +1,33 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/StyleLibrary.test.jsx [2m([22m[2m27 tests[22m[2m)[22m[33m 16666[2mms[22m[39m
+     [33m[2m✓[22m[39m off: the gallery renders exactly as before — no Styles chip, no trading-style row, no Following [33m 938[2mms[22m[39m
+     [33m[2m✓[22m[39m on: the type chips, the library sorts and a Following view chip are offered [33m 568[2mms[22m[39m
+     [33m[2m✓[22m[39m lists style items with their trading-style label, and a trading-style chip filters the request [33m 815[2mms[22m[39m
+     [33m[2m✓[22m[39m with "Notify me" ticked posts notify: true and says what was added, with the credit [33m 721[2mms[22m[39m
+     [33m[2m✓[22m[39m without ticking it posts notify: false [33m 624[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 refusal shows the server’s fixed sentence, and nothing says "Added" [33m 564[2mms[22m[39m
+     [33m[2m✓[22m[39m a body-less 429 (a proxy’s own page) is our fixed sentence, never "request failed (429)" (final review M-7) [33m 658[2mms[22m[39m
+     [33m[2m✓[22m[39m a missing item is our own fixed sentence, never the server’s bare "Not found" [33m 674[2mms[22m[39m
+     [33m[2m✓[22m[39m flips aria-pressed and the count text after the response [33m 626[2mms[22m[39m
+     [33m[2m✓[22m[39m is absent on your own item (as are Adopt and Report); Preview stays [33m 495[2mms[22m[39m
+     [33m[2m✓[22m[39m fires once after an adopt the server accepted, with the member’s notify choice and nothing of the item [33m 771[2mms[22m[39m
+     [33m[2m✓[22m[39m sends notify: false when the box was left unticked [33m 598[2mms[22m[39m
+     [33m[2m✓[22m[39m sends nothing when the server refused the adopt [33m 611[2mms[22m[39m
+     [33m[2m✓[22m[39m fires once per view change while the switch is on, and never for Your submissions [33m 1077[2mms[22m[39m
+     [33m[2m✓[22m[39m sends nothing with the switch off (the gallery is today’s) [33m 389[2mms[22m[39m
+     [33m[2m✓[22m[39m opens from the author name; Follow flips to Following; Back returns to the list with the filters kept [33m 986[2mms[22m[39m
+     [33m[2m✓[22m[39m lists what the authors you follow listed [33m 666[2mms[22m[39m
+     [33m[2m✓[22m[39m says how to fill it when it is empty [33m 627[2mms[22m[39m
+     [33m[2m✓[22m[39m composes the item’s payload through the journal styles preview door and renders it [33m 598[2mms[22m[39m
+     [33m[2m✓[22m[39m every new control is named, with the adopt confirm open [33m 883[2mms[22m[39m
+     [33m[2m✓[22m[39m I-1: Follow and Unfollow keep focus on the toggle, through the page’s refetch [33m 1015[2mms[22m[39m
+     [33m[2m✓[22m[39m M-7: an adopt refreshes each open library list once [33m 743[2mms[22m[39m
+     [33m[2m✓[22m[39m M-1: after a successful adopt, focus returns to the card’s Adopt button, never the page [33m 718[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 10:41:43
+[2m   Duration [22m 18.60s[2m (transform 819ms, setup 228ms, import 1.10s, tests 16.67s, environment 482ms)[22m
+

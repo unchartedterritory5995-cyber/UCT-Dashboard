@@ -21,6 +21,13 @@
 //    read into the card, and the token follows the card. (An outline row has no card: its Preview sets it.)
 // P3b Task 6: an EXAMPLE NOTE row names the style it shows, and Preview renders its stored reduced body with its
 //    images exactly as members will load them (a held revision's on `?rev=pending`); see ExampleReviewDetails.
+// P4b Task 8: a PAGE LAYOUT item (`itemType === 'page_layout'`) shows which page it is for, its trading style, and
+// per list the panels in order with Shown / Hidden, read from the item's `payload` on the same single-item read the
+// style card uses (and pinned as the approve token the same way, P3a-T10-R7). A held revision shows the revision's
+// own lists, from `pendingRevision`. A layout whose payload is null (every panel unknown to this build, P4b-T6b-R1)
+// says "This layout can't be used yet." and its lists are never read. A layout row has no Preview: it has no outline,
+// and its details card IS the preview, in the Reported section too (P4b final A2), where it shows the listed version.
+// The panel is reached through the gallery's lazy chunk (ruling X13), so none of this is first-open code.
 // Rendered inside the Notebook's community gallery for admins (TemplateGallery.jsx);
 // the server refuses every one of these calls to a non-admin regardless.
 import { useCallback, useEffect, useId, useState } from 'react'
@@ -29,12 +36,17 @@ import {
   getGalleryTemplate, resolveGalleryReport, reviewGalleryTemplate, useGalleryQueue,
   REPORT_REASONS, categoryLabel,
 } from '../../pages/journal-2-0/lib/templateGallery'
-import { EXAMPLE_NOTE_TYPE, tradingStyleLabel, withHeldImages } from '../../pages/journal-2-0/lib/styleLibrary'
+import {
+  EXAMPLE_NOTE_TYPE, LAYOUT_UNSUPPORTED_SENTENCE, tradingStyleLabel, withHeldImages,
+} from '../../pages/journal-2-0/lib/styleLibrary'
+import { PANELS, PHASES, PHASE_LABELS } from '../../pages/journal-2-0/lib/pageLayouts'
 import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import TemplatePreview from '../../pages/journal-2-0/components/notebook/TemplatePreview'
 import styles from '../../pages/journal-2-0/components/notebook/TemplateGallery.module.css'
 
+// A reported layout is hidden as a layout, never as a template (P4b final, item 5).
+const hideNoun = (item) => (item.itemType === 'page_layout' ? 'layout' : 'template')
 const reasonLabel = (key) => REPORT_REASONS.find((r) => r.key === key)?.label || key
 
 // ⛔ `version` is the server's `pendingRevision.version` (final review M-10): the panel never restates the server's
@@ -43,12 +55,16 @@ export const revisionLine = (version) =>
   `Update to version ${version} of a listed style. Approving lists it; the current version stays until then.`
 export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
 export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
+// The layout revision's line (P4b): `version` is the server's `pendingRevision.version`, never restated arithmetic.
+export const layoutRevisionLine = (version) =>
+  `Update to a listed layout (version ${version}). Approving lists it; the current version stays until then.`
 const reviewCardKey = (item) => ['gallery-review-card', item.id, item.updatedAt]
 
 /** P3a-T10-R7, ONCE (ruling P3b-T6-R5): a details card's single read of its item, keyed on the queue row's
  *  `updatedAt` (so a resubmission is read afresh, and `openPreview` can put a newer read into the card through the
  *  same key), and the handoff of THAT read's `updatedAt` up as the approve token. Approve can therefore only ever
- *  send the version the card shows. Every card with details (a style's, an example's) uses this one hook. */
+ *  send the version the card shows. Every card with details (a style's, an example's, a layout's) uses this one
+ *  hook (P4b final m-1: the layout card's own copy of it is gone). */
 function useReviewCardRead(item, onRead) {
   const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
     { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -91,6 +107,51 @@ function StyleReviewDetails({ item, onRead }) {
           <p className={styles.meta}>{`Kind of note: ${kindName(shown.payload?.kindId)}`}</p>
           <p className={styles.meta}>{`Blocks: ${blocks.join(', ') || 'none'}`}</p>
           <p className={styles.meta}>{`Trading style: ${tradingStyleLabel(shown.tradingStyle) || 'not set'}`}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+const LAYOUT_PAGE_NAMES = { today: 'Today', trade: 'Trade page' }
+const panelLabel = (page, id) => PANELS[page]?.find((p) => p.id === id)?.label || 'A panel this version does not know'
+
+/** One shared list, in its order, each panel Shown or Hidden. */
+function LayoutList({ page, name, list }) {
+  const heading = page === 'trade' ? 'Panels' : PHASE_LABELS[name]
+  return (
+    <div>
+      <p className={styles.meta}>{`${heading}:`}</p>
+      <ol className={styles.meta} aria-label={page === 'trade' ? 'Trade page panels' : `${heading} panels`}>
+        {list.map((e, i) => <li key={`${e.id}-${i}`}>{`${panelLabel(page, e.id)}: ${e.shown ? 'Shown' : 'Hidden'}`}</li>)}
+      </ol>
+    </div>
+  )
+}
+
+/** A page layout item's page, trading style and lists (for a revision, the revision's own), from ONE read. Keyed and
+ *  token-pinned exactly as the style card is. ⛔ A null payload is never read past (P4b-T6b-R1). */
+function LayoutReviewDetails({ item, onRead }) {
+  const { data, error } = useReviewCardRead(item, onRead)
+  const shown = underReview(item, data)
+  const page = item.layoutPage === 'today' ? 'today' : 'trade'
+  const payload = shown?.payload
+  const lists = payload && typeof payload.lists === 'object' && payload.lists ? payload.lists : null
+  const names = page === 'trade' ? ['trade'] : PHASES
+  return (
+    <div data-gallery-review-layout={item.id}>
+      <p className={styles.meta}>{`Page: ${LAYOUT_PAGE_NAMES[page]}`}</p>
+      {item.hasRevision && shown?.version != null && <p className={styles.note}>{layoutRevisionLine(shown.version)}</p>}
+      {error && <p className={styles.error} role="alert">Couldn't load this layout's panels.</p>}
+      {!error && !data && <p className={styles.note}>Loading the layout…</p>}
+      {data && !shown && <p className={styles.error} role="alert">{REVISION_UNREADABLE_LINE}</p>}
+      {shown && (
+        <>
+          {item.hasRevision && <p className={styles.note}>{`Title in this update: ${shown.title}`}</p>}
+          <p className={styles.meta}>{`Trading style: ${tradingStyleLabel(shown.tradingStyle) || 'not set'}`}</p>
+          {payload == null
+            ? <p className={styles.note}>{LAYOUT_UNSUPPORTED_SENTENCE}</p>
+            : names.filter((n) => Array.isArray(lists?.[n])).map((n) => <LayoutList key={n} page={page} name={n} list={lists[n]} />)}
         </>
       )}
     </div>
@@ -268,10 +329,13 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
             {item.itemType === 'style' && <StyleReviewDetails item={item} onRead={markSeen} />}
             {item.itemType === EXAMPLE_NOTE_TYPE && <ExampleReviewDetails item={item} onRead={markSeen} />}
+            {item.itemType === 'page_layout' && <LayoutReviewDetails item={item} onRead={markSeen} />}
             {refreshed[item.id] === item.updatedAt && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
             <div className={styles.actions}>
-              <button type="button" className={styles.btn} onClick={() => openPreview(item)}
-                aria-label={`Preview ${item.title}`}>Preview</button>
+              {item.itemType !== 'page_layout' && (
+                <button type="button" className={styles.btn} onClick={() => openPreview(item)}
+                  aria-label={`Preview ${item.title}`}>Preview</button>
+              )}
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
                 onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt),
                   `Approved “${item.title}”. It is listed now.`, () => clearRefreshed(item.id))}
@@ -297,19 +361,24 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <span className={styles.meta}>by {item.author} · {item.openReports} open report{item.openReports === 1 ? '' : 's'}</span>
             {(item.reports || []).map((r) => (
               <div key={r.id} className={styles.actions}>
-                <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? ` — ${r.note}` : ''}</p>
+                <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? `: ${r.note}` : ''}</p>
                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                   onClick={() => act(() => resolveGalleryReport(r.id, 'hide'), `Hid “${item.title}”.`)}
-                  aria-label={`Hide template ${item.title}`}>Hide template</button>
+                  aria-label={`Hide ${hideNoun(item)} ${item.title}`}>{`Hide ${hideNoun(item)}`}</button>
                 <button type="button" className={styles.btn} disabled={working}
                   onClick={() => act(() => resolveGalleryReport(r.id, 'dismiss'), 'Dismissed the report.')}
                   aria-label={`Dismiss the report on ${item.title}`}>Dismiss</button>
               </div>
             ))}
-            <div className={styles.actions}>
-              <button type="button" className={styles.btn} onClick={() => openPreview(item)}
-                aria-label={`Preview ${item.title}`}>Preview</button>
-            </div>
+            {/* A reported layout has no outline: its details card is the preview (P4b final A2). A report is about
+                the LISTED version members see, so the card reads that one, never a held revision. */}
+            {item.itemType === 'page_layout' && <LayoutReviewDetails item={{ ...item, hasRevision: false }} onRead={markSeen} />}
+            {item.itemType !== 'page_layout' && (
+              <div className={styles.actions}>
+                <button type="button" className={styles.btn} onClick={() => openPreview(item)}
+                  aria-label={`Preview ${item.title}`}>Preview</button>
+              </div>
+            )}
           </div>
         ))}
       </section>

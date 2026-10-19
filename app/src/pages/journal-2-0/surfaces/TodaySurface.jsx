@@ -19,7 +19,7 @@
  * phone collapse is CSS `@media (max-width:640px)` (the useIsPhone first-paint
  * trap), not JS.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import useTodayState from '../hooks/useTodayState'
@@ -54,6 +54,8 @@ import { pageLayoutsEnabled } from '../lib/pageLayoutsFlag'
 import { useJournalToast, JournalToast } from '../lib/useJournalToast'
 // The Customize editor loads only when the button is pressed (its slot holds the lazy import).
 import PageLayoutEditorSlot from '../components/layout/PageLayoutEditorSlot'
+// P4b: the shared layouts library, opened from Customize. The door holds the gallery's lazy import.
+import LayoutLibraryDoor from '../components/layout/LayoutLibraryDoor'
 import { SkeletonLine, SkeletonBlock } from '../../../components/Skeleton'
 import styles from './TodaySurface.module.css'
 
@@ -113,6 +115,17 @@ export default function TodaySurface() {
   // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
   const [customizing, setCustomizing] = useState(false)
   const [toastMsg, setToastMsg] = useJournalToast()
+  // P4b: "Find shared layouts" closes Customize and opens the library, so one sheet is open at a time.
+  const [findingLayouts, setFindingLayouts] = useState(false)
+  const findLayouts = () => { setCustomizing(false); setFindingLayouts(true) }
+  // P4b-T8 m2 (D-46 class): the library's opener is Find, which unmounted with the editor, so the Sheet's own
+  // restore targets a detached node. When the library closes, focus goes back to Customize.
+  const customizeRef = useRef(null)
+  const wasFinding = useRef(false)
+  useEffect(() => {
+    if (wasFinding.current && !findingLayouts) customizeRef.current?.focus()
+    wasFinding.current = findingLayouts
+  }, [findingLayouts])
 
   const targetAccountId = accountId || accounts?.[0]?.id || null
 
@@ -240,7 +253,7 @@ export default function TodaySurface() {
   const header = pageLayoutsEnabled() && !zeroData ? (
     <div className={styles.headRow}>
       {scopeNote}
-      <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+      <button type="button" ref={customizeRef} className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
         <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
         Customize
       </button>
@@ -263,8 +276,10 @@ export default function TodaySurface() {
           initialPhase={session}
           onClose={() => setCustomizing(false)}
           onSaved={() => setToastMsg('Layout saved.')}
+          onFindLayouts={findLayouts}
         />
       )}
+      <LayoutLibraryDoor open={findingLayouts} onClose={() => setFindingLayouts(false)} />
       <JournalToast msg={toastMsg} style={TOAST_STYLE} />
 
       {modal === 'import' && (

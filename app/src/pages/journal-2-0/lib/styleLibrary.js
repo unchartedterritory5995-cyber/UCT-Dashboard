@@ -1,5 +1,6 @@
 /**
- * P3a: the community STYLE library's client lists and calls. LAZY-ONLY: import this file only from
+ * P3a: the community STYLE library's client lists and calls; P4b adds shared PAGE LAYOUTS (the
+ * `page_layout` item type and the `layoutSharing` capability). LAZY-ONLY: import this file only from
  * the lazy TemplateGallery chunk or the lazy styles chunk, never from an eager Notebook
  * file (the first-open byte budget, R-P3-5).
  *
@@ -25,6 +26,7 @@ export const ITEM_TYPES = Object.freeze([
   // P3b: an example note belongs to a style and is never listed on its own (R-P3b-2). It is in this list so the
   // server's ITEM_TYPES and this one stay one fact; the library's type chips read LISTED_ITEM_TYPES below.
   { key: 'example_note', label: 'Example notes' },
+  { key: 'page_layout', label: 'Page layouts' },
 ])
 
 /** P3b: the server's EXAMPLE_ITEM (tests/test_example_notes.py reads this line and holds the two equal). */
@@ -96,15 +98,20 @@ export function libraryListKey({ q = '', category = '', sort = 'newest', section
   return qs ? `${GALLERY_KEY}?${qs}` : GALLERY_KEY
 }
 
-/** One view of the library: `{templates, isAdmin, exampleNotes, error, isLoading, refresh}`.
+/** One view of the library: `{templates, isAdmin, exampleNotes, layoutSharing, answered, error, isLoading, refresh}`.
  *  `exampleNotes` is the server's `capabilities.exampleNotes` (P3b, ruling P3b-R6): a missing key is false, so a
- *  pod that predates P3b, or one with the switch off, offers no "Add an example note" door. */
+ *  pod that predates P3b, or one with the switch off, offers no "Add an example note" door. P4b: `layoutSharing` is
+ *  the server-only switch as the list answer reports it (`capabilities.layoutSharing`); a missing key is false. */
 export function useLibraryList(filters, { enabled = true } = {}) {
   const { data, error, isLoading, mutate } = useSWR(enabled ? libraryListKey(filters) : null, fetcher, SWR_OPTS)
   return {
     templates: data?.templates || [],
     isAdmin: Boolean(data?.viewer?.admin),
     exampleNotes: data?.capabilities?.exampleNotes === true,
+    layoutSharing: data?.capabilities?.layoutSharing === true,
+    // Whether a list answer is in hand: `layoutSharing: false` from an answer is the switch, while no answer yet is
+    // nothing at all (P4b X11 resets a Page layouts chip only on the first).
+    answered: Boolean(data),
     error,
     isLoading,
     refresh: mutate,
@@ -317,3 +324,42 @@ export async function previewLibraryStyle(item) {
   })
   return { ...out, examples: styleExamples(template) }
 }
+
+// ── P4b: shared PAGE LAYOUTS ─────────────────────────────────────────────────────────────────────────────────────
+export const LAYOUT_STATUS_KEY = `${GALLERY_KEY}/layouts/status`
+
+/** Share one page of the member's SAVED layout for review: `{template, droppedPanels}`. The client names the page and
+ *  the form fields only, never a list: the server builds the layout from the saved preference (R-P4b-3/4). */
+export async function shareLayout({ page, title, description, category, tradingStyle }) {
+  const out = await call(`${GALLERY_KEY}/layouts`, {
+    method: 'POST',
+    body: JSON.stringify({ page, title, description, category, tradingStyle }),
+  })
+  await refreshLibrary()
+  return out
+}
+
+/** The member's own shared layouts, `{status: {shared: {today, trade}} | null, off, error}`. While layout sharing is
+ *  off every `/layouts` route is a 404, and THAT is `off: true` -- an explicit branch on the status (X12), never an
+ *  error shown to the member and never a swallowed failure. Any other failure is `error`. */
+export function useLayoutSharingStatus({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? LAYOUT_STATUS_KEY : null, fetcher, SWR_OPTS)
+  const off = error?.status === 404
+  return { status: data || null, off, error: off ? null : (error || null), isLoading, refresh: mutate }
+}
+
+/** The LISTED layout of a shared page, for the member's own client to apply and save: `{layout, version, credit}`.
+ *  `version` is the one the member previewed; a newer listed version is a 409 and nothing is adopted. */
+export async function adoptLayout(id, { version } = {}) {
+  const out = await call(`${GALLERY_KEY}/${enc(id)}/adopt-layout`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+  await refreshLibrary()
+  return out
+}
+
+/** What a layout the library cannot apply says: the server's own sentence for it (`LAYOUT_UNSUPPORTED_SENTENCE` in
+ *  template_gallery.py; LayoutLibrary.test.jsx reads that file and holds the two equal). A layout item whose
+ *  `payload` is null says this, offers no "Use this layout", and is never read further (P4b-T6b-R1). */
+export const LAYOUT_UNSUPPORTED_SENTENCE = "This layout can't be used yet."

@@ -22,9 +22,12 @@
 // first one from `initialType`), trading-style chips (when the type is All or Styles), the library's
 // sorts, a "Following" view (what the authors you follow listed), style cards (StyleLibraryCard) with
 // a Preview composed by the journal styles preview door, and an author's page (AuthorView).
-// ⛔ StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk (TemplatePicker.jsx,
+// ⛔ The library's cards (LibraryCard and what it renders) and AuthorView are imported only inside this lazy chunk (TemplatePicker.jsx,
 // and since Task 10 styles/LibraryDoor.jsx, which opens it at Styles with its own `backLabel`), so none of the
 // library is in the Notebook's first open (R-P3-5). styleLibrary.js is also read by the lazy Styles manager.
+// P4b Task 7: every card goes through LibraryCard (the ONE dispatcher; shared PAGE LAYOUTS are LayoutLibraryCard),
+// the Page layouts chip shows only while the list answer says `capabilities.layoutSharing`, and the message host
+// renders a message's `action` (Undo) as a button beside its text.
 import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
@@ -40,7 +43,8 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry
 import TemplatePreview from './TemplatePreview'
 // P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
 import StyleItemPreview from './styles/StyleItemPreview'
-import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
+import { refusalSentence } from './StyleLibraryCard'
+import LibraryCard from './LibraryCard'
 import GalleryAdminActions from './GalleryAdminActions'
 import AuthorView from './AuthorView'
 import lazyChunk from '../../lib/lazyChunk'
@@ -317,6 +321,17 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const feed = useLibraryFeed({ enabled: libraryOn && view === 'following' && !author })
   const isAdmin = picks.isAdmin || all.isAdmin
   const community = all.templates.filter((t) => !t.featured)
+  // P4b: the layout-sharing switch as the last list answer reported it, held while no list is asked (an author's
+  // page, Following), so a layout row there renders by the same answer. No answer yet is not "off".
+  const sharingAnswer = !libraryOn ? null : all.answered ? all.layoutSharing : picks.answered ? picks.layoutSharing : null
+  const [layoutSharing, setLayoutSharing] = useState(false)
+  if (sharingAnswer !== null && sharingAnswer !== layoutSharing) setLayoutSharing(sharingAnswer)
+  // X11: a Page layouts chip (from `initialType`, or a stale tab) goes back to All once an answer says sharing is
+  // off -- or the typed list is refused (a 400 carries no capabilities) and the untyped one then decides.
+  const layoutsRefused = itemType === 'page_layout' && (all.error?.status === 400 || picks.error?.status === 400)
+  useEffect(() => {
+    if (itemType === 'page_layout' && (sharingAnswer === false || layoutsRefused)) setItemType(ALL)
+  }, [itemType, sharingAnswer, layoutsRefused])
   const refresh = () => { picks.refresh(); all.refresh() }
   const chooseView = (key) => { setAuthor(null); setView(key) }
   const chooseType = (key) => { setItemType(key); if (key === 'outline') setTradingStyle(ALL) }
@@ -380,30 +395,11 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const nothing = !loading && !listError && !picks.templates.length && !community.length
   const filtered = Boolean(query.trim() || category || itemType || tradingStyle)
 
-  const outlineCard = (item) => (
-    <GalleryCard
-      key={item.id}
-      item={item}
-      isAdmin={isAdmin}
-      busy={busy || using}
-      onPreview={openPreview}
-      onUse={use}
-      onChanged={refresh}
-      onMessage={setMessage}
-    />
-  )
-  const card = (item) => (libraryOn && item.itemType === 'style' ? (
-    <StyleLibraryCard
-      key={item.id}
-      item={item}
-      busy={busy || using}
-      onPreview={openStylePreview}
-      onOpenAuthor={openAuthor}
-      onMessage={setMessage}
-      isAdmin={isAdmin}
-      onChanged={refresh}
-    />
-  ) : outlineCard(item))
+  const cardProps = {
+    libraryOn, layoutSharing, isAdmin, busy: busy || using, onPreview: openPreview, onStylePreview: openStylePreview,
+    onUse: use, onChanged: refresh, onMessage: setMessage, onOpenAuthor: openAuthor,
+  }
+  const card = (item) => <LibraryCard key={item.id} {...cardProps} item={item} />
   // No `onAdopted` refresh here: adoptStyle already revalidates every library view once
   // (refreshLibrary), and a second one doubled the list GETs on every adopt (review M-7).
   const renderCards = (items) => <ul className={styles.grid}>{items.map(card)}</ul>
@@ -442,6 +438,12 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         {message && (
           <>
             <span>{message.text}</span>
+            {message.action && (
+              <button type="button" className={styles.btn}
+                onClick={() => { const { run } = message.action; setMessage((m) => ({ ...m, action: null })); run() }}>
+                {message.action.label}
+              </button>
+            )}
             {message.made && onUseNow && (
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy}
                 onClick={() => onUseNow(message.made)}>
@@ -457,9 +459,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
           handle={author}
           onBack={closeAuthor}
           onMessage={setMessage}
-          onPreview={openStylePreview}
-          renderOutline={outlineCard}
-          busy={busy || using}
+          cardProps={cardProps}
         />
       )}
 
@@ -476,7 +476,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
-                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES].map((t) => (
+                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' || layoutSharing)].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>

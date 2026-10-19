@@ -1,0 +1,23 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/TemplateGallery.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 10649[2mms[22m[39m
+     [33m[2m✓[22m[39m is absent while the gate is off, and nothing else in the picker changes [33m 677[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the gallery with focus on its heading, and Back returns focus to the door [33m 1180[2mms[22m[39m
+     [33m[2m✓[22m[39m shows UCT picks above the community, each with its author, and filters by search and category [33m 731[2mms[22m[39m
+     [33m[2m✓[22m[39m previews read-only, and Use template copies it, says so, then makes a note through the member door [33m 909[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused Use is the server’s own sentence on screen [33m 622[2mms[22m[39m
+     [33m[2m✓[22m[39m reports with a reason and an optional note, and thanks the member in words [33m 1121[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused report is the server’s own sentence on screen [33m 867[2mms[22m[39m
+     [33m[2m✓[22m[39m Share on one of Your templates submits it for review and says what is left out [33m 1100[2mms[22m[39m
+     [33m[2m✓[22m[39m Your submissions shows where each one stands and Unpublish asks once [33m 660[2mms[22m[39m
+     [33m[2m✓[22m[39m tells the author about a held update and a declined one on a listed item (final review I-1) [33m 441[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the gallery exactly as it is: no Styles chip, no trading-style row, no Following view [33m 466[2mms[22m[39m
+     [33m[2m✓[22m[39m is not offered to a member [33m 517[2mms[22m[39m
+     [33m[2m✓[22m[39m lets an admin approve, reject with a reason, hide a reported one and unhide [33m 1355[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m14 passed[39m[22m[90m (14)[39m
+[2m   Start at [22m 10:41:17
+[2m   Duration [22m 13.06s[2m (transform 1.41s, setup 331ms, import 1.48s, tests 10.65s, environment 478ms)[22m
+

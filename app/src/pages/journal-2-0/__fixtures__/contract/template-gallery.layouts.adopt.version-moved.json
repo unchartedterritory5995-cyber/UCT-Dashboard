@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/adopt-layout",
+    "note": "The member previewed version 1 and version 2 is listed now: nothing is adopted.",
+    "path": "/api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/adopt-layout",
+    "requestBody": {
+      "version": 1
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "The author listed a newer version since you opened it. Nothing was changed. Look again."
+  }
+}

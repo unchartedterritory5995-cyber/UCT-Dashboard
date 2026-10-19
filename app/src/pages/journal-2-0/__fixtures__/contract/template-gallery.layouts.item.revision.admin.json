@@ -1,0 +1,87 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/fe945544b95f411b885465c35840dd0a",
+    "note": "An admin's read of a listed layout with a held revision: `pendingRevision` is what approving lists.",
+    "path": "/api/j2/template-gallery/fe945544b95f411b885465c35840dd0a",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Lane Layout",
+      "authorHandle": "n3WNK89aDmRC",
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "Story first, then the outcome.",
+      "featured": false,
+      "firm": false,
+      "hasRevision": true,
+      "helpedByMe": false,
+      "helpfulCount": 1,
+      "hidden": false,
+      "id": "fe945544b95f411b885465c35840dd0a",
+      "itemType": "page_layout",
+      "layoutPage": "trade",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "openReports": 1,
+      "payload": {
+        "lists": {
+          "trade": [
+            {
+              "id": "story",
+              "shown": true
+            },
+            {
+              "id": "chart",
+              "shown": false
+            },
+            {
+              "id": "outcome",
+              "shown": true
+            }
+          ]
+        },
+        "page": "trade"
+      },
+      "pendingRevision": {
+        "category": "journal",
+        "description": "Story first, then the outcome.",
+        "payload": {
+          "lists": {
+            "trade": [
+              {
+                "id": "outcome",
+                "shown": true
+              },
+              {
+                "id": "chart",
+                "shown": false
+              },
+              {
+                "id": "story",
+                "shown": true
+              }
+            ]
+          },
+          "page": "trade"
+        },
+        "title": "Prop trade page",
+        "tradingStyle": "swing",
+        "version": 2
+      },
+      "preview": [],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": "Prop trade page",
+      "sourceStyleId": null,
+      "status": "approved",
+      "title": "Prop trade page",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 1,
+      "version": 1
+    }
+  }
+}

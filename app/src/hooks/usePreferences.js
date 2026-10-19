@@ -207,18 +207,28 @@ function resolveWriteValue(key, current, next) {
  * Returns the merged prefs (defaults underneath, as the hook serves them), or
  * `null` when the read failed. A failed read touches NOTHING in the cache: the
  * caller says so rather than showing a board it could not confirm.
+ *
+ * `signal` (optional) aborts the read. An aborted read is a failed read: it
+ * returns `null` and can never land in the cache later.
  */
-export async function refreshPreferences() {
+export async function refreshPreferences({ signal } = {}) {
+  let res
   let data
   try {
-    const res = await fetch(PREFS_URL)
-    noteWorkspaceDocResponse(res)
-    noteRevision(res, true)
-    if (!res || !res.ok) return null
-    data = await res.json()
+    res = await (signal ? fetch(PREFS_URL, { signal }) : fetch(PREFS_URL))
+    if (signal?.aborted) return null
+    if (res && res.ok) data = await res.json()
   } catch {
     return null
   }
+  // The revision is noted only AFTER the body is in hand and the LAST abort check has passed. An
+  // abort that fires during `res.json()` would otherwise leave this tab holding the newer revision
+  // over a cache that never got its data, and the next write would pass the server's staleness
+  // check on stale data (P4b-T8 m1, P4b final A1). A non-ok answer still gets its notes.
+  if (signal?.aborted) return null       // a read the caller gave up on never lands, even if the fetch ignored the abort
+  noteWorkspaceDocResponse(res)
+  noteRevision(res, true)
+  if (!res || !res.ok) return null
   if (!data || typeof data !== 'object') return null
   _lastReadOk = true
   await mutateGlobal(PREFS_URL, data, { revalidate: false })
