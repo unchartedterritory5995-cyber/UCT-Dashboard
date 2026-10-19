@@ -1,4 +1,4 @@
-// P4b Task 7 — shared PAGE LAYOUTS in the community library, end to end in the client: the Page layouts chip and its
+// P4b Task 7: shared PAGE LAYOUTS in the community library, end to end in the client: the Page layouts chip and its
 // gate (capabilities.layoutSharing, P4b-R-T3-2), a layout card, Preview, the adopt confirm with what changes, Undo,
 // a refused adopt, a failed preference write and Try again, the readFailed refusal, a layout that cannot be used
 // (payload null, P4b-T6b-R1), and the controls' names and tab order.
@@ -15,10 +15,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { SWRConfig } from 'swr'
+import { SWRConfig, useSWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplateGallery from './TemplateGallery'
-import { CHANGE_FAILED, STANDING_LINE } from './AdoptLayoutSheet'
+import { CHANGE_FAILED, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
 import { __resetRevisionStateForTests } from '../../../../hooks/usePreferences'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE } from '../../lib/styleLibrary'
@@ -60,6 +60,7 @@ beforeEach(() => {
     const body = init.body ? JSON.parse(init.body) : null
     calls.push({ path: u.pathname, search: u.search, method, body })
     if (u.pathname === '/api/auth/preferences' && method === 'GET') {
+      if (server.holdGet) await server.holdGet.promise
       return server.prefsRead === 200 ? json({ [LAYOUT_PREF]: JSON.stringify(MINE) }) : json({ detail: 'Bad gateway' }, server.prefsRead)
     }
     if (u.pathname === '/api/auth/preferences' && method === 'POST') {
@@ -76,7 +77,10 @@ beforeEach(() => {
       return json({ templates: list, viewer: { admin: false }, capabilities: { layoutSharing: server.sharing } })
     }
     let m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt-layout$/)
-    if (m) return answer(server.adoptAnswer)
+    if (m) {
+      if (server.holdAdopt) await server.holdAdopt.promise
+      return answer(server.adoptAnswer)
+    }
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
     if (m) return answer('template-gallery.layouts.helpful')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)$/)
@@ -97,11 +101,18 @@ const prefPosts = () => calls.filter((c) => c.path === '/api/auth/preferences' &
 const sentEvents = (event) => calls.filter((c) => c.path === '/api/j2/telemetry' && c.method === 'POST' && c.body?.event === event)
   .map((c) => c.body.props)
 
+// The test's handle on the SWR cache the gallery runs in, to revalidate the preferences read on demand.
+const mutateRef = { current: null }
+function MutateHandle() { mutateRef.current = useSWRConfig().mutate; return null }
+const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r }); return { promise, resolve } }
+const settle = (ms = 20) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
+
 function renderGallery(props = {}) {
   const user = userEvent.setup()
   render(
     <MemoryRouter>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MutateHandle />
         <TemplateGallery onBack={vi.fn()} {...props} />
       </SWRConfig>
     </MemoryRouter>,
@@ -392,5 +403,83 @@ describe('8. names and tab order', () => {
       'Premarket: now Coach notes, This week, Goal progress, Quick actions · after Checklist for today',
       "Market: now Market regime, Coach notes, This week, Goal progress, Quick actions · after Market regime, Today's note",
     ])
+  })
+})
+
+// ── Task 7 review fix round 1 ─────────────────────────────────────────────────────────────────────────────────────
+describe('review I-1: Undo never writes defaults after a failed preferences read', () => {
+  it('a 502 on the preferences read before Undo: no preference POST, and the failure sentence renders', async () => {
+    const { user, dialog } = await openConfirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)
+    expect(prefPosts()).toHaveLength(1)
+    // The sheet is gone, so no preferences hook is mounted here to revalidate. Put the cache where a failed read leaves
+    // it: the hook's fetcher answers `{}` on a non-ok read (usePreferences.js), and that is what Undo then merges onto.
+    server.prefsRead = 502
+    await act(async () => { await mutateRef.current('/api/auth/preferences', {}, { revalidate: false }) })
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(await screen.findByText(UNDO_FAILED)).toBeInTheDocument()
+    expect(prefPosts()).toHaveLength(1)                                    // nothing written over the member's layout
+  })
+
+  it('a read that fails during the adopt round trip: the write is not sent', async () => {
+    server.holdAdopt = deferred()
+    const { user, dialog } = await openConfirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await waitFor(() => expect(adoptPosts()).toHaveLength(1))
+    server.prefsRead = 502
+    await act(async () => { await mutateRef.current('/api/auth/preferences') })
+    server.holdAdopt.resolve()
+    expect(await within(dialog).findByText(LOAD_FAILED)).toBeInTheDocument()
+    await settle()
+    expect(prefPosts()).toHaveLength(0)
+  })
+
+  it('Undo pressed twice runs once', async () => {
+    const { user, dialog } = await openConfirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    act(() => { undo.click(); undo.click() })
+    await screen.findByText('Your previous trade page layout is back.')
+    await settle()
+    expect(prefPosts()).toHaveLength(2)
+  })
+})
+
+describe('review I-2: a failed write never adopts again', () => {
+  it('after a failed write, pressing Use does NOT call adopt-layout', async () => {
+    server.prefStatus = [400]
+    const { user, dialog } = await openConfirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await within(dialog).findByText(CHANGE_FAILED)
+    const use = within(dialog).getByRole('button', { name: 'Use this layout' })
+    expect(use).toBeDisabled()
+    await user.click(use)
+    await settle()
+    expect(adoptPosts()).toHaveLength(1)
+    expect(within(dialog).getByRole('button', { name: 'Try again' })).toBeInTheDocument()   // the door that remains
+  })
+})
+
+describe('review I-3: Try again keeps the real previous layout for Undo', () => {
+  it('fail, Try again (after the held read lands), then Undo: the restored trade list is the original', async () => {
+    server.prefStatus = [400, 200, 200]
+    const { user, dialog } = await openConfirm()
+    server.holdGet = deferred()                       // the refresh that follows the failed write is held open
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await waitFor(() => expect(prefPosts()).toHaveLength(1))
+    await settle()
+    // the refresh is held open: no Try again is offered yet, so nothing can capture the optimistic value
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    server.holdGet.resolve()
+    server.holdGet = null
+    await user.click(await within(dialog).findByRole('button', { name: 'Try again' }))
+    await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    await screen.findByText('Your previous trade page layout is back.')
+    const restored = JSON.parse(prefPosts().at(-1).body.value)
+    expect(restored.trade).toEqual(MINE.trade)
+    expect(adoptPosts()).toHaveLength(1)
   })
 })

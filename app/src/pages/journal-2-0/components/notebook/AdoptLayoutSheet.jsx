@@ -15,7 +15,7 @@
 //    layout does not name, so "Use this layout" is disabled with the Customize editor's LOAD_FAILED sentence.
 // ⛔ The success line and its Undo go to the gallery's message host (`onMessage`), which outlives this sheet; Undo
 //    goes through the same door, replacing exactly the captured lists with what they were.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import usePreferences, { refreshPreferences } from '../../../../hooks/usePreferences'
 import { LAYOUT_UNSUPPORTED_SENTENCE, adoptLayout } from '../../lib/styleLibrary'
@@ -23,6 +23,7 @@ import {
   LAYOUT_PREF, LOAD_FAILED, PHASE_LABELS, applySharedPage, layoutDiff, listsFor, normalizeLayout, replaceLists,
 } from '../../lib/pageLayouts'
 import { refusalSentence } from './StyleLibraryCard'
+import { withStop } from './useHelpfulToggle'
 import styles from './TemplateGallery.module.css'
 
 export const CHANGE_FAILED = "Couldn't change your layout. Nothing was changed."
@@ -32,7 +33,6 @@ const TITLES = { today: 'Use this layout for Today?', trade: 'Use this layout fo
 const PAGE_WORDS = { today: 'Today', trade: 'trade page' }       // "Your current Today layout", "… trade page layout"
 const PAGE_SUBJECTS = { today: 'Today', trade: 'The trade page' } // "Today now uses …", "The trade page now uses …"
 
-const withStop = (s) => (/[.!?]$/.test(s) ? s : `${s}.`)
 const labels = (list) => (list.length ? list.join(', ') : 'no panels')
 
 /** One diff row's sentence: `<phase>: now <labels> · after <labels>`, or `<phase>: stays the same`. */
@@ -48,6 +48,14 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(null)          // the adopt answer whose WRITE failed: Try again repeats only it
   const workingRef = useRef(false)
+  // The hook's `readFailed`, read again at the moment of a write: the click-time check sits before the adopt round trip,
+  // and a preferences read can fail during it (review I-1).
+  const readFailedRef = useRef(false)
+  useEffect(() => { readFailedRef.current = readFailed === true }, [readFailed])
+  // The lists the FIRST write attempt replaced, taken from the layout that attempt merged into. A failed write leaves its
+  // optimistic value in the hook's cache, so a Try again's updater would see the adopted layout and capture the shared
+  // lists as "previous"; the first capture is the member's real previous layout, so it wins (review I-3).
+  const firstCaptureRef = useRef(null)
 
   const cantRead = readFailed === true
   const shared = layout && typeof layout.lists === 'object' ? layout.lists : {}
@@ -55,19 +63,31 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
 
   const dismiss = () => { if (workingRef.current) return; onClose() }
 
-  const undo = (captured) => async () => {
-    let ok = false
-    try {
-      const answer = await setPrefMerged(LAYOUT_PREF, (prev) => replaceLists(normalizeLayout(prev), page, captured))
-      ok = answer?.ok === true
-    } catch {
-      ok = false
-    }
-    if (ok) {
-      onMessage?.({ tone: 'ok', text: `Your previous ${PAGE_WORDS[page]} layout is back.` })
-    } else {
-      refreshPreferences()
-      onMessage?.({ tone: 'error', text: UNDO_FAILED })
+  // Undo runs from the gallery's message host, after this sheet has gone. One run at a time (review M-4). After an adopt
+  // the member's layout is always stored, so a MISSING stored value means the preferences read failed and the cache holds
+  // nothing: merging onto it would write defaults over every list Undo did not capture. The write is abandoned instead
+  // (`undefined` from the updater), and that is a failure to say (review I-1).
+  const undo = (captured) => {
+    let running = false
+    return async () => {
+      if (running) return
+      running = true
+      let ok = false
+      try {
+        const answer = await setPrefMerged(LAYOUT_PREF, (prev) => (
+          prev == null || typeof prev !== 'object' ? undefined : replaceLists(normalizeLayout(prev), page, captured)
+        ))
+        ok = answer?.ok === true
+      } catch {
+        ok = false
+      }
+      running = false
+      if (ok) {
+        onMessage?.({ tone: 'ok', text: `Your previous ${PAGE_WORDS[page]} layout is back.` })
+      } else {
+        refreshPreferences()
+        onMessage?.({ tone: 'error', text: UNDO_FAILED })
+      }
     }
   }
 
@@ -80,26 +100,37 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       setError(LAYOUT_UNSUPPORTED_SENTENCE)
       return
     }
+    if (readFailedRef.current) {                      // the read failed during the adopt round trip: nothing is written
+      workingRef.current = false
+      setWorking(false)
+      setRetry(answer)
+      return
+    }
     let captured = null
     let ok = false
     try {
       const res = await setPrefMerged(LAYOUT_PREF, (prev) => {
         const base = normalizeLayout(prev)
         captured = listsFor(base, page, lists)
+        if (!firstCaptureRef.current) firstCaptureRef.current = captured
         return applySharedPage(base, page, lists)
       })
       ok = res?.ok === true
     } catch {
       ok = false
     }
-    workingRef.current = false
-    setWorking(false)
     if (!ok || !captured) {
+      // The hook applied the value optimistically; take the server's back BEFORE Try again is offered (review I-3).
+      await refreshPreferences()
+      workingRef.current = false
+      setWorking(false)
       setRetry(answer)
       setError(CHANGE_FAILED)
-      refreshPreferences()       // the hook applied the value optimistically; take the server's back
       return
     }
+    workingRef.current = false
+    setWorking(false)
+    captured = firstCaptureRef.current || captured
     const credit = typeof answer?.credit === 'string' && answer.credit.trim() ? ` ${withStop(answer.credit.trim())}` : ''
     onClose()
     onMessage?.({
@@ -109,12 +140,15 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
     })
   }
 
+  // While a failed write is waiting (`retry`), Use is not offered: it would adopt again and spend the adopt budget a second
+  // time. Try again repeats only the write (review I-2).
   const use = async () => {
-    if (workingRef.current || cantRead || loading) return
+    if (workingRef.current || cantRead || loading || retry) return
     workingRef.current = true
     setWorking(true)
     setError('')
     setRetry(null)
+    firstCaptureRef.current = null
     let answer
     try {
       answer = await adoptLayout(item.id, { version })
@@ -148,7 +182,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       )}
       <div className={styles.actions}>
         <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={use}
-          disabled={working || cantRead || loading}>
+          disabled={working || cantRead || loading || Boolean(retry)}>
           {working ? 'Working…' : 'Use this layout'}
         </button>
         <button type="button" className={styles.btn} onClick={dismiss} disabled={working}>Cancel</button>

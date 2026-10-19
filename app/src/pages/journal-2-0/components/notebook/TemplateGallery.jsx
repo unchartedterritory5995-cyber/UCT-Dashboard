@@ -22,7 +22,7 @@
 // first one from `initialType`), trading-style chips (when the type is All or Styles), the library's
 // sorts, a "Following" view (what the authors you follow listed), style cards (StyleLibraryCard) with
 // a Preview composed by the journal styles preview door, and an author's page (AuthorView).
-// ⛔ StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk (TemplatePicker.jsx,
+// ⛔ The library's cards (LibraryCard and what it renders) and AuthorView are imported only inside this lazy chunk (TemplatePicker.jsx,
 // and since Task 10 styles/LibraryDoor.jsx, which opens it at Styles with its own `backLabel`), so none of the
 // library is in the Notebook's first open (R-P3-5). styleLibrary.js is also read by the lazy Styles manager.
 // P4b Task 7: every card goes through LibraryCard (the ONE dispatcher; shared PAGE LAYOUTS are LayoutLibraryCard),

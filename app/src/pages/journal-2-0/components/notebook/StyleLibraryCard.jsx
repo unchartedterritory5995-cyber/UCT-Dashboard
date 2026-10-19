@@ -11,12 +11,13 @@
 // ⛔ Every failure is a sentence on screen; a server refusal shows the server's fixed sentence, and a
 // missing item or an outage a fixed sentence of our own. Nothing fails silently.
 import { useId, useRef, useState } from 'react'
-import { adoptStyle, markHelpful, tradingStyleLabel } from '../../lib/styleLibrary'
+import { adoptStyle, tradingStyleLabel } from '../../lib/styleLibrary'
 import { categoryLabel } from '../../lib/templateGallery'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
 import { libraryError } from './styles/styleErrors'
+import { useHelpfulToggle, withStop } from './useHelpfulToggle'
 import styles from './TemplateGallery.module.css'
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
@@ -27,7 +28,6 @@ export function refusalSentence(err, fallback) {
   return libraryError(err, fallback)
 }
 
-const withStop = (s) => (/[.!?]$/.test(s) ? s : `${s}.`)
 
 export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, busy = false }) {
   const uid = useId()
@@ -35,18 +35,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const [notify, setNotify] = useState(false)
   const [adopting, setAdopting] = useState(false)
   const [reporting, setReporting] = useState(false)
-  const [helped, setHelped] = useState(Boolean(item.helpedByMe))
-  const [helpfulCount, setHelpfulCount] = useState(Number(item.helpfulCount) || 0)
-  // Re-seed from the server when the item changes (a different item, or a refresh that brings another
-  // member's vote): the local values hold only until the next answer (review M-6).
-  const seed = `${item.id}|${Boolean(item.helpedByMe)}|${Number(item.helpfulCount) || 0}`
-  const [seenSeed, setSeenSeed] = useState(seed)
-  if (seed !== seenSeed) {
-    setSeenSeed(seed)
-    setHelped(Boolean(item.helpedByMe))
-    setHelpfulCount(Number(item.helpfulCount) || 0)
-  }
-  const [voting, setVoting] = useState(false)
+  // Helpful, re-seeded from the server when the item changes (review M-6): one shared copy (P4b review M-1).
+  const { helped, helpfulCount, voting, toggleHelpful } = useHelpfulToggle(item, onMessage)
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
@@ -72,20 +62,6 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't add "${item.title}" to your styles. Nothing was changed.`) })
     } finally {
       setAdopting(false)
-    }
-  }
-
-  const toggleHelpful = async () => {
-    if (voting) return
-    setVoting(true)
-    try {
-      const out = await markHelpful(item.id, !helped)
-      setHelped(Boolean(out?.helpful))
-      setHelpfulCount(Number(out?.count) || 0)
-    } catch (err) {
-      onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't record that for "${item.title}". Nothing was changed.`) })
-    } finally {
-      setVoting(false)
     }
   }
 

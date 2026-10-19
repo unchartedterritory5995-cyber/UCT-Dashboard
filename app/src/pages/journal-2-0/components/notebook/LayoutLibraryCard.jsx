@@ -12,10 +12,11 @@
 //    message host, which outlives this card and both sheets (F19).
 // ⛔ An author is only ever the opaque `authorHandle` (R-P3-2).
 import { useId, useRef, useState } from 'react'
-import { LAYOUT_UNSUPPORTED_SENTENCE, markHelpful, tradingStyleLabel } from '../../lib/styleLibrary'
+import { LAYOUT_UNSUPPORTED_SENTENCE, tradingStyleLabel } from '../../lib/styleLibrary'
 import { categoryLabel, getGalleryTemplate } from '../../lib/templateGallery'
 import { ReportForm } from './TemplateGallery'
 import { refusalSentence } from './StyleLibraryCard'
+import { useHelpfulToggle } from './useHelpfulToggle'
 import LayoutPreviewSheet from './LayoutPreviewSheet'
 import AdoptLayoutSheet from './AdoptLayoutSheet'
 import UIcon from '../../../../components/ui/UIcon'
@@ -29,17 +30,7 @@ export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, busy 
   const [adopting, setAdopting] = useState(null)          // { version, layout } while the confirm is open
   const [loadingUse, setLoadingUse] = useState(false)
   const [reporting, setReporting] = useState(false)
-  const [helped, setHelped] = useState(Boolean(item.helpedByMe))
-  const [helpfulCount, setHelpfulCount] = useState(Number(item.helpfulCount) || 0)
-  // Re-seed from the server when the item changes (the StyleLibraryCard rule, review M-6).
-  const seed = `${item.id}|${Boolean(item.helpedByMe)}|${Number(item.helpfulCount) || 0}`
-  const [seenSeed, setSeenSeed] = useState(seed)
-  if (seed !== seenSeed) {
-    setSeenSeed(seed)
-    setHelped(Boolean(item.helpedByMe))
-    setHelpfulCount(Number(item.helpfulCount) || 0)
-  }
-  const [voting, setVoting] = useState(false)
+  const { helped, helpfulCount, voting, toggleHelpful } = useHelpfulToggle(item, onMessage)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
   const badge = PAGE_BADGES[item.layoutPage] || null
@@ -63,20 +54,6 @@ export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, busy 
       onMessage?.({ tone: 'error', text: refusalSentence(err, "Couldn't load this layout. Nothing was changed.") })
     } finally {
       setLoadingUse(false)
-    }
-  }
-
-  const toggleHelpful = async () => {
-    if (voting) return
-    setVoting(true)
-    try {
-      const out = await markHelpful(item.id, !helped)
-      setHelped(Boolean(out?.helpful))
-      setHelpfulCount(Number(out?.count) || 0)
-    } catch (err) {
-      onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't record that for "${item.title}". Nothing was changed.`) })
-    } finally {
-      setVoting(false)
     }
   }
 
