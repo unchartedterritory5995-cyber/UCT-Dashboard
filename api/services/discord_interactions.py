@@ -762,6 +762,10 @@ def chart_help_text() -> str:
         "\u2022 **Market breadth** charts too: type `UCT` in `/chart` for the list - `UCTA50` (% above the 50-day), "
         "`UCTNH` / `UCTNL` (new highs / lows), `UCTAD` (A/D line), `UCTS2` (Stage 2 count) and more. "
         "Daily or Weekly; most of them update their latest point through the session.",
+        "• The same breadth for **US / NYSE / Nasdaq** stocks: `UCTUSA50`, `UCTNYA50`, `UCTNQA50`, "
+        "`UCTUSNETHL` (net new highs - lows). **McClellan**: `UCTNYMO` `UCTNYSI` `UCTNAMO` `UCTNASI`. "
+        "Also sentiment (`UCTNAAIM`), volatility (`UCTVIX9D`) and COT positioning (`UCTESCOMM`). "
+        "Type `UCT` plus a word (`nasdaq`, `mcclellan`, `cot`) to search.",
         "",
         "**Your defaults**",
         "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",

@@ -112,19 +112,20 @@ def test_typing_UCT_lists_the_breadth_catalogue_across_every_group():
     """A bare "UCT" used to stop at FIVE suggestions, all from the first group (MA breadth),
     so the momentum, highs/lows and regime metrics could not be discovered from the picker."""
     from api.routers import discord_interactions as rt
-    from api.services import breadth_symbols as bs
+    from api.services import discord_breadth_names as dbn
     got = rt.breadth_choices("UCT")
     assert len(got) == rt.BREADTH_CHOICES_MAX
-    groups = {next(g for s, _m, _n, g in bs._ROWS if s == c["value"]) for c in got}
-    assert groups == {g for *_x, g in bs._ROWS}, "a group fell off the 25-choice list"
-    assert all(c["value"] in bs.SYMBOLS and len(c["name"]) <= 100 for c in got)
+    group_of = {e.name: e.group for e in dbn.catalogue()}
+    assert {group_of[c["value"]] for c in got} == set(group_of.values()), "a group fell off the 25-choice list"
+    assert all(len(c["name"]) <= 100 for c in got)
 
 
 def test_a_narrower_UCT_prefix_lists_every_match_and_a_name_search_stays_short():
     from api.routers import discord_interactions as rt
-    from api.services import breadth_symbols as bs
+    from api.services import discord_breadth_names as dbn
     ma = [c["value"] for c in rt.breadth_choices("uctA")]
-    assert ma == [s for s, *_x in bs._ROWS if s.startswith("UCTA")] and len(ma) > 5
+    want = [e.name for e in dbn.catalogue() if e.name.startswith("UCTA")][:rt.BREADTH_CHOICES_MAX]
+    assert ma == want and len(ma) > 5
     assert len(rt.breadth_choices("high")) <= rt.BREADTH_CHOICES_SIDE      # a word search is a side dish
     assert rt.breadth_choices("NVDA") == [] and rt.breadth_choices("") == []
 

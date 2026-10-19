@@ -593,14 +593,22 @@ def render_breadth_bars(ticker: str, token: str = "", tf: str = "D", bars: int =
     symbols are answered here, so this cannot become a general bars API."""
     _check_token(token, bucket="breadth-bars", limit=_RL_BREADTH_BARS_MAX_PER_MIN)
     from api.services import breadth_symbols as bs
-    if not bs.is_breadth_symbol(ticker):
+    from api.services import discord_breadth_names as dbn
+    # A Discord name (UCTNQA50, UCTNAMO, UCTESCOMM) is read as the site's own symbol.
+    # The market-indicator half (McClellan, sentiment, volatility, COT) is the same
+    # kind of aggregate, public-record series this door already serves for breadth.
+    entry = dbn.lookup(ticker)
+    if entry is None and not bs.is_breadth_symbol(ticker):
         raise HTTPException(status_code=404, detail="not a breadth symbol")
     tf = (tf or "D").upper()
     if tf not in ("D", "W", "M"):
         tf = "D"
     bars = max(1, min(int(bars or 600), _BREADTH_BARS_MAX))
     try:
-        return bs.build_breadth_bars(ticker, tf, bars)
+        if entry is not None and entry.kind == "indicator":
+            from api.services.market_indicators import series as _mseries
+            return _mseries.build_bars(entry.symbol, tf, bars)
+        return bs.build_breadth_bars(entry.symbol if entry is not None else ticker, tf, bars)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
