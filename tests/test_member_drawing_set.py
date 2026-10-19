@@ -30,7 +30,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.patterns as patterns_router  # registers every detector
-from api.services import auto_structures, bars_sqlite
+from api.services import auto_structures
 from api.services.pattern_engine import display
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, authorize
@@ -169,7 +169,7 @@ def _store(monkeypatch, rows):
 
     monkeypatch.setattr(patterns_router.memory, "get_active_detections", active)
     monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: SCAN_AT)
-    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda sym, tf: LATEST_BAR)
+    monkeypatch.setattr(auto_structures, "latest_completed_bar_t", lambda sym, tf: LATEST_BAR)
     return seen
 
 

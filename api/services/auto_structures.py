@@ -111,8 +111,9 @@ def latest_scan_rows(rows, latest_scan_at, latest_bar_t) -> list:
     row the newest scan did not re-write -- an older hash_key for the same pattern, kept alive by
     the 7-day active window -- is dropped. A uct_flat_top_breakout must ALSO carry a
     draw_flat_top whose end_t (the bar it was drawn as of) equals `latest_bar_t`, the ticker's
-    newest bar: the lab rule draws a fire only as of its own session, so once a newer bar exists
-    the drawing is old even if no newer scan has run yet.
+    newest COMPLETED daily bar (latest_completed_bar_t): the lab rule draws a fire as of the last
+    completed session, so once a newer session has completed the drawing is old even if no newer
+    scan has run yet -- while today's still-forming bar never hides it.
 
     Pure; fails closed. An unknown latest scan, a row without an int last_seen_at, an unknown
     latest bar (for the flat top) or a stamp without an int end_t drops the row. Order is kept."""
@@ -134,25 +135,47 @@ def latest_scan_rows(rows, latest_scan_at, latest_bar_t) -> list:
     return out
 
 
+def latest_completed_bar_t(sym: str, tf: str, now=None):
+    """YYYYMMDD of the ticker's newest STORED daily bar that belongs to a completed session: the
+    newest bar at or before barspack._last_complete_session_ymd (the one authority on "complete":
+    a trading day at/after the close, else the prior trading session -- weekends and NYSE holidays
+    included). Today's bar written mid-session (chart reads, alert freshness, the live snapshot) is
+    still forming and is skipped. None for a non-daily timeframe, an unknown session clock or a
+    ticker with no such bar. May raise on a store error; the caller decides."""
+    if (tf or "").upper() != "D":
+        return None
+    from api.services import barspack, bars_sqlite
+    done = barspack._last_complete_session_ymd(now)
+    if done is None:
+        return None
+    rows = bars_sqlite.get_bars_before(sym, "D", 1, int(done))
+    return int(rows[-1][0]) if rows else None
+
+
 def fresh_member_rows(sym: str, tf: str, rows) -> list:
     """latest_scan_rows over the store's own answers: the ticker's newest scan
-    (memory.latest_scan_at) and, only when a flat-top row is present, its newest bar
-    (bars_sqlite.get_last_ts). Either read failing serves NOTHING (fail closed): a member is shown
-    no drawing rather than a possibly stale one."""
+    (memory.latest_scan_at) and, only when a flat-top row is present, its newest completed daily
+    bar (latest_completed_bar_t). A failing scan read serves NOTHING (fail closed: no drawing
+    rather than a possibly stale one); a failing bar read only withholds the flat top (bar=None),
+    because the other families do not depend on it."""
     if not rows:
         return []
     try:
-        from api.services import bars_sqlite
         from api.services.pattern_engine import memory
         scan_at = memory.latest_scan_at(sym, tf)
-        bar_t = (bars_sqlite.get_last_ts(sym, tf)
-                 if any((r or {}).get("pattern_id") == "uct_flat_top_breakout" for r in rows)
-                 else None)
     except Exception:  # noqa: BLE001 -- fail closed, never a 500 on the member path
         _log.warning("member freshness read failed for %s %s; serving no detections", sym, tf,
                      exc_info=True)
         return []
-    return latest_scan_rows(rows, scan_at, int(bar_t) if bar_t is not None else None)
+    bar_t = None
+    if any((r or {}).get("pattern_id") == "uct_flat_top_breakout" for r in rows):
+        try:
+            bar_t = latest_completed_bar_t(sym, tf)
+        except Exception:  # noqa: BLE001 -- withhold the flat top only
+            _log.warning("member flat-top bar read failed for %s %s; withholding the flat top",
+                         sym, tf, exc_info=True)
+            bar_t = None
+    return latest_scan_rows(rows, scan_at, bar_t)
 
 
 #: The flat-top drawing round the blind check confirmed for members: the v2 draw condition (lab

@@ -10,8 +10,9 @@ several bull_flag drawings for one ticker (ABNB had five active rows).
 The fix (auto_structures.latest_scan_rows / fresh_member_rows, called by the member path only):
   * per ticker, only rows whose last_seen_at belongs to the ticker's newest scan
     (memory.latest_scan_at: MAX(last_seen_at) over every stored row of that ticker);
-  * a uct_flat_top_breakout additionally needs draw_flat_top.end_t == the ticker's newest bar;
-  * either read failing serves nothing (fail closed).
+  * a uct_flat_top_breakout additionally needs draw_flat_top.end_t == the ticker's newest
+    COMPLETED daily bar (today's forming bar never counts; weekends and holidays roll back);
+  * a failing scan read serves nothing; a failing bar read withholds only the flat top.
 Admin output is untouched and a member's currently-correct rows are all still served: the golden
 below seeds a real patterns.db through memory.store_detection and checks both.
 
@@ -21,13 +22,15 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.patterns as patterns_router  # registers every detector
-from api.services import auto_structures, bars_sqlite
+from api.services import auto_structures, bars_sqlite, barspack
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, authorize
@@ -79,17 +82,44 @@ def _flag(rid, sym, start_t, end_t, seen):
     return _det(rid, sym, "bull_flag", start_t, end_t, seen, {"draw_round": 9})
 
 
+ET = ZoneInfo("America/New_York")
+#: The default session clock: Saturday noon ET, so the last complete session is Friday BAR_NEW.
+SAT_NOON = datetime(2026, 10, 17, 12, 0, tzinfo=ET)
+
+
+class _Bars(dict):
+    """sym -> stored daily bar keys. `world[sym] = 20261016` stores bars up to that key (an int is
+    the newest stored bar); a list stores exactly those keys."""
+
+    def stored(self, sym):
+        v = self.get(sym.upper())
+        if v is None:
+            return []
+        return sorted(v) if isinstance(v, (list, tuple)) else [v]
+
+
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    """An isolated patterns.db, both member flags on, no base boxes / learned drawer, and a bar
-    store whose newest bar per ticker is `bars[sym]` (a missing ticker has no bars)."""
+    """An isolated patterns.db, both member flags on, no base boxes / learned drawer, a fake daily
+    bar store (`world[sym]`), and the REAL completed-session rule run at a pinned clock
+    (`world.now`, default SAT_NOON) -- barspack._last_complete_session_ymd is what decides."""
     monkeypatch.setenv("PATTERN_DB_PATH", str(tmp_path / "patterns.db"))
     monkeypatch.setenv("AUTO_STRUCTURES_ENABLED", "1")
     monkeypatch.setenv("AUTO_STRUCTURES_MEMBERS_ENABLED", "1")
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
-    bars: dict = {}
-    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda sym, tf: bars.get(sym.upper()))
+    bars = _Bars()
+    bars.now = SAT_NOON
+
+    def before(sym, tf, n, to_key):
+        assert tf == "D"
+        keep = [t for t in bars.stored(sym) if t <= to_key][-n:]
+        return [(t, 1.0, 1.0, 1.0, 1.0, 1.0) for t in keep]
+
+    real = barspack._last_complete_session_ymd
+    monkeypatch.setattr(bars_sqlite, "get_bars_before", before)
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd",
+                        lambda now=None: real(bars.now if now is None else now))
     return bars
 
 
@@ -170,7 +200,9 @@ def test_a_row_the_newest_scan_rewrote_under_the_same_hash_is_served(world):
 
 # -- fail closed -----------------------------------------------------------------------------------
 
-def test_a_failing_latest_bar_read_serves_no_detections(world, monkeypatch):
+def test_a_failing_bar_read_withholds_only_the_flat_top(world, monkeypatch):
+    """The bar store is only the flat top's question: a failing read drops the flat top and keeps
+    every other current row."""
     world["ZZG"] = BAR_NEW
     _store(_flag("f", "ZZG", 20260801, BAR_NEW, SCAN_NEW),
            _ft("ft", "ZZG", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW))
@@ -178,8 +210,16 @@ def test_a_failing_latest_bar_read_serves_no_detections(world, monkeypatch):
 
     def boom(*a, **k):
         raise RuntimeError("bars down")
-    monkeypatch.setattr(bars_sqlite, "get_last_ts", boom)
-    assert _ids(_get(PAID_MEMBER, "ZZG")) == []
+    monkeypatch.setattr(bars_sqlite, "get_bars_before", boom)
+    assert _ids(_get(PAID_MEMBER, "ZZG")) == ["f"]
+
+
+def test_an_unknown_session_clock_withholds_only_the_flat_top(world, monkeypatch):
+    world["ZZM"] = BAR_NEW
+    _store(_flag("f", "ZZM", 20260801, BAR_NEW, SCAN_NEW),
+           _ft("ft", "ZZM", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW))
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd", lambda now=None: None)
+    assert _ids(_get(PAID_MEMBER, "ZZM")) == ["f"]
 
 
 def test_the_bar_store_is_read_only_when_a_flat_top_is_on_the_chart(world, monkeypatch):
@@ -188,8 +228,80 @@ def test_the_bar_store_is_read_only_when_a_flat_top_is_on_the_chart(world, monke
 
     def boom(*a, **k):
         raise AssertionError("bar store read without a flat top")
-    monkeypatch.setattr(bars_sqlite, "get_last_ts", boom)
+    monkeypatch.setattr(bars_sqlite, "get_bars_before", boom)
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd", boom)
     assert _ids(_get(PAID_MEMBER, "ZZL")) == ["f"]
+
+
+# -- the as-of bar is the last COMPLETED session, never today's forming bar ------------------------
+
+MON, TUE = 20261019, 20261020
+WED_PRE_HOL, THANKSGIVING = 20261125, 20261126
+
+
+def _clock(world, *ymdhm):
+    world.now = datetime(*ymdhm, tzinfo=ET)
+
+
+def test_mid_session_todays_forming_bar_does_not_hide_yesterdays_flat_top(world):
+    """Monday 11:00 ET: today's bar is already in the store (chart reads write it mid-session), but
+    the last completed session is Friday, which is what the 01:00 scan drew as of."""
+    _clock(world, 2026, 10, 19, 11, 0)
+    world["ZMS"] = [BAR_DAY1, BAR_NEW, MON]
+    _store(_ft("ft", "ZMS", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW))
+    assert _ids(_get(PAID_MEMBER, "ZMS")) == ["ft"]
+    # the guard still fails a stamp older than the last completed session
+    world["ZMT"] = [BAR_DAY1, BAR_NEW, MON]
+    _store(_ft("old", "ZMT", 20260901, BAR_DAY1, SCAN_NEW, BAR_DAY1))
+    assert _ids(_get(PAID_MEMBER, "ZMT")) == []
+
+
+def test_after_the_close_a_completed_today_needs_a_newer_scan(world):
+    """Monday 17:00 ET: Monday has completed and its bar is stored, so Friday's stamp is old until a
+    scan stamps Monday."""
+    _clock(world, 2026, 10, 19, 17, 0)
+    world["ZAC"] = [BAR_NEW, MON]
+    _store(_ft("fri", "ZAC", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW))
+    assert _ids(_get(PAID_MEMBER, "ZAC")) == []
+    _store(_ft("mon", "ZAC", 20260901, MON, NOW - 30, MON))
+    assert _ids(_get(PAID_MEMBER, "ZAC")) == ["mon"]
+
+
+def test_after_the_close_before_todays_bar_is_stored_the_last_stored_session_counts(world):
+    """Monday 17:00 ET but the store has no Monday bar yet: no scan could have drawn Monday, so
+    Friday's stamp is still the current one."""
+    _clock(world, 2026, 10, 19, 17, 0)
+    world["ZAD"] = [BAR_DAY1, BAR_NEW]
+    _store(_ft("fri", "ZAD", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW))
+    assert _ids(_get(PAID_MEMBER, "ZAD")) == ["fri"]
+
+
+def test_on_a_weekend_fridays_flat_top_is_current(world):
+    _clock(world, 2026, 10, 18, 12, 0)                                   # Sunday
+    world["ZWE"] = [BAR_DAY1, BAR_NEW]
+    _store(_ft("fri", "ZWE", 20260901, BAR_NEW, SCAN_NEW, BAR_NEW),
+           _ft("thu", "ZWE", 20260801, BAR_DAY1, SCAN_NEW, BAR_DAY1))
+    assert _ids(_get(PAID_MEMBER, "ZWE")) == ["fri"]
+
+
+def test_on_a_market_holiday_the_prior_sessions_flat_top_is_current(world):
+    """Thanksgiving noon: the last completed session is Wednesday. A bar keyed to the holiday (a
+    stray write) is not a completed session and does not hide Wednesday's stamp."""
+    _clock(world, 2026, 11, 26, 12, 0)
+    world["ZHO"] = [20261124, WED_PRE_HOL, THANKSGIVING]
+    _store(_ft("wed", "ZHO", 20261001, WED_PRE_HOL, SCAN_NEW, WED_PRE_HOL))
+    assert _ids(_get(PAID_MEMBER, "ZHO")) == ["wed"]
+
+
+def test_latest_completed_bar_t_is_daily_only_and_reads_the_completed_session(world):
+    world["ZLC"] = [BAR_NEW, MON]
+    _clock(world, 2026, 10, 19, 11, 0)
+    assert auto_structures.latest_completed_bar_t("ZLC", "D") == BAR_NEW
+    _clock(world, 2026, 10, 20, 9, 0)                                    # Tuesday pre-open
+    assert auto_structures.latest_completed_bar_t("ZLC", "D") == MON
+    assert auto_structures.latest_completed_bar_t("ZLC", "5") is None
+    assert auto_structures.latest_completed_bar_t("ZLC", "W") is None
+    assert auto_structures.latest_completed_bar_t("NONE", "D") is None
 
 
 def test_a_failing_latest_scan_read_serves_no_detections(world, monkeypatch):
@@ -265,7 +377,7 @@ def _seed_golden(world):
         _flag("gb_f1", "GB", 20260801, BAR_NEW, SCAN_NEW),
         _flag("gb_f2", "GB", 20260806, BAR_NEW, SCAN_NEW + 1),
         _det("gb_fb", "GB", "flat_base", 20260810, BAR_NEW, SCAN_NEW),
-        # GC: newest scan was yesterday (a non-leader); its flat top is as of the newest bar
+        # GC: newest scan was yesterday (a non-leader); its flat top is as of the newest completed bar
         _ft("gc_ft", "GC", 20260901, BAR_DAY1, SCAN_DAY1, BAR_DAY1),
         _flag("gc_f_old", "GC", 20260801, BAR_DAY2, SCAN_DAY2),
         _flag("gc_f", "GC", 20260801, BAR_DAY1, SCAN_DAY1 + 4),
@@ -296,7 +408,7 @@ def _old_member_rows(sym):
 
 def _current(row, sym, world):
     """Independent of the fix's code: the row was written by the ticker's newest scan (per the raw
-    store) and, for a flat top, is stamped as of the ticker's newest bar."""
+    store) and, for a flat top, is stamped as of the ticker's newest completed bar."""
     newest = max(r["last_seen_at"] for r in _all_rows(sym))
     if row["last_seen_at"] < newest - auto_structures.SCAN_TOLERANCE_SECS:
         return False

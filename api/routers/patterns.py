@@ -828,11 +828,11 @@ def get_detections(
                           if wanted else [])
             rows = auto_structures.member_rows(
                 [{**r, **_pe_registry.row_display_policy(r)} for r in member_raw])
-            # Only the ticker's LATEST scan, and a flat top only as of the newest bar: an older
-            # scan's row (a different hash_key for the same pattern) stays "active" for 7 days and
-            # must not reach a member. Fails closed. Admins are not filtered.
+            # Only the ticker's LATEST scan, and a flat top only as of the newest COMPLETED daily
+            # bar: an older scan's row (a different hash_key for the same pattern) stays "active"
+            # for 7 days and must not reach a member. Fails closed. Admins are not filtered.
             rows = auto_structures.fresh_member_rows(sym.upper(), tf, rows)
-            mout ={"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+            mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
                 if boxes:
