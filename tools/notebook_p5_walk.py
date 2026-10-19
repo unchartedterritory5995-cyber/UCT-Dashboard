@@ -231,10 +231,33 @@ def dismiss_intro(pg) -> None:
     ma._dismiss_intro(pg)
 
 
-def goto(pg, base: str, path: str) -> None:
-    pg.goto(base + path, wait_until="domcontentloaded", timeout=60000)
+def skip_base_tour(pg) -> bool:
+    """A new member's notes list starts the base Notebook tour by itself ("Folders and tags", step 1 of 5), and
+    its layer takes every click (run 2, evidence p5-walk-20261018T0100Z). A member who came to start a note
+    presses Skip tour; so does the walk, and it records that it did."""
+    skip = pg.locator("[data-tour-card]").get_by_role("button", name="Skip tour", exact=True)
+    try:
+        skip.first.wait_for(state="visible", timeout=6000)
+    except Exception:  # noqa: BLE001 -- no tour started on this page
+        return False
+    card = pg.locator("[data-tour-card]").first.inner_text(timeout=3000)
+    skip.first.click(timeout=T)
+    pg.locator("[data-tour-card]").first.wait_for(state="hidden", timeout=T)
+    REC["setup"].append({"what": "skipped the base Notebook tour a new member is shown", "card": card[:200],
+                         "url": pg.url, "verdict": "INFO"})
+    flush()
+    return True
+
+
+def settle(pg) -> None:
     dismiss_intro(pg)
     fw.settle_first_run(pg)
+    skip_base_tour(pg)
+
+
+def goto(pg, base: str, path: str) -> None:
+    pg.goto(base + path, wait_until="domcontentloaded", timeout=60000)
+    settle(pg)
 
 
 def new_ctx(browser, vp: str):
@@ -342,7 +365,15 @@ def run_tour(pg, st: Step, tour_id: str, declared: int, seen: dict) -> dict:
         if s["waiting"]:
             tgt = pg.locator('[data-tour-active="true"]').first
             tgt.scroll_into_view_if_needed(timeout=5000)
-            tgt.click(timeout=8000)
+            try:
+                tgt.click(timeout=8000)
+            except Exception as e:  # noqa: BLE001 -- the press may have landed; the card says whether it did
+                moved = q2.wait_state(pg, title, lambda x, n0=n: x["kind"] != "step" or x["n"] != n0, 6)
+                out["notes"].append(f"step {n}: the click reported {type(e).__name__}; the card then read "
+                                    f"{moved.get('kind')} {moved.get('n')}")
+                if moved["kind"] == "step" and moved["n"] == n:
+                    tgt.click(timeout=8000, force=True)
+                    out["notes"].append(f"step {n}: pressed again with force (recorded, not a member's tap)")
             out["pressed"].append(n)
         else:
             pg.locator("[data-tour-card] button").filter(has_text=re.compile(r"^Next$")).first.click(timeout=T)
@@ -444,8 +475,7 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
 
     def s4(st):
         pg.reload(wait_until="domcontentloaded", timeout=60000)
-        dismiss_intro(pg)
-        fw.settle_first_run(pg)
+        settle(pg)
         group = open_from_a_style(pg, base)
         st.read("kind picker after reload", group.inner_text())
         pg.wait_for_timeout(2500)        # the preference read settles; the offer decision follows it
@@ -478,6 +508,8 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         st.check("the first step's control was pressed and opened the Styles manager",
                  out["pressed"] == [1] and seen["styles_manager"] is True, json.dumps({"pressed": out["pressed"], **seen}))
         st.check("Done closed the tour", out["done"], json.dumps(out["notes"]))
+        st.check("every control the card asked for took a plain press (no forced press)",
+                 not any("with force" in x for x in out["notes"]), json.dumps(out["notes"]))
         pg.keyboard.press("Escape")
 
     def s6(st):
@@ -494,6 +526,8 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         heading = pg.get_by_role("heading", name="Community gallery").count()
         st.read("gallery heading count", heading)
         st.check("Done closed the tour", out["done"], json.dumps(out["notes"]))
+        st.check("every control the card asked for took a plain press (no forced press)",
+                 not any("with force" in x for x in out["notes"]), json.dumps(out["notes"]))
         pg.keyboard.press("Escape")
 
     def s7(st):
