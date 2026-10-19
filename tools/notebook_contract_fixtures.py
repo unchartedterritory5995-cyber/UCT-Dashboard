@@ -91,7 +91,8 @@ FLAGS = (
 
     # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
     "JOURNAL_TIER3_ENABLED",
-    # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, the firm style rows).
+    # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, and, with the library
+    # switch above, the firm style rows in the gallery lists: P5-AUD-1).
     "NOTEBOOK_STARTER_PACKS_ENABLED",
 )
 

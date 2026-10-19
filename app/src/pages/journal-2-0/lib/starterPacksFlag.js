@@ -1,7 +1,8 @@
 /**
- * P5: the starter packs' switch, read from the latched auth payload. It gates the "How do you
- * trade?" offer, installing a pack and the firm style rows in the library, never rendering: a
- * style a member installed is an ordinary style row and renders whatever this says.
+ * P5: the starter packs' switch, read from the latched auth payload. On the client it gates the
+ * "How do you trade?" offer and installing a pack, never rendering: a style a member installed is
+ * an ordinary style row and renders whatever this says. The firm style rows in the gallery are
+ * gated on the server (listed only while this AND the library switch are on, P5-AUD-1).
  */
 import { notebookFlag } from './offline/notebookFlags'
 

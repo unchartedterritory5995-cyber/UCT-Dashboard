@@ -1916,7 +1916,7 @@
       "member_facing": { "label": "Notebook: starter packs", "where": "Notebook" },
       "status": "dark",
       "where": ["web"],
-      "note": "P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style rows in the library. Needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Arm: railway variables --service web --set NOTEBOOK_STARTER_PACKS_ENABLED=1 (the owner's). Rollback: 0; installed copies stay the member's own."
+      "note": "P5. Gates the How do you trade? offer, the starter-pack install endpoint and the fifteen firm style rows in the community gallery. The offer and the install also need NOTEBOOK_JOURNAL_STYLES_ENABLED. The firm style rows are listed in every gallery read (the list, UCT picks, one item, the update list, the review queue) only while BOTH this and NOTEBOOK_STYLE_LIBRARY_ENABLED are on (ruling P5-AUD-1; one rule, template_gallery._hidden_styles), so arming the library alone never shows them. Arm: railway variables --service web --set NOTEBOOK_STARTER_PACKS_ENABLED=1 (the owner's). Rollback: 0 hides the offer, the install and every firm style row (UCT picks included) on the next request, with no redeploy; nothing is deleted, and copies a member already installed stay the member's own."
     },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {

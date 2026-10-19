@@ -2,7 +2,7 @@
 
 Once a week the owner picks one approved community style and makes it a UCT pick. **Nothing posts automatically.** Marking a pick changes where the style is listed in the library and sends nothing to Discord, email or any channel. The post in step 4 is typed by the owner, in the channel the owner chooses.
 
-Before you start: you are signed in as yourself (an admin), and these switches are on for `web`: `NOTEBOOK_JOURNAL_STYLES_ENABLED`, `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, `NOTEBOOK_STYLE_LIBRARY_ENABLED`. With the library switch off, no style is listed at all (`template_gallery.list_gallery`), so there is nothing to feature.
+Before you start: you are signed in as yourself (an admin), and these switches are on for `web`: `NOTEBOOK_JOURNAL_STYLES_ENABLED`, `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, `NOTEBOOK_STYLE_LIBRARY_ENABLED`. With the library switch off, no style is listed at all (`template_gallery.list_gallery`), so there is nothing to feature. The 15 firm styles from the starter packs are listed only while `NOTEBOOK_STARTER_PACKS_ENABLED` is on as well (ruling P5-AUD-1); with it off you see member styles only, which is all this weekly step needs.
 
 ## 1. Open the admin queue
 
@@ -12,7 +12,7 @@ Open **Review queue** and clear what is waiting: **Approve** what is fit to list
 
 ## 2. Pick one approved community style
 
-Go back to **Browse** and look under the **Community** heading. Those are the approved member styles that are not picks yet. The **UCT picks** heading above it holds the current picks, including the 15 firm styles that ship in the starter packs. Pick a member's style, not a firm one.
+Go back to **Browse** and look under the **Community** heading. Those are the approved member styles that are not picks yet. The **UCT picks** heading above it holds the current picks, including the 15 firm styles that ship in the starter packs once that switch is on. Pick a member's style, not a firm one.
 
 Open **Preview** before you choose. Note its exact title and author.
 

@@ -10,7 +10,9 @@ so a copy carries `source_gallery_id` / `source_version` and obeys every rule an
     switch (R-P5-2: firm picks are the team's, so they do not wait on the community library).
     `enabled()` is the starter switch alone, because it is the server's half of the payload key
     `notebook_starter_packs_enabled` (tests/test_notebook_flag_parse.py compares the two); the Journal
-    styles half is the router's own gate, and `install` asks both.
+    styles half is the router's own gate, and `install` asks both. The install never needs the rows
+    LISTED; in the gallery itself a firm style row is listed only while this switch AND the library
+    switch are on (P5-AUD-1, `template_gallery._hidden_styles`), so `enabled()` going false hides them too.
   * ONE TRANSACTION (ruling P5-R-C2): a SAVEPOINT per row and one commit. A row whose adopt raises a
     `GalleryError` (a kind a later release removed, the member's style cap) is rolled back to its savepoint
     and named in `skipped` with that error's sentence as its `reason` (ruling P5-R-T4-5: the offer says why);

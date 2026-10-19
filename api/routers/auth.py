@@ -275,8 +275,9 @@ NOTEBOOK_FLAGS = {
     # Your trading year door. Gates CREATING, never rendering. No NOTEBOOK_ prefix on purpose
     # (J2_SHARE_LINKS_ENABLED above is the precedent); the payload key is `journal_tier3_enabled`.
     "JOURNAL_TIER3_ENABLED": False,  # enablement — unset means OFF (Tier 3: check-in, winners checklist, year)
-    # P5 (starter packs): the How do you trade? offer, the starter-pack install endpoint and the firm
-    # style rows in the library. Needs NOTEBOOK_JOURNAL_STYLES_ENABLED. Payload key
+    # P5 (starter packs): the How do you trade? offer and the starter-pack install endpoint (both need
+    # NOTEBOOK_JOURNAL_STYLES_ENABLED), and the firm style rows in the gallery, which list only while
+    # NOTEBOOK_STYLE_LIBRARY_ENABLED is on too (P5-AUD-1, template_gallery._hidden_styles). Payload key
     # `notebook_starter_packs_enabled`.
     "NOTEBOOK_STARTER_PACKS_ENABLED": False,  # enablement — unset means OFF (starter packs, P5)
 }
