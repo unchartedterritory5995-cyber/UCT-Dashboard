@@ -43,6 +43,8 @@ Owner design, 2026-10-15:
     every post carries its level and a "See also" line, a speaker's ✏️ on a
     post rewrites it, and lessons from before levels get one
     (run_level_backfill).
+  * A post whose title is only a link or a mention is renamed in place
+    (run_title_repair: the YouTube video's own name, else "Quick clip, <date>").
   * /lesson <words> in Discord searches the library (titles, tickers, tags,
     recaps, transcripts) and answers the member privately with the best two or
     three lessons and the moment in each video that says it
@@ -2319,6 +2321,47 @@ def run_related_refresh(*, deadline: float, limit: int = 5) -> dict:
     return out
 
 
+def run_title_repair(*, deadline: float, limit: int = 10) -> dict:
+    """A posted lesson whose title is nothing but a link or a mention (a clip
+    whose caption was only a URL, posted before clean_title existed) gets a
+    real one: the YouTube video's own name for a linked video, else
+    "Quick clip, <date>". The post is edited in place and the header index
+    refreshed. A renamed row no longer qualifies, so after the first pass
+    this finds nothing and costs nothing."""
+    out = {"retitled": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND discord_post_id IS NOT NULL "
+            "AND post_channel_id IS NOT NULL ORDER BY posted_at DESC").fetchall()]
+    for row in [r for r in rows if not clean_title(r.get("title"))][:max(0, int(limit))]:
+        if time.time() > deadline:
+            break
+        vid = link_video_id(row)
+        title = clean_title(youtube_video_title(vid)) if vid else ""
+        if not title:
+            posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc).astimezone(_ET)
+            title = f"Quick clip, {posted:%b} {posted.day}, {posted.year}"
+        lesson = {**row, "title": title, "related": _json_list(row.get("related"))}
+        where, mid = row["post_channel_id"], row["discord_post_id"]
+        try:
+            link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+            _in_thread("PATCH", where, f"/channels/{where}/messages/{mid}", _lesson_body(lesson, link))
+        except DiscordError as e:
+            if e.status == 404:
+                _update(row["attachment_id"], status="removed")
+                _mark_index_dirty()
+                continue
+            log.warning("[tsdr-lessons] could not retitle %s: %s", mid, e)
+            out["errors"] += 1
+            continue
+        _update(row["attachment_id"], title=title)
+        if row.get("edu_video_id"):
+            sync_library_row(lesson)
+        _mark_index_dirty()
+        out["retitled"] += 1
+    return out
+
+
 GONE_FROM_YOUTUBE = "video is no longer on YouTube"
 
 
@@ -2617,6 +2660,7 @@ def tick() -> dict:
             out["lessons"] = {"error": str(e)[:200]}
         if threads_enabled() and not forum_enabled():
             for name, stage in (("levels", run_level_backfill),
+                                ("titles", run_title_repair),
                                 ("rewrites", run_rewrite_requests),
                                 ("related", run_related_refresh)):
                 try:
