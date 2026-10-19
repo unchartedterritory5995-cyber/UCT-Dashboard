@@ -408,7 +408,7 @@ def test_a_layout_item_serves_its_payload_and_never_a_body(conn, sharing_on):
         got = gallery.get_item(viewer, item["id"], is_admin=admin, conn=conn)
         assert got["payload"] == {"page": "trade", "lists": {"trade": TRADE}}, viewer
         assert "bodyJson" not in got and "propertyDefs" not in got, viewer
-    # Whatever is stored is read through `safe_layout`: registry ids, known lists, {id, shown} only.
+    # Whatever is stored is read through `usable_layout` (`safe_layout` first): registry ids, known lists, {id, shown} only.
     conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(
         {"page": "trade", "extra": "leak", "lists": {"trade": [{"id": "chart", "shown": True, "note": "leak"},
                                                                {"id": "futurePanel", "shown": True}],
@@ -421,7 +421,7 @@ def test_a_layout_item_serves_its_payload_and_never_a_body(conn, sharing_on):
     assert gallery.get_item("viewer", item["id"], conn=conn)["payload"] is None                 # not a 500
 
 
-def test_a_held_layout_revision_reaches_a_reviewer_through_safe_layout(conn, sharing_on):
+def test_a_held_layout_revision_reaches_a_reviewer_through_usable_layout(conn, sharing_on):
     _save_pref(conn, "author", {"version": 1, "trade": TRADE})
     item = _publish(conn, title="V1")
     gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)

@@ -3,16 +3,17 @@
 //
 // It shows the author's display label, how many items they have published, a Follow / Following
 // toggle (aria-pressed; not offered on your own page, which the server refuses too), and their listed
-// items: StyleLibraryCard for a style, the gallery's own card (via `renderOutline`) for an outline.
+// items, each through LibraryCard (P4b Task 7: the ONE card dispatcher, with the gallery's own `cardProps`).
 // "Back to the library" returns to the list the member came from; its filters live in the gallery
 // and were never reset.
 // ⛔ The author is the opaque handle (R-P3-2). The page carries a label, never an id or an email.
 import { useEffect, useId, useRef, useState } from 'react'
 import { followAuthor, useAuthorPage } from '../../lib/styleLibrary'
-import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
+import { refusalSentence } from './StyleLibraryCard'
+import LibraryCard from './LibraryCard'
 import styles from './TemplateGallery.module.css'
 
-export default function AuthorView({ handle, onBack, onMessage, onPreview, onAdopted, renderOutline, busy = false }) {
+export default function AuthorView({ handle, onBack, onMessage, cardProps = {} }) {
   const uid = useId()
   const headingRef = useRef(null)
   const { author, items, error, isLoading } = useAuthorPage(handle)
@@ -83,10 +84,10 @@ export default function AuthorView({ handle, onBack, onMessage, onPreview, onAdo
       </div>
       {items.length ? (
         <ul className={styles.grid} aria-label={`Published by ${author.label}`}>
-          {items.map((item) => (item.itemType === 'style' ? (
-            <StyleLibraryCard key={item.id} item={item} busy={busy} onPreview={onPreview} onAdopted={onAdopted}
-              onMessage={onMessage} />
-          ) : (renderOutline ? renderOutline(item) : null)))}
+          {/* No author door on the author's own page. */}
+          {items.map((item) => (
+            <LibraryCard key={item.id} {...cardProps} item={item} onMessage={onMessage} onOpenAuthor={undefined} />
+          ))}
         </ul>
       ) : (
         <p className={styles.note}>Nothing listed yet.</p>

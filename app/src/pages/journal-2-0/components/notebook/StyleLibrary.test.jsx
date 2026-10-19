@@ -152,7 +152,11 @@ describe('the switch', () => {
     flags()
     await openGallery()
     const types = await screen.findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...ITEM_TYPES.map((t) => t.label)])
+    // P4b (X21): the chips are the types this answer offers. This fake's list answer carries no `capabilities`, so
+    // layout sharing reads as off and the Page layouts chip is not offered (LayoutLibrary.test.jsx holds the "on" half).
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+    expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })
     expect(within(ts).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...TRADING_STYLES.map((t) => t.label)])
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(LIBRARY_SORTS.map((s) => s.label))

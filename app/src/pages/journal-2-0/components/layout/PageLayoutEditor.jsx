@@ -26,12 +26,13 @@ import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import usePreferences, { refreshPreferences } from '../../../../hooks/usePreferences'
 import {
-  LAYOUT_PREF, PHASES, PHASE_LABELS, normalizeLayout, resolvePanels, movePanel, togglePanel, resetPage,
+  LAYOUT_PREF, LOAD_FAILED, PHASES, PHASE_LABELS, normalizeLayout, resolvePanels, movePanel, togglePanel, resetPage,
 } from '../../lib/pageLayouts'
 import styles from './PageLayoutEditor.module.css'
 
 export const SAVE_FAILED = "Couldn't save your layout. Nothing was changed."
-export const LOAD_FAILED = "Your layout couldn't be loaded, so it can't be saved right now. Reload the page to try again."
+// The sentence lives in lib/pageLayouts.js (P4b X16: the library's adopt confirm says it too); re-exported here.
+export { LOAD_FAILED }
 const TITLES = { today: 'Customize Today', trade: 'Customize trade page' }
 const PAGE_WORDS = { today: 'Today', trade: 'The trade page' }
 

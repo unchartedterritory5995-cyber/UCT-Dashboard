@@ -57,6 +57,13 @@ export const SURFACES = Object.freeze({
   // a11y/styleLibrary.a11y.test.jsx.
   'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
   'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
+  // P4b Task 7: shared page layouts in that library (dark behind NOTEBOOK_LAYOUT_SHARING_ENABLED, so no gallery or
+  // style recipe renders them); rail a11y/layoutLibrary.a11y.test.jsx. LibraryCard is the one card dispatcher, and the
+  // layout card is what it renders for a layout.
+  'components/notebook/LibraryCard.jsx': { coveredBy: 'layout-library-card' },
+  'components/notebook/LayoutLibraryCard.jsx': { recipe: 'layout-library-card' },
+  'components/notebook/LayoutPreviewSheet.jsx': { recipe: 'layout-library-preview' },
+  'components/notebook/AdoptLayoutSheet.jsx': { recipe: 'layout-library-adopt' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },

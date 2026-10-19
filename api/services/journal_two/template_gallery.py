@@ -1440,9 +1440,10 @@ def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
 
     None while layout sharing is off or when the item is not a listed `page_layout` (`_listed_row`: the one rule,
     approved, not hidden). `version` must be the whole number the member previewed and equal the listed version,
-    else `GalleryConflict(LAYOUT_MOVED_SENTENCE)` and nothing is written. A stored payload `safe_layout` cannot
-    read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`; a list that keeps
-    no panel is dropped from the answer (P4b-T5-R1).
+    else `GalleryConflict(LAYOUT_MOVED_SENTENCE)` and nothing is written. The stored payload is read through
+    `usable_layout`, the one step the item read and the reviewer's held revision use too (P4b-T6-R1): a payload it
+    cannot read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`, and a list
+    that keeps no panel is dropped from the answer.
 
     Otherwise the one write is the use record (`_record_use`: once per member, never the author), committed, and
     the answer is `{layout, version, credit}`. ⛔ It writes NO preference: the member's `journal_page_layout` is

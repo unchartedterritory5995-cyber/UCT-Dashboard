@@ -1,6 +1,6 @@
 """P4b Task 5: adopting a shared page layout, and the shared machinery (Helpful, report) on layout items.
 
-Adoption is a READ plus one use record: the server hands back the LISTED layout through `safe_layout` and
+Adoption is a READ plus one use record: the server hands back the LISTED layout through `usable_layout` and
 counts the member once. It never writes the member's `journal_page_layout` preference (R-P4b-8): the client
 applies the layout and saves it through the ordinary preference door, so a member's layout is theirs.
 """

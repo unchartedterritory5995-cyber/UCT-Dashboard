@@ -95,6 +95,9 @@ export function useLibraryList(filters, { enabled = true } = {}) {
     templates: data?.templates || [],
     isAdmin: Boolean(data?.viewer?.admin),
     layoutSharing: data?.capabilities?.layoutSharing === true,
+    // Whether a list answer is in hand: `layoutSharing: false` from an answer is the switch, while no answer yet is
+    // nothing at all (P4b X11 resets a Page layouts chip only on the first).
+    answered: Boolean(data),
     error,
     isLoading,
     refresh: mutate,
@@ -189,3 +192,42 @@ export async function previewLibraryStyle(item) {
     style: { kindId: p.kindId, outlineBodyJson: p.outlineBodyJson, blocks: p.blocks, properties: p.properties },
   })
 }
+
+// ── P4b: shared PAGE LAYOUTS ─────────────────────────────────────────────────────────────────────────────────────
+export const LAYOUT_STATUS_KEY = `${GALLERY_KEY}/layouts/status`
+
+/** Share one page of the member's SAVED layout for review: `{template, droppedPanels}`. The client names the page and
+ *  the form fields only, never a list: the server builds the layout from the saved preference (R-P4b-3/4). */
+export async function shareLayout({ page, title, description, category, tradingStyle }) {
+  const out = await call(`${GALLERY_KEY}/layouts`, {
+    method: 'POST',
+    body: JSON.stringify({ page, title, description, category, tradingStyle }),
+  })
+  await refreshLibrary()
+  return out
+}
+
+/** The member's own shared layouts, `{status: {shared: {today, trade}} | null, off, error}`. While layout sharing is
+ *  off every `/layouts` route is a 404, and THAT is `off: true` -- an explicit branch on the status (X12), never an
+ *  error shown to the member and never a swallowed failure. Any other failure is `error`. */
+export function useLayoutSharingStatus({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? LAYOUT_STATUS_KEY : null, fetcher, SWR_OPTS)
+  const off = error?.status === 404
+  return { status: data || null, off, error: off ? null : (error || null), isLoading, refresh: mutate }
+}
+
+/** The LISTED layout of a shared page, for the member's own client to apply and save: `{layout, version, credit}`.
+ *  `version` is the one the member previewed; a newer listed version is a 409 and nothing is adopted. */
+export async function adoptLayout(id, { version } = {}) {
+  const out = await call(`${GALLERY_KEY}/${enc(id)}/adopt-layout`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+  await refreshLibrary()
+  return out
+}
+
+/** What a layout the library cannot apply says: the server's own sentence for it (`LAYOUT_UNSUPPORTED_SENTENCE` in
+ *  template_gallery.py; LayoutLibrary.test.jsx reads that file and holds the two equal). A layout item whose
+ *  `payload` is null says this, offers no "Use this layout", and is never read further (P4b-T6b-R1). */
+export const LAYOUT_UNSUPPORTED_SENTENCE = "This layout can't be used yet."

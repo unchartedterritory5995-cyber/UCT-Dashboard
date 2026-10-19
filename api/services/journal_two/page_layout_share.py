@@ -139,7 +139,10 @@ def layout_payload(raw_pref: str | None, page: Any) -> tuple[dict, int]:
 
 
 def safe_layout(p: Any) -> dict | None:
-    """The READ (R-P4b-6c): whatever is stored, registry ids only, first occurrence, known lists only."""
+    """The READ (R-P4b-6c): whatever is stored, registry ids only, first occurrence, known lists only.
+
+    ⛔ Readers call `usable_layout` (below), never this: the item read, the held revision and adopt all go through
+    that one step, which also drops a list registry drift has emptied (P4b-T6-R1)."""
     if not isinstance(p, dict) or p.get("page") not in LAYOUT_PAGES:
         return None
     page, raw = p["page"], p.get("lists")
