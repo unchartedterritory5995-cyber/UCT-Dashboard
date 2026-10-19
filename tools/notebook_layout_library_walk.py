@@ -457,6 +457,17 @@ def gallery_message(scope, contains: str) -> str:
     return msg.inner_text()
 
 
+def same_stored_today(before: dict, after: dict) -> bool:
+    """Is `after` the stored Today layout `before` was? A member who never saved has NO stored layout (`{}`): what
+    they see is the registry's default, so `after` must then be exactly the default list in every phase (read from
+    lib/pageLayouts.js). Otherwise the two must be equal. Run p4b-walk-20261019T0249Z compared `{}` to the explicit
+    lists Undo writes back and failed a member whose Today was rendered correctly; this is the comparison it meant."""
+    if before:
+        return after == before
+    default = [{"id": pid, "shown": shown} for pid, _, shown in REG["today"]]
+    return set(after) == set(REG["phases"]) and all(after[ph] == default for ph in REG["phases"])
+
+
 def stored_today(req, base: str) -> dict:
     raw = (req.get(base + "/api/auth/preferences").json() or {}).get(REG["pref"])
     try:
@@ -583,8 +594,11 @@ def story(browser, base: str, vp: str, run: str, states: dict) -> None:
         now = today_ids(mpg)
         st.check("Today renders its previous order", now == S["member_before"],
                  st.read("member Today order after Undo", f"{json.dumps(now)} (before: {json.dumps(S['member_before'])})"))
-        st.check("the stored Today layout is the one before the adopt", stored_today(mctx.request, base) == S["member_stored_before"],
-                 "compared the member's preference read before and after")
+        after_undo = stored_today(mctx.request, base)
+        st.read("stored Today before the adopt", json.dumps(S["member_stored_before"]))
+        st.read("stored Today after Undo", json.dumps(after_undo))
+        st.check("the stored Today layout is the one before the adopt (none stored = the registry default)",
+                 same_stored_today(S["member_stored_before"], after_undo), json.dumps(after_undo)[:600])
         door.get_by_role("button", name="Close", exact=True).first.click(timeout=T)
         door.wait_for(state="hidden", timeout=T)
         try:
@@ -635,8 +649,10 @@ def story(browser, base: str, vp: str, run: str, states: dict) -> None:
         after = today_ids(mpg)
         st.check("the member's Today is unchanged", after == before,
                  st.read("member Today order", f"after={json.dumps(after)} before={json.dumps(before)}"))
-        st.check("the member's stored Today layout is unchanged", stored_today(mctx.request, base) == stored_before,
-                 "compared the member's preference read before and after")
+        stored_after = stored_today(mctx.request, base)
+        st.read("stored Today before / after unpublish", json.dumps({"before": stored_before, "after": stored_after}))
+        st.check("the member's stored Today layout is unchanged", same_stored_today(stored_before, stored_after),
+                 json.dumps(stored_after)[:600])
 
     try:
         for n, fn in ((1, s1), (2, s2), (3, s3), (4, s4), (5, s5), (6, s6)):
