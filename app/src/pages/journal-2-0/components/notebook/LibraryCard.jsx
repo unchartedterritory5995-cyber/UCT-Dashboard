@@ -3,7 +3,9 @@
 //   * `page_layout` -> LayoutLibraryCard, and ONLY while the list answer says `capabilities.layoutSharing`. With
 //     sharing off a layout row (a stale cache, an author's page) renders nothing: it is never an outline card,
 //     whose "Use template" would copy an empty template and count a use (P4b X8).
-//   * `style` -> StyleLibraryCard while the library switch is on; otherwise the outline card, as before P3a.
+//   * `style` -> StyleLibraryCard while the library switch is on; otherwise the outline card, as before P3a. It is
+//     handed `isAdmin` and `onChanged` like the outline card: P5's admin Feature/Hide on style cards reads both, and
+//     this file never conflicts at that merge, so a dropped prop would lose them silently (P4b final I-M1).
 //   * anything else -> the gallery's own outline card (GalleryCard).
 // Lazy-only: imported by TemplateGallery.jsx and AuthorView.jsx, both inside the lazy gallery chunk.
 import { GalleryCard } from './TemplateGallery'
@@ -20,7 +22,10 @@ export default function LibraryCard({
       : null
   }
   if (libraryOn && item.itemType === 'style') {
-    return <StyleLibraryCard item={item} busy={busy} onPreview={onStylePreview} onOpenAuthor={onOpenAuthor} onMessage={onMessage} />
+    return (
+      <StyleLibraryCard item={item} isAdmin={isAdmin} busy={busy} onPreview={onStylePreview} onChanged={onChanged}
+        onOpenAuthor={onOpenAuthor} onMessage={onMessage} />
+    )
   }
   return (
     <GalleryCard item={item} isAdmin={isAdmin} busy={busy} onPreview={onPreview} onUse={onUse} onChanged={onChanged}
