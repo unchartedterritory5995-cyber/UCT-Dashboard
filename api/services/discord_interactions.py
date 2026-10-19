@@ -1299,6 +1299,25 @@ def _log_timing(req, cls, result) -> None:
         pass
 
 
+def stand_in_style(req: ChartRequest, prefs: dict) -> dict:
+    """The mplfinance stand-in's style kwargs, for BOTH paths that draw it (the
+    fallback after an empty house render and the fast preview). Only non-default
+    keys are returned, so a stock chart calls `render_fn` exactly as before.
+
+    The stand-in draws what the house chart would have: breadth_adjust sets the
+    style to "line" for a breadth metric (a member may choose it too), and a
+    breadth percentage has no volume, so its pane is dropped rather than left as
+    an empty box captioned "Avg Vol(50) 0"."""
+    kw = {}
+    if prefs.get("mas") == "off":
+        kw["show_mas"] = False
+    if prefs.get("volume") is False or req.breadth_name:
+        kw["show_volume"] = False
+    if prefs.get("style") in ("line", "area"):
+        kw["chart_type"] = "line"
+    return kw
+
+
 def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
                    bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0,
                    cls: int) -> tuple:
@@ -1417,11 +1436,7 @@ def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple
             bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
             if not bars:
                 return ("no_bars", None, None)
-        kw = {"daily_bars": daily if options["stats"] else None}
-        if prefs.get("mas") == "off":
-            kw["show_mas"] = False
-        if prefs.get("volume") is False:
-            kw["show_volume"] = False
+        kw = {"daily_bars": daily if options["stats"] else None, **stand_in_style(req, prefs)}
         try:
             png = render_fn(req.ticker, req.tf, bars, **kw)
         except Exception as e:  # noqa: BLE001
@@ -1917,11 +1932,7 @@ def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *
         if req.tf != "D":
             with bars_warm_gate():
                 daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
-        kw = {"daily_bars": daily}
-        if prefs.get("mas") == "off":
-            kw["show_mas"] = False
-        if prefs.get("volume") is False:
-            kw["show_volume"] = False
+        kw = {"daily_bars": daily, **stand_in_style(req, prefs)}
         png = render_fn(req.ticker, req.tf, bars, **kw)
         if not png:
             return False

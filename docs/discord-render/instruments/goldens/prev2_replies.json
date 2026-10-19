@@ -882,7 +882,7 @@
           "content": "UCTA5 · % of Stocks Above 5-Day MA · Daily",
           "filename": "UCTA5_D_2026-09-11_Chart.png",
           "png_bytes": 40,
-          "png_sha256": "b6e81dc8809bd73d05bf6d62819d2a10495760b3332ed49e5335862cbcdd35ac"
+          "png_sha256": "19217ae4db1865dad28fae7a560dc72e4dd25574929764f9b17355948366aec2"
         }
       ],
       "outcome": "ok",
@@ -891,7 +891,8 @@
           "bars": 260,
           "first_t": "2025-09-15",
           "kwargs": {
-            "daily_bars": 260
+            "daily_bars": 260,
+            "show_volume": false
           },
           "last_t": "2026-09-11",
           "tf": "D",
