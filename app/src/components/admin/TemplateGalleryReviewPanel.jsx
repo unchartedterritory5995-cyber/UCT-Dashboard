@@ -19,6 +19,13 @@
 // ⛔ Ruling P3a-T10-R7: a style row's approve token is PINNED to the read its details card renders; Preview never
 //    moves it. When a Preview read finds a newer version than the card shows, the panel says so and puts that
 //    read into the card, and the token follows the card. (An outline row has no card: its Preview sets it.)
+// P4b Task 8: a PAGE LAYOUT item (`itemType === 'page_layout'`) shows which page it is for, its trading style, and
+// per list the panels in order with Shown / Hidden, read from the item's `payload` on the same single-item read the
+// style card uses (and pinned as the approve token the same way, P3a-T10-R7). A held revision shows the revision's
+// own lists, from `pendingRevision`. A layout whose payload is null (every panel unknown to this build, P4b-T6b-R1)
+// says "This layout can't be used yet." and its lists are never read. A layout row has no Preview: it has no outline,
+// and its details card IS the preview.
+// The panel is reached through the gallery's lazy chunk (ruling X13), so none of this is first-open code.
 // Rendered inside the Notebook's community gallery for admins (TemplateGallery.jsx);
 // the server refuses every one of these calls to a non-admin regardless.
 import { useCallback, useEffect, useId, useState } from 'react'
@@ -27,7 +34,8 @@ import {
   getGalleryTemplate, resolveGalleryReport, reviewGalleryTemplate, useGalleryQueue,
   REPORT_REASONS, categoryLabel,
 } from '../../pages/journal-2-0/lib/templateGallery'
-import { tradingStyleLabel } from '../../pages/journal-2-0/lib/styleLibrary'
+import { LAYOUT_UNSUPPORTED_SENTENCE, tradingStyleLabel } from '../../pages/journal-2-0/lib/styleLibrary'
+import { PANELS, PHASES, PHASE_LABELS } from '../../pages/journal-2-0/lib/pageLayouts'
 import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import TemplatePreview from '../../pages/journal-2-0/components/notebook/TemplatePreview'
@@ -41,6 +49,9 @@ export const revisionLine = (version) =>
   `Update to version ${version} of a listed style. Approving lists it; the current version stays until then.`
 export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
 export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
+// The layout revision's line (P4b): `version` is the server's `pendingRevision.version`, never restated arithmetic.
+export const layoutRevisionLine = (version) =>
+  `Update to a listed layout (version ${version}). Approving lists it; the current version stays until then.`
 const reviewCardKey = (item) => ['gallery-review-style', item.id, item.updatedAt]
 const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id)?.name || 'A kind of note this version does not know'
 
@@ -86,6 +97,53 @@ function StyleReviewDetails({ item, onRead }) {
   )
 }
 
+const LAYOUT_PAGE_NAMES = { today: 'Today', trade: 'Trade page' }
+const panelLabel = (page, id) => PANELS[page]?.find((p) => p.id === id)?.label || 'A panel this version does not know'
+
+/** One shared list, in its order, each panel Shown or Hidden. */
+function LayoutList({ page, name, list }) {
+  const heading = page === 'trade' ? 'Panels' : PHASE_LABELS[name]
+  return (
+    <div>
+      <p className={styles.meta}>{`${heading}:`}</p>
+      <ol className={styles.meta} aria-label={page === 'trade' ? 'Trade page panels' : `${heading} panels`}>
+        {list.map((e, i) => <li key={`${e.id}-${i}`}>{`${panelLabel(page, e.id)}: ${e.shown ? 'Shown' : 'Hidden'}`}</li>)}
+      </ol>
+    </div>
+  )
+}
+
+/** A page layout item's page, trading style and lists (for a revision, the revision's own), from ONE read. Keyed and
+ *  token-pinned exactly as the style card is. ⛔ A null payload is never read past (P4b-T6b-R1). */
+function LayoutReviewDetails({ item, onRead }) {
+  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
+    { revalidateOnFocus: false, shouldRetryOnError: false })
+  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  const shown = underReview(item, data)
+  const page = item.layoutPage === 'today' ? 'today' : 'trade'
+  const payload = shown?.payload
+  const lists = payload && typeof payload.lists === 'object' && payload.lists ? payload.lists : null
+  const names = page === 'trade' ? ['trade'] : PHASES
+  return (
+    <div data-gallery-review-layout={item.id}>
+      <p className={styles.meta}>{`Page: ${LAYOUT_PAGE_NAMES[page]}`}</p>
+      {item.hasRevision && shown?.version != null && <p className={styles.note}>{layoutRevisionLine(shown.version)}</p>}
+      {error && <p className={styles.error} role="alert">Couldn't load this layout's panels.</p>}
+      {!error && !data && <p className={styles.note}>Loading the layout…</p>}
+      {data && !shown && <p className={styles.error} role="alert">{REVISION_UNREADABLE_LINE}</p>}
+      {shown && (
+        <>
+          {item.hasRevision && <p className={styles.note}>{`Title in this update: ${shown.title}`}</p>}
+          <p className={styles.meta}>{`Trading style: ${tradingStyleLabel(shown.tradingStyle) || 'not set'}`}</p>
+          {payload == null
+            ? <p className={styles.note}>{LAYOUT_UNSUPPORTED_SENTENCE}</p>
+            : names.filter((n) => Array.isArray(lists?.[n])).map((n) => <LayoutList key={n} page={page} name={n} list={lists[n]} />)}
+        </>
+      )}
+    </div>
+  )
+}
+
 function RejectForm({ item, onDone, onCancel }) {
   const uid = useId()
   const [note, setNote] = useState('')
@@ -97,6 +155,7 @@ function RejectForm({ item, onDone, onCancel }) {
     setWorking(true)
     setError(null)
     try {
+      // TODO(P3b-F-R4): once P3b lands, Reject sends reviewedUpdatedAt as Approve does (ruling P4b-AUD-4).
       await reviewGalleryTemplate(item.id, 'reject', note)
       onDone(`Rejected “${item.title}”. The author sees your reason.`)
     } catch (err) {
@@ -202,10 +261,13 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <span className={styles.meta}>by {item.author} · {categoryLabel(item.category)}</span>
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
             {item.itemType === 'style' && <StyleReviewDetails item={item} onRead={markSeen} />}
+            {item.itemType === 'page_layout' && <LayoutReviewDetails item={item} onRead={markSeen} />}
             {refreshed[item.id] === item.updatedAt && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
             <div className={styles.actions}>
-              <button type="button" className={styles.btn} onClick={() => openPreview(item)}
-                aria-label={`Preview ${item.title}`}>Preview</button>
+              {item.itemType !== 'page_layout' && (
+                <button type="button" className={styles.btn} onClick={() => openPreview(item)}
+                  aria-label={`Preview ${item.title}`}>Preview</button>
+              )}
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
                 onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt),
                   `Approved “${item.title}”. It is listed now.`, () => clearRefreshed(item.id))}

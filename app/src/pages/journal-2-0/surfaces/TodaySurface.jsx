@@ -54,6 +54,8 @@ import { pageLayoutsEnabled } from '../lib/pageLayoutsFlag'
 import { useJournalToast, JournalToast } from '../lib/useJournalToast'
 // The Customize editor loads only when the button is pressed (its slot holds the lazy import).
 import PageLayoutEditorSlot from '../components/layout/PageLayoutEditorSlot'
+// P4b: the shared layouts library, opened from Customize. The door holds the gallery's lazy import.
+import LayoutLibraryDoor from '../components/layout/LayoutLibraryDoor'
 import { SkeletonLine, SkeletonBlock } from '../../../components/Skeleton'
 import styles from './TodaySurface.module.css'
 
@@ -113,6 +115,9 @@ export default function TodaySurface() {
   // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
   const [customizing, setCustomizing] = useState(false)
   const [toastMsg, setToastMsg] = useJournalToast()
+  // P4b: "Find shared layouts" closes Customize and opens the library, so one sheet is open at a time.
+  const [findingLayouts, setFindingLayouts] = useState(false)
+  const findLayouts = () => { setCustomizing(false); setFindingLayouts(true) }
 
   const targetAccountId = accountId || accounts?.[0]?.id || null
 
@@ -263,8 +268,10 @@ export default function TodaySurface() {
           initialPhase={session}
           onClose={() => setCustomizing(false)}
           onSaved={() => setToastMsg('Layout saved.')}
+          onFindLayouts={findLayouts}
         />
       )}
+      <LayoutLibraryDoor open={findingLayouts} onClose={() => setFindingLayouts(false)} />
       <JournalToast msg={toastMsg} style={TOAST_STYLE} />
 
       {modal === 'import' && (

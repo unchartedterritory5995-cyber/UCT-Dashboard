@@ -115,12 +115,22 @@ vi.mock('./today/panels/NoticesPanel', () => ({ default: () => <div data-testid=
 // The Customize editor opens through an eager slot with a lazy import; its own tests are in
 // components/layout. Here it is a stub that shows what the page handed it and can report a save.
 vi.mock('../components/layout/PageLayoutEditorSlot', () => ({
-  default: ({ page, initialPhase, onClose, onSaved }) => (
+  default: ({ page, initialPhase, onClose, onSaved, onFindLayouts }) => (
     <div data-testid="editor-stub" data-page={page} data-phase={initialPhase}>
       <button type="button" onClick={() => { onSaved?.(); onClose() }}>stub save</button>
       <button type="button" onClick={onClose}>stub cancel</button>
+      {onFindLayouts && <button type="button" onClick={onFindLayouts}>stub find</button>}
     </div>
   ),
+}))
+// P4b: the shared layouts door is a stub that says whether the page holds it open (its own tests are in
+// components/layout/LayoutSharingDoors.test.jsx).
+vi.mock('../components/layout/LayoutLibraryDoor', () => ({
+  default: ({ open, onClose }) => (open ? (
+    <div role="dialog" aria-label="Shared page layouts" data-testid="door-stub">
+      <button type="button" onClick={onClose}>stub close library</button>
+    </div>
+  ) : null),
 }))
 
 import TodaySurface from './TodaySurface'
@@ -483,5 +493,24 @@ describe('the Customize button (P4a Task 7)', () => {
     expect(note).not.toBeNull()
     expect(note.parentElement).toBe(customizeButton().parentElement)
     scopeRef.active = false
+  })
+})
+
+// P4b Task 8 test 5: "Find shared layouts" closes Customize and opens the library; one sheet at a time.
+describe('Find shared layouts (P4b)', () => {
+  it('closes the editor, then opens the library door; closing the library leaves neither open', () => {
+    flagRef.current = true
+    renderToday()
+    expect(screen.queryByTestId('door-stub')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }))
+    expect(screen.getByTestId('editor-stub')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'stub find' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Shared page layouts' })).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'stub close library' }))
+    expect(screen.queryByTestId('door-stub')).toBeNull()
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.queryByText('Layout saved.')).toBeNull()
   })
 })

@@ -15,7 +15,8 @@ import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import { tradingStyleLabel } from '../../pages/journal-2-0/lib/styleLibrary'
 import { categoryLabel } from '../../pages/journal-2-0/lib/templateGallery'
-import TemplateGalleryReviewPanel, { revisionLine, REVISION_UNREADABLE_LINE, CARD_REFRESHED_LINE } from './TemplateGalleryReviewPanel'
+import TemplateGalleryReviewPanel, { revisionLine, layoutRevisionLine, REVISION_UNREADABLE_LINE, CARD_REFRESHED_LINE } from './TemplateGalleryReviewPanel'
+import { LAYOUT_UNSUPPORTED_SENTENCE } from '../../pages/journal-2-0/lib/styleLibrary'
 
 const QUEUE = contractBody('template-gallery.admin.queue')
 const SHARED = contractBody('template-gallery.styles.publish').template        // a style as its author submitted it
@@ -41,11 +42,29 @@ const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id).name
 const RESUBMITTED_STAMP = '2026-10-08T16:45:00+00:00'
 const RESUBMITTED = { ...ITEM, id: PENDING_STYLE.id, updatedAt: RESUBMITTED_STAMP, payload: { ...ITEM.payload, blocks: [] } }
 
+// P4b Task 8: PAGE LAYOUT rows. The queue rows spread the recorded layout share (no recorded queue holds a layout);
+// the reads are the recorded layout item and the recorded admin read of a held layout revision. The revision's
+// trading style is moved off the listed one so a card that showed the listed version cannot pass.
+const LAYOUT_SHARED = contractBody('template-gallery.layouts.publish').template
+const LAYOUT_ITEM = contractBody('template-gallery.layouts.item').template
+const LAYOUT_REV = contractBody('template-gallery.layouts.item.revision.admin').template
+const LAYOUT_REV_READ = { ...LAYOUT_REV, pendingRevision: { ...LAYOUT_REV.pendingRevision, tradingStyle: 'day' } }
+const PENDING_LAYOUT = { ...LAYOUT_SHARED, id: 'layout_pending', openReports: 0, updatedAt: QUEUE_STAMP }
+const LAYOUT_REVISION = { ...LAYOUT_SHARED, id: LAYOUT_REV.id, status: 'approved', listedAt: LAYOUT_REV.listedAt,
+  version: LAYOUT_REV.version, hasRevision: true, revisionTitle: LAYOUT_REV.pendingRevision.title, openReports: 0, updatedAt: QUEUE_STAMP }
+const NULL_LAYOUT = { ...PENDING_LAYOUT, id: 'layout_null', title: 'Every panel unknown' }
+const NULL_REVISION = { ...LAYOUT_REVISION, id: 'layout_null_rev', title: 'An update with every panel unknown' }
+const TODAY_LAYOUT = { ...PENDING_LAYOUT, id: 'layout_today', title: 'Calm open', layoutPage: 'today' }
+const TODAY_PAYLOAD = { page: 'today', lists: { premarket: [{ id: 'notices', shown: true }],
+  market: [{ id: 'regime', shown: true }, { id: 'quickActions', shown: false }] } }
+let extraPending = []
+
 let calls
 let pendingRead
 beforeEach(() => {
   calls = []
   pendingRead = { ...ITEM, id: PENDING_STYLE.id }
+  extraPending = []
   globalThis.fetch = vi.fn((input, init = {}) => {
     const method = (init.method || 'GET').toUpperCase()
     const path = String(input).split('?')[0]
@@ -53,7 +72,16 @@ beforeEach(() => {
     calls.push({ method, path, body })
     const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(payload) })
     if (path === '/api/j2/template-gallery/admin/queue') {
-      return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION, UNREADABLE] })
+      return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION, UNREADABLE, ...extraPending] })
+    }
+    if (path === `/api/j2/template-gallery/${PENDING_LAYOUT.id}`) return ok({ template: { ...LAYOUT_ITEM, id: PENDING_LAYOUT.id } })
+    if (path === `/api/j2/template-gallery/${LAYOUT_REVISION.id}`) return ok({ template: LAYOUT_REV_READ })
+    if (path === `/api/j2/template-gallery/${NULL_LAYOUT.id}`) return ok({ template: { ...LAYOUT_ITEM, id: NULL_LAYOUT.id, payload: null } })
+    if (path === `/api/j2/template-gallery/${NULL_REVISION.id}`) {
+      return ok({ template: { ...LAYOUT_REV_READ, id: NULL_REVISION.id, pendingRevision: { ...LAYOUT_REV_READ.pendingRevision, payload: null } } })
+    }
+    if (path === `/api/j2/template-gallery/${TODAY_LAYOUT.id}`) {
+      return ok({ template: { ...LAYOUT_ITEM, id: TODAY_LAYOUT.id, layoutPage: 'today', payload: TODAY_PAYLOAD } })
     }
     const m = path.match(/^\/api\/j2\/template-gallery\/admin\/items\/([\w-]+)$/)
     if (m && method === 'PATCH') return ok(contractBody('template-gallery.admin.approve'))
@@ -273,5 +301,74 @@ describe('the review queue for a style item', () => {
     fireEvent.click(within(row).getByRole('button', { name: `Approve ${QUEUE.pending[0].title}` }))
     await waitFor(() => expect(patches()).toHaveLength(1))
     expect(patches()[0].body.reviewedUpdatedAt).toBe(QUEUE.pending[0].updatedAt)
+  })
+})
+
+describe('the review queue for a page layout item (P4b Task 8)', () => {
+  beforeEach(() => { extraPending = [PENDING_LAYOUT, LAYOUT_REVISION, NULL_LAYOUT, NULL_REVISION, TODAY_LAYOUT] })
+  const listItems = (row, name) => within(within(row).getByRole('list', { name })).getAllByRole('listitem').map((li) => li.textContent)
+
+  it('non-vacuity: the recorded layout item and revision carry trade lists that differ in order', () => {
+    expect(LAYOUT_ITEM.payload.lists.trade.map((e) => e.id)).toEqual(['story', 'chart', 'outcome'])
+    expect(LAYOUT_REV.pendingRevision.payload.lists.trade.map((e) => e.id)).toEqual(['outcome', 'chart', 'story'])
+    expect(LAYOUT_REV.pendingRevision.version).toBe(2)
+  })
+
+  it('shows Page: Trade page, the trading style, and the panels in order with Shown / Hidden', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_LAYOUT.id)
+    await within(row).findByRole('list', { name: 'Trade page panels' })
+    expect(within(row).getByText('Page: Trade page')).toBeInTheDocument()
+    expect(within(row).getByText(`Trading style: ${tradingStyleLabel(LAYOUT_ITEM.tradingStyle)}`)).toBeInTheDocument()
+    expect(listItems(row, 'Trade page panels')).toEqual(['The story: Shown', 'Chart: Hidden', 'Outcome: Shown'])
+    expect(within(row).queryByRole('button', { name: `Preview ${PENDING_LAYOUT.title}` })).not.toBeInTheDocument()
+  })
+
+  it('a Today layout says Page: Today and lists each phase it carries, by its label', async () => {
+    renderPanel()
+    const row = await rowOf(TODAY_LAYOUT.id)
+    await within(row).findByRole('list', { name: 'Market panels' })
+    expect(within(row).getByText('Page: Today')).toBeInTheDocument()
+    expect(listItems(row, 'Premarket panels')).toEqual(['Notices: Shown'])
+    expect(listItems(row, 'Market panels')).toEqual(['Market regime: Shown', 'Quick actions: Hidden'])
+    expect(within(row).queryByRole('list', { name: 'After close panels' })).not.toBeInTheDocument()
+  })
+
+  it('a held revision shows the update line and the REVISION\'s own lists and trading style', async () => {
+    renderPanel()
+    const row = await rowOf(LAYOUT_REVISION.id)
+    await within(row).findByRole('list', { name: 'Trade page panels' })
+    expect(within(row).getByText(layoutRevisionLine(LAYOUT_REV.pendingRevision.version))).toBeInTheDocument()
+    expect(layoutRevisionLine(2)).toBe('Update to a listed layout (version 2). Approving lists it; the current version stays until then.')
+    expect(listItems(row, 'Trade page panels')).toEqual(['Outcome: Shown', 'Chart: Hidden', 'The story: Shown'])
+    expect(within(row).getByText(`Trading style: ${tradingStyleLabel('day')}`)).toBeInTheDocument()
+    expect(within(row).queryByText(`Trading style: ${tradingStyleLabel('swing')}`)).not.toBeInTheDocument()
+  })
+
+  it('T6b-R1: a payload of null says the layout cannot be used yet and shows no lists (the item and a revision alike)', async () => {
+    renderPanel()
+    for (const item of [NULL_LAYOUT, NULL_REVISION]) {
+      const row = await rowOf(item.id)
+      expect(await within(row).findByText(LAYOUT_UNSUPPORTED_SENTENCE)).toBeInTheDocument()
+      expect(within(row).queryByRole('list')).not.toBeInTheDocument()
+    }
+  })
+
+  it('Approve sends the version of the read that rendered the details (reviewedUpdatedAt)', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_LAYOUT.id)
+    await within(row).findByRole('list', { name: 'Trade page panels' })
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_LAYOUT.title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].path).toBe(`/api/j2/template-gallery/admin/items/${PENDING_LAYOUT.id}`)
+    expect(patches()[0].body).toEqual({ action: 'approve', note: '', reviewedUpdatedAt: LAYOUT_ITEM.updatedAt })
+    expect(LAYOUT_ITEM.updatedAt).not.toBe(QUEUE_STAMP)
+  })
+
+  it('control: a style row still shows its kind and blocks, and no layout details', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_STYLE.id)
+    await within(row).findByText(`Kind of note: ${kindName(ITEM.payload.kindId)}`)
+    expect(within(row).queryByText(/^Page: /)).not.toBeInTheDocument()
   })
 })

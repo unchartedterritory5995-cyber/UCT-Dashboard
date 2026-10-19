@@ -358,6 +358,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // The trade page rendering from the layout (story first with the chart hidden; every panel hidden). Its own
   // rail file, because that file replaces `swr`.
   'components/trade/TradeDetailPage.jsx': { recipe: 'trade-page-layout', railFile: 'a11y/pageLayoutsTrade.a11y.test.jsx' },
+  // Notebook P4b Task 8: sharing a page layout from Customize (the form in the editor's sheet body) and the door
+  // that opens the library at Page layouts. Rail a11y/pageLayouts.a11y.test.jsx, with layout sharing answering.
+  'components/layout/ShareLayoutForm.jsx': { recipe: 'page-layout-share-form', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'components/layout/LayoutLibraryDoor.jsx': { recipe: 'layout-library-door', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
   // Notebook P3a Task 11: the community style library's doors under components/notebook/styles/ (outside the
   // derived population; dark behind notebook_style_library_enabled, so no styles-manager recipe renders them):
   // sharing a style, reviewing an author's update to an adopted copy, and the door that opens the library at

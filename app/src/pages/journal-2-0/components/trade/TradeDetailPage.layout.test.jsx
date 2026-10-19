@@ -81,12 +81,22 @@ vi.mock('../../../../components/chart/pane/ChartPane', () => ({ default: () => <
 // The Customize editor opens through an eager slot with a lazy import; its own tests are in
 // components/layout. Here it is a stub that shows what the page handed it and can report a save.
 vi.mock('../layout/PageLayoutEditorSlot', () => ({
-  default: ({ page, onClose, onSaved }) => (
+  default: ({ page, onClose, onSaved, onFindLayouts }) => (
     <div data-testid="editor-stub" data-page={page}>
       <button type="button" onClick={() => { onSaved?.(); onClose() }}>stub save</button>
       <button type="button" onClick={onClose}>stub cancel</button>
+      {onFindLayouts && <button type="button" onClick={onFindLayouts}>stub find</button>}
     </div>
   ),
+}))
+// P4b: the shared layouts door is a stub that says whether the page holds it open (its own tests are in
+// components/layout/LayoutSharingDoors.test.jsx).
+vi.mock('../layout/LayoutLibraryDoor', () => ({
+  default: ({ open, onClose }) => (open ? (
+    <div role="dialog" aria-label="Shared page layouts" data-testid="door-stub">
+      <button type="button" onClick={onClose}>stub close library</button>
+    </div>
+  ) : null),
 }))
 
 const T1 = {
@@ -435,5 +445,47 @@ describe('the chart card "Add context in notes" button follows the story section
     await lazyArrived(['p-chart'])
     fireEvent.click(addContext())
     expect(scrolled).toHaveBeenCalled()
+  })
+})
+
+// P4b Task 8 test 5 and ruling X9: "Find shared layouts" closes Customize and opens the library (one sheet at a
+// time), and while the library is open the page's arrow and j / k keys do not change the trade.
+describe('Find shared layouts (P4b)', () => {
+  it('closes the editor, then opens the library door; one sheet at a time', async () => {
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }))
+    fireEvent.click(screen.getByRole('button', { name: 'stub find' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Shared page layouts' })).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'stub close library' }))
+    expect(screen.queryByTestId('door-stub')).toBeNull()
+  })
+
+  it('X9: while the library is open the arrow and j / k keys do not change the trade', async () => {
+    tradesRef.current = [
+      { id: 't0', symbol: 'AMD', side: 'Long', setup: 'VCP', entryDate: '2026-04-28' },
+      { id: 't1', symbol: 'NVDA', side: 'Long', setup: 'VCP', entryDate: '2026-05-01' },
+      { id: 't2', symbol: 'TSLA', side: 'Long', setup: 'VCP', entryDate: '2026-05-06' },
+    ]
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.keyDown(window, { key: 'ArrowRight' })                     // CONTROL: closed, the keys navigate
+    expect(navigateSpy.fn).toHaveBeenCalledTimes(1)
+    navigateSpy.fn.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }))
+    fireEvent.click(screen.getByRole('button', { name: 'stub find' }))
+    const inSheet = screen.getByRole('button', { name: 'stub close library' })
+    for (const key of ['ArrowRight', 'ArrowLeft', 'j', 'k']) {
+      fireEvent.keyDown(inSheet, { key })
+      fireEvent.keyDown(window, { key })
+    }
+    expect(navigateSpy.fn).not.toHaveBeenCalled()
+    fireEvent.click(inSheet)
+    fireEvent.keyDown(window, { key: 'k' })
+    expect(navigateSpy.fn).toHaveBeenCalledTimes(1)
   })
 })
