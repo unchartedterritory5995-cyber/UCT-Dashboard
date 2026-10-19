@@ -27,6 +27,13 @@ with open(os.path.join(_HERE, "fixtures", "flat_top_golden.json"), encoding="utf
     GOLDEN = json.load(_f)
 
 
+#: Detectors registered AFTER the golden was written (code 88e55ab52e). Their rows are
+#: new by construction, so they are left out of the comparison; every other
+#: detector must still match byte for byte. Add an id here only for a NEW detector,
+#: never for an existing one that moved.
+_ADDED_SINCE_GOLDEN = ("uct_flat_top_breakout_ftb4",)
+
+
 @pytest.fixture(scope="module")
 def swept():
     SW.load_detectors()
@@ -43,8 +50,10 @@ def swept():
     lg = logging.getLogger("api.services.pattern_engine")
     lg.addHandler(h)
     try:
-        stripped, counts = SW.run(detect_all, build_context, drop_flat_top=True)
-        kept, _ = SW.run(detect_all, build_context, drop_flat_top=False)
+        stripped, counts = SW.run(detect_all, build_context, drop_flat_top=True,
+                                  drop_ids=_ADDED_SINCE_GOLDEN)
+        kept, _ = SW.run(detect_all, build_context, drop_flat_top=False,
+                         drop_ids=_ADDED_SINCE_GOLDEN)
     finally:
         lg.removeHandler(h)
     return {"stripped": stripped, "kept": kept, "counts": counts, "raised": raised}
@@ -54,6 +63,14 @@ def test_the_golden_is_from_code_without_the_drawing_and_matches_this_sweep():
     assert GOLDEN["series"] == SW.SERIES and GOLDEN["cuts"] == list(SW.CUTS)
     assert GOLDEN["counts"]["flat_top_stamped"] == 0          # the pre-drawing code stamps nothing
     assert set(GOLDEN["digests"]) == {k for k, _ in SW.scans()}
+
+
+def test_the_added_ids_are_real_detectors():
+    """A typo in _ADDED_SINCE_GOLDEN would drop nothing and hide nothing; a name that
+    is not registered is caught here instead."""
+    SW.load_detectors()
+    from api.services.pattern_engine.detectors import registry
+    assert set(_ADDED_SINCE_GOLDEN) <= set(registry.list_pattern_ids())
 
 
 def test_the_sweep_is_not_vacuous(swept):
