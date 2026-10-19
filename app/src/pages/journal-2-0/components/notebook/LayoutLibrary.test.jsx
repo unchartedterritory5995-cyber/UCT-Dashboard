@@ -18,8 +18,8 @@ import userEvent from '@testing-library/user-event'
 import { SWRConfig, useSWRConfig, mutate as globalMutate } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplateGallery from './TemplateGallery'
-import { CHANGE_FAILED, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
-import { __resetRevisionStateForTests } from '../../../../hooks/usePreferences'
+import { CHANGE_FAILED, REFRESH_TIMEOUT_MS, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
+import usePreferences, { __resetRevisionStateForTests, mergeIntoPreferenceCache } from '../../../../hooks/usePreferences'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE } from '../../lib/styleLibrary'
 import { DEFAULT_LAYOUT, LAYOUT_PREF, LOAD_FAILED, PANELS, normalizeLayout } from '../../lib/pageLayouts'
@@ -61,6 +61,12 @@ beforeEach(() => {
     calls.push({ path: u.pathname, search: u.search, method, body })
     if (u.pathname === '/api/auth/preferences' && method === 'GET') {
       if (server.holdGet) await server.holdGet.promise
+      if (server.abortableGet) {                      // a hung read that honours its abort signal, as a real fetch does
+        server.abortableGet = false
+        await new Promise((_, reject) => {
+          init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+        })
+      }
       if (server.failNextGet) { server.failNextGet = false; return json({ detail: 'Bad gateway' }, 502) }
       return server.prefsRead === 200 ? json({ [LAYOUT_PREF]: JSON.stringify(MINE) }) : json({ detail: 'Bad gateway' }, server.prefsRead)
     }
@@ -564,5 +570,117 @@ describe('review: a failed write AND a failed re-read never leave the unsaved la
     const restored = JSON.parse(prefPosts().at(-1).body.value)
     expect(restored.trade).toEqual(MINE.trade)
     expect(prefPosts()).toHaveLength(3)               // the failed write, the second adopt, the Undo
+  })
+})
+
+// ── Task 7 round-2 Minors, folded into Task 8's first commit (ruling P4b-T7-R4) ──────────────────────────────────────
+describe('T7-R4: the put-back after a double failure, and the bounded re-read', () => {
+  // SWR's GLOBAL cache, as in production (see the double-failure case above).
+  const clearGlobal = () => act(async () => { await globalMutate(() => true, undefined, { revalidate: false }) })
+  beforeEach(async () => { await clearGlobal() })
+  afterEach(async () => { vi.useRealTimers(); await clearGlobal() })
+
+  // A same-tab writer of the member's layout, the way Customize writes it (the hook's setPrefMerged).
+  const probe = { current: null }
+  function Probe() { probe.current = usePreferences(); return null }
+  const cachedLayout = async () => {
+    let seen
+    await act(async () => { await mergeIntoPreferenceCache(LAYOUT_PREF, (cur) => { seen = cur; return undefined }) })
+    return normalizeLayout(seen)
+  }
+
+  async function openGlobalConfirm() {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <SWRConfig value={{ dedupingInterval: 0 }}>
+          <Probe />
+          <TemplateGallery onBack={vi.fn()} initialType="page_layout" />
+        </SWRConfig>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: ROW.title })
+    await user.click(within(layoutCard()).getByRole('button', { name: `Use this layout: ${ROW.title}` }))
+    const dialog = await screen.findByRole('dialog', { name: 'Use this layout for the trade page?' })
+    await within(dialog).findByRole('list', { name: 'What changes' })
+    return { user, dialog }
+  }
+
+  it('M-1: a newer same-tab save made while the re-read hangs is never put back to the pre-adopt layout', async () => {
+    server.prefStatus = [400, 200]
+    const { user, dialog } = await openGlobalConfirm()
+    server.holdGet = deferred()                       // the re-read after the failed write hangs
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    expect(await within(dialog).findByText(CHANGE_FAILED)).toBeInTheDocument()
+    // Customize saves a newer trade layout in the same tab while the re-read is still out.
+    const NEWER = normalizeLayout({ ...MINE, trade: [{ id: 'review', shown: true }, ...MINE.trade.filter((e) => e.id !== 'review')] })
+    await act(async () => { await probe.current.setPrefMerged(LAYOUT_PREF, (prev) => ({ ...normalizeLayout(prev), trade: NEWER.trade })) })
+    expect(prefPosts()).toHaveLength(2)
+    server.failNextGet = true                         // ...and then the re-read fails
+    server.holdGet.resolve()
+    server.holdGet = null
+    await within(dialog).findByRole('button', { name: 'Try again' })   // the re-read has settled, the put-back has run
+    expect((await cachedLayout()).trade).toEqual(NEWER.trade)        // the newer save stands
+    expect((await cachedLayout()).trade).not.toEqual(MINE.trade)
+  })
+
+  it('M-1 control: with no newer write, the put-back still restores the member’s lists', async () => {
+    server.prefStatus = [400]
+    const { user, dialog } = await openGlobalConfirm()
+    server.failNextGet = true
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await within(dialog).findByRole('button', { name: 'Try again' })
+    expect((await cachedLayout()).trade).toEqual(MINE.trade)
+  })
+
+  it('M-2: Try again stays hidden past the bound while the read itself has not settled, and a late answer never lands', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    server.prefStatus = [400, 200]
+    const { user, dialog } = await openGlobalConfirm()
+    server.holdGet = deferred()                       // a read that ignores its abort signal: the worst case
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    expect(await within(dialog).findByText(CHANGE_FAILED)).toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(REFRESH_TIMEOUT_MS + 500) })
+    await settle()
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()   // the fetch is still out
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeEnabled()                  // Cancel stays free
+    server.holdGet.resolve()                          // the late answer (the pre-adopt server value) arrives
+    server.holdGet = null
+    await user.click(await within(dialog).findByRole('button', { name: 'Try again' }))
+    await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)
+    await settle()
+    expect((await cachedLayout()).trade.slice(0, 3)).toEqual(ADOPT.body.layout.lists.trade)   // the adopted layout stands
+    expect(adoptPosts()).toHaveLength(1)
+  })
+
+  it('M-3: a hung re-read is aborted at the bound, and then Try again appears', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    server.prefStatus = [400, 200]
+    const { user, dialog } = await openGlobalConfirm()
+    server.abortableGet = true                        // the re-read hangs until it is aborted, as a real fetch does
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    expect(await within(dialog).findByText(CHANGE_FAILED)).toBeInTheDocument()
+    await settle()
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(REFRESH_TIMEOUT_MS + 100) })
+    await user.click(await within(dialog).findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)).toBeInTheDocument()
+    expect(adoptPosts()).toHaveLength(1)
+  })
+
+  it('M-3: a re-read that answers in time clears its timer, so nothing is aborted later', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    const abort = vi.spyOn(AbortController.prototype, 'abort')
+    try {
+      server.prefStatus = [400]
+      const { user, dialog } = await openGlobalConfirm()
+      await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+      await within(dialog).findByRole('button', { name: 'Try again' })   // the re-read answered at once
+      abort.mockClear()
+      await act(async () => { vi.advanceTimersByTime(REFRESH_TIMEOUT_MS * 2) })
+      expect(abort).not.toHaveBeenCalled()
+    } finally {
+      abort.mockRestore()
+    }
   })
 })

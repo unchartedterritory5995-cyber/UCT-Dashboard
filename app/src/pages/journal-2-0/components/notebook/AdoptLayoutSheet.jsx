@@ -28,8 +28,24 @@ import styles from './TemplateGallery.module.css'
 
 export const CHANGE_FAILED = "Couldn't change your layout. Nothing was changed."
 export const UNDO_FAILED = "Couldn't put your previous layout back. Open Customize to change it."
-// How long a failed write waits for the re-read of the member's layout before treating it as failed too (review N-1).
+// How long a failed write waits for the re-read of the member's layout before ABORTING it (review N-1, T7-R4 M-2). An
+// aborted read is a failed read: it settles, it never lands in the cache later, and only then is Try again offered.
 export const REFRESH_TIMEOUT_MS = 8000
+
+/** The re-read after a failed write, bounded: at REFRESH_TIMEOUT_MS the fetch itself is aborted, so the promise settles
+ *  only when the request has, and a late answer can never overwrite a newer write (T7-R4 M-2). The timer is cleared as
+ *  soon as the read settles (M-3). */
+async function boundedRefresh() {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null
+  const timer = setTimeout(() => { controller?.abort() }, REFRESH_TIMEOUT_MS)
+  try {
+    return await refreshPreferences(controller ? { signal: controller.signal } : undefined)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const sameLayout = (a, b) => JSON.stringify(normalizeLayout(a)) === JSON.stringify(normalizeLayout(b))
 export const STANDING_LINE = "A panel that needs something you don't have on yet keeps its place and shows once it can."
 const TITLES = { today: 'Use this layout for Today?', trade: 'Use this layout for the trade page?' }
 const PAGE_WORDS = { today: 'Today', trade: 'trade page' }       // "Your current Today layout", "… trade page layout"
@@ -111,13 +127,15 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       return
     }
     let captured = null
+    let applied = null                                // the optimistic value this attempt put in the cache
     let ok = false
     try {
       const res = await setPrefMerged(LAYOUT_PREF, (prev) => {
         const base = normalizeLayout(prev)
         captured = listsFor(base, page, lists)
         if (!firstCaptureRef.current) firstCaptureRef.current = captured
-        return applySharedPage(base, page, lists)
+        applied = applySharedPage(base, page, lists)
+        return applied
       })
       ok = res?.ok === true
     } catch {
@@ -131,17 +149,21 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       setRetry(answer)
       setError(CHANGE_FAILED)
       setRefreshing(true)
-      // The hook applied the value optimistically. Take the server's back, bounded so a hung read cannot hold Try again.
-      const fresh = await Promise.race([
-        refreshPreferences(),
-        new Promise((resolve) => { setTimeout(() => resolve(null), REFRESH_TIMEOUT_MS) }),
-      ])
-      if (fresh == null && firstCaptureRef.current) {
+      // The hook applied the value optimistically. Take the server's back, bounded so a hung read cannot hold Try again:
+      // the read is ABORTED at the bound, so it has settled before Try again shows and cannot land after it (T7-R4 M-2).
+      const fresh = await boundedRefresh()
+      if (fresh == null && firstCaptureRef.current && applied) {
         // The re-read failed too, so the unsaved layout is still in the cache, where the next adopt would capture it as the
         // member's own. Put the lists back to what they were, locally: no POST, the server never had the adopted value.
+        // Compare-and-swap (T7-R4 M-1): only while the cache still holds exactly the value THIS attempt wrote. Anything else
+        // means a newer write (Customize, a second adopt) has landed since, and that write POSTed the whole layout, so
+        // putting the capture back would make the cache disagree with the server. Then nothing changes.
         const previous = firstCaptureRef.current
+        const optimistic = applied
         await mergeIntoPreferenceCache(LAYOUT_PREF, (cur) => (
-          cur && typeof cur === 'object' ? replaceLists(normalizeLayout(cur), page, previous) : undefined
+          cur && typeof cur === 'object' && sameLayout(cur, optimistic)
+            ? replaceLists(normalizeLayout(cur), page, previous)
+            : undefined
         ))
       }
       setRefreshing(false)
