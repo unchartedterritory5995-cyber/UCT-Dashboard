@@ -58,7 +58,12 @@ _TEAM_SETUPS2 = ("uct_flag_htf", "uct_ma_reclaim")
 #: drawer line, launch pad v4): NEW ids, same gate (fixtures in tests/pattern_engine/detectors/
 #: test_uct_team_setups3.py).
 _TEAM_SETUPS3 = ("uct_trendline_break", "uct_launch_pad_v4")
-_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS, *_TEAM_SETUPS2, *_TEAM_SETUPS3)
+#: Detector recall v4 (2026-10-18): the gated inside-day recall variant, NEW id
+#: beside uct_inside_day, same gate (fixtures in tests/pattern_engine/detectors/
+#: test_uct_inside_day_id4.py).
+_RECALL_V4 = ("uct_inside_day_id4",)
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS, *_TEAM_SETUPS2, *_TEAM_SETUPS3,
+             *_RECALL_V4)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"
