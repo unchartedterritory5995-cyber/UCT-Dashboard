@@ -19,6 +19,10 @@ describe('parseAlertPhrase -- what it reads', () => {
     ['alert me if SPX closes below 5,000', { price: 5000 }],
     ['alert me if NVDA closes above $5,000.50', { price: 5000.5 }],
     ['alert me if NVDA closes below 120 on the daily', { price: 120, tf: 'D' }],
+    // E7: "forget" / "hesitate" after the negator make it an ask, not a refusal
+    ["Don't forget to alert me if NVDA closes above 150", { symbol: 'NVDA', mode: 'close', direction: 'above', price: 150 }],
+    ['do not hesitate to alert me if NVDA closes above 150', { symbol: 'NVDA', price: 150 }],
+    ['never forget to alert me if NVDA closes above 150', { symbol: 'NVDA', price: 150 }],
   ])('%s', (text, want) => { expect(P(text)).toMatchObject(want) })
 
   it('"it", "the stock" and "price" mean the note\'s own ticker', () => {
@@ -64,6 +68,9 @@ describe('parseAlertPhrase -- what it refuses', () => {
     'NVDA closes below 120',                         // no ask
     "don't alert me if NVDA closes below 120",       // negated
     'no alert if NVDA closes below 120',
+    'Not going to alert me if NVDA closes above 150',   // E7: "not" negates
+    'do not alert me if NVDA closes above 150',          // control: still negated with "not" in the list
+    "don't forgetful alert me if NVDA closes above 150", // control: the exemption is the whole word only
     'alert me if NVDA closes below',                 // no price
     'alert me if NVDA closes below 0',               // not a price
     'alert me if NVDA closes below -5',

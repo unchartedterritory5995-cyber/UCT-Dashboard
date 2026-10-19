@@ -17,7 +17,9 @@ import { parseAlertPrice } from '../../terminal/alertModel'
 export const MAX_PHRASE_TEXT = 280
 
 const ASK = /\balert\b/i
-const NEGATED = /\b(?:don'?t|do\s+not|never|no)\b[^.!?]{0,20}\balert\b/i
+// E7: "not" negates too ("Not going to alert me..."), and "forget" / "hesitate" straight after a
+// negator turn it into an ask ("Don't forget to alert me if...").
+const NEGATED = /\b(?:don'?t|do\s+not|not|never|no)\b(?!\s+(?:forget|hesitate)\b)[^.!?]{0,20}\balert\b/i
 const PHRASE = /\b(?:if|when|once)\s+(?<sym>it|the\s+stock|the\s+price|price|\$?[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\s+(?<verb>closes|close|trades|trade|goes|gets|moves|drops|falls|breaks|crosses|hits|touches|reaches|is)\s+(?:(?<dir>above|below|over|under|through|to)\s+)?(?<price>\$?(?:\d{1,3}(?:,\d{3})+|\d{1,7})(?:\.\d{1,4})?)(?!\d|[.,]\d)(?![-\s]?(?:(?:days?|dma|ema|sma|ma|k|shares?)\b|%))(?:\s+on\s+the\s+(?<tf>daily|weekly)(?:\s+chart)?)?/gi
 
 const DIR = { above: 'above', over: 'above', below: 'below', under: 'below' }
