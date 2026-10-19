@@ -37,6 +37,13 @@ def fetch_bars(ticker: str, tf: str, n: int) -> list[dict] | None:
     parameter is passed explicitly because the function's Query(...) defaults
     only resolve over HTTP. Only a 200 with a non-empty `bars` list counts."""
     from api.routers import bars as bars_router
+    # A Discord breadth name (UCTNQA50, UCTNAMO) is read as the site's own symbol
+    # (NASDAQ:A50, NASDAQ:MCO); every other ticker passes through unchanged.
+    try:
+        from api.services import discord_breadth_names as dbn
+        ticker = dbn.site_symbol(ticker) or ticker
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] breadth name lookup failed %s: %s", ticker, e)
     # serve_bars = the LOCAL serve core (get_bars is now an async route with a proxy
     # path; in-process callers must hit the core directly, not the proxy).
     resp = bars_router.serve_bars(ticker, tf, n, "", "", 0)
@@ -84,31 +91,21 @@ BREADTH_CHOICES_SIDE = 5
 
 
 def breadth_choices(q: str) -> list[dict]:
-    """Breadth symbols for the /chart autocomplete.
+    """Breadth-family series for the /chart autocomplete (`discord_breadth_names`:
+    the 45 UCT symbols, the US/NYSE/Nasdaq library, McClellan, sentiment,
+    volatility, COT — every one a "UCT…" name).
 
-    Typing "UCT…" (or "breadth") is asking for the breadth catalogue, so it may fill
-    the list; the bare "UCT"/"BREADTH" takes the groups in turn (MA, momentum,
-    highs/lows, regime) so no group is cut off by the 25-choice cap. Every other
-    query matches symbol or name and keeps to BREADTH_CHOICES_SIDE."""
-    from api.services import breadth_symbols as bs
+    Typing "UCT…" (or "breadth") is asking for the catalogue, so it may fill the
+    list; the bare "UCT"/"BREADTH" takes the groups in turn so no group is cut off
+    by the 25-choice cap. Every other query ("nasdaq 50", "mcclellan") matches name
+    or title and keeps to BREADTH_CHOICES_SIDE."""
+    from api.services import discord_breadth_names as dbn
     needle = (q or "").strip().upper().lstrip("$")
     if not needle:
         return []
-    rows = list(getattr(bs, "_ROWS", None) or [])
-    if not rows:     # the catalogue is the authority; a bare SYMBOLS dict still answers
-        rows = [(s, (m or {}).get("metric"), (m or {}).get("name") or "", (m or {}).get("group"))
-                for s, m in (bs.SYMBOLS or {}).items()]
     catalogue_ask = needle.startswith("UCT") or needle == "BREADTH"
-    if needle in ("UCT", "BREADTH"):
-        groups: dict = {}
-        for row in rows:
-            groups.setdefault(row[3], []).append(row)
-        cols = list(groups.values())
-        picked = [col[i] for i in range(max(len(c) for c in cols)) for col in cols if i < len(col)]
-    else:
-        picked = [r for r in rows if r[0].startswith(needle) or needle in str(r[2]).upper()]
     cap = BREADTH_CHOICES_MAX if catalogue_ask else BREADTH_CHOICES_SIDE
-    return [{"name": (f"{s} - {nm}" if nm else s)[:100], "value": s} for s, _m, nm, _g in picked[:cap]]
+    return [{"name": f"{e.name} - {e.title}"[:100], "value": e.name} for e in dbn.choices(needle, cap)]
 
 
 def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
@@ -483,11 +480,14 @@ def breadth_adjust(req, prefs: dict):
     pre/post treatment (volume, RVOL, gap and ADR are meaningless for a
     percentage). Anything else passes through untouched."""
     try:
-        from api.services import breadth_symbols as bs
-        if not bs.is_breadth_symbol(req.ticker):
+        # Every breadth-family series (`discord_breadth_names`), not only the 45 UCT
+        # symbols: before this, NAMO went down the stock path and drew the candle
+        # stand-in with Gap / $Vol stats.
+        from api.services import discord_breadth_names as dbn
+        entry = dbn.lookup(req.ticker)
+        if entry is None:
             return req, prefs
-        meta = bs.SYMBOLS.get(req.ticker.upper()) or {}
-        name = meta.get("name") or ""
+        name = entry.title or ""
         req = dataclasses.replace(req, tf="W" if req.tf == "W" else "D", daily_only=True,
                                   display=f"{req.ticker} · {name}" if name else req.ticker,
                                   breadth_name=name or req.ticker)
