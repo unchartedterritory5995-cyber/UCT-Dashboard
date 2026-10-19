@@ -22,11 +22,12 @@ from tests.test_team_drawing_set_r4 import FLAG, PRE, _flag_det
 FROZEN = ("confidence", "levels", "start_t", "end_t", "pivot_ts")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _round_7_lanes(monkeypatch):
-    """These rails pin the round-7 lane refit (the lanes every later verdict reads). Geometry round 3
-    then replaces the drawn UPPER lane at the very end of draw_geometry; it is switched off here and
-    pinned on its own in test_bull_flag_geom_v3.py."""
+    """For the two rails that pin the round-7 refit's UPPER-lane values: geometry round 3 replaces the
+    drawn upper lane by design, at the very end of draw_geometry, so it is switched off for those two
+    only. Every other rail here runs with round 3 ON; its fan-out fallback (the round-8 ratio) is railed
+    with the stamp ON in test_bull_flag_r8.py and test_bull_flag_geom_v3.py."""
     monkeypatch.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
 
 
@@ -207,7 +208,7 @@ def _lanes(rows, b1, upper, lower, b0=14):
     return display.flag_draw_lanes(bars, display._index(bars), d), bars
 
 
-def test_a_wide_red_first_flag_bar_is_left_out_of_the_lane_fit():
+def test_a_wide_red_first_flag_bar_is_left_out_of_the_lane_fit(_round_7_lanes):
     rows = _plain(PRE + [11.0, 13.0, 15.0, 17.0])
     rows += [(17.4, 17.5, 15.6, 15.8)]                       # bar 19: red body 1.6, range 1.9
     rows += _plain([16.6, 16.5, 16.4, 16.3, 16.2])           # bars 20-24
@@ -235,7 +236,7 @@ def _wedge(lows):
         (round((h + lo) / 2, 3), round(h, 3), lo, round((h + lo) / 2, 3)) for h, lo in zip(highs, lows)]
 
 
-def test_a_flat_bottomed_wedge_is_drawn_as_a_parallel_channel():
+def test_a_flat_bottomed_wedge_is_drawn_as_a_parallel_channel(_round_7_lanes):
     rows = _wedge([15.8] * 6)
     ex, _ = _drawn(rows, 18, UP, ((19, 15.8), (24, 15.8)))
     assert not ex.get("stale"), ex

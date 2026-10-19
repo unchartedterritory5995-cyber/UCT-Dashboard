@@ -7,6 +7,8 @@ rate over all team flag charts 0.415 vs 0.317 today (not an independent test); n
 Amendment 1 (lab flag_geom_v3/AMENDMENT.txt, post-hoc and conservative -- it only narrows v3 back to the judged
 round-9 drawing): TIER 1 ONLY (the "flagging" tier was not judged and stays as master draws it), and no v3 when
 the pole top is a single-bar spike (its high above every other high within 2 bars by > 0.5 ATR, K set on DEV).
+Amendment 2 (lab flag_geom_v3/AMENDMENT2.txt, post-hoc and conservative): no v3 when the v3 channel at the lower
+lane's right anchor is more than LANE_DIVERGE_RATIO (round 8's fan-out rule) times as wide as at its left anchor.
 
   1. parity       on the 30 judged cases (de-identified fixture), the port stamps exactly what the lab did
   2. golden       non-flag rows and undrawn flags are untouched; a drawn flag changes only its upper lane
@@ -24,8 +26,7 @@ import pytest
 
 from api.services.pattern_engine import display
 from tests.test_bull_flag_r7 import _ohlc, _plain
-from tests.test_bull_flag_r9 import TALL_LEG, _flag_after
-from tests.test_team_drawing_set_r4 import _flag_det
+from tests.test_team_drawing_set_r4 import PRE, _flag_det
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "bull_flag_geom_v3", "judged_cases.json")
 CASES = json.load(open(FIXTURE, encoding="utf-8"))["cases"]
@@ -38,9 +39,20 @@ def _drawn_row(rows, b1, upper, lower):
     return d, bars
 
 
+UP, DN = ((19, 17.5), (24, 16.5)), ((19, 16.5), (24, 15.5))   # the detector's parallel lanes, bars 19-24
+
+
+def _wick_top_rows():
+    """PRE + an 8-ATR pole + a falling flag (round 8's base case) with the pole top's high a 0.3 wick
+    above the first flag high: the v3 lane starts there, rests on the last flag high, and stays inside
+    the round-8 ratio (no fan-out), so round 3 is stamped."""
+    rows = _plain(PRE + [11.0, 13.0, 15.0, 17.0] + [17.0, 16.8, 16.6, 16.4, 16.2, 16.0])
+    rows[18] = (17.0, 17.8, 16.5, 17.0)
+    return rows
+
+
 def _tall_flag():
-    rows, top, up, dn = _flag_after(TALL_LEG)
-    return _drawn_row(rows, top, up, dn)
+    return _drawn_row(_wick_top_rows(), 18, UP, DN)
 
 
 def test_the_round_constant():
@@ -50,11 +62,12 @@ def test_the_round_constant():
 
 # -- 1. parity with the lab on the judged cases ---------------------------------------------------------
 
-def test_the_fixture_is_the_30_judged_cases_25_restamped_and_5_spike_reverts():
+def test_the_fixture_is_the_30_judged_cases_23_restamped_5_spike_and_2_fan_out_reverts():
     assert len(CASES) == 30
     kept = [c for c in CASES if not c["reverted"]]
     rev = [c for c in CASES if c["reverted"]]
-    assert (len(kept), len(rev)) == (25, 5)
+    assert (len(kept), len(rev)) == (23, 7)
+    assert sorted(c["reverted"] for c in rev) == ["fan_out"] * 2 + ["spike"] * 5
     assert all(c["expected"]["geometry"]["extras"]["draw_geom_round"] == 3 for c in kept)
     assert all(c["expected"] != c["today"] for c in kept)           # not vacuous
     assert all(c["expected"] == c["today"] for c in rev)            # the fallback is today's drawing
@@ -65,7 +78,62 @@ def test_the_spike_measure_separates_the_reverted_cases(k):
     c = CASES[k]
     s = display.pole_top_spike_atr(c["bars"], c["today"])
     assert s is not None
-    assert (s > display.BULL_FLAG_V3_SPIKE_ATR) == c["reverted"]
+    assert (s > display.BULL_FLAG_V3_SPIKE_ATR) == (c["reverted"] == "spike")
+
+
+def _fan(lanes, bars, spaces):
+    """w(right) / w(left) of a drawn channel at the lower lane's two anchor bars (amendment 2's measure)."""
+    pos = {b["t"]: i for i, b in enumerate(bars)}
+    up = ((pos[lanes[0]["t"]], lanes[0]["price"]), (pos[lanes[1]["t"]], lanes[1]["price"]))
+    dn = ((pos[lanes[2]["t"]], lanes[2]["price"]), (pos[lanes[3]["t"]], lanes[3]["price"]))
+    xa, xb = sorted((dn[0][0], dn[1][0]))
+    w = lambda x: display._lab_line_at(*up, x, "price") - display._lab_line_at(*dn, x, spaces[1])  # noqa: E731
+    return w(xb) / w(xa)
+
+
+@pytest.mark.parametrize("k", range(30))
+def test_no_drawn_v3_channel_fans_out_past_the_round_8_ratio(k):
+    c = CASES[k]
+    row = copy.deepcopy(c["today"])
+    display.stamp_upper_lane_v3(row, c["bars"])
+    ex = row["geometry"]["extras"]
+    if ex.get("draw_geom_round") == 3:
+        assert _fan(ex["draw_anchors"], c["bars"], (ex.get("line_spaces") or []) + ["price", "price"])             <= display.LANE_DIVERGE_RATIO
+
+
+@pytest.mark.parametrize("k", [i for i, c in enumerate(CASES) if c["reverted"] == "fan_out"])
+def test_a_fanning_v3_channel_keeps_todays_drawing_and_would_have_fanned(k, monkeypatch):
+    c = CASES[k]
+    row = copy.deepcopy(c["today"])
+    display.stamp_upper_lane_v3(row, c["bars"])
+    assert row == c["today"]
+    # non-vacuous: with the ratio lifted out of reach the same row IS restamped, and that channel fans out
+    monkeypatch.setattr(display, "LANE_DIVERGE_RATIO", 1e9)
+    lifted = copy.deepcopy(c["today"])
+    display.stamp_upper_lane_v3(lifted, c["bars"])
+    ex = lifted["geometry"]["extras"]
+    assert ex["draw_geom_round"] == 3
+    assert _fan(ex["draw_anchors"], c["bars"], (ex.get("line_spaces") or []) + ["price", "price"]) > 1.45
+
+
+def test_r8s_fanned_refit_case_with_the_stamp_ON_keeps_the_refit():
+    """Round 8's own fan-out case (test_bull_flag_r8.test_the_DRAWN_lanes_are_held_to_the_same_ratio),
+    with geometry round 3 ON: the v3 channel over that refit fans out, so the refit is drawn unchanged."""
+    from tests import test_bull_flag_r8 as r8
+    bars = _ohlc(_plain(r8.PRE + r8.FAST + r8.FLAG))
+    parallel = [{"t": bars[19]["t"], "price": 17.5}, {"t": bars[24]["t"], "price": 16.5},
+                {"t": bars[19]["t"], "price": 16.5}, {"t": bars[24]["t"], "price": 15.5}]
+    mp = pytest.MonkeyPatch()
+    try:
+        mp.setattr(display, "flag_draw_lanes", lambda *_a: parallel)
+        d, _bars = _drawn_row(_plain(r8.PRE + r8.FAST + r8.FLAG), 18, r8.UP, r8.DN)
+        ex = d["geometry"]["extras"]
+        assert not ex.get("stale") and "draw_geom_round" not in ex, ex
+        assert ex["draw_anchors"] == parallel
+        up = display.flag_upper_lane_v3(_bars, d)                # what v3 would have drawn
+        assert up is not None and _fan(up + parallel[2:], _bars, ["price", "price"]) > display.LANE_DIVERGE_RATIO
+    finally:
+        mp.undo()
 
 
 @pytest.mark.parametrize("k", range(30))
@@ -117,10 +185,9 @@ def test_the_upper_lane_starts_at_the_pole_top_and_rests_on_the_flag_highs():
 
 
 def test_the_stamp_runs_after_every_verdict_so_selection_cannot_move(monkeypatch):
-    rows, top, up, dn = _flag_after(TALL_LEG)
-    on, _ = _drawn_row(rows, top, up, dn)
+    on, _ = _drawn_row(_wick_top_rows(), 18, UP, DN)
     monkeypatch.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
-    off, _ = _drawn_row(rows, top, up, dn)
+    off, _ = _drawn_row(_wick_top_rows(), 18, UP, DN)
     a, b = on["geometry"]["extras"], off["geometry"]["extras"]
     assert {k: v for k, v in a.items() if k not in ("draw_anchors", "draw_geom_round")} == \
         {k: v for k, v in b.items() if k != "draw_anchors"}
