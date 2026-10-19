@@ -253,11 +253,14 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
   const appliedOnNow = useRef(appliedOn)
   appliedOnNow.current = appliedOn
   const hasPreview = useRef(false)
+  const lastAsked = useRef({ on: [], typed: undefined })   // OI-P3b-20: what "Try again" re-runs
+  const askFirst = useRef(null)                            // OI-P3b-15: the open confirm's first button
 
   // The FULL preview: the reduced body, counts and images. `typed`: the title text to preview with it, or undefined
   // for the note's own (the first run, before the field holds one).
   const run = useCallback(async (on, typed) => {
     const mine = ++seq.current
+    lastAsked.current = { on, typed }
     setLoading(true)
     setRateError(null)
     try {
@@ -328,6 +331,17 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
     if (needsSecondConfirm(image)) { setAsking(image.src); return }
     turn(image.src, true)
   }
+  // OI-P3b-15: the confirm takes focus when it opens, and either answer hands it back to that image's switch
+  // (each answer removes the button that was focused, which would otherwise drop focus to <body>).
+  useEffect(() => { if (asking) askFirst.current?.focus() }, [asking])
+  const switchId = (i) => `${uid}-img-${i}-switch`
+  const answer = (image, i, share) => {
+    if (share) turn(image.src, true)
+    else setAsking(null)
+    document.getElementById(switchId(i))?.focus()
+  }
+  // OI-P3b-20: a failed preview offers to re-run the last one asked for, so it is not read as a dead end.
+  const retry = () => { const { on, typed } = lastAsked.current; run(on, typed) }
 
   // ⛔ P3b-T5-R9 (review I-3): what is sent is what is ON SCREEN. Submit waits while a re-run is in flight, stays
   // off after one failed, and posts the `imagesOn` the applied preview was made from -- never a switch state the
@@ -385,6 +399,12 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
           <span key={k} id={`${uid}-kind-${k}`} hidden>{k === 'other' ? UNKNOWN_KIND[2] : CHANGE_KINDS[k][2]}</span>
         ))}
         {loadError && <p className={styles.error} role="alert">{loadError}</p>}
+        {/* a note that may not be an example is refused for good: there is nothing to try again */}
+        {loadError && loadError !== NOT_AN_EXAMPLE_SENTENCE && (
+          <button type="button" className={styles.btn} onClick={retry} disabled={loading} data-example-retry="">
+            Try again
+          </button>
+        )}
         {!preview && !loadError && <p className={styles.hint} role="status">Making your preview…</p>}
         {preview && (
           <>
@@ -419,7 +439,7 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
                             is its aria-label and the visible words sit beside it in the label, which also passes a
                             click on the words to the switch. */}
                         <label className={styles.switch}>
-                          <Switch checked={on} aria-label={SHARE_IMAGE_LABEL} className={styles.track} knobClassName={styles.knob}
+                          <Switch id={switchId(i)} checked={on} aria-label={SHARE_IMAGE_LABEL} className={styles.track} knobClassName={styles.knob}
                             aria-describedby={[`${rid}-name`, `${rid}-ocr`, reason ? `${rid}-why` : null].filter(Boolean).join(' ')}
                             disabled={!on && Boolean(reason)} onClick={() => flip(image)} />
                           <span aria-hidden="true">{SHARE_IMAGE_LABEL}</span>
@@ -428,9 +448,10 @@ export default function ExamplePreviewSheet({ note, styleItemId, onSent, onClose
                           <div className={styles.confirm} role="group" aria-labelledby={`${rid}-ask`}>
                             <p className={styles.ask} id={`${rid}-ask`}>{CONFIRM_SENTENCE}</p>
                             <div className={styles.actions}>
-                              <button type="button" className={styles.btn} onClick={() => setAsking(null)}>Cancel</button>
+                              <button type="button" className={styles.btn} ref={askFirst}
+                                onClick={() => answer(image, i, false)}>Cancel</button>
                               <button type="button" className={`${styles.btn} ${styles.primary}`}
-                                onClick={() => turn(image.src, true)}>Share it</button>
+                                onClick={() => answer(image, i, true)}>Share it</button>
                             </div>
                           </div>
                         )}
