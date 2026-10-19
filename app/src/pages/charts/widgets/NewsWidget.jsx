@@ -9,8 +9,10 @@
  * Appearance (canvas + text color) is a per-widget ⚙ blob persisted globally like
  * the other widget settings; the up/down filter persists per-widget via opts.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useWorkspace } from '../WorkspaceContext'
+import { ChartHostOverlayContext } from './chartHostOverlay'
 import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -88,6 +90,10 @@ export default function NewsWidget({
 }) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
+  // A host that reads one feed per row it steps through (the screener) PEEKS: it shows what is
+  // already written and never starts a generation (useNewsCatalysts). The door that generates is
+  // the research page's Catalysts tab, linked from the empty state.
+  const peek = !!useContext(ChartHostOverlayContext)?.newsPeek
   // Company name for the header (⚙ "Show" = ticker / company / both) + logo hint.
   // Lightweight, localStorage-seeded, shared with the chart watermark.
   const { name: company } = useTickerMeta(sym)
@@ -176,7 +182,7 @@ export default function NewsWidget({
 
   // ── Data — poll fast while historical catalysts generate, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status: liveStatus, events: liveEvents } = useNewsCatalysts(frozenEvents ? null : sym, { generating: fastPoll })
+  const { status: liveStatus, events: liveEvents } = useNewsCatalysts(frozenEvents ? null : sym, { generating: fastPoll, peek })
   const status = frozenEvents ? 'ready' : liveStatus
   const events = frozenEvents ?? liveEvents
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
@@ -328,9 +334,14 @@ export default function NewsWidget({
         </div>
       )}
 
-      {sym && !generating && shown.length === 0 && (
+      {sym && !generating && !(peek && status === 'loading') && shown.length === 0 && (peek && !frozenEvents && events.length === 0 ? (
+        <div className={styles.empty}>
+          No catalysts on record yet for {sym}.{' '}
+          <Link className={styles.findLink} to={`/research/${encodeURIComponent(sym)}?section=catalysts`}>Find catalysts ›</Link>
+        </div>
+      ) : (
         <div className={styles.empty}>No {filter !== 'all' ? filter + ' ' : ''}catalysts yet for {sym}.</div>
-      )}
+      ))}
 
       {sym && shown.length > 0 && (
         <div className={styles.list}>

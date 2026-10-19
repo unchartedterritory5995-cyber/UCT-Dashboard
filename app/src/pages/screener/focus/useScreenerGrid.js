@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { LAYOUTS, parseLayoutId } from '../../charts/grid/gridLayouts'
+import { LAYOUTS, makeLayout, parseLayoutId } from '../../charts/grid/gridLayouts'
 
 // ⭐ The screener's Charts view IS the /charts Multi-Chart grid (owner, 2026-10-18: the screener is
 // "just a tool to access the same stuff in the same format"). MultiChartGrid takes its whole board
@@ -10,18 +10,22 @@ import { LAYOUTS, parseLayoutId } from '../../charts/grid/gridLayouts'
 // the warm, maximise, crosshair/range sync and the one shared settings modal. What this owns is
 // which results are on the board: the page, and a slot's own timeframe / style / typed ticker.
 
-// The /charts presets the screener offers, read off its LAYOUTS, never a second list.
-const OFFERED = ['2x2', '3x3', '4x4']
-export const SCREENER_GRID_LAYOUTS = LAYOUTS.filter(l => OFFERED.includes(l.id))
+// Every /charts preset, and any custom N×M /charts accepts: its LAYOUTS and its own parser, never
+// a second list.
+export const SCREENER_GRID_LAYOUTS = LAYOUTS
+/** A layout id /charts would produce itself (parseLayoutId clamps, so a clamped id is not one). */
+export const isGridLayout = id => /^\d+x\d+$/.test(String(id || '')) && parseLayoutId(id).id === id
 export const DEFAULT_GRID_LAYOUT = '3x3'
 // One column of two on a phone: /charts' own "Stacked" preset.
 export const PHONE_GRID_LAYOUT = '2x1'
 
 const EMPTY = []
+const NO_SYNC = { crosshair: false, timeRange: false }
 const noop = () => {}
 
 export default function useScreenerGrid({
   rows = EMPTY, hasMore = false, onLoadMore, layoutId = DEFAULT_GRID_LAYOUT, onLayout, resetKey,
+  sync = NO_SYNC, onSync,
 } = {}) {
   const layout = parseLayoutId(layoutId)
   const n = layout.cellCount
@@ -89,23 +93,23 @@ export default function useScreenerGrid({
   }, [first, n, loaded, hasMore, onLoadMore])
   const prev = useCallback(() => { wanted.current = null; setStart(Math.max(0, first - n)) }, [first, n])
 
-  // The grid's own layout cycle (Alt+\) walks every /charts preset; here it lands only on one the
-  // screener offers, the next one after the current.
-  const enterGrid = useCallback((id) => {
-    const offered = SCREENER_GRID_LAYOUTS.some(l => l.id === id)
-    const at = SCREENER_GRID_LAYOUTS.findIndex(l => l.id === layout.id)
-    const to = offered ? id : SCREENER_GRID_LAYOUTS[(at + 1) % SCREENER_GRID_LAYOUTS.length].id
-    onLayout?.(to)
-  }, [layout.id, onLayout])
+  // The grid's own layout cycle (Alt+\) and the Multi Chart menu's presets and Custom N×M land
+  // here, through /charts' own layout parser.
+  const enterGrid = useCallback((id) => onLayout?.(parseLayoutId(id).id), [onLayout])
+  const applyCustomLayout = useCallback((r, c) => onLayout?.(makeLayout(r, c).id), [onLayout])
+  const setSyncCrosshair = useCallback(on => onSync?.({ ...sync, crosshair: !!on }), [sync, onSync])
+  const setSyncTimeRange = useCallback(on => onSync?.({ ...sync, timeRange: !!on }), [sync, onSync])
 
   const mc = useMemo(() => ({
-    state: { mode: 'grid', layout: layout.id, cells, syncCrosshair: false, syncTimeRange: false, groupsMode: false, group: null },
+    state: { mode: 'grid', layout: layout.id, cells, syncCrosshair: !!sync.crosshair, syncTimeRange: !!sync.timeRange, groupsMode: false, group: null },
     hydrated: true,
     settingsOpen, setSettingsOpen,
-    enterGrid, updateCellAt,
-    // Groups mode (peer fill, its undo) is a /charts board feature; a screen's results are the board.
-    fillCells: noop, restoreCells: noop, clearGroup: noop,
-  }), [layout.id, cells, settingsOpen, enterGrid, updateCellAt])
+    enterGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange,
+    // Groups mode (peer fill, its undo), opening a saved grid and leaving the grid are /charts
+    // board features: a screen's results are the board (the menu hides them, MultiChartMenu
+    // `features`).
+    fillCells: noop, restoreCells: noop, clearGroup: noop, setGroupsMode: noop, applyGridTemplate: noop, exitGrid: noop,
+  }), [layout.id, cells, settingsOpen, sync.crosshair, sync.timeRange, enterGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange])
 
   const shown = Math.max(0, Math.min(n, loaded - first))
   return {

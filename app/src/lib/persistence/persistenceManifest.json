@@ -2436,6 +2436,17 @@
       ]
     },
     {
+      "key": "uct.screener.gridSync",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Charts view crosshair and time-range sync",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartGrid.jsx"
+      ]
+    },
+    {
       "key": "uct.screener.landingSeed:*",
       "store": "localStorage",
       "scope": "device-local",

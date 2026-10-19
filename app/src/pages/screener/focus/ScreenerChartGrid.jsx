@@ -1,19 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import { WorkspaceContext } from '../../charts/WorkspaceContext'
 import MultiChartGrid from '../../charts/grid/MultiChartGrid'
+import MultiChartMenu from '../../charts/grid/MultiChartMenu'
+import { LAYOUTS, parseLayoutId } from '../../charts/grid/gridLayouts'
 import useDrillWorkspace from '../../breadth/drill/drillWorkspace'
-import useScreenerGrid, { SCREENER_GRID_LAYOUTS, DEFAULT_GRID_LAYOUT, PHONE_GRID_LAYOUT } from './useScreenerGrid'
+import useScreenerGrid, { isGridLayout, DEFAULT_GRID_LAYOUT, PHONE_GRID_LAYOUT } from './useScreenerGrid'
 import styles from './FocusScreener.module.css'
 
 // The Charts view: the screen's results on the /charts Multi-Chart grid (Finviz's Charts view,
 // TC2000's flip grid). The grid is the real MultiChartGrid, in a workspace host built like the
 // breadth drill's, so every cell is a /charts grid cell: timeframes, styles, the shared settings
 // gear, maximise, the theme. useScreenerGrid decides which results are on the board.
+//
+// The layout control IS the /charts Multi Chart menu (every preset, Custom N×M, the crosshair and
+// time-range sync, Chart settings, Save grid as…), with the sections that would replace or leave
+// the results hidden (MultiChartMenu `features`).
 const LAYOUT_KEY = 'uct.screener.gridLayout'
+const SYNC_KEY = 'uct.screener.gridSync'
+const MENU_FEATURES = { templates: false, groups: false, workspace: false }
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
-const offered = id => SCREENER_GRID_LAYOUTS.some(l => l.id === id)
+const readSync = () => {
+  try {
+    const v = JSON.parse(readLS(SYNC_KEY, 'null'))
+    return { crosshair: !!v?.crosshair, timeRange: !!v?.timeRange }
+  } catch { return { crosshair: false, timeRange: false } }
+}
+const layoutLabel = id => LAYOUTS.find(l => l.id === id)?.label || parseLayoutId(id).id.replace('x', '×')
 const fmtN = v => Number(v || 0).toLocaleString('en-US')
 
 export default function ScreenerChartGrid({ rows, total, hasMore, onLoadMore, resetKey, phone = false }) {
@@ -21,10 +35,24 @@ export default function ScreenerChartGrid({ rows, total, hasMore, onLoadMore, re
   const chartsTheme = prefs?.charts_theme || 'default'
   const [layoutId, setLayoutId] = useState(() => {
     const v = readLS(LAYOUT_KEY, DEFAULT_GRID_LAYOUT)
-    return offered(v) ? v : DEFAULT_GRID_LAYOUT
+    return isGridLayout(v) ? v : DEFAULT_GRID_LAYOUT
   })
-  const onLayout = useCallback(id => { if (!offered(id)) return; setLayoutId(id); writeLS(LAYOUT_KEY, id) }, [])
-  const grid = useScreenerGrid({ rows, hasMore, onLoadMore, resetKey, onLayout, layoutId: phone ? PHONE_GRID_LAYOUT : layoutId })
+  const onLayout = useCallback(id => { if (!isGridLayout(id)) return; setLayoutId(id); writeLS(LAYOUT_KEY, id) }, [])
+  const [sync, setSync] = useState(readSync)
+  const onSync = useCallback(next => { setSync(next); writeLS(SYNC_KEY, JSON.stringify(next)) }, [])
+  const grid = useScreenerGrid({ rows, hasMore, onLoadMore, resetKey, onLayout, sync, onSync, layoutId: phone ? PHONE_GRID_LAYOUT : layoutId })
+
+  // The menu closes on a click outside it or Escape, as the /charts header menus do.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const onDown = e => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false) }
+    const onKey = e => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown, true)
+    window.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown, true); window.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
   const workspace = useDrillWorkspace({ initialSym: rows[0]?.ticker || null, chartsTheme })
 
   // PageDown / PageUp turn the page from anywhere in the view, except while typing (a cell's
@@ -56,11 +84,10 @@ export default function ScreenerChartGrid({ rows, total, hasMore, onLoadMore, re
         <button type="button" className={styles.btn} onClick={next} disabled={!canNext} aria-label="Next charts">Next ›</button>
         <span className={styles.spacer} />
         {!phone && (
-          <div role="group" aria-label="Charts per page" className={styles.seg}>
-            {SCREENER_GRID_LAYOUTS.map(l => (
-              <button key={l.id} type="button" aria-pressed={layoutId === l.id} className={layoutId === l.id ? styles.segOn : styles.segOff}
-                onClick={() => onLayout(l.id)}>{l.label}</button>
-            ))}
+          <div className={styles.gridMenu} ref={menuRef}>
+            <button type="button" className={styles.btn} aria-haspopup="menu" aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(o => !o)}>{`▦ ${layoutLabel(layoutId)} ▾`}</button>
+            {menuOpen && <MultiChartMenu mc={grid.mc} onClose={() => setMenuOpen(false)} features={MENU_FEATURES} alignRight />}
           </div>
         )}
       </div>

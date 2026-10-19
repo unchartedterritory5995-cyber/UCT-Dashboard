@@ -1,16 +1,24 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, expect, test } from 'vitest'
-import useScreenerGrid, { SCREENER_GRID_LAYOUTS, DEFAULT_GRID_LAYOUT } from '../useScreenerGrid'
+import useScreenerGrid, { SCREENER_GRID_LAYOUTS, DEFAULT_GRID_LAYOUT, isGridLayout } from '../useScreenerGrid'
 import { LAYOUTS } from '../../../charts/grid/gridLayouts'
 
 const rows = n => Array.from({ length: n }, (_, i) => ({ ticker: `T${i}` }))
 const syms = r => r.current.mc.state.cells.map(c => c.sym)
 
-test('the layouts offered are /charts grid presets, never a second list', () => {
-  const ids = new Set(LAYOUTS.map(l => l.id))
-  expect(SCREENER_GRID_LAYOUTS.length).toBeGreaterThan(1)
-  for (const l of SCREENER_GRID_LAYOUTS) expect(ids.has(l.id)).toBe(true)
+test('the layouts offered are EVERY /charts grid preset, never a second list', () => {
+  expect(SCREENER_GRID_LAYOUTS).toBe(LAYOUTS)
   expect(SCREENER_GRID_LAYOUTS.some(l => l.id === DEFAULT_GRID_LAYOUT)).toBe(true)
+})
+
+test('a layout id is one /charts would produce: presets and custom N×M yes, a clamped or junk id no', () => {
+  for (const l of LAYOUTS) expect(isGridLayout(l.id)).toBe(true)
+  expect(isGridLayout('3x4')).toBe(true)
+  expect(isGridLayout('1x1')).toBe(true)
+  // /charts' parser clamps 9 to 4, so '9x9' is not an id it would ever hand back.
+  expect(isGridLayout('9x9')).toBe(false)
+  expect(isGridLayout('grid')).toBe(false)
+  expect(isGridLayout(null)).toBe(false)
 })
 
 test('the cells are the first page of results, in list order, in the mc shape MultiChartGrid reads', () => {
@@ -22,7 +30,7 @@ test('the cells are the first page of results, in list order, in the mc shape Mu
   expect(mc.state.group).toBe(null)
   expect(syms(result)).toEqual(['T0', 'T1', 'T2', 'T3'])
   expect(mc.state.cells.every(c => c.tf === 'D')).toBe(true)
-  for (const k of ['enterGrid', 'updateCellAt', 'fillCells', 'restoreCells', 'clearGroup', 'setSettingsOpen']) {
+  for (const k of ['enterGrid', 'applyCustomLayout', 'updateCellAt', 'setSyncCrosshair', 'setSyncTimeRange', 'fillCells', 'restoreCells', 'clearGroup', 'setGroupsMode', 'applyGridTemplate', 'exitGrid', 'setSettingsOpen']) {
     expect(typeof mc[k]).toBe('function')
   }
 })
@@ -92,10 +100,25 @@ test('changing the layout keeps the first visible result on screen', () => {
   expect(syms(result)).toContain('T8')
 })
 
-test('the layout cycle (Alt+\\) only lands on layouts the screener offers', () => {
+test('every preset, the layout cycle (Alt+\\) and the menu Custom N×M reach the screener layout', () => {
   const onLayout = vi.fn()
   const { result } = renderHook(() => useScreenerGrid({ rows: rows(4), layoutId: '2x2', onLayout }))
   act(() => result.current.mc.enterGrid('1x2'))
-  const offered = new Set(SCREENER_GRID_LAYOUTS.map(l => l.id))
-  expect(offered.has(onLayout.mock.calls[0][0])).toBe(true)
+  act(() => result.current.mc.applyCustomLayout(3, 4))
+  // A custom size /charts would clamp is clamped the same way, through its own makeLayout.
+  act(() => result.current.mc.applyCustomLayout(9, 9))
+  expect(onLayout.mock.calls.map(c => c[0])).toEqual(['1x2', '3x4', '4x4'])
+})
+
+test('the crosshair and time-range sync toggles are the host one, read back into the grid state', () => {
+  const onSync = vi.fn()
+  let sync = { crosshair: false, timeRange: false }
+  const { result, rerender } = renderHook(() => useScreenerGrid({ rows: rows(4), layoutId: '2x2', sync, onSync }))
+  expect(result.current.mc.state.syncCrosshair).toBe(false)
+  act(() => result.current.mc.setSyncCrosshair(true))
+  expect(onSync).toHaveBeenLastCalledWith({ crosshair: true, timeRange: false })
+  sync = { crosshair: true, timeRange: true }
+  rerender()
+  expect(result.current.mc.state.syncCrosshair).toBe(true)
+  expect(result.current.mc.state.syncTimeRange).toBe(true)
 })

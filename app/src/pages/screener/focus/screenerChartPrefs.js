@@ -4,11 +4,13 @@
 // and folding it in would put a second authority over that blob.
 //
 // ⛔ Stored: the chart widget's OPTS (timeframe, settings, chart tabs, dock, watermark), plus any
-// widget the phone chart's toolbar added (★ watchlist, Tools ▸ add) as {id, type, opts}. The symbol
+// widget the phone chart's toolbar added (★ watchlist, Tools ▸ add) as {id, type, opts}, plus the
+// opts of the News & Catalysts widget under the desktop chart (its filter and look). The symbol
 // is never stored: it is the selected row's, published into colour group A per selection.
 
 export const SCREENER_CHART_PREF = 'screener_chart_widget'
 export const SCREENER_CHART_ID = 'screener-chart'
+export const SCREENER_NEWS_ID = 'screener-news'
 // The row list publishes the selected ticker into group A and the chart reads it: the same link
 // /charts uses between a watchlist and a chart, not a bespoke callback.
 export const SCREENER_CHART_GROUP = 'A'
@@ -35,9 +37,18 @@ export function parseScreenerWidgets(raw, seedOpts = {}) {
   return [chart, ...extras]
 }
 
-export function serializeChartWidget(widget, extras = []) {
+/** The News & Catalysts widget under the desktop chart, on group A like the chart. Never throws. */
+export function parseScreenerNews(raw) {
+  let v = null
+  try { v = typeof raw === 'string' ? JSON.parse(raw) : raw } catch { v = null }
+  const opts = v && typeof v === 'object' && v.news && typeof v.news === 'object' ? v.news : {}
+  return { id: SCREENER_NEWS_ID, type: 'news', color: SCREENER_CHART_GROUP, opts }
+}
+
+export function serializeChartWidget(widget, extras = [], news = null) {
   return JSON.stringify({
     opts: widget?.opts || {},
     extras: (extras || []).map(w => ({ id: w.id, type: w.type, opts: w.opts || {} })),
+    news: news?.opts || {},
   })
 }
