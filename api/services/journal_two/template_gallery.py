@@ -701,7 +701,10 @@ def list_gallery(
         raise GalleryError("Unknown gallery section.")
     # With the library off the gallery must look exactly like today's: "trending" is a P3a sort,
     # so it answers what any unknown sort answered before it existed (same 400, same sentence).
-    library_on = library_enabled()
+    # The switches are read ONCE per request (P5-T5b-R1): `library_on` and the WHERE term below both derive
+    # from this one answer, so a switch flip mid-request cannot pair a library-off branch with a style row.
+    hidden = _hidden_styles()
+    library_on = hidden != "all"
     if sort not in SORTS or (sort == "trending" and not library_on):
         raise GalleryError("Sort by newest, most adopted or trending." if library_on
                            else "Sort by newest or most used.")
@@ -730,7 +733,7 @@ def list_gallery(
     elif item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
-    where.append(_hidden_styles_sql())          # every style row the switches hide (P5-AUD-1), picks included
+    where.append(_hidden_styles_sql(hidden))    # every style row the switches hide (P5-AUD-1), picks included
     if trading_style:
         where.append("g.trading_style = ?")
         args.append(trading_style)
@@ -791,9 +794,11 @@ def _library_hides(row: sqlite3.Row) -> bool:
     return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
 
 
-def _hidden_styles_sql() -> str:
-    """`_hidden_styles()` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in."""
-    hidden = _hidden_styles()
+def _hidden_styles_sql(hidden: str | None = None) -> str:
+    """`_hidden_styles()` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in.
+    A caller that already holds this request's `_hidden_styles()` answer passes it, so the switches are read once."""
+    if hidden is None:
+        hidden = _hidden_styles()
     if hidden == "all":
         return "g.item_type = 'outline'"
     if hidden == "firm":
@@ -1700,12 +1705,12 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
         # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
         # held revision) is reviewable only while the library is on, and a firm style row only while the
         # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
-        outlines_only = f" AND {_hidden_styles_sql()}"
+        visible_styles = f" AND {_hidden_styles_sql()}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in _read(conn, None, f"({where}){outlines_only}", (), list_only=True, queue=queue,
+                    for r in _read(conn, None, f"({where}){visible_styles}", (), list_only=True, queue=queue,
                                    tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never

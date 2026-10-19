@@ -442,6 +442,26 @@ def test_the_one_rule_and_its_two_renderings_agree(conn, monkeypatch, library, s
     assert (firm_styles <= kept) is (library == "1" and starter == "1")
 
 
+def test_one_list_request_reads_the_switches_once(conn, monkeypatch):
+    """P5-T5b-R1. `list_gallery` decides once per request: a library switch that flips between two reads (off,
+    then on, with the starter switch on) cannot pair the library-off branch, which adds no item-type filter, with
+    a WHERE term that lets style rows through. The flipping switch also proves the request read it ONCE."""
+    gallery.seed_firm_templates(conn)
+    _member_style_row(conn, ADMIN)
+    monkeypatch.setenv(STARTER, "1")
+    reads = []
+
+    def flips() -> bool:
+        reads.append(1)
+        return len(reads) > 1           # off on the first read, on on every later one
+
+    monkeypatch.setattr(gallery, "library_enabled", flips)
+    listed = gallery.list_gallery(MEMBER, conn=conn)
+    assert listed, "the outlines must still list, or this proves nothing"
+    assert {x["itemType"] for x in listed} == {"outline"}
+    assert len(reads) == 1
+
+
 def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
     """A firm row has no author, so neither read can reach one in a real database. This PROBE gives one firm
     style row an author the member follows, to prove both reads carry the rule rather than relying on that
