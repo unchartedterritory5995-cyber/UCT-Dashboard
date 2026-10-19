@@ -257,8 +257,8 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: only while it is not stale and carries extras.draw_round equal to the confirmed
 #: round: a row stored by older drawing code, or one whose verdicts never finished,
 #: is dropped (an admin still sees it).
-#: NOT confirmed, so admin-only (Team/All) and never served to a member:
-#: bc:cup-with-handle, every other id. Admins' tiers are unchanged:
+#: NOT confirmed, so admin-only (Team/All) and never served to a member: every other id. Admins'
+#: tiers are unchanged:
 #: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
 #: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
 #: rows ONLY through this set (api/routers/patterns.py, member branch).
@@ -268,9 +268,16 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: extras.draw_round == MEMBER_FLAT_TOP_ROUND beside a well-formed draw_flat_top (fail closed). Its
 #: trusted tier is per ROW (DISPLAY_TRUSTED_WHEN_STAMPED / row_display_policy): an unstamped
 #: flat-top row keeps the experimental tier it always had, for admins too.
+#: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup
+#: recognition tier draws it (pattern_engine/cup_tier.py): recognition 28 of 33 = 84.8% on two fresh
+#: blind packets (live detector alone 14.3%), and drawing round 4 on two fresh pre-registered packets,
+#: two judges each: d1 2.42 [2.20, 2.62] 96% >= 2, d2 2.50 [2.28, 2.72] 88% >= 2.
+#: auto_structures.member_rows serves it only while it carries extras.cup_tier with draw_round ==
+#: MEMBER_CUP_TIER_ROUND, not withheld, and then draws the tier's pivot / handle / rim reference in place
+#: of the admin rounds' drawing. An unstamped cup row stays admin-only.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
-    "uct_flat_top_breakout",
+    "uct_flat_top_breakout", "bc:cup-with-handle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

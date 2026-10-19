@@ -15,7 +15,9 @@ stamped with that round, never a stale one), plus its lighter "flagging" tier (l
 flag_vocab: a stale flag stopped only by a relaxed verdict and stamped extras.flagging;
 drawn faint, no entry line). The rest of the team set
 (bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
-the route filters server-side (`member_rows`), never the client.
+the route filters server-side (`member_rows`), never the client. A bc:cup-with-handle
+reaches a member only as the CUP TIER draws it (extras.cup_tier, drawing round 4 confirmed blind:
+lab cup_tier_v2 + cup_draw_v4), see member_rows.
 Display-only end to end: nothing here changes what any detector fires on, its
 confidence, HIST_SCORE or `confirmed_only`.
 """
@@ -86,15 +88,24 @@ def member_rows(rows) -> list:
     under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
     it carries that round's stamp beside a well-formed `draw_flat_top`
     (`_confirmed_flat_top`): any other flat-top row carries no stamp and is dropped.
-    Fail closed."""
+    Fail closed.
+
+    A bc:cup-with-handle passed its blind checks only as the CUP TIER draws it (lab cup_tier_v2
+    recognition + lab cup_draw_v4 drawing round 4), so a member gets one only while it carries the
+    tier stamp `extras.cup_tier` with draw_round == MEMBER_CUP_TIER_ROUND (a literal), not withheld,
+    beside a well-formed pivot / handle (`_confirmed_cup_tier`), and is then served the TIER'S
+    drawing in place of the admin rounds' (`_cup_tier_member_row`). Fail closed."""
     allowed = member_ids()
-    return [r for r in rows or []
+    kept = [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
-            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
             and ((r or {}).get("pattern_id") != "bull_flag"
                  or _confirmed_flag(r) or _flagging_flag(r))
-            and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))]
+            and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
+            and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
+            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
+                 or _pivot_only(r))]
+    return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
 
 
 #: The flat-top drawing round the blind check confirmed for members: the v2 draw condition (lab
@@ -134,6 +145,87 @@ def _confirmed_flat_top(row) -> bool:
     return (isinstance(touches, list) and len(touches) >= 3
             and all(isinstance(t, dict) and t.get("t") is not None and _finite(t.get("price"))
                     for t in touches))
+
+
+#: The cup row id (a base_catalog box).
+CUP_ID = "bc:cup-with-handle"
+#: The cup tier drawing round the blind check confirmed for members (lab cup_draw_v4, 2026-10-18,
+#: pre-registered: packets d1 2.42 [2.20, 2.62] 96% >= 2 and d2 2.50 [2.28, 2.72] 88% >= 2, two judges
+#: each), on the cup recognition tier (lab cup_tier_v2: 28 of 33 = 84.8%). A literal ON PURPOSE, not
+#: cup_tier.DRAW_ROUND: when the drawing code moves to a new round, members stop getting the cup
+#: until that round is confirmed and this is changed by hand.
+MEMBER_CUP_TIER_ROUND = 4
+#: The tier name the stamp must carry.
+MEMBER_CUP_TIER_NAME = "cup_conf"
+
+
+def _span(d) -> bool:
+    try:
+        return int(d["start_t"]) <= int(d["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _confirmed_cup_tier(row) -> bool:
+    """True when a bc:cup-with-handle row carries the confirmed cup tier drawing: not stale,
+    `extras.cup_tier` names the tier and MEMBER_CUP_TIER_ROUND (an int), nothing withheld, a pivot
+    with a finite price and a span, a handle box with a finite top at or above a finite floor, and a
+    rim reference exactly when the pivot is at the handle high. Anything else is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    st = ex.get("cup_tier")
+    if not isinstance(st, dict) or st.get("tier") != MEMBER_CUP_TIER_NAME:
+        return False
+    rnd = st.get("draw_round")
+    if not (type(rnd) is int and rnd == MEMBER_CUP_TIER_ROUND):
+        return False
+    if st.get("withheld") is not None or "withheld" not in st:
+        return False
+    pv, hd, rr = st.get("pivot"), st.get("handle"), st.get("rim_ref")
+    if not (isinstance(pv, dict) and _finite(pv.get("price")) and _span(pv)):
+        return False
+    if not (isinstance(hd, dict) and _finite(hd.get("top")) and _finite(hd.get("floor")) and _span(hd)):
+        return False
+    if not float(hd["top"]) >= float(hd["floor"]):
+        return False
+    if st.get("pivot_at") == "handle_high":
+        return isinstance(rr, dict) and _finite(rr.get("price")) and _span(rr)
+    return st.get("pivot_at") == "rim" and rr is None
+
+
+def _cup_tier_member_row(row) -> dict:
+    """A member's copy of a confirmed cup row: every admin-round drawing key (`draw_*`) replaced by the
+    tier's own drawing -- the pivot (`draw_pivot`), the handle box (`draw_handle`), the rim as a faint
+    reference when the pivot is the handle high (`draw_rim_ref`) and no base box (`draw_box` False) --
+    so PatternOverlay draws exactly what the judges scored. The row passed in is not modified."""
+    st = row["geometry"]["extras"]["cup_tier"]
+    ex = {k: v for k, v in row["geometry"]["extras"].items() if not str(k).startswith("draw_")}
+    ex["draw_pivot"] = dict(st["pivot"])
+    ex["draw_handle"] = dict(st["handle"])
+    if st.get("rim_ref"):
+        ex["draw_rim_ref"] = dict(st["rim_ref"])
+    ex["draw_box"] = False
+    return {**row, "geometry": {**row["geometry"], "extras": ex}}
+
+
+def cup_tier_stamp(det: dict, bars: list) -> None:
+    """Stamp `extras.cup_tier` on a bc:cup-with-handle row when the cup tier holds at the latest
+    COMPLETE daily bar of `bars` (a forming session is dropped first: the lab judged finished
+    sessions). Adds that one key and nothing else; a row the tier does not stamp is untouched.
+    Display only. Never raises."""
+    try:
+        if (det or {}).get("pattern_id") != CUP_ID:
+            return
+        from api.services.pattern_engine import cup_tier
+        b = list(bars or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        st = cup_tier.stamp(b)
+        if st is not None:
+            det["geometry"]["extras"]["cup_tier"] = st
+    except Exception:  # noqa: BLE001 -- a tier stamp never drops or breaks the row
+        return
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
@@ -419,6 +511,8 @@ def structures_for(sym: str) -> list:
                 # served: dropping it here keeps the overlay unchanged.
                 if (det.get("geometry") or {}).get("extras", {}).get("stale"):
                     continue
+                # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
+                cup_tier_stamp(det, bars)
                 out.append(det)
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)

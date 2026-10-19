@@ -15,7 +15,10 @@ tests/test_flag_tiers.py. And (2026-10-18) uct_flat_top_breakout AS THE v2 DRAWI
 the "flat top" ceiling and its touch markers (lab flattop_draw_v2: A 2.60 [2.30, 2.83], B 2.57
 [2.30, 2.80]) -- only while it carries that round's stamp beside a well-formed draw_flat_top; an
 unconfirmed or non-v2 fire is never served (tests/test_flat_top_member_drawing.py carries the
-drawing and the gate in full).
+drawing and the gate in full). And (2026-10-18) bc:cup-with-handle ONLY AS THE CUP TIER DRAWS IT
+(lab cup_tier_v2 recognition + cup_draw_v4 drawing round 4): a cup row reaches a member only while it
+carries extras.cup_tier at the confirmed round, not withheld; an UNSTAMPED cup row -- every cup row
+below -- is never served (tests/test_cup_tier_member_drawing.py carries the stamp and the gate in full).
 
 The fake detection store below honours `pattern_ids` and `include_internal` the way
 memory.get_active_detections does, so a route that asked for too much would be SERVED too much.
@@ -40,13 +43,17 @@ from tests.test_bull_flag_r9 import SHORT_LEG, TALL_LEG, _flag_after
 from tests.test_drawing_geometry_v2 import _bars
 from tests.test_team_drawing_set_r4 import _flag_det
 
-MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout"}
+MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout",
+              "bc:cup-with-handle"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
 MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
 #: The internal ids a member may be drawn: each is in the member set by its own blind check.
 MEMBER_INTERNAL_IDS = {"uct_pullback_ma_v5", "uct_flat_top_breakout"}
-#: Team-set types that are NOT confirmed and must NEVER reach a member.
-NOT_MEMBER = {"bc:cup-with-handle"}
+#: Team-set types that are NOT confirmed and must NEVER reach a member (none left since the cup tier).
+NOT_MEMBER: set = set()
+#: Member types served ONLY with their tier stamp (extras.cup_tier): every row in this file is
+#: unstamped, so none of them may reach a member here.
+STAMP_GATED = {"bc:cup-with-handle"}
 #: The bull_flag drawing round the blind check confirmed (REPORT_BULLFLAG_R9.md). Pinned as a literal.
 CONFIRMED_ROUND = 9
 #: The flat-top drawing round the blind check confirmed (lab flattop_draw_v2). Pinned as a literal.
@@ -186,7 +193,7 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     assert registry.DISPLAY_MEMBER_SET & registry.INTERNAL_PATTERN_IDS == MEMBER_INTERNAL_IDS
     # every member id is drawable: a registered detector, or a team-set base box (pivot line)
     bc = {pid for pid in registry.DISPLAY_MEMBER_SET if pid.startswith("bc:")}
-    assert bc == {"bc:flat-base"} and bc <= auto_structures.TEAM_PIVOT_BOXES
+    assert bc == {"bc:flat-base", "bc:cup-with-handle"} and bc <= auto_structures.TEAM_PIVOT_BOXES
     assert set(registry.DISPLAY_MEMBER_SET) - bc <= set(registry.list_pattern_ids())
 
 
@@ -224,7 +231,7 @@ def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, call
     types = ({r["pattern_id"] for r in body["detections"]}
              | {s["pattern_id"] for s in body["structures"]}
              | {"learned_levels", "learned_trendlines"})
-    assert types == MEMBER_IDS | {"learned_levels", "learned_trendlines"}
+    assert types == (MEMBER_IDS - STAMP_GATED) | {"learned_levels", "learned_trendlines"}
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):
@@ -362,6 +369,7 @@ def test_flag_on_no_other_internal_or_experimental_row_reaches_a_member(monkeypa
     assert not (ids & (registry.INTERNAL_PATTERN_IDS - MEMBER_INTERNAL_IDS))
     assert not {pid for pid in ids if pid.startswith("uct_")} - MEMBER_INTERNAL_IDS
     assert not (ids & NOT_MEMBER)
+    assert not (ids & STAMP_GATED)          # the unstamped cup row in the structures is dropped
     assert all(registry.display_policy(pid)["display_tier"] == "trusted" for pid in ids)
 
 
