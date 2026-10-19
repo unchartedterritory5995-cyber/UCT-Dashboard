@@ -223,9 +223,15 @@ def _client(user, monkeypatch, rows=None):
     app = FastAPI()
     app.include_router(patterns_router.router)
     authorize(app, user)
+    # Every row is from the ticker's latest scan, as a stored row always carries last_seen_at, so the
+    # member path's latest-scan filter keeps them (tests/test_member_rows_fresh.py owns that filter).
     monkeypatch.setattr(patterns_router.memory, "get_active_detections",
-                        lambda *a, **k: [dict(r) for r in (rows or [])])
+                        lambda *a, **k: [{"last_seen_at": _SCAN_AT, **r} for r in (rows or [])])
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: _SCAN_AT)
     return TestClient(app)
+
+
+_SCAN_AT = 1_790_000_000
 
 
 BOX = {"structure_key": "flat-base", "name": "Flat base", "label": "Flat base · 23 bars · pivot 142.10",

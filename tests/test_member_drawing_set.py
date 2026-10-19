@@ -30,7 +30,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.patterns as patterns_router  # registers every detector
-from api.services import auto_structures
+from api.services import auto_structures, bars_sqlite
 from api.services.pattern_engine import display
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, authorize
@@ -139,19 +139,37 @@ def _flags(monkeypatch, admin, members):
             monkeypatch.setenv(name, "1" if on else "0")
 
 
+#: The one scan every fake-store row belongs to, and the ticker's newest bar (FLAT_TOP_DRAW's as-of
+#: bar), so the member path's latest-scan filter (auto_structures.fresh_member_rows) passes them all;
+#: tests/test_member_rows_fresh.py owns that filter against a real store.
+SCAN_AT = 1_790_000_000
+LATEST_BAR = FLAT_TOP_DRAW["end_t"]
+
+
+def _as_stored(rows):
+    """`rows` as the real store returns them: every stored row carries last_seen_at (NOT NULL)."""
+    out = json.loads(json.dumps(rows))
+    for r in out:
+        r.setdefault("last_seen_at", SCAN_AT)
+    return out
+
+
 def _store(monkeypatch, rows):
-    """Patch the store with `rows` (honouring pattern_ids / include_internal); return the call list."""
+    """Patch the store with `rows` (honouring pattern_ids / include_internal); return the call list.
+    The rows all belong to the ticker's latest scan, drawn as of its latest bar."""
     seen = []
 
     def active(sym, tf, pattern_ids=None, min_conf=0.0, include_internal=False):
         seen.append({"pattern_ids": None if pattern_ids is None else list(pattern_ids),
                      "include_internal": include_internal})
-        out = json.loads(json.dumps(rows))
+        out = _as_stored(rows)
         if pattern_ids:
             out = [r for r in out if r["pattern_id"] in pattern_ids]
         return out if include_internal else registry.drop_internal(out)
 
     monkeypatch.setattr(patterns_router.memory, "get_active_detections", active)
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: SCAN_AT)
+    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda sym, tf: LATEST_BAR)
     return seen
 
 
@@ -444,7 +462,7 @@ def _expected_flag_off_bytes():
     """Today's member payload, built from first principles: every NON-internal row, store order,
     stamped with the registry's display policy, no structures / drawn."""
     rows = [{**r, **registry.display_policy(r["pattern_id"])}
-            for r in STORE if r["pattern_id"] not in registry.INTERNAL_PATTERN_IDS]
+            for r in _as_stored(STORE) if r["pattern_id"] not in registry.INTERNAL_PATTERN_IDS]
     body = {"sym": "ZZZ", "tf": "D", "detections": rows, "count": len(rows)}
     return json.dumps(body, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode()
 

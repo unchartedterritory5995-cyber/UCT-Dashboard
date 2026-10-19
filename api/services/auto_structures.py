@@ -97,6 +97,64 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))]
 
 
+#: Rows written by ONE scan of one ticker carry last_seen_at within seconds of each other (every
+#: detector stamps its own `now` while the scan works through that ticker). Scans of a ticker are
+#: at least an hour apart (the hourly leaders pass; the daily universe pass), so a row more than this
+#: far behind the ticker's newest scan is from an older scan. A width, not a cadence: well above the
+#: seconds one ticker's detectors take, well below the gap between two scans.
+SCAN_TOLERANCE_SECS = 600
+
+
+def latest_scan_rows(rows, latest_scan_at, latest_bar_t) -> list:
+    """The detection rows still CURRENT for a member: each row's last_seen_at is within
+    SCAN_TOLERANCE_SECS of `latest_scan_at` (the ticker's newest scan, memory.latest_scan_at), so a
+    row the newest scan did not re-write -- an older hash_key for the same pattern, kept alive by
+    the 7-day active window -- is dropped. A uct_flat_top_breakout must ALSO carry a
+    draw_flat_top whose end_t (the bar it was drawn as of) equals `latest_bar_t`, the ticker's
+    newest bar: the lab rule draws a fire only as of its own session, so once a newer bar exists
+    the drawing is old even if no newer scan has run yet.
+
+    Pure; fails closed. An unknown latest scan, a row without an int last_seen_at, an unknown
+    latest bar (for the flat top) or a stamp without an int end_t drops the row. Order is kept."""
+    if type(latest_scan_at) is not int:
+        return []
+    floor = latest_scan_at - SCAN_TOLERANCE_SECS
+    out = []
+    for r in rows or []:
+        seen = (r or {}).get("last_seen_at")
+        if type(seen) is not int or seen < floor:
+            continue
+        if (r or {}).get("pattern_id") == "uct_flat_top_breakout":
+            ex = ((r or {}).get("geometry") or {}).get("extras") or {}
+            ft = ex.get("draw_flat_top")
+            end_t = ft.get("end_t") if isinstance(ft, dict) else None
+            if type(latest_bar_t) is not int or type(end_t) is not int or end_t != latest_bar_t:
+                continue
+        out.append(r)
+    return out
+
+
+def fresh_member_rows(sym: str, tf: str, rows) -> list:
+    """latest_scan_rows over the store's own answers: the ticker's newest scan
+    (memory.latest_scan_at) and, only when a flat-top row is present, its newest bar
+    (bars_sqlite.get_last_ts). Either read failing serves NOTHING (fail closed): a member is shown
+    no drawing rather than a possibly stale one."""
+    if not rows:
+        return []
+    try:
+        from api.services import bars_sqlite
+        from api.services.pattern_engine import memory
+        scan_at = memory.latest_scan_at(sym, tf)
+        bar_t = (bars_sqlite.get_last_ts(sym, tf)
+                 if any((r or {}).get("pattern_id") == "uct_flat_top_breakout" for r in rows)
+                 else None)
+    except Exception:  # noqa: BLE001 -- fail closed, never a 500 on the member path
+        _log.warning("member freshness read failed for %s %s; serving no detections", sym, tf,
+                     exc_info=True)
+        return []
+    return latest_scan_rows(rows, scan_at, int(bar_t) if bar_t is not None else None)
+
+
 #: The flat-top drawing round the blind check confirmed for members: the v2 draw condition (lab
 #: flattop_draw_v2, 2026-10-18: packets A 2.60 [2.30, 2.83] and B 2.57 [2.30, 2.80]). A literal ON
 #: PURPOSE, not display.FLAT_TOP_DRAW_ROUND: when the drawing code moves to a new round, members stop
