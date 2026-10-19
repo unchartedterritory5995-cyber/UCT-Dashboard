@@ -137,6 +137,66 @@ describe('Back onto a "do this to continue" step that is already done shows that
   })
 })
 
+describe('a parent re-render that keeps the SAME anchor node does not advance a waitFor step', () => {
+  // P5-FIN-R5 N3. The P5 final fix (item 9) advances when the waitFor anchor becomes a DIFFERENT element
+  // (`now === shown` in the engine's poll). This is the negative half: a re-render that keeps the node the
+  // member already sees is not the member doing the thing. The control replaces the node (a new key), which
+  // must advance, so the case can tell an identity check from one that answers "different" every time.
+  const T = {
+    id: 'q2-rerender',
+    title: 'q2-rerender',
+    replayable: true,
+    load: async () => ({
+      steps: [
+        { id: 'press', anchor: 'q2r-press', file: 'x', waitFor: 'q2r-target' },
+        { id: 'target', anchor: 'q2r-target', file: 'x' },
+      ],
+      copy: { press: { title: 'Press it', body: 'A.' }, target: { title: 'The target', body: 'B.' } },
+    }),
+  }
+  const ctl = {}
+  function Parent() {
+    const [n, setN] = useState(0)
+    const [gen, setGen] = useState(0)
+    ctl.rerender = () => setN((x) => x + 1)          // the same node, new props
+    ctl.replace = () => setGen((x) => x + 1)         // a NEW node (the key changes)
+    return (
+      <>
+        <button type="button" data-tour="q2r-press">Press</button>
+        <div key={gen} data-tour="q2r-target" data-n={n}>target {n}</div>
+      </>
+    )
+  }
+  const mount = () => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <Parent />
+        <GenericTourEngine entry={T} onClose={vi.fn()} startWaitMs={50} stepWaitMs={100} />
+      </MemoryRouter>
+    </SWRConfig>,
+  )
+
+  it('re-rendering the parent keeps the node and the step stays', async () => {
+    mount()
+    await screen.findByRole('dialog', { name: 'Press it' })
+    const before = document.querySelector('[data-tour="q2r-target"]')
+    for (let i = 0; i < 5; i += 1) {
+      act(() => { ctl.rerender() })
+      await act(async () => { await new Promise((r) => setTimeout(r, 120)) })
+    }
+    expect(document.querySelector('[data-tour="q2r-target"]')).toBe(before)   // the SAME element throughout
+    expect(before.getAttribute('data-n')).toBe('5')                          // and it did re-render
+    expect(screen.getByRole('dialog', { name: 'Press it' })).toBeTruthy()
+  })
+
+  it('control: replacing the node advances to the step it belongs to', async () => {
+    mount()
+    await screen.findByRole('dialog', { name: 'Press it' })
+    act(() => { ctl.replace() })
+    await screen.findByRole('dialog', { name: 'The target' })
+  })
+})
+
 describe('a control revealed only while a tour marks it can be walked to', () => {
   it('Next from the container to the hover-revealed control: the control is marked and the step stays', async () => {
     const onClose = vi.fn()
