@@ -211,6 +211,51 @@ def test_use_template_refuses_a_layout(conn, sharing_on):
     assert _uses(conn, gid) == []
 
 
+def _listed_outline(conn) -> str:
+    """An approved community OUTLINE by another member, written directly (a probe for `use_template`'s happy path)."""
+    import uuid
+    gid = uuid.uuid4().hex
+    conn.execute(
+        "INSERT INTO j2_template_gallery (id, user_id, kind, title, description, category, body_json, status,"
+        " listed_at, created_at, updated_at, preview_json, item_type) VALUES (?, 'author', 'member', 'Swing plan', '',"
+        " 'trade_plan', ?, 'approved', '2026-10-10', '2026-10-10', '2026-10-10', '[]', 'outline')",
+        (gid, json.dumps({"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Why?"}]}]})))
+    conn.commit()
+    return gid
+
+
+def test_use_template_copies_a_listed_outline_and_refuses_an_example_and_a_layout(conn, sharing_on, monkeypatch):
+    """P4b final I-M4: the merged `use_template` asks master's FOUR-argument `_can_see(row, viewer, is_admin, conn)`
+    (P4b's side dropped `conn`: a TypeError on every use, if taken verbatim) and refuses an example note AND a layout.
+    The outline copy is the positive control: without it a TypeError and a refusal would both read as "None"."""
+    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
+    outline = _listed_outline(conn)
+    copied = gallery.use_template("member", outline, conn=conn)
+    assert copied is not None and copied["template"]["title"] == "Swing plan"
+    assert _uses(conn, outline) == ["member"]
+    # The refusals are asked by the rows' own AUTHOR, whom `_can_see` always lets in, so only the type check can
+    # refuse: a member would be turned away by the example clause (no linked style) and prove nothing about it.
+    for item_type in (gallery.EXAMPLE_ITEM, gallery.LAYOUT_ITEM):
+        gid = _listed_outline(conn)
+        conn.execute("UPDATE j2_template_gallery SET item_type = ? WHERE id = ?", (item_type, gid))
+        conn.commit()
+        assert gallery.get_item("author", gid, conn=conn) is not None, f"{item_type}: the author must see it"
+        assert gallery.use_template("author", gid, conn=conn) is None, item_type
+    assert conn.execute("SELECT COUNT(*) FROM j2_note_templates WHERE user_id = 'author'").fetchone()[0] == 0
+
+
+def test_every_can_see_call_passes_the_connection():
+    """P4b final I-M4, structurally: every `_can_see(...)` call in the service passes all four arguments, so no call
+    site can skip the example clause by omission (the reason `conn` is required)."""
+    import ast
+    from pathlib import Path
+    tree = ast.parse(Path(gallery.__file__).read_text(encoding="utf-8"))
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_can_see"]
+    assert len(calls) >= 6, "the scan found too few call sites to mean anything"
+    short = [n.lineno for n in calls if len(n.args) + len(n.keywords) != 4]
+    assert short == []
+
+
 # ── the route ───────────────────────────────────────────────────────────────────────────────────
 
 def _url(gid: str) -> str:
