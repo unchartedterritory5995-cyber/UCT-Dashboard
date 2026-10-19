@@ -23,6 +23,10 @@ describe('parseAlertPhrase -- what it reads', () => {
     ["Don't forget to alert me if NVDA closes above 150", { symbol: 'NVDA', mode: 'close', direction: 'above', price: 150 }],
     ['do not hesitate to alert me if NVDA closes above 150', { symbol: 'NVDA', price: 150 }],
     ['never forget to alert me if NVDA closes above 150', { symbol: 'NVDA', price: 150 }],
+    // E7 owner ruling: a "not" that does not govern the ask leaves the ask standing
+    ['Not sure, but alert me if NVDA closes above 150', { symbol: 'NVDA', mode: 'close', direction: 'above', price: 150 }],
+    ['No worries, alert me if NVDA closes above 150', { symbol: 'NVDA', price: 150 }],
+    ["I don't know why it stalled, alert me if NVDA closes above 150", { symbol: 'NVDA', price: 150 }],
   ])('%s', (text, want) => { expect(P(text)).toMatchObject(want) })
 
   it('"it", "the stock" and "price" mean the note\'s own ticker', () => {
@@ -70,7 +74,11 @@ describe('parseAlertPhrase -- what it refuses', () => {
     'no alert if NVDA closes below 120',
     'Not going to alert me if NVDA closes above 150',   // E7: "not" negates
     'do not alert me if NVDA closes above 150',          // control: still negated with "not" in the list
-    "don't forgetful alert me if NVDA closes above 150", // control: the exemption is the whole word only
+    "Don't alert me if NVDA closes above 150",           // E7 owner ruling: the negator governs the ask
+    'not alert me if NVDA closes above 150',
+    'never alert me if NVDA closes above 150',
+    'Do not ever alert me if NVDA closes above 150',     // helper words between the negator and the ask
+    'please do not bother to alert me if NVDA closes above 150',
     'alert me if NVDA closes below',                 // no price
     'alert me if NVDA closes below 0',               // not a price
     'alert me if NVDA closes below -5',
