@@ -9,7 +9,7 @@ import MobileChartsApp from '../../charts/mobile/MobileChartsApp'
 import useDrillWorkspace from '../../breadth/drill/drillWorkspace'
 import styles from './FocusScreener.module.css'
 import {
-  SCREENER_CHART_GROUP, SCREENER_CHART_PREF, parseScreenerWidgets, serializeChartWidget,
+  SCREENER_CHART_GROUP, SCREENER_CHART_PREF, parseScreenerWidgets, parseScreenerNews, serializeChartWidget,
 } from './screenerChartPrefs'
 
 // ⭐ THE SCREENER'S CHART IS THE /charts CHART WIDGET (owner, 2026-10-18: "full 100% chart parity
@@ -20,8 +20,13 @@ import {
 // hosts"). Every timeframe, drawing tool, indicator, chart tab, hotkey, compare, replay, settings
 // gear and theme is the one /charts has, and any change to that widget reaches the screener.
 //
-// The selected row drives colour group A, as a watchlist drives a chart on /charts. The one thing
-// the screener adds is the row's setup pivot, through ChartHostOverlayContext.
+// The selected row drives colour group A, as a watchlist drives a chart on /charts. The screener
+// adds the row's setup pivot, through ChartHostOverlayContext.
+//
+// Under the desktop chart sits the /charts NEWS & CATALYSTS widget, on the same group, so it follows
+// the selection as a linked News widget follows a chart on /charts. ⛔ It PEEKS (newsPeek): the
+// ordinary read starts an AI write-up for any stock not yet covered, and a member stepping down a
+// screen would start one per row. Its empty state links to the research page, which generates.
 //
 // On a PHONE (`phone`, the Focus phone sheet) it is the /charts PHONE chart instead: /charts does not
 // show the desktop widget on a phone either, it shows MobileChartsApp (symbol strip, clean canvas,
@@ -37,6 +42,7 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
   // [chart, ...extras]: the chart, plus any widget the phone chart's toolbar added.
   const [board, setBoard] = useState(() => seedOf(prefs, ownChartSource))
   const widget = board[0]
+  const [news, setNews] = useState(() => parseScreenerNews(prefs?.[SCREENER_CHART_PREF]))
 
   const widgetCanvasById = useMemo(() => {
     const entry = widgetOwnChrome(widget, chartsTheme)
@@ -59,6 +65,7 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
       // No pause on a step: the rows on screen are warm in memory (prewarmVisibleList), so the
       // /charts 90 ms scan debounce would only add latency to every ↑/↓ here.
       symbolDebounceMs: 0,
+      newsPeek: true,
     }),
     [sym, priceLines],
   )
@@ -69,25 +76,31 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
   const onReplaceWidget = useCallback((_id, next) => {
     if (next?.type === 'chart' && next.opts) setBoard(b => [{ ...b[0], opts: next.opts }, ...b.slice(1)])
   }, [])
+  const onNewsOptsChange = useCallback((opts) => setNews(n => ({ ...n, opts })), [])
+  const onReplaceNews = useCallback((_id, next) => {
+    if (next?.type === 'news' && next.opts) setNews(n => ({ ...n, opts: next.opts }))
+  }, [])
 
   // Debounced persist, mirroring the workspace's 500 ms layout save; nothing is written until the
   // member changes something, and the last change is flushed on unmount.
   const saveTimer = useRef(null)
   const boardRef = useRef(board)
+  const newsRef = useRef(news)
   const dirty = useRef(false)
   // A structured value goes through setPrefMerged, not the plain whole-value write (see the
   // usePreferences.additionsOnly rail): the write lands on the freshest cached preferences, so another tab's save is not
   // overwritten from a stale snapshot. The key is a literal so the rail can see it.
   const save = useCallback(() => setPrefMerged('screener_chart_widget',
-    () => serializeChartWidget(boardRef.current[0], boardRef.current.slice(1))), [setPrefMerged])
+    () => serializeChartWidget(boardRef.current[0], boardRef.current.slice(1), newsRef.current)), [setPrefMerged])
   useEffect(() => {
-    if (boardRef.current === board) return undefined
+    if (boardRef.current === board && newsRef.current === news) return undefined
     boardRef.current = board
+    newsRef.current = news
     dirty.current = true
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => { dirty.current = false; save() }, 500)
     return undefined
-  }, [board, save])
+  }, [board, news, save])
   // Mounted before the preferences answered (a cold page load): seed once more from them, unless
   // the member has already changed something here. Set through boardRef so it is not a save.
   const seededLoaded = useRef(!loading)
@@ -96,11 +109,14 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
     seededLoaded.current = true
     if (dirty.current) return
     const next = seedOf(prefs, ownChartSource)
+    const nextNews = parseScreenerNews(prefs?.[SCREENER_CHART_PREF])
     boardRef.current = next
+    newsRef.current = nextNews
     // Once per mount, when an external store (the preferences) answers: the documented
     // "synchronise with an external system" case, not a render cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBoard(next)
+    setNews(nextNews)
   }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => {
     clearTimeout(saveTimer.current)
@@ -124,8 +140,16 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
               onColorChange={noop} onRemove={onRemoveWidget} onAddWidget={onAddWidget} />
           </div>
         ) : (
-          <WidgetHost widget={widget} onOptsChange={onOptsChange} onReplaceWidget={onReplaceWidget}
-            onColorChange={noop} />
+          <div className={styles.deskStack}>
+            <div className={styles.deskChart}>
+              <WidgetHost widget={widget} onOptsChange={onOptsChange} onReplaceWidget={onReplaceWidget}
+                onColorChange={noop} />
+            </div>
+            <div className={styles.deskNews} data-testid="pane-news">
+              <WidgetHost widget={news} onOptsChange={onNewsOptsChange} onReplaceWidget={onReplaceNews}
+                onColorChange={noop} />
+            </div>
+          </div>
         )}
       </ChartHostOverlayContext.Provider>
     </WorkspaceContext.Provider>

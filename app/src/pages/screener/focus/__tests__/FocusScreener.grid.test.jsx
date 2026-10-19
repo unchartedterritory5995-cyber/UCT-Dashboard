@@ -14,6 +14,9 @@ vi.mock('../../../charts/grid/MultiChartGrid', () => ({
     </div>
   ),
 }))
+// The layout control is the /charts Multi Chart menu; its saved-grid list and admin check are /charts'.
+vi.mock('../../../../context/AuthContext', async (orig) => ({ ...(await orig()), useAuth: () => ({ user: { role: 'member' } }) }))
+vi.mock('../../../../hooks/useChartLayouts', () => ({ default: () => ({ global: [], mine: [], saveLayout: vi.fn(), deleteLayout: vi.fn() }) }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
@@ -78,10 +81,45 @@ test('the charts-per-page choice is kept, and the view reopens as Charts', async
   await waitFor(() => screen.getByTestId('focus-row-S0'))
   fireEvent.click(screen.getByRole('button', { name: 'Charts' }))
   await screen.findByTestId('multichart')
+  fireEvent.click(screen.getByRole('button', { name: '▦ 3×3 ▾' }))
   fireEvent.click(screen.getByRole('button', { name: '2×2' }))
   expect(screen.getByTestId('multichart')).toHaveAttribute('data-layout', '2x2')
   expect(cellSyms()).toEqual(['S0', 'S1', 'S2', 'S3'])
   expect(localStorage.getItem('uct.screener.gridLayout')).toBe('2x2')
+  // The menu closed on the pick, and the control names the layout now on show.
+  expect(screen.queryByRole('button', { name: 'Stacked' })).toBeNull()
+  expect(screen.getByRole('button', { name: '▦ 2×2 ▾' })).toBeInTheDocument()
+})
+
+test('the layout menu is the /charts Multi Chart menu: every preset, Custom N×M and the sync toggles, nothing that would replace the results', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-S0'))
+  fireEvent.click(screen.getByRole('button', { name: 'Charts' }))
+  await screen.findByTestId('multichart')
+  fireEvent.click(screen.getByRole('button', { name: '▦ 3×3 ▾' }))
+  for (const name of ['Side by side', 'Stacked', '2×2', '2×3', '3×2', '3×3', '4×4']) expect(screen.getByRole('button', { name })).toBeInTheDocument()
+  expect(screen.getByText('Sync crosshair across charts')).toBeInTheDocument()
+  expect(screen.getByText('Sync time range across charts')).toBeInTheDocument()
+  expect(screen.getByText('Save grid as…')).toBeInTheDocument()
+  expect(screen.queryByText(/Groups Mode/)).toBeNull()
+  expect(screen.queryByText(/Back to workspace/)).toBeNull()
+  // Custom N×M through /charts' own form.
+  fireEvent.change(screen.getByLabelText('Rows'), { target: { value: '1' } })
+  fireEvent.change(screen.getByLabelText('Columns'), { target: { value: '4' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+  expect(screen.getByTestId('multichart')).toHaveAttribute('data-layout', '1x4')
+  expect(cellSyms()).toEqual(['S0', 'S1', 'S2', 'S3'])
+  expect(localStorage.getItem('uct.screener.gridLayout')).toBe('1x4')
+})
+
+test('the sync toggles are kept for the next visit', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-S0'))
+  fireEvent.click(screen.getByRole('button', { name: 'Charts' }))
+  await screen.findByTestId('multichart')
+  fireEvent.click(screen.getByRole('button', { name: '▦ 3×3 ▾' }))
+  fireEvent.click(screen.getByRole('checkbox', { name: /Sync crosshair/ }))
+  expect(JSON.parse(localStorage.getItem('uct.screener.gridSync'))).toEqual({ crosshair: true, timeRange: false })
 })
 
 test('a member who left on Charts lands on Charts', async () => {
