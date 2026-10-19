@@ -24,6 +24,14 @@ def test_layout_sharing_needs_all_three_switches(monkeypatch, combo):
     assert gallery.layout_sharing_enabled() is all(combo)
 
 
+def test_an_unset_sharing_switch_is_off(monkeypatch):
+    """Production's state: the sharing switch is not set at all (`_set` always writes "0" or "1")."""
+    _set(monkeypatch, {n: True for n in SWITCHES})
+    assert gallery.layout_sharing_enabled() is True                       # control: all three on reads on
+    monkeypatch.delenv("NOTEBOOK_LAYOUT_SHARING_ENABLED")
+    assert gallery.layout_sharing_enabled() is False
+
+
 def test_layout_sharing_is_read_per_call(monkeypatch):
     _set(monkeypatch, {n: True for n in SWITCHES})
     assert gallery.layout_sharing_enabled() is True
@@ -107,6 +115,7 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
     outline = _row(conn, item_type="outline", title="O")
     layout = _layout(conn, source_page="trade", title="L")
     pending = _layout(conn, status="pending", source_page="today", title="P")
+    pending_outline = _row(conn, item_type="outline", status="pending", title="PO")
     titles = [t["title"] for t in gallery.list_gallery("v", conn=conn)]
     assert "L" not in titles
     assert "O" in titles                                                  # non-vacuity: the list was read
@@ -117,6 +126,7 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
     assert gallery.get_item("v", outline, conn=conn) is not None
     queue = gallery.admin_queue(conn=conn)["pending"]
     assert all(r["id"] != pending for r in queue)                        # a PENDING layout row
+    assert pending_outline in [r["id"] for r in queue]                    # non-vacuity: the queue was read
     handle = gallery.author_handle("u1", conn)
     # P4b-R-X3: with the library off the author page is None (the library's own gate); otherwise it is read
     # and carries the outline but never a layout.
@@ -137,9 +147,18 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
 
 def test_layout_rows_list_when_all_three_are_on(conn, monkeypatch):
     _set(monkeypatch, {n: True for n in SWITCHES})
-    _layout(conn, source_page="trade", title="L")
+    layout = _layout(conn, source_page="trade", title="L")
+    pending = _layout(conn, status="pending", source_page="today", title="P")
     rows = gallery.list_gallery("v", item_type="page_layout", conn=conn)
     assert [(r["title"], r["itemType"], r["layoutPage"]) for r in rows] == [("L", "page_layout", "trade")]
+    # The positive control for every reader the switch-off test covers: each one serves a layout when all
+    # three are on, so a reader that hard-codes the layout type out goes red here.
+    assert pending in [r["id"] for r in gallery.admin_queue(conn=conn)["pending"]]
+    page = gallery.author_page("v", gallery.author_handle("u1", conn), conn=conn)
+    assert layout in [i["id"] for i in page["items"]]
+    conn.execute("INSERT INTO j2_gallery_follows (follower_id, author_id, created_at) VALUES ('v', 'u1', 'x')")
+    conn.commit()
+    assert layout in [i["id"] for i in gallery.feed("v", conn=conn)]
 
 
 def test_one_rule_decides_type_visibility(monkeypatch):
