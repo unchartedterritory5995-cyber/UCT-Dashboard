@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/insights/checklist-suggestions",
+    "path": "/api/j2/insights/checklist-suggestions",
+    "status": 402
+  },
+  "body": {
+    "detail": "Checklist from my winners requires a paid plan"
+  }
+}

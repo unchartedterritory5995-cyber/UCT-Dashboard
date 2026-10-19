@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "note": "The member previewed an older listed version than the one listed now: nothing is written.",
+    "path": "/api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "requestBody": {
+      "baseUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "takeOutline": false,
+      "toVersion": 1
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "The author listed a newer version since you opened the update. Nothing was changed. Look again."
+  }
+}

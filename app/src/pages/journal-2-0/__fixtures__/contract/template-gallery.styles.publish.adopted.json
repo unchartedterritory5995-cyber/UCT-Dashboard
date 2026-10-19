@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/styles",
+    "note": "A style adopted from the library cannot be shared again.",
+    "path": "/api/j2/template-gallery/styles",
+    "requestBody": {
+      "category": "journal",
+      "description": "How I get ready for Monday.",
+      "styleId": "98f53c81c4c54b21acb18ce0a16a65f8",
+      "title": "Weekend prep",
+      "tradingStyle": "swing"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "This style came from the library, so it can't be shared again."
+  }
+}

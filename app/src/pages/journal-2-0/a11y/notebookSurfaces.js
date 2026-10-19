@@ -52,6 +52,11 @@ export const SURFACES = Object.freeze({
   // read by the community-gallery-review recipe.
   'components/notebook/TemplateGallery.jsx': { recipe: 'community-gallery-browse' },
   'components/notebook/GalleryPublishForm.jsx': { recipe: 'gallery-publish-form' },
+  // P3a Task 9: the community STYLE library inside that gallery (dark behind
+  // notebook_style_library_enabled, so community-gallery-browse never renders them); rail
+  // a11y/styleLibrary.a11y.test.jsx.
+  'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
+  'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
@@ -210,6 +215,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PrepLevelsBlock.jsx': { recipe: 'trader-block-prep' },
   'components/notebook/blocks/PrepCapture.jsx': { coveredBy: 'trader-block-prep' },
   'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
+  // P2 Tier 3 Task 3: the mood and focus check-in (rail a11y/traderBlockCheckin.a11y.test.jsx).
+  'components/notebook/blocks/MoodCheckInBlock.jsx': { recipe: 'trader-block-checkin' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
@@ -330,4 +337,42 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
+  // Notebook P4a: page layouts (dark behind journal_page_layouts_enabled). The Customize editor (one recipe per
+  // phase tab, plus the trade page's) and Today with the five new panels shown; rail a11y/pageLayouts.a11y.test.jsx.
+  // The slot is the eager door whose lazy import loads the editor, so the editor's recipe stands for it.
+  'components/layout/PageLayoutEditor.jsx': { recipe: 'page-layout-editor-market', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'components/layout/PageLayoutEditorSlot.jsx': { recipe: 'page-layout-editor-market', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/TodaySurface.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/ChecklistTodayPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/MyRulesPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/RegimePanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/TodayNotePanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'surfaces/today/panels/NoticesPanel.jsx': { recipe: 'today-page-layout-panels', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  // The trade page rendering from the layout (story first with the chart hidden; every panel hidden). Its own
+  // rail file, because that file replaces `swr`.
+  'components/trade/TradeDetailPage.jsx': { recipe: 'trade-page-layout', railFile: 'a11y/pageLayoutsTrade.a11y.test.jsx' },
+  // Notebook P3a Task 11: the community style library's doors under components/notebook/styles/ (outside the
+  // derived population; dark behind notebook_style_library_enabled, so no styles-manager recipe renders them):
+  // sharing a style, reviewing an author's update to an adopted copy, and the door that opens the library at
+  // Styles. Rail a11y/styleLibrary.a11y.test.jsx, with the switch on. (StyleLibraryCard and AuthorView are in the
+  // population and carry their recipes above.)
+  'components/notebook/styles/ShareStyleForm.jsx': { recipe: 'style-library-share-form', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  'components/notebook/styles/LibraryUpdateSheet.jsx': { recipe: 'style-library-update-sheet', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  'components/notebook/styles/LibraryDoor.jsx': { recipe: 'style-library-door', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
+  // Checklist from my winners, the Your trading year page and its Report page door; rail
+  // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).
+  'components/insights/CheckInOutcomes.jsx': { recipe: 'checkin-outcomes', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/insights/ChecklistFromWinners.jsx': { recipe: 'checklist-from-winners', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'surfaces/WrappedSurface.jsx': { recipe: 'wrapped-surface', railFile: 'a11y/tier3.a11y.test.jsx' },
+  'components/WrappedDoor.jsx': { recipe: 'wrapped-door', railFile: 'a11y/tier3.a11y.test.jsx' },
+  // Notebook P3b Task 8: example notes, under components/notebook/styles/ (outside the derived population; dark
+  // behind notebook_style_library_enabled and the server's NOTEBOOK_EXAMPLE_NOTES_ENABLED): the author's door and its
+  // picker, the exact-public preview sheet (its replaced spans, its image rows, an unread image's second confirm), and
+  // a library style's Preview with its "In use" section. Rail a11y/exampleNotes.a11y.test.jsx.
+  'components/notebook/styles/AddExampleNoteDoor.jsx': { recipe: 'example-note-picker', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExampleNotePicker.jsx': { recipe: 'example-note-picker', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
 })

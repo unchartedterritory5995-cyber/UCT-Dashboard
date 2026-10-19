@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/wrapped/years",
+    "path": "/api/j2/wrapped/years",
+    "status": 402
+  },
+  "body": {
+    "detail": "Your trading year requires a paid plan"
+  }
+}

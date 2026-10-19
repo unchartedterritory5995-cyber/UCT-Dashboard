@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/styles",
+    "path": "/api/j2/template-gallery/styles",
+    "requestBody": {
+      "category": "journal",
+      "description": "How I get ready for Monday.",
+      "styleId": "nope",
+      "title": "Weekend prep",
+      "tradingStyle": "swing"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

@@ -1,8 +1,15 @@
 """Which stocks were in each screen at each nightly build: the record behind "New today".
 
 A row is NEW when it is in the screen's current results and was not in the screen's
-results at the PREVIOUS build. The label names the trading session that previous build
-ran through (a build's `snapshot_date` is the day it ran, not the session it describes).
+results at the latest build over an EARLIER SESSION. The label names that session (a
+build's `snapshot_date` is the day it ran, not the session it describes).
+
+⛔ Not simply the previous build (fixed 2026-10-18). Weekend and holiday builds run over the
+same session as the build before them, so nothing traded between them; yet a screen whose
+criteria read the clock still changes (a chart-pattern screen lists detections first seen in
+the last 7 days, so Sunday's build dropped six names and Saturday's hourly scan added two).
+Compared build-to-build, members saw "2 new, 6 dropped since Oct 16 close" on a market that
+had not moved. Measured on production 2026-10-18 (Cup & Handle).
 Spec: docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 1.
 """
 from __future__ import annotations
@@ -17,8 +24,9 @@ from . import snapshot_db
 
 log = logging.getLogger(__name__)
 
-#: Dates kept per screen.
-KEEP_DATES = 5
+#: Dates kept per screen. A long weekend makes four builds over ONE session (Sat, Sun, the
+#: holiday, the 03:00 after it), and the diff needs the build before them too.
+KEEP_DATES = 7
 #: Above this many matches a screen stores its count only and shows no markers.
 TOO_WIDE = 2000
 #: Columns that are blank in every nightly build by design: a nightly comparison of a
@@ -144,6 +152,18 @@ def _label(session_date: str | None, snapshot_date: str) -> str:
         return f"New since the {snapshot_date} build"
 
 
+def _previous_session_row(rows):
+    """The newest row over a session EARLIER than the newest row's session. A build whose
+    session was not recorded cannot be placed, so it falls back to the build before it."""
+    latest = rows[0]
+    if not latest["session_date"]:
+        return rows[1] if len(rows) > 1 else None
+    for r in rows[1:]:
+        if r["session_date"] and r["session_date"] < latest["session_date"]:
+            return r
+    return None
+
+
 def diff(spec: dict) -> dict:
     """The New-today answer for one screen: who entered and who left since the
     previous recorded build. Every non-`ok` state draws no markers."""
@@ -156,12 +176,13 @@ def diff(spec: dict) -> dict:
         _ensure(conn)
         rows = conn.execute(
             "SELECT snapshot_date, session_date, state, tickers FROM screen_membership "
-            "WHERE spec_hash = ? ORDER BY snapshot_date DESC LIMIT 2", (h,)).fetchall()
+            "WHERE spec_hash = ? ORDER BY snapshot_date DESC LIMIT ?", (h, KEEP_DATES)).fetchall()
     if not rows:
         return {"state": "unsaved"}
-    if len(rows) < 2:
+    latest = rows[0]
+    prev = _previous_session_row(rows)
+    if prev is None:
         return {"state": "no_history"}
-    latest, prev = rows[0], rows[1]
     if "too_wide" in (latest["state"], prev["state"]):
         return {"state": "too_wide"}
     hit = _CURRENT.get(h)

@@ -320,7 +320,9 @@ def test_every_schema_type_has_a_declared_policy(type_):
     assert type_ in pnp.NODE_POLICY, (
         f"`{type_}` is in lib/notebookSchema.js and has NO row in public_note_payload.NODE_POLICY -- "
         "decide what a stranger sees before a note holding it can be shared or published")
-    assert set(pnp.NODE_POLICY[type_]) == set(pnp.MODES) == {"share", "publish", "gallery"}, type_
+    # P3b Task 2: `example` is a fourth MODE with no column -- `node_action` derives it from
+    # gallery's (rail: tests/test_example_reduce.py). The columns are the base modes.
+    assert set(pnp.NODE_POLICY[type_]) == set(pnp.BASE_MODES) == {"share", "publish", "gallery"}, type_
     assert type_ in EXPECTED and type_ in FIXTURES and type_ in EXPECTED_GALLERY, (
         f"`{type_}` has a policy but no expectation/fixture in this rail")
 
@@ -782,7 +784,7 @@ def test_every_schema_attribute_row_has_a_decision_in_every_mode():
     missing = [r for r in rows if r not in pnp.ATTR_POLICY]
     assert missing == [], f"attribute rows with no public decision: {missing}"
     for row in rows:
-        assert set(pnp.ATTR_POLICY[row]) == set(pnp.MODES), row
+        assert set(pnp.ATTR_POLICY[row]) == set(pnp.BASE_MODES), row   # example: attr_decision
         assert set(pnp.ATTR_POLICY[row].values()) <= {"drop", "keep"}, row
 
 
@@ -804,6 +806,23 @@ def test_ta_never_reaches_a_stranger_in_any_mode(mode, widget_id):
     out = reduce(doc(_widget(widget_id)), mode)
     blob = json.dumps(out)
     assert '"ta"' not in blob and "Breakout" not in blob, (mode, widget_id, blob[:400])
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+def test_a_mood_checkin_never_reaches_a_stranger(mode):
+    """P2 Tier 3 Task 3: the check-in is the member's own mood and focus, so its vendor row is
+    "private" -- a public copy carries the neutral line and nothing of the node: no level, no word, no
+    day. (Its searchText is the fixed catalog line, which names no mood either.)"""
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", "moodCheckIn")] == "private"
+    node = {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "moodCheckIn", "embedId": "e-mood", "mode": "snapshot",
+        "params": {"mood": "4", "focus": "5", "day": "2026-10-17"},
+        "searchText": "[mood and focus check-in]", "capturedAt": "2026-10-17T13:00:00Z"}}
+    out = reduce(doc(p(t("before")), node, p(t("after"))), mode)
+    assert texts_in(out) == ["before", NEUTRAL, "after"]
+    blob = json.dumps(out)
+    for leak in ("moodCheckIn", "2026-10-17", '"mood"', '"focus"', "Good", "Great", "Locked in", "e-mood"):
+        assert leak not in blob, (mode, leak)
 
 
 @pytest.mark.parametrize("mode", ["share", "publish"])

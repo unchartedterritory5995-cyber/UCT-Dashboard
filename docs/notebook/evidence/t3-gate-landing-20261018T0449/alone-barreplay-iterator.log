@@ -1,0 +1,42 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-t3-gate/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/BarReplay.theme.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [31m❯[39m src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js [2m([22m[2m9 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 12[2mms[22m[39m
+     [32m✓[39m CONTROL — without the shim, pdf.js's own line is exactly the crash we saw on glass[32m 1[2mms[22m[39m
+     [32m✓[39m the shim defines it, and pdf.js's line then evaluates without throwing[32m 3[2mms[22m[39m
+     [32m✓[39m it hands pdf.js the REAL %IteratorPrototype%, not an invented object[32m 0[2mms[22m[39m
+     [32m✓[39m constructing it throws, as the real abstract Iterator does[32m 0[2mms[22m[39m
+     [32m✓[39m `Promise.withResolvers` is shimmed too, with the proposal's semantics[32m 1[2mms[22m[39m
+     [32m✓[39m it does not overwrite a real `Iterator` where the engine has one[32m 0[2mms[22m[39m
+     [32m✓[39m distinguishes a guarded read from one that evaluates the global[32m 1[2mms[22m[39m
+     [32m✓[39m nothing in the UNSHIMMED lists is actually shimmed[32m 0[2mms[22m[39m
+[31m     [31m×[31m every built asset is clear[39m[32m 4[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js[2m > [22mno shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16)[2m > [22mevery built asset is clear
+[31m[1mAssertionError[22m: app/dist/assets missing — run `npm run build`; this rail reads BUILT output and with no build it measures nothing: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js:[2m185:65[22m[39m
+    [90m183| [39m      // over zero files is the shape this repo keeps getting burned b…
+    [90m184| [39m      expect(existsSync(DIST), 'app/dist/assets missing — run `npm run…
+    [90m185| [39m        + 'BUILT output and with no build it measures nothing').toBe(t…
+    [90m   | [39m                                                                [31m^[39m
+    [90m186| [39m      [35mreturn[39m
+    [90m187| [39m    }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 04:51:41
+[2m   Duration [22m 1.52s[2m (transform 163ms, setup 317ms, import 105ms, tests 112ms, environment 787ms)[22m
+

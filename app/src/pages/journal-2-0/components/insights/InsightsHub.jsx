@@ -29,7 +29,7 @@
  * NO emoji — every glyph is a `<UIcon>`.
  */
 
-import { useCallback, useState } from 'react'
+import { Component, Suspense, useCallback, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
@@ -40,6 +40,8 @@ import RegimeSection from './RegimeSection'
 import VerdictScorecard from './VerdictScorecard'
 import DisciplineRecord from './DisciplineRecord'
 import { planGradingEnabled } from '../../hooks/usePlanGrade'
+import { tier3Enabled } from '../../lib/tier3Flag'
+import { lazyLeaf } from '../../lib/lazyChunk'
 import useScope from '../../hooks/useScope'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { useFeatureFlag } from '../../featureFlags'
@@ -65,6 +67,12 @@ const DISCIPLINE_SECTION = { key: 'discipline', label: 'Discipline' }
 // Wave 13 lane 13F: the Reviews section (one click drafts a daily/weekly/monthly review note)
 // exists only while notebook_review_drafts_enabled is latched on (dark by default).
 const REVIEWS_SECTION = { key: 'reviews', label: 'Reviews' }
+// P2 Tier 3 Task 6: "Checklist from my winners" exists only while the Tier 3 switch is latched on
+// (dark by default). Its view is its own chunk (lazyLeaf), so the hub's first open is unchanged.
+// It is keyed by the account (fix round 1, M2): switching account mounts a fresh panel, so a tag
+// accepted for one account is never hidden in another.
+const WINNERS_SECTION = { key: 'winners', label: 'Checklist from my winners' }
+const ChecklistFromWinners = lazyLeaf(() => import('./ChecklistFromWinners'))
 const DEFAULT_SECTION = 'playbook'
 
 export default function InsightsHub({ analytics }) {
@@ -89,6 +97,7 @@ export default function InsightsHub({ analytics }) {
     ...SECTIONS,
     ...(planGradingEnabled() ? [DISCIPLINE_SECTION] : []),
     ...(reviewDraftsEnabled() ? [REVIEWS_SECTION] : []),
+    ...(tier3Enabled() ? [WINNERS_SECTION] : []),
   ]
   const raw = searchParams.get('ins')
   const active = sections.some((s) => s.key === raw) ? raw : DEFAULT_SECTION
@@ -156,6 +165,11 @@ export default function InsightsHub({ analytics }) {
           ))}
         {active === 'discipline' && <DisciplineRecord accountId={accountId} />}
         {active === 'reviews' && <ReviewDraftsSection accountId={accountId} />}
+        {active === 'winners' && (
+          <SectionBoundary>
+            <Suspense fallback={null}><ChecklistFromWinners key={accountId || 'all'} accountId={accountId} /></Suspense>
+          </SectionBoundary>
+        )}
         {active === 'coach' &&
           (verdictScoreOn ? (
             <VerdictScorecard accountId={accountId} apiParams={apiParams} />
@@ -249,6 +263,19 @@ export function ReviewDraftsSection({ accountId }) {
       )}
     </div>
   )
+}
+
+// ── A lazy section that cannot load says so, in words; the rest of the hub stands ──
+
+export const SECTION_FAILED_TEXT = "This section couldn't load. Reload the page to try again."
+
+class SectionBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false } }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <p role="alert" className={styles.comingSoonText}>{SECTION_FAILED_TEXT}</p>
+  }
 }
 
 // ── Designed "coming soon" placeholder (NEVER a broken/empty chart) ──────────

@@ -114,6 +114,13 @@ export const savedScreensKind = {
     return null
   },
   fingerprint: (s) => JSON.stringify(s.mine.map(x => [x.id, x.name])),
+  // ⛔ APPROVAL BINDING: the material state of a saved-screen change includes the screen it would save
+  // (the LAST screen run here) and each saved screen's definition — not only names.
+  approvalState: (s) => [s.mine.map(x => [x.id, x.name, x.spec ?? null]), s.last ?? null],
+  // re-read from the server before "do it" re-plans (another tab may have renamed or deleted one)
+  async refreshForApproval() {
+    try { await loadSaved({ force: true }); return { ok: true } } catch { return { ok: false, what: 'your saved screens' } }
+  },
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
     const id = p.create ? Object.values(item.created || {})[0] : p.id

@@ -910,6 +910,13 @@ const PANEL_MANIFESTS = {
   tradeReview: blockManifest('Post-trade review', [
     { key: 'tradeId', type: 'string' },
   ], '[post-trade review]'),
+  // P2 Tier 3 (R-T3-V1): strings, not enums -- the check-in has no style setting, so S20 allows no enum.
+  // lib/blocks/checkinWords.js checks the levels ('1'..'5'); the plain text never names a mood.
+  moodCheckIn: blockManifest('Mood and focus check-in', [
+    { key: 'mood', type: 'string', default: '' },
+    { key: 'focus', type: 'string', default: '' },
+    { key: 'day', type: 'string', default: '' },
+  ], '[mood and focus check-in]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

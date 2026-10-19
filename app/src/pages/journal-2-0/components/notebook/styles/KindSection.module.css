@@ -7,11 +7,12 @@
 .kindName { font-weight: 600; }
 .kindStyle { grid-column: 2; font-size: 12px; color: var(--text-muted); }
 .another, .rowBtn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; text-align: left; padding: 4px 0; }
+.libraryDoor { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); cursor: pointer; font-size: 12px; padding: 4px 10px; }
 .list { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
 .rowName { flex: 1; font-size: 13px; }
 @media (max-width: 1024px) {
-  .kindBtn, .another, .rowBtn { min-height: var(--tap-min); }
+  .kindBtn, .another, .rowBtn, .libraryDoor { min-height: var(--tap-min); }
   .rowBtn { min-width: var(--tap-min); }
 }
 @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }

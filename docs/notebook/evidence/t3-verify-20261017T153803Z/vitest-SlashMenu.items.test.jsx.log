@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx (51 tests) 149ms
+
+ Test Files  1 passed (1)
+      Tests  51 passed (51)
+   Start at  10:44:44
+   Duration  1.89s (transform 688ms, setup 267ms, import 867ms, tests 149ms, environment 421ms)
+

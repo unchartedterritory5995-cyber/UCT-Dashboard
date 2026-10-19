@@ -1,0 +1,9 @@
+I1 typing control (rulings R-T3-T10-R1, R-T3-T10-R4)
+arms, interleaved P A B x3 (P1 A1 B1 P2 A2 B2 P3 A3 B3):
+  P = pre-Tier-3 tree 5626a6462c (worktree notebook-t3-pret3, its own app/dist and its own tools/notebook_perf_harness.py; 10 seeded nodes, no check-in)
+  A = final Tier 3 tree 351f3252c6 with arm-a-wrapper.py (the same harness, moodCheckIn removed: the same 10 nodes)
+  B = final Tier 3 tree 351f3252c6, the harness as committed (11 nodes, with the check-in)
+the two harnesses differ only in TRADER_BLOCK_KINDS (git diff 5626a6462c 351f3252c6 -- tools/notebook_perf_harness.py)
+command: --boot --busy --with-blocks --sizes 1,1000,2000 --opens 20 --chars 60, port 8083, fresh data dir C:\data-t3ctl-<run> each
+sandbox env: JOURNAL_TIER3_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 (P has no Tier 3 code to read the first)
+box: box-readings.txt, before/after every run, plus a foreign gate/vitest process count before each run

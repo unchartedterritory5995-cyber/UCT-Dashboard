@@ -13,7 +13,8 @@ WHAT RESOLVES. A setup named in free text, by (a) the archive's own setup id, na
 aliases, (b) the vocabulary's `trader_archive` map (docs/wisdom/vocabulary/setup-vocabulary-v1.json:
 the vocab entry's name and aliases, only for rows mapped without a mismatch and only when the
 vocab id belongs to ONE archive setup, so a shared alias never picks a side), and (c) TEAM_SLANG.
-Hyphens, underscores and spaces are interchangeable ("flat-top", "launchpad") and a plural matches.
+Hyphens, underscores and spaces are interchangeable ("flat-top", "launchpad"); a plural and an -ing
+form match ("flagging").
 Short all-caps aliases (EP, HTF, U&R) match case-sensitively, as service._alias_pattern does, and
 every alias is word-bounded, so "EP" inside "STEP" or "deep" is not a hit. Bucket ids that are not
 setups (other, watchlist, thesis, ...) never resolve.
@@ -24,12 +25,18 @@ WHAT THE BLOCK SAYS, bounded by MAX_BLOCK_CHARS (the archive block's own cap), e
   [RECORD · setup <id>]           n scored calls, 20d win rate, edge vs the same stock and the
                                   verdict: "measured edge" ONLY at |z| >= EDGE_Z on at least
                                   MIN_CONTEXT_N scored calls (team_record.verdict), else "not proven"
+  [TRADERS · setup <id>]          who has an edge on this setup: from the imported playbook's
+                                  per-trader cut (context.trader), each of the six traders is
+                                  "measured edge" / "measured negative" under the SAME rule, else
+                                  "not enough data"; display names and numbers only, never a quote
   [REGIME · QQQ <state> · ...]    only when the question names a market condition
   [LEVELS · ...]                  the level KINDS the team draws for that family (LEVEL_KINDS)
   [<trader> · <date> · <record>]  up to MAX_TEACHINGS teachings, scrubbed of prices/dates/levels
   [CALL · <trader> · <date> · <record>]  2-3 dated example calls; a price appears ONLY for a
                                   call older than provider.PRICE_AGE_SESSIONS, through
-                                  provider.levels, the one place the price gate lives
+                                  provider.levels, the one place the price gate lives; with
+                                  WISDOM_CALL_MOMENTS_ENABLED also 'watch m:ss <url>', the second
+                                  of the Desk session where that ticker was discussed (call_moments)
   [LESSON · <trader> · <date> · <record>]  the closest LESSON posts (FTS), scrubbed, capped
 Notes are run through publish.adapters.common.scrub_levels_and_dates; a record's verbatim
 `quote` column is never read here.
@@ -62,6 +69,8 @@ HEADER = ("\n\nTRADER ARCHIVE — SETUP CONTEXT (the UCT team's dated posts in t
           "setup this question names; cite the trader, the date and the record id in brackets, e.g. "
           "'TSDR, 2025-01-02, t123'; a RECORD line covers every archived call of the setup, win rate and "
           "edge are outcomes 20 sessions after each call, edge = versus the same stock on a random day; "
+          "a TRADERS line splits the team's traders by their own record on the setup (edge, negative, or "
+          "not enough data to say); "
           "LEVELS are the kinds of lines the team draws, never prices to act on; historical posts, never "
           "current market data or a recommendation): ")
 
@@ -70,17 +79,32 @@ NON_SETUP_BUCKETS = frozenset({"other", "watchlist", "thesis", "position_update"
                                "bearish_view", "breakout_other", "short_other"})
 
 #: Team slang for setups the archive names otherwise. Applied only to a setup id the store holds.
+#: The 2026-10-18 team-vocabulary pass added the specific phrases the team uses for a setup (each
+#: one mostly lands on that setup in the archive's own tags). The broad single words (support, base,
+#: pullback, breakout, tight, reclaim, launch, trendline) are left out ON PURPOSE: MAX_SETUPS is 1
+#: and those words land outside their home setup most of the time, so they would hijack questions.
+#: pullback_ma's words go here, not through the vocabulary: its map row (20ema_tap) is a mismatch.
 TEAM_SLANG = {
-    "launch_pad": ("launch pad", "launchpad"),
-    "flat_top_breakout": ("flat top", "flat top breakout"),
+    "launch_pad": ("launch pad", "launchpad", "pinched"),
+    "flat_top_breakout": ("flat top", "flat top breakout", "base breakout", "flat line", "pressing",
+                          "green line breakout"),
     "go_signal": ("go signal",),
     "oops": ("oops reversal",),
-    "undercut_reclaim": ("undercut and rally", "undercut & rally", "U&R", "undercut and reclaim"),
-    "flag_htf": ("high tight flag", "HTF"),
+    "undercut_reclaim": ("undercut and rally", "undercut & rally", "U&R", "undercut and reclaim",
+                         "failed breakdown", "bear trap"),
+    "flag_htf": ("high tight flag", "HTF", "tight flag", "falling flag", "weekly flag", "pennant", "flagging",
+                 "flag out", "flagging out"),
     "ep": ("episodic pivot",),
-    "peg_flag": ("power earnings gap",),
+    "peg_flag": ("power earnings gap", "post earnings"),
     "wedge_pop": ("wedge pop",),
     "ma_reclaim": ("remount",),
+    "pullback_ma": ("20 ema", "8 ema", "9 ema", "ma tap"),
+    "vcp": ("coiling", "volume dry up"),
+    "inside_day": ("inside week",),
+    "intraday_pivot": ("opening range",),
+    "capitulation_long": ("oversold", "mean reversion"),
+    "parabolic_short": ("parabolic",),
+    "classical_pattern": ("triangle",),
 }
 
 #: Where the team places lines, by setup family: level KINDS, never a price. Source: the
@@ -127,7 +151,16 @@ def _phrase_pattern(phrase: str, *, from_id: bool = False) -> Optional[re.Patter
         p = p.upper()                                    # 'ep' -> 'EP': an acronym, matched as one
     case_sensitive = len(p) <= 4 and p == p.upper() and any(c.isalpha() for c in p)
     body = r"[\s\-_]*".join(re.escape(t) for t in p.split(" "))
-    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?:'?s|es)?(?![A-Za-z0-9])", 0 if case_sensitive else re.I)
+    last = p.split(" ")[-1].lower()
+    ing = ""
+    if (not case_sensitive and len(last) >= 3 and last.isalpha() and last[-1] not in "aeiouwxy"
+            and last[-2] in "aeiou" and last[-3] not in "aeiou"):
+        # the -ing form of a word that doubles its final consonant: "flag" -> "flagging", "pop" -> "popping".
+        # Only that shape: a plain "+ing" would also turn "block" (dark pool), "tail" (call buying),
+        # "hammer" and "spring" into hits for "blocking", "tailing", "hammering", "springing".
+        ing = "|" + re.escape(last[-1]) + "ing"
+    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?:'?s|es" + ing + r")?(?![A-Za-z0-9])",
+                      0 if case_sensitive else re.I)
 
 
 def _name_phrases(name: Optional[str]) -> list:
@@ -315,6 +348,92 @@ def record_line(pb: dict) -> str:
     return f"[RECORD · setup {sid}] all archived calls: " + _stat_bits(st)
 
 
+def _team_display() -> dict:
+    """normalised key -> author id, for the six team authors (their id and their display name)."""
+    from api.services.wisdom.publish.adapters import common
+
+    out = {}
+    for aid in common.team_author_ids():
+        for k in (aid, common.speaker(aid)):
+            norm = re.sub(r"[^a-z0-9]", "", str(k or "").lower())
+            if norm and norm != "unknown":
+                out[norm] = aid
+    return out
+
+
+def edge_call(st: dict, edge_z: float, min_n: int) -> Optional[tuple]:
+    """The ledger's rule for one trader's cut, the same one the brain's trader playbooks apply
+    (TSDR-Ledger lab/trader_playbooks/build.py `verdict`, in SCORECARD's order): at n >= min_n, a
+    |z| >= edge_z on edge20 (20-session return vs the same stock on a random day) decides first, else
+    the same test on edgeR. Returns ('edge' | 'negative', 'edge20' | 'edgeR', z) or None.
+
+    n is the brain's n: the count of edge20 values (`n_edge20`), which gates both steps. An import made
+    before the setup library carried `n_edge20`/`edge20_z` has only `n_scored` and `edgeR_z`, so the
+    gate reads n_scored, the edge20 step finds nothing and the edgeR step decides, exactly as this
+    line did before."""
+    n = _rule_n(st)
+    if n < min_n:
+        return None
+    for basis, key in (("edge20", "edge20_z"), ("edgeR", "edgeR_z")):
+        z = _num(st.get(key))
+        if z is not None and abs(z) >= edge_z:
+            return ("edge" if z > 0 else "negative"), basis, z
+    return None
+
+
+def _rule_n(st: dict) -> int:
+    n20 = _num(st.get("n_edge20"))
+    return int(n20) if n20 is not None else int(st.get("n_scored") or 0)
+
+
+def trader_cuts(pb: dict) -> dict:
+    """{'edge': [(author_id, stats)], 'negative': [...], 'not_enough_data': [author_id]} from the
+    playbook's per-trader cut, judged by `edge_call`. Keys that are not one of the team's authors
+    are dropped."""
+    from api.services.wisdom.archive import team_record
+
+    edge_z, min_n = team_record._thresholds()
+    team = _team_display()
+    out: dict = {"edge": [], "negative": [], "not_enough_data": []}
+    cuts = ((pb.get("context") or {}).get("trader")) or {}
+    for key in sorted(cuts):
+        aid = team.get(re.sub(r"[^a-z0-9]", "", str(key).lower()))
+        st = cuts.get(key) or {}
+        if not aid or not int(st.get("n_scored") or 0):
+            continue
+        call = edge_call(st, edge_z, min_n)
+        if call:
+            out[call[0]].append((aid, st))
+        else:
+            out["not_enough_data"].append(aid)
+    return out
+
+
+def traders_line(pb: dict) -> str:
+    """Who has an edge on this setup, or "" when the playbook carries no per-trader cut."""
+    from api.services.wisdom.archive import team_record
+
+    cuts = trader_cuts(pb)
+    if not any(cuts.values()):
+        return ""
+    edge_z, min_n = team_record._thresholds()
+
+    def item(aid, st):
+        bits = [f"n {_rule_n(st)}"]
+        edge = _num(st.get("mean_edgeR"))
+        if edge is not None:
+            bits.append(f"edge R {edge:+.2f}")
+        _, basis, z = edge_call(st, edge_z, min_n)
+        bits.append(f"z {z:.1f} on {'edge20' if basis == 'edge20' else 'edge R'}")
+        return f"{_speaker(aid)} ({', '.join(bits)})"
+
+    parts = [f"measured edge: {'; '.join(item(a, s) for a, s in cuts['edge']) or 'none'}",
+             f"measured negative: {'; '.join(item(a, s) for a, s in cuts['negative']) or 'none'}"]
+    if cuts["not_enough_data"]:
+        parts.append("not enough data: " + ", ".join(_speaker(a) for a in cuts["not_enough_data"]))
+    return f"[TRADERS · setup {pb.get('setup_id')}] who has an edge on this setup: " + "; ".join(parts)
+
+
 def regime_line(pb: dict, state: str) -> str:
     cut = ((pb.get("context") or {}).get("market") or {}).get(state)
     head = f"[REGIME · QQQ {state} · setup {pb.get('setup_id')}] "
@@ -399,8 +518,11 @@ def pick_examples(conn, pb: dict, author_id: Optional[str] = None) -> list:
 def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Optional[date] = None) -> list:
     from api.services.wisdom.archive import provider
 
+    from api.services.wisdom.archive import call_moments
+
     examples = pick_examples(conn, pb, author_id)
     gated = provider.levels(conn, [e["call_id"] for e in examples], today=today)
+    watch = call_moments.lookup(conn, [e["call_id"] for e in examples]) if call_moments.enabled() else {}
     out = []
     for e in examples:
         who = _speaker(e.get("author_id"))
@@ -412,9 +534,14 @@ def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Opt
         lv = gated.get(e["call_id"])
         if lv:
             text += " (stated levels: " + ", ".join(f"{k} {p:.2f}" for k, p in lv) + ")"
-        out.append((text, {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
-                           "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
-                           "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}))
+        cite = {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
+                "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
+                "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}
+        links = watch.get(e["call_id"]) or []
+        if links:
+            text += call_moments.watch_text(links)
+            cite["watch"] = links
+        out.append((text, cite))
     return out
 
 
@@ -461,7 +588,12 @@ def _assemble(items: list) -> tuple[str, list]:
     """Items in priority order; each whole line fits the budget or is dropped (never cut mid-cite)."""
     from api.services.wisdom.archive import askai
 
-    parts, cites, used = [], [], len(HEADER)
+    from api.services.wisdom.archive import call_moments
+
+    header = HEADER
+    if any(cite and cite.get("watch") for line, cite in items if line):
+        header = HEADER.rstrip(": ") + "." + call_moments.WATCH_NOTE + ": "
+    parts, cites, used = [], [], len(header)
     for line, cite in items:
         if not line or used + len(line) + 3 > askai.MAX_BLOCK_CHARS:
             continue
@@ -471,7 +603,7 @@ def _assemble(items: list) -> tuple[str, list]:
             cites.append(cite)
     if not parts:
         return "", []
-    return HEADER + " | ".join(parts), cites
+    return header + " | ".join(parts), cites
 
 
 def setup_block(query: Optional[str], *, question_type: Optional[str] = None,
@@ -494,6 +626,12 @@ def setup_block(query: Optional[str], *, question_type: Optional[str] = None,
                 items.append((definition_line(pb), cite))
                 items.append((record_line(pb), {**cite, "kind": f"{KIND}_record",
                                                 "stats": ((pb.get("stats") or {}).get("all")) or {}}))
+                tl = traders_line(pb)
+                if tl:
+                    cuts = trader_cuts(pb)
+                    items.append((tl, {**cite, "kind": f"{KIND}_traders",
+                                       "traders": {k: [a if isinstance(a, str) else a[0] for a in v]
+                                                   for k, v in cuts.items()}}))
                 state = regime_named(q)
                 if state:
                     items.append((regime_line(pb, state), {**cite, "kind": f"{KIND}_regime", "regime": state}))

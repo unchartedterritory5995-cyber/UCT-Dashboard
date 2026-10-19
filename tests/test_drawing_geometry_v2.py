@@ -192,7 +192,9 @@ def test_flat_base_draws_the_base_not_the_prior_advance():
         a = d["geometry"]["anchors"]
         draw = d["geometry"]["extras"]["draw_anchors"]
         assert len(draw) == 2
-        assert draw[0]["t"] >= a[1]["t"] and draw[1]["t"] <= a[3]["t"]
+        # round 4: the box may reach left of the detector's window over the SAME base (closes in
+        # its upper half), never back to the prior advance
+        assert draw[0]["t"] > a[0]["t"] and draw[1]["t"] <= a[3]["t"]
         assert min(p["price"] for p in draw) >= a[3]["price"] - 1e-9 > a[0]["price"]
 
 
@@ -268,18 +270,21 @@ def test_lane_verdict_parallel_crossing_diverging():
     assert display.lane_verdict(bars, div["geometry"]) == (False, "diverging")
 
 
-def test_bull_flag_draws_its_pole_and_only_the_best_overlapping_lanes():
-    lows = [10, 10.5, 12, 14, 15, 16, 15.5, 15.2, 15, 15.1, 15.2, 15.3]
+def test_bull_flag_draws_its_pole_and_only_the_best_overlapping_flag():
+    # team set round 2: the flag pauses UNDER the pole high (16), and an overlapped flag is not
+    # drawn at all (stale) -- before, it kept its pole + entry line beside the best one's
+    lows = [10, 10.5, 12, 14, 15, 15, 14.8, 14.6, 14.5, 14.4, 14.3, 14.2]
     bars = _bars([lo + 0.5 for lo in lows], lows=lows, highs=[lo + 1 for lo in lows])
-    best = _flag(70, ((5, 17), (11, 16.3)), ((5, 15.5), (11, 15)))
-    worse = _flag(55, ((6, 16.5), (11, 16.3)), ((6, 15.5), (11, 15.1)), pole=(1, 5))
+    best = _flag(70, ((5, 16), (11, 15.2)), ((5, 15), (11, 14.2)))
+    worse = _flag(55, ((6, 15.8), (11, 15.2)), ((6, 14.8), (11, 14.2)), pole=(1, 4))
     display.draw_geometry([worse, best], bars)
     assert best["geometry"]["extras"]["draw_pole"] == [{"t": ymd_t(0), "price": 10.0},
                                                        {"t": ymd_t(4), "price": 16.0}]
     assert best["geometry"]["extras"]["draw_lanes"] is True
+    assert not best["geometry"]["extras"].get("stale")
     assert worse["geometry"]["extras"]["draw_lanes"] is False
     assert worse["geometry"]["extras"]["lanes_reason"] == "overlapped"
-    assert "draw_pole" in worse["geometry"]["extras"]
+    assert worse["geometry"]["extras"]["stale"] is True
 
 
 def test_bull_flag_on_its_fixtures_stamps_pole_and_lane_verdict():
@@ -382,10 +387,12 @@ def test_a_cup_that_broke_out_and_closed_back_below_the_rim_is_stale_and_not_ser
     d = auto_structures.box_to_detection("ZZZ", _cup_box(9, 14, 14), bars)
     ex = d["geometry"]["extras"]
     assert ex["stale"] is True and ex["stale_reason"] == "failed_breakout"
-    # a cup still above the rim is live: not stale, and the drawn box ends at the breakout
-    live = _bars(closes[:12] + [101, 103, 104])
+    # a cup still above the rim: the drawn box ends at the breakout -- and since round 4 a rim
+    # broken by a close BEFORE the last bar is stale (rim_broken) and not served either
+    live_c = closes[:12] + [101, 103, 104]
+    live = _bars(live_c, lows=[c - 4.5 for c in live_c])      # overlapping bars: not a gap island
     d2 = auto_structures.box_to_detection("ZZZ", _cup_box(9, 14, 14), live)
-    assert "stale" not in d2["geometry"]["extras"]
+    assert d2["geometry"]["extras"]["stale_reason"] == "rim_broken"
     assert d2["geometry"]["extras"]["draw_anchors"] == [
         {"t": ymd_t(0), "price": 100.0}, {"t": ymd_t(12), "price": 85.0}]
     assert d2["geometry"]["anchors"][1]["t"] == ymd_t(14)          # served numbers unchanged

@@ -168,28 +168,30 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 
 # ── fix 4-6: one display policy ─────────────────────────────────────────────
 
-def test_display_policy_matches_the_tiers_v3_report():
-    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds."""
-    assert registry.DISPLAY_TRUSTED == {"donchian_breakout", "rectangle"}
-    for pid in ("donchian_breakout", "rectangle"):
+def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
+    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds,
+    then the owner's TEAM DRAWING SET (2026-10-17): the trusted tier IS what the team draws."""
+    team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
+            "uct_flat_top_breakout", "bc:base"}
+    assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
+    for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"
-    # second blind judge 1.8 -> averaged ~2.05, under the 2.3 trusted bar
-    assert display_policy("bc:cup-with-handle")["display_tier"] == "experimental"
-    # round-1 trusted that failed AS DRAWN in v2 -> experimental
-    for pid in ("bull_flag", "pullback_to_10ema", "holy_grail"):
+    # Donchian / rectangle are not what the team uses: experimental (admins' "All")
+    for pid in ("donchian_breakout", "rectangle"):
+        assert display_policy(pid)["display_tier"] == "experimental"
+    # round-1 trusted that failed AS DRAWN in v2 and are not in the team set -> experimental
+    for pid in ("pullback_to_10ema", "holy_grail"):
         assert display_policy(pid)["display_tier"] == "experimental"
     v2_hidden = ("double_bottom", "double_top", "head_shoulders", "vcp",
                  "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
                  "range_detection", "bc:vcp", "bc:base-on-base")
-    v3_hidden = ("bc:flat-base",)
+    v3_hidden = ()      # bc:flat-base left hidden for the team set (pivot line only)
     round1_hidden = ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
                      "symmetrical_triangle", "descending_triangle", "bear_flag",
                      "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box")
     assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden) | set(v3_hidden)
     for pid in v2_hidden + round1_hidden + v3_hidden:
         assert display_policy(pid)["display_tier"] == "hidden"
-    # v3: flat_base's capped box lifted it 0.30 -> 1.60 -> experimental
-    assert display_policy("flat_base")["display_tier"] == "experimental"
     # v3: rsi_bearish_divergence met the trusted rule (2.30) but was judged without an RSI
     # panel -> held experimental until an RSI-panel re-test; rsi_bullish 2.10 -> experimental
     for pid in ("rsi_bearish_divergence", "rsi_bullish_divergence"):
@@ -221,9 +223,15 @@ def _client(user, monkeypatch, rows=None):
     app = FastAPI()
     app.include_router(patterns_router.router)
     authorize(app, user)
+    # Every row is from the ticker's latest scan, as a stored row always carries last_seen_at, so the
+    # member path's latest-scan filter keeps them (tests/test_member_rows_fresh.py owns that filter).
     monkeypatch.setattr(patterns_router.memory, "get_active_detections",
-                        lambda *a, **k: [dict(r) for r in (rows or [])])
+                        lambda *a, **k: [{"last_seen_at": _SCAN_AT, **r} for r in (rows or [])])
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: _SCAN_AT)
     return TestClient(app)
+
+
+_SCAN_AT = 1_790_000_000
 
 
 BOX = {"structure_key": "flat-base", "name": "Flat base", "label": "Flat base · 23 bars · pivot 142.10",
@@ -235,7 +243,7 @@ def test_rows_carry_the_display_policy(monkeypatch):
     c = _client(PAID_MEMBER, monkeypatch, rows=[{"id": "x", "pattern_id": "bear_flag"},
                                                 {"id": "y", "pattern_id": "bull_flag"}])
     rows = c.get("/api/patterns/ZZZ?tf=D&confirmed_only=false").json()["detections"]
-    assert [r["display_tier"] for r in rows] == ["hidden", "experimental"]
+    assert [r["display_tier"] for r in rows] == ["hidden", "trusted"]   # bull_flag: the team set
 
 
 def test_structures_ride_the_route_only_for_an_admin_with_the_flag(monkeypatch):
@@ -261,12 +269,12 @@ def test_box_to_detection_keeps_every_number_and_uses_real_times():
     ex = d["geometry"]["extras"]
     assert (ex["top"], ex["floor"], ex["pivot"]) == (142.1, 131.4, 142.1)
     assert d["levels"]["entry"] == 142.1
-    assert d["display_tier"] == "hidden"          # bc:flat-base, REPORT_TIERS_V3.md
+    assert d["display_tier"] == "trusted"         # bc:flat-base, the team set (2026-10-17)
     assert auto_structures.box_to_detection(
         "ZZZ", {**BOX, "structure_key": "square-box"})["display_tier"] == "experimental"
     assert auto_structures.box_to_detection("ZZZ", {**BOX, "structure_key": "darvas-box"})["display_tier"] == "hidden"
     assert auto_structures.box_to_detection(
-        "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "experimental"
+        "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "trusted"   # team set
 
 
 def test_structures_for_reads_daily_bars_and_never_raises(monkeypatch):
@@ -302,11 +310,11 @@ def test_auth_payload_carries_the_flag_only_for_an_admin_while_on(monkeypatch):
 
 # ── the MEMBER flip (AUTO_STRUCTURES_MEMBERS_ENABLED, trusted tier only) ─────
 
-#: One row per display bucket: trusted (x2), experimental, hidden, the levels layer.
+#: One row per display bucket: trusted (x2, the team set), experimental, hidden, the levels layer.
 MIXED_ROWS = [
-    {"id": "a", "pattern_id": "donchian_breakout"},
-    {"id": "b", "pattern_id": "rectangle"},
-    {"id": "c", "pattern_id": "bull_flag"},
+    {"id": "a", "pattern_id": "bull_flag"},
+    {"id": "b", "pattern_id": "flat_base"},
+    {"id": "c", "pattern_id": "donchian_breakout"},
     {"id": "d", "pattern_id": "double_bottom"},
     {"id": "e", "pattern_id": "support_resistance"},
 ]
@@ -347,13 +355,23 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
         assert set(body) == {"sym", "tf", "detections", "count"}
 
 
-def test_member_flag_on_serves_only_trusted_rows_and_no_structures(monkeypatch, _box_and_drawn):
+def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
+    """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows and the
+    learned drawer. bull_flag IS member set, but only as the round-9 drawing code stamped it: this
+    row carries no draw_round stamp, so it is not served (fail closed). bc:flat-base IS member set,
+    but only as its pivot line: this BOX was built without bars, so it carries no pivot stamp and
+    would draw the full box -- a member is not served it (tests/test_member_drawing_set.py)."""
     _flags(monkeypatch, True, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["donchian_breakout", "rectangle"]
+    assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
-    assert body["count"] == 2
-    assert "structures" not in body and "drawn" not in body
+    assert body["count"] == 1
+    assert "structures" not in body          # an unstamped bc:flat-base box is not pivot-only
+    assert "drawn" in body
+    # intraday: rows only (the boxes and the learned drawer are daily geometry)
+    intra = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(
+        STRUCT_URL.replace("tf=D", "tf=5")).json()
+    assert "structures" not in intra and "drawn" not in intra
     # The member flag is not a door by itself: admin flag off closes it.
     _flags(monkeypatch, False, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
@@ -361,11 +379,18 @@ def test_member_flag_on_serves_only_trusted_rows_and_no_structures(monkeypatch, 
 
 
 def test_member_filter_follows_the_registry_constant(monkeypatch, _box_and_drawn):
-    """Derived, not restated: moving DISPLAY_TRUSTED moves what a member gets."""
+    """Derived, not restated: moving DISPLAY_MEMBER_SET moves what a member gets, and a member
+    id must ALSO be trusted-tier (moving DISPLAY_TRUSTED off it drops it)."""
     _flags(monkeypatch, True, True)
+    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET", frozenset({"donchian_breakout", "flat_base"}))
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert [r["pattern_id"] for r in body["detections"]] == ["flat_base"]   # donchian: not trusted
+    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"donchian_breakout"}))
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert [r["pattern_id"] for r in body["detections"]] == ["donchian_breakout"]
     monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"bull_flag"}))
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
+    assert body["detections"] == []
 
 
 def test_admin_is_unchanged_by_the_member_flag(monkeypatch, _box_and_drawn):

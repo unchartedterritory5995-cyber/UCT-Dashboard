@@ -25,10 +25,13 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
  * `kindId`/`styleId`.
  * `earningsFollowup` (Tier 2 part B) is sent only as `{ reportDate }` with a string date; the server refuses
  * it without the follow-up kind, a ticker and a real recent date.
+ * `isCopy` (P2 Tier 3 final fix I1) is sent only when exactly `true`: the body is another note's
+ * (Duplicate note), so the server starts every check-in in it unpicked. A conflicted copy never sends it.
  * A refusal throws an Error carrying `.status` (402 free plan, 404 switch off, 400, ...) and the body's
  * `.detail` (review M-3: a styled create's sentence, e.g. a kind deleted in another tab). */
 export async function createNoteViaApi({
   title = '', subtitle, bodyJson, tags, ticker, folderId, properties, styleId, kindId, planPrefill, earningsFollowup,
+  isCopy,
 } = {}) {
   const res = await fetch('/api/j2/notes', {
     method: 'POST',
@@ -46,6 +49,7 @@ export async function createNoteViaApi({
       // Tier 2 part A (/plan): the server fills a Trade plan with the member's own levels. Sent only when
       // exactly `true` (like the keys above, an unset or non-boolean value stays off the wire).
       ...(planPrefill === true ? { planPrefill: true } : {}),
+      ...(isCopy === true ? { isCopy: true } : {}),
       // Tier 2 part B: the server adds the prep-note link and the quarter's numbers. Sent only as
       // { reportDate: 'YYYY-MM-DD' }; any other shape stays off the wire.
       ...(earningsFollowup && typeof earningsFollowup.reportDate === 'string'

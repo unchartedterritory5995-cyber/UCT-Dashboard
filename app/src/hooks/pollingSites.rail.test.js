@@ -310,6 +310,11 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useTickerTags.js': 1,
   'app/src/hooks/useUserTickerSet.js': 1,
   'app/src/hooks/useWatchlistAlerts.js': 1,
+  // A POST-CENSUS ROW (2026-10-15, the screener's per-stock RVOL curves). A 10-minute
+  // refresh of the time-of-day volume curve: one request per chart symbol or list, and the
+  // curve itself moves once a night. `useMobileSWR`'s focus revalidate would cost more than
+  // halving a 10-minute tick saves, so it stays bare on purpose.
+  'app/src/hooks/useVolumeCurve.js': 1,
   // ⭐ A POST-CENSUS ROW, and the decision goes the opposite way to most: this tick
   // must NOT be slowed on a touch client. `useBulkQuotes` is the whole-list SORT
   // VECTOR behind a virtualized watchlist — what lets "sort Russell 2000 by %

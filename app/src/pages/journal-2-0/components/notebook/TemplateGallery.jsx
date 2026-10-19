@@ -16,20 +16,40 @@
 // copy to `onUseNow` — the SAME `onPickMember` door every member template already uses,
 // so a gallery template is never a second way to create a note.
 // ⛔ Every failure is a sentence on screen (role="alert"); nothing fails silently.
-import { useEffect, useId, useRef, useState } from 'react'
+//
+// P3a (the community STYLE library, dark behind notebook_style_library_enabled). With the switch OFF
+// this file behaves exactly as above. With it ON it adds: type chips (All · Outlines · Styles, the
+// first one from `initialType`), trading-style chips (when the type is All or Styles), the library's
+// sorts, a "Following" view (what the authors you follow listed), style cards (StyleLibraryCard) with
+// a Preview composed by the journal styles preview door, and an author's page (AuthorView).
+// ⛔ StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk (TemplatePicker.jsx,
+// and since Task 10 styles/LibraryDoor.jsx, which opens it at Styles with its own `backLabel`), so none of the
+// library is in the Notebook's first open (R-P3-5). styleLibrary.js is also read by the lazy Styles manager.
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
   copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate, reviewGalleryTemplate,
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
+import {
+  EXAMPLE_NOTE_TYPE, LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, previewLibraryStyle,
+  tradingStyleLabel, useLibraryFeed, useLibraryList,
+} from '../../lib/styleLibrary'
+import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
+// P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
+import StyleItemPreview from './styles/StyleItemPreview'
+import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
+import AuthorView from './AuthorView'
+import lazyChunk from '../../lib/lazyChunk'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
 
 const ALL = ''
 
-function PreviewLines({ lines }) {
+export function PreviewLines({ lines }) {
   if (!lines?.length) return null
   return (
     <span className={styles.preview} aria-hidden="true">
@@ -43,7 +63,7 @@ function PreviewLines({ lines }) {
   )
 }
 
-function ReportForm({ item, onDone, onCancel }) {
+export function ReportForm({ item, onDone, onCancel }) {
   const uid = useId()
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
@@ -86,7 +106,7 @@ function ReportForm({ item, onDone, onCancel }) {
   )
 }
 
-function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
+export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
   const uid = useId()
   const [reporting, setReporting] = useState(false)
   const [working, setWorking] = useState(false)
@@ -164,8 +184,18 @@ function statusText(item) {
   return STATUS_LABELS[item.status] || item.status
 }
 
+// P3b: with the library on, the list is read through the library's hook (the same key), which also reads the server's
+// `capabilities.exampleNotes`: an approved or pending style of the author's carries "Add an example note" (ruling
+// P3b-R7), and the author's example notes are rows here too, with their status and any reviewer note (P3b-R12).
+// The latched switch picks the hook once for the life of the tab, as TemplateGallery's own list does.
+const EXAMPLE_ROW_NOTE = 'Example note'
+// Loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
+const AddExampleNoteDoor = lazyChunk(() => import('./styles/AddExampleNoteDoor'))
+
 function MySubmissions({ onMessage }) {
-  const { templates, error, isLoading, refresh } = useTemplateGallery({ section: 'mine' })
+  const uid = useId()
+  const useMine = styleLibraryEnabled() ? useLibraryList : useTemplateGallery
+  const { templates, error, isLoading, refresh, exampleNotes = false } = useMine({ section: 'mine' })
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
   // FIN-A11Y (review R4, M-4): Unpublish swaps itself for a confirm row and "Keep it" swaps
@@ -212,17 +242,30 @@ function MySubmissions({ onMessage }) {
       {templates.map((item) => (
         <li key={item.id} className={styles.card} data-gallery-mine={item.status} data-gallery-row={item.id}>
           <div className={styles.cardHead}>
-            <h4 className={styles.cardTitle}>{item.title}</h4>
+            <h4 className={styles.cardTitle} id={`${uid}-${item.id}`}>{item.title}</h4>
             <span className={`${styles.status} ${styles[`status_${item.hidden ? 'hidden' : item.status}`] || ''}`}>
               {statusText(item)}
             </span>
+            {item.itemType === EXAMPLE_NOTE_TYPE && <span className={styles.meta}>{EXAMPLE_ROW_NOTE}</span>}
           </div>
-          {item.status === 'rejected' && item.reviewNote && (
+          {/* R-P3-3's client half (final review I-1). An APPROVED row carries a note only after a declined
+              update (approve and a new share both clear it), so the author reads why; a held update is said too. */}
+          {item.status === 'approved' && item.reviewNote && (
+            <p className={styles.note}>Your last update was not approved. The listed version is unchanged.</p>
+          )}
+          {(item.status === 'rejected' || item.status === 'approved') && item.reviewNote && (
             <p className={styles.cardDesc}>Reviewer: {item.reviewNote}</p>
+          )}
+          {item.status === 'approved' && item.hasRevision && (
+            <p className={styles.note}>An update is waiting for review. The listed version stays until then.</p>
           )}
           {confirm === item.id ? (
             <div className={styles.actions} role="group" aria-label={`Unpublish ${item.title}?`}>
-              <span className={styles.note}>Take “{item.title}” out of the gallery?</span>
+              <span className={styles.note}>
+                {item.itemType === EXAMPLE_NOTE_TYPE
+                  ? `Withdraw the example “${item.title}”? It will no longer show on your style.`
+                  : <>Take “{item.title}” out of the gallery?</>}
+              </span>
               <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                 onClick={() => unpublish(item)}>Unpublish</button>
               <button type="button" className={styles.btn} onClick={() => keep(item)} data-gallery-focus="keep">Keep it</button>
@@ -231,6 +274,14 @@ function MySubmissions({ onMessage }) {
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => askUnpublish(item)}
                 aria-label={`Unpublish ${item.title}`} data-gallery-focus="open">Unpublish</button>
+              {exampleNotes && isLinkableStyleItem(item) && (
+                <span data-example-door="">
+                  <Suspense fallback={null}>
+                    <AddExampleNoteDoor styleItemId={item.id} describedBy={`${uid}-${item.id}`}
+                      onSent={(text) => { onMessage({ tone: 'ok', text }); refresh() }} />
+                  </Suspense>
+                </span>
+              )}
             </div>
           )}
         </li>
@@ -239,25 +290,63 @@ function MySubmissions({ onMessage }) {
   )
 }
 
-export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
+export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates' }) {
   const uid = useId()
   const headingRef = useRef(null)
+  const wrapRef = useRef(null)
+  // The latched switch: it cannot change for the life of the tab, so the list hook below is chosen once.
+  const libraryOn = styleLibraryEnabled()
   const [view, setView] = useState('browse')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
+  const [itemType, setItemType] = useState(() => (libraryOn && LISTED_ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  const [tradingStyle, setTradingStyle] = useState(ALL)
+  const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
   const [message, setMessage] = useState(null) // { tone, text, made? }
   const [using, setUsing] = useState(false)
+  const returnTo = useRef(null)
 
   useEffect(() => { headingRef.current?.focus() }, [])
+  // Back from an author's page: focus goes back to the name that opened it (or the heading).
+  useEffect(() => {
+    if (author || !returnTo.current) return
+    const handle = returnTo.current
+    returnTo.current = null
+    const door = [...(wrapRef.current?.querySelectorAll('[data-author-door]') || [])]
+      .find((el) => el.getAttribute('data-author-door') === handle)
+    ;(door || headingRef.current)?.focus()
+  }, [author])
 
-  const filters = { q: query, category, sort }
-  const picks = useTemplateGallery({ ...filters, section: 'picks' }, { enabled: view === 'browse' })
-  const all = useTemplateGallery(filters, { enabled: view === 'browse' })
+  // P3a Task 11: `library_viewed`, once per view change while the switch is on. The view is the one on screen
+  // (an author's page over Browse or Following reads 'author'); 'Your submissions' and the review queue are not
+  // library views and send nothing. Changing the type chip changes what the view shows, so it counts as a change.
+  // ⛔ Enums only: never the author's handle, a query or an item.
+  // An author's page lists every type whatever chip Browse had on, so it reads type 'all' (final review M-2).
+  // ⚠️ Every open of the gallery counts ONE 'browse', whatever the member opened it for (Your submissions, the
+  // review queue): the door lands on Browse first. Read the browse count as "gallery opens", not "browsing".
+  const libraryView = !libraryOn ? null : author ? 'author' : view === 'browse' || view === 'following' ? view : null
+  const libraryType = libraryView === 'author' ? 'all' : (itemType || 'all')
+  // The dependency list IS the "once per change": a re-render that moves neither sends nothing.
+  useEffect(() => {
+    if (libraryView) trackNotebookEvent(NOTEBOOK_EVENTS.LIBRARY_VIEWED, { type: libraryType, view: libraryView })
+  }, [libraryView, libraryType])
+
+  const filters = libraryOn ? { q: query, category, sort, type: itemType, tradingStyle } : { q: query, category, sort }
+  // Both hooks are one useSWR call over the gallery's list URL; with the switch off it is today's hook.
+  const useList = libraryOn ? useLibraryList : useTemplateGallery
+  const browsing = view === 'browse' && !author
+  const picks = useList({ ...filters, section: 'picks' }, { enabled: browsing })
+  const all = useList(filters, { enabled: browsing })
+  const feed = useLibraryFeed({ enabled: libraryOn && view === 'following' && !author })
   const isAdmin = picks.isAdmin || all.isAdmin
   const community = all.templates.filter((t) => !t.featured)
   const refresh = () => { picks.refresh(); all.refresh() }
+  const chooseView = (key) => { setAuthor(null); setView(key) }
+  const chooseType = (key) => { setItemType(key); if (key === 'outline') setTradingStyle(ALL) }
+  const openAuthor = (handle) => { if (handle) { returnTo.current = handle; setAuthor(handle) } }
+  const closeAuthor = () => setAuthor(null)
 
   const use = async (item) => {
     if (using) return
@@ -290,32 +379,63 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
     }
   }
 
+  // A style item's Preview: its listed payload composed with the member's OWN data (writes nothing).
+  const openStylePreview = async (item) => {
+    const by = item.firm ? 'UCT' : `by ${item.author}`
+    const subtitle = (
+      <>
+        {by} · {tradingStyleLabel(item.tradingStyle) || categoryLabel(item.category)}
+        <br />Rendered with your own data.
+        <br />Your own property defaults are not shared.
+      </>
+    )
+    // P3b-F-R8: a style's examples are its author's own, so its author gets no Report control on them.
+    const base = { label: item.title, subtitle, style: true, examplesReportable: !item.mine }
+    setPreview({ ...base, body: null, loading: true })
+    try {
+      const out = await previewLibraryStyle(item)
+      setPreview({ ...base, body: out?.bodyJson || null, examples: out?.examples || [] })
+    } catch (err) {
+      setPreview({ ...base, body: null, loadError: refusalSentence(err, "Couldn't load this preview.") })
+    }
+  }
+
   const listError = picks.error || all.error
   const loading = (picks.isLoading || all.isLoading) && !picks.templates.length && !all.templates.length
   const nothing = !loading && !listError && !picks.templates.length && !community.length
+  const filtered = Boolean(query.trim() || category || itemType || tradingStyle)
 
-  const renderCards = (items) => (
-    <ul className={styles.grid}>
-      {items.map((item) => (
-        <GalleryCard
-          key={item.id}
-          item={item}
-          isAdmin={isAdmin}
-          busy={busy || using}
-          onPreview={openPreview}
-          onUse={use}
-          onChanged={refresh}
-          onMessage={setMessage}
-        />
-      ))}
-    </ul>
+  const outlineCard = (item) => (
+    <GalleryCard
+      key={item.id}
+      item={item}
+      isAdmin={isAdmin}
+      busy={busy || using}
+      onPreview={openPreview}
+      onUse={use}
+      onChanged={refresh}
+      onMessage={setMessage}
+    />
   )
+  const card = (item) => (libraryOn && item.itemType === 'style' ? (
+    <StyleLibraryCard
+      key={item.id}
+      item={item}
+      busy={busy || using}
+      onPreview={openStylePreview}
+      onOpenAuthor={openAuthor}
+      onMessage={setMessage}
+    />
+  ) : outlineCard(item))
+  // No `onAdopted` refresh here: adoptStyle already revalidates every library view once
+  // (refreshLibrary), and a second one doubled the list GETs on every adopt (review M-7).
+  const renderCards = (items) => <ul className={styles.grid}>{items.map(card)}</ul>
 
   return (
-    <div className={styles.wrap} data-template-community-gallery="">
+    <div className={styles.wrap} ref={wrapRef} data-template-community-gallery="">
       <div className={styles.header}>
         <button type="button" className={styles.btn} onClick={onBack}>
-          Back to templates
+          {backLabel}
         </button>
         <h3 className={styles.heading} ref={headingRef} tabIndex={-1} id={`${uid}-heading`}>Community gallery</h3>
       </div>
@@ -325,10 +445,11 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
       </p>
 
       <div className={styles.viewRow} role="group" aria-label="Community gallery view">
-        {[['browse', 'Browse'], ['mine', 'Your submissions'], ...(isAdmin ? [['review', 'Review queue']] : [])]
+        {[['browse', 'Browse'], ['mine', 'Your submissions'], ...(isAdmin ? [['review', 'Review queue']] : []),
+          ...(libraryOn ? [['following', 'Following']] : [])]
           .map(([key, label]) => (
             <button key={key} type="button" aria-pressed={view === key}
-              className={`${styles.chip} ${view === key ? styles.chipActive : ''}`} onClick={() => setView(key)}>
+              className={`${styles.chip} ${view === key ? styles.chipActive : ''}`} onClick={() => chooseView(key)}>
               {label}
             </button>
           ))}
@@ -354,7 +475,18 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
         )}
       </div>
 
-      {view === 'browse' && (
+      {author && (view === 'browse' || view === 'following') && (
+        <AuthorView
+          handle={author}
+          onBack={closeAuthor}
+          onMessage={setMessage}
+          onPreview={openStylePreview}
+          renderOutline={outlineCard}
+          busy={busy || using}
+        />
+      )}
+
+      {browsing && (
         <>
           <div className={styles.toolbar}>
             <input
@@ -365,6 +497,28 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
               placeholder="Search the community gallery…"
               aria-label="Search the community gallery"
             />
+            {libraryOn && (
+              <div className={styles.chipRow} role="group" aria-label="Filter by type">
+                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES].map((t) => (
+                  <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
+                    className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
+                    onClick={() => chooseType(t.key)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {libraryOn && itemType !== 'outline' && (
+              <div className={styles.chipRow} role="group" aria-label="Filter by trading style">
+                {[{ key: ALL, label: 'All' }, ...TRADING_STYLES].map((t) => (
+                  <button key={t.key || 'all'} type="button" aria-pressed={tradingStyle === t.key}
+                    className={`${styles.chip} ${tradingStyle === t.key ? styles.chipActive : ''}`}
+                    onClick={() => setTradingStyle(t.key)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.chipRow} role="group" aria-label="Filter by category">
               {[{ key: ALL, label: 'All' }, ...GALLERY_CATEGORIES].map((c) => (
                 <button key={c.key || 'all'} type="button" aria-pressed={category === c.key}
@@ -377,7 +531,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
             <label className={styles.sortField} htmlFor={`${uid}-sort`}>
               <span>Sort</span>
               <select id={`${uid}-sort`} value={sort} onChange={(e) => setSort(e.target.value)}>
-                {GALLERY_SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {(libraryOn ? LIBRARY_SORTS : GALLERY_SORTS).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
             </label>
           </div>
@@ -386,7 +540,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
           {loading && <p className={styles.note}>Loading the community gallery…</p>}
           {nothing && (
             <p className={styles.note} role="status">
-              {query.trim() || category ? 'No templates match.' : 'Nothing has been shared yet.'}
+              {filtered ? 'No templates match.' : 'Nothing has been shared yet.'}
             </p>
           )}
 
@@ -405,17 +559,44 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
         </>
       )}
 
+      {libraryOn && view === 'following' && !author && (
+        feed.error ? (
+          <p className={styles.error} role="alert">Couldn't load what the authors you follow listed.</p>
+        ) : feed.isLoading && !feed.templates.length ? (
+          <p className={styles.note}>Loading what the authors you follow listed…</p>
+        ) : !feed.templates.length ? (
+          <p className={styles.note} role="status">Follow an author to see their new styles here.</p>
+        ) : (
+          <section className={styles.section} aria-labelledby={`${uid}-following`}>
+            <h4 className={styles.sectionLabel} id={`${uid}-following`}>From authors you follow</h4>
+            {renderCards(feed.templates)}
+          </section>
+        )
+      )}
+
       {view === 'mine' && <MySubmissions onMessage={setMessage} />}
       {view === 'review' && isAdmin && <TemplateGalleryReviewPanel onMessage={setMessage} />}
 
       <TemplatePreview
-        open={Boolean(preview)}
+        open={Boolean(preview) && !preview.style}
         onClose={() => setPreview(null)}
         title={preview?.label}
         subtitle={preview?.subtitle}
         body={preview?.body}
         onUse={preview?.onUse}
         busy={busy || using}
+        loading={Boolean(preview?.loading)}
+        loadError={preview?.loadError || null}
+      />
+      {/* A style's Preview (P3a Task 9) is its own sheet since P3b Task 6: the same surface, plus "In use". */}
+      <StyleItemPreview
+        open={Boolean(preview?.style)}
+        onClose={() => setPreview(null)}
+        title={preview?.label}
+        subtitle={preview?.subtitle}
+        body={preview?.body}
+        examples={preview?.examples}
+        examplesReportable={Boolean(preview?.examplesReportable)}
         loading={Boolean(preview?.loading)}
         loadError={preview?.loadError || null}
       />

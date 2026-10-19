@@ -20,6 +20,7 @@ import { useEffect } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { ARCHIVE_API, MIN_CONTEXT_N, archiveRefPriceLines, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import WatchLink from '../../pages/traderArchive/WatchLink'
 import styles from './PatternSidePanel.module.css'
 
 export const PLACEHOLDER = 'Pattern stats available after Phase 7 launch — outcome tracker pending.'
@@ -41,6 +42,7 @@ function CallRow({ call }) {
       <span className={styles.archiveTicker}>{call.ticker}</span>
       <span className={styles.archiveMuted} title={dayOf(call.posted)}>{traderOf(call)}</span>
       <Outcome value={call.r20} />
+      <WatchLink call={call} className={styles.archiveWatch} />
     </li>
   )
 }

@@ -1,0 +1,15 @@
+# Step 1 verification (read-only), 2026-10-17T15:52:46Z
+pwd: /c/Users/Patrick/uct-worktrees/notebook-t3
+branch: notebook-t3
+HEAD: 5626a6462cf0d73f12e7cd6a25f6c41c457fd356
+origin/notebook-t3: 5626a6462cf0d73f12e7cd6a25f6c41c457fd356	refs/heads/notebook-t3
+9b0a52d296 ancestor of HEAD: yes
+5626a6462c ancestor of HEAD: yes
+5626a6462c parents: 9b0a52d2968caf13525e4f6545bdcae3f98f2ead 1b10fd0a7e3ae3c13b6b94ec6bd133766ffac8f8
+owner file:
+session: 61625d99-f8db-4269-a728-231c08d3da11
+created: 2026-10-17
+shared install entries: 377
+app/node_modules entries (via junction): 377
+origin/master NOW (ls-remote, not merged here): 51482ceac29c384fd0c6e1ff00ba504d89ff1aa6	refs/heads/master
+PowerShell Get-Item -Force: LinkType=Junction Target=C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules

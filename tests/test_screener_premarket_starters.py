@@ -29,10 +29,9 @@ def pm(tmp_path, monkeypatch):
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "pm.db"))
     monkeypatch.setenv("SCREENER_PREMARKET_ENABLED", "1")
     monkeypatch.delenv("SCREENER_LIVE_TIER_ENABLED", raising=False)
-    state = {"session": "pre_market"}
+    state = {"session": "pre_market", "now": datetime(2026, 10, 16, 8, 42, tzinfo=ET)}
     monkeypatch.setattr(live_tier, "_session", lambda: state["session"])
-    monkeypatch.setattr(live_tier, "_now_et",
-                        lambda: datetime(2026, 10, 16, 8, 42, tzinfo=ET))
+    monkeypatch.setattr(live_tier, "_now_et", lambda: state["now"])
     snapshot_db.init_db()
     snapshot_db.upsert_rows([
         _row("UP4", pivot=48.0),            # +4%: both
@@ -47,8 +46,8 @@ def pm(tmp_path, monkeypatch):
     with snapshot_db.connect() as conn:
         conn.execute(premarket._SCHEMA)
         conn.executemany(
-            f"INSERT INTO {premarket.TABLE} VALUES (?, ?, ?, ?, ?)",
-            [(t, TODAY, 1.0, chg, now) for t, chg in (
+            f"INSERT INTO {premarket.TABLE} VALUES (?, ?, ?, ?, ?, ?)",
+            [(t, TODAY, 1.0, chg, now, "pre") for t, chg in (
                 ("UP4", 4.0), ("UP4NOBASE", 4.5), ("UP2BASE", 2.5), ("UP4CHEAP", 4.0),
                 ("UP4THIN", 4.0), ("UP4ETF", 4.0), ("FLAT", 0.5))])
         conn.commit()
@@ -74,17 +73,18 @@ def test_setups_gapping_pre_market_needs_a_base_pivot(pm):
 
 def test_after_nine_thirty_both_answer_empty(pm):
     pm["session"] = "regular"
+    pm["now"] = datetime(2026, 10, 16, 9, 31, tzinfo=ET)   # the calendar decides
     assert _run("starter_premarket_gappers") == []
     assert _run("starter_premarket_setups") == []
 
 
-def test_the_starters_are_morning_prep_and_say_there_is_no_volume():
-    for sid, name in (("starter_premarket_gappers", "Gapping pre-market"),
-                      ("starter_premarket_setups", "Setups gapping pre-market")):
+def test_the_starters_are_extended_hours_and_say_there_is_no_volume():
+    for sid, name in (("starter_premarket_gappers", "Up in extended hours"),
+                      ("starter_premarket_setups", "Setups moving in extended hours")):
         s = next(x for x in saved_screens.premarket_starters() if x["id"] == sid)
         assert s["name"] == name
-        assert s["group"] == "Morning prep"
-        assert "No pre-market volume is available." in s["description"]
+        assert s["group"] == "Extended hours"
+        assert "No extended-hours volume is available." in s["description"]
         assert s["spec"]["sort"] == {"key": "premarket_chg_pct", "dir": "desc"}
         assert s["spec"]["view"] == "technical"
 
@@ -135,6 +135,7 @@ def test_the_scan_says_when_the_premarket_values_are_from(pm):
     assert block["state"] == "premarket"
     assert abs(block["as_of"] - time.time()) < 60
     pm["session"] = "regular"
+    pm["now"] = datetime(2026, 10, 16, 9, 31, tzinfo=ET)   # the calendar decides
     res = query.run_scan({"page_size": 5}, user_id="a1", user=ADMIN)
     assert "premarket" not in res["snapshot"]                       # absent, not null
 

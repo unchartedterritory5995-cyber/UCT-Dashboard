@@ -212,6 +212,43 @@ def test_the_server_drops_free_text_from_the_wave10_events_whoever_sent_it(telem
         assert leaked not in blob, leaked
 
 
+def test_the_p3a_library_events_are_on_both_sides_and_read_not_typed():
+    """P3a Task 11: the community style library's two events. Read out of the
+    client like the rest; the parity rails above already hold the schemas equal,
+    so this proves the read SAW them (non-vacuity) and that the type enum is the
+    gallery's own ITEM_TYPES plus 'all' (a type the library gains would
+    otherwise count as 'other' forever)."""
+    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
+    from api.services.journal_two import template_gallery
+    names = set(_client_event_names())
+    assert {"library_viewed", "style_adopted"} <= names
+    assert {"library_viewed", "style_adopted"} <= _J2_TELEMETRY_EVENTS
+    assert set(_NOTEBOOK_PROP_SCHEMAS["library_viewed"]["type"]) == {"all", *template_gallery.ITEM_TYPES}
+    assert _NOTEBOOK_PROP_SCHEMAS["style_adopted"] == {"notify": "bool"}
+
+
+def test_the_server_drops_ids_titles_and_handles_from_the_library_events(telemetry_app):
+    """⛔ A raw fetch carrying the item's id, its title and its author's handle:
+    none of it is stored."""
+    client, logged = telemetry_app
+    sends = [
+        ("library_viewed", {"type": "style", "view": "author", "handle": "anon-7f3a", "q": "my NVDA swing"},
+         {"type": "style", "view": "author"}),
+        ("library_viewed", {"type": "my private words", "view": "following"},
+         {"type": "other", "view": "following"}),
+        ("style_adopted", {"notify": True, "id": "gal_123", "title": "My private NVDA style"},
+         {"notify": True}),
+        ("style_adopted", {"notify": "yes"}, {}),
+    ]
+    for event, props, _ in sends:
+        assert client.post("/api/j2/telemetry", json={"event": event, "props": props}).status_code == 200
+    got = [(a, json.loads(d)) for _, a, d in logged.rows]
+    assert got == [(f"j2:{e}", want) for e, _, want in sends]
+    blob = json.dumps(got)
+    for leaked in ("anon-7f3a", "NVDA", "gal_123", "private"):
+        assert leaked not in blob, leaked
+
+
 def test_an_event_outside_the_seven_keeps_its_own_props(telemetry_app):
     # CONTROL: the schema is applied to the Notebook events only; the older
     # instrumented events keep what their own rails pin.

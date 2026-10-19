@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { optionText, orderOptions } from './optionText'
 import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
 import Input from '../../../components/ui/Input'
@@ -82,7 +83,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
             <button key={p.label} type="button" className={styles.presetBtn}
               id={i === 0 ? `fc_${filter.key}` : undefined}
               aria-pressed={p.label === 'Any' ? !value && !customShown : !customShown && presetMatches(p, value)}
-              onClick={() => onSelect(p.label)}>{p.label}</button>
+              onClick={() => onSelect(p.label)}>{optionText(filter.key, p.label)}</button>
           ))}
           {filter.allow_custom && (
             <button type="button" className={styles.presetCustom} aria-pressed={customShown}
@@ -94,7 +95,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
     )
   }
 
-  const options = (filter.presets || []).map(p => p.label)
+  const options = orderOptions(filter.key, (filter.presets || []).map(p => p.label))
   if (filter.allow_custom && !options.includes('Custom…')) options.push('Custom…')
 
   return (
@@ -121,7 +122,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
         value={currentLabel(filter, value, customOpen)}
         onChange={e => onSelect(e.target.value)}>
-        {options.map(o => <option key={o}>{o}</option>)}
+        {options.map(o => <option key={o} value={o}>{optionText(filter.key, o)}</option>)}
       </Select>
       {/* The per-control "Typical Range" percentile band was removed by owner
           request — the dropdown + custom min/max is the whole control now. */}

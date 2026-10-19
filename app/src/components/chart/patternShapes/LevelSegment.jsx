@@ -6,7 +6,10 @@
 // `extendRight` px past it), so a level reads as belonging to the structure that made it.
 import { getColor, getOpacity } from './style'
 
-export default function LevelSegment({ detection, tToX, priceToY, onClick, extendRight = 0, dashed = true }) {
+// `faint` (cup round 9): a reference line drawn quieter than the level it sits beside -- thinner,
+// a sparser dash and ~45% of the detection's opacity -- so a cup's rim reference never reads as the pivot.
+// `role` is stamped as data-role for the overlay's tests and for anything that needs to tell the two apart.
+export default function LevelSegment({ detection, tToX, priceToY, onClick, extendRight = 0, dashed = true, faint = false, role }) {
   const anchors = detection?.geometry?.anchors || []
   if (!anchors.length) return null
   const price = anchors[0].price
@@ -19,12 +22,13 @@ export default function LevelSegment({ detection, tToX, priceToY, onClick, exten
   if (x2 - x1 < 1) return null
 
   const color = getColor(detection)
-  const opacity = getOpacity(detection)
+  const opacity = getOpacity(detection) * (faint ? 0.45 : 1)
   const label = detection?.geometry?.label || detection?.pattern_name || ''
 
   return (
     <g
       data-shape="level-segment"
+      data-role={role}
       onClick={() => onClick?.(detection)}
       style={{ cursor: 'pointer', pointerEvents: 'auto' }}
     >
@@ -34,8 +38,8 @@ export default function LevelSegment({ detection, tToX, priceToY, onClick, exten
         x2={x2}
         y2={y}
         stroke={color}
-        strokeWidth={1.25}
-        strokeDasharray={dashed ? '4,3' : undefined}
+        strokeWidth={faint ? 1 : 1.25}
+        strokeDasharray={faint ? '2,4' : (dashed ? '4,3' : undefined)}
         opacity={opacity}
       />
       {label && (

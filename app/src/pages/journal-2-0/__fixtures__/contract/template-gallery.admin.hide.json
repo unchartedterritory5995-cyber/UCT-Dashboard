@@ -11,13 +11,18 @@
   "body": {
     "template": {
       "author": "Alice Trader",
+      "authorHandle": "rCSvkcuPmyPi",
       "category": "research",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "description": "",
       "featured": false,
       "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
       "hidden": true,
       "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
+      "itemType": "outline",
       "listedAt": "2026-10-05T14:30:00+00:00",
       "mine": false,
       "openReports": 0,
@@ -37,10 +42,15 @@
       ],
       "propertyCount": 2,
       "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": null,
       "status": "approved",
       "title": "Sector notes",
+      "tradingStyle": null,
+      "trendingCount": 0,
       "updatedAt": "2026-10-05T14:30:00+00:00",
-      "usedBy": 0
+      "usedBy": 0,
+      "version": 1
     }
   }
 }

@@ -1,0 +1,33 @@
+[
+  {
+    "data": {
+      "galleryId": "0e8f44e525fe4f3f8171d956845146fe",
+      "source": "notebook_style_library"
+    },
+    "id": "notebook_style_library_1792256784399",
+    "message": "Weekend Prep was taken down by its author. Your copy is yours and has not changed.",
+    "read": false,
+    "severity": "info",
+    "timestamp": "2026-10-17T13:06:24.399961-04:00",
+    "title": "Weekend Prep",
+    "type": "notebook_style_library",
+    "user_id": "774a5823-ba76-49c1-a587-e7f07352a14f"
+  },
+  {
+    "data": {
+      "galleryId": "0e8f44e525fe4f3f8171d956845146fe",
+      "research_url": "/journal/notebook?styles=1&libraryUpdate=693eef1a28f64fffae79a683633c3e17",
+      "source": "notebook_style_library",
+      "styleId": "693eef1a28f64fffae79a683633c3e17",
+      "version": 2
+    },
+    "id": "notebook_style_library_1792256784384",
+    "message": "Weekend Prep has a new version from its author. Open it to see what changed.",
+    "read": false,
+    "severity": "info",
+    "timestamp": "2026-10-17T13:06:24.384441-04:00",
+    "title": "Weekend Prep",
+    "type": "notebook_style_library",
+    "user_id": "774a5823-ba76-49c1-a587-e7f07352a14f"
+  }
+]

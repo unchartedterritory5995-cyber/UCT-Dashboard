@@ -261,6 +261,49 @@ describe('publishing and your submissions', () => {
     expect(await screen.findByText(new RegExp(`Unpublished “${waiting.title}”\\.`))).toBeInTheDocument()
     expect(sentTo(`/api/j2/template-gallery/${waiting.id}`, 'DELETE')).toHaveLength(1)
   })
+
+  it('tells the author about a held update and a declined one on a listed item (final review I-1)', async () => {
+    // The recorded listed row, as the server sends it after a revision was declined (status stays
+    // approved, `reviewNote` set) and after a new one was shared (`hasRevision`).
+    const listed = mineWith('approved')
+    expect(listed.reviewNote).toBe('')                                  // non-vacuity: the recorded row has none
+    expect(listed).toHaveProperty('hasRevision', false)                 // and the key IS in the recorded shape
+    server.mine = [
+      { ...listed, id: 'declined', title: 'Declined update', reviewNote: 'Remove the broker name from the outline.' },
+      { ...listed, id: 'held', title: 'Held update', hasRevision: true },
+    ]
+    gateOn()
+    const { user } = await openGallery()
+    await user.click(screen.getByRole('button', { name: 'Your submissions' }))
+    const list = await screen.findByRole('list', { name: 'Your submissions' })
+    const declined = list.querySelector('[data-gallery-row="declined"]')
+    const held = list.querySelector('[data-gallery-row="held"]')
+    expect(within(declined).getByText('Listed')).toBeInTheDocument()
+    expect(within(declined).getByText('Your last update was not approved. The listed version is unchanged.'))
+      .toBeInTheDocument()
+    expect(within(declined).getByText('Reviewer: Remove the broker name from the outline.')).toBeInTheDocument()
+    expect(within(held).getByText('An update is waiting for review. The listed version stays until then.'))
+      .toBeInTheDocument()
+    expect(within(held).queryByText(/Reviewer:/)).not.toBeInTheDocument()
+    expect(within(declined).queryByText(/An update is waiting/)).not.toBeInTheDocument()
+  })
+})
+
+describe('the style library switch (P3a), off', () => {
+  it('keeps the gallery exactly as it is: no Styles chip, no trading-style row, no Following view', async () => {
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: false })
+    await openGallery()
+    await screen.findByRole('region', { name: 'UCT picks' })
+    expect(screen.queryByRole('button', { name: 'Styles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by type' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by trading style' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Community gallery view' })).getAllByRole('button')
+      .map((b) => b.textContent)).toEqual(['Browse', 'Your submissions'])
+    // the list asks exactly what it asked before the library existed
+    const lists = calls.filter((c) => c.path === '/api/j2/template-gallery' && c.method === 'GET')
+    expect(new Set(lists.map((c) => c.search))).toEqual(new Set(['', '?section=picks']))
+  })
 })
 
 describe('the review queue', () => {
@@ -293,9 +336,9 @@ describe('the review queue', () => {
     await user.type(within(reject).getByLabelText(/The author reads this/), 'Too thin')
     await user.click(within(reject).getByRole('button', { name: 'Reject' }))
     expect(await screen.findByText(new RegExp(`Rejected “${waiting.title}”`))).toBeInTheDocument()
-    // the same two fields the recorded rejection carried
+    // the same fields the recorded rejection carried: since P3b-F-R4 it names the version seen, as an approval does
     const rejectBody = sentTo(`/api/j2/template-gallery/admin/items/${waiting.id}`, 'PATCH').at(-1).body
-    expect(rejectBody).toEqual({ action: 'reject', note: 'Too thin' })
+    expect(rejectBody).toEqual({ action: 'reject', note: 'Too thin', reviewedUpdatedAt: waiting.updatedAt })
     expect(Object.keys(rejectBody).sort()).toEqual(Object.keys(contract('template-gallery.admin.reject')._contract.requestBody).sort())
     // the report the member really sent: its reason worded, its note quoted
     const [report] = reported.reports

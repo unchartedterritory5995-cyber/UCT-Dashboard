@@ -1,0 +1,3 @@
+tool tree: 7b521d75a3 (committed)
+command: python -u tools/notebook_example_notes_walk.py --data-dir C:\data-p3bwalk-broken --port 8091 --tip 7b521d75a3 --out docs/notebook/evidence/p3b-walk-20261018T121721Z-broken --viewports 1280 --break unapproved-example
+exit: 1

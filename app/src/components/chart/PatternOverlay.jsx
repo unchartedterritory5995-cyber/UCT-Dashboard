@@ -31,6 +31,26 @@
 //   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
 //   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
 //   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
+//   Whether `drawn` is present is the SERVER's call (admins; members only with the team set on).
+//
+// ⭐ TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET = the trusted tier):
+//   `trustedOnly` draws it (members always; admins by default, "All" shows everything). Its
+//   display-only extras: `draw_pivot` (a base's breakout / pivot line, solid, extended right),
+//   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `draw_rim_ref` (cup
+//   round 9: the rim as a faint, labelled reference when the pivot is the handle high), `stale` (a base
+//   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
+//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped)
+//   and `draw_stop` (round 5: the stop secondary re-anchored to start at the tag bar).
+//   uct_flat_top_breakout: `draw_flat_top` (lab flattop_draw_v2) draws ONE solid "flat top" line
+//   plus a hollow circle on each touch, and nothing else of that row (`flatTopDrawing`).
+//   bc:base (a structures row): `draw_base` (lab base_draw) draws a light region over the base, a
+//   solid "pivot" line on its top and a dashed "base low" line, and nothing else (`baseDrawing`).
+//
+// ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
+//   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
+//   line is linear in price over bar index). `geometry.secondary` draws horizontals only, so
+//   the line is re-dispatched through TrendlinePair's `single_trendline` path from the first
+//   anchor to the break bar, with a dot on each anchor high. Malformed => nothing drawn.
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -44,6 +64,7 @@ import LearnedDrawn from './patternShapes/LearnedDrawn'
 import EmaSegment from './patternShapes/EmaSegment'
 import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
+import { getColor, getOpacity, FLAGGING_TIER } from './patternShapes/style'
 
 const SHAPE_RENDERERS = {
   trendline_pair: TrendlinePair,
@@ -90,6 +111,99 @@ export function drawGeometry(d) {
   return { ...d, geometry: { ...g, anchors: da, extras } }
 }
 
+export const TRENDLINE_BREAK_ID = 'uct_trendline_break'
+export const FLAT_TOP_ID = 'uct_flat_top_breakout'
+export const BASE_DRAW_ID = 'bc:base'
+
+const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
+
+/**
+ * The "flat top" ceiling a uct_flat_top_breakout detection draws (lab flattop_draw_v2, blind-confirmed
+ * as drawn): `extras.draw_flat_top` = {price, start_t, end_t, touches: [{t, price}], label}, stamped by
+ * the server only on a fire that meets the v2 conditions. Returns null for any other row or a malformed
+ * stamp; when it returns a drawing, that line and its touch markers are ALL the row draws (no candle
+ * mark, no secondary levels), because that is the drawing the judges scored. Pure — exported for tests.
+ */
+export function flatTopDrawing(d) {
+  if (d?.pattern_id !== FLAT_TOP_ID) return null
+  const ft = d?.geometry?.extras?.draw_flat_top
+  if (!ft || typeof ft !== 'object') return null
+  const price = Number(ft.price)
+  if (!Number.isFinite(price) || ft.start_t == null || ft.end_t == null) return null
+  const touches = (Array.isArray(ft.touches) ? ft.touches : [])
+    .filter((t) => t && t.t != null && Number.isFinite(Number(t.price)))
+    .map((t) => ({ t: t.t, price: Number(t.price) }))
+  return { price, start_t: ft.start_t, end_t: ft.end_t, touches, label: ft.label || 'flat top' }
+}
+
+/**
+ * The BASE a bc:base structures row draws (lab base_draw, blind-confirmed as drawn):
+ * `extras.draw_base` = {pivot, start_t, end_t, low, low_t, label, low_label}. Returns null for any
+ * other row or a malformed stamp (a pivot that is not above the low, a missing span). When it returns
+ * a drawing, the row draws exactly what the judges scored and nothing else: a light region over the
+ * base, a solid pivot line on its top extended past the last bar, and a dashed line at its low.
+ * Pure — exported for tests.
+ */
+export function baseDrawing(d) {
+  if (d?.pattern_id !== BASE_DRAW_ID) return null
+  const bd = d?.geometry?.extras?.draw_base
+  if (!bd || typeof bd !== 'object') return null
+  const pivot = Number(bd.pivot)
+  const low = Number(bd.low)
+  if (!Number.isFinite(pivot) || !Number.isFinite(low) || !(pivot > low)) return null
+  if (bd.start_t == null || bd.end_t == null) return null
+  return {
+    pivot, low, start_t: bd.start_t, end_t: bd.end_t,
+    label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
+  }
+}
+
+/**
+ * The sloped line a uct_trendline_break detection draws, as a `single_trendline` sub-detection
+ * (anchors: first high, second high, value on the break bar), or null when the row is another
+ * detector or its `extras.trendline` is missing / malformed. Pure — exported for tests.
+ */
+export function trendlineBreakLine(d) {
+  if (d?.pattern_id !== TRENDLINE_BREAK_ID) return null
+  const tl = d?.geometry?.extras?.trendline
+  if (!tl || typeof tl !== 'object') return null
+  const { t1, p1, t2, p2, t_end: tEnd, p_end: pEnd } = tl
+  if (![t1, p1, t2, p2, tEnd, pEnd].every(finiteNum)) return null
+  if (!(p1 > 0 && p2 > 0 && pEnd > 0) || !(t1 < t2 && t2 <= tEnd)) return null
+  return {
+    ...d,
+    id: `${d.id}:trendline`,
+    pattern_name: 'Trendline',
+    confidence: null,
+    geometry: {
+      shape: 'trendline_pair',
+      semantic_subtype: 'single_trendline',
+      anchors: [{ t: t1, price: p1 }, { t: t2, price: p2 }, { t: tEnd, price: pEnd }],
+    },
+  }
+}
+
+/**
+ * The bull_flag "flagging" tier (lab flag_vocab, 2026-10-18). The server keeps such a flag `stale`
+ * (the strict round stopped it) and stamps its own key, `extras.flagging` {tier, draw_round,
+ * draw_lanes, draw_anchors?}. This returns the row as it DRAWS -- not stale, its own lanes, tagged
+ * `flag_tier: 'flagging'` (style.js draws it dotted, faint and labelled "flagging") and with NO entry
+ * line, because its geometry measured at chance against the team's lines -- or null for any row
+ * that is not exactly that. The server is the gate for members (auto_structures.member_rows).
+ * Pure — exported for tests.
+ */
+export function flaggingView(d) {
+  if (d?.pattern_id !== 'bull_flag') return null
+  const g = d?.geometry
+  const ex = g?.extras
+  const stamp = ex?.flagging
+  if (!ex?.stale || !stamp || typeof stamp !== 'object' || stamp.tier !== FLAGGING_TIER) return null
+  // draw_entry false is the ONE guard against an entry line (the overlay draws one only with it)
+  const extras = { ...ex, stale: false, draw_lanes: stamp.draw_lanes === true }
+  if (Array.isArray(stamp.draw_anchors) && stamp.draw_anchors.length) extras.draw_anchors = stamp.draw_anchors
+  return { ...d, flag_tier: FLAGGING_TIER, draw_entry: false, geometry: { ...g, extras } }
+}
+
 /**
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
@@ -98,10 +212,12 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
   const dateTf = tf == null ? false : isDateTf(tf)
   const structures = []
   const levels = []
-  for (const d of detections || []) {
-    if (!d) continue
+  for (const row of detections || []) {
+    if (!row) continue
+    const d = flaggingView(row) || row
     if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
+    if (d.geometry?.extras?.stale) continue
     // A member (AUTO_STRUCTURES_MEMBERS_ENABLED) draws the trusted tier ONLY; a row with no
     // tier is not trusted. The server already filtered; this never widens what it sent.
     if (trustedOnly && d.display_tier !== 'trusted') continue
@@ -134,7 +250,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   showLevels:        draw the levels layer (nearest LEVELS_NEAREST to lastPrice); default false
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
- *   trustedOnly:       draw ONLY display_tier 'trusted' rows, no levels, no drawn (members); default false
+ *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
  */
 export default function PatternOverlay({
   chart,
@@ -184,7 +300,7 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
-  const hasDrawn = !trustedOnly && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
   const drawable = selectDrawable(detections, {
@@ -246,12 +362,44 @@ export default function PatternOverlay({
         const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
         // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
         const lanesOff = ex.draw_lanes === false
-        const Renderer = hasEma ? EmaSegment : (lanesOff ? null : SHAPE_RENDERERS[shape])
-        const secondary = Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : []
-        const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
+        // A team-set base whose box did not hold up draws its pivot line only.
+        const boxOff = ex.draw_box === false
+        // The flat-top ceiling replaces the detector's candle mark and secondary levels outright.
+        const flatTop = flatTopDrawing(d)
+        // The base drawing (bc:base) is its own geometry: region + pivot + low, nothing else.
+        const base = baseDrawing(d)
+        const Renderer = (flatTop || base) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
+        const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
+        const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
+        // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
+        // as a faint, separately labelled reference so the two lines are never read as one.
+        const rimRef = pivot && ex.draw_rim_ref && Number.isFinite(Number(ex.draw_rim_ref.price)) ? ex.draw_rim_ref : null
+        // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
+        // the stop to start at the TAG bar (the detector's own stop secondary runs from the
+        // 10-session high, far left) — same price, same label, display only.
+        const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
+        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base ? d.geometry.secondary : [])
+          .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
+          .map((sec) => (drawStop && sec?.role === 'stop'
+            ? {
+                ...sec,
+                draw_stop: true,
+                anchors: [
+                  { t: drawStop.start_t, price: Number(drawStop.price) },
+                  { t: drawStop.end_t, price: Number(drawStop.price) },
+                ],
+              }
+            : sec))
+        // Round 6 (bull_flag): `draw_entry_price` moves the DRAWN entry off a single wick /
+        // spike over the flag onto its body highs. Display only — levels.entry is untouched.
+        const drawnEntry = Number(ex.draw_entry_price)
+        const entry = d?.draw_entry
+          ? (ex.draw_entry_price != null && Number.isFinite(drawnEntry) ? drawnEntry : Number(d?.levels?.entry))
+          : NaN
         const anchors = d?.geometry?.anchors || []
+        const tlBreak = trendlineBreakLine(d)
         return (
-          <g key={d.id} data-detection={d.pattern_id}>
+          <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
               <Renderer
                 detection={d}
@@ -260,6 +408,160 @@ export default function PatternOverlay({
                 barHalfWidthPx={barHalfWidthPx}
                 onClick={onDetectionClick}
               />
+            )}
+            {pivot && (
+              <LevelSegment
+                detection={{
+                  ...d,
+                  id: `${d.id}:pivot`,
+                  confidence: null,
+                  geometry: {
+                    shape: 'horizontal_line',
+                    label: rimRef
+                      ? `Pivot ${Number(pivot.price).toFixed(2)} · handle high`
+                      : `Pivot ${Number(pivot.price).toFixed(2)}`,
+                    anchors: [
+                      { t: pivot.start_t, price: Number(pivot.price) },
+                      { t: pivot.end_t, price: Number(pivot.price) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
+                onClick={onDetectionClick}
+                extendRight={40}
+                dashed={false}
+                role="pivot"
+              />
+            )}
+            {flatTop && (
+              <g data-role="flat-top">
+                <LevelSegment
+                  detection={{
+                    ...d,
+                    id: `${d.id}:flat-top`,
+                    confidence: null,
+                    geometry: {
+                      shape: 'horizontal_line',
+                      label: flatTop.label,
+                      anchors: [
+                        { t: flatTop.start_t, price: flatTop.price },
+                        { t: flatTop.end_t, price: flatTop.price },
+                      ],
+                    },
+                  }}
+                  tToX={tToX}
+                  priceToY={priceToY}
+                  onClick={onDetectionClick}
+                  extendRight={40}
+                  dashed={false}
+                  role="flat-top-line"
+                />
+                {flatTop.touches.map((tch, i) => {
+                  const x = tToX(tch.t)
+                  const y = priceToY(tch.price)
+                  if (x == null || y == null) return null
+                  return (
+                    <circle key={i} data-role="flat-top-touch" cx={x} cy={y} r={4}
+                      fill="none" stroke={getColor(d)} strokeWidth={1.4} opacity={getOpacity(d)}
+                      style={{ pointerEvents: 'none' }} />
+                  )
+                })}
+              </g>
+            )}
+            {base && (() => {
+              const x1 = tToX(base.start_t)
+              const x2 = tToX(base.end_t)
+              const yP = priceToY(base.pivot)
+              const yL = priceToY(base.low)
+              const region = [x1, x2, yP, yL].every((v) => v != null) ? (
+                <rect data-role="base-region" x={Math.min(x1, x2)} y={Math.min(yP, yL)}
+                  width={Math.max(1, Math.abs(x2 - x1))} height={Math.max(1, Math.abs(yL - yP))}
+                  fill={getColor(d)} fillOpacity={getOpacity(d) * 0.08} stroke="none"
+                  style={{ pointerEvents: 'none' }} />
+              ) : null
+              const level = (suffix, price, label, extra) => (
+                <LevelSegment
+                  detection={{
+                    ...d,
+                    id: `${d.id}:${suffix}`,
+                    confidence: null,
+                    geometry: {
+                      shape: 'horizontal_line',
+                      label,
+                      anchors: [{ t: base.start_t, price }, { t: base.end_t, price }],
+                    },
+                  }}
+                  tToX={tToX}
+                  priceToY={priceToY}
+                  onClick={onDetectionClick}
+                  {...extra}
+                />
+              )
+              return (
+                <g data-role="base-draw">
+                  {region}
+                  {level('base-pivot', base.pivot, base.label, { extendRight: 40, dashed: false, role: 'base-pivot' })}
+                  {level('base-low', base.low, base.lowLabel, { dashed: true, role: 'base-low' })}
+                </g>
+              )
+            })()}
+            {rimRef && (
+              <LevelSegment
+                detection={{
+                  ...d,
+                  id: `${d.id}:rim-ref`,
+                  confidence: null,
+                  geometry: {
+                    shape: 'horizontal_line',
+                    label: `Rim ${Number(rimRef.price).toFixed(2)}`,
+                    anchors: [
+                      { t: rimRef.start_t, price: Number(rimRef.price) },
+                      { t: rimRef.end_t, price: Number(rimRef.price) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
+                onClick={onDetectionClick}
+                extendRight={40}
+                faint
+                role="rim-ref"
+              />
+            )}
+            {handle && (
+              <Rectangle
+                detection={{
+                  ...d,
+                  id: `${d.id}:handle`,
+                  pattern_name: 'Handle',
+                  confidence: null,
+                  geometry: {
+                    shape: 'rectangle',
+                    anchors: [
+                      { t: handle.start_t, price: Number(handle.top) },
+                      { t: handle.end_t, price: Number(handle.floor) },
+                    ],
+                  },
+                }}
+                tToX={tToX}
+                priceToY={priceToY}
+                onClick={onDetectionClick}
+              />
+            )}
+            {tlBreak && (
+              <g data-role="trendline-break">
+                <TrendlinePair detection={tlBreak} tToX={tToX} priceToY={priceToY} onClick={() => onDetectionClick?.(d)} />
+                {tlBreak.geometry.anchors.slice(0, 2).map((a, i) => {
+                  const x = tToX(a.t)
+                  const y = priceToY(a.price)
+                  if (x == null || y == null) return null
+                  return (
+                    <circle key={i} data-role="anchor-high" cx={x} cy={y} r={3}
+                      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }} />
+                  )
+                })}
+              </g>
             )}
             {Array.isArray(ex.draw_pole) && (
               <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
@@ -276,7 +578,9 @@ export default function PatternOverlay({
               if (sec.shape === 'rectangle') {
                 return <Rectangle key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
               }
-              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
+              // a re-anchored stop usually starts ON the last bar: extend it right like the pivot
+              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick}
+                extendRight={sec.draw_stop ? 40 : 0} />
             })}
             {Number.isFinite(entry) && anchors.length > 0 && (
               <LevelSegment

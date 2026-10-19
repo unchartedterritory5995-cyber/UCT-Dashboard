@@ -22,9 +22,13 @@ export function useBlockParams({ attrs, updateAttributes, editable }) {
   // Fix round 2 (I-1): `{ clearArchive: true }` adds `fallback: null` to that same call -- the archived
   // image showed the uncaptured frame, so it goes with the capture (the switchTf / onEmbedSettings /
   // syncFromMyChart idiom; the node view re-arms its self-archive for that call).
+  // P2 Tier 3 final fix M2: `patch` may be a FUNCTION of the latest params, for a block whose next
+  // value depends on its current one (the check-in's day rule). It is resolved against `latest`, never
+  // against the render-time props, so two writes before a re-render compose.
   return useCallback((patch, opts) => {
     if (!editable || typeof updateAttributes !== 'function') return false
-    const params = { ...latest.current, ...patch }
+    const resolved = typeof patch === 'function' ? patch(latest.current) : patch
+    const params = { ...latest.current, ...resolved }
     latest.current = params
     const next = { params, searchText: paramsPlainText(attrs.widgetId, params) }
     if (typeof opts?.capturedAt === 'string' && opts.capturedAt) next.capturedAt = opts.capturedAt

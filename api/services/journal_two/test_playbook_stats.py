@@ -149,6 +149,26 @@ def test_blank_setup_trades_excluded(db_conn):
     assert {r["setup"] for r in out} == {"VCP"}
 
 
+# ── analytics_included (ruling R-T3-T7-R3): opt-in, default unchanged ────────
+
+
+def test_the_default_counts_an_excluded_trade_and_analytics_included_drops_it(db_conn):
+    """Every existing reader keeps today's count; only an explicit opt-in (Your trading year)
+    applies ANALYTICS_INCLUDED_SQL. A flipped default reds the first assertion."""
+    from api.services.journal_two import playbook_stats
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    bad = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Loss",
+                        pnl=-900, r=-9.0)
+    db_conn.execute("UPDATE j2_trades SET analytics_excluded = 1 WHERE id = ?", (bad,))
+    db_conn.commit()
+    default = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))
+    assert default["VCP"]["tradeCount"] == 2 and default["VCP"]["expectancyR"] == -4.0
+    included = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn,
+                                                           analytics_included=True))
+    assert included["VCP"]["tradeCount"] == 1 and included["VCP"]["expectancyR"] == 1.0
+
+
 # ── Exit efficiency (excursion join, coverage counts) ────────────────────────
 
 

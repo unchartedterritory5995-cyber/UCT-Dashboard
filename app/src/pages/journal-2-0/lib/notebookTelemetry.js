@@ -30,6 +30,10 @@
  * every core action has an event that fires on its success" block).
  * ⚰️ `capture_used`, `search_used` and `switcher_used` were declared in wave 6
  * and fired from NO door until wave 10 — declared is not wired.
+ *
+ * P3a (the community style library, Task 11): `library_viewed` (TemplateGallery, once
+ * per view change while the switch is on) and `style_adopted` (StyleLibraryCard, after
+ * an adopt the server accepted). Neither carries an id, a title or a handle.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -48,6 +52,8 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   WRITING_HELP_USED: 'writing_help_used',
   DICTATION_USED: 'dictation_used',
   BULK_USED: 'bulk_used',
+  LIBRARY_VIEWED: 'library_viewed',
+  STYLE_ADOPTED: 'style_adopted',
 })
 
 /**
@@ -75,6 +81,10 @@ export const CORE_ACTION_EVENTS = Object.freeze({
   writing_help_used: ['writing_help_used'],
   dictation_used: ['dictation_used'],
 })
+// ⛔ P3a's `library_viewed` and `style_adopted` are NOT rows above (Task 11). This table is R-16's NAMED list,
+// and the parity scorecard's clause 15b derives its events from it against wave 10's committed run log
+// (tools/parity_scorecard.py TELEMETRY_RAILS, tests/test_parity_scorecard.py): a row added here reds that rail
+// until a new landing's log is tied in. Each event is still asserted at its door (StyleLibrary.test.jsx).
 
 const OTHER = 'other'
 const num = { type: 'number' }
@@ -154,6 +164,13 @@ export const EVENT_SCHEMAS = Object.freeze({
     op: oneOf('move', 'addTag', 'removeTag', 'favorite', 'unfavorite', 'trash', 'restore', 'archive', 'unarchive', 'renameTag'),
     changed: num,
     failed: num,
+  },
+  library_viewed: {
+    type: oneOf('all', 'outline', 'style'),
+    view: oneOf('browse', 'following', 'author'),
+  },
+  style_adopted: {
+    notify: bool,
   },
 })
 

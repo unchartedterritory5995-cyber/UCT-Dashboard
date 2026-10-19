@@ -1526,6 +1526,21 @@ def session_videos_with_headlines() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def session_moment_rows() -> list[dict]:
+    """Lean rows for the archive call-moments matcher (api/services/wisdom/archive/
+    call_moments.py): every video that carries ticker_moments, with the columns that place
+    those moments in time. Read-only; WITHOUT the transcript column (hundreds of KB per
+    video). Nothing is written back here: the matcher stores its links in wisdom.db."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, youtube_id, title, category, created_at, media_started_at, ticker_moments
+               FROM edu_videos
+               WHERE ticker_moments IS NOT NULL AND ticker_moments != '' AND ticker_moments != '[]'
+               ORDER BY id ASC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def videos_missing_ticker_moments(max_age_secs: int, limit: int) -> list[dict]:
     """Session videos that already have chapters + a stored transcript but no
     ticker_moments yet — the ticker-backfill work-list (runs entirely off the

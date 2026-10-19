@@ -322,3 +322,42 @@ describe('R-T12-1: a named command outranks a block title (the rendered menu)', 
     })
   }
 })
+
+// P2 Tier 3 Task 3 (R-T3-1): the check-in is CREATED only while both switches are on.
+describe('P2 Tier 3: the mood and focus check-in slash item', () => {
+  const CHECKIN = label('moodCheckIn')
+  const offered = () => blockItemsAvailable({}).some((i) => i.title === CHECKIN)
+
+  it('is in the menu, titled by the catalog, in the Trading group', () => {
+    expect(CHECKIN).toBe('Mood and focus check-in')
+    const item = ITEMS.find((i) => i.title === CHECKIN)
+    expect(item).toBeTruthy()
+    expect(blockItemGroup(item)).toBe('trading')
+    expect(ITEMS.filter((i) => i.title === CHECKIN)).toHaveLength(1)
+  })
+
+  it('is offered only when Tier 3 AND journal styles are both on', () => {
+    for (const [styles, tier3, want] of [[false, false, false], [true, false, false], [false, true, false], [true, true, true]]) {
+      __resetNotebookFlags()
+      latchNotebookFlags({ notebook_journal_styles_enabled: styles, journal_tier3_enabled: tier3 })
+      expect(offered(), `styles ${styles}, tier3 ${tier3}`).toBe(want)
+    }
+  })
+
+  it('inserts the block unpicked, after deleting the typed command', () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true, journal_tier3_enabled: true })
+    const editor = new Editor({ extensions: buildExtensions(), content: '<p>Plan /mood</p>' })
+    try {
+      editor.commands.focus('end')
+      const to = editor.state.selection.from
+      blockItemsAvailable({}).find((i) => i.title === CHECKIN).command({ editor, range: { from: to - 5, to } })
+      const [node] = editor.getJSON().content.filter((n) => n.type === 'widgetEmbed')
+      expect(node.attrs.widgetId).toBe('moodCheckIn')
+      expect(node.attrs.params).toEqual({ mood: '', focus: '', day: '' })
+      expect(node.attrs.searchText).toBe('[mood and focus check-in]')
+      expect(editor.state.doc.textContent).toBe('Plan ')
+    } finally {
+      editor.destroy()
+    }
+  })
+})

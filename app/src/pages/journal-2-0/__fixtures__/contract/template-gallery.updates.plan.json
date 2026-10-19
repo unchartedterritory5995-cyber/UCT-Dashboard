@@ -1,0 +1,21 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "path": "/api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "status": 200
+  },
+  "body": {
+    "plan": {
+      "addBlocks": [
+        "myRules"
+      ],
+      "addProperties": [],
+      "fromVersion": 1,
+      "galleryId": "6fe563fa41b14de497fce4a0f0b4fea3",
+      "newOutline": null,
+      "outlineChanged": false,
+      "toVersion": 2
+    }
+  }
+}

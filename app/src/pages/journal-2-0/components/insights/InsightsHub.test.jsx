@@ -28,8 +28,9 @@ vi.mock('../../hooks/useScope', () => ({
 }))
 // InsightsHub reads the live account (for the per-account Coach section). Stub it
 // so the shell test doesn't drag in the accounts SWR fetch.
+let selectedAccount = 'acc1'
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
-  default: () => ({ accountId: 'acc1' }),
+  default: () => ({ accountId: selectedAccount }),
 }))
 
 // P5 A7: Regime is real when the `regime` feature flag is on (default ON). Stub
@@ -80,7 +81,24 @@ vi.mock('../../lib/reviewDrafts', () => ({
   thisMonthIso: () => '2026-10',
 }))
 
-import InsightsHub from './InsightsHub'
+// P2 Tier 3 Task 6: the winners checklist is a lazy leaf. Mocked so the hub's gate and its lazy
+// mount are tested here; the panel's own behaviour is ChecklistFromWinners.test.jsx.
+let winnersThrows = false
+let winnersMounts = 0
+vi.mock('./ChecklistFromWinners', async () => {
+  const { useState } = await import('react')
+  return {
+    default: function Winners({ accountId }) {
+      const [instance] = useState(() => { winnersMounts += 1; return winnersMounts })
+      if (winnersThrows) throw new Error('chunk exploded')
+      return <div>Winners mounted for {String(accountId)} (instance {instance})</div>
+    },
+  }
+})
+
+import InsightsHub, { SECTION_FAILED_TEXT } from './InsightsHub'
+import { TIER3_FLAG } from '../../lib/tier3Flag'
+import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
 // Surfaces the live querystring so we can assert ?ins= persistence + coexistence.
 function LocationProbe() {
@@ -115,6 +133,10 @@ beforeEach(() => {
   psychologyFlagOn = true
   verdictScoreFlagOn = true
   reviewDraftsFlagOn = false
+  winnersThrows = false
+  winnersMounts = 0
+  selectedAccount = 'acc1'
+  __resetNotebookFlags()
 })
 
 describe('InsightsHub — sub-nav shell', () => {
@@ -271,5 +293,50 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     draftWeeklyReview.mockRejectedValueOnce(new Error('boom'))
     fireEvent.click(screen.getByRole('button', { name: /this week.s review/i }))
     expect(await screen.findByText(/Could not draft the weekly review/)).toBeInTheDocument()
+  })
+})
+
+describe('InsightsHub — Checklist from my winners (P2 Tier 3 Task 6)', () => {
+  const WINNERS = 'Checklist from my winners'
+
+  it('the tab is absent while the Tier 3 switch is off (default)', () => {
+    renderHub({ route: '/journal?ins=winners' })
+    expect(screen.queryByRole('button', { name: WINNERS })).not.toBeInTheDocument()
+    // An ?ins=winners deep link with the switch off falls back to the default section.
+    expect(screen.getByText('Playbook mounted')).toBeInTheDocument()
+    expect(screen.queryByText(/Winners mounted/)).not.toBeInTheDocument()
+  })
+
+  it('with the switch on, the tab appears and mounts the lazy panel with the account', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: WINNERS }))
+    expect(await screen.findByText('Winners mounted for acc1 (instance 1)')).toBeInTheDocument()
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
+    expect(screen.getByTestId('loc').textContent).toContain('ins=winners')
+  })
+
+  it('switching account mounts a fresh panel (M2: nothing accepted for one account hides in another)', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    const view = renderHub({ route: '/journal?ins=winners' })
+    expect(await screen.findByText('Winners mounted for acc1 (instance 1)')).toBeInTheDocument()
+    selectedAccount = 'acc2'
+    view.rerender(
+      <MemoryRouter initialEntries={['/journal?ins=winners']}>
+        <InsightsHub analytics={analytics} />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Winners mounted for acc2 (instance 2)')).toBeInTheDocument()
+  })
+
+  it('a panel that cannot render says so in words, and the sub-nav still stands', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    winnersThrows = true
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderHub({ route: '/journal?ins=winners' })
+    expect(await screen.findByText(SECTION_FAILED_TEXT)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Playbook' })).toBeInTheDocument()
+    spy.mockRestore()
   })
 })

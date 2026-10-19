@@ -376,6 +376,18 @@
       ]
     },
     {
+      "key": "journal_page_layout",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Journal",
+      "kind": "setting",
+      "label": "Page layout",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx"
+      ]
+    },
+    {
       "key": "joystick_hub",
       "store": "server-preference",
       "scope": "cross-device",
@@ -520,6 +532,18 @@
       "label": "Company profile widget settings",
       "serverAllowlisted": true,
       "files": []
+    },
+    {
+      "key": "screener_chart_widget",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Screener chart",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartWidget.jsx"
+      ]
     },
     {
       "key": "screener_column_presets",
@@ -2401,6 +2425,28 @@
       ]
     },
     {
+      "key": "uct.screener.gridLayout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Charts per page",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartGrid.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.gridSync",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Charts view crosshair and time-range sync",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerChartGrid.jsx"
+      ]
+    },
+    {
       "key": "uct.screener.landingSeed:*",
       "store": "localStorage",
       "scope": "device-local",
@@ -2418,9 +2464,20 @@
       "scope": "device-local",
       "surface": "Screener",
       "kind": "setting",
-      "label": "Focus or Table layout",
+      "label": "List, Charts, Map or Table view",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.mapGroup",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Map grouping",
+      "files": [
+        "app/src/pages/screener/focus/ScreenerHeatMap.jsx"
       ]
     },
     {

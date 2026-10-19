@@ -92,4 +92,20 @@ MIGRATIONS: list[tuple[str, str]] = [
      " imported_at TEXT NOT NULL)"),
     ("archive_009_images_record_idx",
      "CREATE INDEX IF NOT EXISTS ix_wisdom_archive_images_record ON wisdom_archive_images(record_id, ordinal)"),
+    # Call -> Desk session moment links (archive/call_moments.py): one row per (call, video), the
+    # second the ticker was discussed and the match's confidence. Derived, so a full refresh
+    # replaces every row; no price, no transcript text. The youtube id and second are what the
+    # member surfaces (require_paid only) turn into a "watch at m:ss" link.
+    ("archive_010_call_moments",
+     "CREATE TABLE IF NOT EXISTS wisdom_archive_call_moments ("
+     " call_id TEXT NOT NULL,"
+     " video_id INTEGER NOT NULL,"
+     " youtube_id TEXT NOT NULL,"
+     " t INTEGER NOT NULL,"                               # seconds into the video
+     " ticker TEXT NOT NULL,"
+     " session_date TEXT NOT NULL,"
+     " relation TEXT NOT NULL,"                           # same_day | same_day_after_close | next_session
+     " confidence REAL NOT NULL,"
+     " computed_at TEXT NOT NULL,"
+     " PRIMARY KEY (call_id, video_id))"),
 ]

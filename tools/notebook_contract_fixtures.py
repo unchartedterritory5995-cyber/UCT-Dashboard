@@ -83,6 +83,16 @@ FLAGS = (
     "NOTEBOOK_SMART_CHIPS_ENABLED",
     # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # Journal P4a: page layouts (Customize on Today and the trade page, reading a saved layout).
+    "JOURNAL_PAGE_LAYOUTS_ENABLED",
+    # Notebook P3a: the community style library (share, adopt, helpful, follow, feed).
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+
+
+    # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
+    "JOURNAL_TIER3_ENABLED",
+    # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
 )
 
 
@@ -200,6 +210,26 @@ def _no_network(p: _Patches) -> None:
     p.setattr(yfinance, "download", no_yahoo)
 
 
+class _SeededSecrets:
+    """`secrets` for the ONE module whose random token reaches a fixture: the community library's opaque
+    author handle (template_gallery.author_handle, `secrets.token_urlsafe(9)`). Same length and alphabet,
+    drawn from a counter, so `--check` is repeatable. Every other `secrets` reader keeps the real module:
+    a session token is never written into a fixture, and a seeded one would be a weaker test of nothing."""
+
+    def __init__(self) -> None:
+        import secrets as _real
+        self._real, self._n = _real, 0
+
+    def token_urlsafe(self, nbytes: int | None = None) -> str:
+        import base64
+        self._n += 1
+        raw = hashlib.sha256(f"notebook-contract-handle-{self._n}".encode()).digest()[: nbytes or 32]
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
 def _freeze(p: _Patches) -> None:
     """Freeze "now" and make ids repeatable for every `api.*` module already imported, and for
     any module that reads `datetime.datetime` / `uuid.uuid4` / `time.time` late."""
@@ -209,6 +239,9 @@ def _freeze(p: _Patches) -> None:
     p.setattr(_dt, "date", _FrozenDate)
     p.setattr(_uuid, "uuid4", uuid4)
     p.setattr(_time, "time", lambda: frozen_epoch)
+    gallery_mod = sys.modules.get("api.services.journal_two.template_gallery")
+    if gallery_mod is not None:      # in _PREIMPORT, so present; the handle is its only `secrets` read
+        p.setattr(gallery_mod, "secrets", _SeededSecrets())
     for name, mod in list(sys.modules.items()):
         if mod is None or not (name == "api" or name.startswith("api.")):
             continue
@@ -288,7 +321,8 @@ def build_app() -> Any:
                              notebook_fingerprint, notebook_journal_styles, notebook_onboarding,
                              notebook_plan_grades, notebook_playbook, notebook_smart_chips,
                              notebook_research_capture, notebook_review_drafts, notebook_setups_board,
-                             notebook_template_gallery, notebook_thesis_chips, notebook_visual_playbook)
+                             notebook_template_gallery, notebook_thesis_chips, notebook_visual_playbook,
+                             notebook_winners_checklist, notebook_wrapped)
     app = FastAPI()
     for r in (notebook_plan_grades.router, notebook_playbook.router, notebook_setups_board.router,
               notebook_setups_board.similar_router, notebook_review_drafts.router,
@@ -297,7 +331,10 @@ def build_app() -> Any:
               notebook_chart_alerts.router, notebook_research_capture.transcripts_router,
               notebook_research_capture.passed_router, notebook_template_gallery.router,
               notebook_fingerprint.router, notebook_onboarding.router, notebook_journal_styles.router,
-              notebook_smart_chips.router):
+              notebook_smart_chips.router,
+              # Notebook P2 Tier 3 (JOURNAL_TIER3_ENABLED): Checklist from my winners, and Your
+              # trading year (/years and /{year}). Both 404 with the switch off, before the session.
+              notebook_winners_checklist.router, notebook_wrapped.router):
         app.include_router(r)
     return app
 
@@ -1372,8 +1409,13 @@ def template_gallery(w: World) -> None:
     w.record("template-gallery.admin.approve.stale", "PATCH", f"{base}/admin/items/{third}", case="error",
              expect=409, json_body={"action": "approve"},
              note="An approval that does not name the version the reviewer saw is refused.")
+    # P3b-F-R4: a rejection names the version the reviewer saw too, read off the same queue answer.
+    w.record("template-gallery.admin.reject.stale", "PATCH", f"{base}/admin/items/{second}", case="error",
+             expect=409, json_body={"action": "reject", "note": "Too thin to be useful yet."},
+             note="A rejection that does not name the version the reviewer saw is refused, and nothing changes.")
+    seen_second = next(row["updatedAt"] for row in first_queue["pending"] if row["id"] == second)
     w.record("template-gallery.admin.reject", "PATCH", f"{base}/admin/items/{second}", case="success", expect=200,
-             json_body={"action": "reject", "note": "Too thin to be useful yet."})
+             json_body={"action": "reject", "note": "Too thin to be useful yet.", "reviewedUpdatedAt": seen_second})
     w.record("template-gallery.admin.bad-action", "PATCH", f"{base}/admin/items/{gid}", case="error", expect=400,
              json_body={"action": "explode"})
     w.as_user(author)
@@ -1423,6 +1465,129 @@ def template_gallery(w: World) -> None:
     w.as_user(None)
     w.record("template-gallery.list.signed-out", "GET", base, case="error", expect=401)
     w.as_user(MEMBER)
+
+
+def _style_library(w: World) -> None:
+    """P3a Task 8: the community style library's routes, with the library switch on (it is in FLAGS). Run by
+    the `style_library` builder, registered LAST so no earlier builder's ids or times move. Members of its
+    own: an author shares a style, an admin approves it, a viewer adopts it, marks it Helpful, opens the
+    author's page and follows them; then the author's next version is approved and the viewer previews and
+    applies it. Every admin approval is a CHECKED setup call, for the reason the fourth template's is."""
+    from api.services.journal_two import journal_styles as js
+    base = "/api/j2/template-gallery"
+    author = w.member("styler", "Sam Styler")
+    viewer = w.member("library-viewer", "Lee Library")
+
+    def approve(gid: str) -> None:
+        q = w.client.get(f"{base}/admin/queue")
+        assert q.status_code == 200, f"setup: the review queue answered {q.status_code}"
+        seen = next(r["updatedAt"] for r in q.json()["pending"] if r["id"] == gid)
+        res = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+        assert res.status_code == 200, f"setup: approving {gid} answered {res.status_code}"
+
+    c = w.conn()
+    try:
+        style = js.create_style(author, {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
+                                         "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
+    finally:
+        c.close()
+    w.as_user(author)
+    share = {"styleId": style["id"], "title": "Weekend prep", "description": "How I get ready for Monday.",
+             "category": "journal", "tradingStyle": "swing"}
+    shared = w.record("template-gallery.styles.publish", "POST", f"{base}/styles", case="success", expect=200,
+                      json_body=share, note="A journal style shared: pending until an admin reviews it.")
+    sid, handle = shared["template"]["id"], shared["template"]["authorHandle"]
+    w.record("template-gallery.styles.publish.unknown-style", "POST", f"{base}/styles", case="error", expect=404,
+             json_body={**share, "styleId": "nope"})
+    w.record("template-gallery.styles.publish.bad-trading-style", "POST", f"{base}/styles", case="error",
+             expect=400, json_body={**share, "tradingStyle": "yolo"})
+    w.as_user(ADMIN)
+    approve(sid)
+    w.as_user(viewer)
+    w.record("template-gallery.updates.none", "GET", f"{base}/updates", case="empty", expect=200,
+             note="Nothing adopted yet, so nothing to update.")
+    adopted = w.record("template-gallery.adopt", "POST", f"{base}/{sid}/adopt", case="success", expect=200,
+                       json_body={"notify": True}, note="The member's own copy, with update notices on.")
+    copy_id = adopted["style"]["id"]
+    w.record("template-gallery.adopt.bad-notify", "POST", f"{base}/{sid}/adopt", case="error", expect=400,
+             json_body={"notify": "yes"})
+    w.record("template-gallery.adopt.not-found", "POST", f"{base}/nope/adopt", case="error", expect=404,
+             json_body={})
+    w.record("template-gallery.helpful", "POST", f"{base}/{sid}/helpful", case="success", expect=200)
+    w.record("template-gallery.unhelpful", "DELETE", f"{base}/{sid}/helpful", case="success", expect=200)
+    w.record("template-gallery.helpful.not-found", "POST", f"{base}/nope/helpful", case="error", expect=404)
+    w.record("template-gallery.authors.page", "GET", f"{base}/authors/{handle}", case="success", expect=200,
+             note="An author is the opaque handle: no user id and no email reach the page.")
+    w.record("template-gallery.authors.not-found", "GET", f"{base}/authors/nope", case="error", expect=404)
+    w.record("template-gallery.authors.follow", "POST", f"{base}/authors/{handle}/follow", case="success",
+             expect=200)
+    w.record("template-gallery.feed", "GET", f"{base}/feed", case="success", expect=200,
+             note="What the authors this member follows have listed.")
+    w.record("template-gallery.authors.unfollow", "DELETE", f"{base}/authors/{handle}/follow", case="success",
+             expect=200)
+    w.as_user(author)
+    w.record("template-gallery.helpful.own", "POST", f"{base}/{sid}/helpful", case="error", expect=404,
+             note="An author cannot mark their own item helpful.")
+    w.record("template-gallery.authors.follow.own", "POST", f"{base}/authors/{handle}/follow", case="error",
+             expect=404, note="Nobody follows themselves.")
+    # The author's next version, shared and approved: the listed version goes up and the viewer's copy is behind.
+    c = w.conn()
+    try:
+        js.update_style(author, style["id"], {"blocks": [{"block": "myRules", "enabled": True, "settings": {}}]}, c)
+    finally:
+        c.close()
+    resubmitted = w.client.post(f"{base}/styles", json=share)
+    assert resubmitted.status_code == 200, f"setup: resubmitting the style answered {resubmitted.status_code}"
+    w.as_user(ADMIN)
+    # P3a Task 10 fix round 1 (P3a-T10-R1): the held revision as its reviewer reads it, and as a member reads the
+    # same item. Two READS, so no fixture around them moves.
+    w.record("template-gallery.styles.item.revision.admin", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="An admin's read of a listed style with a held revision: `pendingRevision` is what approving lists.")
+    w.as_user(viewer)
+    w.record("template-gallery.styles.item.revision.member", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="The same item to a member while the revision waits: the listed version, no `pendingRevision`.")
+    w.as_user(ADMIN)
+    approve(sid)
+    w.as_user(viewer)
+    w.record("template-gallery.updates", "GET", f"{base}/updates", case="success", expect=200,
+             note="One adopted copy behind its listed version.")
+    w.record("template-gallery.updates.plan", "GET", f"{base}/updates/{copy_id}", case="success", expect=200)
+    w.record("template-gallery.updates.plan.not-found", "GET", f"{base}/updates/nope", case="error", expect=404)
+    w.record("template-gallery.updates.apply.bad-take-outline", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=400, json_body={"takeOutline": "yes", "baseUpdatedAt": adopted["style"]["updatedAt"], "toVersion": 2})
+    w.record("template-gallery.updates.apply.stale", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=409, json_body={"baseUpdatedAt": "2000-01-01T00:00:00+00:00", "toVersion": 2},
+             note="The copy changed since the preview: nothing is written.")
+    w.record("template-gallery.updates.apply.version-moved", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=409, json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"],
+                                    "toVersion": 1},
+             note="The member previewed an older listed version than the one listed now: nothing is written.")
+    w.record("template-gallery.updates.apply", "POST", f"{base}/updates/{copy_id}", case="success", expect=200,
+             json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"], "toVersion": 2},
+             note="The new block is added; the member's own outline is kept.")
+    # P3a Task 9: what the library UI reads. Recorded LAST (reads, and one refused write that writes
+    # nothing), so no fixture above moves.
+    w.record("template-gallery.list.styles", "GET", f"{base}?type=style&trading_style=swing", case="success",
+             expect=200, note="The Styles chip with the Swing trading-style chip.")
+    item = w.record("template-gallery.styles.item", "GET", f"{base}/{sid}", case="success", expect=200,
+                    note="A listed style in full: `payload` is what Preview composes and adopt copies.")["template"]
+    payload = item["payload"]
+    w.record("template-gallery.styles.preview", "POST", "/api/j2/journal-styles/preview", case="success",
+             expect=200, json_body={"style": {"kindId": payload["kindId"], "outlineBodyJson": payload["outlineBodyJson"],
+                                              "blocks": payload["blocks"], "properties": payload["properties"]}},
+             note="The library's Preview: the listed payload composed with the viewer's own data.")
+    w.record("template-gallery.feed.empty", "GET", f"{base}/feed", case="empty", expect=200,
+             note="The viewer follows nobody now (they unfollowed above).")
+    w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
+    try:
+        w.record("template-gallery.adopt.styles-off", "POST", f"{base}/{sid}/adopt", case="error", expect=409,
+                 json_body={"notify": False}, note="The member's Journal styles switch is off: nothing is adopted.")
+    finally:
+        w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    # P3a Task 10 fix round 1 (P3a-T10-R3): an adopted copy of another author's listing is refused before any
+    # write. Recorded LAST, so no fixture above moves.
+    w.record("template-gallery.styles.publish.adopted", "POST", f"{base}/styles", case="error", expect=400,
+             json_body={**share, "styleId": copy_id}, note="A style adopted from the library cannot be shared again.")
 
 
 @builder
@@ -2059,6 +2224,392 @@ def trader_prep_review(w: World) -> None:
     w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
     w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
              note="Another member's trade: the same 404 as one that does not exist.")
+    w.as_user(MEMBER)
+
+
+@builder
+def style_library(w: World) -> None:
+    """P3a Task 8: the community library's routes. LAST, so adding it moved no earlier builder's ids."""
+    _style_library(w)
+
+
+# ── Notebook P2 Tier 3 (JOURNAL_TIER3_ENABLED). Appended after every other builder, each with members
+# of its own, so no earlier builder's seeded ids, rows or answers move. ──────────────────────────────
+
+def _tag_trade(c: Any, tid: str, tags: list[str]) -> None:
+    c.execute("UPDATE j2_trades SET emotion_tags = ? WHERE id = ?", (json.dumps(tags), tid))
+
+
+@builder
+def checklist_from_winners(w: World) -> None:
+    """P2 Tier 3, Task 6: GET /api/j2/insights/checklist-suggestions (checklist_suggestions.suggest).
+    Three books: one with too few winners, one whose every trade is among its best (no rest), and one
+    with 24 winners and 13 other trades (losers, and trades with no R) whose best trades carry two
+    habits far more than the rest, one of them already made into a rule that is not yet marked."""
+    from api.services.journal_two import journal_rules
+    base = "/api/j2/insights/checklist-suggestions"
+    few, no_rest, book = w.member("winners-few"), w.member("winners-no-rest"), w.member("winners", "Wyn Winners")
+    c = w.conn()
+    try:
+        for i in range(5):                                   # five winners: under MIN_WINNERS
+            day = f"2026-08-{3 + i:02d}"
+            add_trade(c, f"wf-{i:02d}", user=few, symbol="WFEW", entry=100.0, exit_=102.0, stop=99.0,
+                      entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+        for i in range(12):                                  # twelve winners and nothing else
+            day = f"2026-08-{3 + i:02d}"
+            add_trade(c, f"wn-{i:02d}", user=no_rest, symbol="WNRS", entry=100.0, exit_=101.0 + i * 0.1, stop=99.0,
+                      entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            _tag_trade(c, f"wn-{i:02d}", ["patient"])
+        # The full book. 24 winners, R 3.0 down to 0.7 (the best 20 are wb-00 .. wb-19).
+        for i in range(24):
+            day = f"2026-{7 + i // 12:02d}-{1 + (i % 12) * 2:02d}"
+            r = round(3.0 - i * 0.1, 2)
+            tid = add_trade(c, f"wb-{i:02d}", user=book, symbol=f"WB{i:02d}", entry=100.0, exit_=100.0 + r,
+                            stop=99.0, entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            tags = []
+            if i % 2 == 0:
+                tags.append("patient")     # 10 of the best 20 (50%), 2 of the 13 others
+            if i < 9:
+                tags.append("calm")        # 9 of the best 20 (45%), none of the others
+            if i in (1, 3):
+                tags.append("excited")     # 2 of the best 20 (10%): under MIN_SHARE, never suggested
+            _tag_trade(c, tid, tags)
+        for i in range(6):                                   # six losers
+            day = f"2026-09-{1 + i * 2:02d}"
+            tid = add_trade(c, f"wl-{i:02d}", user=book, symbol=f"WL{i:02d}", entry=100.0, exit_=99.0, stop=99.0,
+                            entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            _tag_trade(c, tid, ["fomo"] + (["patient"] if i == 0 else []))
+        for i in range(3):                                   # three broker-style trades with no stop: no R
+            day = f"2026-09-{20 + i:02d}"
+            tid = add_trade(c, f"wr-{i:02d}", user=book, symbol=f"WR{i:02d}", entry=100.0, exit_=104.0, stop=100.0,
+                            entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            _tag_trade(c, tid, ["fomo"])
+        c.commit()
+        # A rule made from the "calm" suggestion earlier and never marked before entry: `pendingMark`.
+        journal_rules.create_rule(book, None, "Before entry: am I calm?", evidence="On 9 of your 20 best trades",
+                                  source_type="psychology", source_id="winners:calm", conn=c)
+    finally:
+        c.close()
+    w.as_user(book)
+    w.record("checklist-suggestions", "GET", base, case="success", expect=200,
+             note="24 winners, best 20, 13 others (6 losers, 3 with no R, 4 smaller winners). Two habits qualify: "
+                  "patient (no rule yet, pendingMark null) and calm (a rule made from it, not marked: pendingMark "
+                  "is that rule's id). excited is on too few best trades; fomo is never on a best one.")
+    w.as_user(few)
+    w.record("checklist-suggestions.too-few", "GET", base, case="empty", expect=200,
+             note="Five winners: under the ten it needs, so nothing is suggested.")
+    w.as_user(no_rest)
+    w.record("checklist-suggestions.no-rest", "GET", base, case="empty", expect=200,
+             note="Twelve winners and no other trade: all are among the best, so there is no rest to compare "
+                  "with (restCount 0) and nothing is suggested.")
+    w.as_user(book, FREE)
+    w.record("checklist-suggestions.free-plan", "GET", base, case="error", expect=402)
+    w.as_user(MEMBER)
+
+
+@builder
+def your_trading_year(w: World) -> None:
+    """P2 Tier 3, Tasks 7 and 8: GET /api/j2/wrapped/years and GET /api/j2/wrapped/{year}
+    (wrapped.years_with_trades / wrapped.year_wrapped). Frozen today is 2026-10-05 ET, so 2026 is the
+    current year and not open yet (it opens on December 1 ET). The member has trades in 2023, 2025 and
+    2026 and none in 2024."""
+    from api.services.journal_two import adherence_store, journal_rules, rule_versions
+    base = "/api/j2/wrapped"
+    who = w.member("wrapped", "Wren Wrapped")
+    c = w.conn()
+    try:
+        n = 0
+
+        def trade(setup: str, r: float | None, month: int, day: int, year: int = 2025) -> str:
+            nonlocal n
+            n += 1
+            d = f"{year}-{month:02d}-{day:02d}"
+            stop = 100.0 if r is None else 99.0          # a stop at the entry carries no R
+            exit_ = 102.0 if r is None else 100.0 + r
+            return add_trade(c, f"wy-{n:03d}", user=who, symbol="WYNV", setup=setup, entry=100.0, exit_=exit_,
+                             stop=stop, entry_date=f"{d}T14:30:00+00:00", exit_date=f"{d}T19:30:00+00:00")
+
+        # 2025. VCP: 26 trades, all with R (normal). Breakout: 14 trades, 12 with R (thin; sampleN 12,
+        # tradeCount 14). EP: 3 trades with R (too few to rank). Months January to October.
+        for i in range(26):
+            trade("VCP", 2.0 if i % 3 else -1.0, 1 + i % 10, 3 + i % 20)
+        for i in range(12):
+            trade("Breakout", 1.5 if i % 2 else -1.0, 1 + i % 10, 5 + i % 20)
+        for i in range(2):
+            trade("Breakout", None, 6, 10 + i)
+        for i in range(3):
+            trade("EP", 4.0, 2 + i, 14)
+        # Adherence records on February's and March's trades only: every other month reads none.
+        feb_mar = c.execute("SELECT id FROM j2_trades WHERE user_id = ? AND trading_day_et LIKE '2025-0_-%'"
+                            " AND substr(trading_day_et, 6, 2) IN ('02', '03') ORDER BY id", (who,)).fetchall()
+        # A single trade in 2023 and two in 2026; none in 2024.
+        trade("VCP", 1.0, 5, 15, year=2023)
+        trade("VCP", 1.0, 3, 9, year=2026)
+        trade("VCP", -1.0, 4, 9, year=2026)
+        c.commit()
+    finally:
+        c.close()
+    for k, row in enumerate(feb_mar):
+        adherence_store.upsert_adherence(who, f"id:{row['id']}", "VCP", ["r1", "r2"][: 1 + k % 2], 2)
+    # Tickers: notes created in 2025 (NVDA as the note's ticker three times, AMD once, TSLA only as a
+    # cashtag in a body); one 2026 note, which the 2025 page does not count.
+    c = w.conn()
+    try:
+        for i, (title, ticker, text, day) in enumerate((
+                ("NVDA plan", "NVDA", "Base forming.", "2025-02-03"),
+                ("NVDA review", "NVDA", "Held well, watching $TSLA too.", "2025-05-12"),
+                ("NVDA earnings", "NVDA", "Into the print.", "2025-08-20"),
+                ("AMD idea", "AMD", "Relative strength.", "2025-11-04"),
+                ("TSLA mention", None, "Only $TSLA here.", "2025-06-30"),
+                ("Next year", "NVDA", "A 2026 note.", "2026-01-15"))):
+            payload = {"ticker": ticker} if ticker else {}
+            create_note(c, who, title, doc(para(text)), created=f"{day}T15:00:00+00:00", **payload)
+        # Lessons. A rule made in March 2025 and reworded on New Year's Eve ET (a UTC stamp of January 1,
+        # 2026, so changedDay is 2025-12-31); a second rule made in September 2025.
+        wait = journal_rules.create_rule(who, None, "Wait 30 minutes after the open", conn=c)
+        adds = journal_rules.create_rule(who, None, "No adds to losers", conn=c)
+        for rid, stamp in ((wait["id"], "2025-03-03T15:00:00+00:00"), (adds["id"], "2025-09-01T15:00:00+00:00")):
+            c.execute("UPDATE j2_journal_rules SET created_at = ?, updated_at = ? WHERE id = ?", (stamp, stamp, rid))
+            c.execute("UPDATE j2_journal_rule_versions SET changed_at = ? WHERE rule_id = ? AND version = 1",
+                      (stamp, rid))
+        c.commit()
+        rule_versions.edit_rule(who, wait["id"], {"label": "Wait 15 minutes after the open",
+                                                  "changeNote": "Thirty minutes was too late."}, conn=c)
+        c.execute("UPDATE j2_journal_rule_versions SET changed_at = ? WHERE rule_id = ? AND version = 2",
+                  ("2026-01-01T01:30:00+00:00", wait["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(who)
+    w.record("wrapped.years", "GET", f"{base}/years", case="success", expect=200,
+             note="Years with a closed, included trade, newest first; 2024 has none, so it is not listed.")
+    w.record("wrapped.year", "GET", f"{base}/2025", case="success", expect=200,
+             note="An available year: three setups (normal, thin with sampleN under tradeCount, too few to "
+                  "rank), member-wide tickers, twelve months with adherence only in February and March, and "
+                  "three rule versions, the newest stamped January 1 UTC and bucketed on December 31 ET.")
+    w.record("wrapped.year.not-ready", "GET", f"{base}/2026", case="empty", expect=200,
+             note="The current ET year before December 1: not_ready, whatever its trades.")
+    w.record("wrapped.year.no-trades", "GET", f"{base}/2024", case="empty", expect=200,
+             note="A past year with no closed trade: no_trades.")
+    w.record("wrapped.year.out-of-range", "GET", f"{base}/2027", case="error", expect=400,
+             note="A year after the current ET year: the plain sentence, nothing read.")
+    w.as_user(EMPTY)
+    w.record("wrapped.years.empty", "GET", f"{base}/years", case="empty", expect=200,
+             note="A member with no closed trades: no years to pick.")
+    w.as_user(who, FREE)
+    w.record("wrapped.years.free-plan", "GET", f"{base}/years", case="error", expect=402)
+    w.record("wrapped.year.free-plan", "GET", f"{base}/2025", case="error", expect=402)
+    w.as_user(MEMBER)
+
+
+def _checkin_block(embed_id: str, day: str, mood: str = "", focus: str = "") -> dict[str, Any]:
+    """A mood and focus check-in block in the shape the editor stores (moodCheckIn widgetEmbed)."""
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "moodCheckIn", "embedId": embed_id, "mode": "snapshot",
+        "params": {"mood": mood, "focus": focus, "day": day}, "searchText": "[mood and focus check-in]"}}
+
+
+@builder
+def check_in_outcomes(w: World) -> None:
+    """P2 Tier 3, Task 5: the `psychology.checkIns` slice of GET /api/j2/analytics
+    (analytics._checkin_section). journal_two's analytics route is not gated by these flags, so it
+    answers through a second app that shares this one's session (the journal_styles precedent) and is
+    in neither sweep. The fixture keeps ONLY that slice: the rest of the payload is other panels'."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import journal_two
+    who, none = w.member("checkins", "Cleo Checkins"), w.member("checkins-none")
+    c = w.conn()
+    try:
+        def trade(tid: str, day: str, exit_: float) -> None:
+            add_trade(c, tid, user=who, symbol="CINV", entry=100.0, exit_=exit_, stop=99.0,
+                      entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+
+        trade("ci-01", "2026-09-01", 102.0)     # mood 4, focus 4: a win, a loss and a breakeven
+        trade("ci-02", "2026-09-01", 99.5)
+        trade("ci-03", "2026-09-01", 100.0)
+        trade("ci-04", "2026-09-02", 103.0)     # two check-ins (mood 2 and 5): mood 4, focus 3
+        trade("ci-05", "2026-09-03", 98.0)      # mood 1, focus 2: a loss
+        trade("ci-06", "2026-09-08", 100.0)     # mood 3, focus 5: breakevens only, no win rate
+        trade("ci-07", "2026-09-08", 100.0)
+        trade("ci-08", "2026-09-09", 105.0)     # no check-in that day: in no level
+        trade("ci-09", "2026-09-10", 101.0)     # no trading day: unjoined
+        # mood 2, focus 1: twelve trades, eleven of them breakevens. The win rate rests on ONE trade
+        # (decisiveCount 1), so the level is too few to judge, though tradeCount is 12 (R-T3-T5-R4).
+        for i in range(12):
+            trade(f"ci-{10 + i:02d}", "2026-09-15", 101.0 if i == 0 else 100.0)
+        c.execute("UPDATE j2_trades SET trading_day_et = NULL WHERE id = 'ci-09'")
+        add_trade(c, "ci-none-1", user=none, symbol="CINV", entry=100.0, exit_=101.0, stop=99.0,
+                  entry_date="2026-09-01T14:30:00+00:00", exit_date="2026-09-01T19:30:00+00:00")
+        c.commit()
+        for title, blocks in (
+                ("Sep 1", [_checkin_block("ck-0901", "2026-09-01", "4", "4")]),
+                ("Sep 2", [_checkin_block("ck-0902a", "2026-09-02", "2", "3"),
+                           _checkin_block("ck-0902b", "2026-09-02", "5", "")]),
+                ("Sep 3", [_checkin_block("ck-0903", "2026-09-03", "1", "2")]),
+                ("Sep 4", [_checkin_block("ck-0904", "2026-09-04", "5", "")]),     # a check-in, no trades
+                ("Sep 8", [_checkin_block("ck-0908", "2026-09-08", "3", "5")]),
+                ("Sep 15", [_checkin_block("ck-0915", "2026-09-15", "2", "1")])):
+            create_note(c, who, title, doc(para("Daily note"), *blocks))
+    finally:
+        c.close()
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides = w.app.dependency_overrides      # the same session as the main app
+    client = TestClient(app)
+
+    def slice_(name: str) -> None:
+        entry = w.out[name]
+        entry["body"] = {"psychology": {"checkIns": entry["body"]["psychology"]["checkIns"]}}
+        entry["_contract"]["slice"] = "psychology.checkIns"
+
+    w.as_user(who)
+    w.record("analytics.check-ins", "GET", "/api/j2/analytics", case="success", expect=200, client=client,
+             note="Six check-in days. Every level 1..5 is listed for mood and focus; a level with no trades, or "
+                  "no win or loss, reads null; decisiveCount (wins + losses) is the n the win rate rests on, and "
+                  "mood 2 / focus 1 hold twelve trades with only one of them decisive.")
+    slice_("analytics.check-ins")
+    w.as_user(none)
+    w.record("analytics.check-ins.empty", "GET", "/api/j2/analytics", case="empty", expect=200, client=client,
+             note="A member who trades and has no check-in: checkInDays 0, every level still listed.")
+    slice_("analytics.check-ins.empty")
+    w.as_user(MEMBER)
+
+
+@builder
+def checklist_from_winners_too_few_others(w: World) -> None:
+    """P2 Tier 3 final fix I3 (appended last: its members and ids come after every other builder's).
+    The review's book: eleven winners and ONE other trade, "patient" on five of the winners and not on
+    the other. A rest of one is below sample_size's too-few line, so no comparison is made: the
+    payload's `restSample` is `too_few` and nothing is suggested."""
+    base = "/api/j2/insights/checklist-suggestions"
+    who = w.member("winners-one-other")
+    c = w.conn()
+    try:
+        for i in range(11):
+            day = f"2026-08-{3 + i:02d}"
+            tid = add_trade(c, f"wo-{i:02d}", user=who, symbol="WONE", entry=100.0, exit_=101.0 + i * 0.1,
+                            stop=99.0, entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            _tag_trade(c, tid, ["patient"] if i < 5 else [])
+        add_trade(c, "wo-loss", user=who, symbol="WONE", entry=100.0, exit_=99.0, stop=99.0,
+                  entry_date="2026-08-20T14:30:00+00:00", exit_date="2026-08-20T19:30:00+00:00")
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(who)
+    w.record("checklist-suggestions.too-few-others", "GET", base, case="empty", expect=200,
+             note="Eleven winners and one other trade: too few others to compare with (restSample too_few), "
+                  "so nothing is suggested.")
+    w.as_user(MEMBER)
+
+
+@builder
+def example_notes(w: World) -> None:
+    """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). LAST, so adding it moved no
+    earlier builder's ids. A member of its own shares a style, then previews and publishes one of their notes as
+    an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`.
+
+    P3b Task 4: the note's image is a real file on the (sandboxed) attachment root, because a publish now COPIES each
+    switched-on image; the image route is recorded hidden while the example is pending, and served once approved."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.attachment_root import attachment_root
+    base = "/api/j2/template-gallery"
+    author = w.member("exampler", "Erin Example")
+    c = w.conn()
+    try:
+        style = js.create_style(author, {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
+                                         "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
+        note = create_note(c, author, "My weekend plan", doc(para("x")))
+        image = f"/api/j2/notes/attachments/{author}/{note['id']}/inline/chart.png"
+        folder = attachment_root() / author / "notes" / note["id"] / "inline"
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = folder / ".chart.png.tmp"                   # temp, then os.replace: never open the final path
+        tmp.write_bytes(b"contract fixture image")
+        os.replace(tmp, folder / "chart.png")
+        body = doc(para("made $1,240 on NVDA, up 3.2R, at Schwab. Watching 132.40 on Monday."),
+                   {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ?, properties_json = ? WHERE id = ?",
+                  (json.dumps(body), json.dumps({"builtin:note_kind": "weekend_prep"}), note["id"]))
+        other = create_note(c, author, "A thesis", doc(para("Long NVDA into earnings.")))
+        c.execute("UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+                  (json.dumps({"builtin:note_kind": "thesis"}), other["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    shared = w.client.post(f"{base}/styles", json={"styleId": style["id"], "title": "Weekend prep",
+                                                    "category": "journal"})
+    assert shared.status_code == 200, f"setup: sharing the style answered {shared.status_code}"
+    sid = shared.json()["template"]["id"]
+    w.record("template-gallery.examples.preview", "POST", f"{base}/examples/preview", case="success", expect=200,
+             json_body={"noteId": note["id"], "imagesOn": [image]},
+             note="Exactly what other members would see, for the author: the changes (with the author's own text "
+                  "in `before`, never stored), counts by kind, and each image with its OCR state.")
+    w.record("template-gallery.examples.preview.title-only", "POST", f"{base}/examples/preview", case="success",
+             expect=200, json_body={"noteId": note["id"], "title": "Weekend plan", "titleOnly": True},
+             note="P3b-F2-R2: the typed title alone, as other members would see it. It reduces none of the note and "
+                  "is not charged to the preview limit.")
+    w.record("template-gallery.examples.preview.not-found", "POST", f"{base}/examples/preview", case="error",
+             expect=404, json_body={"noteId": "nope"},
+             note="Not the caller's live note (or the sample notebook's): the one 404.")
+    w.record("template-gallery.examples.preview.bad-images", "POST", f"{base}/examples/preview", case="error",
+             expect=400, json_body={"noteId": note["id"], "imagesOn": "chart.png"})
+    published = w.record("template-gallery.examples.publish", "POST", f"{base}/examples", case="success",
+                         expect=200,
+                         json_body={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                    "title": "My weekend plan"},
+                         note="A PENDING example note linked to the style, reduced by the server from the note itself.")
+    w.record("template-gallery.examples.publish.not-my-style", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": note["id"], "styleItemId": "nope", "title": "My weekend plan"})
+    w.record("template-gallery.examples.publish.other-kind", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": other["id"], "styleItemId": sid, "title": "A thesis"})
+    # P3b-T5-R7 (review I-1): the author's Your submissions AS THE SERVER LISTS IT -- the shared style (pending, with
+    # its `sourceStyleId`, which the Share form's door matches on) and the pending example (P3b-R12) -- so the door's
+    # client rails read the list's real shape, never a row with a field added by hand.
+    w.record("template-gallery.examples.list.mine", "GET", f"{base}?section=mine", case="success", expect=200,
+             note="The author's own list: their shared style, carrying the id of the style it shares, and their "
+                  "pending example note, with `capabilities.exampleNotes`.")
+    gid = published["template"]["id"]
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.image.pending-hidden", "GET", f"{base}/{gid}/images/0", case="error",
+             expect=404, note="A pending example's image copy is its author's and an admin's only: the one 404.")
+    w.as_user(ADMIN)
+    seen = w.client.get(f"{base}/{gid}").json()["template"]["updatedAt"]
+    approved = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+    assert approved.status_code == 200, f"setup: approving the example answered {approved.status_code}"
+    # P3b-T6-R6: an example is public only while the style it shows is listed, so the style is approved here too.
+    style_seen = w.client.get(f"{base}/{sid}").json()["template"]["updatedAt"]
+    listed = w.client.patch(f"{base}/admin/items/{sid}", json={"action": "approve", "reviewedUpdatedAt": style_seen})
+    assert listed.status_code == 200, f"setup: approving the style answered {listed.status_code}"
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.image", "GET", f"{base}/{gid}/images/0", case="success", expect=200,
+             note="An approved example's image COPY (never the author's attachment), with every public header and "
+                  "the image CSP. The body is the file's bytes.")
+    w.record("template-gallery.examples.image.not-found", "GET", f"{base}/{gid}/images/7", case="error",
+             expect=404, note="No copy with that number: the one 404.")
+    # P3b Task 6 (LAST, so nothing above moved): the style's "In use" section as a member reads it, and a reviewer's
+    # read of the example with a HELD revision. The style is listed above (a member may not read a pending one);
+    # then the author edits the note and publishes it again, which holds the new version beside the listed one.
+    w.record("template-gallery.examples.style-item", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest "
+                  "first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its "
+                  "images on the gallery image route.")
+    c = w.conn()
+    try:
+        revised = doc(para("made $2,480 on NVDA at Schwab. Watching 140.00 on Tuesday."),
+                      {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (json.dumps(revised), note["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    again = w.client.post(f"{base}/examples", json={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                                     "title": "My weekend plan, revised"})
+    assert again.status_code == 200, f"setup: publishing the example again answered {again.status_code}"
+    w.as_user(ADMIN)
+    w.record("template-gallery.examples.item.revision.admin", "GET", f"{base}/{gid}", case="success", expect=200,
+             note="A reviewer's read of an approved example with a HELD revision: the listed `payload`, the "
+                  "admin-only `pendingRevision` (its images are served on `?rev=pending`), and `linkedStyle`.")
     w.as_user(MEMBER)
 
 

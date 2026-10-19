@@ -1,0 +1,13 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+stderr | src/pages/journal-2-0/components/notebook/SlashMenu.blocks.test.jsx > R-T12-1: a named command outranks a block title (the rendered menu) > /price with a trailing space still puts Price first
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ ✓ src/pages/journal-2-0/components/notebook/SlashMenu.blocks.test.jsx (29 tests) 697ms
+
+ Test Files  1 passed (1)
+      Tests  29 passed (29)
+   Start at  10:44:36
+   Duration  2.42s (transform 785ms, setup 240ms, import 841ms, tests 697ms, environment 513ms)
+

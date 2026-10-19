@@ -6,6 +6,6 @@
     "status": 400
   },
   "body": {
-    "detail": "Sort by newest or most used."
+    "detail": "Sort by newest, most adopted or trending."
   }
 }

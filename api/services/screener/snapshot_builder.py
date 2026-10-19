@@ -775,10 +775,11 @@ def _read_ratings(ticker, failures=None):
     registered only under `RATINGS_PERCENTILE_ENABLED` (default `0`); on
     2026-08-09 the file was 0 bytes.
 
-    Both `load_distributions()` and `load_sector_distributions()` are called
-    ONCE per ticker here and threaded straight into `ratings_fields` — each is
-    already memoized in-process for 10 min inside `ratings_db`, so this is not
-    a per-ticker DB read across a nightly universe pass, just a cheap memo hit.
+    `load_distributions()` is called ONCE per ticker here and threaded straight
+    into `ratings_fields`; it is memoized in-process for 10 min inside
+    `ratings_db`, so this is not a per-ticker DB read across a nightly universe
+    pass, just a cheap memo hit. The sector pools are not read here at all:
+    Sector RS is ranked after the build (`snapshot_db.rank_sector_rs`).
     """
     def _note(outcome):
         if failures is None:
@@ -796,8 +797,12 @@ def _read_ratings(ticker, failures=None):
     if not metrics:
         _note("no_metrics")
         return {}
-    return enrich.ratings_fields(
-        metrics, enrich.load_distributions(), enrich.load_sector_distributions())
+    # ⛔ No sector pools here: `sector_rs_pct` is ranked ONCE per build, after
+    # every row is written, from the `rs_return` the RS authority gave each row
+    # (`snapshot_db.rank_sector_rs`). Ranking the ratings store's older copy of
+    # that return here was a second authority over it, and disagreed with the
+    # RS Ret column on the same row (median 4, p90 15 points, 2026-10-18).
+    return enrich.ratings_fields(metrics, enrich.load_distributions())
 
 
 def _read_rs_map():
@@ -1574,6 +1579,16 @@ def _run_build_locked(max_tickers=None) -> dict:
             log.warning("[screener] build %s failed: %s", t, e)
     if batch:
         snapshot_db.upsert_rows(batch)
+    # Sector RS over the whole table, from each row's own RS Ret (see
+    # snapshot_db.rank_sector_rs). A failure leaves the previous ranks and is
+    # named in the receipt; it never fails the build.
+    try:
+        sector_rs = snapshot_db.rank_sector_rs()
+    except Exception as e:  # noqa: BLE001
+        sector_rs = {"error": f"{type(e).__name__}: {e}"}
+        log.warning("[screener] sector RS ranking failed: %s", e)
+    if isinstance(populated.get("sector_rs_pct"), int) and "ranked" in sector_rs:
+        populated["sector_rs_pct"] = sector_rs["ranked"]
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
                            if built and populated[c] == 0
@@ -1595,7 +1610,7 @@ def _run_build_locked(max_tickers=None) -> dict:
         settled_receipt["catchup"] = catch_receipt
     log.info("[screener] settled newest bars: %s", settled_receipt)
     return {"built": built, "skipped": skipped, "errors": errors,
-            "targets": len(targets),
+            "targets": len(targets), "sector_rs": sector_rs,
             "populated": populated, "empty_columns": empty_columns,
             "sources": sources, "identity_refusals": identity_state,
             "settled_bars": settled_receipt}

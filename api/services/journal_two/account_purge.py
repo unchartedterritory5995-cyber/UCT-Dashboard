@@ -55,6 +55,8 @@ _DIRECT_USER_TABLES = (
     "j2_note_folders",
     "j2_note_embeds",
     "j2_note_mentions",
+    # P2 Tier 3 -- the member's mood and focus check-ins, a sidecar of their notes.
+    "j2_note_checkins",
     "j2_note_favorites",
     "j2_note_recents",
     "j2_note_versions",
@@ -161,6 +163,15 @@ _DIRECT_USER_TABLES = (
     "j2_template_gallery",
     "j2_template_gallery_reports",
     "j2_template_gallery_uses",
+    # P3a Task 5 -- the member's "tell me when the author updates this" watches on community styles.
+    # Created by template_gallery.ensure_gallery_schema. The watches OTHER members hold on a
+    # leaving author's styles go in the join pass below.
+    "j2_gallery_watches",
+    # P3a Task 6 -- the member's own "Helpful" votes and their opaque author handle (R-P3-2). Created by
+    # template_gallery.ensure_gallery_schema. The votes OTHER members cast on a leaving author's items go in the
+    # join pass below; their follows (a table keyed by two member ids, so not `user_id`) in the keyed pass.
+    "j2_gallery_helpful",
+    "j2_gallery_authors",
     # Wave 13 (lane 13I-1, the technical fingerprint) -- the member's chart-block index (a
     # projection of their notes) and the freeze ledger of each block's fingerprint.
     # Self-ensured by chart_blocks.py (never db.py), so on a pod where the routes never ran
@@ -239,7 +250,12 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
                 "total_rows_deleted": 0, "attachment_dirs_removed": 0,
                 "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
 
-    report = purge_user_rows(user_id, conn)
+    # P3b Task 4: the member's example notes keep their image COPIES under `attachment_root()/gallery/<item_id>`,
+    # outside the per-member tree below, so their ids are needed after the rows are gone. P3b-F-R3 (final review
+    # M-2): they are read INSIDE the deletes' own write transaction, so an example committed between a separate
+    # read and the deletes can no longer lose its row while its directory stays behind, orphaned.
+    example_ids: list[str] = []
+    report = purge_user_rows(user_id, conn, example_ids=example_ids)
     errors = report["errors"]
 
     # On-disk attachments: notebook inline/hero images AND trade screenshots
@@ -263,6 +279,14 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
 
+    example_dirs = 0
+    try:
+        from api.services.journal_two import template_gallery
+        example_dirs = template_gallery.remove_example_images(example_ids)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"example images: {e}")
+        log.warning("journal_two example image purge failed for %s: %s", user_id, e)
+
     # Wave 11 lane 11A: a voice note still on its way to a transcript holds the
     # member's AUDIO (and the transcript so far) in this process's temp directory
     # and memory -- never a table, so it is not in the manifest above. It goes now,
@@ -282,19 +306,35 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         **report,
         "ok": not errors,
         "attachment_dirs_removed": freed_dirs,
+        "example_image_dirs_removed": example_dirs,
         "voice_jobs_removed": voice_jobs,
         "errors": errors,
         "tombstone": tomb,
     }
 
 
-def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
+def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
+                    example_ids: list[str] | None = None) -> dict[str, Any]:
     """The DATABASE half of `purge_user_data`: every row of the family, and nothing on
     disk, and no tombstone. ⛔ This is what a RESTORE replays (account_tombstones.replay_on_db):
     on the machine running a restore drill the attachment directories are not the
-    deleted member's, so a replay must never touch a filesystem."""
+    deleted member's, so a replay must never touch a filesystem.
+
+    `example_ids` (P3b-F-R3): a list the caller passes to learn which example notes' image directories to
+    remove. It is filled under `BEGIN IMMEDIATE`, in the SAME write transaction as the deletes below, so no
+    example can be committed between the read and the delete. A replay passes none and reads nothing."""
     errors: list[str] = []
     deleted: dict[str, int] = {}
+
+    if example_ids is not None:
+        try:
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")      # the ids and the deletes: one transaction, committed below
+            from api.services.journal_two import template_gallery
+            example_ids.extend(template_gallery.example_image_ids(conn, user_id))
+        except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+            errors.append(f"example images: {e}")
+            log.warning("journal_two example image lookup failed for %s: %s", user_id, e)
 
     def _run(table: str, sql: str, params: tuple) -> int:
         try:
@@ -341,12 +381,32 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
             "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
             (user_id,),
         ),
+        "j2_gallery_watches": _run(
+            "j2_gallery_watches",
+            "DELETE FROM j2_gallery_watches WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+        # P3a Task 6 -- the votes other members cast on the leaving author's items.
+        "j2_gallery_helpful": _run(
+            "j2_gallery_helpful",
+            "DELETE FROM j2_gallery_helpful WHERE item_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
     }
 
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
     for table, count in about_their_templates.items():
         deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
+
+    # P3a Task 6 -- `j2_gallery_follows` is keyed by TWO member ids and has no `user_id`: the member's own
+    # follows (`follower_id`) and the follows OTHER members hold on them as an author (`author_id`). Both are
+    # the member's id, so both are keyed deletes (the manifest lists the table once per key); one count.
+    deleted["j2_gallery_follows"] = (
+        _run("j2_gallery_follows", "DELETE FROM j2_gallery_follows WHERE follower_id = ?", (user_id,))
+        + _run("j2_gallery_follows", "DELETE FROM j2_gallery_follows WHERE author_id = ?", (user_id,)))
 
     # Wave 7 whole-branch fix, ruling D-H10 -- the durable daily counters
     # (`api/services/daily_counters.py`, ruling D-H5b): one row per (scope,

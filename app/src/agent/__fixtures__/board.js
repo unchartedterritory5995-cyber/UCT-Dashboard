@@ -4,7 +4,7 @@
 // dot can unlink a widget ('N' → its own `N:<id>` symbol key, as WidgetHost
 // does), and charts read their symbol from their link group.
 import { planPlacement } from '../../pages/charts/placement/place'
-import { buildWidgetSource, buildLayoutSource, buildWatchlistSource } from '../host'
+import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
 export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null } = {}) {
@@ -73,6 +73,13 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       },
     },
     otherWidgets: () => [],
+    // The SERVER's stored board, compared with this tab by the real comparator (host.buildWidgetSync).
+    // In sync unless a test plays another tab/device: `state.serverWidgets` (what the server holds
+    // instead) or `state.serverUnreadable` (the read fails).
+    widgetInSync: buildWidgetSync({
+      readLayout: async () => { if (state.serverUnreadable) throw new Error('offline'); return { widgets: state.serverWidgets || state.widgets } },
+      localLayout: () => state, settleMs: 0, tries: 0,
+    }),
   }
   // Optional layout library, behaving like the Layout Dock: `open` swaps the board
   // for the stored one (your own layouts keep their edits — they auto-save; others

@@ -124,6 +124,8 @@ function chartsHost() {
       },
     },
     otherWidgets: () => [],
+    // the server's copy of every chart equals this tab's (the approval re-check; see host.buildWidgetSync)
+    widgetInSync: async () => ({ ok: true }),
   }
 }
 const mkHost = () => { const h = chartsHost(); h.charts._host = h; return h }
@@ -178,6 +180,8 @@ describe('2 · the panel reports what UCT did, never what the model said it did'
         commit(ref, patch) { if (ref === 'w2') return false; if ('settings' in patch) st[ref].stored = patch.settings; return true },
       },
       otherWidgets: () => [],
+      // the server's copy of every chart equals this tab's (the approval re-check; see host.buildWidgetSync)
+      widgetInSync: async () => ({ ok: true }),
     }
     turns.push(env('apply', [{ ...BARS, target: 'c1' }, { ...BARS, target: 'c2' }], ''))
     render(<AgentPanel host={host} onClose={() => {}} />)

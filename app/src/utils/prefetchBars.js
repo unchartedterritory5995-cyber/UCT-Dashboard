@@ -74,6 +74,18 @@ export function _noteWarmResult(json) {
 export function _holdBackgroundWarm() {
   return _packStillIngesting() || Date.now() < _warmBackoffUntil
 }
+// ⭐ THE ROWS ON SCREEN DO NOT WAIT FOR THE WHOLE UNIVERSE (2026-10-17). A first visit's
+// pack ingest takes well over a minute (measured on production: 5,151 of ~11,000 daily
+// keys stored after 90 s, version not yet stamped), and for all of it the list the member
+// is flipping through stayed cold -- 12 of a 32-row screen in IDB after 90 s -- so every
+// ArrowDown past the first rows waited on its own fetch and a fast walk painted nothing.
+// A job marked `visible` (the top rows of a list on screen, `prewarmVisibleList`'s
+// `memTop`) is held ONLY by the server's 503 backoff, never by the pack: a few dozen
+// first-paint requests at <=3 concurrency, the names the pack would deliver anyway, only
+// sooner. Everything else keeps the full hold.
+function _holdJob(job) {
+  return job?.visible ? Date.now() < _warmBackoffUntil : _holdBackgroundWarm()
+}
 // Warm fetcher: reports the HTTP status a plain `.json()` would hide, so a 503 shed
 // drives the backoff even though its body parses fine. Shares the URL with the
 // chart's own SWR key, so `preload` still dedupes one network request across both.
@@ -119,13 +131,17 @@ let _kick = null
 // `_warmIntentNow` does. Filling only the `&warm=1` SWR key would leave the next
 // row cold, because StockChart never reads that key.
 const _urgent = new Map() // chart-key URL -> { sym, tf }
+const _urgentRunning = new Set() // `${sym}_${tf}` of urgent jobs in flight
 export const URGENT_MAX_PER_CALL = 2
 function _startFetch(url) {
   _active++
   const meta = _urgent.get(url)
   _urgent.delete(url)
+  const running = meta ? `${meta.sym}_${meta.tf}` : null
+  if (running) _urgentRunning.add(running)
   const job = meta ? _fillUrgent(url, meta.sym, meta.tf) : Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult)
   job.catch(() => { /* best-effort */ }).finally(() => {
+    if (running) _urgentRunning.delete(running)
     _active--
     _pump()
   })
@@ -451,17 +467,18 @@ let _idbKick = null
 
 function _idbPump() {
   // Hold + retry (don't drain) while the pack is ingesting or the server is shedding,
-  // so durable IDB warms survive the hold and resume once it lifts.
-  if (_holdBackgroundWarm()) { if (_idbQueue.length) _idbKickSoon(); return }
+  // so durable IDB warms survive the hold and resume once it lifts. Under the pack hold a
+  // `visible` job may still run (see _holdJob); it is taken from wherever it sits.
   while (_idbActive < _IDB_MAX && _idbQueue.length) {
-    if (_holdBackgroundWarm()) { _idbKickSoon(); return }
-    const job = _idbQueue.shift()
+    const at = _holdBackgroundWarm() ? _idbQueue.findIndex(j => !_holdJob(j)) : 0
+    if (at < 0) { _idbKickSoon(); return }
+    const job = _idbQueue.splice(at, 1)[0]
     _idbActive++
     _idbWarmOne(job).finally(() => { _idbActive--; _idbPump() })
   }
 }
 
-async function _idbWarmOne({ sym, tf }) {
+async function _idbWarmOne({ sym, tf, visible = false }) {
   try {
     const have = await idbGet(sym, tf)
     // A DAILY entry missing recent sessions is NOT fresh: the chart's daily
@@ -492,7 +509,7 @@ async function _idbWarmOne({ sym, tf }) {
       && classifyIntradayTail(have.lastT, tf) === 'behind'
       && !isCurrentEnoughForPaint(have.lastT, tf)
     if (behindIntraday) {
-      if (_holdBackgroundWarm()) return
+      if (_holdJob({ visible })) return
       if (!_repairCooldownOk(sym, tf)) return
       const tail = _noteWarmResult(
         await preload(_sinceUrl(sym, tf, have.lastT), warmFetcher))
@@ -507,7 +524,12 @@ async function _idbWarmOne({ sym, tf }) {
     // Don't race the pack to origin, and don't pile onto a shedding server (see
     // _holdBackgroundWarm). The pack is writing these tickers into IDB; a click
     // meanwhile fetches its ONE chart via SWR. Warming resumes when the hold lifts.
-    if (_holdBackgroundWarm()) return
+    // A `visible` row is held only by the server's backoff (_holdJob).
+    if (_holdJob({ visible })) return
+    // An urgent job for this symbol is queued or running under the chart's own key, and it lands
+    // the bars in mem AND IDB: fetching them again under `&warm=1` downloads the same bars twice
+    // (measured on production 2026-10-17: the first three rows of every screener open).
+    if (_urgent.has(_url(sym, tf, false)) || _urgentRunning.has(`${sym}_${tf}`)) return
     const json = _noteWarmResult(await preload(_url(sym, tf), warmFetcher))
     if (json?.bars?.length && !json.delta) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
@@ -568,7 +590,9 @@ export function prefetchGridWarm(tickers) {
 //               only when a click on this exact set is imminent (e.g. a theme just
 //               expanded) — the chart being left is already loaded, so the burst
 //               competes with no active cold fetch.
-export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false } = {}) {
+//   visible   — rows on screen: may run during the first-visit pack ingest (see
+//               _holdJob). Only prewarmVisibleList's top rows pass it.
+export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false } = {}) {
   if (!tickers?.length) return
   const front = []
   for (const sym of tickers) {
@@ -576,17 +600,19 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
     const key = `${sym}_${tf}`
     const at = _idbQueue.findIndex(j => j.sym === sym && j.tf === tf)
     if (at >= 0) {                              // already queued
+      if (visible) _idbQueue[at].visible = true
       if (priority && at > 0) front.push(_idbQueue.splice(at, 1)[0]) // jump the line
       continue
     }
     if (_idbSeen.has(key) && !priority) continue // in-flight/recent — don't pile up
     if (!_idbSeen.has(key)) { _idbSeen.add(key); setTimeout(() => _idbSeen.delete(key), 60000) }
-    if (priority) front.push({ sym, tf })
-    else _idbQueue.push({ sym, tf })
+    const job = visible ? { sym, tf, visible: true } : { sym, tf }
+    if (priority) front.push(job)
+    else _idbQueue.push(job)
     prefetchTickerMeta(sym)
   }
   if (front.length) _idbQueue.unshift(...front) // caller order, at the head
-  if (immediate) _idbPump()                      // a click on this set is imminent
+  if (immediate || (visible && _packStillIngesting())) _idbPump() // rows on screen: now
   else _idbKickSoon()
 }
 
@@ -684,7 +710,10 @@ export function prewarmVisibleList(tickers, { chartTf = 'D', memTop = 24, cap = 
   //
   // priority (queue order, not extra concurrency) + NO `immediate` so the visible
   // chart's own fetch always goes out first; the warm idle-defers behind it.
-  prefetchBarsToIDB(list, chartTf || 'D', { priority: true })
+  // The top rows are what the member flips through first: they may load during a
+  // first visit's pack ingest (`visible`); the rest of the list waits for it as before.
+  prefetchBarsToIDB(list.slice(0, memTop), chartTf || 'D', { priority: true, visible: true })
+  prefetchBarsToIDB(list.slice(memTop), chartTf || 'D', { priority: true })
   if (chartTf && chartTf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
   // Promote only the on-screen TF (not all five) so the same-frame accelerator
   // doesn't fire 5× the local IDB reads for the top rows.

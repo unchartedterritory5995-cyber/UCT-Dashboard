@@ -20,7 +20,7 @@ const GAPPERS = { filters: [
 test('a pre-market screen outside 04:00-09:30 says when it fills, never "none today"', () => {
   const r = emptyReason({ spec: GAPPERS, meta: META, presence: { premarket_chg_pct: 0 }, liveOnly: true })
   expect(r).toEqual({ kind: 'premarket', labels: ['Pre-mkt %'] })
-  expect(reasonHead(r)).toBe('Pre-market screens fill from 4:00 to 9:30 ET')
+  expect(reasonHead(r)).toBe('Extended-hours screens fill before the open and after the close')
   expect(reasonBody(r)).toMatch(/That is a gap in the data, not a quiet market/)
   expect(REASON_SHORT[r.kind]).toBeTruthy()
 })
@@ -47,7 +47,7 @@ test('a fresh pre-market receipt at 8:42 labels the data "Pre-market · 8:42 AM"
   const btn = screen.getByRole('button', { name: /^Pre-market · 8:42 AM/ })
   fireEvent.click(btn)
   const region = screen.getByRole('region', { name: 'About this data' })
-  expect(region).toHaveTextContent('Pre-mkt %')
+  expect(region).toHaveTextContent('Ext-hrs %')
   expect(region).toHaveTextContent('No pre-market volume is available')
 })
 test('at 9:31 the same receipt no longer labels the screen: the nightly label returns', () => {
@@ -67,8 +67,33 @@ test('outside pre-market the Live label is unchanged', () => {
     now={at('2026-10-16T10:10:00-04:00')} />)
   expect(screen.getByRole('button', { name: /^Live · 10:09 AM/ })).not.toHaveTextContent('Pre-market')
 })
-test('the two starters land in Morning prep', () => {
-  expect(GROUPS.find(g => g.key === 'premarket')?.label).toBe('Morning prep')
-  expect(groupOf({ id: 'starter_premarket_gappers', group: 'Morning prep' })).toBe('premarket')
-  expect(groupOf({ id: 'starter_premarket_setups', group: 'Morning prep' })).toBe('premarket')
+test('the two starters land in Extended hours', () => {
+  expect(GROUPS.find(g => g.key === 'premarket')?.label).toBe('Extended hours')
+  expect(groupOf({ id: 'starter_premarket_gappers', group: 'Extended hours' })).toBe('premarket')
+  expect(groupOf({ id: 'starter_premarket_setups', group: 'Extended hours' })).toBe('premarket')
+})
+
+// After hours (2026-10-17): the same columns, the evening window.
+const ah = iso => ({ state: 'premarket', session: 'post', as_of: at(iso) / 1000 })
+
+test('a fresh after-hours receipt at 5:05 PM labels the data "After hours"', () => {
+  render(<DataReceipt snapshotDate="2026-10-15" premarket={ah('2026-10-16T17:05:00-04:00')}
+    now={at('2026-10-16T17:06:00-04:00')} />)
+  const btn = screen.getByRole('button', { name: /^After hours · 5:05 PM/ })
+  fireEvent.click(btn)
+  expect(screen.getByRole('region', { name: 'About this data' })).toHaveTextContent("against today's close")
+})
+test('on Saturday the held after-hours print is explained, never labelled live', () => {
+  render(<DataReceipt snapshotDate="2026-10-17" premarket={ah('2026-10-16T19:59:00-04:00')}
+    now={at('2026-10-17T11:00:00-04:00')} />)
+  const btn = screen.getByRole('button', { name: /Oct 16 close/ })
+  expect(btn).not.toHaveTextContent('After hours')
+  fireEvent.click(btn)
+  expect(screen.getByRole('region', { name: 'About this data' }))
+    .toHaveTextContent(/the last after-hours trade, Fri 7:59 PM ET/)
+})
+test('control: an after-hours receipt never reads as pre-market in the morning', () => {
+  render(<DataReceipt snapshotDate="2026-10-16" premarket={ah('2026-10-17T08:42:00-04:00')}
+    now={at('2026-10-17T08:43:00-04:00')} />)
+  expect(screen.getByRole('button')).not.toHaveTextContent('Pre-market')
 })

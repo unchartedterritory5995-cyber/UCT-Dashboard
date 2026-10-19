@@ -1,0 +1,113 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/analytics",
+    "note": "Six check-in days. Every level 1..5 is listed for mood and focus; a level with no trades, or no win or loss, reads null; decisiveCount (wins + losses) is the n the win rate rests on, and mood 2 / focus 1 hold twelve trades with only one of them decisive.",
+    "path": "/api/j2/analytics",
+    "slice": "psychology.checkIns",
+    "status": 200
+  },
+  "body": {
+    "psychology": {
+      "checkIns": {
+        "checkInDays": 6,
+        "focus": [
+          {
+            "avgPnl": 8.33,
+            "days": 1,
+            "decisiveCount": 1,
+            "level": 1,
+            "tradeCount": 12,
+            "winRate": 1.0,
+            "word": "Scattered"
+          },
+          {
+            "avgPnl": -200.0,
+            "days": 1,
+            "decisiveCount": 1,
+            "level": 2,
+            "tradeCount": 1,
+            "winRate": 0.0,
+            "word": "Distracted"
+          },
+          {
+            "avgPnl": 300.0,
+            "days": 1,
+            "decisiveCount": 1,
+            "level": 3,
+            "tradeCount": 1,
+            "winRate": 1.0,
+            "word": "Steady"
+          },
+          {
+            "avgPnl": 50.0,
+            "days": 1,
+            "decisiveCount": 2,
+            "level": 4,
+            "tradeCount": 3,
+            "winRate": 0.5,
+            "word": "Focused"
+          },
+          {
+            "avgPnl": 0.0,
+            "days": 1,
+            "decisiveCount": 0,
+            "level": 5,
+            "tradeCount": 2,
+            "winRate": null,
+            "word": "Locked in"
+          }
+        ],
+        "joinedTrades": 19,
+        "mood": [
+          {
+            "avgPnl": -200.0,
+            "days": 1,
+            "decisiveCount": 1,
+            "level": 1,
+            "tradeCount": 1,
+            "winRate": 0.0,
+            "word": "Rough"
+          },
+          {
+            "avgPnl": 8.33,
+            "days": 1,
+            "decisiveCount": 1,
+            "level": 2,
+            "tradeCount": 12,
+            "winRate": 1.0,
+            "word": "Low"
+          },
+          {
+            "avgPnl": 0.0,
+            "days": 1,
+            "decisiveCount": 0,
+            "level": 3,
+            "tradeCount": 2,
+            "winRate": null,
+            "word": "Okay"
+          },
+          {
+            "avgPnl": 112.5,
+            "days": 2,
+            "decisiveCount": 3,
+            "level": 4,
+            "tradeCount": 4,
+            "winRate": 0.6666666666666666,
+            "word": "Good"
+          },
+          {
+            "avgPnl": null,
+            "days": 1,
+            "decisiveCount": 0,
+            "level": 5,
+            "tradeCount": 0,
+            "winRate": null,
+            "word": "Great"
+          }
+        ],
+        "unjoined": 1
+      }
+    }
+  }
+}

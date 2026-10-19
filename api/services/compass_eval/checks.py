@@ -69,11 +69,12 @@ _STOP_WORD_RE = re.compile(r"\b(?<!no )stop\b", re.I)
 _REGIME_RED_RE = re.compile(r"\b(RED|ORANGE)\b", re.I)
 _FIRST_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _TICKER_RE = re.compile(r"\b[A-Z]{2,5}\b")
-#: The trader archive's readers, and its record ids ("t1234"): an archive answer cites the
-#: trader, the date and the record id, and a record id it cites must be one a tool returned.
+#: The trader archive's readers, and its record ids ("t1234" a written post, "z12345678" a spoken
+#: session segment): an archive answer cites the trader, the date and the record id, and a record
+#: id it cites must be one a tool returned.
 ARCHIVE_TOOLS = frozenset({"trader_archive_search", "trader_archive_ticker", "trader_archive_setup",
                            "trader_archive_rhymes"})
-_RECORD_ID_RE = re.compile(r"\bt\d{1,7}\b")
+_RECORD_ID_RE = re.compile(r"\b(?:t\d{1,7}|z\d{1,9})\b")
 _TICKER_STOP = {"THE", "AND", "FOR", "NOT", "YOU", "ETF", "CEO", "USD", "PM", "AM",
                 "RED", "HOLD", "SKIP", "BUY", "SELL", "GO", "KB", "AI"}
 

@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**95 tables** (90 direct by `user_id`, 1 direct by another member key, 4 indirect).
+**103 tables** (94 direct by `user_id`, 3 direct by another member key, 6 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -57,6 +57,8 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | join delete through `j2_broker_accounts`, run before the direct deletes |
 | `j2_template_gallery_reports` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_template_gallery_uses` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
+| `j2_gallery_watches` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
+| `j2_gallery_helpful` | `item_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
 | `j2_positions` | `user_id` | Direct | `DELETE FROM j2_positions WHERE user_id = ?` |
 | `j2_trades` | `user_id` | Direct | `DELETE FROM j2_trades WHERE user_id = ?` |
@@ -79,6 +81,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_folders` | `user_id` | Direct | `DELETE FROM j2_note_folders WHERE user_id = ?` |
 | `j2_note_embeds` | `user_id` | Direct | `DELETE FROM j2_note_embeds WHERE user_id = ?` |
 | `j2_note_mentions` | `user_id` | Direct | `DELETE FROM j2_note_mentions WHERE user_id = ?` |
+| `j2_note_checkins` | `user_id` | Direct | `DELETE FROM j2_note_checkins WHERE user_id = ?` |
 | `j2_note_favorites` | `user_id` | Direct | `DELETE FROM j2_note_favorites WHERE user_id = ?` |
 | `j2_note_recents` | `user_id` | Direct | `DELETE FROM j2_note_recents WHERE user_id = ?` |
 | `j2_note_versions` | `user_id` | Direct | `DELETE FROM j2_note_versions WHERE user_id = ?` |
@@ -138,6 +141,9 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_template_gallery` | `user_id` | Direct | `DELETE FROM j2_template_gallery WHERE user_id = ?` |
 | `j2_template_gallery_reports` | `user_id` | Direct | `DELETE FROM j2_template_gallery_reports WHERE user_id = ?` |
 | `j2_template_gallery_uses` | `user_id` | Direct | `DELETE FROM j2_template_gallery_uses WHERE user_id = ?` |
+| `j2_gallery_watches` | `user_id` | Direct | `DELETE FROM j2_gallery_watches WHERE user_id = ?` |
+| `j2_gallery_helpful` | `user_id` | Direct | `DELETE FROM j2_gallery_helpful WHERE user_id = ?` |
+| `j2_gallery_authors` | `user_id` | Direct | `DELETE FROM j2_gallery_authors WHERE user_id = ?` |
 | `j2_chart_blocks` | `user_id` | Direct | `DELETE FROM j2_chart_blocks WHERE user_id = ?` |
 | `j2_chart_fingerprints` | `user_id` | Direct | `DELETE FROM j2_chart_fingerprints WHERE user_id = ?` |
 | `j2_entry_context` | `user_id` | Direct | `DELETE FROM j2_entry_context WHERE user_id = ?` |
@@ -148,6 +154,8 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_similar_matches` | `user_id` | Direct | `DELETE FROM j2_similar_matches WHERE user_id = ?` |
 | `options_spread_book` | `user_id` | Direct | `DELETE FROM options_spread_book WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
+| `j2_gallery_follows` | `follower_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE follower_id = ?` |
+| `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
 
 <!-- END GENERATED -->
 
@@ -163,6 +171,13 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 - On-disk attachments — `attachment_root()/<user_id>/**` (notebook images and files AND trade
   screenshots, which nest under the same per-user directory), plus the legacy root fallback:
   one `shutil.rmtree` per root.
+- Example-note image copies — `attachment_root()/gallery/<item_id>/` for each of the member's
+  example notes (P3b): copies of the member's own images, kept OUTSIDE the per-member tree. The
+  purge reads the member's example ids in the same write transaction as the row deletes
+  (`purge_user_rows(..., example_ids=...)`) and removes each directory after it commits
+  (`template_gallery.remove_example_images`). Rails:
+  `tests/test_example_note_images.py::test_purge_removes_rows_and_files_for_that_member_only` and
+  `::test_purge_reads_the_example_ids_in_the_same_transaction_as_the_deletes`.
 - External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
   purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
   on the 5 broker tables it covers and extends to the other 9.

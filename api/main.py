@@ -159,6 +159,12 @@ from api.routers import notebook_setups_board as notebook_setups_board_router
 # Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), dark behind
 # NOTEBOOK_PLAYBOOK_ENABLED (router-level 404).
 from api.routers import notebook_playbook as notebook_playbook_router
+# P2 Tier 3 Task 6: Checklist from my winners (/api/j2/insights/checklist-suggestions), dark
+# behind JOURNAL_TIER3_ENABLED (router-level 404), with its own paid gate.
+from api.routers import notebook_winners_checklist as notebook_winners_checklist_router
+# P2 Tier 3 Task 7: Your trading year (/api/j2/wrapped/{year}), dark behind JOURNAL_TIER3_ENABLED
+# (router-level 404), with its own paid gate.
+from api.routers import notebook_wrapped as notebook_wrapped_router
 # Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), dark behind
 # NOTEBOOK_REVIEW_DRAFTS_ENABLED (router-level 404).
 from api.routers import notebook_review_drafts as notebook_review_drafts_router
@@ -229,6 +235,7 @@ from api.routers import hub_reports as hub_reports_router  # joystick hub owner 
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
+from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
@@ -2416,10 +2423,11 @@ def register_screener_jobs(scheduler):
         id="screener_live_tier", max_instances=1, replace_existing=True,
         coalesce=True)
 
-    # ⭐ PRE-MARKET MODE (spec 2026-10-16 §2) — a SEPARATE writer into its own table,
-    # `screener_premarket`; it never touches `screener_live` or `screener_rows`. Cheap
-    # when idle: `run_sweep` checks the flag, then the session, before any read, so it
-    # does nothing outside 04:00-09:30 ET. Dark behind SCREENER_PREMARKET_ENABLED.
+    # ⭐ EXTENDED HOURS (spec 2026-10-16 §2, widened 2026-10-17) — a SEPARATE writer into
+    # its own table, `screener_premarket`; it never touches `screener_live` or
+    # `screener_rows`. Cheap when idle: `run_sweep` checks the flag, then the calendar
+    # window, before any read, so it does nothing outside pre-market (04:00-09:30 ET) and
+    # after hours (close-20:00 ET). Dark behind SCREENER_PREMARKET_ENABLED.
     from api.services.screener import premarket
 
     def _run_premarket():
@@ -9949,6 +9957,12 @@ app.include_router(notebook_setups_board_router.router)
 app.include_router(notebook_setups_board_router.similar_router)
 # Wave 13 lane 13B: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_playbook_router.router)
+# P2 Tier 3 Task 6: nothing in journal_two lives under /api/j2/insights/ (the only other /insights
+# routes are voice's /api/voice/insights*), so mount order against journal_two does not matter.
+app.include_router(notebook_winners_checklist_router.router)
+# P2 Tier 3 Task 7: nothing in journal_two lives under /api/j2/wrapped/, so mount order against
+# journal_two does not matter. Inside this router, Task 8's /years must sit above /{year}.
+app.include_router(notebook_wrapped_router.router)
 # Wave 13 lane 13F: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_review_drafts_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
@@ -10133,6 +10147,7 @@ app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
 app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/connectors/* -- unconditional; per-provider config checked in-endpoint
 app.include_router(desk_zoom_webhook_router.router)
+app.include_router(tsdr_lessons_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)

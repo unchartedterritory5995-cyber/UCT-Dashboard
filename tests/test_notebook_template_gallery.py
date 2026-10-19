@@ -331,9 +331,10 @@ def test_a_submission_is_pending_and_invisible_until_an_admin_approves_it(svc):
 
 def test_a_rejection_needs_a_reason_and_the_author_reads_it(svc):
     gid = _publish(svc)["id"]
+    seen = svc.get_item(ADMIN, gid, is_admin=True)["updatedAt"]
     with pytest.raises(svc.GalleryError):
-        svc.admin_act(ADMIN, gid, "reject", note="")
-    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.")
+        svc.admin_act(ADMIN, gid, "reject", note="", reviewed_updated_at=seen)
+    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.", reviewed_updated_at=seen)
     mine = svc.list_gallery(A, section="mine")[0]
     assert mine["status"] == "rejected" and mine["reviewNote"] == "Too thin -- add your exit rules."
     assert gid not in _listed(svc, B)
@@ -662,6 +663,13 @@ def _client_tuple(name: str) -> tuple[str, ...]:
 def test_the_client_categories_and_report_reasons_are_the_servers(svc):
     assert _client_tuple("GALLERY_CATEGORIES") == svc.CATEGORIES
     assert _client_tuple("REPORT_REASONS") == svc.REPORT_REASONS
+
+
+def test_the_eager_client_sorts_are_the_outline_only_prefix_of_the_servers(svc):
+    # P3a: the server gained `trending` (styles only). The EAGER templateGallery.js keeps
+    # newest/most_used for the outline-only view and must not grow `trending` (the lazy
+    # styleLibrary.js owns the three-key list; tests/test_style_library.py pins that one).
+    assert _client_tuple("GALLERY_SORTS") == svc.SORTS[:2]
 
 
 # ── account deletion ────────────────────────────────────────────────────────────────────

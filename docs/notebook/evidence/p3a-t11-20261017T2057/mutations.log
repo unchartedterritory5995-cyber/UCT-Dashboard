@@ -1,0 +1,16 @@
+Task 11 mutation proofs (scratchpad harness p3a11_mutate.py): capture bytes, mutate, run the named file, write the captured bytes back, sha256 compare.
+M1 no style_adopted call: rc=1 restored=OK ::  Test Files  1 failed (1) |       Tests  2 failed | 24 passed (26) :: []
+M2 library_viewed never sent: rc=1 restored=OK ::  Test Files  1 failed (1) |       Tests  1 failed | 25 passed (26) :: []
+M3 library_viewed on every render (no dependency list): rc=1 restored=OK ::  Test Files  1 failed (1) |       Tests  1 failed | 25 passed (26) :: []
+M4 N-4 clear is a no-op: rc=1 restored=OK ::  Test Files  1 failed (1) |       Tests  3 failed | 11 passed (14) :: []
+M5 server keeps an unlisted library prop: rc=1 restored=OK :: 3 failed, 14 passed, 4066 warnings in 5.12s :: ['FAILED tests/test_notebook_telemetry_events.py::test_the_server_prop_schema_is_the_client_schema_read_from_its_source', 'FAILED tests/test_notebook_telemetry_events.py::test_the_p3a_library_events_are_on_both_sides_and_read_not_typed', 'FAILED tests/test_notebook_telemetry_events.py::test_the_server_drops_ids_titles_and_handles_from_the_library_events']
+
+Scorecard probe: adding library_viewed/style_adopted rows to CORE_ACTION_EVENTS reds tests/test_parity_scorecard.py:
+15:E       AssertionError: assert ['library_vie...named for it'] == []
+16:E         
+17:E         Left contains 2 more items, first extra item: 'library_viewed: no call-site rail is named for it'
+18:E         Use -v to get more diff
+29:E       AssertionError: (19, ['ask_used', 'bulk_used', 'capture_used', 'dictation_used', 'export_used', 'import_used', ...])
+30:E       assert (19 == 17)
+31:E        +  where 19 = len({'T1 start a note': ['note_open_ms', 'save_success'], 'T10 get the note out': ['export_used', 'share_used'], 'T2 save a passage with its source': ['capture_used', 'save_success'], 'T3 heading, checklist, highlight': ['save_success'], ...})
+51:2 failed, 2357 warnings in 1.12s

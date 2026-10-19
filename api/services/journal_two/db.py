@@ -860,6 +860,30 @@ CREATE TABLE IF NOT EXISTS j2_note_mentions (
 CREATE INDEX IF NOT EXISTS idx_j2_note_mentions_user_sym
     ON j2_note_mentions(user_id, symbol);
 
+-- ── Mood and focus check-in sidecar (P2 Tier 3, Task 4) ───────────────────
+-- One row per `moodCheckIn` widgetEmbed in a note's body_json, rebuilt on every
+-- body write by notes._sync_note_sidecars in the same walk and the same
+-- transaction as j2_note_embeds -- the same "rebuildable projection, never
+-- edited directly" contract. A block is recorded only when its `day` is a real
+-- YYYY-MM-DD date, at least one level is '1'..'5', and it has an embedId; any
+-- other block is skipped and the note still saves.
+-- Trash and restore leave these rows alone (R-T3-V3): readers join j2_notes on
+-- `deleted_at IS NULL`. The hard-delete sweep (purge_expired_deleted_notes)
+-- and the account purge delete them explicitly. No foreign key, like its
+-- neighbours.
+CREATE TABLE IF NOT EXISTS j2_note_checkins (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    embed_id    TEXT NOT NULL,
+    day         TEXT NOT NULL,            -- 'YYYY-MM-DD', the block's day param
+    mood        INTEGER,                  -- 1..5 or NULL
+    focus       INTEGER,                  -- 1..5 or NULL
+    created_at  TEXT NOT NULL,                -- when this row was last PROJECTED (every body save), not the check-in time: never sort or label by it
+    PRIMARY KEY (note_id, embed_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_checkins_user_day
+    ON j2_note_checkins(user_id, day);
+
 -- ── Wave D (Internal Links / Backlinks / Knowledge Relationships) ──────────
 -- One row per `noteLink` node in a note's body_json -- same "rebuildable
 -- projection, never edited directly" contract as j2_note_embeds/
@@ -2055,6 +2079,13 @@ _PHASE_2_ALTERS = [
     # ⛔ ONE default per (member, kind) is the INDEX's job, not a check's (the daily-note precedent).
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_journal_styles_default"
     " ON j2_journal_styles(user_id, kind_id) WHERE is_default = 1 AND deleted_at IS NULL",
+    # P3a Task 5: the block ids of the community style version a copy was ADOPTED at (a JSON list), so a
+    # later update can tell a block the member REMOVED from one they never had. Its own ALTER, never in the
+    # CREATE TABLE body above: that body never reaches a table that already exists in production.
+    "ALTER TABLE j2_journal_styles ADD COLUMN source_block_ids TEXT",
+    # P3a Task 5 fix round 1: a fingerprint of the outline the copy came from (NULL on a copy made before this
+    # column), so "the author's new outline" can mean the author changed it, not the member.
+    "ALTER TABLE j2_journal_styles ADD COLUMN source_outline_hash TEXT",
     # Notebook P1: what made a note -- additive, NULL for every existing note, read as optional.
     # `kind_id` is PROVENANCE (the kind it was created as); the CURRENT kind is the
     # builtin:note_kind property (note_kinds.py docstring).

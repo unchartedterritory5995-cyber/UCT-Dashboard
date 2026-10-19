@@ -1,0 +1,68 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 46%]
+........................................................................ [ 61%]
+........................................................................ [ 76%]
+........................................................................ [ 92%]
+...F................................                                     [100%]
+================================== FAILURES ===================================
+__________ test_every_notebook_gate_is_rehearsed_or_carries_a_reason __________
+
+t = <module 'switch_rehearsal' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-p3a\\tools\\notebook_switch_rehearsal.py'>
+table = {'AWARENESS_NOTE_RESURFACE_ENABLED': False, 'COMPASS_NOTES_TOOL_ENABLED': False, 'J2_SHARE_LINKS_ENABLED': False, 'NOTEBOOK_AI_ACTIONS_ENABLED': False, ...}
+
+    def test_every_notebook_gate_is_rehearsed_or_carries_a_reason(t, table):
+        """A gate added tomorrow reds here until someone writes a probe or a reason."""
+        _, modes = t.capability_table()
+        found = t.notebook_gates_in_index()
+        # non-vacuity: the index sees gates from both kinds of read site
+        assert "NOTEBOOK_SEMANTIC_SEARCH_ENABLED" in found and "J2_SHARE_LINKS_ENABLED" in found
+        skipped = t.not_rehearsed(table, modes)
+>       assert not [k for k, why in skipped.items() if why == "no rendered probe written"], skipped
+E       AssertionError: {'AWARENESS_NOTE_RESURFACE_ENABLED': "dark (wave 13 13D): the awareness scan's resurfacing pass; its evidence is an in...er, unsent-words fork)", 'NOTEBOOK_ASK_INSERT_ON': 'payload only: its surface needs an Ask answer (a model call)', ...}
+E       assert not ['NOTEBOOK_TERMINAL_LINKS_ENABLED']
+
+tests\test_notebook_switch_rehearsal.py:105: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 3190 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 468 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+<unknown>:7
+<unknown>:7
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_switch_rehearsal.py: 13 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+tests/test_notebook_switch_rehearsal.py: 112 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+tests/test_notebook_switch_rehearsal.py: 112 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_switch_rehearsal.py::test_every_notebook_gate_is_rehearsed_or_carries_a_reason
+1 failed, 467 passed, 3904 warnings in 310.39s (0:05:10)

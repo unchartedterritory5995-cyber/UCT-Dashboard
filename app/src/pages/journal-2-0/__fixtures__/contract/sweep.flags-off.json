@@ -31,7 +31,19 @@
       },
       "status": 404
     },
+    "DELETE /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "DELETE /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "DELETE /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not found"
       },
@@ -74,6 +86,12 @@
       "status": 404
     },
     "GET /api/j2/entry-context/trade/{trade_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/insights/checklist-suggestions": {
       "body": {
         "detail": "Not found"
       },
@@ -241,7 +259,37 @@
       },
       "status": 404
     },
+    "GET /api/j2/template-gallery/authors/{handle}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/feed": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/updates": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "GET /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/{gallery_id}/images/{n}": {
       "body": {
         "detail": "Not found"
       },
@@ -278,6 +326,18 @@
       "status": 404
     },
     "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/wrapped/years": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/wrapped/{year}": {
       "body": {
         "detail": "Not found"
       },
@@ -398,6 +458,48 @@
       "status": 404
     },
     "POST /api/j2/template-gallery": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/examples": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/examples/preview": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/styles": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/adopt": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not found"
       },

@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/wrapped/years",
+    "note": "Years with a closed, included trade, newest first; 2024 has none, so it is not listed.",
+    "path": "/api/j2/wrapped/years",
+    "status": 200
+  },
+  "body": {
+    "years": [
+      2026,
+      2025,
+      2023
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/PositionSizingBlock.test.jsx (26 tests) 438ms
+
+ Test Files  1 passed (1)
+      Tests  26 passed (26)
+   Start at  10:44:02
+   Duration  1.29s (transform 159ms, setup 216ms, import 89ms, tests 438ms, environment 436ms)
+

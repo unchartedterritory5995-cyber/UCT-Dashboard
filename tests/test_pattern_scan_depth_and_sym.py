@@ -29,6 +29,12 @@ from api.main import _scan_patterns_daily
 from api.services import bars_sqlite
 from api.services.pattern_engine import detect_all, memory
 from api.services.pattern_engine.detectors import registry
+from api.services.pattern_engine.detectors.uct import uct_flag_htf as FL
+from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
+from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout_ftb4 as FT4
+from api.services.pattern_engine.detectors.uct import uct_inside_day_id4 as ID4
+from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as LP4
+from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as MR
 from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as PB
 from api.services.pattern_engine.detectors.uct import uct_setups_common as U
 from api.services.pattern_engine.primitives.context import build_context
@@ -36,6 +42,12 @@ from tests.authclients import ADMIN, PAID_MEMBER, signed_in_as
 from tests.pattern_engine.detectors import _pullback_v5_synth as SY
 
 _ID = "uct_pullback_ma_v5"
+_FT_ID = "uct_flat_top_breakout"
+_FL_ID = "uct_flag_htf"
+_MR_ID = "uct_ma_reclaim"
+_LP4_ID = "uct_launch_pad_v4"
+_FT4_ID = "uct_flat_top_breakout_ftb4"
+_ID4_ID = "uct_inside_day_id4"
 _DAY = 86_400
 
 
@@ -89,8 +101,23 @@ def _route(user, sym):
 def test_the_pullback_detector_declares_its_history_and_nothing_else_does():
     assert registry.min_bars_for(_ID) == PB.MIN_BARS == 222
     declared = {pid for pid in registry.list_pattern_ids() if registry.min_bars_for(pid)}
-    assert declared == {_ID}, declared
-    assert registry.scan_depth(registry.SCAN_BASE_DEPTH) == 222
+    # uct_flat_top_breakout declares 202 (its rule needs the 200 SMA on the
+    # marked session, plus the two prior trigger sessions). uct_flag_htf
+    # declares 222 (its guard reads the 200 SMA 20 sessions back) and
+    # uct_ma_reclaim 225 (its 200 SMA branch reads it 23 sessions back), so the
+    # deepest declaration, and the scan's fetch, is now 225. uct_launch_pad_v4
+    # declares 222 (its falling-200 gate reads the 200 SMA 20 sessions back),
+    # which leaves the deepest at 225.
+    # uct_flat_top_breakout_ftb4 declares 222 (its new branch reads the 200 SMA
+    # 20 sessions back on the marked session and the two prior trigger sessions).
+    assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID, _FT4_ID, _ID4_ID}, declared
+    assert registry.min_bars_for(_FT_ID) == FT.MIN_BARS == 202
+    assert registry.min_bars_for(_FL_ID) == FL.MIN_BARS == 222
+    assert registry.min_bars_for(_MR_ID) == MR.MIN_BARS == 225
+    assert registry.min_bars_for(_LP4_ID) == LP4.MIN_BARS == 222
+    assert registry.min_bars_for(_FT4_ID) == FT4.MIN_BARS == 222
+    assert registry.min_bars_for(_ID4_ID) == ID4.MIN_BARS == 202
+    assert registry.scan_depth(registry.SCAN_BASE_DEPTH) == 225
     assert registry.scan_depth(500) == 500
 
 
@@ -128,7 +155,7 @@ def test_undeclared_detectors_receive_byte_identical_bars_and_context(monkeypatc
         monkeypatch.setitem(registry._REGISTRY, pid, rec)
     _scan_patterns_daily(["DEPTHX"], set(), _Log())
 
-    assert calls == [("DEPTHX", "D", 222)], calls
+    assert calls == [("DEPTHX", "D", MR.MIN_BARS)], calls
     old_bars = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
                 for r in rows[-200:]]
     old_key = tuple(tuple(sorted(b.items())) for b in old_bars)
@@ -140,10 +167,11 @@ def test_undeclared_detectors_receive_byte_identical_bars_and_context(monkeypatc
             assert ctx == {**old_ctx, "sym": "DEPTHX"}
         else:
             assert ctx == old_ctx, pid
-        if pid == _ID:
-            assert len(got) == 222 and got == tuple(
+        declared = registry.min_bars_for(pid)
+        if declared:
+            assert len(got) == declared and got == tuple(
                 tuple(sorted({"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}.items()))
-                for r in rows[-222:])
+                for r in rows[-declared:]), pid
         else:
             assert len(got) == 200, (pid, len(got))
             assert got[0] == old_key[0] and got[-1] == old_key[-1], pid
@@ -157,7 +185,8 @@ def test_undeclared_detectors_produce_identical_detections(monkeypatch):
     full = _recent(SY.random_walk(n=320, seed=3))
     old_bars = full[-200:]
     ctx = build_context(old_bars, sym="IDENT")
-    others = [p for p in registry.list_pattern_ids() if p != _ID]
+    others = [p for p in registry.list_pattern_ids() if not registry.min_bars_for(p)]
+    assert not {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID} & set(others)
     monkeypatch.setattr(time, "time", lambda: 1_800_000_000.0)
 
     def strip(ds):

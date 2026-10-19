@@ -1,10 +1,12 @@
+import { optionText } from './shell/optionText'
+
 // Human-readable label for an active filter spec, for the removable chips row.
 export function chipLabel(def, spec) {
   if (!def || !spec) return ''
   const preset = (def.presets || []).find(o =>
     o.op === spec.op && o.value === spec.value && o.min === spec.min && o.max === spec.max)
   if (preset && preset.label && preset.label !== 'Any') {
-    return `${def.label}: ${preset.label}`
+    return `${def.label}: ${optionText(def.key, preset.label)}`
   }
   // The Type filter (Include/Exclude a set): {op:'in'|'not_in', values:[…]}.
   if (Array.isArray(spec.values) && spec.values.length) {

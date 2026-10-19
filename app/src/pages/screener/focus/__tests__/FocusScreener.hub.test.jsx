@@ -34,10 +34,13 @@ vi.mock('../../../../hub/sections/screenerSection', () => ({
   },
 }))
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
+// The pane's chart is the /charts Chart widget (ScreenerChartWidget); these tests are about which
+// stock it is handed, so the host is stubbed at its boundary.
+vi.mock('../ScreenerChartWidget', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} data-phone={p.phone ? '1' : undefined} /> }))
 vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import FocusScreener from '../FocusScreener'
 
 const META = { filters: [], categories: [], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }

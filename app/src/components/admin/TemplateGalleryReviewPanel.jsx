@@ -8,19 +8,138 @@
 //     Hide (the template) or Dismiss (that report);
 //   * Hidden — Unhide.
 // ⛔ Hide is a VISIBILITY state on the server, never a delete (the kill-switch rule).
+// P3a Task 10: a STYLE item (`itemType === 'style'`, only while the library switch is on: the server's queue
+// holds outline rows alone otherwise) also shows its kind, its blocks and its trading style, read from the
+// item's `payload` (getGalleryTemplate, admin-visible while pending); Preview shows its outline. A held revision
+// of a listed style says so ("Update to version N of a listed style ...") with the revision's own title.
+// ⛔ Fix round 1 (ruling P3a-T10-R1): for a held REVISION every detail shown is the revision's own, read from the
+//    admin-only `pendingRevision` on the same single-item read (title, description, category, trading style,
+//    kind, blocks, and the outline Preview shows). The queue row's own fields are the LISTED version's, so they
+//    are never shown as the update. A revision the server could not read says so; it is never shown as listed.
+// ⛔ Ruling P3a-T10-R7: a style row's approve token is PINNED to the read its details card renders; Preview never
+//    moves it. When a Preview read finds a newer version than the card shows, the panel says so and puts that
+//    read into the card, and the token follows the card. (An outline row has no card: its Preview sets it.)
+// P3b Task 6: an EXAMPLE NOTE row names the style it shows, and Preview renders its stored reduced body with its
+//    images exactly as members will load them (a held revision's on `?rev=pending`); see ExampleReviewDetails.
 // Rendered inside the Notebook's community gallery for admins (TemplateGallery.jsx);
 // the server refuses every one of these calls to a non-admin regardless.
-import { useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
+import useSWR, { useSWRConfig } from 'swr'
 import {
   getGalleryTemplate, resolveGalleryReport, reviewGalleryTemplate, useGalleryQueue,
   REPORT_REASONS, categoryLabel,
 } from '../../pages/journal-2-0/lib/templateGallery'
+import { EXAMPLE_NOTE_TYPE, tradingStyleLabel, withHeldImages } from '../../pages/journal-2-0/lib/styleLibrary'
+import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
+import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import TemplatePreview from '../../pages/journal-2-0/components/notebook/TemplatePreview'
 import styles from '../../pages/journal-2-0/components/notebook/TemplateGallery.module.css'
 
 const reasonLabel = (key) => REPORT_REASONS.find((r) => r.key === key)?.label || key
 
-function RejectForm({ item, onDone, onCancel }) {
+// ⛔ `version` is the server's `pendingRevision.version` (final review M-10): the panel never restates the server's
+// "listed + 1" arithmetic, so the card line and the Preview subtitle cannot name two numbers for one revision.
+export const revisionLine = (version) =>
+  `Update to version ${version} of a listed style. Approving lists it; the current version stays until then.`
+export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
+export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
+const reviewCardKey = (item) => ['gallery-review-card', item.id, item.updatedAt]
+
+/** P3a-T10-R7, ONCE (ruling P3b-T6-R5): a details card's single read of its item, keyed on the queue row's
+ *  `updatedAt` (so a resubmission is read afresh, and `openPreview` can put a newer read into the card through the
+ *  same key), and the handoff of THAT read's `updatedAt` up as the approve token. Approve can therefore only ever
+ *  send the version the card shows. Every card with details (a style's, an example's) uses this one hook. */
+function useReviewCardRead(item, onRead) {
+  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
+    { revalidateOnFocus: false, shouldRetryOnError: false })
+  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  return { data, error }
+}
+const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id)?.name || 'A kind of note this version does not know'
+
+/** What a reviewer is approving: for a held revision the admin-only `pendingRevision`, else the item itself.
+ *  `null` for a revision row whose revision the server could not read (never the listed version instead). */
+export function underReview(item, full) {
+  if (!full) return null
+  if (!item.hasRevision) {
+    return { title: full.title, description: full.description, category: full.category,
+      tradingStyle: full.tradingStyle, payload: full.payload, outline: full.bodyJson, version: full.version }
+  }
+  const rev = full.pendingRevision
+  if (!rev) return null
+  return { ...rev, outline: rev.payload?.outlineBodyJson || null }
+}
+
+/** A style item's kind, blocks and trading style (and, for a revision, its own title, description and category),
+ *  all from ONE read. Keyed on the row's `updatedAt`, so an author's resubmission is read afresh. `onRead` hands
+ *  the read's `updatedAt` up as the approve token. */
+function StyleReviewDetails({ item, onRead }) {
+  const { data, error } = useReviewCardRead(item, onRead)
+  const shown = underReview(item, data)
+  const blocks = (shown?.payload?.blocks || []).map((b) => blockLabel(b.block))
+  return (
+    <div data-gallery-review-style={item.id}>
+      {item.hasRevision && shown?.version != null && <p className={styles.note}>{revisionLine(shown.version)}</p>}
+      {error && <p className={styles.error} role="alert">Couldn't load this style's kind and blocks.</p>}
+      {!error && !data && <p className={styles.note}>Loading the style…</p>}
+      {data && !shown && <p className={styles.error} role="alert">{REVISION_UNREADABLE_LINE}</p>}
+      {shown && (
+        <>
+          {item.hasRevision && <p className={styles.note}>{`Title in this update: ${shown.title}`}</p>}
+          {item.hasRevision && shown.description && <p className={styles.cardDesc}>{`Description in this update: ${shown.description}`}</p>}
+          {item.hasRevision && shown.category && <p className={styles.meta}>{`Category in this update: ${categoryLabel(shown.category)}`}</p>}
+          <p className={styles.meta}>{`Kind of note: ${kindName(shown.payload?.kindId)}`}</p>
+          <p className={styles.meta}>{`Blocks: ${blocks.join(', ') || 'none'}`}</p>
+          <p className={styles.meta}>{`Trading style: ${tradingStyleLabel(shown.tradingStyle) || 'not set'}`}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+// P3b Task 6: an EXAMPLE NOTE under review. A reviewer sees the stored reduced body (`payload.bodyJson`, ruling
+// P3b-R13: never the gallery-mode `bodyJson`, which drops every image) and its images EXACTLY as members will load
+// them, plus the title of the style it shows (`linkedStyle`, from the same read). For a held revision, the revision's
+// own body, with its images asked for on `?rev=pending`: the held copies, which approval moves into place under the
+// address members already use. A first submission's copies are already where members will load them.
+export const exampleRevisionLine = (version) =>
+  `Update to version ${version} of a listed example. Approving lists it; the current version stays until then.`
+export const exampleLinkLine = (title) => `An example of the style “${title}”`
+export const EXAMPLE_NO_STYLE_LINE = 'The style this example shows could not be found.'
+
+/** What a reviewer is approving of an example: `{title, body, version}`, the held revision's for a revision row.
+ *  `null` for a revision row whose revision the server could not read (never the listed version instead). */
+export function exampleUnderReview(item, full) {
+  if (!full) return null
+  if (!item.hasRevision) return { title: full.title, body: full.payload?.bodyJson || null, version: full.version }
+  const rev = full.pendingRevision
+  if (!rev) return null
+  return { title: rev.title, body: withHeldImages(rev.payload?.bodyJson || null, item.id), version: rev.version }
+}
+
+/** An example's style and, for a held revision, its line and its own title, from ONE read keyed on the row's
+ *  `updatedAt` (the style rows' rule). `onRead` hands the read's `updatedAt` up as the approve token. */
+function ExampleReviewDetails({ item, onRead }) {
+  const { data, error } = useReviewCardRead(item, onRead)
+  const shown = exampleUnderReview(item, data)
+  return (
+    <div data-gallery-review-example={item.id}>
+      {item.hasRevision && shown?.version != null && <p className={styles.note}>{exampleRevisionLine(shown.version)}</p>}
+      {error && <p className={styles.error} role="alert">Couldn't load this example.</p>}
+      {!error && !data && <p className={styles.note}>Loading the example…</p>}
+      {data && !shown && <p className={styles.error} role="alert">{REVISION_UNREADABLE_LINE}</p>}
+      {data && (
+        <p className={styles.meta}>{data.linkedStyle?.title ? exampleLinkLine(data.linkedStyle.title) : EXAMPLE_NO_STYLE_LINE}</p>
+      )}
+      {shown && item.hasRevision && <p className={styles.note}>{`Title in this update: ${shown.title}`}</p>}
+    </div>
+  )
+}
+
+// P3b-F-R4: a rejection names the version the reviewer saw (`reviewedUpdatedAt`, the same token Approve sends: the
+// read the details card shows, else the queue row's). A 409 means the author published again: the panel shows what
+// is there now, exactly as a refused approval does.
+function RejectForm({ item, reviewedUpdatedAt, onDone, onCancel, onStale }) {
   const uid = useId()
   const [note, setNote] = useState('')
   const [working, setWorking] = useState(false)
@@ -31,11 +150,12 @@ function RejectForm({ item, onDone, onCancel }) {
     setWorking(true)
     setError(null)
     try {
-      await reviewGalleryTemplate(item.id, 'reject', note)
+      await reviewGalleryTemplate(item.id, 'reject', note, reviewedUpdatedAt)
       onDone(`Rejected “${item.title}”. The author sees your reason.`)
     } catch (err) {
       setError(err?.message || "Couldn't reject that template.")
       setWorking(false)
+      if (err?.status === 409) onStale()
     }
   }
   return (
@@ -63,10 +183,11 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
   // when the author has published again since.
   const [seen, setSeen] = useState({})
 
-  const act = async (fn, okText) => {
+  const act = async (fn, okText, onDone) => {
     setWorking(true)
     try {
       await fn()
+      onDone?.()
       onMessage({ tone: 'ok', text: okText })
       refresh()
     } catch (err) {
@@ -78,13 +199,54 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
     }
   }
 
+  const markSeen = useCallback((id, updatedAt) => setSeen((prev) => (prev[id] === updatedAt ? prev : { ...prev, [id]: updatedAt })), [])
+  // Style rows whose card a Preview brought up to date: { [id]: the row's updatedAt when it happened }. The line
+  // says so until the reviewer ACTS on the row (an Approve that landed, a Reject that was sent -- never opening
+  // Reject… or an Approve the server refused, final review M-1), reopens a card that is now current, or the queue
+  // brings the row back with another updatedAt (Task 11, review N-4: it used to stay for as long as the row did).
+  const [refreshed, setRefreshed] = useState({})
+  const clearRefreshed = useCallback((id) => setRefreshed((prev) => {
+    if (!(id in prev)) return prev
+    const next = { ...prev }
+    delete next[id]
+    return next
+  }), [])
+  const { mutate: mutateCache } = useSWRConfig()
+
   const openPreview = async (item) => {
-    const base = { label: item.title, subtitle: `by ${item.author} · ${categoryLabel(item.category)}` }
+    const style = item.itemType === 'style'
+    const example = item.itemType === EXAMPLE_NOTE_TYPE
+    // A style row and an example row each have a details card whose read pins the approve token (R7); an outline
+    // row has none, so its Preview sets it.
+    const carded = style || example
+    const what = example ? (item.hasRevision ? ' · the update, as members will see it' : ' · as members will see it')
+      : !style ? '' : item.hasRevision ? ' · the update’s outline' : ' · the style’s outline'
+    const base = { label: item.title, subtitle: `by ${item.author} · ${categoryLabel(item.category)}${what}` }
     setPreview({ ...base, loading: true })
     try {
       const full = await getGalleryTemplate(item.id)
-      setSeen((prev) => ({ ...prev, [item.id]: full.updatedAt }))
-      setPreview({ ...base, body: full.bodyJson })
+      if (!carded) markSeen(item.id, full.updatedAt)
+      else if (seen[item.id] && full.updatedAt !== seen[item.id]) {
+        // A newer version than the card shows: the card takes this read (and the token follows it, via onRead).
+        mutateCache(reviewCardKey(item), full, { revalidate: false })
+        setRefreshed((prev) => ({ ...prev, [item.id]: item.updatedAt }))
+      } else {
+        clearRefreshed(item.id)                         // the card the reviewer reopened is the current version
+      }
+      if (example) {
+        const shown = exampleUnderReview(item, full)
+        if (!shown) { setPreview({ ...base, loadError: REVISION_UNREADABLE_LINE }); return }
+        const link = full.linkedStyle?.title ? exampleLinkLine(full.linkedStyle.title) : EXAMPLE_NO_STYLE_LINE
+        const version = item.hasRevision ? ` (version ${shown.version})` : ''
+        setPreview({ ...base, subtitle: `${base.subtitle}${version} · ${link}`, body: shown.body || { type: 'doc', content: [] } })
+      } else if (style && item.hasRevision) {
+        const shown = underReview(item, full)
+        if (!shown) { setPreview({ ...base, loadError: REVISION_UNREADABLE_LINE }); return }
+        setPreview({ ...base, subtitle: `${base.subtitle} (version ${shown.version})`,
+          body: shown.outline || { type: 'doc', content: [] } })
+      } else {
+        setPreview({ ...base, body: full.bodyJson })
+      }
     } catch (err) {
       setPreview({ ...base, loadError: err?.message || "Couldn't load this template." })
     }
@@ -104,18 +266,23 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <h5 className={styles.cardTitle}>{item.title}</h5>
             <span className={styles.meta}>by {item.author} · {categoryLabel(item.category)}</span>
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
+            {item.itemType === 'style' && <StyleReviewDetails item={item} onRead={markSeen} />}
+            {item.itemType === EXAMPLE_NOTE_TYPE && <ExampleReviewDetails item={item} onRead={markSeen} />}
+            {refreshed[item.id] === item.updatedAt && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => openPreview(item)}
                 aria-label={`Preview ${item.title}`}>Preview</button>
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
-                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt), `Approved “${item.title}”. It is listed now.`)}
+                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt),
+                  `Approved “${item.title}”. It is listed now.`, () => clearRefreshed(item.id))}
                 aria-label={`Approve ${item.title}`}>Approve</button>
               <button type="button" className={styles.btn} onClick={() => setRejecting(item.id)}
                 aria-label={`Reject ${item.title}`}>Reject…</button>
             </div>
             {rejecting === item.id && (
-              <RejectForm item={item} onCancel={() => setRejecting(null)}
-                onDone={(text) => { setRejecting(null); onMessage({ tone: 'ok', text }); refresh() }} />
+              <RejectForm item={item} reviewedUpdatedAt={seen[item.id] || item.updatedAt} onCancel={() => setRejecting(null)}
+                onStale={() => { setSeen({}); refresh() }}
+                onDone={(text) => { clearRefreshed(item.id); setRejecting(null); onMessage({ tone: 'ok', text }); refresh() }} />
             )}
           </div>
         ))}

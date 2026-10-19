@@ -1,0 +1,173 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/insights/checklist-suggestions",
+    "note": "24 winners, best 20, 13 others (6 losers, 3 with no R, 4 smaller winners). Two habits qualify: patient (no rule yet, pendingMark null) and calm (a rule made from it, not marked: pendingMark is that rule's id). excited is on too few best trades; fomo is never on a best one.",
+    "path": "/api/j2/insights/checklist-suggestions",
+    "status": 200
+  },
+  "body": {
+    "bestCount": 20,
+    "restCount": 13,
+    "restSample": "thin",
+    "status": "ok",
+    "suggestions": [
+      {
+        "evidence": [
+          {
+            "exitDate": "2026-07-01",
+            "r": 3.0,
+            "symbol": "WB00",
+            "tradeId": "wb-00",
+            "tradeRef": "id:wb-00"
+          },
+          {
+            "exitDate": "2026-07-05",
+            "r": 2.8,
+            "symbol": "WB02",
+            "tradeId": "wb-02",
+            "tradeRef": "id:wb-02"
+          },
+          {
+            "exitDate": "2026-07-09",
+            "r": 2.6,
+            "symbol": "WB04",
+            "tradeId": "wb-04",
+            "tradeRef": "id:wb-04"
+          },
+          {
+            "exitDate": "2026-07-13",
+            "r": 2.4,
+            "symbol": "WB06",
+            "tradeId": "wb-06",
+            "tradeRef": "id:wb-06"
+          },
+          {
+            "exitDate": "2026-07-17",
+            "r": 2.2,
+            "symbol": "WB08",
+            "tradeId": "wb-08",
+            "tradeRef": "id:wb-08"
+          },
+          {
+            "exitDate": "2026-07-21",
+            "r": 2.0,
+            "symbol": "WB10",
+            "tradeId": "wb-10",
+            "tradeRef": "id:wb-10"
+          },
+          {
+            "exitDate": "2026-08-01",
+            "r": 1.8,
+            "symbol": "WB12",
+            "tradeId": "wb-12",
+            "tradeRef": "id:wb-12"
+          },
+          {
+            "exitDate": "2026-08-05",
+            "r": 1.6,
+            "symbol": "WB14",
+            "tradeId": "wb-14",
+            "tradeRef": "id:wb-14"
+          },
+          {
+            "exitDate": "2026-08-09",
+            "r": 1.4,
+            "symbol": "WB16",
+            "tradeId": "wb-16",
+            "tradeRef": "id:wb-16"
+          },
+          {
+            "exitDate": "2026-08-13",
+            "r": 1.2,
+            "symbol": "WB18",
+            "tradeId": "wb-18",
+            "tradeRef": "id:wb-18"
+          }
+        ],
+        "label": "Before entry: am I patient?",
+        "othersTagged": 3,
+        "pendingMark": null,
+        "shareBest": 0.5,
+        "shareOthers": 0.2308,
+        "sourceId": "winners:patient",
+        "tag": "patient"
+      },
+      {
+        "evidence": [
+          {
+            "exitDate": "2026-07-01",
+            "r": 3.0,
+            "symbol": "WB00",
+            "tradeId": "wb-00",
+            "tradeRef": "id:wb-00"
+          },
+          {
+            "exitDate": "2026-07-03",
+            "r": 2.9,
+            "symbol": "WB01",
+            "tradeId": "wb-01",
+            "tradeRef": "id:wb-01"
+          },
+          {
+            "exitDate": "2026-07-05",
+            "r": 2.8,
+            "symbol": "WB02",
+            "tradeId": "wb-02",
+            "tradeRef": "id:wb-02"
+          },
+          {
+            "exitDate": "2026-07-07",
+            "r": 2.7,
+            "symbol": "WB03",
+            "tradeId": "wb-03",
+            "tradeRef": "id:wb-03"
+          },
+          {
+            "exitDate": "2026-07-09",
+            "r": 2.6,
+            "symbol": "WB04",
+            "tradeId": "wb-04",
+            "tradeRef": "id:wb-04"
+          },
+          {
+            "exitDate": "2026-07-11",
+            "r": 2.5,
+            "symbol": "WB05",
+            "tradeId": "wb-05",
+            "tradeRef": "id:wb-05"
+          },
+          {
+            "exitDate": "2026-07-13",
+            "r": 2.4,
+            "symbol": "WB06",
+            "tradeId": "wb-06",
+            "tradeRef": "id:wb-06"
+          },
+          {
+            "exitDate": "2026-07-15",
+            "r": 2.3,
+            "symbol": "WB07",
+            "tradeId": "wb-07",
+            "tradeRef": "id:wb-07"
+          },
+          {
+            "exitDate": "2026-07-17",
+            "r": 2.2,
+            "symbol": "WB08",
+            "tradeId": "wb-08",
+            "tradeRef": "id:wb-08"
+          }
+        ],
+        "label": "Before entry: am I calm?",
+        "othersTagged": 0,
+        "pendingMark": "3fc22e20559842c682475ea4eb2d1787",
+        "shareBest": 0.45,
+        "shareOthers": 0.0,
+        "sourceId": "winners:calm",
+        "tag": "calm"
+      }
+    ],
+    "winnerCount": 24
+  }
+}

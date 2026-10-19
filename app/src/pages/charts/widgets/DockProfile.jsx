@@ -30,6 +30,7 @@ import useEarningsTable from '../../../hooks/useEarningsTable'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import BusinessTrend from './BusinessTrend'
+import TeamHistoryPanel from '../../../components/research/sections/TeamHistoryPanel'
 import { growthCell } from './earningsRows'
 import styles from './dockPanels.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
@@ -395,6 +396,10 @@ export default function DockProfile({ sym }) {
 
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
       <BusinessTrend annual={intel?.annual} currency={intel?.currency ?? null} />
+
+      {/* The team's archived calls on this ticker. Renders nothing unless
+          WISDOM_TICKER_HISTORY_ENABLED rides the auth payload for a paid viewer. */}
+      <TeamHistoryPanel sym={sym} />
 
     </div>
   )

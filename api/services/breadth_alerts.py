@@ -65,6 +65,24 @@ def webhook() -> str:
         return ""
 
 
+def _deliver(url: str, body: str, post: Optional[Callable], what: str) -> dict:
+    """One Discord post. `{"sent": bool, "reason": ...}`; never raises."""
+    try:
+        if post is None:
+            import requests
+            post = requests.post
+        r = post(url, json={"content": body, "allowed_mentions": {"parse": []}}, timeout=10)
+        ok = 200 <= int(getattr(r, "status_code", 0)) < 300
+    except Exception as e:                         # noqa: BLE001
+        _log.warning("[breadth-alerts] %s failed: %s", what, e)
+        return {"sent": False, "reason": f"post failed: {type(e).__name__}"}
+    return {"sent": ok, "reason": None if ok else f"http {getattr(r, 'status_code', '?')}"}
+
+
+def _body(title: str, lines: list) -> str:
+    return "\n".join([title, *[f"• {ln}" for ln in lines][:15]])[:1900]
+
+
 def send(key: str, title: str, lines: list, post: Optional[Callable] = None,
          now: Optional[float] = None) -> dict:
     """Post one alert (deduplicated per key for COOLDOWN_S). Never raises."""
@@ -78,20 +96,49 @@ def send(key: str, title: str, lines: list, post: Optional[Callable] = None,
         if not url:
             _log.warning("[breadth-alerts] no webhook configured: %s", title)
             return {"sent": False, "reason": "no webhook"}
-        body = "\n".join([f"**{title}**", *[f"• {ln}" for ln in lines][:15]])[:1900]
-        try:
-            if post is None:
-                import requests
-                post = requests.post
-            r = post(url, json={"content": body, "allowed_mentions": {"parse": []}}, timeout=10)
-            ok = 200 <= int(getattr(r, "status_code", 0)) < 300
-        except Exception as e:                     # noqa: BLE001
-            _log.warning("[breadth-alerts] post failed: %s", e)
-            return {"sent": False, "reason": f"post failed: {type(e).__name__}"}
-        if ok:
+        res = _deliver(url, _body(f"**{title}**", lines), post, "post")
+        if res["sent"]:
             state[key] = now
             _save(state)
-        return {"sent": ok, "reason": None if ok else f"http {getattr(r, 'status_code', '?')}"}
+        return res
+
+
+def _sig_key(key: str) -> str:
+    return key + "#sig"
+
+
+def send_on_change(key: str, title: str, lines: list, signature: str, remind_s: float,
+                   post: Optional[Callable] = None, now: Optional[float] = None) -> dict:
+    """Post when the condition behind `key` is NEW or has CHANGED (`signature` differs from the
+    one last posted), and re-post a reminder every `remind_s` while it stays the same.
+
+    ⭐ (2026-10-17) Why not `send`: a cooldown alone cannot tell "the same three sessions are still
+    parked" from "a fourth session just joined them" — the second is news and must not wait out a
+    cooldown. The signature is stored beside the key, so `clear`/`resolve` forget both. Never raises."""
+    now = time.time() if now is None else now
+    with _lock:
+        state = _load()
+        last = float(state.get(key) or 0)
+        changed = state.get(_sig_key(key)) != signature
+        if last and not changed and now - last < remind_s:
+            return {"sent": False, "reason": "unchanged"}
+        url = webhook()
+        if not url:
+            _log.warning("[breadth-alerts] no webhook configured: %s", title)
+            return {"sent": False, "reason": "no webhook"}
+        head = f"**{title}**" if (changed or not last) else f"**{title}** (still unresolved)"
+        res = _deliver(url, _body(head, lines), post, "post")
+        if res["sent"]:
+            state[key] = now
+            state[_sig_key(key)] = signature
+            _save(state)
+        return {**res, "changed": changed}
+
+
+def signature(key: str) -> Optional[str]:
+    """The signature an alerted `send_on_change` key was last posted with (None if none)."""
+    with _lock:
+        return _load().get(_sig_key(key))
 
 
 def resolve(key: str, title: str, lines: list, post: Optional[Callable] = None) -> dict:
@@ -104,26 +151,20 @@ def resolve(key: str, title: str, lines: list, post: Optional[Callable] = None) 
     url = webhook()
     if not url:
         return {"sent": False, "reason": "no webhook"}
-    body = "\n".join([f"✅ **{title}**", *[f"• {ln}" for ln in lines][:15]])[:1900]
-    try:
-        if post is None:
-            import requests
-            post = requests.post
-        r = post(url, json={"content": body, "allowed_mentions": {"parse": []}}, timeout=10)
-        ok = 200 <= int(getattr(r, "status_code", 0)) < 300
-    except Exception as e:                         # noqa: BLE001
-        _log.warning("[breadth-alerts] resolve post failed: %s", e)
-        return {"sent": False, "reason": f"post failed: {type(e).__name__}"}
-    if ok:
+    res = _deliver(url, _body(f"✅ **{title}**", lines), post, "resolve post")
+    if res["sent"]:
         clear(key)
-    return {"sent": ok, "reason": None if ok else f"http {getattr(r, 'status_code', '?')}"}
+    return res
 
 
 def clear(key: str) -> None:
-    """Forget a key once its condition is resolved, so a recurrence alerts at once."""
+    """Forget a key (and its stored signature) once its condition is resolved, so a recurrence
+    alerts at once."""
     with _lock:
         state = _load()
-        if state.pop(key, None) is not None:
+        a = state.pop(key, None)
+        b = state.pop(_sig_key(key), None)
+        if a is not None or b is not None:
             _save(state)
 
 
