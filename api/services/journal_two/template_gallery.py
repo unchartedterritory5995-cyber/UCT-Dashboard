@@ -882,7 +882,7 @@ def _example_style_shown(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     link = _safe_example(_listed_payload(row))["linkedItemId"]
     if not link:
         return False
-    style = conn.execute("SELECT id, user_id, item_type, status, hidden FROM j2_template_gallery"
+    style = conn.execute("SELECT id, user_id, item_type, kind, status, hidden FROM j2_template_gallery"
                          " WHERE id = ? AND item_type = 'style'", (link,)).fetchone()
     return style is not None and style["user_id"] == row["user_id"] and _can_see(style, "", False, conn)
 
@@ -962,7 +962,7 @@ def _linked_style(conn: sqlite3.Connection, style_id: Any, viewer_id: str, is_ad
     """The style an example shows, `{id, title}`, or None when there is none the viewer may see (`_can_see`)."""
     if not isinstance(style_id, str) or not style_id:
         return None
-    row = conn.execute("SELECT id, user_id, title, item_type, status, hidden FROM j2_template_gallery"
+    row = conn.execute("SELECT id, user_id, title, item_type, kind, status, hidden FROM j2_template_gallery"
                        " WHERE id = ? AND item_type = 'style'", (style_id,)).fetchone()
     if not _can_see(row, viewer_id, is_admin, conn):
         return None
@@ -1828,7 +1828,7 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute("SELECT id, user_id, item_type, status, hidden, version, pending_json, payload_json"
+        row = conn.execute("SELECT id, user_id, item_type, kind, status, hidden, version, pending_json, payload_json"
                            " FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
         visible = row is not None and row["item_type"] == EXAMPLE_ITEM and _can_see(row, viewer_id, is_admin, conn)
     finally:
