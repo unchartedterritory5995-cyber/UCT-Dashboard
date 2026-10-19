@@ -12,7 +12,9 @@ Status (2026-10-19, branch `notebook-p5-launch`): built task by task (Tasks 1 to
 Opus whole-branch review (1 Critical at the P3b merge, 0 Important, 6 Minor) and its one fix round
 (`d2fc5ea1ba` .. `c448d6cd8e`), then the landing prep (Task 11 part A): the merge of origin/master `79bb686978`
 (P3b #408 and others) as `519a9def16`, the C1 fix `c6f1092bc6` (P5-FIN-R1), and two controller additions
-`8c64797f53` (N1) and `43ff1d64e0` (N3) (P5-FIN-R5). Nothing here has been run on production.
+`8c64797f53` (N1) and `43ff1d64e0` (N3) (P5-FIN-R5), and a landing fix to the contract-fixture tool `5f9b94ee44`
+(the image tree is per run, so two runs in one process are byte-identical with `starter_packs` last). Nothing here
+has been run on production.
 
 LANDING: `<landing tip>`, gated at `<gate tree>`. **GATE AND C4 LINES ARE PLACEHOLDERS UNTIL TASK 11 PART B.**
 
