@@ -235,14 +235,15 @@ def skip_base_tour(pg) -> bool:
     """A new member's notes list starts the base Notebook tour by itself ("Folders and tags", step 1 of 5), and
     its layer takes every click (run 2, evidence p5-walk-20261018T0100Z). A member who came to start a note
     presses Skip tour; so does the walk, and it records that it did."""
-    skip = pg.locator("[data-tour-card]").get_by_role("button", name="Skip tour", exact=True)
+    # NotebookTour.jsx: a modal role="dialog" (no data-tour-card; that is the generic engine's card).
+    dlg = pg.get_by_role("dialog").filter(has=pg.get_by_role("button", name="Skip tour", exact=True)).first
     try:
-        skip.first.wait_for(state="visible", timeout=6000)
+        dlg.wait_for(state="visible", timeout=6000)
     except Exception:  # noqa: BLE001 -- no tour started on this page
         return False
-    card = pg.locator("[data-tour-card]").first.inner_text(timeout=3000)
-    skip.first.click(timeout=T)
-    pg.locator("[data-tour-card]").first.wait_for(state="hidden", timeout=T)
+    card = dlg.inner_text(timeout=3000)
+    dlg.get_by_role("button", name="Skip tour", exact=True).click(timeout=T)
+    dlg.wait_for(state="hidden", timeout=T)
     REC["setup"].append({"what": "skipped the base Notebook tour a new member is shown", "card": card[:200],
                          "url": pg.url, "verdict": "INFO"})
     flush()
