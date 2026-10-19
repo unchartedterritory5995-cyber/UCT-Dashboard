@@ -2132,7 +2132,8 @@ def stamp_upper_lane_v3(d: dict, bars: list) -> None:
     """Replace a DRAWN tier-1 bull_flag's upper lane by `flag_upper_lane_v3`, in place.
     Tier 1 only (not stale, draw_round stamped, draw_lanes not False) -> extras.draw_anchors. The
     "flagging" tier was not judged and is left as master draws it (amendment 1), as is a row whose
-    pole top is a single-bar spike (`pole_top_spike_atr` > BULL_FLAG_V3_SPIKE_ATR).
+    pole top is a single-bar spike (`pole_top_spike_atr` > BULL_FLAG_V3_SPIKE_ATR), and a row whose
+    v3 channel fans out past LANE_DIVERGE_RATIO between the lower anchors (amendment 2).
     The lower lane is today's drawn one (draw_anchors when present, else geometry.anchors), copied
     unchanged in its own line space. Left as it is when the new upper is not strictly above the
     lower lane at both lower anchor bars. A log-space upper lane becomes price space
@@ -2161,10 +2162,18 @@ def stamp_upper_lane_v3(d: dict, bars: list) -> None:
     xu0, xu1 = pos[up[0]["t"]], pos[up[1]["t"]]
     xa, xb = pos[cur[2]["t"]], pos[cur[3]["t"]]
     la, lb = (xa, float(cur[2]["price"])), (xb, float(cur[3]["price"]))
+    width = {}
     for x in (xa, xb):
         u = _lab_line_at((xu0, up[0]["price"]), (xu1, up[1]["price"]), x, "price")
-        if not u > _lab_line_at(la, lb, x, spaces[1]):
+        lo = _lab_line_at(la, lb, x, spaces[1])
+        if not u > lo:
             return
+        width[x] = u - lo
+    # amendment 2: round 8's fan-out rule, re-checked on the v3 channel at the lower lane's anchors;
+    # a v3 channel wider at the right than LANE_DIVERGE_RATIO x the left keeps today's drawing
+    xl, xr = sorted((xa, xb))
+    if width[xr] > LANE_DIVERGE_RATIO * width[xl]:
+        return
     lanes = up + [dict(cur[2]), dict(cur[3])]
     if spaces[0] != "price":
         sp = list(ex.get("line_spaces") or [])
