@@ -15,7 +15,9 @@ stamped with that round, never a stale one), plus its lighter "flagging" tier (l
 flag_vocab: a stale flag stopped only by a relaxed verdict and stamped extras.flagging;
 drawn faint, no entry line). The rest of the team set
 (bc:cup-with-handle), experimental, hidden and the levels layer stay admin-only;
-the route filters server-side (`member_rows`), never the client.
+the route filters server-side (`member_rows`), never the client. A bc:cup-with-handle
+reaches a member only as the CUP TIER draws it (extras.cup_tier, drawing round 4 confirmed blind:
+lab cup_tier_v2 + cup_draw_v4), see member_rows.
 Display-only end to end: nothing here changes what any detector fires on, its
 confidence, HIST_SCORE or `confirmed_only`.
 """
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 
 from api.services.pattern_engine import display as _display
@@ -88,20 +91,29 @@ def member_rows(rows) -> list:
     (`_confirmed_flat_top`): any other flat-top row carries no stamp and is dropped.
     Fail closed.
 
+    A bc:cup-with-handle passed its blind checks only as the CUP TIER draws it (lab cup_tier_v2
+    recognition + lab cup_draw_v4 drawing round 4), so a member gets one only while it carries the
+    tier stamp `extras.cup_tier` with draw_round == MEMBER_CUP_TIER_ROUND (a literal), not withheld,
+    beside a well-formed pivot / handle (`_confirmed_cup_tier`), and is then served the TIER'S
+    drawing in place of the admin rounds' (`_cup_tier_member_row`). Fail closed.
+
     A bc:base (the shape-agnostic base drawing, lab base_draw) passed its blind check as drawn
     by one round (MEMBER_BASE_ROUND), so a member gets one only while it carries that round's
     stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed. On the member path
     the route also applies `member_base_precedence`, so a bc:base never sits beside an incumbent
     base drawing's breakout line."""
     allowed = member_ids()
-    return [r for r in rows or []
+    kept = [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
-            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
             and ((r or {}).get("pattern_id") != "bull_flag"
                  or _confirmed_flag(r) or _flagging_flag(r))
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
-            and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))]
+            and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
+            and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
+            and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
+                 or _pivot_only(r))]
+    return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
 
 
 #: Rows written by ONE scan of one ticker carry last_seen_at within seconds of each other (every
@@ -224,6 +236,25 @@ def _confirmed_flat_top(row) -> bool:
                     for t in touches))
 
 
+#: The cup row id (a base_catalog box).
+CUP_ID = "bc:cup-with-handle"
+#: The cup tier drawing round the blind check confirmed for members (lab cup_draw_v4, 2026-10-18,
+#: pre-registered: packets d1 2.42 [2.20, 2.62] 96% >= 2 and d2 2.50 [2.28, 2.72] 88% >= 2, two judges
+#: each), on the cup recognition tier (lab cup_tier_v2: 28 of 33 = 84.8%). A literal ON PURPOSE, not
+#: cup_tier.DRAW_ROUND: when the drawing code moves to a new round, members stop getting the cup
+#: until that round is confirmed and this is changed by hand.
+MEMBER_CUP_TIER_ROUND = 4
+#: The tier name the stamp must carry.
+MEMBER_CUP_TIER_NAME = "cup_conf"
+
+
+def _span(d) -> bool:
+    try:
+        return int(d["start_t"]) <= int(d["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 #: The base drawing's row id. A bc:base row is built ONLY beside a drawing (`base_draw_row`).
 BASE_DRAW_ID = "bc:base"
 #: The base drawing round the blind check confirmed for members (lab base_draw, 2026-10-18: packets
@@ -256,6 +287,91 @@ def _confirmed_base(row) -> bool:
         return int(bd["start_t"]) < int(bd["end_t"])
     except (KeyError, TypeError, ValueError):
         return False
+
+
+def _confirmed_cup_tier(row) -> bool:
+    """True when a bc:cup-with-handle row carries the confirmed cup tier drawing: not stale,
+    `extras.cup_tier` names the tier and MEMBER_CUP_TIER_ROUND (an int), nothing withheld, a pivot
+    with a finite price and a span, a handle box with a finite top at or above a finite floor, and a
+    rim reference exactly when the pivot is at the handle high. Anything else is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    st = ex.get("cup_tier")
+    if not isinstance(st, dict) or st.get("tier") != MEMBER_CUP_TIER_NAME:
+        return False
+    rnd = st.get("draw_round")
+    if not (type(rnd) is int and rnd == MEMBER_CUP_TIER_ROUND):
+        return False
+    if st.get("withheld") is not None or "withheld" not in st:
+        return False
+    pv, hd, rr = st.get("pivot"), st.get("handle"), st.get("rim_ref")
+    if not (isinstance(pv, dict) and _finite(pv.get("price")) and _span(pv)):
+        return False
+    if not (isinstance(hd, dict) and _finite(hd.get("top")) and _finite(hd.get("floor")) and _span(hd)):
+        return False
+    if not float(hd["top"]) >= float(hd["floor"]):
+        return False
+    if st.get("pivot_at") == "handle_high":
+        return isinstance(rr, dict) and _finite(rr.get("price")) and _span(rr)
+    return st.get("pivot_at") == "rim" and rr is None
+
+
+def _cup_tier_member_row(row) -> dict:
+    """A member's copy of a confirmed cup row: every admin-round drawing key (`draw_*`) replaced by the
+    tier's own drawing -- the pivot (`draw_pivot`), the handle box (`draw_handle`), the rim as a faint
+    reference when the pivot is the handle high (`draw_rim_ref`) and no base box (`draw_box` False) --
+    so PatternOverlay draws exactly what the judges scored. The row passed in is not modified."""
+    st = row["geometry"]["extras"]["cup_tier"]
+    ex = {k: v for k, v in row["geometry"]["extras"].items() if not str(k).startswith("draw_")}
+    ex["draw_pivot"] = dict(st["pivot"])
+    ex["draw_handle"] = dict(st["handle"])
+    if st.get("rim_ref"):
+        ex["draw_rim_ref"] = dict(st["rim_ref"])
+    ex["draw_box"] = False
+    return {**row, "geometry": {**row["geometry"], "extras": ex}}
+
+
+def _complete_session_bars(bars):
+    """`bars` up to the newest COMPLETE session (barspack._last_complete_session_ymd, the one authority
+    on "complete"), or None when the session clock is unknown or fails. Unlike last_bar_forming, which
+    answers False (keep the bar) on an unknown clock, this FAILS CLOSED: no clock, no stamp."""
+    try:
+        from api.services import barspack
+        done = barspack._last_complete_session_ymd()
+    except Exception:  # noqa: BLE001 -- an unreadable clock means nothing is stamped
+        return None
+    if done is None:
+        return None
+    b = list(bars or [])
+    if b and int(b[-1]["t"]) > int(done):
+        b = b[:-1]
+    return b
+
+
+def cup_tier_stamp(det: dict, bars: list) -> None:
+    """Stamp `extras.cup_tier` on a bc:cup-with-handle row when the cup tier holds at the latest
+    COMPLETE daily bar of `bars` (a forming session is dropped first: the lab judged finished
+    sessions; an unknown or failing session clock stamps NOTHING). Adds that one key and nothing
+    else; a row the tier does not stamp is untouched. Display only. Never raises.
+
+    Only rows the admin display rounds did NOT mark stale reach this stamp (structures_for drops a
+    stale box first). Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
+    fires (failed_breakout 297, gap_island 176, rim_broken 173, short_of_rim 164, ...) and round 4
+    withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member
+    can be served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc), served recognition 8 of 8."""
+    try:
+        if (det or {}).get("pattern_id") != CUP_ID:
+            return
+        from api.services.pattern_engine import cup_tier
+        b = _complete_session_bars(bars)
+        if b is None:
+            return
+        st = cup_tier.stamp(b)
+        if st is not None:
+            det["geometry"]["extras"]["cup_tier"] = st
+    except Exception:  # noqa: BLE001 -- a tier stamp never drops or breaks the row
+        return
 
 
 #: Member-served drawings that already mark a base's breakout line. Where one of them covers the same
@@ -339,6 +455,53 @@ def member_base_precedence(detections, structures) -> list:
         return [s for s in sts if id(s) not in drop]
     except Exception:  # noqa: BLE001 -- fail closed: no base drawing rather than a duplicate line
         return [s for s in (structures or []) if (s or {}).get("pattern_id") != BASE_DRAW_ID]
+
+
+#: A bc:flat-base pivot within this many ATR(14) of a served cup's pivot is the same breakout line.
+CUP_PRECEDENCE_ATR = 1.0
+#: The member-served drawings a confirmed cup outranks (the cup is the blind-confirmed drawing).
+CUP_PRECEDENCE_IDS = frozenset({"bc:flat-base"})
+
+
+def member_cup_precedence(structures) -> list:
+    """`structures` without a bc:flat-base row a served cup covers. Applied on the MEMBER path only,
+    after member_rows (so every cup row here is a confirmed, stamped cup in its member form). A
+    flat-base row is covered when one of its breakout / pivot prices is within CUP_PRECEDENCE_ATR
+    ATR(14) of the cup's pivot (the ATR is the cup stamp's own), OR its span overlaps the cup's (lip to
+    as-of). Then the flat base is dropped and the cup stays. Fails closed: a cup without a finite pivot,
+    ATR or span, or a flat base whose span cannot be read, drops the flat base. Admin output never
+    passes through here. Order is kept; never raises."""
+    try:
+        sts = list(structures or [])
+        cups = [s for s in sts if (s or {}).get("pattern_id") == CUP_ID
+                and isinstance(((s.get("geometry") or {}).get("extras") or {}).get("cup_tier"), dict)]
+        if not cups:
+            return sts
+        drop = set()
+        for c in cups:
+            st = c["geometry"]["extras"]["cup_tier"]
+            pv = st.get("pivot")
+            piv = pv.get("price") if isinstance(pv, dict) else None
+            at = st.get("atr")
+            try:
+                c0, c1 = int(st["lip_t"]), int(st["asof_t"])
+            except (KeyError, TypeError, ValueError):
+                c0 = c1 = None
+            for r in sts:
+                if (r or {}).get("pattern_id") not in CUP_PRECEDENCE_IDS:
+                    continue
+                if not (_finite(piv) and _finite(at) and float(at) > 0) or c0 is None:
+                    drop.add(id(r))
+                    continue
+                span = _row_span(r)
+                near = any(abs(v - float(piv)) <= CUP_PRECEDENCE_ATR * float(at) for v in _row_levels(r))
+                if near or span is None or (span[0] <= c1 and c0 <= span[1]):
+                    drop.add(id(r))
+        return [s for s in sts if id(s) not in drop]
+    except Exception:  # noqa: BLE001 -- fail closed: the cup alone rather than two breakout lines
+        if any((s or {}).get("pattern_id") == CUP_ID for s in (structures or [])):
+            return [s for s in (structures or []) if (s or {}).get("pattern_id") not in CUP_PRECEDENCE_IDS]
+        return list(structures or [])
 
 
 def base_draw_row(sym: str, bars: list):
@@ -663,6 +826,8 @@ def structures_for(sym: str) -> list:
                 # served: dropping it here keeps the overlay unchanged.
                 if (det.get("geometry") or {}).get("extras", {}).get("stale"):
                     continue
+                # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
+                cup_tier_stamp(det, bars)
                 out.append(det)
             # the shape-agnostic base drawing (lab base_draw): its own row, after every box
             bd = base_draw_row(sym, bars)
@@ -689,6 +854,84 @@ def last_bar_forming(last_t, now=None) -> bool:
         return False
 
 
+#: The levels drawing round confirmed for the chart's `drawn` levels: lab levels_v3 (2026-10-18, pre-registered):
+#: v2's chart-reading levels plus a guaranteed near support / resistance, at most 4. Team agreement on fresh
+#: charts tied C2 (F1 +0.005, lift +0.016 n.s.) with a near support on 100% of charts (C2 91.5%); blind judges
+#: preferred it twice: packet J 2.70 vs 2.10, and the confirmation packet (30 fresh charts, two balanced packets,
+#: four fresh judges) 2.53 vs 2.20, paired +0.33, 90% CI [+0.15, +0.52]. A literal ON PURPOSE, not
+#: levels_v3.LEVELS_V3_ROUND: when the drawing code moves to a new round, the chart falls back to the C2 levels
+#: until that round is confirmed and this is changed by hand.
+MEMBER_LEVELS_ROUND = "2026-10-18-v3"
+#: The v3 drawing never has more levels than this (C2's count; the judged and team-scored cap).
+LEVELS_V3_MAX = 4
+#: v3 labels that must never reach a member (F3): a bare 'level' / 'round' says nothing.
+_LEVELS_V3_BANNED_LABELS = frozenset({"level", "round"})
+
+#: Every time a chart falls back from the v3 levels to the C2 levels, by reason ("crash", "rejected").
+#: Read by an operator / a test; the first fallback in a process also logs at WARNING (F2), later ones at DEBUG.
+LEVELS_FALLBACKS: dict = {"crash": 0, "rejected": 0}
+_levels_fallback_warned = False
+_levels_fallback_lock = threading.Lock()
+
+
+def _levels_fallback(reason: str, sym: str, detail) -> None:
+    global _levels_fallback_warned
+    with _levels_fallback_lock:   # reads run on a threadpool: count and warn-once atomically
+        LEVELS_FALLBACKS[reason] = LEVELS_FALLBACKS.get(reason, 0) + 1
+        first = not _levels_fallback_warned
+        _levels_fallback_warned = True
+    if first:
+        _log.warning("[levels-v3] %s fell back to the C2 levels (%s): %s -- further fallbacks counted in "
+                     "auto_structures.LEVELS_FALLBACKS, logged at DEBUG", sym, reason, detail)
+    else:
+        _log.debug("[levels-v3] %s fell back to the C2 levels (%s): %s", sym, reason, detail)
+
+
+def _levels_v3_ok(v3) -> bool:
+    """True when a levels_v3 result carries the confirmed round's stamp and well-formed levels: 1 to
+    LEVELS_V3_MAX horizontals, each a finite price, an int t_from, the levels_v3 source and a member label."""
+    if not isinstance(v3, dict) or v3.get("round") != MEMBER_LEVELS_ROUND:
+        return False
+    hs = v3.get("horizontals")
+    if not isinstance(hs, list) or not 1 <= len(hs) <= LEVELS_V3_MAX:
+        return False
+    return all(isinstance(h, dict) and h.get("source") == "levels_v3" and _finite(h.get("price"))
+               and type(h.get("t_from")) is int and isinstance(h.get("label"), str) and h.get("label")
+               and h.get("label") not in _LEVELS_V3_BANNED_LABELS for h in hs)
+
+
+def levels_session_state(last_t, now=None) -> str:
+    """'complete' when the daily series' last bar is a COMPLETED session (at or before barspack's
+    _last_complete_session_ymd, the one authority on "complete": a trading day at/after the close, else
+    the prior trading session -- weekends and holidays included), 'forming' when it is a session still in
+    progress, 'unknown' when the session clock (or the bar's date) cannot be read. Only 'complete' may
+    serve the v3 levels: that is the state the lab drew and the judges scored. Never raises."""
+    try:
+        from api.services import barspack
+        done = barspack._last_complete_session_ymd(now)
+        if done is None or last_t is None:
+            return "unknown"
+        return "forming" if int(last_t) > int(done) else "complete"
+    except Exception:  # noqa: BLE001 -- a clock question never breaks the drawing; unknown fails closed
+        return "unknown"
+
+
+def _levels_v3(clean_rows, forming, sym=""):
+    """The levels_v3 drawing when it is stamped with MEMBER_LEVELS_ROUND and well formed, else None (the
+    caller keeps the C2 levels; the fallback is counted and the first one per process logged at WARNING).
+    Never raises."""
+    try:
+        from api.services import levels_v3
+        v3 = levels_v3.drawn_levels(clean_rows, last_bar_forming=forming)
+    except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
+        _levels_fallback("crash", sym, repr(e))
+        return None
+    if _levels_v3_ok(v3):
+        return v3
+    _levels_fallback("rejected", sym, "round=%r" % (v3.get("round") if isinstance(v3, dict) else None))
+    return None
+
+
 def drawn_for(sym: str):
     """The learned drawer's default drawing for the latest daily bars of `sym`
     (api/services/auto_draw.drawn_set), plus the display rules that ride with it:
@@ -697,21 +940,43 @@ def drawn_for(sym: str):
     None when there are too few bars. Never raises."""
     sym = (sym or "").upper()
     now = time.time()
-    hit = _DRAWN_CACHE.get(sym)
-    if hit and now - hit[0] < _CACHE_TTL_S:
-        return hit[1]
     out = None
+    token = None
     try:
-        from api.services import auto_draw
         rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _daily_bars(sym)]
-        forming = bool(rows) and last_bar_forming(rows[-1][0])
-        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)
+        last_t = rows[-1][0] if rows else None
+        forming = bool(rows) and last_bar_forming(last_t)
+        session = levels_session_state(last_t)
+        # R1: ONE cache slot per symbol, reused only for the SAME last bar in the SAME forming / session
+        # state, so a new session (or a forming bar that completes) is never served the old drawing. The
+        # slot is overwritten in place -- no iteration over the shared dict and no delete -- so concurrent
+        # reads on the request threadpool cannot race it.
+        token = (last_t, forming, session)
+        hit = _DRAWN_CACHE.get(sym)
+        if hit and hit[1] == token and now - hit[0] < _CACHE_TTL_S:
+            return hit[2]
+        from api.services import auto_draw
+        clean = auto_draw.clean_bars(rows)
+        drawn = auto_draw.drawn_set(clean, last_bar_forming=forming)
         if drawn is not None:
             suppress = {pid: "hidden_by_default" for pid in sorted(DISPLAY_LEARNED_HIDES)}
             suppress.update({pid: "replaced_by_learned" for pid in sorted(DISPLAY_LEARNED_REPLACES)})
             out = {**drawn, "suppress": suppress}
+            # v3 only on a COMPLETED session's bar -- the state the lab drew and the judges scored. While
+            # the session is forming, or the session clock is unknown, the chart keeps the C2 levels
+            # (today's live behaviour; a policy, not a fallback, so it is not counted).
+            if session == "complete" and not forming:
+                v3 = _levels_v3(clean, False, sym)
+                if v3 is not None and v3.get("asof_t") != int(last_t):
+                    _levels_fallback("rejected", sym, "asof_t=%r last bar=%r" % (v3.get("asof_t"), last_t))
+                    v3 = None
+                if v3 is not None:
+                    out["horizontals"] = v3["horizontals"]
+                    # asof_t: the completed session the levels were drawn at ("levels as of <date> close")
+                    out["levels_tier"] = {"round": v3["round"], "source": "levels_v3", "asof_t": int(last_t)}
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-draw] %s failed: %s", sym, e)
         out = None
-    _DRAWN_CACHE[sym] = (now, out)
+    if token is not None:
+        _DRAWN_CACHE[sym] = (now, token, out)
     return out

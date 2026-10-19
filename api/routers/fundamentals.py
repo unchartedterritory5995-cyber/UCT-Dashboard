@@ -464,7 +464,10 @@ def get_fundamentals_endpoint(ticker: str = Depends(ticker_path)):
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}
-    payload = _fundamentals_payload(sym)
+    # A snapshot persisted before the non-finite guards can still hold an inf;
+    # scrub at the answer so it costs a blank field, never a 500 (json_finite).
+    from api.services.json_finite import scrub
+    payload = scrub(_fundamentals_payload(sym))
     # Wave-2 audit 2026-10-08: "empty" (every provider answered with nothing) for a symbol
     # that is not a ticker also carries the additive `not_found` marker
     # (api/services/symbol_presence.py). Added at answer time, never cached into the payload.
