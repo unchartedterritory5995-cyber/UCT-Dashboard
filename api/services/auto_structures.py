@@ -441,6 +441,41 @@ def last_bar_forming(last_t, now=None) -> bool:
         return False
 
 
+#: The levels drawing round confirmed for the chart's `drawn` levels: lab levels_v2 (2026-10-18,
+#: pre-registered, held out by posted date): F1 lift over the same drawer's random-chart base rate
+#: +0.074 [+0.048, +0.099] against the team's own drawn levels (C2: +0.028), 3 levels per chart, blind
+#: judge packet mean 2.675 [2.45, 2.875]. A literal ON PURPOSE, not levels_v2.LEVELS_V2_ROUND: when the
+#: drawing code moves to a new round, the chart falls back to the C2 levels until that round is
+#: confirmed and this is changed by hand.
+MEMBER_LEVELS_ROUND = "2026-10-18"
+#: The v2 drawing never has more levels than this (the judged and team-scored count).
+LEVELS_V2_MAX = 3
+
+
+def _levels_v2_ok(v2) -> bool:
+    """True when a levels_v2 result carries the confirmed round's stamp and well-formed levels: 1 to
+    LEVELS_V2_MAX horizontals, each a finite price, an int t_from and the levels_v2 source."""
+    if not isinstance(v2, dict) or v2.get("round") != MEMBER_LEVELS_ROUND:
+        return False
+    hs = v2.get("horizontals")
+    if not isinstance(hs, list) or not 1 <= len(hs) <= LEVELS_V2_MAX:
+        return False
+    return all(isinstance(h, dict) and h.get("source") == "levels_v2" and _finite(h.get("price"))
+               and type(h.get("t_from")) is int for h in hs)
+
+
+def _levels_v2(clean_rows, forming):
+    """The levels_v2 drawing when it is stamped with MEMBER_LEVELS_ROUND and well formed, else None
+    (the caller keeps the C2 levels). Never raises."""
+    try:
+        from api.services import levels_v2
+        v2 = levels_v2.drawn_levels(clean_rows, last_bar_forming=forming)
+    except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
+        _log.debug("[levels-v2] failed: %s", e)
+        return None
+    return v2 if _levels_v2_ok(v2) else None
+
+
 def drawn_for(sym: str):
     """The learned drawer's default drawing for the latest daily bars of `sym`
     (api/services/auto_draw.drawn_set), plus the display rules that ride with it:
@@ -457,11 +492,16 @@ def drawn_for(sym: str):
         from api.services import auto_draw
         rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _daily_bars(sym)]
         forming = bool(rows) and last_bar_forming(rows[-1][0])
-        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)
+        clean = auto_draw.clean_bars(rows)
+        drawn = auto_draw.drawn_set(clean, last_bar_forming=forming)
         if drawn is not None:
             suppress = {pid: "hidden_by_default" for pid in sorted(DISPLAY_LEARNED_HIDES)}
             suppress.update({pid: "replaced_by_learned" for pid in sorted(DISPLAY_LEARNED_REPLACES)})
             out = {**drawn, "suppress": suppress}
+            v2 = _levels_v2(clean, forming)
+            if v2 is not None:
+                out["horizontals"] = v2["horizontals"]
+                out["levels_tier"] = {"round": v2["round"], "source": "levels_v2"}
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-draw] %s failed: %s", sym, e)
         out = None
