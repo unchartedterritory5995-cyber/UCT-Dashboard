@@ -18,6 +18,7 @@ import { PROPOSAL_TTL_MS } from './capabilities/indicatorAuthoring'
 import { _resetScreenerCache, loadMeta } from './capabilities/screener'
 import { getCapability } from './capabilities'
 import { buildWidgetSync } from './host'
+import { NL1_KEY } from './nl1/interpreter'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -430,5 +431,44 @@ describe('special flows keep working, and stay bound', () => {
     await say('do the first two')
     await waitFor(() => expect(transcript()).toMatch(/can’t run as you approved it|changed/))
     expect(b.state.widgets.find(w => w.id === 'L').color).toBe('A')
+  })
+})
+
+// NL-1 (model-first interpretation, flag off by default) reaches the same approve / Undo code: the binding holds
+describe('NL-1 on — the approval binding holds when the model reads every request', () => {
+  const nl1On = () => localStorage.setItem(NL1_KEY, '1')
+
+  it('ANOTHER DEVICE grows the list after the card: "do it" (exact lane) re-reads and refuses; nothing deleted', async () => {
+    nl1On()
+    const b = board()
+    const { say, transcript } = mount(b.host)
+    script = (body) => apply(op('watchlist.delete', listRef(body, 'Swing')))
+    await say('delete my swing watchlist')
+    await waitFor(() => expect(transcript()).toMatch(/and its 1 stock \(permanent\)/))
+    onServer(b, 's1').items.push({ id: 's1-x1', sym: 'NVDA', notes: '' })
+    await say('do it')
+    await waitFor(() => expect(transcript()).toMatch(/can’t run as you approved it — what it acts on has changed since I showed it to you/))
+    expect(serverSyms(b, 's1')).toEqual(['TSLA', 'NVDA'])
+    expect(b.state.server.calls.some(c => c[0] === 'DELETE')).toBe(false)
+    expect(turns).toHaveLength(1)                                          // "do it" never reached the model
+  })
+
+  it('an Undo (exact lane) of an earlier change withdraws the waiting card; "do it" then does nothing', async () => {
+    nl1On()
+    const b = board()
+    const { say, transcript } = mount(b.host)
+    script = (body, n) => (n === 1
+      ? apply(op('chart.setTimeframe', chartRef(body, 'L'), { timeframe: 'W' }))
+      : apply(op('watchlist.delete', listRef(body, 'Swing'))))
+    await say('make the left chart weekly')
+    await waitFor(() => expect(b.host.charts.read('L').tf).toBe('W'))
+    await say('delete my swing watchlist')
+    await waitFor(() => expect(transcript()).toMatch(/and its 1 stock \(permanent\)/))
+    await say('undo')
+    await waitFor(() => expect(b.host.charts.read('L').tf).toBe('D'))
+    await waitFor(() => expect(transcript()).toMatch(/I withdrew the proposal above/))
+    await say('do it')
+    await settle()
+    expect(onServer(b, 's1')).not.toBeNull()
   })
 })
