@@ -7,7 +7,9 @@
 // resolves to 'unavailable' — the templated read is always the fallback.
 import { useEffect, useState } from 'react'
 
-export function useCotNarrative({ symbol, name, reportDate, facts, enabled }) {
+// `renderToken` (a string, even '') = the logged-out Discord /cot render page: it reads
+// the already-stored read through the token door, which never generates one.
+export function useCotNarrative({ symbol, name, reportDate, facts, enabled, renderToken = null }) {
   const [state, setState] = useState({ status: 'idle', text: null, key: null })
 
   const key = enabled && symbol && reportDate && facts
@@ -26,11 +28,15 @@ export function useCotNarrative({ symbol, name, reportDate, facts, enabled }) {
 
     let cancelled = false
     setState({ status: 'loading', text: null, key })
-    fetch(`/api/cot/${encodeURIComponent(symbol)}/narrative`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ report_date: reportDate, name: name || '', facts }),
-    })
+    const req = renderToken != null
+      ? fetch(`/api/r/cot/${encodeURIComponent(symbol)}/narrative?report_date=${encodeURIComponent(reportDate)}`
+          + `&token=${encodeURIComponent(renderToken)}`)
+      : fetch(`/api/cot/${encodeURIComponent(symbol)}/narrative`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_date: reportDate, name: name || '', facts }),
+      })
+    req
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
         if (cancelled) return

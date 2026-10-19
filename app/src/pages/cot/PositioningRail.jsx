@@ -15,7 +15,7 @@
 // No lookahead: everything shown for a scrubbed past week is computed from
 // history up to that week only (the analog module enforces it for forward
 // returns; the index windows end at the week by construction).
-import { forwardRef, useImperativeHandle, useState, useMemo } from 'react'
+import { forwardRef, useImperativeHandle, useState, useMemo, useEffect } from 'react'
 import styles from './PositioningRail.module.css'
 import { GROUPS } from './cotRead'
 import { HORIZONS } from './cotAnalogs'
@@ -163,7 +163,10 @@ function Fold({ title, open, children }) {
 }
 
 const PositioningRail = forwardRef(function PositioningRail(
-  { rows, symbol, name, bars = null, priceAligned = null, proxy = null },
+  { rows, symbol, name, bars = null, priceAligned = null, proxy = null,
+    // Discord /cot render: a string (even '') means the logged-out render page, which
+    // reads the stored written read through its token door and shows no save button.
+    renderToken = null, onNarrativeStatus = null },
   ref,
 ) {
   // Swatch inks follow the member's theme (cot/useCotPalette.js).
@@ -200,8 +203,9 @@ const PositioningRail = forwardRef(function PositioningRail(
   // report only. Scrubbed weeks show the read that was written for them at the
   // time (the archive), else the templated read.
   const facts = isLatest ? (week?.facts ?? null) : null
-  const narrative = useCotNarrative({ symbol, name, reportDate: snap?.date, facts, enabled: !!facts })
-  const archive = useCotNarrativeArchive(symbol)
+  const narrative = useCotNarrative({ symbol, name, reportDate: snap?.date, facts, enabled: !!facts, renderToken })
+  const archive = useCotNarrativeArchive(renderToken != null ? null : symbol)
+  useEffect(() => { onNarrativeStatus?.(narrative.status) }, [narrative.status, onNarrativeStatus])
   const isPhone = useIsPhone()
 
   if (!snap || !read) return null
@@ -223,9 +227,9 @@ const PositioningRail = forwardRef(function PositioningRail(
           <span className={styles.whenDate}>{fmtDate(snap.date)}</span>
         </div>
         {/* G-040 ruling 2: freeze THIS week, as shown — the one the rail is on. */}
-        <SaveToNotebookButton widgetId="cot" label={`${symbol} COT positioning`}
+        {renderToken == null && <SaveToNotebookButton widgetId="cot" label={`${symbol} COT positioning`}
           ariaLabel={`Save ${symbol} COT positioning for the week of ${fmtDate(snap.date)} to Notebook`}
-          buildCapture={() => buildCotCapture({ symbol, name, snap, read })} />
+          buildCapture={() => buildCotCapture({ symbol, name, snap, read })} />}
       </div>
 
       {/* Verdict tiles */}

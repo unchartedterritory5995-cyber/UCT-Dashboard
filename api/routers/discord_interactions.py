@@ -261,6 +261,33 @@ def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None
         log.warning("[discord-lesson] could not deliver the reply: %s", e)
 
 
+def run_cot_job(app_id: str, token: str, symbol: str, lookback: str, *,
+                render_fn=None, edit_fn=None) -> None:
+    """The far side of a `/cot` defer: render the site's COT Data page for one market
+    and PATCH it onto the reply. A failed render says so in words rather than leaving
+    a spinner. Never raises."""
+    from api.services import cot_image
+    from api.services.render_gate import MEMBER
+    render = render_fn or cot_image.render_cot_png
+    edit = edit_fn or di.edit_original
+    names, _ = di._cot_names()
+    title = f"**{symbol}** · {names.get(symbol, symbol)} · COT positioning ({lookback})"
+    try:
+        # ⛔ MEMBER: a member typed /cot and is watching the deferred reply.
+        png = render(symbol, lookback, cls=MEMBER)
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[cot] render failed for %s: %s", symbol, e)
+        png = None
+    try:
+        if png:
+            edit(app_id, token, content=title, png=png, filename=f"cot-{symbol.lower()}.png")
+        else:
+            edit(app_id, token, content=f"{title}\nThe COT chart could not be drawn right now. "
+                                         "Try again in a minute, or open Breadth → COT Data on the site.")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[cot] could not deliver the reply for %s: %s", symbol, e)
+
+
 def _flow_fmt_m(v) -> str:
     v = float(v or 0)
     if v >= 1e9:
@@ -674,6 +701,9 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
             return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
+        if name == di.COT_COMMAND:
+            _f, fval = di.focused_option(interaction)
+            return _autocomplete(di.cot_market_choices(fval))
         if name == di.FLOW_COMMAND:
             fname, fval = di.focused_option(interaction)
             if fname == "days":                     # suggest day-window presets
@@ -781,6 +811,30 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # first. That is the cost of the ack never being able to miss, and it is stated
         # here rather than discovered.
         return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+    if itype == 2 and name == di.COT_COMMAND:
+        # /cot <market> [lookback] — the site's COT Data page as a PUBLIC image, in the
+        # same channel and on the same per-member render budget as /chart and /flow.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="COT charts"))
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        typed = str(opts.get("market") or "").strip()
+        symbol = di.resolve_cot_market(typed)
+        if not symbol:
+            return _ephemeral(f"`{typed[:40]}` is not a COT market I know. Start typing in `/cot` "
+                              "for the list, e.g. `/cot ES`, `/cot GC`, `/cot gold`.")
+        from api.services.cot_image import normalize_lookback
+        lookback = normalize_lookback(opts.get("lookback"))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_cot_job, app_id, token, symbol, lookback)
+        return {"type": 5}
     if itype == 2 and name == di.FLOW_COMMAND:
         # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
         # (owner decision). Refused elsewhere with a pointer to that channel.
