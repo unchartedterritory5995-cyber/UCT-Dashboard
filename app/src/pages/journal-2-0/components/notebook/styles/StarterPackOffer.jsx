@@ -9,7 +9,9 @@
 //   · "Not now" writes {state:'dismissed'} (only when there is no answer yet: it never overwrites an install)
 //     and closes the card. A dismissed offer does not come back unasked.
 //   · A write of the answer that did not land is SAID (OFFER_NOT_SAVED), never passed off as saved: "Not now"
-//     then keeps the card open so it can be pressed again.
+//     then keeps the card open so it can be pressed again, and the next press writes THAT answer again
+//     (P5-FIN-R5 N1). It cannot ask the preferences, because setPrefMerged keeps its optimistic value when the
+//     server refuses the write, so the local prefs already read as answered.
 //   · ONE OFFER PER PAGE (ruling P5-T10-R2). Every surface that can hold the card (the empty notebook's inline
 //     picker, the New note sheet's, the Styles manager) shares ONE decision through `offerStore`, and only the
 //     surface that opened last renders the card. So a page has one card, one Not now and one install path.
@@ -104,13 +106,14 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   const [busy, setBusy] = useState(false)
   const [lines, setLines] = useState(null)              // the last install's answer, as sentences
   const [failed, setFailed] = useState(false)
-  const [notSaved, setNotSaved] = useState(false)       // the answer's write did not land
+  const [unsaved, setUnsaved] = useState(null)          // the answer whose write did not land, to write again
+  const notSaved = unsaved !== null
 
   if (!starterPacksEnabled()) return null
 
   // setPrefMerged resolves {ok: true} only when the server took the write (usePreferences postPref).
   const choose = async (pack) => {
-    setBusy(true); setFailed(false); setNotSaved(false); setLines(null)
+    setBusy(true); setFailed(false); setUnsaved(null); setLines(null)
     let out
     try {
       out = await installStarterPack(pack)
@@ -120,19 +123,23 @@ export default function StarterPackOffer({ onClose, offline = false }) {
       setBusy(false)
       return
     }
-    const saved = await writeStarterPackState(setPrefMerged, { state: 'installed', pack })
+    const answer = { state: 'installed', pack }
+    const saved = await writeStarterPackState(setPrefMerged, answer)
     mutate(STYLES_URL)                                    // the new styles appear in the lists behind this card
     const said = resultLines(out)
     setLines(said.length ? said : [OFFER_EMPTY])
-    setNotSaved(saved?.ok !== true)
+    setUnsaved(saved?.ok === true ? null : answer)
     setBusy(false)
   }
   const notNow = async () => {
-    if (readStarterPackState(prefs) === null) {
-      setBusy(true); setNotSaved(false)
-      const saved = await writeStarterPackState(setPrefMerged, { state: 'dismissed' })
+    // An answer that did not land is written again as it was (an install stays an install); otherwise only an
+    // unanswered member is written 'dismissed', so Not now never overwrites an install.
+    const answer = unsaved ?? (readStarterPackState(prefs) === null ? { state: 'dismissed' } : null)
+    if (answer) {
+      setBusy(true); setUnsaved(null)
+      const saved = await writeStarterPackState(setPrefMerged, answer)
       setBusy(false)
-      if (saved?.ok !== true) { setNotSaved(true); return }   // the card stays, so Not now can be pressed again
+      if (saved?.ok !== true) { setUnsaved(answer); return }   // the card stays, so it can be pressed again
     }
     onClose?.()
   }

@@ -280,6 +280,48 @@ describe('How do you trade? -- what the card says, and one card per page', () =>
     expect(setPrefMerged).toHaveBeenCalledTimes(2)
   })
 
+  // P5-FIN-R5 N1: the real setPrefMerged keeps its OPTIMISTIC value when the server refuses the write
+  // (usePreferences resolves {ok:false} without reverting the cache), so after a failed write the local prefs
+  // already read as answered. These mocks reflect that, which test 10's static prefs cannot.
+  const optimisticThenRefused = () => {
+    let first = true
+    setPrefMerged.mockImplementation(async (key, updater) => {
+      prefsNow = { ...prefsNow, [key]: typeof updater === 'function' ? updater(prefsNow[key]) : updater }
+      if (first) { first = false; return { ok: false } }
+      return { ok: true }
+    })
+  }
+
+  it('10b. N1: a second Not now after a refused write writes again, though prefs already read dismissed', async () => {
+    flags()
+    optimisticThenRefused()
+    const onClose = vi.fn()
+    render(swr(<StarterPackOffer onClose={onClose} />))
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    expect(await within(offer).findByRole('alert')).toHaveTextContent(NOT_SAVED)
+    expect(prefsNow[STARTER_PACK_PREF]).toMatchObject({ state: 'dismissed' })   // the optimistic value stayed
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(setPrefMerged).toHaveBeenCalledTimes(2)
+    expect(written().value).toMatchObject({ state: 'dismissed' })
+    expect(within(offer).queryByRole('alert')).toBeNull()
+  })
+
+  it('10c. N1: Done after a refused install write writes the INSTALL again, never a dismissal', async () => {
+    flags()
+    optimisticThenRefused()
+    const onClose = vi.fn()
+    render(swr(<StarterPackOffer onClose={onClose} />))
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
+    expect(await within(offer).findByRole('alert')).toHaveTextContent(NOT_SAVED)
+    fireEvent.click(within(offer).getByRole('button', { name: 'Done' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(setPrefMerged).toHaveBeenCalledTimes(2)
+    expect(written().value).toMatchObject({ state: 'installed', pack: 'swing' })
+  })
+
   it('11. P5-T10-R2: two kind sections and the manager on one page show ONE card, on the surface opened last', async () => {
     flags()
     const { rerender } = render(swr(<><KindSection onCreate={vi.fn()} /><KindSection onCreate={vi.fn()} /></>))
