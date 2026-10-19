@@ -1,6 +1,5 @@
 import { memo, useMemo } from 'react'
 import WhyStrip from './WhyStrip'
-import CatalystStrip from './CatalystStrip'
 import { setupLine, pivotLine } from './setupLine'
 import { plainFact, volumeFact } from './plainWords'
 import { livePriceOf } from './livePrice'
@@ -25,7 +24,8 @@ const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct)].filter
 // ⭐ THE CHART IS THE /charts CHART WIDGET (2026-10-18), see ScreenerChartWidget.jsx. This pane
 // keeps what is the screener's own: the row's identity, setup, facts, earnings, why-strip and
 // actions. The chart below them (timeframes, drawings, indicators, tabs, hotkeys, settings,
-// loading and error states) is the widget's, so it is the same chart as on /charts.
+// loading and error states) is the widget's, so it is the same chart as on /charts; so is the
+// News & Catalysts widget under it on desktop.
 //
 // S5: the chart is memoised on what it draws (a symbol, an identity-stable pivot line, the phone
 // flag), so a live price tick re-renders this pane's header and never the chart.
@@ -91,8 +91,6 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
       <div className={styles.chartBox} data-testid="pane-chart-layer">
         <PaneChart sym={row.ticker} priceLines={priceLines} phone={phone} />
       </div>
-      {/* Why it moves, under the chart (a peek at the catalyst feed); the phone sheet has no room for it. */}
-      {!phone && <CatalystStrip sym={row.ticker} />}
       <div className={styles.paneFoot}>
         <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
