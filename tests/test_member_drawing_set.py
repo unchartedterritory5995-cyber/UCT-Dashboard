@@ -1,5 +1,5 @@
 """The MEMBER drawing set (owner-approved 2026-10-17): what a PAID member's chart is drawn while
-AUTO_STRUCTURES_MEMBERS_ENABLED is on. Exactly the six types that passed two independent blind
+AUTO_STRUCTURES_MEMBERS_ENABLED is on. Exactly the seven types that passed two independent blind
 packets: learned levels, learned trendlines (the `drawn` block, auto_draw.py), flat_base and the
 MA pullback v5 (uct_pullback_ma_v5, otherwise INTERNAL) at 331774fc5a; the bc:flat-base PIVOT LINE
 (box off; R5c 2.40 [2.10, 2.67] and bcflat-c2 2.30 [2.03, 2.57], lab/geometry_eval
@@ -9,7 +9,13 @@ Nothing else: not bc:cup-with-handle, not another internal uct_* id, not an expe
 levels-layer row, not a bc:flat-base whose pivot stamp is missing (that would draw the full box,
 which nobody judged), and not a bull_flag that is stale or does not carry the round-9 stamp
 (extras.draw_round, written by display.draw_geometry only on a finished, drawn flag): a row stored
-by older drawing code, or one whose verdicts never finished, was never judged.
+by older drawing code, or one whose verdicts never finished, was never judged. The one exception is
+the "flagging" tier, which carries its own stamp (extras.flagging) and its own rails in
+tests/test_flag_tiers.py. And (2026-10-18) uct_flat_top_breakout AS THE v2 DRAWING CODE DRAWS IT --
+the "flat top" ceiling and its touch markers (lab flattop_draw_v2: A 2.60 [2.30, 2.83], B 2.57
+[2.30, 2.80]) -- only while it carries that round's stamp beside a well-formed draw_flat_top; an
+unconfirmed or non-v2 fire is never served (tests/test_flat_top_member_drawing.py carries the
+drawing and the gate in full).
 
 The fake detection store below honours `pattern_ids` and `include_internal` the way
 memory.get_active_detections does, so a route that asked for too much would be SERVED too much.
@@ -34,18 +40,35 @@ from tests.test_bull_flag_r9 import SHORT_LEG, TALL_LEG, _flag_after
 from tests.test_drawing_geometry_v2 import _bars
 from tests.test_team_drawing_set_r4 import _flag_det
 
-MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag"}
+MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout",
+              "bc:base"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
-MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag"}
+MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
+#: The internal ids a member may be drawn: each is in the member set by its own blind check.
+MEMBER_INTERNAL_IDS = {"uct_pullback_ma_v5", "uct_flat_top_breakout"}
 #: Team-set types that are NOT confirmed and must NEVER reach a member.
 NOT_MEMBER = {"bc:cup-with-handle"}
 #: The bull_flag drawing round the blind check confirmed (REPORT_BULLFLAG_R9.md). Pinned as a literal.
 CONFIRMED_ROUND = 9
+#: The flat-top drawing round the blind check confirmed (lab flattop_draw_v2). Pinned as a literal.
+FLAT_TOP_ROUND = 2
+#: A well-formed v2 flat-top drawing, as display.flat_top_drawing stamps it (synthetic prices).
+FLAT_TOP_DRAW = {"price": 50.0, "start_t": 20260901, "end_t": 20261015, "label": "flat top",
+                 "variant": "breakout",
+                 "touches": [{"t": 20260901, "price": 50.0}, {"t": 20260915, "price": 49.95},
+                             {"t": 20260929, "price": 50.0}]}
 
 
 def _flag(rid, **extras):
     """A bull_flag store row whose geometry carries `extras` (the draw_geometry stamp lives there)."""
     return {"id": rid, "pattern_id": "bull_flag", "geometry": {"extras": dict(extras)}}
+
+
+def _flat_top(rid, **extras):
+    """A uct_flat_top_breakout store row; by default stamped as the confirmed v2 drawing."""
+    ex = {"draw_round": FLAT_TOP_ROUND, "draw_flat_top": dict(FLAT_TOP_DRAW)}
+    ex.update(extras)
+    return {"id": rid, "pattern_id": "uct_flat_top_breakout", "geometry": {"extras": ex}}
 
 
 #: One row per kind a member must NOT get beside the ones it must: the rest of the team set,
@@ -69,9 +92,12 @@ STORE = [
     _flag("r14", draw_round=CONFIRMED_ROUND, stale=True, stale_reason="short_pole"),
     {"id": "r15", "pattern_id": "bull_flag"},
     _flag("r16", draw_round=CONFIRMED_ROUND - 1),
+    _flat_top("r17"),
+    _flat_top("r18", stale=True, stale_reason="few_touches"),
+    _flat_top("r19", draw_round=CONFIRMED_ROUND),
 ]
 #: The store rows a member is served, in store order.
-SERVED_ROW_IDS = ["r1", "r2", "r3"]
+SERVED_ROW_IDS = ["r1", "r2", "r3", "r17"]
 BOX = {"structure_key": "flat-base", "name": "Flat base", "label": "Flat base",
        "start_t": 20260901, "end_t": 20261015, "top": 142.1, "floor": 131.4, "pivot": 142.1,
        "bars": 23, "sub_boxes": [], "source": "flat_base_state"}
@@ -114,19 +140,37 @@ def _flags(monkeypatch, admin, members):
             monkeypatch.setenv(name, "1" if on else "0")
 
 
+#: The one scan every fake-store row belongs to, and the ticker's newest bar (FLAT_TOP_DRAW's as-of
+#: bar), so the member path's latest-scan filter (auto_structures.fresh_member_rows) passes them all;
+#: tests/test_member_rows_fresh.py owns that filter against a real store.
+SCAN_AT = 1_790_000_000
+LATEST_BAR = FLAT_TOP_DRAW["end_t"]
+
+
+def _as_stored(rows):
+    """`rows` as the real store returns them: every stored row carries last_seen_at (NOT NULL)."""
+    out = json.loads(json.dumps(rows))
+    for r in out:
+        r.setdefault("last_seen_at", SCAN_AT)
+    return out
+
+
 def _store(monkeypatch, rows):
-    """Patch the store with `rows` (honouring pattern_ids / include_internal); return the call list."""
+    """Patch the store with `rows` (honouring pattern_ids / include_internal); return the call list.
+    The rows all belong to the ticker's latest scan, drawn as of its latest bar."""
     seen = []
 
     def active(sym, tf, pattern_ids=None, min_conf=0.0, include_internal=False):
         seen.append({"pattern_ids": None if pattern_ids is None else list(pattern_ids),
                      "include_internal": include_internal})
-        out = json.loads(json.dumps(rows))
+        out = _as_stored(rows)
         if pattern_ids:
             out = [r for r in out if r["pattern_id"] in pattern_ids]
         return out if include_internal else registry.drop_internal(out)
 
     monkeypatch.setattr(patterns_router.memory, "get_active_detections", active)
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: SCAN_AT)
+    monkeypatch.setattr(auto_structures, "latest_completed_bar_t", lambda sym, tf: LATEST_BAR)
     return seen
 
 
@@ -157,11 +201,13 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     assert NOT_MEMBER.isdisjoint(registry.DISPLAY_MEMBER_SET)
     # the team set minus the member set is exactly the unconfirmed remainder
     assert set(registry.DISPLAY_TEAM_SET) - set(registry.DISPLAY_MEMBER_SET) == NOT_MEMBER
-    # the one internal id a member may be drawn, and nothing else internal
-    assert registry.DISPLAY_MEMBER_SET & registry.INTERNAL_PATTERN_IDS == {"uct_pullback_ma_v5"}
-    # every member id is drawable: a registered detector, or a team-set base box (pivot line)
+    # the internal ids a member may be drawn, and nothing else internal
+    assert registry.DISPLAY_MEMBER_SET & registry.INTERNAL_PATTERN_IDS == MEMBER_INTERNAL_IDS
+    # every member id is drawable: a registered detector, a team-set base box (pivot line), or
+    # the base drawing (bc:base, its own structures row, gated by its own round stamp)
     bc = {pid for pid in registry.DISPLAY_MEMBER_SET if pid.startswith("bc:")}
-    assert bc == {"bc:flat-base"} and bc <= auto_structures.TEAM_PIVOT_BOXES
+    assert bc == {"bc:flat-base", "bc:base"}
+    assert bc - {auto_structures.BASE_DRAW_ID} <= auto_structures.TEAM_PIVOT_BOXES
     assert set(registry.DISPLAY_MEMBER_SET) - bc <= set(registry.list_pattern_ids())
 
 
@@ -175,18 +221,19 @@ def test_the_confirmed_bull_flag_round_is_round_9_and_the_drawing_code_is_round_
 
 def test_admin_tiers_did_not_move():
     """The member set is a filter, not a re-tiering: the team set is still `trusted` for admins."""
-    for pid in ("bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5"):
+    for pid in ("bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
+                "uct_flat_top_breakout"):
         assert registry.display_policy(pid)["display_tier"] == "trusted", pid
 
 
-# -- flag ON: a member gets exactly the six types ----------------------------------------------
+# -- flag ON: a member gets exactly the seven types --------------------------------------------
 
-def test_flag_on_member_gets_exactly_the_six_confirmed_types(monkeypatch, calls):
+def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, calls):
     _flags(monkeypatch, True, True)
     body = _get(PAID_MEMBER).json()
     assert [r["id"] for r in body["detections"]] == SERVED_ROW_IDS
     assert sorted(r["pattern_id"] for r in body["detections"]) == sorted(MEMBER_ROW_IDS)
-    assert body["count"] == 3
+    assert body["count"] == 4
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
     # bc:flat-base: exactly ONE base box, the pivot-only one; the cup, the square box and the
     # unstamped flat-base are not served
@@ -194,11 +241,13 @@ def test_flag_on_member_gets_exactly_the_six_confirmed_types(monkeypatch, calls)
     drawn = body["drawn"]
     assert drawn["horizontals"] and drawn["trendlines"]    # learned levels + learned trendlines
     assert set(body) == {"sym", "tf", "detections", "count", "structures", "drawn"}
-    # The six types, and nothing else that draws.
+    # The seven types, and nothing else that draws.
     types = ({r["pattern_id"] for r in body["detections"]}
              | {s["pattern_id"] for s in body["structures"]}
              | {"learned_levels", "learned_trendlines"})
-    assert types == MEMBER_IDS | {"learned_levels", "learned_trendlines"}
+    # (this fixture's structures carry no base drawing; bc:base reaching a member is railed in
+    # tests/test_base_draw_member_drawing.py)
+    assert types == (MEMBER_IDS - {"bc:base"}) | {"learned_levels", "learned_trendlines"}
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):
@@ -242,24 +291,29 @@ def test_a_stale_or_unconfirmed_bull_flag_is_never_served_to_a_member(monkeypatc
     assert {"r14", "r15", "r16"} <= set(admin_ids)
 
 
-def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_does_not(monkeypatch):
+def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_as_flagging(monkeypatch):
     """End to end through the REAL display.draw_geometry (the round-9 test fixtures): a flag every
-    verdict passes is stamped with the round and served; a short-pole flag is stale and dropped."""
+    verdict passes is stamped with the round and served as confirmed; a short-pole flag is stale,
+    never stamped with the round, and reaches a member ONLY through its "flagging" stamp -- the same
+    row with that stamp removed is dropped (test_flag_tiers.py covers the tier itself)."""
     good, _ = _drawn(*_flag_after(TALL_LEG))
     bad, _ = _drawn(*_flag_after(SHORT_LEG))
     assert not good.get("stale") and good["draw_round"] == CONFIRMED_ROUND
     assert bad["stale"] is True and bad["stale_reason"] == "short_pole"
     assert "draw_round" not in bad                      # a stale flag is never stamped
-    rows = [_flag("g", **good), _flag("b", **bad)]
+    assert bad["flagging"]["tier"] == "flagging"
+    unstamped = {k: v for k, v in bad.items() if k != "flagging"}
+    rows = [_flag("g", **good), _flag("b", **bad), _flag("u", **unstamped)]
     _flags(monkeypatch, True, True)
     _store(monkeypatch, rows)
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
-    assert [r["id"] for r in body["detections"]] == ["g"]
+    assert [r["id"] for r in body["detections"]] == ["g", "b"]
     assert body["detections"][0]["geometry"]["extras"]["draw_pole"] == good["draw_pole"]
+    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
     admin = _get(ADMIN).json()
-    assert [r["id"] for r in admin["detections"]] == ["g", "b"]
+    assert [r["id"] for r in admin["detections"]] == ["g", "b", "u"]
 
 
 def test_a_flag_drawn_by_a_newer_round_is_not_served_until_confirmed(monkeypatch):
@@ -328,19 +382,21 @@ def test_flag_on_no_other_internal_or_experimental_row_reaches_a_member(monkeypa
     _flags(monkeypatch, True, True)
     body = _get(PAID_MEMBER).json()
     ids = {r["pattern_id"] for r in body["detections"] + body.get("structures", [])}
-    assert not (ids & (registry.INTERNAL_PATTERN_IDS - {"uct_pullback_ma_v5"}))
-    assert not {pid for pid in ids if pid.startswith("uct_")} - {"uct_pullback_ma_v5"}
+    assert not (ids & (registry.INTERNAL_PATTERN_IDS - MEMBER_INTERNAL_IDS))
+    assert not {pid for pid in ids if pid.startswith("uct_")} - MEMBER_INTERNAL_IDS
     assert not (ids & NOT_MEMBER)
     assert all(registry.display_policy(pid)["display_tier"] == "trusted" for pid in ids)
 
 
 def test_flag_on_every_other_type_stays_out(monkeypatch):
     """One row for EVERY registered detector id (internal ones included) and every team-set base
-    box, each carrying the bull_flag round stamp so no stamp check can be what drops it: a member
-    is served the member-set ids and nothing else."""
+    box, each carrying the bull_flag round stamp so no stamp check can be what drops it (the flat
+    top carries its OWN round's stamp, for the same reason): a member is served the member-set ids
+    and nothing else."""
     every = sorted(set(registry.list_pattern_ids()) | set(registry.DISPLAY_TEAM_SET))
     assert "bull_flag" in every and "bc:cup-with-handle" in every     # the sweep is not vacuous
-    rows = [_flag(f"x{i}", draw_round=CONFIRMED_ROUND) | {"pattern_id": pid}
+    rows = [(_flat_top(f"x{i}") if pid == "uct_flat_top_breakout"
+             else _flag(f"x{i}", draw_round=CONFIRMED_ROUND) | {"pattern_id": pid})
             for i, pid in enumerate(every)]
     _flags(monkeypatch, True, True)
     _store(monkeypatch, rows)
@@ -411,7 +467,7 @@ def _expected_flag_off_bytes():
     """Today's member payload, built from first principles: every NON-internal row, store order,
     stamped with the registry's display policy, no structures / drawn."""
     rows = [{**r, **registry.display_policy(r["pattern_id"])}
-            for r in STORE if r["pattern_id"] not in registry.INTERNAL_PATTERN_IDS]
+            for r in _as_stored(STORE) if r["pattern_id"] not in registry.INTERNAL_PATTERN_IDS]
     body = {"sym": "ZZZ", "tf": "D", "detections": rows, "count": len(rows)}
     return json.dumps(body, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode()
 

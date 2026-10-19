@@ -1,0 +1,206 @@
+// GATE B vs GATE C — the SAME nine multi-turn conversations, the SAME fixtures and criteria, run against each
+// build's real panel (AgentPanel → useAgent → planner → runtime → Undo). No model: /api/agent/turn answers 503,
+// so a step the build cannot resolve locally is counted as "to-model" (it would cost a paid call) and as not
+// completed in this run. Every step is classified; nothing here fails the run. AGENT_COMPARE_OUT=<file>.
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
+import fs from 'node:fs'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { SWRConfig } from 'swr'
+import { registerBuiltins } from './builtins'
+import { registerCapability, registerTargetKind } from './capabilities'
+import { makeBoard } from './__fixtures__/board'
+import { mergeChartSettings } from '../components/chart/chartDefaults'
+import { adoptOverlayAverages } from '../components/chart/maAdoption'
+import { AuthContext } from '../context/AuthContext'
+import * as ie from './capabilities/indicatorEdits'
+
+vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+import AgentPanel from './AgentPanel'
+registerBuiltins()
+
+const ROWS = ['NVDA', 'AVGO', 'AMD', 'MU', 'QCOM']
+registerTargetKind({ name: 'testMarket', boardScoped: false, list: () => [{ ref: 'mkt', label: 'Market' }], read: () => ({ ref: 'mkt', label: 'Market' }), stateOf: () => ({}), patch: () => null, commit: async () => ({}), landed: () => true, undoPatch: () => null, fingerprint: () => 'x' })
+registerCapability({
+  name: 'test.screen', target: 'testMarket', query: true, summary: 'test screen', args: { type: 'object', properties: {}, additionalProperties: false },
+  fast: ({ lower }) => (lower === 'find strong semis' ? {} : null),
+  answer: () => ({ text: `Strong semis: ${ROWS.length} matches.`, title: 'Strong semis', table: { columns: [{ key: 'ticker', label: 'Ticker' }], rows: ROWS.map(t => ({ ticker: t })) } }),
+})
+
+let turns
+beforeEach(() => {
+  turns = []
+  ie.setOwnedDefinitionSource?.(() => []); ie._resetProposedPlans?.()
+  try { localStorage.clear() } catch { /* */ }
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
+    const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } })
+    if (url === '/api/agent/turn' || url === '/api/agent/turn/stream') { turns.push(JSON.parse(init.body)); return json({ detail: 'no model in this comparison' }, 503) }
+    if (url === '/api/agent/record') return json({ conversationId: 'c1' })
+    if (url === '/api/agent/config') return json({ stream: false })
+    if (String(url).startsWith('/api/user-definitions')) return json({ definitions: [] })
+    if (String(url).startsWith('/api/live-prices')) return json({})
+    return json({ conversations: [] })
+  })
+})
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
+
+// ── fixtures ──
+function board(widgets, syms) {
+  const b = makeBoard(widgets, syms)
+  const base = b.host.charts
+  const pos = (s) => {
+    if (!s) return s
+    const w = b.state.widgets.find(x => x.id === s.ref)
+    return { ...s, position: b.state.widgets.filter(x => x.type === 'chart').length > 1 ? (w.x < 12 ? 'left' : 'right') : null }
+  }
+  b.host.charts = { ...base, list: () => base.list().map(pos), read: (r) => pos(base.read(r)) }
+  b.snap = () => JSON.stringify(b.host.charts.list().map(c => [c.ref, c.symbol, c.tf, (c.cs.comparisonSymbols || []).map(x => x.sym)]))
+  return b
+}
+const ONE = () => board([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], { A: 'QQQ' })
+const TWO = () => board([{ id: 'L', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'R', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'B' }], { A: 'SPY', B: 'QQQ' })
+const load = (cs) => { const m = mergeChartSettings(JSON.stringify(cs || {})); return adoptOverlayAverages(m) || m }
+function indHost() {
+  const store = { c1: {} }
+  const read = (ref) => (ref in store ? { ref, label: 'Chart (QQQ)', position: null, symbol: 'QQQ', tf: 'D', stored: store[ref], cs: load(store[ref]), linkedCount: 0 } : null)
+  const host = {
+    store,
+    charts: { list: () => Object.keys(store).map(read), read, commit: (ref, p) => { store[ref] = JSON.parse(JSON.stringify(p.settings)); return true }, canManageIndicators: () => true, canCreateIndicator: () => true, openCreateIndicator: () => ({ ok: true }) },
+    persist: async () => ({ ok: true }), otherWidgets: () => [],
+  }
+  return { host, store, snap: () => JSON.stringify(mas(store).map(i => [i.instanceId, i.inputs.period, i.inputs.maType])) }
+}
+const mas = (store) => (load(store.c1).indicatorInstances || []).filter(i => i && !i.deleted && i.defId === 'movingAverage')
+const added = (store) => mas(store).filter(i => !String(i.instanceId).startsWith('ovl:'))
+const chart = (b, id) => b.host.charts.read(id)
+
+// ── the nine conversations: kind = plain | reference | edit | stale | ask (a question IS the right answer) ──
+const CONVERSATIONS = [
+  { name: 'C1 screen → open the third → compare the others → undo → out of range → last', make: ONE, steps: [
+    { say: 'find strong semis', kind: 'plain', ok: ({ t }) => /5 matches/.test(t()) },
+    { say: 'open the third one', kind: 'reference', ok: ({ b }) => chart(b, 'c1').symbol === 'AMD' },
+    { say: 'compare it to the others', kind: 'reference', ok: ({ b }) => (chart(b, 'c1').cs.comparisonSymbols || []).map(x => x.sym).join() === 'NVDA,AVGO,MU,QCOM' },
+    { say: 'undo', kind: 'plain', ok: ({ b }) => (chart(b, 'c1').cs.comparisonSymbols || []).length === 0 && chart(b, 'c1').symbol === 'AMD' },
+    { say: 'open the 9th one', kind: 'stale', ask: true, ok: ({ t }) => /pick a number from 1 to 5/.test(t()) },
+    { say: 'pull up the last one', kind: 'reference', ok: ({ b }) => chart(b, 'c1').symbol === 'QCOM' },
+  ] },
+  { name: 'C2 two charts: open the second → which chart? → pick R → make it weekly', make: TWO, steps: [
+    { say: 'find strong semis', kind: 'plain', ok: ({ t }) => /5 matches/.test(t()) },
+    { say: 'open the second one', kind: 'reference', ask: true, ok: ({ t, b }) => /Which chart/.test(t()) && chart(b, 'L').symbol === 'SPY' && chart(b, 'R').symbol === 'QQQ' },
+    { click: /Chart R/, kind: 'reference', ok: ({ b }) => chart(b, 'R').symbol === 'AVGO' },
+    { say: 'make it weekly', kind: 'reference', ok: ({ b }) => chart(b, 'R').tf === 'W' && chart(b, 'L').tf === 'D' },
+  ] },
+  { name: 'C3 left weekly → do the same on the right → undo', make: TWO, steps: [
+    { say: 'make the left chart weekly', kind: 'plain', ok: ({ b }) => chart(b, 'L').tf === 'W' },
+    { say: 'do the same on the right one', kind: 'reference', ok: ({ b }) => chart(b, 'R').tf === 'W' },
+    { say: 'undo', kind: 'plain', ok: ({ b }) => chart(b, 'R').tf === 'D' && chart(b, 'L').tf === 'W' },
+  ] },
+  { name: 'C4 stale: nothing to repeat → screen → new chat → open the third', make: ONE, steps: [
+    { say: 'do the same on the right one', kind: 'stale', ask: true, ok: ({ t }) => /don't have a recent change to repeat/.test(t()) },
+    { say: 'find strong semis', kind: 'plain', ok: ({ t }) => /5 matches/.test(t()) },
+    { newChat: true, kind: 'plain', ok: () => true },
+    { say: 'open the third one', kind: 'stale', noChange: true, ok: ({ b }) => chart(b, 'c1').symbol === 'QQQ' },
+  ] },
+  { name: 'C5 add a 20 EMA → make it a 9 → change that to an SMA → undo → undo', ind: true, steps: [
+    { say: 'add a 20 ema', kind: 'plain', ok: ({ s }) => added(s).length === 1 && added(s)[0].inputs.period === 20 },
+    { say: 'make it a 9', kind: 'edit', ok: ({ s }) => added(s).length === 1 && added(s)[0].inputs.period === 9 && added(s)[0].inputs.maType === 'ema' },
+    { say: 'change that to an sma', kind: 'edit', ok: ({ s }) => added(s).length === 1 && added(s)[0].inputs.maType === 'sma' && added(s)[0].inputs.period === 9 },
+    { say: 'undo', kind: 'plain', ok: ({ s }) => added(s)[0]?.inputs.maType === 'ema' && added(s)[0]?.inputs.period === 9 },
+    { say: 'undo', kind: 'plain', ok: ({ s }) => added(s)[0]?.inputs.period === 20 },
+  ] },
+  { name: 'C6 change the 20 to a 50 → make it a 50 → two 21s → change the 21 (must ask)', ind: true, steps: [
+    { say: 'change the 20 to a 50', kind: 'edit', ok: ({ s }) => mas(s).find(i => i.instanceId === 'ovl:1')?.inputs.period === 50 && mas(s).length === 4 },
+    { say: 'make it a 50', kind: 'edit', noChange: true, ok: ({ t }) => /already has those settings/.test(t()) },
+    { say: 'add a 21 ema', kind: 'plain', ok: ({ s }) => added(s).length === 1 },
+    { say: 'add a 21 sma', kind: 'plain', ok: ({ s }) => added(s).length === 2 },
+    { say: 'change the 21 to a 10', kind: 'edit', ask: true, noChange: true, ok: ({ t, s }) => /More than one indicator/.test(t()) && added(s).every(i => i.inputs.period === 21) },
+  ] },
+  { name: 'C7 stale indicator: added, removed by hand, "make it a 9"', ind: true, steps: [
+    { say: 'add a 20 ema', kind: 'plain', ok: ({ s }) => added(s).length === 1 },
+    { act: ({ s }) => { s.c1 = {} }, kind: 'plain', ok: () => true },
+    { say: 'make it a 9', kind: 'stale', ask: true, noChange: true, ok: ({ t, s }) => /isn't on that chart any more/.test(t()) && added(s).length === 0 },
+  ] },
+  { name: 'C8 MA defaults: the 9 → EMA, the 50 → SMA, the 30 → not guessed', ind: true, steps: [
+    { say: 'add the 9', kind: 'plain', ok: ({ s }) => JSON.stringify(added(s).map(i => [i.inputs.period, i.inputs.maType])) === '[[9,"ema"]]' },
+    { say: 'add the 50', kind: 'plain', ok: ({ s }) => JSON.stringify(added(s).map(i => [i.inputs.period, i.inputs.maType])) === '[[9,"ema"],[50,"sma"]]' },
+    { say: 'add the 30', kind: 'plain', noChange: true, modelOk: true, ok: ({ s }) => added(s).length === 2 },
+  ] },
+  { name: 'C9 screen → correction reaches the model with the results in order', make: ONE, steps: [
+    { say: 'find strong semis', kind: 'plain', ok: ({ t }) => /5 matches/.test(t()) },
+    { say: 'no, I meant software stocks', kind: 'reference', modelOk: true, ok: () => {
+      const m = turns[turns.length - 1]?.context?.conversation_memory
+      return !!m && JSON.stringify(m.recent_results?.[0]?.symbols_in_order) === JSON.stringify(ROWS) && (m.recent_corrections || []).includes('no, I meant software stocks')
+    } },
+  ] },
+]
+
+const ASKED = /\?|Which |pick a number|More than one|Say which|isn't on that chart|don't have a recent change/
+
+const results = []
+afterAll(() => {
+  const out = globalThis.process?.env?.AGENT_COMPARE_OUT
+  if (out) fs.writeFileSync(out, JSON.stringify(results, null, 2))
+})
+
+describe('Gate B vs Gate C — nine conversations, classified step by step', () => {
+  for (const conv of CONVERSATIONS) {
+    it(conv.name, async () => {
+      const b = conv.ind ? null : conv.make()
+      const ih = conv.ind ? indHost() : null
+      const host = conv.ind ? ih.host : b.host
+      const snap = conv.ind ? ih.snap : b.snap
+      render(
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <AuthContext.Provider value={{ isPaid: true, user: { id: 1, role: 'admin' }, loading: false }}>
+            <AgentPanel host={host} onClose={() => {}} />
+          </AuthContext.Provider>
+        </SWRConfig>,
+      )
+      const box = screen.getByLabelText('Message UCT Agent')
+      const t = () => screen.getByTestId('agent-transcript').textContent
+      const idle = async () => {
+        await waitFor(() => { expect(box.disabled).toBe(false); expect(document.querySelector('[data-testid=agent-typing]')).toBeNull() }, { timeout: 8000 })
+      }
+      const ctx = { t, b, s: ih?.store }
+      for (const [i, step] of conv.steps.entries()) {
+        await idle()
+        const before = snap()
+        const tBefore = t().length
+        const calls = turns.length
+        const t0 = performance.now()
+        let blocked = false
+        if (step.say) {
+          fireEvent.change(box, { target: { value: step.say } })
+          fireEvent.keyDown(box, { key: 'Enter' })
+          await waitFor(() => expect(box.value).toBe(''), { timeout: 4000 })
+        } else if (step.click) {
+          const btn = screen.queryAllByRole('button').find(x => step.click.test(x.textContent))
+          if (btn) fireEvent.click(btn); else blocked = true
+        } else if (step.newChat) {
+          const btn = screen.queryByRole('button', { name: /new chat/i })
+          if (btn) fireEvent.click(btn); else blocked = true
+        } else if (step.act) step.act(ctx)
+        await new Promise(r => setTimeout(r, 30))
+        await idle()
+        const ms = Math.round(performance.now() - t0)
+        let ok = false
+        try { ok = !blocked && !!step.ok(ctx) } catch { ok = false }
+        const changed = snap() !== before
+        const model = turns.length > calls
+        const said = t().slice(tBefore)
+        const asked = ASKED.test(said)
+        let outcome
+        if (ok) outcome = 'completed'
+        else if (blocked) outcome = 'blocked'
+        else if (changed && !step.noChange) outcome = 'WRONG'
+        else if (changed && step.noChange) outcome = 'WRONG'
+        else if (model) outcome = 'to-model'
+        else if (asked && !step.ask) outcome = 'needless-ask'
+        else outcome = 'failed'
+        const needless = asked && !step.ask && outcome !== 'completed'
+        results.push({ conversation: conv.name, step: i + 1, input: step.say || (step.click ? `click ${step.click}` : step.newChat ? 'new chat' : 'member edits the chart by hand'),
+          kind: step.kind, expectsAsk: !!step.ask, outcome, modelCall: model, modelOk: !!step.modelOk, asked, needless, ms })
+      }
+      expect(true).toBe(true)
+    }, 120000)
+  }
+})

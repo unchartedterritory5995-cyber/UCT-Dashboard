@@ -13,7 +13,8 @@ WHAT RESOLVES. A setup named in free text, by (a) the archive's own setup id, na
 aliases, (b) the vocabulary's `trader_archive` map (docs/wisdom/vocabulary/setup-vocabulary-v1.json:
 the vocab entry's name and aliases, only for rows mapped without a mismatch and only when the
 vocab id belongs to ONE archive setup, so a shared alias never picks a side), and (c) TEAM_SLANG.
-Hyphens, underscores and spaces are interchangeable ("flat-top", "launchpad") and a plural matches.
+Hyphens, underscores and spaces are interchangeable ("flat-top", "launchpad"); a plural and an -ing
+form match ("flagging").
 Short all-caps aliases (EP, HTF, U&R) match case-sensitively, as service._alias_pattern does, and
 every alias is word-bounded, so "EP" inside "STEP" or "deep" is not a hit. Bucket ids that are not
 setups (other, watchlist, thesis, ...) never resolve.
@@ -78,17 +79,32 @@ NON_SETUP_BUCKETS = frozenset({"other", "watchlist", "thesis", "position_update"
                                "bearish_view", "breakout_other", "short_other"})
 
 #: Team slang for setups the archive names otherwise. Applied only to a setup id the store holds.
+#: The 2026-10-18 team-vocabulary pass added the specific phrases the team uses for a setup (each
+#: one mostly lands on that setup in the archive's own tags). The broad single words (support, base,
+#: pullback, breakout, tight, reclaim, launch, trendline) are left out ON PURPOSE: MAX_SETUPS is 1
+#: and those words land outside their home setup most of the time, so they would hijack questions.
+#: pullback_ma's words go here, not through the vocabulary: its map row (20ema_tap) is a mismatch.
 TEAM_SLANG = {
-    "launch_pad": ("launch pad", "launchpad"),
-    "flat_top_breakout": ("flat top", "flat top breakout"),
+    "launch_pad": ("launch pad", "launchpad", "pinched"),
+    "flat_top_breakout": ("flat top", "flat top breakout", "base breakout", "flat line", "pressing",
+                          "green line breakout"),
     "go_signal": ("go signal",),
     "oops": ("oops reversal",),
-    "undercut_reclaim": ("undercut and rally", "undercut & rally", "U&R", "undercut and reclaim"),
-    "flag_htf": ("high tight flag", "HTF"),
+    "undercut_reclaim": ("undercut and rally", "undercut & rally", "U&R", "undercut and reclaim",
+                         "failed breakdown", "bear trap"),
+    "flag_htf": ("high tight flag", "HTF", "tight flag", "falling flag", "weekly flag", "pennant", "flagging",
+                 "flag out", "flagging out"),
     "ep": ("episodic pivot",),
-    "peg_flag": ("power earnings gap",),
+    "peg_flag": ("power earnings gap", "post earnings"),
     "wedge_pop": ("wedge pop",),
     "ma_reclaim": ("remount",),
+    "pullback_ma": ("20 ema", "8 ema", "9 ema", "ma tap"),
+    "vcp": ("coiling", "volume dry up"),
+    "inside_day": ("inside week",),
+    "intraday_pivot": ("opening range",),
+    "capitulation_long": ("oversold", "mean reversion"),
+    "parabolic_short": ("parabolic",),
+    "classical_pattern": ("triangle",),
 }
 
 #: Where the team places lines, by setup family: level KINDS, never a price. Source: the
@@ -135,7 +151,16 @@ def _phrase_pattern(phrase: str, *, from_id: bool = False) -> Optional[re.Patter
         p = p.upper()                                    # 'ep' -> 'EP': an acronym, matched as one
     case_sensitive = len(p) <= 4 and p == p.upper() and any(c.isalpha() for c in p)
     body = r"[\s\-_]*".join(re.escape(t) for t in p.split(" "))
-    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?:'?s|es)?(?![A-Za-z0-9])", 0 if case_sensitive else re.I)
+    last = p.split(" ")[-1].lower()
+    ing = ""
+    if (not case_sensitive and len(last) >= 3 and last.isalpha() and last[-1] not in "aeiouwxy"
+            and last[-2] in "aeiou" and last[-3] not in "aeiou"):
+        # the -ing form of a word that doubles its final consonant: "flag" -> "flagging", "pop" -> "popping".
+        # Only that shape: a plain "+ing" would also turn "block" (dark pool), "tail" (call buying),
+        # "hammer" and "spring" into hits for "blocking", "tailing", "hammering", "springing".
+        ing = "|" + re.escape(last[-1]) + "ing"
+    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?:'?s|es" + ing + r")?(?![A-Za-z0-9])",
+                      0 if case_sensitive else re.I)
 
 
 def _name_phrases(name: Optional[str]) -> list:

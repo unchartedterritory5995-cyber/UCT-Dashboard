@@ -160,14 +160,18 @@ export async function reportGalleryTemplate(id, { reason, note = '' }) {
 /**
  * approve | reject | hide | unhide | feature | unfeature (admins).
  *
- * An APPROVAL names the version the reviewer saw: `reviewedUpdatedAt` is that template's
- * `updatedAt` (the queue row and the preview both carry it). If the author published again
- * in between, the server answers 409 with a sentence saying to look again, and lists nothing.
+ * An APPROVAL and a REJECTION name the version the reviewer saw (P3b-F-R4): `reviewedUpdatedAt`
+ * is that template's `updatedAt` (the queue row and the preview both carry it), sent whenever the
+ * caller has one -- the review panel passes it for both, and nothing else needs it. If the author
+ * published again in between, the server answers 409 with a sentence saying to look again, and
+ * changes nothing; an approval or a rejection sent without one is refused the same way.
+ * ⛔ This file is in the Notebook's first open: the test is on the token, not on a list of actions
+ * (the +0 B budget).
  */
 export async function reviewGalleryTemplate(id, action, note = '', reviewedUpdatedAt = null) {
   const { template } = await call(`${GALLERY_KEY}/admin/items/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(action === 'approve' ? { action, note, reviewedUpdatedAt } : { action, note }),
+    body: JSON.stringify(reviewedUpdatedAt ? { action, note, reviewedUpdatedAt } : { action, note }),
   })
   await refreshGallery()
   return template

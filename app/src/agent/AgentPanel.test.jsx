@@ -33,6 +33,8 @@ function makeHost(defs) {
       },
     },
     otherWidgets: () => [],
+    // the server's copy of every chart equals this tab's (the approval re-check; see host.buildWidgetSync)
+    widgetInSync: async () => ({ ok: true }),
   }
 }
 

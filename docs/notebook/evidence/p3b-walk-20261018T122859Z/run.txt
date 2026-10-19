@@ -1,0 +1,3 @@
+tool tree: 8e4dedc998 (committed; the fail-closed fix, ruling P3b-T8-R1)
+command: python -u tools/notebook_example_notes_walk.py --data-dir C:\data-p3bwalk6 --port 8091 --tip 8e4dedc998 --out docs/notebook/evidence/p3b-walk-20261018T122859Z
+exit: 0

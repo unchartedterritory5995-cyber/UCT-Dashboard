@@ -91,6 +91,8 @@ FLAGS = (
 
     # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
     "JOURNAL_TIER3_ENABLED",
+    # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
     # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, and, with the library
     # switch above, the firm style rows in the gallery lists: P5-AUD-1).
     "NOTEBOOK_STARTER_PACKS_ENABLED",
@@ -1410,8 +1412,13 @@ def template_gallery(w: World) -> None:
     w.record("template-gallery.admin.approve.stale", "PATCH", f"{base}/admin/items/{third}", case="error",
              expect=409, json_body={"action": "approve"},
              note="An approval that does not name the version the reviewer saw is refused.")
+    # P3b-F-R4: a rejection names the version the reviewer saw too, read off the same queue answer.
+    w.record("template-gallery.admin.reject.stale", "PATCH", f"{base}/admin/items/{second}", case="error",
+             expect=409, json_body={"action": "reject", "note": "Too thin to be useful yet."},
+             note="A rejection that does not name the version the reviewer saw is refused, and nothing changes.")
+    seen_second = next(row["updatedAt"] for row in first_queue["pending"] if row["id"] == second)
     w.record("template-gallery.admin.reject", "PATCH", f"{base}/admin/items/{second}", case="success", expect=200,
-             json_body={"action": "reject", "note": "Too thin to be useful yet."})
+             json_body={"action": "reject", "note": "Too thin to be useful yet.", "reviewedUpdatedAt": seen_second})
     w.record("template-gallery.admin.bad-action", "PATCH", f"{base}/admin/items/{gid}", case="error", expect=400,
              json_body={"action": "explode"})
     w.as_user(author)
@@ -2497,6 +2504,115 @@ def checklist_from_winners_too_few_others(w: World) -> None:
              note="Eleven winners and one other trade: too few others to compare with (restSample too_few), "
                   "so nothing is suggested.")
     w.as_user(MEMBER)
+
+
+@builder
+def example_notes(w: World) -> None:
+    """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). Last at P3b, so adding it moved no
+    earlier builder's ids. A member of its own shares a style, then previews and publishes one of their notes as
+    an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`.
+
+    P3b Task 4: the note's image is a real file on the (sandboxed) attachment root, because a publish now COPIES each
+    switched-on image; the image route is recorded hidden while the example is pending, and served once approved."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.attachment_root import attachment_root
+    base = "/api/j2/template-gallery"
+    author = w.member("exampler", "Erin Example")
+    c = w.conn()
+    try:
+        style = js.create_style(author, {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
+                                         "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
+        note = create_note(c, author, "My weekend plan", doc(para("x")))
+        image = f"/api/j2/notes/attachments/{author}/{note['id']}/inline/chart.png"
+        folder = attachment_root() / author / "notes" / note["id"] / "inline"
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = folder / ".chart.png.tmp"                   # temp, then os.replace: never open the final path
+        tmp.write_bytes(b"contract fixture image")
+        os.replace(tmp, folder / "chart.png")
+        body = doc(para("made $1,240 on NVDA, up 3.2R, at Schwab. Watching 132.40 on Monday."),
+                   {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ?, properties_json = ? WHERE id = ?",
+                  (json.dumps(body), json.dumps({"builtin:note_kind": "weekend_prep"}), note["id"]))
+        other = create_note(c, author, "A thesis", doc(para("Long NVDA into earnings.")))
+        c.execute("UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+                  (json.dumps({"builtin:note_kind": "thesis"}), other["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    shared = w.client.post(f"{base}/styles", json={"styleId": style["id"], "title": "Weekend prep",
+                                                    "category": "journal"})
+    assert shared.status_code == 200, f"setup: sharing the style answered {shared.status_code}"
+    sid = shared.json()["template"]["id"]
+    w.record("template-gallery.examples.preview", "POST", f"{base}/examples/preview", case="success", expect=200,
+             json_body={"noteId": note["id"], "imagesOn": [image]},
+             note="Exactly what other members would see, for the author: the changes (with the author's own text "
+                  "in `before`, never stored), counts by kind, and each image with its OCR state.")
+    w.record("template-gallery.examples.preview.title-only", "POST", f"{base}/examples/preview", case="success",
+             expect=200, json_body={"noteId": note["id"], "title": "Weekend plan", "titleOnly": True},
+             note="P3b-F2-R2: the typed title alone, as other members would see it. It reduces none of the note and "
+                  "is not charged to the preview limit.")
+    w.record("template-gallery.examples.preview.not-found", "POST", f"{base}/examples/preview", case="error",
+             expect=404, json_body={"noteId": "nope"},
+             note="Not the caller's live note (or the sample notebook's): the one 404.")
+    w.record("template-gallery.examples.preview.bad-images", "POST", f"{base}/examples/preview", case="error",
+             expect=400, json_body={"noteId": note["id"], "imagesOn": "chart.png"})
+    published = w.record("template-gallery.examples.publish", "POST", f"{base}/examples", case="success",
+                         expect=200,
+                         json_body={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                    "title": "My weekend plan"},
+                         note="A PENDING example note linked to the style, reduced by the server from the note itself.")
+    w.record("template-gallery.examples.publish.not-my-style", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": note["id"], "styleItemId": "nope", "title": "My weekend plan"})
+    w.record("template-gallery.examples.publish.other-kind", "POST", f"{base}/examples", case="error",
+             expect=400, json_body={"noteId": other["id"], "styleItemId": sid, "title": "A thesis"})
+    # P3b-T5-R7 (review I-1): the author's Your submissions AS THE SERVER LISTS IT -- the shared style (pending, with
+    # its `sourceStyleId`, which the Share form's door matches on) and the pending example (P3b-R12) -- so the door's
+    # client rails read the list's real shape, never a row with a field added by hand.
+    w.record("template-gallery.examples.list.mine", "GET", f"{base}?section=mine", case="success", expect=200,
+             note="The author's own list: their shared style, carrying the id of the style it shares, and their "
+                  "pending example note, with `capabilities.exampleNotes`.")
+    gid = published["template"]["id"]
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.image.pending-hidden", "GET", f"{base}/{gid}/images/0", case="error",
+             expect=404, note="A pending example's image copy is its author's and an admin's only: the one 404.")
+    w.as_user(ADMIN)
+    seen = w.client.get(f"{base}/{gid}").json()["template"]["updatedAt"]
+    approved = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+    assert approved.status_code == 200, f"setup: approving the example answered {approved.status_code}"
+    # P3b-T6-R6: an example is public only while the style it shows is listed, so the style is approved here too.
+    style_seen = w.client.get(f"{base}/{sid}").json()["template"]["updatedAt"]
+    listed = w.client.patch(f"{base}/admin/items/{sid}", json={"action": "approve", "reviewedUpdatedAt": style_seen})
+    assert listed.status_code == 200, f"setup: approving the style answered {listed.status_code}"
+    w.as_user(MEMBER)
+    w.record("template-gallery.examples.image", "GET", f"{base}/{gid}/images/0", case="success", expect=200,
+             note="An approved example's image COPY (never the author's attachment), with every public header and "
+                  "the image CSP. The body is the file's bytes.")
+    w.record("template-gallery.examples.image.not-found", "GET", f"{base}/{gid}/images/7", case="error",
+             expect=404, note="No copy with that number: the one 404.")
+    # P3b Task 6 (LAST, so nothing above moved): the style's "In use" section as a member reads it, and a reviewer's
+    # read of the example with a HELD revision. The style is listed above (a member may not read a pending one);
+    # then the author edits the note and publishes it again, which holds the new version beside the listed one.
+    w.record("template-gallery.examples.style-item", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="A listed style in full with its `examples` (\"In use\"): up to 3 approved example notes, newest "
+                  "first, each {id, title, bodyJson, updatedAt}. bodyJson is the stored example reduction, its "
+                  "images on the gallery image route.")
+    c = w.conn()
+    try:
+        revised = doc(para("made $2,480 on NVDA at Schwab. Watching 140.00 on Tuesday."),
+                      {"type": "image", "attrs": {"src": image, "alt": "NVDA daily"}})
+        c.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (json.dumps(revised), note["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(author)
+    again = w.client.post(f"{base}/examples", json={"noteId": note["id"], "styleItemId": sid, "imagesOn": [image],
+                                                     "title": "My weekend plan, revised"})
+    assert again.status_code == 200, f"setup: publishing the example again answered {again.status_code}"
+    w.as_user(ADMIN)
+    w.record("template-gallery.examples.item.revision.admin", "GET", f"{base}/{gid}", case="success", expect=200,
+             note="A reviewer's read of an approved example with a HELD revision: the listed `payload`, the "
+                  "admin-only `pendingRevision` (its images are served on `?rev=pending`), and `linkedStyle`.")
 
 
 # ── Notebook P5 (NOTEBOOK_STARTER_PACKS_ENABLED). Appended after every other builder, with a member of its

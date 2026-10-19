@@ -197,11 +197,17 @@ def _client(user, monkeypatch, rows):
     app.include_router(patterns_router.router)
     authorize(app, user)
 
+    # Every row is from the ticker's latest scan, as a stored row always carries last_seen_at, so the
+    # member path's latest-scan filter keeps them (tests/test_member_rows_fresh.py owns that filter).
     def active(*a, include_internal=False, **k):
-        out = [dict(r) for r in rows]
+        out = [{"last_seen_at": _SCAN_AT, **r} for r in rows]
         return out if include_internal else registry.drop_internal(out)
     monkeypatch.setattr(patterns_router.memory, "get_active_detections", active)
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: _SCAN_AT)
     return TestClient(app)
+
+
+_SCAN_AT = 1_790_000_000
 
 
 ROWS = [{"id": "a", "pattern_id": "bull_flag"}, {"id": "b", "pattern_id": "uct_pullback_ma_v5"},

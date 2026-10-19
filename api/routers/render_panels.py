@@ -569,6 +569,42 @@ def render_breadth_monitor(token: str = "", days: int = 10):
         raise HTTPException(status_code=503, detail=str(e))
 
 
+# ⛔ /r/breadth-bars is driven by MEMBERS running /chart on a breadth symbol (one
+# chart-renderer page load each), so it gets its own budget for the same reason
+# /r/buzz does: member traffic must never 429 the newsletter's /r/* reads.
+_RL_BREADTH_BARS_MAX_PER_MIN = 60
+_BREADTH_BARS_MAX = 5000
+
+
+@router.get("/r/breadth-bars/{ticker}")
+def render_breadth_bars(ticker: str, token: str = "", tf: str = "D", bars: int = 600):
+    """A breadth pseudo-ticker's daily/weekly series for the headless `/r/chart` page.
+
+    🔑 WHY THIS DOOR EXISTS. `/api/bars/{ticker}` is behind `require_bars_access`
+    (the 2026-09-13 audit), and the Discord renderer loads `/r/chart` logged OUT. A
+    stock still drew because the edge Worker sends stock symbols to the bars tier,
+    which is not gated yet; a breadth symbol goes to the web pod, answered 401, and
+    every breadth /chart since then shipped the mplfinance stand-in (candles and an
+    empty volume pane) instead of the house line chart.
+
+    ⛔ Same standard as `/r/breadth-monitor` above: a token-gated door beside the paid
+    one, never a hole in it. The series is the same aggregate reading that endpoint
+    already returns (one number per session, no constituent lists), and only breadth
+    symbols are answered here, so this cannot become a general bars API."""
+    _check_token(token, bucket="breadth-bars", limit=_RL_BREADTH_BARS_MAX_PER_MIN)
+    from api.services import breadth_symbols as bs
+    if not bs.is_breadth_symbol(ticker):
+        raise HTTPException(status_code=404, detail="not a breadth symbol")
+    tf = (tf or "D").upper()
+    if tf not in ("D", "W", "M"):
+        tf = "D"
+    bars = max(1, min(int(bars or 600), _BREADTH_BARS_MAX))
+    try:
+        return bs.build_breadth_bars(ticker, tf, bars)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @router.get("/r/breadth")
 def render_breadth(token: str = ""):
     """The engine's pushed breadth summary (UCT Exposure Rating + MA percentages)

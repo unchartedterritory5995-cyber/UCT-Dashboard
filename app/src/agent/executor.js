@@ -222,6 +222,48 @@ export function planShape(plan) {
   return { targets, ops, resources, confirm, irreversible }
 }
 
+// ── APPROVAL BINDING (Gate C safety fix, 2026-10-16) ──────────────────────────────────────────
+// A proposal is approved for EXACTLY what it would do, on EXACTLY the state it was made from.
+// Structured, not the card's wording: for every real target, its kind + id, its MATERIAL STATE
+// (the kind's `approvalState`, else its `fingerprint`) and the planned PATCH (the canonical change
+// the kind's own writer receives); for every target this plan creates, the ops aimed at it.
+// "Do it" re-plans the stored ops against the state as it is then (useAgent) and runs only if the
+// binding is identical — anything material that differs refuses the old approval.
+const canon = (v) => {
+  if (Array.isArray(v)) return v.map(canon)
+  if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])]))
+  return v === undefined ? null : v
+}
+export const canonicalJson = (v) => JSON.stringify(canon(v))
+const stateOfTarget = (kind, p, host) => {
+  try { return kind.approvalState ? kind.approvalState(p.snap, p.patch ?? null, host) : kind.fingerprint(p.snap) } catch { return '#unreadable' }
+}
+/** → { targets: { 'kind|ref': state }, change: canonical string } for an ok plan. */
+export function approvalBinding(plan, host = null) {
+  const targets = {}
+  const change = []
+  for (const p of plan?.plans || []) {
+    if (p.virtual) { change.push(['new', p.ref, p.items.map(i => [i.op.action, i.op.args ?? null])]); continue }
+    const kind = getTargetKind(p.kind)
+    targets[`${p.kind}|${p.ref}`] = canonicalJson(stateOfTarget(kind, p, host))
+    // `approvalPatch`: a kind whose patch at approval also carries the approval itself (a seal) drops it
+    change.push([p.kind, p.ref, (kind.approvalPatch ? kind.approvalPatch(p.patch ?? null) : p.patch) ?? null])
+  }
+  return { targets, change: canonicalJson(change) }
+}
+/** Why `now` (the plan at approval) is not what `then` (the approved binding) was — or null.
+ *  `subset` ("do the first two"): the ops are a prefix of the approved ones, so the change itself
+ *  differs by construction; every target it touches must still be in exactly the approved state. */
+export function bindingDrift(then, now, { subset = false } = {}) {
+  if (!then || !now) return 'it can no longer be checked against what you approved'
+  for (const [key, state] of Object.entries(now.targets)) {
+    if (!(key in then.targets)) return 'it now touches something the proposal did not'
+    if (then.targets[key] !== state) return 'what it acts on has changed since I showed it to you'
+  }
+  if (!subset && then.change !== now.change) return 'what it would do is no longer what I showed you'
+  return null
+}
+
 /**
  * Honest receipts: when an applied plan offers NO Undo, the notes say how to reverse it — each
  * capability's own `undoNote` (e.g. the email digest). A receipt never implies an Undo that

@@ -98,6 +98,8 @@ function chartHost({ manage = true, charts = [{ ref: 'c1', label: 'Chart (AAPL)'
     },
     persist: async () => ({ ok: true }),
     otherWidgets: () => [],
+    // the server's copy of every chart equals this tab's (the approval re-check; see host.buildWidgetSync)
+    widgetInSync: async () => ({ ok: true }),
   }
 }
 const defIds = (h, ref = 'c1') => (mergeChartSettings(JSON.stringify(h.store[ref].cs)).indicatorInstances || []).filter(i => !i.deleted).map(i => i.defId)
@@ -283,7 +285,7 @@ describe('a request for SPECIFIC indicator settings is never faked with a defaul
     ['add a 50 sma', '{"defId":"movingAverage","inputs":[{"key":"period","value":50},{"key":"maType","value":"sma"}]}'],
     ['add RSI 7', '{"defId":"rsi","inputs":[{"key":"period","value":7}]}'],
     ['throw a 20-period exponential moving average on this chart', '{"defId":"movingAverage","inputs":[{"key":"period","value":20},{"key":"maType","value":"ema"}]}'],
-    ['add the 200 day moving average', '{"defId":"movingAverage","inputs":[{"key":"period","value":200}]}'],
+    ['add the 200 day moving average', '{"defId":"movingAverage","inputs":[{"key":"period","value":200},{"key":"maType","value":"sma"}]}'],   // Gate C: owner MA default
   ])('instant path adds "%s" with exactly those settings', (t, args) => expect(parse(t)).toBe(`indicator.add${args}`))
   it('the model is told: every requested setting goes in inputs; never a default one in its place', () => {
     const h = getCapability('indicator.add').hints

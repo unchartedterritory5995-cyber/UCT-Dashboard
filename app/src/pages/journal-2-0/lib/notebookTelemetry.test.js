@@ -7,7 +7,7 @@ import {
 } from './notebookTelemetry'
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
-import { ITEM_TYPES } from './styleLibrary'
+import { LISTED_ITEM_TYPES } from './styleLibrary'
 import { BLOCK_KINDS } from './journalBlocks'
 import { WIDGET_IDS, isTraderBlock } from '../../../widgets/registry'
 
@@ -133,8 +133,10 @@ describe('R-16 — every core action has an event that fires on its success', ()
       .toEqual({ type: 'style', view: 'other' })
   })
 
-  it('library_viewed.type is "all" plus exactly the ITEM_TYPES keys of the library (read, not typed)', () => {
-    expect([...EVENT_SCHEMAS.library_viewed.type.values].sort()).toEqual(['all', ...ITEM_TYPES.map((t) => t.key)].sort())
+  it('library_viewed.type is "all" plus exactly the ITEM_TYPES keys a member can view (read, not typed)', () => {
+    // P3b: example_note is in ITEM_TYPES but is never a chip, so never a viewed type (R-P3b-2, R9: no event change)
+    const viewable = LISTED_ITEM_TYPES.map((t) => t.key)
+    expect([...EVENT_SCHEMAS.library_viewed.type.values].sort()).toEqual(['all', ...viewable].sort())
   })
 
   it('export_used.format covers every EXPORT_FORMATS id, plus png and print', () => {

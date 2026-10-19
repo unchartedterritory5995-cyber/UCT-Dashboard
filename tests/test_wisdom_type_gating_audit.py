@@ -77,6 +77,11 @@ DECLARED_DOORS = {
     # called" starter read the archive behind WISDOM_ARCHIVE_ENABLED (off -> {} / no starter).
     "api/services/screener/archive_join.py": ("archive.setup_map + core.store", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
     "api/services/screener/saved_screens.py": ("core.flags", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
+    # 2026-10-17 (e0cb24f047): /api/auth/me tells the client whether the chart's Team history
+    # panel exists. It calls ONLY team_history.enabled() (WISDOM_TICKER_HISTORY_ENABLED and
+    # WISDOM_ARCHIVE_ENABLED, per call) and never reads a record: the rows come from the paid
+    # route in api/routers/wisdom_archive.py. Railed below by test_the_auth_me_switch_door_reads_no_record.
+    "api/routers/auth.py": ("archive.team_history", "MEMBER", "WISDOM_TICKER_HISTORY_ENABLED"),
 }
 
 
@@ -144,6 +149,19 @@ def test_a_member_doors_gate_is_read_before_the_records_are(monkeypatch):
     monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
     assert dossier.wisdom_lines("NVDA") == []
     assert askai.wisdom_block("what did UCT say", user_id="u1") == ("", [])
+
+
+def test_the_auth_me_switch_door_reads_no_record(monkeypatch):
+    """api/routers/auth.py is declared a flag-only door: with BOTH gates on (the case where a
+    record read would matter) it answers True and the store is never opened; either gate off
+    answers False."""
+    from api.routers import auth
+
+    monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
+    for hist_on, archive_on, want in (("1", "1", True), ("0", "1", False), ("1", "0", False)):
+        monkeypatch.setenv("WISDOM_TICKER_HISTORY_ENABLED", hist_on)
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
+        assert auth._wisdom_ticker_history_enabled() is want
 
 
 def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):

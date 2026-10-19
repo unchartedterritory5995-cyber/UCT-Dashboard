@@ -253,8 +253,11 @@ describe('FilterControl — column description surface', () => {
 
   it('a filter whose column has no desc grows NO affordance — same probe, both populations', () => {
     // CONTROL: absence is only evidence if the query can see a present one.
-    const { unmount } = render(<FilterControl filter={RS} value={null} onChange={() => {}} />)
-    expect(COLUMN_DEFS.rs_rank.desc).toBeUndefined()
+    // rs_rank was this fixture until it got a desc (2026-10-18 column audit);
+    // the 1-day change column still carries none.
+    const CHG = { ...RS, key: 'chg_pct_1d', label: 'Change %' }
+    const { unmount } = render(<FilterControl filter={CHG} value={null} onChange={() => {}} />)
+    expect(COLUMN_DEFS.chg_pct_1d.desc).toBeUndefined()
     expect(infoButtons()).toHaveLength(0)
     unmount()
 

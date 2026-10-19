@@ -171,7 +171,8 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
     """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds,
     then the owner's TEAM DRAWING SET (2026-10-17): the trusted tier IS what the team draws."""
-    team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5"}
+    team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
+            "uct_flat_top_breakout", "bc:base"}
     assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
     for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"
@@ -222,9 +223,15 @@ def _client(user, monkeypatch, rows=None):
     app = FastAPI()
     app.include_router(patterns_router.router)
     authorize(app, user)
+    # Every row is from the ticker's latest scan, as a stored row always carries last_seen_at, so the
+    # member path's latest-scan filter keeps them (tests/test_member_rows_fresh.py owns that filter).
     monkeypatch.setattr(patterns_router.memory, "get_active_detections",
-                        lambda *a, **k: [dict(r) for r in (rows or [])])
+                        lambda *a, **k: [{"last_seen_at": _SCAN_AT, **r} for r in (rows or [])])
+    monkeypatch.setattr(patterns_router.memory, "latest_scan_at", lambda sym, tf: _SCAN_AT)
     return TestClient(app)
+
+
+_SCAN_AT = 1_790_000_000
 
 
 BOX = {"structure_key": "flat-base", "name": "Flat base", "label": "Flat base · 23 bars · pivot 142.10",

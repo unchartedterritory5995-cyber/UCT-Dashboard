@@ -100,3 +100,65 @@ def test_an_unknown_column_returns_None_not_an_empty_shell():
 def test_a_known_column_round_trips():
     assert M.for_column("uct_composite")["column"] == "uct_composite"
     assert M.for_column("rs_rank")["label"] == "RS Rank"
+
+
+# ── 2026-10-18 screener column audit: the published method must be the live one
+
+def test_the_ratings_are_percentiles_first():
+    """🔴 The rating rows said "Mapped through a fixed band table". Measured on
+    the prod snapshot, ~93% of `rating_eps`/`rating_growth` values are NOT a
+    band score, because the computation ranks against the universe first. This
+    holds the published sentence against the computation: with a distribution
+    present the score is a percentile (not a band value), and the method says
+    percentile and names the band table only as the fallback."""
+    from api.services.research import ratings_db
+    from api.services.screener import enrich
+    vals = [float(i) for i in range(ratings_db.MIN_SAMPLE + 50)]
+    dists = {m: {"values": vals, "n": len(vals)}
+             for m in ("earnings_growth", "blended_growth")}
+    out = enrich.ratings_fields({"earnings_growth": 37.0, "blended_growth": 37.0}, dists)
+    band_scores = {s for _t, s in R._EPS_BANDS} | {s for _t, s in R._GROWTH_BANDS}
+    assert out["rating_eps"] not in band_scores
+    assert out["rating_growth"] not in band_scores
+    for key in ("rating_eps", "rating_growth", "rating_smr", "rating_value"):
+        how = M.for_column(key)["how"]
+        assert how.startswith("Ranked as a 1-99 percentile"), (key, how)
+        assert "only when no universe distribution" in how, (key, how)
+    for k in ("eps", "growth"):
+        assert "band table" not in M._COMPONENT_PROSE[k][1], k
+
+
+def test_the_eps_rating_names_the_quarterly_definition():
+    """The EPS input is yfinance `earningsGrowth`: latest quarter vs the
+    year-ago quarter (measured 30/34 against FMP statements; TTM-over-TTM
+    matched 4/34). The prose must not leave a member to assume TTM."""
+    assert "same quarter a year earlier" in M._COMPONENT_PROSE["eps"][1]
+
+
+def test_the_value_and_smr_ratings_say_whose_inputs_they_rank():
+    """Measured: `rating_value` vs the PEG column, Spearman -0.33 (it ranks
+    Yahoo's PEG, not FMP's); `rating_smr` vs the Op Mgn column 0.67."""
+    assert "NOT the PEG column" in M._COMPONENT_PROSE["value"][1]
+    assert "not from the Op Mgn and ROE" in M._COMPONENT_PROSE["smr"][1]
+
+
+def test_the_sector_rs_scale_is_measured_off_the_rank_function(monkeypatch):
+    """It said "0-100 percentile"; `ratings_db._rank` clamps to 1..99 and the
+    prod range is exactly 1..99. Proven derived by MOVING `_rank`."""
+    assert M.for_column("sector_rs_pct")["scale"].startswith("1-99 ")
+    from api.services.research import ratings_db
+    monkeypatch.setattr(ratings_db, "_rank",
+                        lambda values, value: 5 if value < 0 else 95)
+    assert M.for_column("sector_rs_pct")["scale"].startswith("5-95 ")
+
+
+def test_the_rs_rank_weighting_is_read_from_the_formula(monkeypatch):
+    """It said "trailing return"; the rank is of a 4-window weighted return.
+    Proven derived by MOVING `RS_TERMS`."""
+    from api.services import rs_weighted_return as rsw
+    how = M.for_column("rs_rank")["how"]
+    for label, _n, w in rsw.RS_TERMS:
+        assert f"{round(100 * w)}% {label}" in how
+    monkeypatch.setattr(rsw, "RS_TERMS", (("3m", 63, 0.7), ("1w", 5, 0.3)))
+    how = M.for_column("rs_rank")["how"]
+    assert "70% 3m, 30% 1w" in how

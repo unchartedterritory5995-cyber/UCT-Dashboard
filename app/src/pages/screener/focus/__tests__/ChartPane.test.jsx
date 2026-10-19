@@ -1,6 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, expect, test } from 'vitest'
-vi.mock('../../../../components/StockChart', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-tf={props.tf} data-lines={JSON.stringify(props.priceLines || [])} /> }))
+// The chart is the /charts Chart widget (ScreenerChartWidget), stubbed at its boundary: these tests
+// are about what the pane hands it (the stock, the pivot line) and the pane's own header and actions.
+vi.mock('../ScreenerChartWidget', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-phone={props.phone ? '1' : undefined} data-lines={JSON.stringify(props.priceLines || [])} /> }))
 import ChartPane from '../ChartPane'
 
 const row = { ticker: 'MU', company: 'Micron Technology', industry: 'Semiconductors', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8, adr_pct: 3.1 }
@@ -89,11 +91,13 @@ test('isFlagged sets aria-pressed and keeps the label', () => {
   render(<ChartPane row={row} isFlagged why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByRole('button', { name: 'Flag' })).toHaveAttribute('aria-pressed', 'true')
 })
-test('the W button passes tf W to the chart', () => {
+test("the timeframe is the chart widget's own: the pane offers no D/W toggle of its own", () => {
   render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
-  fireEvent.click(screen.getByRole('button', { name: 'W' }))
-  expect(screen.getByRole('button', { name: 'W' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-tf', 'W')
+  expect(screen.queryByRole('group', { name: 'Timeframe' })).toBeNull()
+})
+test('the phone sheet hands the chart the phone flag', () => {
+  render(<ChartPane row={row} phone why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-phone', '1')
 })
 
 test('plain words: the fact line says what the numbers are (owner decision 5)', () => {
@@ -139,4 +143,11 @@ test('P8: earnings reads a date and a countdown, amber within a week', () => {
   expect(near).toHaveAttribute('data-soon')
   expect(near.className).toMatch(/paneEarnSoon/)
   expect(screen.queryByText(/2026-10-19/)).toBeNull()
+})
+test('the theme the stock belongs to is named beside its setup, and nothing is shown without one', () => {
+  const { rerender } = render(<ChartPane row={row} why={why} theme="Memory & Storage" onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('pane-theme')).toHaveTextContent('Memory & Storage')
+  expect(screen.getByTestId('pane-theme')).toHaveAttribute('title', 'Theme: Memory & Storage')
+  rerender(<ChartPane row={row} why={why} theme={null} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.queryByTestId('pane-theme')).toBeNull()
 })

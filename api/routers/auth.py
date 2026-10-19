@@ -2921,6 +2921,7 @@ _PREFERENCE_KEYS = {
     # `test_every_key_the_client_writes_is_still_accepted` the moment its own
     # red (a prose match in a test file) was cleared — the rail was right and
     # nobody could read it. Run that rail before landing any `setPref(` call.
+    "screener_chart_widget": _PREF_OPAQUE,   # the screener's /charts Chart widget (screenerChartPrefs.js)
     "screener_column_presets": _PREF_OPAQUE,
     "screener_favorite_screens": _PREF_OPAQUE,
     "screener_preset_chips": _PREF_OPAQUE,

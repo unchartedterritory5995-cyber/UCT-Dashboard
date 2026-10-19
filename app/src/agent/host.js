@@ -369,10 +369,41 @@ export function buildBoardSync({ readServer, localLayout, localEpoch, settleMs =
   }
 }
 
+/**
+ * ⛔ APPROVAL BINDING (Gate C safety fix): is ONE widget's stored content on the server the same as in
+ * THIS tab? `boardInSync` compares the arrangement only (ids, geometry, link colour, timeframe) — not a
+ * chart's settings, so another tab's indicator edit is invisible to it. Before an approved change to a
+ * chart's settings or indicators runs, the server's copy of that widget (its settings and chart tabs)
+ * must equal this tab's (a JSON round trip, exactly what the autosave stores); a mismatch is retried
+ * briefly (this tab's own debounced save may still be landing). Unreadable → { ok:false, unreadable }.
+ */
+export function buildWidgetSync({ readLayout, localLayout, settleMs = 700, tries = 2 }) {
+  const content = (w) => (w ? JSON.parse(JSON.stringify([w.opts?.settings ?? null, w.opts?.chartTabs ?? null, w.opts?.tf ?? null])) : 'gone')
+  return async function widgetInSync(id) {
+    for (let i = 0; ; i++) {
+      let server
+      try { server = await readLayout() } catch { server = null }
+      if (!server || !Array.isArray(server.widgets)) return { ok: false, unreadable: true }
+      const mine = (localLayout()?.widgets || []).find(w => String(w.id) === String(id))
+      const theirs = server.widgets.find(w => String(w.id) === String(id))
+      if (JSON.stringify(content(mine)) === JSON.stringify(content(theirs))) return { ok: true }
+      if (i >= tries) return { ok: false, reason: 'that chart was changed in another window or device' }
+      await sleep(settleMs)
+    }
+  }
+}
+
 const PREFS_URL = '/api/auth/preferences'
 // ⭐ LATENCY: only the two keys this check compares (the server reads them exactly as for the full
 // blob — same store, same document head); the rest of the member's preferences stay off the wire.
 const BOARD_KEYS_URL = `${PREFS_URL}?keys=charts_workspace_layout,charts_active_template`
+async function readServerLayout() {
+  const r = await fetch(BOARD_KEYS_URL, { credentials: 'include', cache: 'no-store' })
+  if (!r.ok) return null
+  const p = await r.json()
+  const raw = p.charts_workspace_layout
+  return typeof raw === 'string' ? JSON.parse(raw) : (raw || null)
+}
 async function readServerBoard() {
   const r = await fetch(BOARD_KEYS_URL, { credentials: 'include', cache: 'no-store' })
   if (!r.ok) return null
@@ -449,7 +480,7 @@ export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeou
   return { ok: false, reason: 'not-synced' }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -467,6 +498,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, wi
       epoch,
     } : {}),
     ...(widgetOps && epoch ? { boardInSync: buildBoardSync({ readServer, localLayout: () => widgetOps.layout(), localEpoch: epoch }) } : {}),
+    ...(widgetOps ? { widgetInSync: buildWidgetSync({ readLayout, localLayout: () => widgetOps.layout() }) } : {}),
     // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
     // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
     ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),

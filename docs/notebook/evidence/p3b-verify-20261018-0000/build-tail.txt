@@ -1,0 +1,19 @@
+[2mdist/[22m[36massets/pine-qB20d2Dv.js                          [39m[1m[2m  466.48 kB[22m[1m[22m[2m │ gzip: 152.59 kB[22m
+[2mdist/[22m[36massets/Breadth-8_qgR9NC.js                       [39m[1m[2m  471.26 kB[22m[1m[22m[2m │ gzip: 157.08 kB[22m
+[2mdist/[22m[36massets/PdfDocumentViewer-jCdF_XPn.js             [39m[1m[2m  482.83 kB[22m[1m[22m[2m │ gzip: 145.18 kB[22m
+[2mdist/[22m[36massets/index-DAprnzvy.js                         [39m[1m[2m  502.23 kB[22m[1m[22m[2m │ gzip: 131.00 kB[22m
+[2mdist/[22m[36massets/index-BoeTxg4R.js                         [39m[1m[2m  562.43 kB[22m[1m[22m[2m │ gzip: 185.40 kB[22m
+[2mdist/[22m[36massets/index-BBIzh2CC.js                         [39m[1m[2m  576.57 kB[22m[1m[22m[2m │ gzip: 191.10 kB[22m
+[2mdist/[22m[36massets/index-ibFC5x0Y.js                         [39m[1m[2m  587.47 kB[22m[1m[22m[2m │ gzip: 199.17 kB[22m
+[2mdist/[22m[36massets/StockChart-BTWWByGP.js                    [39m[1m[2m  779.60 kB[22m[1m[22m[2m │ gzip: 256.71 kB[22m
+[32m✓ built in 37.84s[39m
+
+  dist\cot-facts.cjs  39.0kb
+
+Done in 8ms
+cot-facts: wrote C:\Users\Patrick\uct-worktrees\notebook-p3b\app\dist\cot-facts.cjs
+
+  dist\flow-facts.cjs  81.8kb
+
+Done in 15ms
+flow-facts: wrote C:\Users\Patrick\uct-worktrees\notebook-p3b\app\dist\flow-facts.cjs

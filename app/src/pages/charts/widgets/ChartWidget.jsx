@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { useWorkspace } from '../WorkspaceContext'
+import { ChartHostOverlayContext } from './chartHostOverlay'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import usePreferences from '../../../hooks/usePreferences'
 import { chartTemplateSettings } from '../../../components/chart/chartTemplateApply'
@@ -111,11 +112,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // above stops a fast arrow-scan running the full pipeline per intermediate
   // ticker.) This is still a derived view of the colour group — the group
   // remains the one writable symbol authority.
-  const [requestedSym, setRequestedSym] = useState(groupSym)
+  // A host may set its own wait (chartHostOverlay.js): the screener sets 0, because it already
+  // warms the rows on screen into memory and a pause there is only latency on every step.
+  const hostOverlay = useContext(ChartHostOverlayContext)
+  const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
+  const [debouncedSym, setDebouncedSym] = useState(groupSym)
   useEffect(() => {
-    const t = setTimeout(() => setRequestedSym(groupSym), 90)
+    if (symDebounceMs <= 0) return undefined
+    const t = setTimeout(() => setDebouncedSym(groupSym), symDebounceMs)
     return () => clearTimeout(t)
-  }, [groupSym])
+  }, [groupSym, symDebounceMs])
+  const requestedSym = symDebounceMs <= 0 ? groupSym : debouncedSym
 
   // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
   // advances to the request once current-enough data for it exists — so the
@@ -141,6 +148,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // word-boundary escape at all -- the pattern silently matches nothing and
   // reads like a clean result. Verify a TDZ window with grep.
   const sym = useSymbolHandoff(requestedSym, tf)
+  // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
+  const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
   // Thematic-ETF pseudo-ticker ("$IDX:<slug>" — see useThemeIndexBars, which the
   // pane owns): a synthetic index has no leveraged/inverse family, so that
@@ -635,6 +644,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         onResetWatermark={resetWatermark}
         watermarkCustomized={!!wmPos}
         stockChartProps={{
+          ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
           onCrosshairMove: reportCrosshair,
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,

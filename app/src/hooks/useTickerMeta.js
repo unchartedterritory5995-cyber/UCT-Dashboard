@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import useSWR, { preload } from 'swr'
+import useSWR, { preload, mutate } from 'swr'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
 const NULLS = Object.freeze({
@@ -60,6 +60,11 @@ export async function fetcher(url) {
   const r = await fetch(url, { credentials: 'include' })
   if (!r.ok) throw new Error(`ticker-meta ${r.status}`)
   const j = await r.json() // a malformed body throws → SWR retries (not cached)
+  return projectMeta(j)
+}
+
+// The ONE projection of a ticker-meta answer, shared by the per-symbol fetcher and the batch.
+function projectMeta(j) {
   return {
     name: j?.name ?? null,
     sector: j?.sector ?? null,
@@ -133,13 +138,55 @@ export function prefetchTickerMeta(sym) {
   if (_metaSeen.has(sym)) return // queued, in flight, or recently dispatched
   _metaSeen.add(sym)
   setTimeout(() => _metaSeen.delete(sym), 60000)
-  _metaQueue.push(sym)
+  _batchPending.push(sym)
+  if (!_batchTimer) _batchTimer = setTimeout(_flushBatch, _BATCH_WAIT_MS)
+}
+
+// ⭐ A LIST'S WARM IS ONE REQUEST. Names asked for together (a screen's rows arrive in one
+// pass) are collected for a moment and sent as ONE POST /api/ticker-meta/batch, which answers
+// every name the server already holds (its memory and 24 h disk cache) and names the rest
+// missing; only those take the per-symbol queue above. The batch never calls a provider, so
+// a cold name is no slower than before. A name asked for alone (a hover) skips the batch.
+const _BATCH_WAIT_MS = 30
+const _BATCH_MAX = 100 // api/routers/ticker_meta.py BATCH_MAX
+const _batchPending = []
+let _batchTimer = null
+
+async function _flushBatch() {
+  _batchTimer = null
+  const syms = _batchPending.splice(0, _batchPending.length)
+  let missing = syms
+  if (syms.length > 1) {
+    missing = []
+    for (let i = 0; i < syms.length; i += _BATCH_MAX) {
+      const chunk = syms.slice(i, i + _BATCH_MAX)
+      let results = null
+      try {
+        const r = await fetch('/api/ticker-meta/batch', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickers: chunk }),
+        })
+        if (r.ok) results = (await r.json())?.results || {}
+      } catch { /* the per-symbol route below covers the whole chunk */ }
+      for (const sym of chunk) {
+        const raw = results?.[sym]
+        if (!raw) { missing.push(sym); continue }
+        const d = projectMeta(raw)
+        lsPut(sym, d)
+        mutate(`/api/ticker-meta/${encodeURIComponent(sym)}`, d, { revalidate: false })
+      }
+    }
+  }
+  for (const sym of missing) _metaQueue.push(sym)
   _metaPump()
 }
 
 /** Test seam — drop the queue between cases. */
 export function _resetTickerMetaQueue() {
   _metaQueue.length = 0
+  _batchPending.length = 0
+  clearTimeout(_batchTimer)
+  _batchTimer = null
   _metaSeen.clear()
   _metaActive = 0
 }

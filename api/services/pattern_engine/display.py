@@ -40,7 +40,15 @@ defects. `annotate` also stamps the display-only fixes for them, again under
   draw_round    bull_flag: BULL_FLAG_DRAW_ROUND, set only on a flag that came
                 through every verdict and the overlap pass and is drawn. The
                 member set reads it (auto_structures.member_rows); nothing draws
-                from it.
+                from it. uct_flat_top_breakout: FLAT_TOP_DRAW_ROUND, set only
+                beside draw_flat_top.
+  draw_flat_top uct_flat_top_breakout: {price, start_t, end_t, touches, label,
+                variant} -- the "flat top" ceiling (base top cluster) and one
+                marker per touch group, drawn only when the detection's
+                trigger IS the scan's last bar and the lab v2 rule holds there
+                (`flat_top_drawing`). Every other uct_flat_top_breakout row is
+                left exactly as the detector built it: no key is added, so it
+                draws for admins as before and never reaches a member.
 
 v3 follow-ups (REPORT_TIERS_V3.md, 2026-10-17), still display-only:
   * draw_ema always spans at least PULLBACK_EMA_MIN_BARS bars ending on the
@@ -112,6 +120,11 @@ display-only:
               DRAWN_POLE_MIN_ATR), grind_pole (down share 0.35) and two_step_pole;
               under_prior_high reads LEAD_BARS = 90 bars; the drawn lanes must hold
               LANE_MIN_BODY_SHARE of the bodies they span (loose_lanes, `flag_lanes_verdict`).
+  bull_flag ("flagging" tier, lab flag_vocab 2026-10-18) -- a flag stopped ONLY by
+              FLAGGING_RELAXED (shape / impulse / context) stays `stale` with its reason and also
+              carries `flagging` {tier, draw_round, draw_lanes, draw_anchors?}: what a member may see
+              as the team's "flagging" (light lanes, no entry line), never over a confirmed flag's
+              bars. Every field a confirmed flag carries is exactly as before.
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `pullback_handle`
               (round 6: the box is the pullback from the right side's peak; no_pullback / short /
@@ -122,6 +135,7 @@ display-only:
 """
 from __future__ import annotations
 
+import copy
 import math
 from bisect import bisect_right
 
@@ -419,6 +433,24 @@ LANE_MIN_BODY_ATR = 0.5
 #: older drawing code, or whose verdicts crashed part-way, never reaches a member. Bump it with every
 #: new bull_flag drawing round.
 BULL_FLAG_DRAW_ROUND = 9
+# -- uct_flat_top_breakout: the member "flat top" ceiling (lab flattop_draw_v2, 2026-10-18). v1 (every
+# confirmed fire) failed its blind packet: lines hanging from one old wick spike. v2 draws only when the
+# ceiling was really tested, and passed two fresh blind packets: 2.60 [2.30, 2.83] and 2.57 [2.30, 2.80].
+#: The flat-top drawing round this code IS (the v2 draw condition). A uct_flat_top_breakout drawn by
+#: `flat_top_drawing` carries extras.draw_round = FLAT_TOP_DRAW_ROUND; the member set serves only that
+#: round (auto_structures.MEMBER_FLAT_TOP_ROUND, a literal). Bump it with every new flat-top drawing.
+FLAT_TOP_DRAW_ROUND = 2
+#: Confirmed fires only: the breakout variant, or at_line closing no more than this many ATR under H.
+FLAT_TOP_CONFIRMED_POS_ATR = -0.5
+#: G1: at least this many touch groups BEFORE the as-of approach (the approach is not a touch).
+FLAT_TOP_MIN_PRIOR_GROUPS = 3
+#: G2: at least this many of those groups top out within FLAT_TOP_BAND_ATR ATR of the drawn line
+#: (not one isolated spike).
+FLAT_TOP_MIN_BAND_GROUPS = 2
+FLAT_TOP_BAND_ATR = 0.25
+#: G3: price has not run far past the line: (close - line) / ATR at most this.
+FLAT_TOP_MAX_EXT_ATR = 1.5
+FLAT_TOP_LABEL = "flat top"
 # -- Cup round 6 (lab REPORT_TEAM_SET_R5.md, 2026-10-17). Calibrated on the 62 bc:cup-with-handle cases
 # judged in team rounds 1-5 (35 of them drawn at the round-5 code); no threshold removes a cup judged 3.
 #: cup handle: the box is the PULLBACK from the right side's peak (`pullback_handle`), at most this many
@@ -1206,6 +1238,59 @@ def flat_top_verdict(bars: list, start_t, end_t, price):
     return True, None
 
 
+def flat_top_drawing(bars: list, i: int):
+    """(drawing, reason) for the member "flat top" ceiling of a uct_flat_top_breakout fire at bar
+    `i`, from bars[:i+1] only. The rule, ATR and touches are the detector's own (features / decide /
+    series, parity-pinned to the lab); the line is `robust_top` over first touch .. i-1 (the base's
+    top cluster). Drawn only when ALL hold, else (None, reason):
+      unconfirmed   at_line closing more than FLAT_TOP_CONFIRMED_POS_ATR ATR under the ceiling;
+      few_touches   fewer than FLAT_TOP_MIN_PRIOR_GROUPS touch groups once the as-of APPROACH is
+                    dropped (the last group, when its last touch is at i-2 or later: under the rule's
+                    own 3-session grouping it would join bar i's group);
+      single_spike  fewer than FLAT_TOP_MIN_BAND_GROUPS of those groups top out within
+                    FLAT_TOP_BAND_ATR ATR of the line;
+      extended      the close more than FLAT_TOP_MAX_EXT_ATR ATR above the line;
+      no_fire       the rule does not fire at i.
+    drawing = {price, start_t, end_t, touches: [{t, price}] (the highest high of EVERY touch group,
+    the approach included), label, variant}."""
+    from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
+    from api.services.pattern_engine.detectors.uct import uct_setups_common as U
+    if not isinstance(i, int) or isinstance(i, bool) or i < 1 or i >= len(bars):
+        return None, "no_fire"
+    b = bars[:i + 1]
+    S = U.series(b)
+    f = FT.features(b, S, i)
+    v = FT.decide(f) if f is not None else None
+    if v is None:
+        return None, "no_fire"
+    if not (v == "breakout" or (v == "at_line" and f["pos"] >= FLAT_TOP_CONFIRMED_POS_ATR)):
+        return None, "unconfirmed"
+    a = S["atr"][i]
+    groups, last = [], -99
+    for j in f["touch_idx"]:
+        if j - last >= FT.FT_GAP:
+            groups.append([])
+        groups[-1].append(j)
+        last = j
+    k0 = groups[0][0]
+    line = robust_top(b, k0, i - 1, a)
+    if line is None:
+        return None, "no_fire"
+    approach = groups[-1][-1] >= i - (FT.FT_GAP - 1)
+    prior = groups[:-1] if approach else groups
+    if len(prior) < FLAT_TOP_MIN_PRIOR_GROUPS:
+        return None, "few_touches"
+    tops = [max(float(b[j]["h"]) for j in g) for g in prior]
+    if sum(1 for t in tops if abs(t - line) <= FLAT_TOP_BAND_ATR * a) < FLAT_TOP_MIN_BAND_GROUPS:
+        return None, "single_spike"
+    if (float(b[i]["c"]) - line) / a > FLAT_TOP_MAX_EXT_ATR:
+        return None, "extended"
+    touches = [max(g, key=lambda j: (float(b[j]["h"]), j)) for g in groups]
+    return {"price": float(line), "start_t": b[k0]["t"], "end_t": b[i]["t"],
+            "touches": [{"t": b[j]["t"], "price": float(b[j]["h"])} for j in touches],
+            "label": FLAT_TOP_LABEL, "variant": v}, None
+
+
 def flag_shape_verdict(bars: list, pos: dict, d: dict):
     """(draw, reason) for a bull_flag's SHAPE. Round 4 (REPORT_TEAM_SET_R3.md: slow-grind poles,
     2-3 bar flags, flags sloping up):
@@ -1804,6 +1889,7 @@ def draw_geometry(detections: list, bars: list) -> list:
     closes = None
     emas: dict = {}
     flags: list = []
+    flagging: list = []
     for d in detections or []:
         try:
             pid = d.get("pattern_id")
@@ -1891,6 +1977,19 @@ def draw_geometry(detections: list, bars: list) -> list:
                           for j in range(start, len(bars)) if series[j] is not None]
                 if len(points) >= 2:
                     geom.setdefault("extras", {})["draw_ema"] = {"period": period, "points": points}
+            elif pid == "uct_flat_top_breakout":
+                # The member "flat top" ceiling (lab flattop_draw_v2): the lab drew it AS OF the fire's
+                # own session, on bars up to that session. So it is drawn only when the trigger is the
+                # last bar here (trigger_bars_ago == 0) and the v2 rule holds there; an older trigger
+                # (the bars after it were never judged), a malformed offset or any failed condition
+                # adds NOTHING to the row.
+                ex = geom.get("extras")
+                ago = ex.get("trigger_bars_ago") if isinstance(ex, dict) else None
+                if type(ago) is int and ago == 0:
+                    ft, _why = flat_top_drawing(bars, len(bars) - 1)
+                    if ft is not None:
+                        ex["draw_flat_top"] = ft
+                        ex["draw_round"] = FLAT_TOP_DRAW_ROUND
             elif pid == "bull_flag":
                 extras = geom.setdefault("extras", {})
                 pts = d.get("pivot_ts") or []
@@ -1907,43 +2006,20 @@ def draw_geometry(detections: list, bars: list) -> list:
                 extras["draw_lanes"] = ok
                 if reason:
                     extras["lanes_reason"] = reason
-                pause, why = flag_pause_verdict(bars, pos, d)
-                if pause:       # round 4: a fast pole, a real flag, a midline that does not rise
-                    pause, why = flag_shape_verdict(bars, pos, d)
-                if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
-                    pause, why = False, "diverging"
-                if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
-                    pause, why = flag_edge_verdict(bars, pos, d)
-                if pause and s is not None:   # rounds 7-9: a short spike, a grind, two steps
-                    pause, why = pole_impulse_verdict(bars, s, top)
-                if pause and s is not None:   # round 8: under a prior high, a rebound, two steps
-                    pause, why = flag_context_verdict(bars, s, top)
-                ep = None
-                if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
-                    ep = flag_entry_line(bars, pos, d)
-                    if ep is not None:
-                        extras["draw_entry_price"] = ep
-                lanes = None
-                if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
-                    lanes = flag_draw_lanes(bars, pos, d)
-                    if lanes is not None:
-                        extras["draw_anchors"] = lanes
-                        # round 8: the DRAWN lanes must not fan either
-                        if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
-                            pause, why = False, "diverging"
-                if pause and ok:   # round 9: the drawn lanes must hold the flag's bodies
-                    drawn = lanes if lanes is not None else (geom.get("anchors") or [])
-                    spaces = list(extras.get("line_spaces") or []) + ["price", "price"]
-                    if lanes is not None or (spaces[0] == "price" and spaces[1] == "price"):
-                        pause, why = flag_lanes_verdict(bars, drawn)
-                if pause:       # round 8: an entry set at the pole top above a flag that dropped away
-                    entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
-                    pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)
-                if not pause:   # round 2: a second leg past the pole, not a pause
-                    extras["stale"] = True
-                    extras["stale_reason"] = why
-                    extras["draw_lanes"] = False
+                # "flagging" tier: the extras as they stand before any verdict ran, so the relaxed
+                # run below starts from exactly what the strict run started from.
+                before = copy.deepcopy(extras)
+                _flag_verdicts(bars, pos, d, s, top, ok, reason, relax=False)
                 flags.append(d)
+                if extras.get("stale") and extras.get("stale_reason") in FLAGGING_REASONS:
+                    try:   # its own guard: a crash here leaves the strict result untouched
+                        twin = {**d, "geometry": {**geom, "extras": copy.deepcopy(before)}}
+                        _flag_verdicts(bars, pos, twin, s, top, ok, reason, relax=True)
+                        tex = twin["geometry"]["extras"]
+                        if not tex.get("stale"):
+                            flagging.append((d, tex))
+                    except Exception:  # noqa: BLE001 -- no flagging stamp, fail closed
+                        pass
         except Exception:  # noqa: BLE001 -- one detection's fix skips that one only
             continue
     # Overlapping bull_flags of one run: only the most confident is drawn at all
@@ -1968,4 +2044,203 @@ def draw_geometry(detections: list, bars: list) -> list:
                 extras["draw_round"] = BULL_FLAG_DRAW_ROUND
         except Exception:  # noqa: BLE001
             continue
+    # The "flagging" tier, AFTER the confirmed flags are settled: a flag that failed only the
+    # FLAGGING_RELAXED verdicts is stamped `extras.flagging` -- never over a confirmed flag's bars,
+    # and only the most confident of those left over the same bars. Its own key: the row stays
+    # `stale` with its reason, so every field a confirmed flag or an older client reads is untouched.
+    for d, tex in sorted(flagging, key=lambda x: -(x[0].get("confidence") or 0)):
+        try:
+            span = _bar_span(pos, d)
+            if not span or any(k[0] <= span[1] and span[0] <= k[1] for k in kept):
+                continue
+            kept.append(span)
+            stamp = {"tier": FLAGGING_TIER, "draw_round": BULL_FLAG_DRAW_ROUND,
+                     "draw_lanes": bool(tex.get("draw_lanes"))}
+            if tex.get("draw_anchors"):
+                stamp["draw_anchors"] = tex["draw_anchors"]
+            d["geometry"]["extras"]["flagging"] = stamp
+        except Exception:  # noqa: BLE001
+            continue
+    # Geometry round 3: the upper lane only, AFTER every verdict and the overlap pass, so it cannot
+    # change which flags are drawn (`flag_upper_lane_v3`).
+    for d in detections or []:
+        try:
+            stamp_upper_lane_v3(d, bars)
+        except Exception:  # noqa: BLE001 -- that row keeps today's drawing
+            continue
     return detections
+
+
+#: bull_flag geometry round 3 (lab flag_geom_v3, 2026-10-18): today's drawing with ONE change, the upper
+#: lane rests on the flag's wicks from the pole top. Tier 1 only (the tier that was judged); stamped as
+#: extras.draw_geom_round beside the new lane. Display only: draw_round, the member gates, the lower
+#: lane, the entry, the pole and every "flagging"-tier row are untouched.
+BULL_FLAG_GEOM_ROUND = 3
+
+#: Amendment 1 (lab flag_geom_v3/AMENDMENT.txt, post-hoc and conservative): when the pole top is a
+#: single-bar spike -- its high above every other high within 2 bars by more than this many ATR --
+#: round 3 is not applied and the row keeps today's (round-9) drawing. K chosen on DEV only.
+BULL_FLAG_V3_SPIKE_ATR = 0.5
+
+
+def pole_top_spike_atr(bars: list, d: dict):
+    """How far (in ATR14 of the bars up to the top) the v3 pole top's high stands above the next
+    highest high within 2 bars either side (clipped to the flag's last bar). None when unknown."""
+    fb = _flag_bars(_index(bars), d, len(bars))
+    if fb is None:
+        return None
+    b0, b1, last = fb
+    top = max(range(b0, b1 + 1), key=lambda j: (float(bars[j]["h"]), j))
+    nb = [float(bars[j]["h"]) for j in range(max(0, top - 2), min(last, top + 2) + 1) if j != top]
+    a = atr14(bars[:top + 1])
+    if not nb or a is None:
+        return None
+    return (float(bars[top]["h"]) - max(nb)) / a
+
+
+def flag_upper_lane_v3(bars: list, d: dict):
+    """Geometry round 3 (lab flag_geom_v3): the flag's upper lane as two price-space anchors, from the
+    pole top's HIGH to the flag's last bar (pivot_ts[-1]), at the least-steep slope through a later
+    flag high -- every flag high stays on or under it (the team's flag ceiling rests on wicks and
+    starts at the pole top). The pole top is the highest high from the pole base to the pivot, ties
+    to the LATER bar (the lab rule the blind packets judged). None when the pole / flag bars are
+    unknown or fewer than 2 flag bars follow the top. Reads no bar after the flag's last bar."""
+    fb = _flag_bars(_index(bars), d, len(bars))
+    if fb is None:
+        return None
+    b0, b1, last = fb
+    top = max(range(b0, b1 + 1), key=lambda j: (float(bars[j]["h"]), j))
+    if last - top < 2:
+        return None
+    H = [float(b["h"]) for b in bars[:last + 1]]
+    m = max((H[j] - H[top]) / (j - top) for j in range(top + 1, last + 1))
+    return [{"t": bars[top]["t"], "price": round(H[top], 6)},
+            {"t": bars[last]["t"], "price": round(H[top] + m * (last - top), 6)}]
+
+
+def _lab_line_at(p1, p2, x, space):
+    """The lab's line evaluation (lab flag_geom geom_v2._line_at), kept bit-for-bit for the guard."""
+    (x1, y1), (x2, y2) = p1, p2
+    if x2 == x1:
+        return y1
+    if space == "log" and y1 > 0 and y2 > 0:
+        return math.exp(math.log(y1) + (math.log(y2) - math.log(y1)) * (x - x1) / (x2 - x1))
+    return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+
+
+def stamp_upper_lane_v3(d: dict, bars: list) -> None:
+    """Replace a DRAWN tier-1 bull_flag's upper lane by `flag_upper_lane_v3`, in place.
+    Tier 1 only (not stale, draw_round stamped, draw_lanes not False) -> extras.draw_anchors. The
+    "flagging" tier was not judged and is left as master draws it (amendment 1), as is a row whose
+    pole top is a single-bar spike (`pole_top_spike_atr` > BULL_FLAG_V3_SPIKE_ATR), and a row whose
+    v3 channel fans out past LANE_DIVERGE_RATIO between the lower anchors (amendment 2).
+    The lower lane is today's drawn one (draw_anchors when present, else geometry.anchors), copied
+    unchanged in its own line space. Left as it is when the new upper is not strictly above the
+    lower lane at both lower anchor bars. A log-space upper lane becomes price space
+    (line_spaces[0]); [1] is untouched."""
+    if d.get("pattern_id") != "bull_flag":
+        return
+    g = d.get("geometry")
+    ex = (g or {}).get("extras")
+    if not isinstance(ex, dict):
+        return
+    if ex.get("stale") or "draw_round" not in ex or ex.get("draw_lanes") is False:
+        return
+    da = ex.get("draw_anchors")
+    cur = da if isinstance(da, list) and da else (g.get("anchors") or [])
+    spaces = (list(ex.get("line_spaces") or []) + ["price", "price"])[:2]
+    pos = _index(bars)
+    if not isinstance(cur, list) or len(cur) != 4 or any(
+            not isinstance(a, dict) or a.get("t") not in pos for a in cur):
+        return
+    up = flag_upper_lane_v3(bars, d)
+    if up is None:
+        return
+    sp_atr = pole_top_spike_atr(bars, d)
+    if sp_atr is not None and sp_atr > BULL_FLAG_V3_SPIKE_ATR:
+        return
+    xu0, xu1 = pos[up[0]["t"]], pos[up[1]["t"]]
+    xa, xb = pos[cur[2]["t"]], pos[cur[3]["t"]]
+    la, lb = (xa, float(cur[2]["price"])), (xb, float(cur[3]["price"]))
+    width = {}
+    for x in (xa, xb):
+        u = _lab_line_at((xu0, up[0]["price"]), (xu1, up[1]["price"]), x, "price")
+        lo = _lab_line_at(la, lb, x, spaces[1])
+        if not u > lo:
+            return
+        width[x] = u - lo
+    # amendment 2: round 8's fan-out rule, re-checked on the v3 channel at the lower lane's anchors;
+    # a v3 channel wider at the right than LANE_DIVERGE_RATIO x the left keeps today's drawing
+    xl, xr = sorted((xa, xb))
+    if width[xr] > LANE_DIVERGE_RATIO * width[xl]:
+        return
+    lanes = up + [dict(cur[2]), dict(cur[3])]
+    if spaces[0] != "price":
+        sp = list(ex.get("line_spaces") or [])
+        sp = (sp + ["price", "price"])[:max(2, len(sp))]
+        sp[0] = "price"
+        ex["line_spaces"] = sp
+    ex["draw_anchors"] = lanes
+    ex["draw_geom_round"] = BULL_FLAG_GEOM_ROUND
+
+
+#: The "flagging" tier (lab flag_vocab, 2026-10-18). The team says "flag", "flagging", "flag out"
+#: for any stock pausing after a move, not only a textbook bull flag. On the team's own flag calls
+#: (newer half, held out; 833 charts), drawing the flags that fail ONLY these three verdicts raised
+#: the share of team flag calls drawn from 6.2% to 24.4% against 0.8% -> 5.4% on random charts
+#: (dYouden +0.135 [+0.108, +0.161]). Their geometry measured at chance against the team's lines,
+#: so a flagging flag is drawn light and WITHOUT an entry line (PatternOverlay).
+FLAGGING_RELAXED = ("flag_shape_verdict", "pole_impulse_verdict", "flag_context_verdict")
+#: The stale reasons those three verdicts give. Only a flag stopped by one of them can be "flagging";
+#: a flag stopped by any other verdict (or the overlap pass) never is.
+FLAGGING_REASONS = frozenset({
+    "slow_pole", "short_flag", "rising_flag", "detached_flag", "steep_flag", "deep_flag",   # shape
+    "short_pole", "grind_pole", "two_step_pole",                                         # impulse
+    "under_prior_high", "rebound_pole",                                                  # context
+})
+#: The tier name the stamp carries -- the team's own word, and the overlay's label.
+FLAGGING_TIER = "flagging"
+
+
+def _flag_verdicts(bars, pos, d, s, top, ok, reason, relax=False):
+    """The bull_flag display verdicts in round order, stamping `d`'s extras exactly as draw_geometry
+    always has (draw_entry_price, draw_anchors, and stale / stale_reason / draw_lanes on a failure).
+    relax=True treats FLAGGING_RELAXED as passing -- run only on a deep copy (the "flagging" tier)."""
+    geom = d["geometry"]
+    extras = geom["extras"]
+    pause, why = flag_pause_verdict(bars, pos, d)
+    if pause and not relax:       # round 4: a fast pole, a real flag, a midline that does not rise
+        pause, why = flag_shape_verdict(bars, pos, d)
+    if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
+        pause, why = False, "diverging"
+    if pause:       # round 6: a crash-low pole, a flag below a gap, a flag breaking down
+        pause, why = flag_edge_verdict(bars, pos, d)
+    if pause and s is not None and not relax:   # rounds 7-9: a short spike, a grind, two steps
+        pause, why = pole_impulse_verdict(bars, s, top)
+    if pause and s is not None and not relax:   # round 8: under a prior high, a rebound, two steps
+        pause, why = flag_context_verdict(bars, s, top)
+    ep = None
+    if pause:       # round 6: the entry off a wick / spike over the flag -> body highs
+        ep = flag_entry_line(bars, pos, d)
+        if ep is not None:
+            extras["draw_entry_price"] = ep
+    lanes = None
+    if pause and ok:   # round 7: lanes refitted (wide first bar, flat wedge, floating end)
+        lanes = flag_draw_lanes(bars, pos, d)
+        if lanes is not None:
+            extras["draw_anchors"] = lanes
+            # round 8: the DRAWN lanes must not fan either
+            if lane_verdict(bars, {**geom, "anchors": lanes})[1] == "diverging":
+                pause, why = False, "diverging"
+    if pause and ok:   # round 9: the drawn lanes must hold the flag's bodies
+        drawn = lanes if lanes is not None else (geom.get("anchors") or [])
+        spaces = list(extras.get("line_spaces") or []) + ["price", "price"]
+        if lanes is not None or (spaces[0] == "price" and spaces[1] == "price"):
+            pause, why = flag_lanes_verdict(bars, drawn)
+    if pause:       # round 8: an entry set at the pole top above a flag that dropped away
+        entry = ep if ep is not None else (d.get("levels") or {}).get("entry")
+        pause, why = flag_entry_verdict(bars, pos, d, entry, lanes)
+    if not pause:   # round 2: a second leg past the pole, not a pause
+        extras["stale"] = True
+        extras["stale_reason"] = why
+        extras["draw_lanes"] = False

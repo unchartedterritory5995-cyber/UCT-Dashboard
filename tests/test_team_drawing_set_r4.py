@@ -14,7 +14,9 @@ in the learned drawer's chart set. Synthetic bars only (public repo).
   4. bull_flag     a fast pole (>= POLE_MIN_ATR ATR in <= POLE_MAX_BARS bars), a flag of at least
                    FLAG_MIN_BARS bars, a midline that does not rise.
   5. levels        major swing levels rank ahead of micro levels; the nearest major swing high
-                   above price is drawn whenever one exists within MAJOR_SWING_LOOKBACK bars.
+                   above price is a candidate whenever one exists within MAJOR_SWING_LOOKBACK
+                   bars (since C2, 2026-10-18, ranked nearest-first with the other structural
+                   levels rather than always drawn).
   6. trendlines    no line gapped away from price, no support line across a crash, at least
                    TL_MIN_TOUCHES touches.
   7. MA pullback   no tag on a flat / rolling-over MA, none on a tag bar that never reached it.
@@ -414,8 +416,15 @@ def test_micro_levels_rank_after_structural_ones():
     assert {100.6, 99.4} <= {h["price"] for h in out6}
 
 
-def test_a_major_swing_high_overhead_reaches_every_drawn_set_that_has_one():
-    have = beyond_nearest = 0
+def test_a_major_swing_high_overhead_is_ranked_nearest_first_not_ahead_of_everything():
+    # CHANGED 2026-10-18 (drawn-vs-team study, config C2): this test used to require the nearest
+    # major swing high to be drawn on EVERY chart that has one (round 4's priority tier 0). On the
+    # team's held-out drawings the major-swing priority slots agreed least with what the team draws,
+    # and dropping the priority added agreement on top of restoring the prior day (post-hoc C2 - C1
+    # +0.040 F1). The major swing high is now one structural candidate among the rest, ranked
+    # nearest the close first: when it is not drawn, it either merged into a drawn level within
+    # H_DUP_ATR, or every drawn level is at least as near the close.
+    have = drawn_n = skipped = 0
     for seed in range(1, 41):
         bars = _synthetic(seed)
         a = auto_draw.as_arrays(bars)
@@ -425,14 +434,24 @@ def test_a_major_swing_high_overhead_reaches_every_drawn_set_that_has_one():
         if not highs:
             continue
         have += 1
-        drawn = [h for h in d["horizontals"] if h["source"] == "major_swing_high"]
-        assert drawn and drawn[0]["price"] == round(highs[0]["price"], 4), (seed, d["horizontals"])
-        # non-vacuity: some of these sit beyond the four levels nearest the close
-        near = sorted({round(float(x), 4) for x in a[max(0, i - 120):i + 1, 2:4].ravel()},
-                      key=lambda p: abs(p - a[i, 4]))[:4]
-        beyond_nearest += round(highs[0]["price"], 4) not in near
+        major = round(highs[0]["price"], 4)
+        hs = d["horizontals"]
+        drawn = [h for h in hs if h["source"] == "major_swing_high"]
+        if drawn:
+            assert drawn[0]["price"] == major, (seed, hs)
+            drawn_n += 1
+            continue
+        skipped += 1
+        if any(abs(h["price"] - major) <= auto_draw.H_DUP_ATR * d["atr"] for h in hs):
+            continue                                    # merged into a nearer-ranked level
+        far = abs(major - d["last_close"])
+        assert len(hs) == auto_draw.DRAWN_HORIZONTALS, (seed, hs)
+        assert all(abs(h["price"] - d["last_close"]) <= far + 1e-6 for h in hs), (seed, major, hs)
     assert have >= 10, "control: too few synthetic charts with a major swing high overhead"
-    assert beyond_nearest, "control: every major high was among the nearest anyway"
+    # non-vacuity, both ways: the priority is gone (some major highs lose to nearer levels) and the
+    # level itself is not (some are still drawn)
+    assert skipped, "control: every major swing high was still drawn -- the priority tier is back"
+    assert drawn_n, "control: no major swing high was ever drawn"
 
 
 # -- 6. learned trendlines -----------------------------------------------------------------------------

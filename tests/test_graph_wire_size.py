@@ -182,6 +182,7 @@ def test_the_bomb_is_still_refused_on_the_write_path(store):
              "outputRoots": {"value": len(nodes) - 1, "up": 0}, "parameters": {}}
     doc = {
         "id": "u_c2d9000000bb",
+        "version": 1,
         "plots": [{"key": "up", "style": "line"}, {"key": "value", "style": "line"}],
         "compute": {"kind": "ast", "graph": graph, "scanPlot": "value",
                     "treesHash": "sha256:x", "fn": "sha256:x"},

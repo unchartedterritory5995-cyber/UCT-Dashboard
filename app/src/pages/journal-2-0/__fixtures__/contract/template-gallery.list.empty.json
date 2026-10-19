@@ -7,6 +7,9 @@
     "status": 200
   },
   "body": {
+    "capabilities": {
+      "exampleNotes": true
+    },
     "templates": [
       {
         "author": "UCT",
