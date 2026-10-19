@@ -138,6 +138,7 @@ export function preflightRefusals(host, ops) {
     const kinds = [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
     const plan = planOps(collectTargets(host, kinds), ops)
     if (plan.ok) return []
+    // eslint-disable-next-line no-control-regex -- control characters are exactly what is stripped
     return [...new Set((plan.refusals || []).map(r => String(r.reason || '').replace(/[\u0000-\u001f<>`]+/g, ' ').trim().slice(0, 200)).filter(Boolean))].slice(0, 5)
   } catch { return [] }
 }
