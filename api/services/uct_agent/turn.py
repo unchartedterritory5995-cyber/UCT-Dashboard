@@ -71,9 +71,10 @@ MANIFEST_VERSIONS = frozenset({1})
 MAX_CAPABILITIES = 60
 # ⭐ NL-1 (owner 2026-10-16; OFF unless UCT_AGENT_NL1=1 on the server AND the request asks for it): the
 # model sees the WHOLE catalog every turn, compact (one line per action, ops as args_json) and cached,
-# instead of the routed subset. The per-request limit for that request shape only — a PROPOSAL awaiting
-# the owner's approval of the contract change; with the flag off, MAX_CAPABILITIES applies unchanged.
-MAX_CAPABILITIES_NL1 = 120
+# instead of the routed subset. ⛔ ITS LIMIT IS THE SAME 60 (owner 2026-10-19, NL-1 dark merge: the proposed
+# 120 is not implemented). The whole catalog (~91 actions) is over it, so an NL-1 request is refused whole,
+# never trimmed — NL-1 cannot be turned on until the owner decides its limit.
+MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000

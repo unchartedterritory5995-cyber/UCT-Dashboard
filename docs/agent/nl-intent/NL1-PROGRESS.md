@@ -107,7 +107,9 @@ Branch `feat/agent-nl1-rebased`, worktree `C:\UCT\nl1-rebase`, on master `7d0ee0
 | S6 under NL-1 | The model resolves "it". It is sent the clicked chart as `selected: true` beside `conversation_memory.subject_chart`, and the glossary tells it the click comes first. Panel and server tests added |
 | Approval binding under NL-1 | Two panel tests: a card whose list changed on another device is refused at "do it" (exact lane, no model call); an exact-lane Undo withdraws a waiting card |
 | Reachability rail | `agent/eval/` → `agent/testing/`: test infrastructure is recognised by path. Same depth, so imports and the sealed hash lock are unchanged |
+| **Both switches or none** | The browser took part of NL-1's path with only its own switch on. `GET /api/agent/config` now reports `nl1` (the server's `UCT_AGENT_NL1`), and `nl1Enabled()` needs that AND the browser switch, exactly `'1'`. Until the config answers, and on any error, the browser runs the legacy path end to end |
+| **Limit: 60 for NL-1 too** | Owner, 2026-10-19 (dark merge): the proposed 120 is not implemented. `MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES`. NL-1's whole catalog (~91) is over it, so an NL-1 request is refused whole before any model call, and the eval runner refuses it the same way. Behaviour tests lift the limit inside the test only |
 
-Production impact with both flags off (the default): none. The only change the legacy path sees is where `seeBoard` is called, earlier in the same `send()`. It is idempotent, so the result is unchanged.
+Production impact with both switches off (the default): none. The legacy path sees two changes, neither changes its result: `seeBoard` is called earlier in the same `send()` (idempotent), and `/api/agent/config` carries one more field.
 
-Still owed before NL-1 can be turned on (unchanged from iteration 3): the real-model evaluation (T1–T3, then the sealed sets) under a separately authorized, capped eval budget; the owner's approval of the NL-1-only 120-action limit; and both flags.
+Still owed before NL-1 can be turned on: the owner's limit decision (NL-1 cannot run under 60); then the real-model evaluation (T1–T3, then the sealed sets) under a separately authorized, capped eval budget; then both switches.

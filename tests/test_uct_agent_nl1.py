@@ -40,6 +40,15 @@ TF15 = {"action": "chart.setTimeframe", "target": "c1", "args": {"timeframe": "1
 
 @pytest.fixture
 def flag_on(monkeypatch):
+    # NL-1's BEHAVIOUR read against the whole catalog. The shipped limit is 60 for NL-1 too (owner
+    # 2026-10-19), which the whole catalog is over: only here, the limit is lifted so the behaviour can be
+    # tested. The shipped limit itself is held by the tests that use `flag_on_as_shipped`.
+    monkeypatch.setenv(turn.NL1_ENV, "1")
+    monkeypatch.setattr(turn, "MAX_CAPABILITIES_NL1", 200)
+
+
+@pytest.fixture
+def flag_on_as_shipped(monkeypatch):
     monkeypatch.setenv(turn.NL1_ENV, "1")
 
 
@@ -163,18 +172,30 @@ def test_the_glossary_is_data_and_every_entry_names_its_source():
     assert g["terms"] and all(t.get("words") and t.get("means") and t.get("source") for t in g["terms"])
 
 
-# ── the NL-1 contract limit: 120 with the flag, 60 without (owner decision 4) ─────────────────────────
+# ── the limit: 60 for every request, NL-1 included (owner 2026-10-19: the proposed 120 is not implemented) ─
 def _caps(n):
     return [{**CATALOG[0], "name": f"chart.fake{i}"} for i in range(n)]
 
 
-def test_nl1_limit_boundary_120_accepted_121_refused(flag_on):
+def test_the_shipped_nl1_limit_is_the_legacy_60():
+    assert turn.MAX_CAPABILITIES == 60 and turn.MAX_CAPABILITIES_NL1 == 60
+
+
+def test_nl1_limit_boundary_60_accepted_61_refused(flag_on_as_shipped):
     ok = caller_of(_resp(nl1_env("answer", reply="ok")))
-    turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES_NL1), caller=ok, interpreter="nl1")
+    turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(60), caller=ok, interpreter="nl1")
     assert len(ok.calls) == 1
     with pytest.raises(turn.TurnError, match="too many actions"):
-        turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES_NL1 + 1),
+        turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(61),
                       caller=caller_of(_resp(nl1_env("answer", reply="ok"))), interpreter="nl1")
+
+
+def test_as_shipped_nl1_whole_catalog_is_refused_before_any_model_call(flag_on_as_shipped):
+    assert len(CATALOG) > 60
+    c = caller_of(_resp(nl1_env("apply", [TF15])))
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.run_turn(message="flip it to 15m", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert c.calls == []
 
 
 @pytest.mark.parametrize("interpreter", [None, "nl1"])

@@ -2,9 +2,19 @@
 import json
 import os
 
+import pytest
+
 from api.services.uct_agent import turn
 from tests.test_uct_agent import _resp, caller_of
 from tools import agent_eval_proxy as px
+
+
+@pytest.fixture(autouse=True)
+def _whole_catalog_limit(monkeypatch):
+    # The shipped NL-1 limit is 60 (owner 2026-10-19), which NL-1's whole catalog is over: the runner refuses
+    # such a request exactly as the server would. These tests check the runner's OTHER behaviour, so the
+    # limit is lifted here only. The real eval needs the owner's limit decision first.
+    monkeypatch.setattr(turn, "MAX_CAPABILITIES_NL1", 200)
 
 GOLDEN = os.path.join(os.path.dirname(__file__), "..", "app", "src", "agent", "contract", "manifest.golden.json")
 CAPS = json.load(open(GOLDEN, encoding="utf-8"))["capabilities"]

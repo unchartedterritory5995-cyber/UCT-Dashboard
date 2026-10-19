@@ -39,7 +39,7 @@ Both are **incorrect interpretations whose execution was prevented**. Neither co
 4. **The eval's execution check is narrower than the panel's.** It runs the real planner and policy, but not `resolveArgs` (name→id), the protected-layout guard or async `prepare`. It can therefore report a planner refusal the panel would not, and it under-states the protection layer. It never over-states safety: the panel runs more checks, not fewer.
 5. **Some original-corpus (dev) expectations are incomplete** (e.g. "2" / "amd" after a question, with no arguments). Genuine no-ops are accepted by the scorer.
 6. **Request size.** ~24k tokens (FULL) or ~17k (LEAN), ~95% of it a cacheable prefix. Real caching, latency and reasoning tokens are unmeasured until T1.
-7. **The contract change is a proposal:** up to 120 actions per NL-1 request, server flag only. It needs separate owner approval before any production use.
+7. **The action limit is 60 for NL-1 too** (owner, 2026-10-19 dark merge: the proposed 120 is not implemented). NL-1's whole catalog (~91 actions) is over it, so with both switches on every NL-1 request would be refused whole, before any model call. NL-1 and its real-model evaluation therefore need the owner's limit decision first.
 8. **Legacy phrase layers are bypassed under NL-1, not deleted.** Removal happens only after NL-1 passes its gates and runs at parity.
 
 ## Evaluation instructions
