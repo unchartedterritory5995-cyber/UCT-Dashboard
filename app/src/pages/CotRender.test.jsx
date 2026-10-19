@@ -89,6 +89,30 @@ describe('/r/cot — the Discord /cot render page', () => {
     expect(window.__cotBoardW).toBe(COT_EXPORT_W)
   })
 
+  it('shows the price chip even when the price lands after the COT rows', async () => {
+    // Measured on the live render 2026-10-19: the "▼ 2.0% wk" chip beside the price was
+    // missing whenever the price arrived second, because the readouts were only written
+    // when the rows changed.
+    fetchMock = vi.fn((url) => {
+      const u = String(url)
+      if (/\/price/.test(u)) return new Promise((res) => setTimeout(() => res(routeFetch(u)), 300)).then((p) => p)
+      return routeFetch(u)
+    })
+    globalThis.fetch = fetchMock
+    mount('symbol=ES&token=tkn')
+    await waitFor(() => expect(window.__cotReady).toBe(true), { timeout: 4000 })
+    expect(screen.getByText(/% wk$/)).toBeVisible()
+  })
+
+  it('stretches the charts to the positioning panel instead of leaving a strip under them', async () => {
+    const { container } = mount('symbol=ES&token=tkn')
+    await waitFor(() => expect(window.__cotReady).toBe(true), { timeout: 4000 })
+    const wrap = [...container.querySelectorAll('#cot-export div')].find((d) => d.style.alignSelf === 'stretch')
+    expect(wrap).toBeTruthy()
+    expect(wrap.style.height).toBe('auto')
+    expect(wrap.style.minHeight).toBe('860px')
+  })
+
   it('honours the lookback', async () => {
     mount('symbol=ES&lookback=2y&token=tkn')
     await waitFor(() => expect(window.__cotReady).toBe(true), { timeout: 4000 })

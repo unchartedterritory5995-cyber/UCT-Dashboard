@@ -132,14 +132,45 @@ def test_the_job_posts_the_image_and_words_when_it_cannot(route):
     assert edits[0]["png"] == b"\x89PNG-es" and edits[0]["filename"] == "cot-es.png"
     assert "**ES**" in edits[0]["content"] and "1Y" in edits[0]["content"]
 
+    calls = []
+
     def boom(*a, **k):
+        calls.append(1)
         raise RuntimeError("renderer down")
     rt.run_cot_job("APP", "TOK", "ES", "1Y", render_fn=boom, edit_fn=lambda a, t, **kw: edits.append(kw))
     assert "png" not in edits[1] and "could not be drawn" in edits[1]["content"]
+    assert len(calls) == 2, "one retry, then words"
+
+
+def test_a_cold_first_render_is_retried_once(route):
+    """Measured live 2026-10-19: the first /cot ES after a deploy came back undrawn; the
+    same request a minute later drew. The member should not have to send it twice."""
+    client, sk, rt = route
+    edits, tries = [], []
+
+    def cold_then_warm(*a, **k):
+        tries.append(1)
+        return None if len(tries) == 1 else b"\x89PNG-warm"
+    rt.run_cot_job("APP", "TOK", "ES", "1Y", render_fn=cold_then_warm,
+                   edit_fn=lambda a, t, **kw: edits.append(kw))
+    assert len(tries) == 2 and edits == [edits[0]] and edits[0]["png"] == b"\x89PNG-warm"
+
+
+def test_the_renderer_is_given_time_for_a_cold_market(img):
+    """GC 5Y measured 26.8 s cold; 25 s lost the first /cot after a deploy. The renderer caps at 60 s."""
+    from api.services.render_gate import MEMBER
+    c = _Client()
+    img.render_cot_png("GC", "5Y", cls=MEMBER, client=c)
+    assert 40000 <= c.calls[0]["ready_timeout_ms"] <= 60000
+    assert img.RENDER_TIMEOUT_S * 1000 > c.calls[0]["ready_timeout_ms"]
+
+
+def test_the_job_never_raises_even_when_discord_is_down(route):
+    client, sk, rt = route
 
     def cannot_send(*a, **k):
         raise RuntimeError("discord down")
-    rt.run_cot_job("APP", "TOK", "ES", "1Y", render_fn=lambda *a, **k: None, edit_fn=cannot_send)  # never raises
+    rt.run_cot_job("APP", "TOK", "ES", "1Y", render_fn=lambda *a, **k: None, edit_fn=cannot_send)
 
 
 # ── the render doors ─────────────────────────────────────────────────────────

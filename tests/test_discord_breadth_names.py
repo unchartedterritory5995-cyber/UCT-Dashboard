@@ -31,7 +31,8 @@ def _all():
 
 def test_every_name_fits_a_discord_ticker_and_starts_with_UCT():
     names = list(_all())
-    assert len(names) > 300, "the catalogue is the whole breadth family, not the 45"
+    # ~205 since COT left for /cot (it was ~380 with the 174 COT names).
+    assert len(names) > 150, "the catalogue is the whole breadth family, not the 45"
     assert all(TICKER_RE.match(n) and n.startswith("UCT") for n in names)
 
 
@@ -77,12 +78,21 @@ def test_the_45_shipped_symbols_keep_their_names():
     ("UCTNAAIM", "SENT:NAAIM", "indicator"),
     ("UCTAAIIBULL", "AAII:BULLS", "indicator"),
     ("UCTVIX9D", "CBOE:VIX9D", "indicator"),
-    ("UCTESCOMM", "COT:ES:COMM", "indicator"),
-    ("UCTSR3LARGE", "COT:SR3:LARGE", "indicator"),
 ])
 def test_names_map_to_the_sites_own_symbols(name, symbol, kind):
     e = _all()[name]
     assert (e.symbol, e.kind) == (symbol, kind)
+
+
+def test_cot_positioning_is_not_offered_in_chart_it_has_its_own_command():
+    """Owner 2026-10-19: once /cot was live, the UCT…COMM/LARGE/SMALL names left /chart."""
+    from api.services import discord_breadth_names as dbn
+    from api.services.market_indicators import registry as reg
+    assert any(s.upper().startswith("COT:") for s in reg.SERIES_IDS)     # the series still exist on the site
+    names = _all()
+    assert not [n for n, e in names.items() if e.symbol.upper().startswith("COT:")]
+    assert "UCTESCOMM" not in names and dbn.lookup("UCTESCOMM") is None
+    assert "UCTNAAIM" in names                                           # the other weekly series stay
 
 
 def test_publication_belongs_to_each_series_own_authority(monkeypatch):
@@ -138,15 +148,15 @@ def test_breadth_adjust_charts_a_market_indicator_as_breadth(everything_publishe
 
 
 def test_a_typed_weekly_series_opens_on_the_weekly_chart(everything_published):
-    """UCTESCOMM on a daily chart read "+0 (+0.00%)": COT is held between weekly reports."""
+    """A weekly series on a daily chart read "+0 (+0.00%)": it is held between weekly reports."""
     from api.routers import discord_interactions as rt
     from api.services import discord_interactions as di
-    assert rt.weekly_first(di.ChartRequest("UCTESCOMM", "D")).tf == "W"
+    assert rt.weekly_first(di.ChartRequest("UCTAAIIBULL", "D")).tf == "W"
     assert rt.weekly_first(di.ChartRequest("UCTNAAIM", "D")).tf == "W"
     assert rt.weekly_first(di.ChartRequest("UCTNAMO", "D")).tf == "D"     # a daily series stays daily
     assert rt.weekly_first(di.ChartRequest("NVDA", "60")).tf == "60"
     # the D button under a chart still means D: breadth_adjust never forces weekly
-    req, _ = rt.breadth_adjust(di.ChartRequest("UCTESCOMM", "D"), {})
+    req, _ = rt.breadth_adjust(di.ChartRequest("UCTNAAIM", "D"), {})
     assert req.tf == "D"
 
 

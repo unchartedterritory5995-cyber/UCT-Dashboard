@@ -7,7 +7,9 @@ none of them: its ticker pattern refuses a colon, and a plain name like NAMO wen
 down the stock path and drew the candle stand-in with stock stats.
 
 Owner ruling 2026-10-19: every one is typed as "UCT" + a short code, no colon
-(`UCTNQA50`, `UCTNAMO`, `UCTESCOMM`). The Discord name is what the reply, the
+(`UCTNQA50`, `UCTNAMO`). COT positioning was in this list for a few hours and left it
+the same day for its own command, `/cot`, which draws the site's whole COT Data page
+(owner: "remove them once we are completed with this new build"). The Discord name is what the reply, the
 buttons and every custom_id carry (they only allow `[A-Z0-9.^-]`); it is turned into
 the site's own symbol only where data is read: `fetch_bars` (the stand-in) and
 `/api/r/breadth-bars` (the house page).
@@ -46,8 +48,7 @@ _AAII = {"BULLS": "BULL", "BEARS": "BEAR", "NEUTRAL": "NEUT"}
 
 #: Group labels for the autocomplete's round-robin and the help text.
 _FAMILY_GROUP = {"mcclellan": "McClellan", "breadth": "Breadth indicators",
-                 "sentiment": "Sentiment", "volatility": "Volatility",
-                 "positioning": "COT positioning"}
+                 "sentiment": "Sentiment", "volatility": "Volatility"}
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,7 @@ class Entry:
     title: str       # what the reply and the watermark say
     group: str       # autocomplete group
     kind: str        # 'breadth' (breadth_symbols) | 'indicator' (market_indicators)
-    weekly: bool = False  # one observation a week (COT, AAII, NAAIM): opens on the weekly chart
+    weekly: bool = False  # one observation a week (AAII, NAAIM): opens on the weekly chart
 
 
 _LOCK = threading.Lock()
@@ -65,13 +66,12 @@ _CANDIDATES: Optional[dict] = None
 
 
 def _indicator_name(series_id: str) -> Optional[str]:
-    """`COT:ES:COMM` → `UCTESCOMM`, `NASDAQ:MCO` → `UCTNAMO`, `CBOE:VIX9D` → `UCTVIX9D`."""
+    """`NASDAQ:MCO` → `UCTNAMO`, `CBOE:VIX9D` → `UCTVIX9D`. (COT series are not offered
+    in /chart; they have `/cot`.)"""
     sid = series_id.upper()
     if sid in _ESTABLISHED:
         return "UCT" + _ESTABLISHED[sid]
     parts = sid.split(":")
-    if parts[0] == "COT" and len(parts) == 3:
-        return "UCT" + parts[1] + parts[2]
     if parts[0] == "AAII" and len(parts) == 2:
         return "UCTAAII" + _AAII.get(parts[1], parts[1])
     if parts[0] in _NAMESPACE_CODE and len(parts) == 2:
@@ -112,6 +112,11 @@ def _build() -> dict:
     for sid in reg.SERIES_IDS:
         s = reg.SERIES.get(sid)
         if s is None:
+            continue
+        # COT positioning has its own command since 2026-10-19: `/cot ES` draws the site's
+        # whole COT Data page (every group, open interest, the positioning read), which one
+        # net-position line under /chart could not. Owner ruling: the names leave /chart.
+        if s.id.upper().startswith("COT:"):
             continue
         nm = _indicator_name(s.id)
         if nm is None:

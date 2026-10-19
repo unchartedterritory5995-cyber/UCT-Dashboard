@@ -170,7 +170,7 @@ export default function CotData({ render = null } = {}) {
   const [bars,         setBars]         = useState(null)   // weekly bars of the price proxy, or null
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
-  const [chartSize,    setChartSize]    = useState(render ? { height: render.height || 860 } : null)   // { width?, height? } or null = default
+  const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default (render mode sizes itself below)
   const [narrStatus,   setNarrStatus]   = useState('idle') // the rail's written read, for render readiness
   const [resizing,     setResizing]     = useState(null)   // 'right' | 'bottom' | 'corner' | null
   const dropdownRef    = useRef(null)
@@ -504,12 +504,15 @@ export default function CotData({ render = null } = {}) {
     }
   }
 
-  // New symbol/lookback: resync readouts to the fresh latest report
+  // New symbol/lookback: resync readouts to the fresh latest report. Also when the
+  // price series lands or the panes first mount: the price readout's week-over-week
+  // delta is written here, and the price can arrive after the COT rows (measured on
+  // the /cot render 2026-10-19, where the "▼ 2.0% wk" chip was missing).
   useEffect(() => {
     lastHoverRef.current = undefined
     applyHover(null, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [view, priceView, hasData])
 
   // Every pane's tooltip lists ALL series for the hovered week — the hovered
   // pane's own series first (highlighted), the rest beneath. It is ONE HTML
@@ -885,7 +888,11 @@ export default function CotData({ render = null } = {}) {
       <div
         ref={chartWrapRef}
         className={styles.chartWrap}
-        style={chartSize ? {
+        style={render ? {
+          // The image: at least render.height tall, and stretched to the positioning
+          // panel when the panel runs longer, so no empty strip sits under the charts.
+          height: 'auto', minHeight: `${render.height || 860}px`, alignSelf: 'stretch',
+        } : chartSize ? {
           width:  chartSize.width  ? `${chartSize.width}px`  : undefined,
           height: chartSize.height ? `${chartSize.height}px` : undefined,
         } : undefined}

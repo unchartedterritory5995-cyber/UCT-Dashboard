@@ -92,8 +92,8 @@ BREADTH_CHOICES_SIDE = 5
 
 def breadth_choices(q: str) -> list[dict]:
     """Breadth-family series for the /chart autocomplete (`discord_breadth_names`:
-    the 45 UCT symbols, the US/NYSE/Nasdaq library, McClellan, sentiment,
-    volatility, COT — every one a "UCT…" name).
+    the 45 UCT symbols, the US/NYSE/Nasdaq library, McClellan, sentiment and
+    volatility — every one a "UCT…" name; COT has its own `/cot`).
 
     Typing "UCT…" (or "breadth") is asking for the catalogue, so it may fill the
     list; the bare "UCT"/"BREADTH" takes the groups in turn so no group is cut off
@@ -272,12 +272,19 @@ def run_cot_job(app_id: str, token: str, symbol: str, lookback: str, *,
     edit = edit_fn or di.edit_original
     names, _ = di._cot_names()
     title = f"**{symbol}** · {names.get(symbol, symbol)} · COT positioning ({lookback})"
-    try:
-        # ⛔ MEMBER: a member typed /cot and is watching the deferred reply.
-        png = render(symbol, lookback, cls=MEMBER)
-    except Exception as e:  # noqa: BLE001 — a background job must never raise
-        log.warning("[cot] render failed for %s: %s", symbol, e)
-        png = None
+    png = None
+    # ONE retry. Measured live 2026-10-19: the first /cot ES after a deploy came back
+    # undrawn and the same request a minute later drew in 2.9 s. A market's first price
+    # read after a restart is cold (10-27 s), so a second attempt usually lands warm.
+    for attempt in (1, 2):
+        try:
+            # ⛔ MEMBER: a member typed /cot and is watching the deferred reply.
+            png = render(symbol, lookback, cls=MEMBER)
+        except Exception as e:  # noqa: BLE001 — a background job must never raise
+            log.warning("[cot] render attempt %d failed for %s: %s", attempt, symbol, e)
+            png = None
+        if png:
+            break
     try:
         if png:
             edit(app_id, token, content=title, png=png, filename=f"cot-{symbol.lower()}.png")
@@ -500,7 +507,7 @@ def _served_window(data: dict) -> str | None:
 
 
 def weekly_first(req):
-    """A freshly typed chart of a weekly series (COT, AAII, NAAIM) opens on the weekly
+    """A freshly typed chart of a weekly series (AAII, NAAIM) opens on the weekly
     chart: held on a daily chart its header reads "+0 (+0.00%)" six days in seven, and
     the weekly header is the change since the last report. Only the typed command calls
     this; the D / W buttons under a chart still mean what they say."""

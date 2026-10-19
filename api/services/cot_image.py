@@ -30,7 +30,12 @@ log = logging.getLogger(__name__)
 # (CotRender.jsx) and the shot is `#cot-export`'s own box. Height is headroom for
 # the positioning panel, which can run taller than the 860px chart.
 VIEW_W, VIEW_H, SCALE = 1600, 2200, 2
-RENDER_TIMEOUT_S = 45.0
+# Readiness gets 45 s (the renderer allows up to 60): a market's first price read after
+# a restart measured 10-27 s cold on 2026-10-19 (GC 5Y: 26.8 s), and the 25 s this
+# started with lost the first /cot after a deploy. The HTTP wait covers readiness plus
+# navigation and the screenshot.
+READY_TIMEOUT_MS = 45000
+RENDER_TIMEOUT_S = 75.0
 
 LOOKBACKS = ("1Y", "2Y", "3Y", "5Y")
 DEFAULT_LOOKBACK = "1Y"
@@ -39,7 +44,7 @@ DEFAULT_LOOKBACK = "1Y"
 # Friday pre-warm; a 30-minute cache collapses a burst of the same request to one
 # render while a fresh Friday report still shows up within the half hour.
 _CACHE_TTL_S = float(os.environ.get("COT_IMAGE_CACHE_TTL_S", "1800"))
-_FLIGHT_WAIT_S = float(os.environ.get("COT_IMAGE_FLIGHT_WAIT_S", "30"))
+_FLIGHT_WAIT_S = float(os.environ.get("COT_IMAGE_FLIGHT_WAIT_S", "80"))   # outlasts one render
 _SLOT_WAIT_S = float(os.environ.get("COT_IMAGE_SLOT_WAIT_S", "15"))
 
 _CACHE: dict[tuple, tuple[float, bytes]] = {}
@@ -163,7 +168,7 @@ def _render_uncached(symbol: str, lookback: str, *, cls: int, client=None) -> by
             r = c.post(f"{renderer}/render", headers={"X-Render-Secret": secret, **render_ids.render_headers()}, json={
                 "url": url, "selector": "#cot-export",
                 "width": VIEW_W, "height": VIEW_H, "scale": SCALE,
-                "settle_ms": 500, "ready_js": READY_JS, "ready_timeout_ms": 25000,
+                "settle_ms": 500, "ready_js": READY_JS, "ready_timeout_ms": READY_TIMEOUT_MS,
                 "probe_js": PROBE_JS,
             })
             if not r.is_success:
