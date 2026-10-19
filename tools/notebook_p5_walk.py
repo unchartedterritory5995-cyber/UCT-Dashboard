@@ -344,9 +344,16 @@ def open_from_a_style(pg, base: str):
     caret.wait_for(timeout=T)
     caret.click(timeout=T)
     pg.get_by_role("menuitem", name="From a style").first.click(timeout=T)
-    group = pg.get_by_role("group", name="Start from a kind of note")
+    # Scoped to the sheet: an EMPTY notebook also renders a kind picker (with its own offer) inline in the
+    # list's empty state, so a page-wide locator matches twice (run 4, p5-walk-20261018T0135Z).
+    group = sheet(pg).get_by_role("group", name="Start from a kind of note")
     group.wait_for(timeout=T)
     return group
+
+
+def sheet(pg):
+    """The New note sheet the caret's From a style opened."""
+    return pg.get_by_role("dialog").filter(has=pg.get_by_role("group", name="Start from a kind of note")).first
 
 
 def run_tour(pg, st: Step, tour_id: str, declared: int, seen: dict) -> dict:
@@ -419,7 +426,9 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         st.check("the member starts with no styles of their own (the styles list)", not mine, json.dumps([s.get("name") for s in mine]))
         group = open_from_a_style(pg, base)
         st.read("kind picker", group.inner_text())
-        offer = pg.get_by_role("region", name=OFFER_TITLE)
+        S["offers_on_page"] = pg.get_by_role("region", name=OFFER_TITLE).count()
+        st.read("offer regions on the page (the sheet's, plus the empty list's own)", S["offers_on_page"])
+        offer = sheet(pg).get_by_role("region", name=OFFER_TITLE)
         offer.wait_for(timeout=T)
         text = st.read("offer", offer.inner_text())
         st.check("the offer says what it does", OFFER_LINE in text, text)
@@ -428,7 +437,7 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         st.check("Not now is offered", offer.get_by_role("button", name="Not now", exact=True).count() == 1, "Not now")
 
     def s2(st):
-        offer = pg.get_by_role("region", name=OFFER_TITLE)
+        offer = sheet(pg).get_by_role("region", name=OFFER_TITLE)
         with pg.expect_response(lambda r: r.request.method == "POST" and f"/starter-packs/{PACK}" in r.url,
                                 timeout=T) as resp:
             offer.get_by_role("button", name="Swing", exact=True).click(timeout=T)
@@ -450,11 +459,12 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
     def s3(st):
         listing = ctx.request.get(base + "/api/j2/journal-styles").json()
         kind = next(k["name"] for k in listing["kinds"] if k["id"] == TRADE_PLAN_KIND)
-        group = pg.get_by_role("group", name="Start from a kind of note")
-        if not group.is_visible():
-            group = open_from_a_style(pg, base)
-        pg.get_by_role("button", name=f"Choose another style for {kind}", exact=True).click(timeout=T)
-        lst = pg.get_by_role("list", name=f"Styles for {kind}")
+        box = sheet(pg)
+        if not box.is_visible():
+            open_from_a_style(pg, base)
+            box = sheet(pg)
+        box.get_by_role("button", name=f"Choose another style for {kind}", exact=True).click(timeout=T)
+        lst = box.get_by_role("list", name=f"Styles for {kind}")
         lst.wait_for(timeout=T)
         st.read("styles for the kind", lst.inner_text())
         with pg.expect_response(lambda r: r.request.method == "POST" and re.search(r"/api/j2/notes(\?|$)", r.url),
