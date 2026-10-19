@@ -75,6 +75,10 @@ import notebook_fin_walk as fw  # noqa: E402  -- flag_sets, settle_first_run, BE
 VIEWPORTS = fw.VIEWPORTS
 LIBRARY_FLAGS = ["NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED"]
 HUB_PORT = 8077     # the hub sandbox owns it (CLAUDE.md); this walk refuses it
+STEPS_PER_VIEWPORT = 7
+# Step 4 expects "the image was never read", which holds only while OCR is dark. The flag is not a NOTEBOOK_ name, so
+# fs["all_names"] never pops it: without this, a box with J2_OCR_ENABLED set and an engine installed reads the image.
+OCR_FLAG = "J2_OCR_ENABLED"
 # Sandbox seed (throwaway data dir only; the walk tools' shared sandbox password).
 AUTHOR = ("p3bwalk-author@local.dev", "LocalTest2026!", "P3b Author")
 MEMBER = ("p3bwalk-member@local.dev", "LocalTest2026!", "P3b Member")
@@ -623,6 +627,7 @@ def set_env(fs: dict) -> list[str]:
     on = sorted(set(fs["c1"]) | set(LIBRARY_FLAGS) | {EXAMPLE_FLAG})
     for name in fs["all_names"]:
         os.environ.pop(name, None)
+    os.environ.pop(OCR_FLAG, None)
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
         os.environ.pop(k, None)
     os.environ.update({name: "1" for name in on})
@@ -642,6 +647,10 @@ def main(argv=None) -> int:
                     help="a DELIBERATELY BROKEN run: unapproved-example leaves the example unapproved in step 5")
     args = ap.parse_args(argv)
     BREAK = args.brk
+    viewports = [x.strip() for x in args.viewports.split(",") if x.strip()]
+    if not viewports:
+        print("REFUSED: --viewports names no viewport, so the walk would run no step and prove nothing")
+        return 3
     why = h.refuse_shared_root(args.data_dir)
     if why:
         print(f"REFUSED: {why}")
@@ -664,6 +673,7 @@ def main(argv=None) -> int:
     on = set_env(fs)
     base = f"http://127.0.0.1:{args.port}"
     REC["ocr_engine_on_box"] = shutil.which("tesseract") or os.environ.get("TESSERACT_BINARY") or None
+    REC["ocr_flag_in_sandbox_env"] = os.environ.get(OCR_FLAG)     # None: set_env popped it, so OCR is dark either way
     REC.update({"deliberately_broken": BREAK, "tip": args.tip, "tool_tree": tree, "base": base,
                 "data_dir": str(data_dir), "flags_on": on,
                 "started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "INCOMPLETE (run did not finish)"})
@@ -689,7 +699,7 @@ def main(argv=None) -> int:
                 try:
                     provision(browser, base)
                     run = datetime.now(timezone.utc).strftime("%H%M%S")
-                    for vp in [x.strip() for x in args.viewports.split(",") if x.strip()]:
+                    for vp in viewports:
                         story(browser, base, vp, run)
                 except h.SetupFailed as e:
                     not_run = str(e)[:400]
@@ -713,14 +723,23 @@ def main(argv=None) -> int:
     print(REC["first_line"])
     REC["driver_imported_api"] = sorted(m for m in sys.modules if m == "api" or m.startswith("api."))
     counts = {v: sum(1 for s in REC["steps"] if s["verdict"] == v) for v in ("PASS", "FAIL", "INCONCLUSIVE")}
+    expected = STEPS_PER_VIEWPORT * len(viewports)
     REC.update({"not_run": not_run, "failure": failure, "counts": counts, "port_free_after": not h.port_busy(args.port),
+                "steps_expected": expected, "steps_recorded": len(REC["steps"]),
                 "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "status": "COMPLETE" if not (not_run or failure) else "NOT COMPLETE"})
     flush()
     print(f"VERDICT: {counts} not_run={not_run} failure={failure} broken={BREAK}; raw log: {OUT / 'walk.json'}")
     if not_run:
         return 3
-    return 1 if failure or counts["FAIL"] or counts["INCONCLUSIVE"] else 0
+    return exit_code(failure, counts, len(REC["steps"]), expected)
+
+
+def exit_code(failure, counts: dict, recorded: int, expected: int) -> int:
+    """0 only for a finished walk whose every expected step was recorded and passed; a short walk is never a pass."""
+    if failure or counts["FAIL"] or counts["INCONCLUSIVE"]:
+        return 1
+    return 0 if expected > 0 and recorded == expected else 1
 
 
 if __name__ == "__main__":
