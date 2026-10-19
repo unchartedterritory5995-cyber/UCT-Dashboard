@@ -108,6 +108,58 @@ def test_an_empty_house_render_falls_back_to_a_LINE_for_breadth():
     assert got.get("chart_type") == "line" and got.get("show_volume") is False
 
 
+def test_typing_UCT_lists_the_breadth_catalogue_across_every_group():
+    """A bare "UCT" used to stop at FIVE suggestions, all from the first group (MA breadth),
+    so the momentum, highs/lows and regime metrics could not be discovered from the picker."""
+    from api.routers import discord_interactions as rt
+    from api.services import breadth_symbols as bs
+    got = rt.breadth_choices("UCT")
+    assert len(got) == rt.BREADTH_CHOICES_MAX
+    groups = {next(g for s, _m, _n, g in bs._ROWS if s == c["value"]) for c in got}
+    assert groups == {g for *_x, g in bs._ROWS}, "a group fell off the 25-choice list"
+    assert all(c["value"] in bs.SYMBOLS and len(c["name"]) <= 100 for c in got)
+
+
+def test_a_narrower_UCT_prefix_lists_every_match_and_a_name_search_stays_short():
+    from api.routers import discord_interactions as rt
+    from api.services import breadth_symbols as bs
+    ma = [c["value"] for c in rt.breadth_choices("uctA")]
+    assert ma == [s for s, *_x in bs._ROWS if s.startswith("UCTA")] and len(ma) > 5
+    assert len(rt.breadth_choices("high")) <= rt.BREADTH_CHOICES_SIDE      # a word search is a side dish
+    assert rt.breadth_choices("NVDA") == [] and rt.breadth_choices("") == []
+
+
+def test_the_autocomplete_leaves_room_for_a_real_UCT_ticker(monkeypatch):
+    """UCTT (Ultra Clean) is a real stock; the breadth list must not crowd it out."""
+    from api.routers import discord_interactions as rt
+    from api.routers import ticker_search as ts
+    monkeypatch.setattr(ts, "ticker_search", lambda q, limit, type: {"results": [{"ticker": "UCTT", "name": "Ultra Clean"}]})
+    vals = [c["value"] for c in rt.fetch_ticker_choices("UCT")]
+    assert "UCTT" in vals and len(vals) <= 25 and sum(v.startswith("UCT") and v != "UCTT" for v in vals) == rt.BREADTH_CHOICES_MAX
+
+
+def _buttons(req):
+    """Every button label under the chart with the gear OPEN (where Volume / Dark Pools live)."""
+    import dataclasses
+    from api.services import discord_interactions as di
+    rows = di.chart_components(dataclasses.replace(req, expanded=True), dict(di.prefs_mod.DEFAULTS))
+    return [c.get("label") for row in rows for c in row["components"] if c.get("type") == 2]
+
+
+def test_a_breadth_chart_offers_no_volume_or_dark_pool_button():
+    from api.services import discord_interactions as di
+    stock = _buttons(di.ChartRequest("NVDA", "D"))
+    breadth = _buttons(_breadth_req())
+    assert any(str(l).startswith("Volume") for l in stock) and "Dark Pools" in stock   # control: the stock has them
+    assert not any(str(l).startswith("Volume") for l in breadth) and "Dark Pools" not in breadth
+
+
+def test_the_help_names_the_breadth_catalogue():
+    from api.services import discord_interactions as di
+    t = di.chart_help_text()
+    assert "type `UCT`" in t and "UCTA50" in t and len(t) < 2000
+
+
 def test_render_chart_png_draws_a_line_chart():
     from api.services.discord_chart_render import render_chart_png
     bars = _daily(120)
