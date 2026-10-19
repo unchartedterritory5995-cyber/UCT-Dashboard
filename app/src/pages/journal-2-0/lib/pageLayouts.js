@@ -79,7 +79,7 @@ const validEntry = (e) =>
 
 // One saved list -> a full list. Not an array: the default. Otherwise keep the valid entries
 // (unknown ids included), the first occurrence of each id, and append any registry id the saved list
-// lacks at the END with its defaultShown -- so a panel a later release adds appears hidden and last.
+// lacks at the END with its defaultShown -- so a panel a later release adds appears last, shown or hidden as its defaultShown says.
 // The list is then held to LAYOUT_MAX_ENTRIES, the server's ceiling, so a layout this model writes is
 // never a 400: registry panels always stay, and unknown ids are dropped from the END to fit.
 function normalizeList(page, saved) {
