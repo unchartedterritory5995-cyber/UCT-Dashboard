@@ -38,7 +38,15 @@ _ADDED_SINCE_GOLDEN = ("uct_flat_top_breakout_ftb4", "uct_inside_day_id4")
 def swept():
     SW.load_detectors()
     from api.services.pattern_engine import detect_all
+    from api.services.pattern_engine import display
     from api.services.pattern_engine.primitives.context import build_context
+
+    # The bull_flag geometry round-3 upper lane (display.stamp_upper_lane_v3, 0102713c46)
+    # post-dates this golden and has its own byte-for-byte rail (tests/test_bull_flag_geom_v3.py
+    # and the lab golden). It is switched off here, the same way the flag suites do, so
+    # this rail keeps guarding everything the flat-top drawing must not move.
+    mp = pytest.MonkeyPatch()
+    mp.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
 
     raised = []
 
@@ -56,6 +64,7 @@ def swept():
                          drop_ids=_ADDED_SINCE_GOLDEN)
     finally:
         lg.removeHandler(h)
+        mp.undo()
     return {"stripped": stripped, "kept": kept, "counts": counts, "raised": raised}
 
 
