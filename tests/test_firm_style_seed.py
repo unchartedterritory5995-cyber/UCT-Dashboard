@@ -12,8 +12,12 @@ each section proves:
     `style_payload` for its portable copy, which must equal what was seeded.
   * THE SEED: the payload shape P3a's adopt reads, idempotent, wired into `ensure_gallery_schema`, and an
     admin hide that survives a reboot.
-  * VISIBILITY (P5-R-C3): a firm style row is listed, and readable, only while the LIBRARY switch is on.
-    The starter-packs switch alone shows nothing.
+  * VISIBILITY (P5-AUD-1, superseding P5-R-C3): a firm style row is listed, and readable, in EVERY gallery
+    read path (the list, UCT picks, one item, the feed, an author page, the update list and plan, the review
+    queue, and the adopt, helpful, report and review doors) only while BOTH the library switch and the
+    starter-packs switch are on. Either one alone shows nothing, so NOTEBOOK_STARTER_PACKS_ENABLED=0 hides
+    them again. The one rule (`template_gallery._hidden_styles`) and its two renderings are held equal over
+    every switch state.
 """
 from __future__ import annotations
 
@@ -21,6 +25,7 @@ import importlib
 import json
 import os
 import tempfile
+import uuid
 
 import pytest
 
@@ -269,6 +274,7 @@ def test_a_boot_seeds_the_styles_and_leaves_the_outline_count_alone(booted):
 
 def test_reboot_keeps_an_admin_hide(conn, monkeypatch):
     monkeypatch.setenv(LIBRARY, "1")
+    monkeypatch.setenv(STARTER, "1")                  # a firm style is reviewable only with both on (P5-AUD-1)
     target = _style_rows(conn)[0]["id"]
     assert gallery.admin_act(ADMIN, target, "hide", conn=conn) is not None
     gallery.ensure_gallery_schema(conn)                                        # a reboot
@@ -277,10 +283,26 @@ def test_reboot_keeps_an_admin_hide(conn, monkeypatch):
     assert target not in {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn)}
 
 
-# ── 6. visibility (P5-R-C3) ─────────────────────────────────────────────────────────────
+# ── 6. visibility (P5-AUD-1, superseding P5-R-C3) ───────────────────────────────────────
 
 def _firm_style_ids_listed(conn, **kw):
     return {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn, **kw) if x["firm"] and x["itemType"] == "style"}
+
+
+#: Every (library, starter) state that must hide the firm style rows. ("1", "0") is the state production is in
+#: while P5 ships dark: the library is ARMED and the starter switch is not.
+HIDING_STATES = [("0", "0"), ("0", "1"), ("1", "0")]
+
+
+def _member_style_row(conn, user_id):
+    gid = uuid.uuid4().hex
+    conn.execute(
+        "INSERT INTO j2_template_gallery (id, user_id, kind, title, description, category, body_json, status,"
+        " listed_at, created_at, updated_at, preview_json, item_type) VALUES (?, ?, 'member', 'Mine', '',"
+        " 'journal', '{}', 'approved', '2026-10-10', '2026-10-10', '2026-10-10', '[]', 'style')",
+        (gid, user_id))
+    conn.commit()
+    return gid
 
 
 @pytest.mark.parametrize("starter", ["0", "1"])
@@ -294,8 +316,91 @@ def test_library_off_shows_no_firm_style_whatever_the_starter_switch(conn, monke
     assert all(gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is None for i in ids)
 
 
-def test_library_on_lists_every_firm_style_as_a_uct_pick(conn, monkeypatch):
+@pytest.mark.parametrize("starter", ["0", "1"])
+def test_library_off_still_lists_the_outlines_and_refuses_a_style_filter(conn, monkeypatch, starter):
+    """The library-off gallery is what it was before P5: outline rows only, and a style filter is the one 400
+    (`Unknown item type.`), whatever the starter switch says."""
+    gallery.seed_firm_templates(conn)
+    monkeypatch.setenv(LIBRARY, "0")
+    monkeypatch.setenv(STARTER, starter)
+    listed = gallery.list_gallery(MEMBER, conn=conn)
+    assert listed and {x["itemType"] for x in listed} == {"outline"}
+    assert {x["itemType"] for x in gallery.admin_queue(conn=conn)["hidden"]} <= {"outline"}
+    with pytest.raises(gallery.GalleryError, match="Unknown item type"):
+        gallery.list_gallery(MEMBER, item_type="style", conn=conn)
+
+
+def _starter_installed_copy(conn, monkeypatch, gid):
+    """A member's copy of firm style `gid`, adopted while both switches are on, with the row then listed at a
+    newer version so an update is waiting for it. Returns the copy's style id."""
     monkeypatch.setenv(LIBRARY, "1")
+    monkeypatch.setenv(STARTER, "1")
+    monkeypatch.setenv(STYLES, "1")
+    out = gallery.adopt_style(MEMBER, gid, conn=conn)
+    assert out is not None
+    conn.execute("UPDATE j2_template_gallery SET version = version + 1 WHERE id = ?", (gid,))
+    conn.commit()
+    return out["style"]["id"]
+
+
+def _every_read(conn, gid, hidden_gid, style_id):
+    """What each gallery read path says about firm style `gid` (and the member's copy `style_id` of it, and the
+    admin-hidden firm style `hidden_gid`). Each value is True exactly when that path shows the firm row."""
+    queue = gallery.admin_queue(conn=conn)
+    return {
+        "list": gid in _firm_style_ids_listed(conn),
+        "picks": gid in _firm_style_ids_listed(conn, section="picks"),
+        "list:style": gid in {x["id"] for x in gallery.list_gallery(MEMBER, item_type="style", conn=conn)},
+        "list:pack": gid in {x["id"] for x in gallery.list_gallery(MEMBER, trading_style="swing", conn=conn)},
+        "list:search": gid in {x["id"] for x in gallery.list_gallery(MEMBER, q="Swing", conn=conn)},
+        "item": gallery.get_item(MEMBER, gid, conn=conn) is not None,
+        "item:admin": gallery.get_item(ADMIN, gid, is_admin=True, conn=conn) is not None,
+        "updates": gid in {u["galleryId"] for u in gallery.list_updates(MEMBER, conn=conn)},
+        "plan": gallery.plan_update(MEMBER, style_id, conn=conn) is not None,
+        "queue:hidden": hidden_gid in {x["id"] for x in queue["hidden"]},
+        "queue:reported": gid in {x["id"] for x in queue["reported"]},
+    }
+
+
+def test_starter_off_hides_every_firm_style_in_every_read_path(conn, monkeypatch):
+    """THE LOAD-BEARING RAIL (P5-AUD-1). With the library on and the starter switch off (production while P5
+    ships dark), no firm style row appears anywhere a gallery read can reach it, UCT picks included. The same
+    world with both switches on shows it on every one of those paths, so a path that shows nothing in either
+    state cannot pass for one that hides."""
+    rows = _style_rows(conn)
+    gid = next(r["id"] for r in rows if r["trading_style"] == "swing")
+    hidden_gid = next(r["id"] for r in rows if r["trading_style"] == "day")
+    style_id = _starter_installed_copy(conn, monkeypatch, gid)
+    # A report on the firm row and an admin hide of another one, both made while both switches were on.
+    assert gallery.report(MEMBER, gid, reason="other", conn=conn) == {"reported": True, "already": False}
+    assert gallery.admin_act(ADMIN, hidden_gid, "hide", conn=conn) is not None
+
+    shown = _every_read(conn, gid, hidden_gid, style_id)
+    assert all(shown.values()), {k: v for k, v in shown.items() if not v}
+
+    monkeypatch.setenv(STARTER, "0")
+    gone = _every_read(conn, gid, hidden_gid, style_id)
+    assert not any(gone.values()), {k: v for k, v in gone.items() if v}
+    # Not one firm style anywhere in the list, in either section, nor as a single item.
+    assert _firm_style_ids_listed(conn) == set() and _firm_style_ids_listed(conn, section="picks") == set()
+    assert all(gallery.get_item(MEMBER, r["id"], conn=conn) is None for r in rows)
+    # The write doors read it as absent too: nothing is adopted, marked, reported, used or reviewed.
+    assert gallery.adopt_style(MEMBER, gid, conn=conn) is None
+    assert gallery.set_helpful(MEMBER, gid, True, conn=conn) is None
+    assert gallery.report(MEMBER, rows[2]["id"], reason="other", conn=conn) is None
+    assert gallery.use_template(MEMBER, gid, conn=conn) is None
+    assert gallery.admin_act(ADMIN, gid, "unfeature", conn=conn) is None
+    open_report = conn.execute("SELECT id FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,)).fetchone()
+    assert gallery.admin_report_act(ADMIN, open_report[0], "dismiss", conn=conn) is False
+    # Hidden is a visibility state: nothing was deleted, the pick is still featured, the member's copy is theirs.
+    assert len(_style_rows(conn)) == 15
+    assert conn.execute("SELECT featured FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
+    assert js.get_style(MEMBER, style_id, conn) is not None
+
+
+def test_with_both_switches_on_every_firm_style_is_a_uct_pick(conn, monkeypatch):
+    monkeypatch.setenv(LIBRARY, "1")
+    monkeypatch.setenv(STARTER, "1")
     ids = {r["id"] for r in _style_rows(conn)}
     assert _firm_style_ids_listed(conn) == ids
     assert _firm_style_ids_listed(conn, section="picks") == ids
@@ -306,9 +411,59 @@ def test_library_on_lists_every_firm_style_as_a_uct_pick(conn, monkeypatch):
     assert item is not None and item["payload"]["kindId"] in nk.BUILTIN_KIND_IDS
 
 
-def test_with_the_library_on_every_firm_style_adopts(conn, monkeypatch):
-    """What Task 4 will install: each row is a style P3a's adopt can turn into a member's own copy."""
+@pytest.mark.parametrize("library,starter", HIDING_STATES)
+def test_a_hiding_state_hides_only_firm_styles(conn, monkeypatch, library, starter):
+    """The starter switch hides firm STYLE rows only: a member's listed style (while the library is on) and the
+    firm outlines stay where they were, so the rule cannot pass by hiding everything."""
+    gallery.seed_firm_templates(conn)
+    member_style = _member_style_row(conn, ADMIN)
+    monkeypatch.setenv(LIBRARY, library)
+    monkeypatch.setenv(STARTER, starter)
+    listed = gallery.list_gallery(MEMBER, conn=conn)
+    assert _firm_style_ids_listed(conn) == set()
+    assert any(x["firm"] and x["itemType"] == "outline" for x in listed)
+    assert (member_style in {x["id"] for x in listed}) is (library == "1")
+
+
+@pytest.mark.parametrize("library", ["0", "1"])
+@pytest.mark.parametrize("starter", ["0", "1"])
+def test_the_one_rule_and_its_two_renderings_agree(conn, monkeypatch, library, starter):
+    """`_library_hides` (one row) and `_hidden_styles_sql` (a list's WHERE) are the same decision: over every
+    switch state, the rows the SQL term keeps are exactly the rows the row predicate does not hide."""
+    gallery.seed_firm_templates(conn)
+    _member_style_row(conn, ADMIN)
+    monkeypatch.setenv(LIBRARY, library)
+    monkeypatch.setenv(STARTER, starter)
+    every = conn.execute("SELECT id, item_type, kind FROM j2_template_gallery g").fetchall()
+    assert {(r["item_type"], r["kind"]) for r in every} == {("outline", "firm"), ("style", "firm"), ("style", "member")}
+    kept = {r[0] for r in conn.execute(f"SELECT g.id FROM j2_template_gallery g WHERE {gallery._hidden_styles_sql()}")}
+    assert {r["id"] for r in every if not gallery._library_hides(r)} == kept
+    firm_styles = {r["id"] for r in every if r["item_type"] == "style" and r["kind"] == "firm"}
+    assert (firm_styles <= kept) is (library == "1" and starter == "1")
+
+
+def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
+    """A firm row has no author, so neither read can reach one in a real database. This PROBE gives one firm
+    style row an author the member follows, to prove both reads carry the rule rather than relying on that
+    absence: shown with the starter switch on, hidden with it off."""
+    gid = _style_rows(conn)[0]["id"]
+    conn.execute("UPDATE j2_template_gallery SET user_id = ? WHERE id = ?", (ADMIN, gid))
+    conn.commit()
     monkeypatch.setenv(LIBRARY, "1")
+    handle = gallery.author_handle(ADMIN, conn)
+    assert gallery.set_follow(MEMBER, handle, True, conn=conn) == {"following": True}
+    for starter, want in (("1", True), ("0", False)):
+        monkeypatch.setenv(STARTER, starter)
+        assert (gid in {x["id"] for x in gallery.feed(MEMBER, conn=conn)}) is want
+        page = gallery.author_page(MEMBER, handle, conn=conn)
+        assert (gid in {x["id"] for x in page["items"]}) is want
+        assert page["author"]["itemCount"] == (1 if want else 0)
+
+
+def test_with_both_switches_on_every_firm_style_adopts(conn, monkeypatch):
+    """What Task 4 installs: each row is a style P3a's adopt can turn into a member's own copy."""
+    monkeypatch.setenv(LIBRARY, "1")
+    monkeypatch.setenv(STARTER, "1")
     monkeypatch.setenv(STYLES, "1")
     for r in _style_rows(conn):
         out = gallery.adopt_style(MEMBER, r["id"], conn=conn)

@@ -63,6 +63,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import starter_packs
 from api.services.notebook_flags import flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -364,9 +365,10 @@ def seed_firm_styles(conn: sqlite3.Connection) -> int:
     preview, exactly as `publish_style` stores them. To change a shipped row, add a `-v2` row and retire
     the `-v1` one (R-P5-4); there is no in-place upsert.
 
-    ⛔ Visibility is NOT decided here (P5-R-C3). A style row is listed only while the LIBRARY switch is on,
-    by the existing rule in `list_gallery` and `_library_hides`; the starter-packs switch alone shows
-    nothing. Task 4's install reads these rows directly, so it does not need them listed."""
+    ⛔ Visibility is NOT decided here. A firm style row is listed, in every gallery read and in UCT picks, only
+    while BOTH the library switch and the starter-packs switch are on (P5-AUD-1, superseding P5-R-C3), by the one
+    rule `_hidden_styles`; either switch alone shows nothing. Task 4's install reads these rows directly, so it
+    does not need them listed."""
     added = 0
     now = _now()
     for s in load_style_seed():
@@ -722,13 +724,13 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    if not library_enabled():
+    if not library_on:
         if item_type == "style" or trading_style:
             raise GalleryError("Unknown item type.")
-        where.append("g.item_type = 'outline'")
     elif item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
+    where.append(_hidden_styles_sql())          # every style row the switches hide (P5-AUD-1), picks included
     if trading_style:
         where.append("g.trading_style = ?")
         args.append(trading_style)
@@ -757,10 +759,46 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
+# ── which STYLE rows the gallery hides: ONE rule, two renderings (P5-AUD-1) ─────────────────────
+#
+# `_hidden_styles()` is the only place the decision is made. `_library_hides` renders it for one row (the
+# single-item reads and the write doors) and `_hidden_styles_sql` renders it as a WHERE term (every list read),
+# so the two cannot disagree about a switch state: they branch on the same answer, and
+# tests/test_firm_style_seed.py holds them equal over every switch state and every kind of row.
+
+def _hidden_styles() -> str:
+    """What the gallery hides of its style rows right now, read PER CALL.
+
+    `"all"`  -- the library switch is off: every style row reads as absent (R-P3-10, R-T3-w1).
+    `"firm"` -- the library is on and the starter-packs switch is off: the firm style rows (`kind = 'firm'`, the
+               starter packs' fifteen seeded picks) read as absent (P5-AUD-1). So a firm style row is listed, in
+               every read and in UCT picks, ONLY while BOTH switches are on, and NOTEBOOK_STARTER_PACKS_ENABLED=0
+               hides them again. The pack install does not go through this: it reads its rows directly
+               (`starter_packs.install`, behind its own switches)."""
+    if not library_enabled():
+        return "all"
+    if not starter_packs.enabled():
+        return "firm"
+    return ""
+
+
 def _library_hides(row: sqlite3.Row) -> bool:
-    """R-T3-w1 (R-P3-10: every style route 404s while the library is off). A style row reads exactly
-    like one that does not exist: for the author and an admin as much as for a browsing member."""
-    return row["item_type"] == "style" and not library_enabled()
+    """`_hidden_styles()` for one row. A hidden style row reads exactly like one that does not exist: for its
+    author and an admin as much as for a browsing member. `row` must carry `item_type` and `kind`."""
+    if row["item_type"] != "style":
+        return False
+    hidden = _hidden_styles()
+    return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
+
+
+def _hidden_styles_sql() -> str:
+    """`_hidden_styles()` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in."""
+    hidden = _hidden_styles()
+    if hidden == "all":
+        return "g.item_type = 'outline'"
+    if hidden == "firm":
+        return "NOT (g.item_type = 'style' AND g.kind = 'firm')"
+    return "1 = 1"
 
 
 def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool) -> bool:
@@ -1330,7 +1368,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     conn = conn or get_connection()
     try:
         row = _listed_style_row(conn, gallery_id)
-        if row is None:
+        if row is None or _library_hides(row):         # a firm style while starter packs are off (P5-AUD-1)
             return None
         return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
     except Exception:
@@ -1357,6 +1395,7 @@ def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[d
             " g.title, g.version FROM j2_journal_styles s JOIN j2_template_gallery g"
             " ON g.id = s.source_gallery_id WHERE s.user_id = ? AND s.deleted_at IS NULL"
             " AND g.item_type = 'style' AND g.status = 'approved' AND g.hidden = 0"
+            f" AND {_hidden_styles_sql()}"
             " AND g.version > COALESCE(s.source_version, 0) ORDER BY g.updated_at DESC",
             (user_id,)).fetchall()
         return [{"galleryId": r["gallery_id"], "title": r["title"], "styleId": r["style_id"],
@@ -1381,6 +1420,8 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     if mine is None or mine.get("builtin") or not mine.get("sourceGalleryId"):
         return None, None, None
     row = _listed_style_row(conn, mine["sourceGalleryId"])
+    if row is not None and _library_hides(row):        # a firm style while starter packs are off (P5-AUD-1)
+        row = None
     if row is None or int(row["version"] or 1) <= int(mine.get("sourceVersion") or 0):
         return mine, row, None
     raw_theirs = _listed_payload(row)
@@ -1589,7 +1630,7 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND g.user_id = ?"
+        where = f"{_VISIBLE} AND {_hidden_styles_sql()} AND g.user_id = ?"
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -1639,7 +1680,8 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
+                     f"{_VISIBLE} AND {_hidden_styles_sql()}"
+                     " AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
     finally:
@@ -1656,8 +1698,9 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     conn = conn or get_connection()
     try:
         # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
-        # held revision) is reviewable only while the library is on.
-        outlines_only = "" if library_enabled() else " AND g.item_type = 'outline'"
+        # held revision) is reviewable only while the library is on, and a firm style row only while the
+        # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
+        outlines_only = f" AND {_hidden_styles_sql()}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
@@ -1806,7 +1849,7 @@ def admin_report_act(admin_id: str, report_id: str, action: Any,
                          (report_id,)).fetchone()
         if r is None:
             return False
-        target = conn.execute("SELECT item_type FROM j2_template_gallery WHERE id = ?",
+        target = conn.execute("SELECT item_type, kind FROM j2_template_gallery WHERE id = ?",
                               (r["gallery_id"],)).fetchone()
         if target is not None and _library_hides(target):      # R-T4-3: a style's report is as absent as the style
             return False
