@@ -1244,8 +1244,11 @@ _HELD_KEY_COLUMNS = ("source_style_id", "source_page")
 def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any,
                             item_type: str, title: str, description: str, category: str,
                             trading_style: str | None, body: dict, preview: list, payload: dict) -> str:
-    """R-P3-3's ONE authority over a member item's (re)submission write, shared by `publish_style` and
-    `publish_layout`. Keyed on (author, `key_column` = `key`, `item_type`): the first publish INSERTs a PENDING
+    """R-P3-3's (re)submission write for a style and a layout, shared by `publish_style` and `publish_layout`.
+    ⛔ NOT the only one (P4b final m-3): P3b's `publish_example` still carries its own held / replaced / insert
+    block, keyed on the source note AND the linked style with an id it assigns before the reduction. Folding it
+    in here (an `existing` predicate and a preset id) is a follow-up; until then the two must change together.
+    Keyed on (author, `key_column` = `key`, `item_type`): the first publish INSERTs a PENDING
     item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED the new
     version is HELD in `pending_json` and the approved one stays listed. Returns the item id; the caller commits.
     `key_column` is interpolated, so it is held to a closed set."""
@@ -2078,7 +2081,8 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
     The server reads the note and reduces it ITSELF; nothing a client sends is a body. First publish: a
     PENDING `example_note` item. Again (same author, note and style) while pending or rejected: replaced in
     place, back to pending. Again while APPROVED: the new version is HELD in `pending_json` and the approved
-    one stays listed, as a style's does (R-P3-3).
+    one stays listed, as a style's does (R-P3-3). That write is this function's own, not `_write_held_or_replaced`
+    (P4b final m-3): its key is the note and the style together, and its id is assigned before the reduction.
 
     ⛔ P3b-T3-R1 (review I-1): the note is bounded before it is reduced (`_example_note`), and the reduction
     runs BEFORE `BEGIN IMMEDIATE`, against a fresh id. Only the lookup, the image rebinding and the write sit
