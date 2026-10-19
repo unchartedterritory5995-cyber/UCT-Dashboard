@@ -308,6 +308,26 @@ describe('How do you trade? -- what the card says, and one card per page', () =>
     expect(within(offer).queryByRole('alert')).toBeNull()
   })
 
+  it('10d. P5 M-3: a refused Not now, then a pack whose install throws, then Not now writes dismissed again', async () => {
+    flags()
+    optimisticThenRefused()
+    install = [500, { detail: 'boom' }]
+    const onClose = vi.fn()
+    render(swr(<StarterPackOffer onClose={onClose} />))
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    expect(await within(offer).findByRole('alert')).toHaveTextContent(NOT_SAVED)
+    expect(prefsNow[STARTER_PACK_PREF]).toMatchObject({ state: 'dismissed' })   // the optimistic value stayed
+    fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
+    expect(await within(offer).findByText(FAILED)).toBeInTheDocument()
+    expect(posts()).toHaveLength(1)
+    expect(within(offer).getByText(NOT_SAVED)).toBeInTheDocument()            // still not saved: it is still said
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(setPrefMerged).toHaveBeenCalledTimes(2)                           // the dismissal was written AGAIN
+    expect(written().value).toMatchObject({ state: 'dismissed' })
+  })
+
   it('10c. N1: Done after a refused install write writes the INSTALL again, never a dismissal', async () => {
     flags()
     optimisticThenRefused()
