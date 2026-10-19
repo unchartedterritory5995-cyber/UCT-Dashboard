@@ -4,7 +4,7 @@ Built 2026-10-16 on `feat/agent-nl1` (local). **No paid call has been made.** Ev
 
 ## 1. Sets
 
-All sets use `corpus.json`'s five fixture boards and library. The registry is `app/src/agent/eval/sets.js`.
+All sets use `corpus.json`'s five fixture boards and library. The registry is `app/src/agent/testing/sets.js`.
 
 | Set | Split | Cases | Turns | Written by | Use |
 |---|---|---|---|---|---|
@@ -24,13 +24,13 @@ The sets total 842 turns, 405 of them sealed.
 `dev-nl1.json` covers the same kinds of case at a smaller scale, including corrections, the multi-step and injection cases, and the target the owner named ("make it 15 minutes instead").
 
 ### How the sealed sets stay sealed
-- **Hash-locked.** `eval/sealed.lock.json` holds a SHA-256 of each sealed file (line endings normalised). `agentNl1Eval.test.js` fails if a sealed case changes.
+- **Hash-locked.** `app/src/agent/testing/sealed.lock.json` holds a SHA-256 of each sealed file (line endings normalised). `agentNl1Eval.test.js` fails if a sealed case changes.
 - **Aggregates only.** Every harness prints sealed results in aggregate. Malformed sealed cases are counted, never printed. Per-case sealed rows appear only with `AGENT_EVAL_UNSEAL=1`, for the owner's final report.
 - **Not read by the implementer.** The implementing session never opened `sealed-v3.json`. It has been checked only through the well-formedness test, which prints counts.
 
 ## 2. What is measured, and where
 
-Interpretation and execution are scored **separately** (`eval/score.js`):
+Interpretation and execution are scored **separately** (`app/src/agent/testing/score.js`):
 
 | | What | How |
 |---|---|---|
@@ -58,7 +58,7 @@ Failure labels:
 
 ## 4. Acceptance gates (fixed before any paid run)
 
-These are defined in `app/src/agent/eval/acceptance.js` and judged on the **sealed sets only**. Changing a bar after seeing results needs an owner decision, recorded here.
+These are defined in `app/src/agent/testing/acceptance.js` and judged on the **sealed sets only**. Changing a bar after seeing results needs an owner decision, recorded here.
 
 | Gate | Bar |
 |---|---|

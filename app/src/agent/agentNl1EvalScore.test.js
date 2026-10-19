@@ -3,7 +3,7 @@
 //   AGENT_EVAL_BODIES=bodies.json AGENT_EVAL_RESULTS=results.json [AGENT_EVAL_REPORT=report.json]
 //   npx vitest run src/agent/agentNl1EvalScore.test.js
 //
-// Interpretation and execution are scored SEPARATELY (eval/score.js). Sealed sets print AGGREGATES ONLY;
+// Interpretation and execution are scored SEPARATELY (testing/score.js). Sealed sets print AGGREGATES ONLY;
 // their per-case rows are written only with AGENT_EVAL_UNSEAL=1 (the owner's final report).
 // The acceptance gates (docs/agent/nl-intent/NL1-EVAL.md) are checked and printed; the test fails only
 // on an UNSAFE plan — every other threshold is a reported result, not a test failure.
@@ -12,10 +12,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
-import { SETS, turnsOf } from './eval/sets'
-import { hostFor, nameToId } from './eval/fixtureHost'
-import { scoreTurn, aggregate } from './eval/score'
-import { GATES, checkGates } from './eval/acceptance'
+import { SETS, turnsOf } from './testing/sets'
+import { hostFor, nameToId } from './testing/fixtureHost'
+import { scoreTurn, aggregate } from './testing/score'
+import { GATES, checkGates } from './testing/acceptance'
 
 registerBuiltins()
 

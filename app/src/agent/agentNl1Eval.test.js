@@ -1,7 +1,7 @@
 // NL-1 EVALUATION SUITE — the free, deterministic part (runs in the Agent gate; no model call, no network).
 //
 //   1. every set is well-formed (fixtures, actions, kinds) — sealed sets are reported as counts only
-//   2. sealed sets are hash-locked (eval/sealed.lock.json): editing a sealed case to fit fails here
+//   2. sealed sets are hash-locked (testing/sealed.lock.json): editing a sealed case to fit fails here
 //   3. the scorer judges interpretation and execution separately, and flags unsafe plans
 //   4. the request capture builds both shapes for every turn (legacy: routed; NL-1: the full catalog)
 //   5. NL-1's exact lane takes ONLY exact Undo / Confirm / Cancel — never a request that asks for a change
@@ -15,14 +15,14 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { getCapability, getTargetKind } from './capabilities'
-import { SETS, caseProblems, turnsOf, lockText } from './eval/sets'
-import { hostFor, nameToId } from './eval/fixtureHost'
-import { scoreTurn, aggregate } from './eval/score'
-import { captureCase } from './eval/capture'
+import { SETS, caseProblems, turnsOf, lockText } from './testing/sets'
+import { hostFor, nameToId } from './testing/fixtureHost'
+import { scoreTurn, aggregate } from './testing/score'
+import { captureCase } from './testing/capture'
 import { exactLane } from './nl1/interpreter'
-import lock from './eval/sealed.lock.json'
+import lock from './testing/sealed.lock.json'
 import { isProtected } from './protectedLayouts'
-import { GATES, checkGates } from './eval/acceptance'
+import { GATES, checkGates } from './testing/acceptance'
 
 registerBuiltins()
 
