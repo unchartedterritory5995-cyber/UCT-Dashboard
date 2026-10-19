@@ -136,6 +136,44 @@ describe('NL-1 flag ON: the model reads every ordinary request', () => {
     expect(turns).toHaveLength(2)
   })
 
+  it('a layout revisit (A → B → A) drops the board refs the model is sent: a correction then reverses nothing (S11)', async () => {
+    nl1On()
+    const b = oneChart()
+    let visit = 1
+    b.host.boardVisit = () => visit
+    const { say, transcript } = mount(b)
+    script = (body, n) => (n === 1 ? setTf(body, 'L', '5') : setTf(body, 'L', '15', { correction: { replaces: 'last_change' } }))
+    await say('switch to 5 minutes')
+    await waitFor(() => expect(tf(b, 'L')).toBe('5'))
+    visit = 3                                                // another layout was opened, then this one again
+    await say('no I meant 15')
+    await waitFor(() => expect(transcript()).toMatch(/didn't reverse my earlier change/))
+    const mem = turns[1].context.conversation_memory || {}
+    expect(mem.last_change_detail).toBeUndefined()
+    expect(mem.last_change).toBeUndefined()
+    expect(mem.subject_chart).toBeUndefined()
+    expect(tf(b, 'L')).toBe('5')                             // nothing undone, the 15 only proposed
+  })
+
+  it('a click after a change: the model is sent the clicked chart as `selected` beside the conversation\'s chart (S6)', async () => {
+    nl1On()
+    const b = twoCharts()
+    const { say } = mount(b)
+    script = (body) => setTf(body, 'L', 'W')
+    await say('make the left chart weekly')
+    await waitFor(() => expect(tf(b, 'L')).toBe('W'))
+    // the member clicks the right chart (the real host marks it on the chart's snapshot, as here)
+    const list = b.host.charts.list
+    b.host.charts.list = () => list().map(c => (c.ref === 'R' ? { ...c, selected: true } : c))
+    b.host.charts.selected = () => 'R'
+    script = () => answer({ reply: 'ok' })
+    await say('compare it to SPY')
+    const body = turns[1]
+    const sel = body.context.charts.filter(c => c.selected)
+    expect(sel.map(c => c.ref)).toEqual([refOf(body, 'R')])
+    expect(body.context.conversation_memory.subject_chart).toBe(refOf(body, 'L'))
+  })
+
   it('a correction with no earlier change of the Agent undoes nothing and only proposes', async () => {
     nl1On()
     const b = oneChart()

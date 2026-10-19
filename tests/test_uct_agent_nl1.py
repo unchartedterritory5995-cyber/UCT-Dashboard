@@ -406,3 +406,10 @@ def test_legacy_never_coerces(flag_off):
 def test_nl1_rules_name_protected_layouts(flag_on):
     caps = turn.validate_manifest(CATALOG, turn.MAX_CAPABILITIES_NL1)
     assert "`protected: true` cannot be renamed, deleted or overwritten" in turn.system_prompt(caps, None, True, nl1=True)
+
+
+def test_nl1_a_clicked_chart_outranks_the_conversations_chart(flag_on):
+    # Gate C S6 (GATE-C.md §2): memory never overrides a click — the model is told the same order
+    caps = turn.validate_manifest(CATALOG, turn.MAX_CAPABILITIES_NL1)
+    p = turn.system_prompt(caps, None, True, nl1=True)
+    assert "the chart marked selected; with none selected, conversation_memory.subject_chart; otherwise ask which" in p

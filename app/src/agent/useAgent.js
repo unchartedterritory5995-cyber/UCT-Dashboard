@@ -1027,6 +1027,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: t, outcomeData: { kind: 'unsupported' }, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
+      // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model
+      memoryRef.current.seeBoard(visitOf(host))
       // ⭐ NL-1 (owner 2026-10-16; flag off by default): the MODEL reads the request. Only EXACT Undo /
       // Confirm / Cancel stay instant, and only when there is something for them to act on. Everything
       // else — references, corrections, a typed answer to a question — is read by the model (with the
@@ -1055,7 +1057,6 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // a question or an authoring answer is waiting (those words answer THAT). A reference that cannot hold
       // is said plainly (`say`); one it cannot read goes on to the instant path / the model as before.
       const epochNow = epochOf(host)
-      memoryRef.current.seeBoard(visitOf(host))     // a layout opened since the last turn drops the board's refs
       // GATE C: the member CORRECTING the Agent ("no, I meant the weekly", "not that one") — kept as context
       // for the model (session memory → conversation_memory.recent_corrections); never acted on by itself
       if (CORRECTION.test(text)) memoryRef.current.noteCorrection(text)
