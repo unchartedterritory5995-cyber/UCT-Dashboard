@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { SWRConfig, useSWRConfig } from 'swr'
+import { SWRConfig, useSWRConfig, mutate as globalMutate } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplateGallery from './TemplateGallery'
 import { CHANGE_FAILED, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
@@ -61,6 +61,7 @@ beforeEach(() => {
     calls.push({ path: u.pathname, search: u.search, method, body })
     if (u.pathname === '/api/auth/preferences' && method === 'GET') {
       if (server.holdGet) await server.holdGet.promise
+      if (server.failNextGet) { server.failNextGet = false; return json({ detail: 'Bad gateway' }, 502) }
       return server.prefsRead === 200 ? json({ [LAYOUT_PREF]: JSON.stringify(MINE) }) : json({ detail: 'Bad gateway' }, server.prefsRead)
     }
     if (u.pathname === '/api/auth/preferences' && method === 'POST') {
@@ -481,5 +482,87 @@ describe('review I-3: Try again keeps the real previous layout for Undo', () => 
     const restored = JSON.parse(prefPosts().at(-1).body.value)
     expect(restored.trade).toEqual(MINE.trade)
     expect(adoptPosts()).toHaveLength(1)
+  })
+})
+
+// ── Task 7 review fix round 2 ─────────────────────────────────────────────────────────────────────────────────────
+describe('review N-1: a hung re-read never traps the member', () => {
+  it('a re-read that never answers still lets the member press Cancel and close the sheet', async () => {
+    server.prefStatus = [400]
+    const { user, dialog } = await openConfirm()
+    server.holdGet = deferred()                       // the re-read after the failed write never answers
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    expect(await within(dialog).findByText(CHANGE_FAILED)).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()   // not until it settles
+    expect(within(dialog).getByRole('button', { name: 'Use this layout' })).toBeDisabled()
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' })
+    expect(cancel).toBeEnabled()
+    await user.click(cancel)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Use this layout for the trade page?' })).not.toBeInTheDocument())
+    expect(adoptPosts()).toHaveLength(1)
+    server.holdGet.resolve()                          // let the held fetch finish so nothing outlives the test
+    server.holdGet = null
+  })
+})
+
+describe('review N-2: a read that fails during the adopt is said, and can be retried', () => {
+  it('says nothing was changed; Try again is disabled until a read answers, then writes without a second adopt', async () => {
+    server.holdAdopt = deferred()
+    const { user, dialog } = await openConfirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await waitFor(() => expect(adoptPosts()).toHaveLength(1))
+    server.prefsRead = 502
+    await act(async () => { await mutateRef.current('/api/auth/preferences') })
+    server.holdAdopt.resolve()
+    expect(await within(dialog).findByText(CHANGE_FAILED)).toBeInTheDocument()
+    const again = within(dialog).getByRole('button', { name: 'Try again' })
+    expect(again).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Use this layout' })).toBeDisabled()
+    server.prefsRead = 200
+    await act(async () => { await mutateRef.current('/api/auth/preferences') })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Try again' })).toBeEnabled())
+    await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)).toBeInTheDocument()
+    expect(prefPosts()).toHaveLength(1)
+    expect(adoptPosts()).toHaveLength(1)
+  })
+})
+
+describe('review: a failed write AND a failed re-read never leave the unsaved layout looking like the member’s own', () => {
+  // This case runs in SWR's GLOBAL cache, the one the app runs in (App.jsx's SWRConfig sets no provider): the re-read and
+  // the local put-back both go through it, and a scoped test cache would hide both.
+  const clearGlobal = () => act(async () => { await globalMutate(() => true, undefined, { revalidate: false }) })
+  beforeEach(async () => { await clearGlobal() })
+  afterEach(async () => { await clearGlobal() })
+
+  it('fail the write, fail the re-read, Cancel, adopt again, Undo: the trade list is the original', async () => {
+    server.prefStatus = [400, 200, 200]
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <SWRConfig value={{ dedupingInterval: 0 }}>
+          <TemplateGallery onBack={vi.fn()} initialType="page_layout" />
+        </SWRConfig>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: ROW.title })
+    await user.click(within(layoutCard()).getByRole('button', { name: `Use this layout: ${ROW.title}` }))
+    let dialog = await screen.findByRole('dialog', { name: 'Use this layout for the trade page?' })
+    await within(dialog).findByRole('list', { name: 'What changes' })
+    server.failNextGet = true                         // the re-read after the failed write fails too
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await within(dialog).findByRole('button', { name: 'Try again' })   // the re-read has settled (failed)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Use this layout for the trade page?' })).not.toBeInTheDocument())
+    // a fresh adopt: what it captures as "previous" must be the member's layout, not the unsaved one
+    await user.click(within(layoutCard()).getByRole('button', { name: `Use this layout: ${ROW.title}` }))
+    dialog = await screen.findByRole('dialog', { name: 'Use this layout for the trade page?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Use this layout' }))
+    await screen.findByText(`The trade page now uses "${ROW.title}". ${ADOPT.body.credit}.`)
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    await screen.findByText('Your previous trade page layout is back.')
+    const restored = JSON.parse(prefPosts().at(-1).body.value)
+    expect(restored.trade).toEqual(MINE.trade)
+    expect(prefPosts()).toHaveLength(3)               // the failed write, the second adopt, the Undo
   })
 })

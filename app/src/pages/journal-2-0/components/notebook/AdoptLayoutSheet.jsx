@@ -17,7 +17,7 @@
 //    goes through the same door, replacing exactly the captured lists with what they were.
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
-import usePreferences, { refreshPreferences } from '../../../../hooks/usePreferences'
+import usePreferences, { mergeIntoPreferenceCache, refreshPreferences } from '../../../../hooks/usePreferences'
 import { LAYOUT_UNSUPPORTED_SENTENCE, adoptLayout } from '../../lib/styleLibrary'
 import {
   LAYOUT_PREF, LOAD_FAILED, PHASE_LABELS, applySharedPage, layoutDiff, listsFor, normalizeLayout, replaceLists,
@@ -28,6 +28,8 @@ import styles from './TemplateGallery.module.css'
 
 export const CHANGE_FAILED = "Couldn't change your layout. Nothing was changed."
 export const UNDO_FAILED = "Couldn't put your previous layout back. Open Customize to change it."
+// How long a failed write waits for the re-read of the member's layout before treating it as failed too (review N-1).
+export const REFRESH_TIMEOUT_MS = 8000
 export const STANDING_LINE = "A panel that needs something you don't have on yet keeps its place and shows once it can."
 const TITLES = { today: 'Use this layout for Today?', trade: 'Use this layout for the trade page?' }
 const PAGE_WORDS = { today: 'Today', trade: 'trade page' }       // "Your current Today layout", "… trade page layout"
@@ -47,6 +49,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(null)          // the adopt answer whose WRITE failed: Try again repeats only it
+  const [refreshing, setRefreshing] = useState(false) // a failed write's re-read in flight: no Try again until it settles
   const workingRef = useRef(false)
   // The hook's `readFailed`, read again at the moment of a write: the click-time check sits before the adopt round trip,
   // and a preferences read can fail during it (review I-1).
@@ -104,6 +107,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       workingRef.current = false
       setWorking(false)
       setRetry(answer)
+      setError(CHANGE_FAILED)                         // said, with Try again (disabled until a read answers) (review N-2)
       return
     }
     let captured = null
@@ -120,12 +124,27 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       ok = false
     }
     if (!ok || !captured) {
-      // The hook applied the value optimistically; take the server's back BEFORE Try again is offered (review I-3).
-      await refreshPreferences()
+      // Said at once, and the sheet is free at once: Cancel works even if the re-read never answers (review N-1). Use stays
+      // off (`retry`), and Try again waits for the re-read, so it never captures the optimistic value (review I-3).
       workingRef.current = false
       setWorking(false)
       setRetry(answer)
       setError(CHANGE_FAILED)
+      setRefreshing(true)
+      // The hook applied the value optimistically. Take the server's back, bounded so a hung read cannot hold Try again.
+      const fresh = await Promise.race([
+        refreshPreferences(),
+        new Promise((resolve) => { setTimeout(() => resolve(null), REFRESH_TIMEOUT_MS) }),
+      ])
+      if (fresh == null && firstCaptureRef.current) {
+        // The re-read failed too, so the unsaved layout is still in the cache, where the next adopt would capture it as the
+        // member's own. Put the lists back to what they were, locally: no POST, the server never had the adopted value.
+        const previous = firstCaptureRef.current
+        await mergeIntoPreferenceCache(LAYOUT_PREF, (cur) => (
+          cur && typeof cur === 'object' ? replaceLists(normalizeLayout(cur), page, previous) : undefined
+        ))
+      }
+      setRefreshing(false)
       return
     }
     workingRef.current = false
@@ -162,7 +181,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   }
 
   const tryAgain = async () => {
-    if (workingRef.current || !retry || cantRead) return
+    if (workingRef.current || !retry || cantRead || refreshing) return
     workingRef.current = true
     setWorking(true)
     setError('')
@@ -175,8 +194,8 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       {error && (
         <p role="alert" className={styles.error}>
           <span>{error}</span>
-          {retry && (
-            <button type="button" className={styles.btn} onClick={tryAgain} disabled={working}>Try again</button>
+          {retry && !refreshing && (
+            <button type="button" className={styles.btn} onClick={tryAgain} disabled={working || cantRead}>Try again</button>
           )}
         </p>
       )}
