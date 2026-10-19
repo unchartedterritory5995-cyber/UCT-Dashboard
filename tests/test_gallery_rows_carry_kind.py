@@ -13,6 +13,14 @@ Two rails:
 * structure: every function in template_gallery.py that calls `_can_see` or `_library_hides` and names an
   explicit column list FROM j2_template_gallery names both `item_type` and `kind` in it, so the next narrow
   SELECT fails here by name rather than as a 500 in production.
+
+P4b final (the C1 class at the P4b merge): the same holds for P4b's LAYOUT reads, so the rails reach them too.
+* behaviour: in the same firm state, with layout sharing on, every layout door a member or an admin walks
+  answers (a stranger's read, adopt, Helpful, report, the author's status and a reshare, an admin's read of the
+  held revision and its approval);
+* structure, widened: the scan follows CALLERS transitively (`adopt_layout` reaches the rule through `_listed_row`;
+  P5 landing review M-1), reads f-string SQL and a `JOIN j2_template_gallery`, and the two shared readers every
+  layout row comes through, `_row` (`g.*`) and the list's `_LIST_COLUMNS`, are held to `item_type` and `kind`.
 """
 from __future__ import annotations
 
@@ -27,10 +35,14 @@ from tests._style_library_helpers import api, conn, lib_on  # noqa: F401  (fixtu
 from tests.test_example_notes import URL, _as, ex_on, ocr  # noqa: F401  (fixtures + helpers)
 from tests.test_example_note_images import _approve, _note_with_files, _publish, att  # noqa: F401
 from tests.test_example_notes import _shared_style, _src
+from tests.test_page_layout_share import TRADE, _save_pref, sharing_on  # noqa: F401  (fixture + helpers)
+from tests.test_page_layout_adopt import _listed_layout
 
 SOURCE = Path(gallery.__file__)
 VISIBILITY_CALLS = {"_can_see", "_library_hides"}
-_SELECT = re.compile(r"SELECT\s+(?P<cols>.+?)\s+FROM\s+j2_template_gallery\b", re.S | re.I)
+# The column list never crosses a FROM; the gallery table is either the FROM table or a JOIN target behind one.
+_SELECT = re.compile(r"SELECT\s+(?P<cols>(?:(?!\bFROM\b).)+?)\s+FROM\s+(?:j2_template_gallery\b"
+                     r"|\w+(?:\s+\w+)?\s+(?:LEFT\s+|INNER\s+)?JOIN\s+j2_template_gallery\b)", re.S | re.I)
 
 
 @pytest.fixture
@@ -63,21 +75,41 @@ def test_a_stranger_reads_an_example_its_style_and_its_image_with_starter_off(ap
 
 
 def _functions_reaching_the_rule(tree: ast.Module):
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name not in VISIBILITY_CALLS:
-            called = {c.func.id for c in ast.walk(node)
-                      if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
-            if called & VISIBILITY_CALLS:
-                yield node
+    """Every function that calls the rule, AND every function that calls one of those, to any depth: a row a
+    helper hands back (`_listed_row` to `adopt_layout`) reaches the rule as surely as one read in place."""
+    fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+    calls = {f.name: {c.func.id for c in ast.walk(f) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+             for f in fns}
+    reach = set(VISIBILITY_CALLS)
+    grew = True
+    while grew:
+        grew = False
+        for name, called in calls.items():
+            if name not in reach and called & reach:
+                reach.add(name)
+                grew = True
+    for f in fns:
+        if f.name in reach and f.name not in VISIBILITY_CALLS:
+            yield f
+
+
+def _sql_strings(fn: ast.FunctionDef):
+    """Every SQL text in the function, once each: plain strings, and f-strings whole, with each `{...}` read as a
+    placeholder (an f-string's literal pieces are not read again on their own)."""
+    inside = {id(p) for j in ast.walk(fn) if isinstance(j, ast.JoinedStr) for p in j.values}
+    for c in ast.walk(fn):
+        if isinstance(c, ast.Constant) and isinstance(c.value, str) and id(c) not in inside:
+            yield c.value
+        elif isinstance(c, ast.JoinedStr):
+            yield "".join(p.value if isinstance(p, ast.Constant) else "{}" for p in c.values)
 
 
 def _explicit_gallery_selects(fn: ast.FunctionDef):
-    for c in ast.walk(fn):
-        if isinstance(c, ast.Constant) and isinstance(c.value, str):
-            for m in _SELECT.finditer(c.value):
-                cols = m.group("cols").strip()
-                if cols not in ("*", "g.*") and "COUNT(" not in cols.upper():
-                    yield {x.strip().split(".")[-1] for x in cols.split(",")}
+    for text in _sql_strings(fn):
+        for m in _SELECT.finditer(text):
+            cols = m.group("cols").strip()
+            if cols not in ("*", "g.*") and "COUNT(" not in cols.upper():
+                yield {x.strip().split(".")[-1] for x in cols.split(",")}
 
 
 def test_every_explicit_select_that_reaches_the_rule_names_item_type_and_kind():
@@ -90,6 +122,58 @@ def test_every_explicit_select_that_reaches_the_rule_names_item_type_and_kind():
                 missing.append((fn.name, sorted(cols)))
     assert seen >= 4, f"the scan found only {seen} SELECTs: it has stopped seeing the reads it guards"
     assert missing == [], missing
+
+
+def test_the_scan_follows_layout_callers_and_holds_the_shared_readers():
+    """P4b final C1: the layout doors are in the scan's reach, and the two readers their rows come through carry
+    both columns: `_row` reads `g.*` and the list's columns name `g.item_type` and `g.kind`."""
+    tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+    reached = {f.name for f in _functions_reaching_the_rule(tree)}
+    assert {"adopt_layout", "get_item", "set_helpful", "report", "admin_act", "_listed_row", "use_template"} <= reached
+    assert "g.*" in gallery._select()
+    listed = {c.strip().split(".")[-1] for c in gallery._LIST_COLUMNS.rstrip(",").split(",")}
+    assert {"item_type", "kind", "source_page"} <= listed
+
+
+def test_the_widened_scan_sees_a_caller_an_fstring_and_a_join():
+    """Control: each widening can fail. A narrow SELECT one call away from the rule, in an f-string, and behind a
+    JOIN, each surfaces without `kind`."""
+    bad = ast.parse(
+        "def helper(conn, gid):\n"
+        "    return conn.execute('SELECT g.* FROM j2_template_gallery g WHERE id = ?', (gid,)).fetchone()\n"
+        "def rule_user(row):\n"
+        "    return _library_hides(row)\n"
+        "def caller(conn, gid, t):\n"
+        "    row = conn.execute(f'SELECT id, item_type FROM j2_template_gallery WHERE {t} = ?', (gid,)).fetchone()\n"
+        "    other = conn.execute('SELECT g.id, g.item_type FROM j2_template_gallery_uses x'\n"
+        "                         ' JOIN j2_template_gallery g ON g.id = x.gallery_id').fetchone()\n"
+        "    return rule_user(row) or rule_user(other)\n")
+    fns = {f.name: f for f in _functions_reaching_the_rule(bad)}
+    assert set(fns) == {"rule_user", "caller"}
+    assert sorted(sorted(c) for c in _explicit_gallery_selects(fns["caller"])) == [["id", "item_type"],
+                                                                                   ["id", "item_type"]]
+
+
+def test_every_layout_door_answers_in_the_firm_state(conn, ex_on, starter_off, sharing_on):
+    """P4b final C1, behaviour: library on, starter packs off (`_library_hides` reads `kind`), examples on and layout
+    sharing on. Each layout door a member, its author or an admin walks reads a row that reaches the rule; a narrow
+    SELECT on any of them is an IndexError here."""
+    assert gallery._hidden_styles() == "firm" and gallery.layout_sharing_enabled()   # the state under test
+    gid = _listed_layout(conn)
+    assert gallery.get_item("stranger", gid, conn=conn)["itemType"] == "page_layout"
+    assert gallery.adopt_layout("stranger", gid, version=1, conn=conn)["version"] == 1
+    assert gallery.set_helpful("stranger", gid, True, conn=conn)["helpful"] is True
+    assert gallery.report("stranger", gid, reason="spam", note="", conn=conn) is not None
+    status = gallery.layout_status("author", conn=conn)
+    assert status["shared"]["trade"]["id"] == gid
+    _save_pref(conn, "author", {"version": 1, "trade": list(reversed(TRADE))})
+    held = gallery.publish_layout("author", "trade", title="Prop trade page", description="", category="journal",
+                                  trading_style="prop", conn=conn)
+    assert held["hasRevision"] is True
+    full = gallery.get_item("admin", gid, is_admin=True, conn=conn)
+    assert full["pendingRevision"]["payload"]["lists"]["trade"] == list(reversed(TRADE))
+    approved = gallery.admin_act("admin", gid, "approve", reviewed_updated_at=full["updatedAt"], conn=conn)
+    assert approved is not None
 
 
 def test_the_scan_can_see_a_select_without_kind():

@@ -1,0 +1,14 @@
+== master moved during the run: HEAD..origin/master
+a05610b416 Merge pull request #394 from unchartedterritory5995-cyber/feat/tsdr-lessons-recap-v2
+ca6a76475b feat(tsdr-lessons): level, timed key moments, duplicate detection; clips stay off the shelf
+== files
+ api/services/tsdr_lessons.py                       | 262 +++++++++++++++++++--
+ .../2026-10-18-tsdr-lessons-library-v2-design.md   |  66 ++++++
+ tests/test_tsdr_lessons.py                         | 157 +++++++++++-
+ 3 files changed, 466 insertions(+), 19 deletions(-)
+== P4b-relevant files changed HEAD..origin/master:
+(end)
+is-ancestor origin/notebook-p3b-examples origin/master -> exit 1
+is-ancestor origin/notebook-p5-launch origin/master -> exit 1
+== P3b new tip commits since df96aef55d:
+3b5fe61557 fix(notebook-p3b): scrub the whole typed title, refuse one over 2,000 characters (P3b-F2-R1..R4)

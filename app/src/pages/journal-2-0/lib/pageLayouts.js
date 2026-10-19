@@ -11,6 +11,11 @@
 
 export const LAYOUT_PREF = 'journal_page_layout'
 
+// The one sentence for "your layout could not be read, so it cannot be written" (P4b X16): the Customize editor and
+// the library's adopt confirm both say it, and both refuse the write while it is true. It lives here, not in the
+// lazy editor, so the gallery chunk can say it without pulling in the editor module.
+export const LOAD_FAILED = "Your layout couldn't be loaded, so it can't be saved right now. Reload the page to try again."
+
 export const PHASES = Object.freeze(['premarket', 'market', 'postclose'])
 export const PHASE_LABELS = Object.freeze({ premarket: 'Premarket', market: 'Market', postclose: 'After close' })
 
@@ -74,7 +79,7 @@ const validEntry = (e) =>
 
 // One saved list -> a full list. Not an array: the default. Otherwise keep the valid entries
 // (unknown ids included), the first occurrence of each id, and append any registry id the saved list
-// lacks at the END with its defaultShown -- so a panel a later release adds appears hidden and last.
+// lacks at the END with its defaultShown -- so a panel a later release adds appears last, shown or hidden as its defaultShown says.
 // The list is then held to LAYOUT_MAX_ENTRIES, the server's ceiling, so a layout this model writes is
 // never a 400: registry panels always stay, and unknown ids are dropped from the END to fit.
 function normalizeList(page, saved) {
@@ -198,4 +203,79 @@ export function resetPage(layout, page, phase) {
   if (!list) return base
   const known = new Set(PANELS[page].map((p) => p.id))
   return withList(base, page, phase, [...defaultList(page), ...list.filter((e) => !known.has(e.id))])
+}
+
+// ── P4b: a shared page layout (the community library) ────────────────────────────────────────────────────────────
+// A shared layout names its lists by NAME: the phases of Today ('premarket' | 'market' | 'postclose'), or 'trade'.
+
+// The list names a page has, in their canonical order.
+const listNames = (page) => (page === 'trade' ? ['trade'] : page === 'today' ? [...PHASES] : [])
+
+// The names of `lists` this page knows, in the canonical order. Anything else in `lists` is ignored.
+const givenNames = (page, lists) => (isObject(lists) ? listNames(page).filter((n) => Object.hasOwn(lists, n)) : [])
+
+const phaseOf = (page, name) => (page === 'trade' ? null : name)
+
+/**
+ * A shared page applied to the member's layout: for each list name in `lists`, the shared REGISTRY entries in the
+ * shared order; then a shared id this build does not know, kept as an unknown id; then the member's own unknown ids
+ * from that list in their saved order (the `resetPage` rule); then every registry panel the shared list lacks,
+ * appended HIDDEN (P4b X2: a shared layout that omits a panel means "not part of this layout"). Every other page,
+ * phase and field is unchanged. Pure; the result is normalized.
+ */
+export function applySharedPage(layout, page, lists) {
+  let next = normalizeLayout(layout)
+  if (!knownPage(page)) return next
+  const known = new Set(PANELS[page].map((p) => p.id))
+  for (const name of givenNames(page, lists)) {
+    const shared = Array.isArray(lists[name]) ? lists[name] : []
+    const seen = new Set()
+    const ours = []
+    const theirsUnknown = []
+    for (const e of shared) {
+      if (!validEntry(e) || seen.has(e.id)) continue
+      seen.add(e.id)
+      ;(known.has(e.id) ? ours : theirsUnknown).push({ id: e.id, shown: e.shown })
+    }
+    const mine = (listOf(next, page, phaseOf(page, name)) || [])
+      .filter((e) => !known.has(e.id) && !seen.has(e.id))
+      .map((e) => { seen.add(e.id); return { id: e.id, shown: e.shown } })
+    const missing = PANELS[page].filter((p) => !seen.has(p.id)).map((p) => ({ id: p.id, shown: false }))
+    next = withList(next, page, phaseOf(page, name), [...ours, ...theirsUnknown, ...mine, ...missing])
+  }
+  return normalizeLayout(next)
+}
+
+/**
+ * The given lists put back VERBATIM for those names, every other page, phase and field unchanged, then normalized.
+ * Undo uses it: it must put unknown ids back in their original slots, which `applySharedPage` does not.
+ */
+export function replaceLists(layout, page, lists) {
+  let next = normalizeLayout(layout)
+  if (!knownPage(page)) return next
+  for (const name of givenNames(page, lists)) {
+    if (!Array.isArray(lists[name])) continue
+    next = withList(next, page, phaseOf(page, name), cloneJson(lists[name]) || [])
+  }
+  return normalizeLayout(next)
+}
+
+/** The lists of `layout` a shared page would replace: `{ name: list }` for each name in `lists`. */
+export function listsFor(layout, page, lists) {
+  const base = normalizeLayout(layout)
+  return Object.fromEntries(givenNames(page, lists).map((n) => [n, listOf(base, page, phaseOf(page, n)).map((e) => ({ ...e }))]))
+}
+
+/**
+ * What adopting would change, by the labels of the SHOWN panels: `[{ list, now, after, changed }]`, one row per list
+ * name in `lists`, in the canonical order.
+ */
+export function layoutDiff(current, page, lists) {
+  const after = applySharedPage(current, page, lists)
+  const shown = (l, name) => resolvePanels(l, page, phaseOf(page, name)).filter((p) => p.shown).map((p) => p.label)
+  return givenNames(page, lists).map((name) => {
+    const now = shown(current, name)
+    const next = shown(after, name)
+    return { list: name, now, after: next, changed: JSON.stringify(now) !== JSON.stringify(next) }
+  })
 }

@@ -1,0 +1,24 @@
+[1280] step 1 PASS: author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share
+[1280] step 2 PASS: admin approves it in the review panel and reads the panel list
+[1280] step 3 PASS: member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first
+[1280] step 4 FAIL: member presses Undo; Today renders its previous order
+[1280] step 5 PASS: author changes the layout and shares again; the listed version is unchanged until the admin approves
+[1280] step 6 PASS: author unpublishes; the member's Today is unchanged
+[820] step 1 PASS: author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share
+[820] step 2 PASS: admin approves it in the review panel and reads the panel list
+[820] step 3 PASS: member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first
+[820] step 4 FAIL: member presses Undo; Today renders its previous order
+[820] step 5 PASS: author changes the layout and shares again; the listed version is unchanged until the admin approves
+[820] step 6 PASS: author unpublishes; the member's Today is unchanged
+[390] step 1 PASS: author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share
+[390] step 2 PASS: admin approves it in the review panel and reads the panel list
+[390] step 3 PASS: member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first
+[390] step 4 FAIL: member presses Undo; Today renders its previous order
+[390] step 5 PASS: author changes the layout and shares again; the listed version is unchanged until the admin approves
+[390] step 6 PASS: author unpublishes; the member's Today is unchanged
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\p4b-walk-20261019T0249Z\integrity-sharing-on.md
+[1280] step 7 PASS: sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip
+[820] step 7 PASS: sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip
+[390] step 7 PASS: sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: docs\notebook\evidence\p4b-walk-20261019T0249Z\integrity-sharing-off.md
+VERDICT: {'PASS': 18, 'FAIL': 3, 'INCONCLUSIVE': 0} not_run=None failure=None sandboxes=['CLEAN', 'CLEAN'] exit=1; raw log: docs\notebook\evidence\p4b-walk-20261019T0249Z\walk.json

@@ -27,7 +27,9 @@ import { contract, contractBody } from '../../__fixtures__/contract'
 // and one of the swing three shares this member item's title ("Weekend prep"). These tests are
 // about community outlines and a MEMBER's listed style, so they serve exactly those, the sets
 // the fixtures held before P5. The firm rows are pinned server-side (tests/test_firm_style_seed.py).
-const OUTLINES = contractBody('template-gallery.list').templates.filter((t) => t.itemType !== 'style')
+// P4b (final review C8): the outline set is the outline rows ONLY, so a layout or an example row a later fixture
+// carries cannot slip into what these tests serve as "community outlines".
+const OUTLINES = contractBody('template-gallery.list').templates.filter((t) => t.itemType === 'outline')
 const STYLES_SWING = contract('template-gallery.list.styles')
 const MEMBER_SWING = STYLES_SWING.body.templates.filter((t) => !t.firm)
 const STYLE = MEMBER_SWING[0]
@@ -159,10 +161,13 @@ describe('the switch', () => {
     flags()
     await openGallery()
     const types = await screen.findByRole('group', { name: 'Filter by type' })
-    // P3b (R-P3b-2): an example note is never a chip of its own
+    // P3b (R-P3b-2): an example note is never a chip of its own. P4b (X21): the chips are the types this answer
+    // offers. This fake's list answer carries no `capabilities`, so layout sharing reads as off and the Page layouts
+    // chip is not offered (LayoutLibrary.test.jsx holds the "on" half).
     expect(within(types).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['All', ...LISTED_ITEM_TYPES.map((t) => t.label)])
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
     expect(within(types).queryByRole('button', { name: 'Example notes' })).toBeNull()
+    expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(ITEM_TYPES.some((t) => t.key === EXAMPLE_NOTE_TYPE)).toBe(true)
     expect(LISTED_ITEM_TYPES.map((t) => t.key)).toEqual(ITEM_TYPES.map((t) => t.key).filter((k) => k !== EXAMPLE_NOTE_TYPE))
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })

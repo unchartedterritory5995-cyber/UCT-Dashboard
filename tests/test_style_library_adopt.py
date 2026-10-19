@@ -388,7 +388,7 @@ def test_the_adopt_constants_are_the_ruled_values():
     from api.routers import notebook_template_gallery as r
     assert (r.ADOPT_RATE, r.SCOPE_ADOPT, r.DAILY_ADOPT_SCOPE) == (
         "30/hour", "notebook-gallery-adopt", "notebook_gallery_adopt")
-    assert r.ADOPT_RATE_SENTENCE == "You've adopted a lot of styles today. Try again later."
+    assert r.ADOPT_RATE_SENTENCE == "You've adopted a lot from the library today. Try again later."
 
 
 def test_post_adopt_returns_the_style_notify_and_credit(api, conn, lib_on):
@@ -457,7 +457,7 @@ def test_adopt_has_a_durable_daily_cap_that_outlives_the_process_limiter(api, co
         last = api.post(f"{URL}/{item['id']}/adopt", json={})
         codes.append(last.status_code)
     assert codes == [200, 200, 429]
-    assert last.json()["detail"] == "You've adopted a lot of styles today. Try again later."
+    assert last.json()["detail"] == "You've adopted a lot from the library today. Try again later."
     assert _used() == 2                                                       # the refused one was never counted
     # the default cap is 50 a day
     monkeypatch.delenv("NOTEBOOK_GALLERY_ADOPT_DAILY_CAP")

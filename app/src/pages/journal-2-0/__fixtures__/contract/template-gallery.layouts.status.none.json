@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/template-gallery/layouts/status",
+    "note": "Nothing shared yet: both pages are null.",
+    "path": "/api/j2/template-gallery/layouts/status",
+    "status": 200
+  },
+  "body": {
+    "shared": {
+      "today": null,
+      "trade": null
+    }
+  }
+}

@@ -66,8 +66,10 @@ from typing import Any
 from api.services.auth_db import get_connection
 from api.services.journal_two import example_sanitize
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import sample_marker
 from api.services.journal_two import starter_packs
+from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
 from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -87,8 +89,9 @@ EXAMPLE_FLAG = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
 EXAMPLE_ITEM = "example_note"
 #: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
 #: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
-ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM)
-#: The item types a member can list or filter by: every type but the example note (R-P3b-2).
+ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM, LAYOUT_ITEM)
+#: The item types a member can list or filter by: every type but the example note (R-P3b-2). It includes
+#: `page_layout` (P4b); whether a layout row is SHOWN is the switch's business (`_hidden_item_types`).
 LISTED_ITEM_TYPES = tuple(t for t in ITEM_TYPES if t != EXAMPLE_ITEM)
 TRADING_STYLES = ("swing", "day", "prop", "options", "earnings", "long_term")
 SORTS = ("newest", "most_used", "trending")
@@ -127,6 +130,9 @@ _PREVIEW_LINE_CHARS = 72
 #: What an admin reads when the template they are approving is not the one they looked at.
 APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
                           "Look at it again, then approve.")
+#: The same sentence for a page layout row: a layout is not a template (P4b final, item 5).
+LAYOUT_APPROVE_STALE_SENTENCE = ("This layout changed after you opened it. Nothing was listed. "
+                                 "Look at it again, then approve.")
 #: ...and when the template they are rejecting is not the one they looked at (P3b-F-R4), or the tab names no version
 #: at all -- a tab still on a bundle from before reject was pinned (P3b-F2-R3): reloading the queue is the fix either way.
 REJECT_STALE_SENTENCE = "This item changed since you opened it. Reload the review queue to see the current version."
@@ -160,12 +166,42 @@ def library_enabled() -> bool:
     return flag_on(LIBRARY_FLAG, False)
 
 
+#: P4b (R-P4b-10): the layout-sharing switch. SERVER-ONLY: it is not in `auth.NOTEBOOK_FLAGS` and has no client
+#: fallback row (a payload key would cost first-open bytes); the lazy library list reports it as
+#: `capabilities.layoutSharing` and `GET /layouts/status` answers 404 while it is off. Read per call with a plain
+#: `os.environ.get` (a `flag_on` call is for payload flags), and it needs the library AND page layouts too.
+LAYOUT_SHARING_FLAG = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
+PAGE_LAYOUTS_FLAG = "JOURNAL_PAGE_LAYOUTS_ENABLED"
+
+
+def _layout_switches_on() -> bool:
+    """The two switches that are layout sharing's OWN (page layouts and the sharing env), read PER CALL and
+    WITHOUT the library switch, so a list that has already read `library_enabled` once can combine the two
+    without reading it again (P5's one-read rule, `test_one_list_request_reads_the_switches_once`)."""
+    return (flag_on(PAGE_LAYOUTS_FLAG, False)
+            and (os.environ.get(LAYOUT_SHARING_FLAG) or "").strip().lower() in TRUTHY)
+
+
+def layout_sharing_enabled() -> bool:
+    """P4b's gate: all three switches on, read PER CALL. Default OFF; an unrecognised value is OFF.
+
+    The fourth switch, the gallery's own (`FLAG`), is the router's dependency, not part of this function,
+    exactly as `library_enabled` leaves it to the router: every route that calls this is behind it."""
+    return library_enabled() and _layout_switches_on()
+
+
 def example_enabled() -> bool:
     """P3b's gate (R-P3b-6): `NOTEBOOK_EXAMPLE_NOTES_ENABLED` AND the library switch, read PER CALL.
 
     Default OFF, and an unrecognised value is OFF: for a default-off gate that is exactly `flag_on`'s
     truth table, so the one TRUTHY set decides (`notebook_flags.TRUTHY`)."""
-    return library_enabled() and (os.environ.get(EXAMPLE_FLAG) or "").strip().lower() in TRUTHY
+    return library_enabled() and _example_switch_on()
+
+
+def _example_switch_on() -> bool:
+    """The example switch alone, without the library switch (the same split as `_layout_switches_on`), so a list
+    that has already read `library_enabled` can combine them without reading it again."""
+    return (os.environ.get(EXAMPLE_FLAG) or "").strip().lower() in TRUTHY
 
 
 def _now() -> str:
@@ -293,6 +329,7 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
         ("pending_at", "TEXT"),
         # P3b: the author's own note an example note was reduced from (a snapshot: the row never reads it again).
         ("source_note_id", "TEXT"),
+        ("source_page", "TEXT"),
     ):
         if name not in columns:
             conn.execute(f"ALTER TABLE j2_template_gallery ADD COLUMN {name} {ddl}")
@@ -301,6 +338,10 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
                  " WHERE user_id IS NOT NULL AND source_style_id IS NOT NULL")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_template_gallery_note_source"
                  " ON j2_template_gallery(user_id, source_note_id) WHERE source_note_id IS NOT NULL")
+    # P4b: one live gallery copy per (author, page) -- sharing a page's layout again UPDATES it.
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_layout_source"
+                 " ON j2_template_gallery(user_id, source_page)"
+                 " WHERE user_id IS NOT NULL AND source_page IS NOT NULL")
     conn.commit()
     try:
         seed_firm_templates(conn)
@@ -482,14 +523,14 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
     return out
 
 
-def _clean_text(raw: Any, *, field: str, limit: int, required: bool) -> str:
+def _clean_text(raw: Any, *, field: str, limit: int, required: bool, noun: str = "template") -> str:
     if raw is None:
         raw = ""
     if not isinstance(raw, str):
         raise GalleryError(f"{field} must be text.")
     text = " ".join(public.scrub_gallery_text(raw).split())
     if required and not text:
-        raise GalleryError(f"A gallery template needs a {field}.")
+        raise GalleryError(f"A gallery {noun} needs a {field}.")
     if len(text) > limit:
         raise GalleryError(f"The {field} can be at most {limit} characters.")
     return text
@@ -619,6 +660,10 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "itemType": row["item_type"] if "item_type" in keys else "outline",
         "version": int(row["version"] or 1) if "version" in keys else 1,
         "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
+        # P4b: which page a shared layout is for ('today' | 'trade'); None for every other type. CLAMPED to
+        # LAYOUT_PAGES (P4b-R-T3-5): `source_page` is free TEXT, and the label stays a closed enum whatever is stored.
+        "layoutPage": (row["source_page"] if "source_page" in keys and "item_type" in keys
+                       and row["item_type"] == LAYOUT_ITEM and row["source_page"] in LAYOUT_PAGES else None),
         "trendingCount": int(row["trending_count"] or 0) if "trending_count" in keys else 0,
         # P3a Task 6. The count is everyone's; `helpedByMe` is THIS viewer's (the select binds them).
         "helpfulCount": int(row["helpful_count"] or 0) if "helpful_count" in keys else 0,
@@ -667,10 +712,12 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 #                                      unreadable revision must not take the whole queue down.
 _LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
                  " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_style_id,")
+                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_style_id,"
+                 " g.source_page,")
 #: ⛔ P3b-T5-R7 (review I-1): `source_style_id` is READ by every list, and `_summary` still EMITS it only for the
 #: author and admins (`sourceStyleId`). Without it the author's Your submissions row could not say which of their
-#: styles it is, so the Share form's "Add an example note" door never found its item.
+#: styles it is, so the Share form's "Add an example note" door never found its item. `source_page` (P4b) is read
+#: the same way: `_summary` turns it into `layoutPage`.
 _REVISION_TITLE = ("CASE WHEN json_valid(g.pending_json)"
                    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
 _COMPUTED = (
@@ -763,7 +810,7 @@ def list_gallery(
     # Ruling P3b-R12: an author's OWN Your submissions lists their example notes too, with the status and any
     # reviewer's note, while the switch is on (R-P3b-2's "never listed on its own" governs the library, where
     # other members browse). With the switch off an example reads as absent everywhere, here included.
-    if section != "mine" or not example_enabled():
+    if section != "mine" or not (library_on and _example_switch_on()):    # `example_enabled`, library read once
         where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
@@ -775,10 +822,16 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    if not library_on:
-        if item_type == "style" or trading_style:
-            raise GalleryError("Unknown item type.")
-    elif item_type:
+    # A library type (a style, a layout) or a trading-style filter asked for while the library is off is unknown:
+    # the same 400 as before either existed. Then the ONE type rule for the non-style types (`_hidden_item_types`,
+    # given this request's `library_on` so `library_enabled` is read once): a hidden type asked for by name is
+    # unknown, and every row of one is kept out of the WHERE. Style rows are `_hidden_styles_sql`'s, below.
+    if not library_on and (item_type in ("style", LAYOUT_ITEM) or trading_style):
+        raise GalleryError("Unknown item type.")
+    if item_type in _hidden_item_types(library_on):
+        raise GalleryError("Unknown item type.")
+    where.append(_type_visible_clause(library_on))
+    if item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
     where.append(_hidden_styles_sql(hidden))    # every style row the switches hide (P5-AUD-1), picks included
@@ -810,6 +863,29 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
+def _hidden_item_types(library_on: bool | None = None) -> tuple[str, ...]:
+    """⛔ THE ONE RULE for which NON-STYLE item types are absent right now (R-P3b-6, R-P4b-10): an example note
+    while its switch is off, a page layout while layout sharing is off. Style rows are NOT this function's:
+    `_hidden_styles` owns them (P5-AUD-1), so there is one decision over style visibility, not two.
+
+    A caller that already read `library_enabled` for this request passes it as `library_on`, so a list reads the
+    library switch once (P5-T5b-R1); every other caller lets this read it."""
+    if library_on is None:
+        library_on = library_enabled()
+    hidden = []
+    if not (library_on and _example_switch_on()):
+        hidden.append(EXAMPLE_ITEM)
+    if not (library_on and _layout_switches_on()):
+        hidden.append(LAYOUT_ITEM)
+    return tuple(hidden)
+
+
+def _type_visible_clause(library_on: bool | None = None) -> str:
+    """`_hidden_item_types` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in."""
+    hidden = _hidden_item_types(library_on)
+    return "1 = 1" if not hidden else "g.item_type NOT IN (" + ", ".join(f"'{t}'" for t in hidden) + ")"
+
+
 # ── which STYLE rows the gallery hides: ONE rule, two renderings (P5-AUD-1) ─────────────────────
 #
 # `_hidden_styles()` is the only place the decision is made. `_library_hides` renders it for one row (the
@@ -839,13 +915,25 @@ def _library_hides(row: sqlite3.Row) -> bool:
 
     P3b (R-P3b-6): an example-note row reads the same way while ITS switch is off (which the library switch
     being off implies). Stored, never deleted: arming the switch again brings it back as it was. This branch
-    comes FIRST (P5-FIN-R1): the style rule below answers False for every non-style row."""
-    if row["item_type"] == EXAMPLE_ITEM:
-        return not example_enabled()
-    if row["item_type"] != "style":
+    comes FIRST (P5-FIN-R1): the style rule below answers False for every non-style row.
+
+    P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (all three of its switches),
+    so `GET /{id}`, Helpful, report, the admin routes and adopt all 404 a layout without a route gate of their own.
+    ⛔ ONE ORDER (P4b final T1): the example branch, then the layout branch, then P5's style rule. The two
+    non-style branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`).
+
+    ⛔ C1 (P5 landing review M-1, P4b final): BOTH columns are read here for EVERY row, before any branch. A narrow
+    SELECT that leaves `kind` out then fails in every test of every switch state, never only for a style row in
+    the one state (library on, starter packs off) that reads `kind`, which is how C1 hid."""
+    item_type, kind = row["item_type"], row["kind"]
+    if item_type == EXAMPLE_ITEM:
+        return EXAMPLE_ITEM in _hidden_item_types()
+    if item_type == LAYOUT_ITEM:
+        return LAYOUT_ITEM in _hidden_item_types()
+    if item_type != "style":
         return False
     hidden = _hidden_styles()
-    return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
+    return hidden == "all" or (hidden == "firm" and kind == "firm")
 
 
 def _hidden_styles_sql(hidden: str | None = None) -> str:
@@ -898,6 +986,8 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
         if not _can_see(row, viewer_id, is_admin, conn):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
+        if row["item_type"] == LAYOUT_ITEM:
+            return _layout_item(out, row, is_admin)
         out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
         if row["item_type"] == "style":
@@ -986,11 +1076,30 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     if not isinstance(rev, dict):
         return None
     text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
-    payload = (_safe_example(rev.get("payload")) if row["item_type"] == EXAMPLE_ITEM
+    # P4b (P4b-R-X5): a held LAYOUT revision is read through `usable_layout` (`safe_layout`, then drift-emptied
+    # lists dropped: P4b-T6-R1), never the style reader, so a reviewer sees what adopting it would apply.
+    item_type = row["item_type"] if "item_type" in keys else None
+    payload = (_safe_example(rev.get("payload")) if item_type == EXAMPLE_ITEM
+               else pls.usable_layout(rev.get("payload")) if item_type == LAYOUT_ITEM
                else _safe_listed(rev.get("payload")))
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
             "tradingStyle": text("tradingStyle"), "payload": payload}
+
+
+def _layout_item(out: dict[str, Any], row: sqlite3.Row, is_admin: bool) -> dict[str, Any]:
+    """P4b (P4b-R-X5): what a `page_layout` row's single read serves. The LISTED payload (`payload_json`, never
+    `pending_json`), read through `usable_layout` so whatever is stored leaves as registry ids in `{id, shown}`
+    entries with drift-emptied lists dropped, exactly what `adopt_layout` applies (P4b-T6-R1). None when it cannot
+    be read or no list keeps a panel: not usable, never an empty layout, and never a 500. NEVER `bodyJson` or
+    `propertyDefs`: a layout has no body and no properties, and its row's `body_json` is an empty document kept
+    only for the outline-shaped columns. A reviewer also gets the held revision, admins only, the same rule as a style's."""
+    out["payload"] = pls.usable_layout(_listed_payload(row))
+    if is_admin:
+        rev = _pending_revision(row)
+        if rev is not None:
+            out["pendingRevision"] = rev
+    return out
 
 
 # ── the author ──────────────────────────────────────────────────────────────────────────
@@ -1129,6 +1238,57 @@ def _clean_trading_style(raw: Any) -> str | None:
     return raw
 
 
+_HELD_KEY_COLUMNS = ("source_style_id", "source_page")
+
+
+def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any,
+                            item_type: str, title: str, description: str, category: str,
+                            trading_style: str | None, body: dict, preview: list, payload: dict) -> str:
+    """R-P3-3's (re)submission write for a style and a layout, shared by `publish_style` and `publish_layout`.
+    ⛔ NOT the only one (P4b final m-3): P3b's `publish_example` still carries its own held / replaced / insert
+    block, keyed on the source note AND the linked style with an id it assigns before the reduction. Folding it
+    in here (an `existing` predicate and a preset id) is a follow-up; until then the two must change together.
+    Keyed on (author, `key_column` = `key`, `item_type`): the first publish INSERTs a PENDING
+    item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED the new
+    version is HELD in `pending_json` and the approved one stays listed. Returns the item id; the caller commits.
+    `key_column` is interpolated, so it is held to a closed set."""
+    if key_column not in _HELD_KEY_COLUMNS:
+        raise ValueError(f"not a gallery key column: {key_column!r}")
+    now = _now()
+    payload_json = json.dumps(payload)
+    body_json = json.dumps(body)
+    preview_json = json.dumps(preview)
+    existing = conn.execute(
+        f"SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND {key_column} = ? AND item_type = ?",
+        (user_id, key, item_type)).fetchone()
+    if existing and existing["status"] == "approved":
+        revision = {"title": title, "description": description, "category": category,
+                    "tradingStyle": trading_style, "payload": payload, "preview": preview}
+        conn.execute(
+            "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+            " updated_at = ? WHERE id = ?",
+            (json.dumps(revision), now, now, existing["id"]))
+        return existing["id"]
+    if existing:
+        conn.execute(
+            "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
+            " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+            " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
+            " pending_json = NULL, pending_at = NULL WHERE id = ?",
+            (title, description, category, trading_style, body_json, payload_json, now,
+             preview_json, existing["id"]))
+        return existing["id"]
+    gid = uuid.uuid4().hex
+    conn.execute(
+        f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
+        " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+        " payload_json, version, trading_style)"
+        " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+        (gid, user_id, key, title, description, category, body_json, now, now,
+         preview_json, item_type, payload_json, trading_style))
+    return gid
+
+
 def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, category: Any,
                   trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
     """Submit (or resubmit) one of the member's own styles. None when the library is off
@@ -1156,40 +1316,83 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
         body = payload["outlineBodyJson"] or {"type": "doc", "content": []}
         preview_json = json.dumps(preview_lines(body))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
-        now = _now()
-        existing = conn.execute(
-            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_style_id = ?",
-            (user_id, style_id)).fetchone()
-        if existing and existing["status"] == "approved":
-            revision = {"title": clean_title, "description": clean_desc, "category": clean_cat,
-                        "tradingStyle": clean_ts, "payload": payload, "preview": json.loads(preview_json)}
-            conn.execute(
-                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
-                " updated_at = ? WHERE id = ?",
-                (json.dumps(revision), now, now, existing["id"]))
-            gid = existing["id"]
-        elif existing:
-            conn.execute(
-                "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
-                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
-                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
-                " pending_json = NULL, pending_at = NULL WHERE id = ?",
-                (clean_title, clean_desc, clean_cat, clean_ts, json.dumps(body), payload_json, now,
-                 preview_json, existing["id"]))
-            gid = existing["id"]
-        else:
-            gid = uuid.uuid4().hex
-            conn.execute(
-                "INSERT INTO j2_template_gallery (id, user_id, source_style_id, kind, title, description,"
-                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
-                " payload_json, version, trading_style)"
-                " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, 'style', ?, 1, ?)",
-                (gid, user_id, style_id, clean_title, clean_desc, clean_cat, json.dumps(body), now, now,
-                 preview_json, payload_json, clean_ts))
+        gid = _write_held_or_replaced(
+            conn, user_id=user_id, key_column="source_style_id", key=style_id, item_type="style",
+            title=clean_title, description=clean_desc, category=clean_cat, trading_style=clean_ts,
+            body=body, preview=json.loads(preview_json), payload=payload)
         conn.commit()
         out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedProperties"] = dropped
         return out
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── sharing a page layout (P4b Task 4) ─────────────────────────────────────────────────────────
+
+_LAYOUT_EMPTY_BODY = {"type": "doc", "content": []}
+
+
+def publish_layout(user_id: str, page: Any, *, title: Any, description: Any, category: Any,
+                   trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Share (or share again) one page of the member's OWN saved layout. None while layout sharing is off.
+
+    ⛔ R-P4b-3/4: the payload is built from the member's own `journal_page_layout` preference, read here through
+    `conn` (V3, P4b-R-X1: `user_preferences.pref_value`), never from anything the client sends; the client names
+    only the page. `pls.layout_payload` keeps registry panels and counts the rest (`droppedPanels`, R-P4b-6), and
+    `validate_layout_payload`, the write door, runs on that payload immediately before the write (R-P4b-6a). A
+    refusal is a `GalleryError` carrying one of the three sentences (the door's own words never reach a member).
+
+    The item is written by `_write_held_or_replaced`, the one write `publish_style` uses too, keyed on (author, page): the first share is a
+    PENDING item; again while pending or rejected it is replaced in place, back to pending; again while APPROVED
+    the new version is HELD in `pending_json` and the approved one stays listed. The body is an empty document
+    and the preview is empty: a layout has neither. Returns the author's summary plus `droppedPanels`."""
+    if not layout_sharing_enabled():
+        return None
+    if page not in LAYOUT_PAGES:        # the page first, before any field is cleaned (review Minor 2)
+        raise GalleryError(pls.PAGE_SENTENCE)
+    clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True, noun="layout")
+    clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
+    clean_cat = _clean_category(category)
+    clean_ts = _clean_trading_style(trading_style)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        pref = conn.execute("SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = ?",
+                            (user_id, pls.LAYOUT_PREF)).fetchone()
+        payload, dropped = pls.layout_payload(pref["pref_value"] if pref else None, page)
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
+        pls.validate_layout_payload(payload)      # ⛔ THE WRITE DOOR, immediately before the write (R-P4b-6a)
+        gid = _write_held_or_replaced(
+            conn, user_id=user_id, key_column="source_page", key=page, item_type=LAYOUT_ITEM,
+            title=clean_title, description=clean_desc, category=clean_cat, trading_style=clean_ts,
+            body=_LAYOUT_EMPTY_BODY, preview=[], payload=payload)
+        conn.commit()
+        out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
+        out["droppedPanels"] = dropped
+        return out
+    except pls.LayoutPayloadError as e:
+        raise GalleryError(str(e) if str(e) in pls.LAYOUT_SENTENCES else pls.UNREADABLE_SENTENCE) from None
+    finally:
+        if owned:
+            conn.close()
+
+
+def layout_status(user_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    """`{"shared": {"today": summary-or-None, "trade": summary-or-None}}`: the member's OWN layout items, one per
+    page, in every state (the author's summary carries `status`, `version` and `hasRevision`). None while layout
+    sharing is off."""
+    if not layout_sharing_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        shared: dict[str, Any] = {p: None for p in LAYOUT_PAGES}
+        for r in _read(conn, user_id, "g.user_id = ? AND g.item_type = ?", (user_id, LAYOUT_ITEM), list_only=True):
+            if r["source_page"] in shared:
+                shared[r["source_page"]] = _summary(r, viewer_id=user_id, is_admin=False)
+        return {"shared": shared}
     finally:
         if owned:
             conn.close()
@@ -1878,7 +2081,8 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
     The server reads the note and reduces it ITSELF; nothing a client sends is a body. First publish: a
     PENDING `example_note` item. Again (same author, note and style) while pending or rejected: replaced in
     place, back to pending. Again while APPROVED: the new version is HELD in `pending_json` and the approved
-    one stays listed, as a style's does (R-P3-3).
+    one stays listed, as a style's does (R-P3-3). That write is this function's own, not `_write_held_or_replaced`
+    (P4b final m-3): its key is the note and the style together, and its id is assigned before the reduction.
 
     ⛔ P3b-T3-R1 (review I-1): the note is bounded before it is reduced (`_example_note`), and the reduction
     runs BEFORE `BEGIN IMMEDIATE`, against a fresh id. Only the lookup, the image rebinding and the write sit
@@ -2013,7 +2217,9 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     try:
         row = _row(conn, gallery_id, user_id)
         # An example note is a snapshot of another member's note shown on their style, never a template to copy.
-        if not _can_see(row, user_id, False, conn) or row["item_type"] == EXAMPLE_ITEM:
+        # P4b-R-X8: nor is a layout. Copying one would write an empty note template under its title and count a
+        # use; either reads exactly like an item `/use` cannot see.
+        if not _can_see(row, user_id, False, conn) or row["item_type"] in (EXAMPLE_ITEM, LAYOUT_ITEM):
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),
@@ -2029,11 +2235,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)",
             (new_id, user_id, name, row["title"] or "", json.dumps(_stored_body(row)), now, now),
         )
-        if row["user_id"] != user_id:
-            conn.execute(
-                "INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                " VALUES (?, ?, ?)", (gallery_id, user_id, now),
-            )
+        _record_use(conn, row, user_id, now)
         conn.commit()
         result: dict[str, list[str]] = {"added": [], "existing": [], "skipped": []}
         for d in json.loads(row["property_defs_json"]) if row["property_defs_json"] else []:
@@ -2053,14 +2255,36 @@ UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the
                          "Look again.")
 
 
-def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
-    """The row of a style a member may adopt: a style item that is approved and not hidden."""
+def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str, *,
+                hides: bool = True) -> sqlite3.Row | None:
+    """The row of an item a member may adopt: one of `item_type`, approved and not hidden, and (with `hides`, the
+    default) of a type that is not absent right now (`_library_hides`, the one rule). Shared by adopting a style
+    and adopting a layout, so "listed" means one thing for both."""
     if not isinstance(gallery_id, str) or not gallery_id:
         return None
     row = _row(conn, gallery_id)             # no viewer: adopt and update read the item, not the member's vote
-    if row is None or row["item_type"] != "style" or row["status"] != "approved" or row["hidden"]:
+    if (row is None or (hides and _library_hides(row)) or row["item_type"] != item_type
+            or row["status"] != "approved" or row["hidden"]):
         return None
     return row
+
+
+def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
+    """The row of a style a member may adopt: a style item that is approved and not hidden.
+
+    ⛔ WITHOUT `_library_hides` (P4b final, merge): P5's starter-pack install reads its firm rows through this
+    behind its OWN two switches, and the library switch has no effect on an install
+    (tests/test_starter_packs.py::test_the_library_switch_has_no_effect_on_install). Every member-facing caller
+    (`adopt_style`, `_plan`) applies `_library_hides` itself, as it did before P4b."""
+    return _listed_row(conn, gallery_id, "style", hides=False)
+
+
+def _record_use(conn: sqlite3.Connection, row: sqlite3.Row, user_id: str, now: str) -> None:
+    """Count one member's use of an item, once ever (the primary key), and never the author's own. Uncommitted:
+    the caller commits it with the rest of its transaction. ONE copy for use, adopt-a-style and adopt-a-layout."""
+    if row["user_id"] != user_id:
+        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
 
 
 def _listed_payload(row: sqlite3.Row) -> dict | None:
@@ -2154,9 +2378,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
         if commit and conn.in_transaction:
             conn.rollback()
         raise GalleryError(str(e)) from e
-    if row["user_id"] != user_id:
-        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
+    _record_use(conn, row, user_id, now)   # the ONE use-count copy, for an adopt and a pack install alike (AUD-5)
     if notify:
         conn.execute(
             "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
@@ -2192,6 +2414,56 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         if row is None or _library_hides(row):         # a firm style while starter packs are off (P5-AUD-1)
             return None
         return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── adopting a shared page layout (P4b Task 5) ─────────────────────────────────────────────
+
+LAYOUT_MOVED_SENTENCE = "The author listed a newer version since you opened it. Nothing was changed. Look again."
+LAYOUT_UNSUPPORTED_SENTENCE = "This layout can't be used yet."
+
+
+def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
+                 conn: sqlite3.Connection | None = None) -> dict | None:
+    """The LISTED layout of a shared page, for the member's own client to apply (R-P4b-8).
+
+    None while layout sharing is off or when the item is not a listed `page_layout` (`_listed_row`: the one rule,
+    approved, not hidden). `version` must be the whole number the member previewed and equal the listed version,
+    else `GalleryConflict(LAYOUT_MOVED_SENTENCE)` and nothing is written. The stored payload is read through
+    `usable_layout`, the one step the item read and the reviewer's held revision use too (P4b-T6-R1): a payload it
+    cannot read, or one that keeps no panel in any list, is `GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)`, and a list
+    that keeps no panel is dropped from the answer.
+
+    Otherwise the one write is the use record (`_record_use`: once per member, never the author), committed, and
+    the answer is `{layout, version, credit}`. ⛔ It writes NO preference: the member's `journal_page_layout` is
+    theirs, saved by their own client through the preference door, so withdrawing or hiding the item later
+    changes nothing they adopted."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _listed_row(conn, gallery_id, LAYOUT_ITEM)
+        if row is None:
+            return None
+        listed = int(row["version"] or 1)
+        if isinstance(version, bool) or not isinstance(version, int) or version != listed:
+            raise GalleryConflict(LAYOUT_MOVED_SENTENCE)
+        # ⛔ `payload_json` through `_listed_payload` (never `pending_json`), then `usable_layout`: whatever is
+        # stored leaves as registry ids in `{id, shown}` entries, so an unknown panel never reaches an adopter,
+        # and a list registry drift has emptied is dropped (P4b-T5-R1) by the SAME step the item read uses
+        # (P4b-T6-R1), so the preview is exactly what adopt applies. Nothing usable is the refusal.
+        layout = pls.usable_layout(_listed_payload(row))
+        if layout is None:
+            raise GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)
+        _record_use(conn, row, user_id, _now())
+        conn.commit()
+        return {"layout": layout, "version": listed,
+                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -2381,7 +2653,8 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
         if not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]:
             return None
         if row["user_id"] == user_id:
-            raise GalleryError("You can't report your own template. Unpublish it instead.")
+            noun = "layout" if row["item_type"] == LAYOUT_ITEM else "template"
+            raise GalleryError(f"You can't report your own {noun}. Unpublish it instead.")
         try:
             conn.execute(
                 "INSERT INTO j2_template_gallery_reports (id, gallery_id, user_id, reason, note,"
@@ -2455,7 +2728,8 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND g.user_id = ?"
+        where = (f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
+                 " AND g.user_id = ?")
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -2505,7 +2779,7 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()}"
+                     f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
                      " AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
@@ -2526,14 +2800,15 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
         # held revision) is reviewable only while the library is on, and a firm style row only while the
         # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
         # P3b: an example note is reviewable only while ITS switch is on, the same rule one level down.
-        visible_styles = f" AND {_hidden_styles_sql()}"
+        # P4b (R-P4b-10): a layout row only while layout sharing is on: `_type_visible_clause`, the type rule.
+        visible_terms = f" AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
         if not example_enabled():
-            visible_styles += f" AND {_NEVER_LISTED}"
+            visible_terms += f" AND {_NEVER_LISTED}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in _read(conn, None, f"({where}){visible_styles}", (), list_only=True, queue=queue,
+                    for r in _read(conn, None, f"({where}){visible_terms}", (), list_only=True, queue=queue,
                                    tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never
@@ -2598,14 +2873,19 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         is_example = row["item_type"] == EXAMPLE_ITEM
         held_version = int(row["version"] or 1) + 1     # the version a held revision becomes, and its copies' folder
         now = _now()
+        stale = LAYOUT_APPROVE_STALE_SENTENCE if row["item_type"] == LAYOUT_ITEM else APPROVE_STALE_SENTENCE
         if action == "approve":
             if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
-                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+                raise GalleryConflict(stale)
             if row["pending_json"]:
                 # An approved style's HELD revision (R-P3-3): swap it in, in the same conditional
                 # statement as a first approval, and bump the version members see.
                 try:
                     rev = json.loads(row["pending_json"])
+                    if row["item_type"] == LAYOUT_ITEM:
+                        # P4b (R-P4b-6a): a held layout revision passes the write door before it is listed. Its
+                        # refusal is a LayoutPayloadError, a ValueError, so it lands on the sentence below.
+                        pls.validate_layout_payload(rev["payload"])
                     # A style's listed body is its outline; an example note's is its reduced snapshot (P3b).
                     body_key = "bodyJson" if row["item_type"] == EXAMPLE_ITEM else "outlineBodyJson"
                     new_body = rev["payload"].get(body_key) or {"type": "doc", "content": []}
@@ -2629,7 +2909,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                     (admin_id, now, now, now, gallery_id, reviewed_updated_at))
             if cur.rowcount != 1:
                 conn.rollback()
-                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+                raise GalleryConflict(stale)
             if row["pending_json"] and is_example:
                 moves.promote(gallery_id, held_version)  # the held copies become the listed ones; the old set aside
         elif action == "reject":

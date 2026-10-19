@@ -60,6 +60,13 @@ export const SURFACES = Object.freeze({
   // a11y/styleLibrary.a11y.test.jsx renders it on a style card for an admin.
   'components/notebook/GalleryAdminActions.jsx': { recipe: 'style-library-card-admin' },
   'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
+  // P4b Task 7: shared page layouts in that library (dark behind NOTEBOOK_LAYOUT_SHARING_ENABLED, so no gallery or
+  // style recipe renders them); rail a11y/layoutLibrary.a11y.test.jsx. LibraryCard is the one card dispatcher, and the
+  // layout card is what it renders for a layout.
+  'components/notebook/LibraryCard.jsx': { coveredBy: 'layout-library-card' },
+  'components/notebook/LayoutLibraryCard.jsx': { recipe: 'layout-library-card' },
+  'components/notebook/LayoutPreviewSheet.jsx': { recipe: 'layout-library-preview' },
+  'components/notebook/AdoptLayoutSheet.jsx': { recipe: 'layout-library-adopt' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
@@ -354,6 +361,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // The trade page rendering from the layout (story first with the chart hidden; every panel hidden). Its own
   // rail file, because that file replaces `swr`.
   'components/trade/TradeDetailPage.jsx': { recipe: 'trade-page-layout', railFile: 'a11y/pageLayoutsTrade.a11y.test.jsx' },
+  // Notebook P4b Task 8: sharing a page layout from Customize (the form in the editor's sheet body) and the door
+  // that opens the library at Page layouts. Rail a11y/pageLayouts.a11y.test.jsx, with layout sharing answering.
+  'components/layout/ShareLayoutForm.jsx': { recipe: 'page-layout-share-form', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'components/layout/LayoutLibraryDoor.jsx': { recipe: 'layout-library-door', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
   // Notebook P3a Task 11: the community style library's doors under components/notebook/styles/ (outside the
   // derived population; dark behind notebook_style_library_enabled, so no styles-manager recipe renders them):
   // sharing a style, reviewing an author's update to an adopted copy, and the door that opens the library at

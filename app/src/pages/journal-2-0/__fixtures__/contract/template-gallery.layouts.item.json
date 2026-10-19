@@ -1,0 +1,53 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/fe945544b95f411b885465c35840dd0a",
+    "note": "A listed layout in full: `payload` is the listed layout, registry panels only.",
+    "path": "/api/j2/template-gallery/fe945544b95f411b885465c35840dd0a",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Lane Layout",
+      "authorHandle": "n3WNK89aDmRC",
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "featured": false,
+      "firm": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "id": "fe945544b95f411b885465c35840dd0a",
+      "itemType": "page_layout",
+      "layoutPage": "trade",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "payload": {
+        "lists": {
+          "trade": [
+            {
+              "id": "story",
+              "shown": true
+            },
+            {
+              "id": "chart",
+              "shown": false
+            },
+            {
+              "id": "outcome",
+              "shown": true
+            }
+          ]
+        },
+        "page": "trade"
+      },
+      "preview": [],
+      "propertyCount": 0,
+      "title": "Prop trade page",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

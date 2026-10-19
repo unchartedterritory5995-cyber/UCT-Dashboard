@@ -1,0 +1,1905 @@
+{
+ "tool": "tools/notebook_layout_library_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share",
+   "checks": [
+    {
+     "what": "the sharing status read answers (sharing is on)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "Market regime is the editor's first row",
+     "ok": true,
+     "read": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "Save says Layout saved.",
+     "ok": true,
+     "read": "Layout saved."
+    },
+    {
+     "what": "the author's Today renders Market regime first, My rules shown",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the server gave the share an id",
+     "ok": true,
+     "read": "bb6c26634c044afc8a62aafa0ca69c43"
+    },
+    {
+     "what": "Customize says the layout waits for review",
+     "ok": true,
+     "read": "Shared, waiting for review."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 200"
+    },
+    {
+     "what": "the editor's phase",
+     "text": "After close"
+    },
+    {
+     "what": "editor first row",
+     "text": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "toast",
+     "text": "Layout saved."
+    },
+    {
+     "what": "author Today order",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "status line",
+     "text": "Shared, waiting for review."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "admin approves it in the review panel and reads the panel list",
+   "checks": [
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 1280 024937\nby P4b Author 1280 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for "
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 1280 024937”. It is listed now."
+    },
+    {
+     "what": "the member's item read says listed, version 1",
+     "ok": true,
+     "read": "version=1 title=P4b walk 1280 024937"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P4b walk 1280 024937\nby P4b Author 1280 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Hidden\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 1280 024937”. It is listed now."
+    },
+    {
+     "what": "member item read",
+     "text": "version=1 title=P4b walk 1280 024937"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first",
+   "checks": [
+    {
+     "what": "the Page layouts chip is pressed",
+     "ok": true,
+     "read": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "the author's layout is a card under Page layouts",
+     "ok": true,
+     "read": "P4b walk 1280 024937"
+    },
+    {
+     "what": "Preview's shared list starts with Market regime",
+     "ok": true,
+     "read": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "the adopt was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the library says Today now uses the layout",
+     "ok": true,
+     "read": "Today now uses \"P4b walk 1280 024937\". Based on P4b Author 1280's P4b walk 1280 024937.\nUndo"
+    },
+    {
+     "what": "Today renders Market regime first, behind the library",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "member Today order before",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "chip",
+     "text": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "card",
+     "text": "P4b walk 1280 024937\nP4b Author 1280 · Swing\nToday · Used by 0 · 0 found this helpful\nPreview\nUse this layout\nHelpful\nReport"
+    },
+    {
+     "what": "preview: shared list",
+     "text": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "confirm: what changes",
+     "text": "Premarket: stays the same\nMarket: stays the same\nAfter close: now Coach notes, This week, Goal progress, Quick actions · after Market regime, Coach notes, This week, Goal progress, Quick actions, My rules"
+    },
+    {
+     "what": "message",
+     "text": "Today now uses \"P4b walk 1280 024937\". Based on P4b Author 1280's P4b walk 1280 024937.\nUndo"
+    },
+    {
+     "what": "member Today order after",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "member presses Undo; Today renders its previous order",
+   "checks": [
+    {
+     "what": "the library says the previous layout is back",
+     "ok": true,
+     "read": "Your previous Today layout is back."
+    },
+    {
+     "what": "Today renders its previous order",
+     "ok": true,
+     "read": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "the stored Today layout is the one before the adopt",
+     "ok": false,
+     "read": "compared the member's preference read before and after"
+    },
+    {
+     "what": "closing the library puts focus on Customize (P4b-T8 m2)",
+     "ok": true,
+     "read": "Customize"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Your previous Today layout is back."
+    },
+    {
+     "what": "member Today order after Undo",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "focus",
+     "text": "Customize"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP4b Author 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nMARKET REGIME\n\nYellow\n\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\nMY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.\n\n?\n◉",
+    "member": "Skip to main content\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP4b Member 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\n?\n◉\n⋮",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "author changes the layout and shares again; the listed version is unchanged until the admin approves",
+   "checks": [
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the listed version is still 1, without the change",
+     "ok": true,
+     "read": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "Customize says the update waits for review",
+     "ok": true,
+     "read": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 1280 024937\nby P4b Author 1280 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 1280 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNo"
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the row says it is an update to a listed layout",
+     "ok": true,
+     "read": "P4b walk 1280 024937\nby P4b Author 1280 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 1280 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNo"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 1280 024937”. It is listed now."
+    },
+    {
+     "what": "once approved, the listed version is 2 and carries the change",
+     "ok": true,
+     "read": "version=2 todayNote shown=True"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "member item read (held)",
+     "text": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "status line",
+     "text": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "review queue row",
+     "text": "P4b walk 1280 024937\nby P4b Author 1280 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 1280 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Shown\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 1280 024937”. It is listed now."
+    },
+    {
+     "what": "member item read (approved)",
+     "text": "version=2 todayNote shown=True"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "author unpublishes; the member's Today is unchanged",
+   "checks": [
+    {
+     "what": "the library says it was unpublished",
+     "ok": true,
+     "read": "Unpublished “P4b walk 1280 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the member's Today is unchanged",
+     "ok": true,
+     "read": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "the member's stored Today layout is unchanged",
+     "ok": true,
+     "read": "compared the member's preference read before and after"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P4b walk 1280 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "member Today order",
+     "text": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share",
+   "checks": [
+    {
+     "what": "the sharing status read answers (sharing is on)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "Market regime is the editor's first row",
+     "ok": true,
+     "read": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "Save says Layout saved.",
+     "ok": true,
+     "read": "Layout saved."
+    },
+    {
+     "what": "the author's Today renders Market regime first, My rules shown",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the server gave the share an id",
+     "ok": true,
+     "read": "ebf9c1550d984be0a74148393607fc29"
+    },
+    {
+     "what": "Customize says the layout waits for review",
+     "ok": true,
+     "read": "Shared, waiting for review."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 200"
+    },
+    {
+     "what": "the editor's phase",
+     "text": "After close"
+    },
+    {
+     "what": "editor first row",
+     "text": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "toast",
+     "text": "Layout saved."
+    },
+    {
+     "what": "author Today order",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "status line",
+     "text": "Shared, waiting for review."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "admin approves it in the review panel and reads the panel list",
+   "checks": [
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 820 024937\nby P4b Author 820 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for to"
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 820 024937”. It is listed now."
+    },
+    {
+     "what": "the member's item read says listed, version 1",
+     "ok": true,
+     "read": "version=1 title=P4b walk 820 024937"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P4b walk 820 024937\nby P4b Author 820 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Hidden\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 820 024937”. It is listed now."
+    },
+    {
+     "what": "member item read",
+     "text": "version=1 title=P4b walk 820 024937"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first",
+   "checks": [
+    {
+     "what": "the Page layouts chip is pressed",
+     "ok": true,
+     "read": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "the author's layout is a card under Page layouts",
+     "ok": true,
+     "read": "P4b walk 820 024937"
+    },
+    {
+     "what": "Preview's shared list starts with Market regime",
+     "ok": true,
+     "read": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "the adopt was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the library says Today now uses the layout",
+     "ok": true,
+     "read": "Today now uses \"P4b walk 820 024937\". Based on P4b Author 820's P4b walk 820 024937.\nUndo"
+    },
+    {
+     "what": "Today renders Market regime first, behind the library",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "member Today order before",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "chip",
+     "text": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "card",
+     "text": "P4b walk 820 024937\nP4b Author 820 · Swing\nToday · Used by 0 · 0 found this helpful\nPreview\nUse this layout\nHelpful\nReport"
+    },
+    {
+     "what": "preview: shared list",
+     "text": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "confirm: what changes",
+     "text": "Premarket: stays the same\nMarket: stays the same\nAfter close: now Coach notes, This week, Goal progress, Quick actions · after Market regime, Coach notes, This week, Goal progress, Quick actions, My rules"
+    },
+    {
+     "what": "message",
+     "text": "Today now uses \"P4b walk 820 024937\". Based on P4b Author 820's P4b walk 820 024937.\nUndo"
+    },
+    {
+     "what": "member Today order after",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "member presses Undo; Today renders its previous order",
+   "checks": [
+    {
+     "what": "the library says the previous layout is back",
+     "ok": true,
+     "read": "Your previous Today layout is back."
+    },
+    {
+     "what": "Today renders its previous order",
+     "ok": true,
+     "read": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "the stored Today layout is the one before the adopt",
+     "ok": false,
+     "read": "compared the member's preference read before and after"
+    },
+    {
+     "what": "closing the library puts focus on Customize (P4b-T8 m2)",
+     "ok": true,
+     "read": "Customize"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Your previous Today layout is back."
+    },
+    {
+     "what": "member Today order after Undo",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "focus",
+     "text": "Customize"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nMARKET REGIME\n\nYellow\n\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\nMY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.\n\n?\n◉\n⋮",
+    "member": "Skip to main content\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\n?\n◉\n⋮",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by "
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "author changes the layout and shares again; the listed version is unchanged until the admin approves",
+   "checks": [
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the listed version is still 1, without the change",
+     "ok": true,
+     "read": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "Customize says the update waits for review",
+     "ok": true,
+     "read": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 820 024937\nby P4b Author 820 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 820 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotic"
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the row says it is an update to a listed layout",
+     "ok": true,
+     "read": "P4b walk 820 024937\nby P4b Author 820 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 820 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotic"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 820 024937”. It is listed now."
+    },
+    {
+     "what": "once approved, the listed version is 2 and carries the change",
+     "ok": true,
+     "read": "version=2 todayNote shown=True"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "member item read (held)",
+     "text": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "status line",
+     "text": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "review queue row",
+     "text": "P4b walk 820 024937\nby P4b Author 820 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 820 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Shown\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 820 024937”. It is listed now."
+    },
+    {
+     "what": "member item read (approved)",
+     "text": "version=2 todayNote shown=True"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "author unpublishes; the member's Today is unchanged",
+   "checks": [
+    {
+     "what": "the library says it was unpublished",
+     "ok": true,
+     "read": "Unpublished “P4b walk 820 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the member's Today is unchanged",
+     "ok": true,
+     "read": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "the member's stored Today layout is unchanged",
+     "ok": true,
+     "read": "compared the member's preference read before and after"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P4b walk 820 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "member Today order",
+     "text": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share",
+   "checks": [
+    {
+     "what": "the sharing status read answers (sharing is on)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "Market regime is the editor's first row",
+     "ok": true,
+     "read": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "Save says Layout saved.",
+     "ok": true,
+     "read": "Layout saved."
+    },
+    {
+     "what": "the author's Today renders Market regime first, My rules shown",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the server gave the share an id",
+     "ok": true,
+     "read": "c661949b6cfd401fb86298984b9e6b83"
+    },
+    {
+     "what": "Customize says the layout waits for review",
+     "ok": true,
+     "read": "Shared, waiting for review."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 200"
+    },
+    {
+     "what": "the editor's phase",
+     "text": "After close"
+    },
+    {
+     "what": "editor first row",
+     "text": "Show Market regime (moved up 6)"
+    },
+    {
+     "what": "toast",
+     "text": "Layout saved."
+    },
+    {
+     "what": "author Today order",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    },
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "status line",
+     "text": "Shared, waiting for review."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "admin approves it in the review panel and reads the panel list",
+   "checks": [
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 390 024937\nby P4b Author 390 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for to"
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 390 024937”. It is listed now."
+    },
+    {
+     "what": "the member's item read says listed, version 1",
+     "ok": true,
+     "read": "version=1 title=P4b walk 390 024937"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "review queue row",
+     "text": "P4b walk 390 024937\nby P4b Author 390 · Journal\n\nPage: Today\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Hidden\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Hidden\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 390 024937”. It is listed now."
+    },
+    {
+     "what": "member item read",
+     "text": "version=1 title=P4b walk 390 024937"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first",
+   "checks": [
+    {
+     "what": "the Page layouts chip is pressed",
+     "ok": true,
+     "read": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "the author's layout is a card under Page layouts",
+     "ok": true,
+     "read": "P4b walk 390 024937"
+    },
+    {
+     "what": "Preview's shared list starts with Market regime",
+     "ok": true,
+     "read": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "the adopt was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the library says Today now uses the layout",
+     "ok": true,
+     "read": "Today now uses \"P4b walk 390 024937\". Based on P4b Author 390's P4b walk 390 024937.\nUndo"
+    },
+    {
+     "what": "Today renders Market regime first, behind the library",
+     "ok": true,
+     "read": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "member Today order before",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "chip",
+     "text": "Page layouts aria-pressed=true"
+    },
+    {
+     "what": "card",
+     "text": "P4b walk 390 024937\nP4b Author 390 · Swing\nToday · Used by 0 · 0 found this helpful\nPreview\nUse this layout\nHelpful\nReport"
+    },
+    {
+     "what": "preview: shared list",
+     "text": "[\"Market regime\\nShown\", \"Coach notes\\nShown\", \"This week\\nShown\", \"Goal progress\\nShown\", \"Quick actions\\nShown\", \"Checklist for today\\nHidden\", \"My rules\\nShown\", \"Today's note\\nHidden\", \"Notices\\nHidden\"]"
+    },
+    {
+     "what": "confirm: what changes",
+     "text": "Premarket: stays the same\nMarket: stays the same\nAfter close: now Coach notes, This week, Goal progress, Quick actions · after Market regime, Coach notes, This week, Goal progress, Quick actions, My rules"
+    },
+    {
+     "what": "message",
+     "text": "Today now uses \"P4b walk 390 024937\". Based on P4b Author 390's P4b walk 390 024937.\nUndo"
+    },
+    {
+     "what": "member Today order after",
+     "text": "[\"regime\", \"weekStrip\", \"goalProgress\", \"quickActions\", \"myRules\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "member presses Undo; Today renders its previous order",
+   "checks": [
+    {
+     "what": "the library says the previous layout is back",
+     "ok": true,
+     "read": "Your previous Today layout is back."
+    },
+    {
+     "what": "Today renders its previous order",
+     "ok": true,
+     "read": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "the stored Today layout is the one before the adopt",
+     "ok": false,
+     "read": "compared the member's preference read before and after"
+    },
+    {
+     "what": "closing the library puts focus on Customize (P4b-T8 m2)",
+     "ok": true,
+     "read": "Customize"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Your previous Today layout is back."
+    },
+    {
+     "what": "member Today order after Undo",
+     "text": "[\"weekStrip\", \"goalProgress\", \"quickActions\"] (before: [\"weekStrip\", \"goalProgress\", \"quickActions\"])"
+    },
+    {
+     "what": "focus",
+     "text": "Customize"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nJournal\nTrade Journal\nLog Trade\n?\nDefault\n▾\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nMARKET REGIME\n\nYellow\n\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\nMY RULES\n\nYou have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.\n\nLog\n?\n◉\n⋮",
+    "member": "Skip to main content\nJournal\nTrade Journal\nLog Trade\n?\nDefault\n▾\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nToday\nScope filter isn't applied on Today — it stays your live snapshot.\nCustomize\nToday’s recap\nReflect on today\nNo recap yet for today.\nGenerate today’s recap\nThis week\nSUN\n11\n·\nMON\n12\n·\nTUE\n13\n·\nWED\n14\n·\nTHU\n15\n·\nFRI\n16\n·\nSAT\n17\n·\nGOAL PROGRESS\nDefault\nSet a daily or weekly goal to track progress.\nSet a goal\nDAILY\n0%\n$0.00\n/ $95.24 default\nWEEKLY\n0%\n$0.00\n/ $461.89 default\nMONTHLY\n0%\n$0.00\n/ $2,000.00 default\nYEARLY\n0%\n$0.00\n/ $24,000.00 default\nLog trade\nOpen Notebook\nReview a trade\nLog\n?\n◉\n⋮",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nDrag for shortcuts · hold to go home\n×\nNew note\nVoice note\nTemplates\nVoice\nHome\nNOTEBOOK\ntap: next note\nReport\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPick a style to edit, or make a new one.\n\nCommunity styles\n×\nClose the library\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they "
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "author changes the layout and shares again; the listed version is unchanged until the admin approves",
+   "checks": [
+    {
+     "what": "the share was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the sheet says what happened, in the product's words",
+     "ok": true,
+     "read": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "the listed version is still 1, without the change",
+     "ok": true,
+     "read": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "Customize says the update waits for review",
+     "ok": true,
+     "read": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "the row says it is a Today layout",
+     "ok": true,
+     "read": "P4b walk 390 024937\nby P4b Author 390 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 390 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotic"
+    },
+    {
+     "what": "the After close list starts with Market regime: Shown and shows My rules",
+     "ok": true,
+     "read": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "the row says it is an update to a listed layout",
+     "ok": true,
+     "read": "P4b walk 390 024937\nby P4b Author 390 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 390 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotic"
+    },
+    {
+     "what": "the review panel says it is listed",
+     "ok": true,
+     "read": "Approved “P4b walk 390 024937”. It is listed now."
+    },
+    {
+     "what": "once approved, the listed version is 2 and carries the change",
+     "ok": true,
+     "read": "version=2 todayNote shown=True"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the sheet's answer",
+     "text": "Sent for review. The version listed now stays listed until an admin approves this update."
+    },
+    {
+     "what": "member item read (held)",
+     "text": "version=1 todayNote shown=False"
+    },
+    {
+     "what": "status line",
+     "text": "Listed. Your update is waiting for review."
+    },
+    {
+     "what": "review queue row",
+     "text": "P4b walk 390 024937\nby P4b Author 390 · Journal\n\nPage: Today\n\nUpdate to a listed layout (version 2). Approving lists it; the current version stays until then.\n\nTitle in this update: P4b walk 390 024937\n\nTrading style: Swing\n\nPremarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nMarket:\n\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Hidden\nMarket regime: Hidden\nToday's note: Hidden\nNotices: Hidden\n\nAfter close:\n\nMarket regime: Shown\nCoach notes: Shown\nThis week: Shown\nGoal progress: Shown\nQuick actions: Shown\nChecklist for today: Hidden\nMy rules: Shown\nToday's note: Shown\nNotices: Hidden\nApprove\nReject…"
+    },
+    {
+     "what": "the After close panel list",
+     "text": "[\"Market regime: Shown\", \"Coach notes: Shown\", \"This week: Shown\", \"Goal progress: Shown\", \"Quick actions: Shown\", \"Checklist for today: Hidden\", \"My rules: Shown\", \"Today's note: Shown\", \"Notices: Hidden\"]"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P4b walk 390 024937”. It is listed now."
+    },
+    {
+     "what": "member item read (approved)",
+     "text": "version=2 todayNote shown=True"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "author unpublishes; the member's Today is unchanged",
+   "checks": [
+    {
+     "what": "the library says it was unpublished",
+     "ok": true,
+     "read": "Unpublished “P4b walk 390 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "the member's Today is unchanged",
+     "ok": true,
+     "read": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    },
+    {
+     "what": "the member's stored Today layout is unchanged",
+     "ok": true,
+     "read": "compared the member's preference read before and after"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P4b walk 390 024937”. Copies other members made are theirs and stay."
+    },
+    {
+     "what": "member Today order",
+     "text": "after=[\"weekStrip\", \"goalProgress\", \"quickActions\"] before=[\"weekStrip\", \"goalProgress\", \"quickActions\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip",
+   "checks": [
+    {
+     "what": "the sharing status read answers 404 (sharing is off)",
+     "ok": true,
+     "read": "HTTP 404"
+    },
+    {
+     "what": "control: the editor rendered its rows",
+     "ok": true,
+     "read": "9 rows"
+    },
+    {
+     "what": "Customize shows no Share door",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "Customize shows no Find shared layouts",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "control: the library's type chips rendered (Styles is one)",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    },
+    {
+     "what": "the library shows no Page layouts chip",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 404"
+    },
+    {
+     "what": "Share buttons",
+     "text": "0"
+    },
+    {
+     "what": "Find buttons",
+     "text": "0"
+    },
+    {
+     "what": "list read capabilities",
+     "text": "{\"layoutSharing\": false}"
+    },
+    {
+     "what": "type chips",
+     "text": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "http": 404,
+      "url": "http://127.0.0.1:8183/api/j2/template-gallery/layouts/status"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip",
+   "checks": [
+    {
+     "what": "the sharing status read answers 404 (sharing is off)",
+     "ok": true,
+     "read": "HTTP 404"
+    },
+    {
+     "what": "control: the editor rendered its rows",
+     "ok": true,
+     "read": "9 rows"
+    },
+    {
+     "what": "Customize shows no Share door",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "Customize shows no Find shared layouts",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "control: the library's type chips rendered (Styles is one)",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    },
+    {
+     "what": "the library shows no Page layouts chip",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 404"
+    },
+    {
+     "what": "Share buttons",
+     "text": "0"
+    },
+    {
+     "what": "Find buttons",
+     "text": "0"
+    },
+    {
+     "what": "list read capabilities",
+     "text": "{\"layoutSharing\": false}"
+    },
+    {
+     "what": "type chips",
+     "text": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "http": 404,
+      "url": "http://127.0.0.1:8183/api/j2/template-gallery/layouts/status"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip",
+   "checks": [
+    {
+     "what": "the sharing status read answers 404 (sharing is off)",
+     "ok": true,
+     "read": "HTTP 404"
+    },
+    {
+     "what": "control: the editor rendered its rows",
+     "ok": true,
+     "read": "9 rows"
+    },
+    {
+     "what": "Customize shows no Share door",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "Customize shows no Find shared layouts",
+     "ok": true,
+     "read": "0"
+    },
+    {
+     "what": "control: the library's type chips rendered (Styles is one)",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    },
+    {
+     "what": "the library shows no Page layouts chip",
+     "ok": true,
+     "read": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status read",
+     "text": "HTTP 404"
+    },
+    {
+     "what": "Share buttons",
+     "text": "0"
+    },
+    {
+     "what": "Find buttons",
+     "text": "0"
+    },
+    {
+     "what": "list read capabilities",
+     "text": "{\"layoutSharing\": false}"
+    },
+    {
+     "what": "type chips",
+     "text": "[\"All\", \"Outlines\", \"Styles\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "http": 404,
+      "url": "http://127.0.0.1:8183/api/j2/template-gallery/layouts/status"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin"
+  },
+  {
+   "account": "P4b Author 1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "82ddfbaa-3e73-4334-98e4-74c9878d9b12",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "account": "P4b Member 1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "b78442ec-acad-4cc2-afb2-6fa3560a3ee3",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "what": "sign-up limit reached for P4b Author 820; waiting 62 s",
+   "attempt": 1,
+   "verdict": "INFO"
+  },
+  {
+   "account": "P4b Author 820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "9070349e-767c-411d-8b19-a8005bb490b9",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "account": "P4b Member 820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "e359e663-bf44-460f-8ceb-a2647cb5da9c",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "account": "P4b Author 390",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "cdbe7978-ccc8-4be5-8891-d571d3d8f1f5",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "what": "sign-up limit reached for P4b Member 390; waiting 62 s",
+   "attempt": 1,
+   "verdict": "INFO"
+  },
+  {
+   "account": "P4b Member 390",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "account_id": "86c6952f-82b7-4a1b-a893-11a380e5fd5b",
+   "open_position": 200,
+   "what": "one open position, so Today is not the zero-data experience"
+  },
+  {
+   "what": "skipped the base Notebook tour",
+   "card": "STEP 1 OF 3\n\nWelcome to your Notebook\n\nStart here: write a note, create a thesis or bring in the notes you already have.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8183/journal/notebook",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour",
+   "card": "STEP 1 OF 3\n\nWelcome to your Notebook\n\nStart here: write a note, create a thesis or bring in the notes you already have.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8183/journal/notebook",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour",
+   "card": "STEP 1 OF 3\n\nWelcome to your Notebook\n\nStart here: write a note, create a thesis or bring in the notes you already have.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8183/journal/notebook",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour",
+   "card": "STEP 1 OF 1\n\nWelcome to your Notebook\n\nStart here: write a note, create a thesis or bring in the notes you already have.\n\nRead the Notebook help\n\nSkip tour\nBack\nDone",
+   "url": "http://127.0.0.1:8183/journal/notebook",
+   "verdict": "INFO"
+  }
+ ],
+ "tip": "4e0a34ba68",
+ "tool_tree": "4e0a34ba68d1014fdd0703dfdc1b2f61b3e01ce2",
+ "base": "http://127.0.0.1:8183",
+ "data_dir": "C:\\data-p4bwalk",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "JOURNAL_PAGE_LAYOUTS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED",
+  "NOTEBOOK_LAYOUT_SHARING_ENABLED=1"
+ ],
+ "viewports": [
+  "1280",
+  "820",
+  "390"
+ ],
+ "declared_steps": [
+  [
+   1,
+   "author: Today, Customize, Market regime and My rules shown, Market regime first, Save, Share"
+  ],
+  [
+   2,
+   "admin approves it in the review panel and reads the panel list"
+  ],
+  [
+   3,
+   "member: Customize, Find shared layouts, Page layouts, Preview, Use this layout; Today renders Market regime first"
+  ],
+  [
+   4,
+   "member presses Undo; Today renders its previous order"
+  ],
+  [
+   5,
+   "author changes the layout and shares again; the listed version is unchanged until the admin approves"
+  ],
+  [
+   6,
+   "author unpublishes; the member's Today is unchanged"
+  ],
+  [
+   7,
+   "sharing switched off (sandbox restart): Customize shows no Share door; the library shows no Page layouts chip"
+  ]
+ ],
+ "source_words": {
+  "sent": "Sent for review. It is listed once an admin approves it.",
+  "revision_sent": "Sent for review. The version listed now stays listed until an admin approves this update.",
+  "library_title": "Shared page layouts",
+  "pending_line": "Shared, waiting for review.",
+  "revision_prefix": "Update to a listed layout (version ",
+  "page_layouts_chip": "Page layouts",
+  "sharing_flag": "NOTEBOOK_LAYOUT_SHARING_ENABLED",
+  "labels": {
+   "regime": "Market regime",
+   "myRules": "My rules",
+   "todayNote": "Today's note"
+  }
+ },
+ "started": "2026-10-19T02:49:37+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "sharing-on": {
+   "ok": true,
+   "sentence": "http://127.0.0.1:8183 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p4b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T21-49-39.md (identity ef466ffeb710..., data dir C:\\data-p4bwalk)"
+  },
+  "sharing-off": {
+   "ok": true,
+   "sentence": "http://127.0.0.1:8183 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p4b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T21-58-15.md (identity 25f30e207af1..., data dir C:\\data-p4bwalk)"
+  }
+ },
+ "stories": {
+  "1280": {
+   "title": "P4b walk 1280 024937",
+   "phase": "postclose",
+   "phase_label": "After close",
+   "author_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "gid": "bb6c26634c044afc8a62aafa0ca69c43",
+   "member_before": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "member_stored_before": {},
+   "member_adopted": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ]
+  },
+  "820": {
+   "title": "P4b walk 820 024937",
+   "phase": "postclose",
+   "phase_label": "After close",
+   "author_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "gid": "ebf9c1550d984be0a74148393607fc29",
+   "member_before": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "member_stored_before": {},
+   "member_adopted": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ]
+  },
+  "390": {
+   "title": "P4b walk 390 024937",
+   "phase": "postclose",
+   "phase_label": "After close",
+   "author_order": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ],
+   "gid": "c661949b6cfd401fb86298984b9e6b83",
+   "member_before": [
+    "weekStrip",
+    "goalProgress",
+    "quickActions"
+   ],
+   "member_stored_before": {},
+   "member_adopted": [
+    "regime",
+    "weekStrip",
+    "goalProgress",
+    "quickActions",
+    "myRules"
+   ]
+  }
+ },
+ "stop": {
+  "sharing-on": "graceful to the shutdown checkpoint, then forced exit",
+  "sharing-off": "graceful (rc 0)"
+ },
+ "integrity": {
+  "sharing-on": {
+   "path": "docs\\notebook\\evidence\\p4b-walk-20261019T0249Z\\integrity-sharing-on.md",
+   "required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "post-prewarm (+120s)",
+    "shutdown"
+   ],
+   "checkpoints": [
+    {
+     "label": "pre-boot (baseline)",
+     "at": "2026-10-18 21:49:44",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "post-boot (+15s)",
+     "at": "2026-10-18 21:50:16",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "post-prewarm (+120s)",
+     "at": "2026-10-18 21:52:08",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "shutdown",
+     "at": "2026-10-18 21:57:44",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    }
+   ],
+   "status": "CLEAN",
+   "clean": true,
+   "why": ""
+  },
+  "sharing-off": {
+   "path": "docs\\notebook\\evidence\\p4b-walk-20261019T0249Z\\integrity-sharing-off.md",
+   "required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "post-prewarm (+120s)",
+    "shutdown"
+   ],
+   "checkpoints": [
+    {
+     "label": "pre-boot (baseline)",
+     "at": "2026-10-18 21:58:20",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "post-boot (+15s)",
+     "at": "2026-10-18 21:58:49",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "post-prewarm (+120s)",
+     "at": "2026-10-18 22:00:39",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    },
+    {
+     "label": "shutdown",
+     "at": "2026-10-18 22:00:46",
+     "root": "C:\\data",
+     "db_files": 62,
+     "verdict": "CLEAN"
+    }
+   ],
+   "status": "CLEAN",
+   "clean": true,
+   "why": ""
+  }
+ },
+ "first_line": {
+  "sharing-on": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p4b-walk-20261019T0249Z\\integrity-sharing-on.md",
+  "sharing-off": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: docs\\notebook\\evidence\\p4b-walk-20261019T0249Z\\integrity-sharing-off.md"
+ },
+ "flags_on_restart": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "JOURNAL_PAGE_LAYOUTS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED",
+  "NOTEBOOK_LAYOUT_SHARING_ENABLED=0"
+ ],
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 18,
+  "FAIL": 3,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-19T03:01:17+00:00"
+}

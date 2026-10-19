@@ -50,6 +50,8 @@ import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 // The Customize editor loads only when the button is pressed (its slot holds the lazy import).
 import PageLayoutEditorSlot from '../layout/PageLayoutEditorSlot'
+// P4b: the shared layouts library, opened from Customize. The door holds the gallery's lazy import.
+import LayoutLibraryDoor from '../layout/LayoutLibraryDoor'
 import styles from './TradeDetailPage.module.css'
 import { sectionFetcher } from '../../../../components/research/sections/sectionFetch'
 
@@ -356,6 +358,17 @@ export default function TradeDetailPage() {
   // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
   const [customizing, setCustomizing] = useState(false)
   const [layoutMsg, setLayoutMsg] = useJournalToast()
+  // P4b: "Find shared layouts" closes Customize and opens the library, so one sheet is open at a time.
+  const [findingLayouts, setFindingLayouts] = useState(false)
+  const findLayouts = () => { setCustomizing(false); setFindingLayouts(true) }
+  // P4b-T8 m2 (D-46 class): the library's opener is Find, which unmounted with the editor, so the Sheet's own
+  // restore targets a detached node. When the library closes, focus goes back to Customize.
+  const customizeRef = useRef(null)
+  const wasFinding = useRef(false)
+  useEffect(() => {
+    if (wasFinding.current && !findingLayouts) customizeRef.current?.focus()
+    wasFinding.current = findingLayouts
+  }, [findingLayouts])
 
   const { data, error: loadError, isLoading, mutate } = useSWR(
     id ? `/api/j2/trades/${encodeURIComponent(id)}` : null,
@@ -430,10 +443,10 @@ export default function TradeDetailPage() {
   // typing (input/textarea/select/contentEditable) — MiniMonthNav.jsx pattern.
   // P4a m6: and does nothing at all while the Customize sheet is open. An arrow key on the sheet's Move up /
   // Move down buttons is what a keyboard user reaches for in that list; it must not change the trade under the
-  // sheet (the sheet handles its own Escape).
+  // sheet (the sheet handles its own Escape). P4b X9: nor while the shared layouts library is open over it.
   useEffect(() => {
     const onKey = (e) => {
-      if (customizing) return
+      if (customizing || findingLayouts) return
       const tag = (e.target?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return
       if (e.key === 'Escape') { navigate(-1); return }
@@ -442,7 +455,7 @@ export default function TradeDetailPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [prevId, nextId, go, navigate, customizing])
+  }, [prevId, nextId, go, navigate, customizing, findingLayouts])
 
   // Optimistic PATCH: write local override immediately, reconcile from the
   // server's recomputed trade, roll back to server truth on error (mirrors
@@ -967,7 +980,7 @@ export default function TradeDetailPage() {
         <Link to={backTo} className={styles.back}>← Trade Journal</Link>
         <div className={styles.navBtns}>
           {pageLayoutsEnabled() && (
-            <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+            <button type="button" ref={customizeRef} className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
               <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
               Customize
             </button>
@@ -1028,8 +1041,10 @@ export default function TradeDetailPage() {
           page="trade"
           onClose={() => setCustomizing(false)}
           onSaved={() => setLayoutMsg('Layout saved.')}
+          onFindLayouts={findLayouts}
         />
       )}
+      <LayoutLibraryDoor open={findingLayouts} onClose={() => setFindingLayouts(false)} />
       <JournalToast msg={layoutMsg} style={LAYOUT_TOAST_STYLE} />
     </div>
   )

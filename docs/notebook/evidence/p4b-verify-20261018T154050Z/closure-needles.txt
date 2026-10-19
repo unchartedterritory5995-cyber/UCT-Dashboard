@@ -1,0 +1,9 @@
+'library_viewed' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+'style_adopted' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+'journal_page_layout' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+'coachStrip' in 0 closure chunk(s): []
+'Community gallery' in 0 closure chunk(s): []
+'notebook_style_library_enabled' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+'journal_page_layouts_enabled' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+'page_layout' in 1 closure chunk(s): ['assets/index-vHiP-i0E.js']
+closure files 61

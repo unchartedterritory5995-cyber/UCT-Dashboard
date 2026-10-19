@@ -8,7 +8,8 @@
   },
   "body": {
     "capabilities": {
-      "exampleNotes": true
+      "exampleNotes": true,
+      "layoutSharing": true
     },
     "templates": [
       {
@@ -25,6 +26,7 @@
         "hidden": false,
         "id": "bf1ea35b5c8e49689378a7e94a37fead",
         "itemType": "example_note",
+        "layoutPage": null,
         "listedAt": null,
         "mine": true,
         "preview": [
@@ -59,6 +61,7 @@
         "hidden": false,
         "id": "c56b4ed84d6f452db201026b9614b0cb",
         "itemType": "style",
+        "layoutPage": null,
         "listedAt": null,
         "mine": true,
         "preview": [

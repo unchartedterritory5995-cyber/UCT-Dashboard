@@ -1,0 +1,71 @@
+closure_keys 61 bytes 2238573
+../../_nb-shared-install/node_modules/@tiptap/pm/dist/history/index.js assets/index-UBDLhx5m.js
+_AskInsertView-Dxihr-uq.js assets/AskInsertView-Dxihr-uq.js
+_AskPanel.module-ChSnqtvc.js assets/AskPanel.module-ChSnqtvc.js
+_CapturedSourceSheet-CvSvkKlX.js assets/CapturedSourceSheet-CvSvkKlX.js
+_CollapsibleSection-Djbe7V8x.js assets/CollapsibleSection-Djbe7V8x.js
+_ConfirmModal-Dlv1cJS3.js assets/ConfirmModal-Dlv1cJS3.js
+_ContextPopover-mOMEEOx_.js assets/ContextPopover-mOMEEOx_.js
+_DeleteAccountModalDoor-ChGMTpiL.js assets/DeleteAccountModalDoor-ChGMTpiL.js
+_FolderSidebar-CwK2O66E.js assets/FolderSidebar-CwK2O66E.js
+_JournalLayout.module-DikITloP.js assets/JournalLayout.module-DikITloP.js
+_LoadFailed-BFGYId0n.js assets/LoadFailed-BFGYId0n.js
+_ModalShell.module-BBDh_wSF.js assets/ModalShell.module-BBDh_wSF.js
+_NotebookFlagGate-3zPMuIxE.js assets/NotebookFlagGate-3zPMuIxE.js
+_Provenance-BYr9XRiD.js assets/Provenance-BYr9XRiD.js
+_RsBadge-VviUbX5U.js assets/RsBadge-VviUbX5U.js
+_ShortcutCheatSheetDoor-DtCoxCmN.js assets/ShortcutCheatSheetDoor-DtCoxCmN.js
+_Toast-BaHoMTlE.js assets/Toast-BaHoMTlE.js
+_TranscriptDoors-YStQSscE.js assets/TranscriptDoors-YStQSscE.js
+_TranscriptPanel-BuGUU01b.js assets/TranscriptPanel-BuGUU01b.js
+_UnreadableNoteNotice-OYIkETJx.js assets/UnreadableNoteNotice-OYIkETJx.js
+_askInsert-C3cjIrK5.js assets/askInsert-C3cjIrK5.js
+_calendar-CAFqs8qo.js assets/calendar-CAFqs8qo.js
+_computed-DFSFrGp8.js assets/computed-DFSFrGp8.js
+_documentProvenance-BdzAm6ny.js assets/documentProvenance-BdzAm6ny.js
+_drawingsStore-BFYRuH6i.js assets/drawingsStore-BFYRuH6i.js
+_embedArchive-MsEe6b_Z.js assets/embedArchive-MsEe6b_Z.js
+_fontFamilies-kMTQjQyI.js assets/fontFamilies-kMTQjQyI.js
+_index-BXaX3DPE.js assets/index-BXaX3DPE.js
+_index-C7yKKq-w.js assets/index-C7yKKq-w.js
+_index-Vcq4gwWv.js assets/index-Vcq4gwWv.js
+_index-eqIHdkYD.js assets/index-eqIHdkYD.js
+_journalRoutes-HtVy9PaN.js assets/journalRoutes-HtVy9PaN.js
+_journalStylesFlag-B64-KHqq.js assets/journalStylesFlag-B64-KHqq.js
+_noteHasUnsentWork-B1FWK0hm.js assets/noteHasUnsentWork-B1FWK0hm.js
+_offlineFlag-Bxikr7H5.js assets/offlineFlag-Bxikr7H5.js
+_platform-BjMEggDU.js assets/platform-BjMEggDU.js
+_registry-OqCp4SB4.js assets/registry-OqCp4SB4.js
+_researchCapture-ChKHYjYI.js assets/researchCapture-ChKHYjYI.js
+_reviewDraftsFlag-C6Jvd69P.js assets/reviewDraftsFlag-C6Jvd69P.js
+_sampleNotebook-Bge-Di08.js assets/sampleNotebook-Bge-Di08.js
+_tier3Flag-C9a553fP.js assets/tier3Flag-C9a553fP.js
+_tiptap-CeuuOCGg.js assets/tiptap-CeuuOCGg.js
+_uid-BuiH9E25.js assets/uid-BuiH9E25.js
+_useDurableNote-2e1RVHw5.js assets/useDurableNote-2e1RVHw5.js
+_useJ2AccountComparison-DbnNAO1V.js assets/useJ2AccountComparison-DbnNAO1V.js
+_useJ2Accounts-C483a5c6.js assets/useJ2Accounts-C483a5c6.js
+_useJ2Positions-2n927m_s.js assets/useJ2Positions-2n927m_s.js
+_useJ2SelectedAccount-CgQxwJN8.js assets/useJ2SelectedAccount-CgQxwJN8.js
+_useJ2Settings-BI17mIcz.js assets/useJ2Settings-BI17mIcz.js
+_useLongPress-BFZb_6ZI.js assets/useLongPress-BFZb_6ZI.js
+_useNoteConnectors-CPWvus1X.js assets/useNoteConnectors-CPWvus1X.js
+_useRovingTabIndex-DLd4zs36.js assets/useRovingTabIndex-DLd4zs36.js
+_useToolbarRoving-CoLxT1uq.js assets/useToolbarRoving-CoLxT1uq.js
+_vendor-react-BrA_wePN.js assets/vendor-react-BrA_wePN.js
+_vendor-swr-DMX8TUtE.js assets/vendor-swr-DMX8TUtE.js
+_voiceNote-BFttdFHg.js assets/voiceNote-BFttdFHg.js
+index.html assets/index-vHiP-i0E.js
+src/pages/journal-2-0/JournalLayout.jsx assets/JournalLayout-CucGWXUD.js
+src/pages/journal-2-0/lib/routeFocus.jsx assets/routeFocus-ecx8CzGE.js
+src/pages/journal-2-0/lib/widgetEmbedCore.js assets/widgetEmbedCore-B6Zb8kg_.js
+src/pages/journal-2-0/surfaces/NotebookSurface.jsx assets/NotebookSurface-BYMFvu85.js
+NOT_IN_CLOSURE TemplateGallery []
+NOT_IN_CLOSURE pageLayouts []
+NOT_IN_CLOSURE styleLibrary []
+NOT_IN_CLOSURE notebookTelemetry []
+NOT_IN_CLOSURE TemplateGalleryReviewPanel []
+NOT_IN_CLOSURE PageLayoutEditor []
+NOT_IN_CLOSURE PageLayoutEditorSlot []
+NOT_IN_CLOSURE TodaySurface []
+NOT_IN_CLOSURE TradeDetailPage []

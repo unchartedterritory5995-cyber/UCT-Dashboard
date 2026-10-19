@@ -8,7 +8,8 @@
   },
   "body": {
     "capabilities": {
-      "exampleNotes": true
+      "exampleNotes": true,
+      "layoutSharing": true
     },
     "templates": [
       {
@@ -25,6 +26,7 @@
         "hidden": false,
         "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
         "itemType": "outline",
+        "layoutPage": null,
         "listedAt": null,
         "mine": true,
         "preview": [
@@ -67,6 +69,7 @@
         "hidden": false,
         "id": "4525cdb4ca5047a49587a3305069e54d",
         "itemType": "outline",
+        "layoutPage": null,
         "listedAt": null,
         "mine": true,
         "preview": [
@@ -109,6 +112,7 @@
         "hidden": false,
         "id": "5a0bbe1fc29544bdb71b275fb117a0d1",
         "itemType": "outline",
+        "layoutPage": null,
         "listedAt": null,
         "mine": true,
         "preview": [
@@ -151,6 +155,7 @@
         "hidden": false,
         "id": "de29e1904cb84c159ce6535dab55786b",
         "itemType": "outline",
+        "layoutPage": null,
         "listedAt": "2026-10-05T14:30:00+00:00",
         "mine": true,
         "preview": [

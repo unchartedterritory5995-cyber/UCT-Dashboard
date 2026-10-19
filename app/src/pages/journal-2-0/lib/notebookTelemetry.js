@@ -173,7 +173,7 @@ export const EVENT_SCHEMAS = Object.freeze({
     failed: num,
   },
   library_viewed: {
-    type: oneOf('all', 'outline', 'style'),
+    type: oneOf('all', 'outline', 'style', 'page_layout'),
     view: oneOf('browse', 'following', 'author'),
   },
   style_adopted: {
