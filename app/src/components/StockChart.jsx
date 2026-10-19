@@ -1176,6 +1176,26 @@ function formatVolumeAxis(v) {
   return String(Math.round(n))
 }
 
+// A priceFormat for the price series has to go on EVERY series sharing its price scale.
+// lightweight-charts draws a scale's ticks and value labels with the formatter of the
+// series on it that was added FIRST (lowest z-order), not the main one. The MA overlays
+// are usually added before the price series (it is rebuilt on a chart-type change), so
+// a format on the price series alone never reached the axis: measured on the real page,
+// the line formatted 825000 as "825,000" while the axis kept the first MA's "825000.00".
+// Series on the same scale plot the same units, so they share the format.
+function applyPriceFormatToScale(series, priceFormat) {
+  if (!series || !priceFormat) return
+  series.applyOptions({ priceFormat })
+  // An unset priceScaleId binds to the right scale (the price series leaves it unset; the
+  // MAs name 'right' explicitly), so compare with that default filled in.
+  const scaleOf = (s) => s.options?.()?.priceScaleId ?? 'right'
+  const scaleId = scaleOf(series)
+  for (const s of (series.getPane?.()?.getSeries?.() || [])) {
+    if (s === series) continue
+    try { if (scaleOf(s) === scaleId) s.applyOptions({ priceFormat }) } catch { /* */ }
+  }
+}
+
 // Format dollar notional for dark pool bars: "$120.5M", "$1.2B", "$45K"
 // TERM-066: B two decimals, M one, K none — the ladder this grammar already had.
 const DP_NOTIONAL_TIERS = Object.freeze([
@@ -2634,6 +2654,9 @@ export default function StockChart({
   const deepWarm = deepWarmProp && !_econId
   const disablePatterns = disablePatternsProp || _econId
   const priceFormat = (_econId && econPrimary.priceFormat) ? econPrimary.priceFormat : priceFormatProp
+  // Read by the series-creation block, whose callback does not list priceFormat as a dependency.
+  const priceFormatRef = useRef(priceFormat)
+  priceFormatRef.current = priceFormat
   const sessionView = _econId ? null : sessionViewProp
   // The row each host time sits on (D rows are 'YYYY-MM-DD'; W/M bucket keys too).
   const _econRowIndex = useMemo(() => {
@@ -11524,8 +11547,8 @@ export default function StockChart({
         } : {}
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
-        const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold })
+        applyPriceFormatToScale(priceSeries, priceFormatRef.current)
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -13198,6 +13221,8 @@ export default function StockChart({
         // ref's declaration.
         // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
         indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
+        // The price axis's format, for engine series that share the candles' axis (see binder).
+        mainPriceFormat: priceFormatRef.current,
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
@@ -14191,7 +14216,7 @@ export default function StockChart({
   // Placed after the effect above so a series created in this same commit exists by now.
   useEffect(() => {
     if (!priceFormat) return
-    try { candleSeriesRef.current?.applyOptions({ priceFormat }) } catch { /* older LWC */ }
+    try { applyPriceFormatToScale(candleSeriesRef.current, priceFormat) } catch { /* older LWC */ }
   }, [priceFormat])
 
   // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
