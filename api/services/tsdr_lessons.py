@@ -43,6 +43,11 @@ Owner design, 2026-10-15:
     every post carries its level and a "See also" line, a speaker's ✏️ on a
     post rewrites it, and lessons from before levels get one
     (run_level_backfill).
+  * /lesson <words> in Discord searches the library (titles, tickers, tags,
+    recaps, transcripts) and answers the member privately with the best two or
+    three lessons and the moment in each video that says it
+    (search_lessons / format_search_reply; the command itself lives with the
+    other slash commands in discord_interactions).
   * A linked lesson whose video YouTube no longer has (oEmbed 404) is taken
     down on the rewrite pass and never posted in the first place; a private
     video or a network fault is not "gone".
@@ -2032,6 +2037,132 @@ def lesson_url(row: dict) -> str:
     if row.get("post_channel_id") and row.get("discord_post_id"):
         return jump_link(guild_id(), row["post_channel_id"], row["discord_post_id"])
     return ""
+
+
+# ── /lesson: search the library ──────────────────────────────────────────────
+# A member types a few words in Discord and gets the two or three lessons that
+# answer, each with the moment in the video where the words are said. Private
+# to the member (the reply is ephemeral), so the channels stay as they are.
+
+_SEARCH_STOP = frozenset("""a an the and or of to in on for is are was be how what why when do does
+did i my me we you your it its this that with about from at as can should would could will
+there here any some more most less very just like get got vs""".split())
+_SEARCH_MAX = 3
+_SNIPPET_CHARS = 150
+
+
+def search_words(query: str) -> list[str]:
+    """The words worth matching: lowercase, letters and digits, 2+ characters,
+    stop words out, a leading $ dropped so "$NVDA" and "nvda" are one word."""
+    out = []
+    for w in re.findall(r"[A-Za-z0-9$&.'-]+", str(query or "").lower()):
+        w = w.strip("$.'-&")
+        if len(w) >= 2 and w not in _SEARCH_STOP and w not in out:
+            out.append(w)
+    return out
+
+
+def _count(hay: str, word: str, cap: int = 5) -> int:
+    return min(cap, len(re.findall(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", hay)))
+
+
+def best_moment(row: dict, words: list[str]) -> tuple[Optional[float], str]:
+    """The start of the transcript part that says the most of the words, and a
+    short quote around the first of them; (None, "") when nothing matches."""
+    best, best_hits = None, 0
+    for seg in _json_list(row.get("segments")):
+        if not (isinstance(seg, (list, tuple)) and len(seg) == 2):
+            continue
+        start, text = seg
+        low = str(text or "").lower()
+        hits = sum(1 for w in words if _count(low, w, 1))
+        if hits > best_hits:
+            best, best_hits = (float(start or 0), str(text or "")), hits
+    if not best:
+        return None, ""
+    start, text = best
+    text = re.sub(r"\s+", " ", text).strip()
+    low = text.lower()
+    at = min((m.start() for w in words for m in [re.search(rf"(?<![a-z0-9]){re.escape(w)}", low)] if m),
+             default=0)
+    lo = max(0, at - _SNIPPET_CHARS // 3)
+    hi = min(len(text), lo + _SNIPPET_CHARS)
+    quote = text[lo:hi].strip()
+    if lo > 0:
+        quote = "…" + quote.lstrip(" ,.;:")
+    if hi < len(text):
+        quote = quote.rstrip(" ,.;:") + "…"
+    return start, quote
+
+
+def score_lesson(row: dict, words: list[str], phrase: str) -> float:
+    """How well a posted lesson answers the words: its title and tickers count
+    most, then its tags and recap, then how often the transcript says them. A
+    clip counts for less than a lesson. 0 = no match at all."""
+    title = clean_title(row.get("title")).lower()
+    recap = f"{row.get('recap') or ''} {row.get('takeaway') or ''} {row.get('question') or ''}".lower()
+    transcript = str(row.get("transcript") or "").lower()
+    tickers = {str(t).lower().lstrip("$") for t in _json_list(row.get("tickers"))}
+    tags = " ".join(str(t).lower() for t in _json_list(row.get("tags")))
+    score = 0.0
+    for w in words:
+        score += 6 * _count(title, w, 1) + (6 if w in tickers else 0) + 3 * _count(tags, w, 1)
+        score += 3 * _count(recap, w, 1) + _count(transcript, w, 5)
+    if phrase and len(words) > 1:
+        score += 6 * _count(title, phrase, 1) + 4 * _count(recap, phrase, 1) + 3 * _count(transcript, phrase, 1)
+    if row.get("section") == "clips":
+        score *= 0.6
+    return score
+
+
+def search_lessons(query: str, limit: int = _SEARCH_MAX) -> list[dict]:
+    """The posted lessons that best answer `query`, best first, each with where
+    it lives, its level and section, and the moment in the video that says it."""
+    words = search_words(query)
+    if not words:
+        return []
+    phrase = " ".join(words)
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT attachment_id, title, recap, takeaway, question, tickers, tags, transcript, "
+            "segments, section, level, posted_at, post_channel_id, discord_post_id, forum_post_id, "
+            "youtube_id FROM tsdr_lessons WHERE status = 'posted' AND discord_post_id IS NOT NULL "
+            "AND post_channel_id IS NOT NULL").fetchall()]
+    scored = [(score_lesson(r, words, phrase), r) for r in rows]
+    scored = sorted((s for s in scored if s[0] > 0), key=lambda s: (-s[0], -int(s[1]["posted_at"] or 0)))
+    names = {k: n for k, n, _ in SECTIONS}
+    out = []
+    for score, r in scored[:max(1, int(limit))]:
+        t, quote = best_moment(r, words)
+        day = datetime.fromtimestamp(int(r["posted_at"]), tz=timezone.utc).astimezone(_ET)
+        out.append({"attachment_id": r["attachment_id"], "title": clean_title(r["title"]) or "Lesson",
+                    "url": lesson_url(r), "level": r.get("level") or "",
+                    "section": names.get(r.get("section") or "", ""),
+                    "day": f"{day:%b} {day.day}, {day.year}", "score": score,
+                    "at": fmt_time(t) if t is not None else "", "watch": seek_link(r, t) if t is not None else "",
+                    "quote": quote})
+    return out
+
+
+def format_search_reply(query: str, hits: list[dict]) -> str:
+    """The Discord text for a search: one line per lesson with a link to the
+    recap, its level, section and date, then the moment in the video that says
+    it. Links are wrapped in <> so the reply carries no previews."""
+    q = re.sub(r"\s+", " ", str(query or "")).strip()[:80]
+    if not hits:
+        return (f"Nothing in the lesson library says anything about “{q}” yet. "
+                "Try fewer or different words, or a ticker like NVDA.")
+    lines = [f"**Lessons on “{q}”**"]
+    for i, h in enumerate(hits, 1):
+        title = h["title"][:70]
+        head = f"{i}. **[{title}](<{h['url']}>)**" if h.get("url") else f"{i}. **{title}**"
+        meta = " · ".join(x for x in (h.get("level", "").capitalize(), h.get("section"), h.get("day")) if x)
+        lines.append(f"{head} · {meta}" if meta else head)
+        if h.get("quote"):
+            where = (f"[Watch from {h['at']}](<{h['watch']}>) — " if h.get("watch")
+                     else (f"At {h['at']} — " if h.get("at") else ""))
+            lines.append(f"   ▸ {where}“{h['quote']}”")
+    return "\n".join(lines)[:1900]
 
 
 def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
