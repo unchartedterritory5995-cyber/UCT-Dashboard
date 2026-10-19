@@ -4,14 +4,15 @@
 // styles of their own), the list with one of the member's own, and the swing install. A failure is transport
 // (a 5xx), not a server answer, so it stays inline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { contractBody } from '../../../__fixtures__/contract'
 import { PACKS, STARTER_PACK_PREF } from '../../../lib/starterPacks'
 
 const setPref = vi.fn()
-const setPrefMerged = vi.fn(async () => {})
+// The real hook resolves {ok: true} when the server took the write (usePreferences postPref).
+const setPrefMerged = vi.fn(async () => ({ ok: true }))
 let prefsNow = {}
 vi.mock('../../../../../hooks/usePreferences', () => ({
   default: () => ({ prefs: prefsNow, setPref, setPrefMerged, loading: false, readFailed: false }),
@@ -23,6 +24,7 @@ vi.mock('../../../lib/offline/settleNoteWrite', () => ({
 
 import KindSection from './KindSection'
 import StylesManager from './StylesManager'
+import StarterPackOffer from './StarterPackOffer'
 
 const EMPTY = contractBody('journal-styles.list.empty')           // built-ins only
 const WITH_OWN = contractBody('journal-styles.list')               // one style of the member's own
@@ -30,7 +32,9 @@ const INSTALLED = contractBody('journal-styles.starter-pack.install')
 const TITLES = INSTALLED.installed.map((i) => i.title)
 const TITLE = 'How do you trade?'
 const LINE = 'Pick one and we will add three styles you can change.'
-const FAILED = "Couldn't add that pack. Nothing was changed."
+const FAILED = "Couldn't confirm that pack. Try again; nothing is added twice."
+const EMPTY_LINE = 'Nothing was added. This pack has no styles to add right now.'
+const NOT_SAVED = "Couldn't save your answer, so this card may ask again."
 const INSTALL_URL = /^\/api\/j2\/journal-styles\/starter-packs\/swing$/
 
 let calls
@@ -57,6 +61,7 @@ const swr = (child) => (
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>{child}</SWRConfig>
 )
 const kindSection = () => render(swr(<KindSection onCreate={vi.fn()} />))
+const cards = () => screen.queryAllByRole('region', { name: TITLE })
 const manager = () => render(swr(<StylesManager open onClose={vi.fn()} />))
 const card = () => screen.queryByRole('region', { name: TITLE })
 const flags = (starter = true) => latchNotebookFlags({
@@ -225,5 +230,93 @@ describe('How do you trade? (R-P5-5)', () => {
       const node = within(offer).getByText(text)
       expect(node.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
+  })
+})
+
+// P5 final fix: the Task 5 review's before-arming minors, and ruling P5-T10-R2 (one offer per page).
+describe('How do you trade? -- what the card says, and one card per page', () => {
+  it('8. an empty answer still says what happened (nothing was added), and writes the installed state', async () => {
+    flags()
+    install = [200, { installed: [], alreadyHad: [], skipped: [] }]
+    kindSection()
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
+    const line = await within(offer).findByText(EMPTY_LINE)
+    expect(within(offer).getByRole('status').contains(line)).toBe(true)
+    expect(within(offer).getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(written().value).toMatchObject({ state: 'installed', pack: 'swing' })
+  })
+
+  it('9. an installed answer the server did not take is said, beside the true Added line', async () => {
+    flags()
+    setPrefMerged.mockResolvedValueOnce({ ok: false })
+    kindSection()
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
+    await within(offer).findByText(/^Added: /)                          // the styles WERE added (the server said so)
+    expect(within(offer).getByRole('alert')).toHaveTextContent(NOT_SAVED)
+  })
+
+  it('9b. a write that landed shows no not-saved alert (control for 9)', async () => {
+    flags()
+    kindSection()
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
+    await within(offer).findByText(/^Added: /)
+    expect(within(offer).queryByRole('alert')).toBeNull()
+  })
+
+  it('10. a dismissed answer the server did not take keeps the card and says so; Not now again closes it', async () => {
+    flags()
+    const onClose = vi.fn()
+    setPrefMerged.mockResolvedValueOnce(undefined)                      // a network failure resolves with nothing
+    render(swr(<StarterPackOffer onClose={onClose} />))
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    expect(await within(offer).findByRole('alert')).toHaveTextContent(NOT_SAVED)
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(setPrefMerged).toHaveBeenCalledTimes(2)
+  })
+
+  it('11. P5-T10-R2: two kind sections and the manager on one page show ONE card, on the surface opened last', async () => {
+    flags()
+    const { rerender } = render(swr(<><KindSection onCreate={vi.fn()} /><KindSection onCreate={vi.fn()} /></>))
+    await screen.findByRole('region', { name: TITLE })
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(cards()).toHaveLength(1)
+    // the second section opened last, so it holds the card
+    const sections = screen.getAllByRole('group', { name: 'Start from a kind of note' }).map((g) => g.closest('section'))
+    expect(sections).toHaveLength(2)
+    expect(sections[1].contains(cards()[0])).toBe(true)
+    // the Styles manager opening over them takes the card; there is still one
+    rerender(swr(<><KindSection onCreate={vi.fn()} /><KindSection onCreate={vi.fn()} /><StylesManager open onClose={vi.fn()} /></>))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Journal styles' }).contains(cards()[0] || null)).toBe(true))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(cards()).toHaveLength(1)
+  })
+
+  it('12. Not now on the one card leaves no card on any surface; the owner closing hands the page back', async () => {
+    flags()
+    const { rerender } = render(swr(<><KindSection onCreate={vi.fn()} /><KindSection onCreate={vi.fn()} /></>))
+    const offer = await screen.findByRole('region', { name: TITLE })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Not now' }))
+    await waitFor(() => expect(cards()).toHaveLength(0))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(cards()).toHaveLength(0)
+    // the owner (the second section) leaves; the first asks R-P5-5 afresh: the answer is now recorded, so no card
+    prefsNow = { [STARTER_PACK_PREF]: JSON.stringify(written().value) }
+    rerender(swr(<KindSection onCreate={vi.fn()} />))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(cards()).toHaveLength(0)
+  })
+
+  it('12b. the owner closing without an answer hands the card back to the surface still on screen', async () => {
+    flags()
+    const { rerender } = render(swr(<><KindSection onCreate={vi.fn()} /><KindSection key="sheet" onCreate={vi.fn()} /></>))
+    await screen.findByRole('region', { name: TITLE })
+    rerender(swr(<KindSection onCreate={vi.fn()} />))
+    await waitFor(() => expect(cards()).toHaveLength(1))
   })
 })

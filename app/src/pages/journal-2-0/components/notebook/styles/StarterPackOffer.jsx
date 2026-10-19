@@ -8,7 +8,12 @@
 //     skipped (with the server's sentence for why, e.g. the style limit). A failed install writes nothing.
 //   · "Not now" writes {state:'dismissed'} (only when there is no answer yet: it never overwrites an install)
 //     and closes the card. A dismissed offer does not come back unasked.
-import { useId, useState } from 'react'
+//   · A write of the answer that did not land is SAID (OFFER_NOT_SAVED), never passed off as saved: "Not now"
+//     then keeps the card open so it can be pressed again.
+//   · ONE OFFER PER PAGE (ruling P5-T10-R2). Every surface that can hold the card (the empty notebook's inline
+//     picker, the New note sheet's, the Styles manager) shares ONE decision through `offerStore`, and only the
+//     surface that opened last renders the card. So a page has one card, one Not now and one install path.
+import { useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { STYLES_URL } from '../../../lib/journalStyles'
@@ -19,27 +24,55 @@ import styles from './StarterPackOffer.module.css'
 
 export const OFFER_TITLE = 'How do you trade?'
 export const OFFER_LINE = 'Pick one and we will add three styles you can change.'
-export const OFFER_FAILED = "Couldn't add that pack. Nothing was changed."
+// A lost answer (a 200 the connection dropped) also lands here; a retry is safe, the server says alreadyHad.
+export const OFFER_FAILED = "Couldn't confirm that pack. Try again; nothing is added twice."
+export const OFFER_EMPTY = 'Nothing was added. This pack has no styles to add right now.'
+export const OFFER_NOT_SAVED = "Couldn't save your answer, so this card may ask again."
 
-/** Whether the offer is open, for a surface that holds one. `data` is the journal-styles list (or undefined
- *  while it loads). `open()` is the manager's link; `close()` is "Not now"; `reset()` forgets the latch, so a
- *  surface that closes and opens again (the manager's sheet) asks R-P5-5 afresh. */
-export function useStarterPackOffer(data) {
+// The page's ONE decision. `mode`: null undecided, 'open', 'closed'. `hosts`: the surfaces showing now, in the
+// order they opened; the last one owns the card. The OWNER leaving forgets the decision, so the ones still on
+// screen ask R-P5-5 afresh (and a surface closed from outside cannot leave a stale 'open' behind). Another
+// surface leaving changes nothing, so the owner's answer lines stay on screen.
+const offerStore = { mode: null, hosts: [], subs: new Set() }
+const emit = () => offerStore.subs.forEach((f) => f())
+const setOfferMode = (m) => { if (offerStore.mode !== m) { offerStore.mode = m; emit() } }
+const subscribe = (f) => { offerStore.subs.add(f); return () => offerStore.subs.delete(f) }
+const readMode = () => offerStore.mode
+const readOwner = () => offerStore.hosts.at(-1) ?? null
+
+/** Whether the offer shows on THIS surface. `data` is the journal-styles list (or undefined while it loads);
+ *  `active` is whether the surface is on screen (the manager passes `open`). `open()` is the manager's link;
+ *  `close()` is "Not now"; `reset()` forgets the decision. `settled` says the decision for this surface has
+ *  been made (the walk waits for it before it reads an absence). */
+export function useStarterPackOffer(data, active = true) {
+  const id = useId()
   const on = starterPacksEnabled()
   const { prefs, loading, readFailed } = usePreferences(on)
-  const [mode, setMode] = useState(null)              // null: undecided, 'open', 'closed'
-  const eligible = on && Boolean(data) && !loading && !readFailed
+  const mode = useSyncExternalStore(subscribe, readMode, readMode)
+  const owner = useSyncExternalStore(subscribe, readOwner, readOwner)
+  const ready = Boolean(data) && !loading
+  const eligible = on && ready && !readFailed
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
-  // Latch the first yes for this mount (a state update while rendering this same component is allowed, and
-  // runs once: the next render sees 'open').
-  if (mode === null && eligible) setMode('open')
+  useEffect(() => {
+    if (!active) return undefined
+    offerStore.hosts.push(id)
+    emit()
+    return () => {
+      if (readOwner() === id) offerStore.mode = null
+      offerStore.hosts = offerStore.hosts.filter((h) => h !== id)
+      emit()
+    }
+  }, [active, id])
+  // Latch the first yes for the page: once open, installing (which gives the member styles) keeps the card.
+  useEffect(() => { if (active && eligible && mode === null) setOfferMode('open') }, [active, eligible, mode])
   return {
     on,
-    show: on && mode === 'open',
-    open: () => { if (on) setMode('open') },
-    close: () => setMode('closed'),
-    reset: () => setMode(null),
+    show: on && active && mode === 'open' && owner === id,
+    settled: !on || (ready && (!eligible || mode !== null)),
+    open: () => { if (on) setOfferMode('open') },
+    close: () => setOfferMode('closed'),
+    reset: () => setOfferMode(null),
   }
 }
 
@@ -71,11 +104,13 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   const [busy, setBusy] = useState(false)
   const [lines, setLines] = useState(null)              // the last install's answer, as sentences
   const [failed, setFailed] = useState(false)
+  const [notSaved, setNotSaved] = useState(false)       // the answer's write did not land
 
   if (!starterPacksEnabled()) return null
 
+  // setPrefMerged resolves {ok: true} only when the server took the write (usePreferences postPref).
   const choose = async (pack) => {
-    setBusy(true); setFailed(false); setLines(null)
+    setBusy(true); setFailed(false); setNotSaved(false); setLines(null)
     let out
     try {
       out = await installStarterPack(pack)
@@ -85,13 +120,20 @@ export default function StarterPackOffer({ onClose, offline = false }) {
       setBusy(false)
       return
     }
-    await writeStarterPackState(setPrefMerged, { state: 'installed', pack })
+    const saved = await writeStarterPackState(setPrefMerged, { state: 'installed', pack })
     mutate(STYLES_URL)                                    // the new styles appear in the lists behind this card
-    setLines(resultLines(out))
+    const said = resultLines(out)
+    setLines(said.length ? said : [OFFER_EMPTY])
+    setNotSaved(saved?.ok !== true)
     setBusy(false)
   }
-  const notNow = () => {
-    if (readStarterPackState(prefs) === null) writeStarterPackState(setPrefMerged, { state: 'dismissed' })
+  const notNow = async () => {
+    if (readStarterPackState(prefs) === null) {
+      setBusy(true); setNotSaved(false)
+      const saved = await writeStarterPackState(setPrefMerged, { state: 'dismissed' })
+      setBusy(false)
+      if (saved?.ok !== true) { setNotSaved(true); return }   // the card stays, so Not now can be pressed again
+    }
     onClose?.()
   }
 
@@ -113,6 +155,7 @@ export default function StarterPackOffer({ onClose, offline = false }) {
         {lines && lines.map((l) => <p key={l} className={styles.result}>{l}</p>)}
       </div>
       {failed && <p role="alert" className={styles.error}>{OFFER_FAILED}</p>}
+      {notSaved && <p role="alert" className={styles.error}>{OFFER_NOT_SAVED}</p>}
     </section>
   )
 }

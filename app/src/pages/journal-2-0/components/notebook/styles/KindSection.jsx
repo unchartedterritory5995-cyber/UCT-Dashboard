@@ -6,7 +6,9 @@
 // P3a Task 10: "Browse community styles" opens the community library at Styles (LibraryDoor), only while the
 // library switch (styleLibraryEnabled) is on. The gallery's import lives in this lazy chunk, never in the picker.
 // P5 Task 5: "How do you trade?" (StarterPackOffer) sits at the top while R-P5-5 holds: the starter-packs switch
-// is on, the member has no styles of their own and has not answered it. The rule is useStarterPackOffer's alone.
+// is on, the member has no styles of their own and has not answered it. The rule is useStarterPackOffer's alone,
+// and so is which surface shows it: an empty notebook holds this section twice (inline and in the New note
+// sheet), and the hook gives the card to one of them (ruling P5-T10-R2).
 import { useId, useRef, useState } from 'react'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import useJournalStyles from '../../../hooks/useJournalStyles'
@@ -64,7 +66,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const offline = data.fromCache === true
 
   return (
-    <section className={styles.wrap} aria-labelledby={headingId}>
+    <section className={styles.wrap} aria-labelledby={headingId} data-starter-offer={offer.settled ? 'settled' : 'deciding'}>
       {offer.show && <StarterPackOffer onClose={offer.close} offline={offline} />}
       <h3 id={headingId} className={styles.h}>Start from a kind of note</h3>
       {styleLibraryEnabled() && <LibraryDoor label="Browse community styles" className={styles.libraryDoor} />}

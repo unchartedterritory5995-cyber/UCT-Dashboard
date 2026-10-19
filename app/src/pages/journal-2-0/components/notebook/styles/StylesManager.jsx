@@ -105,7 +105,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
-  const starter = useStarterPackOffer(open ? data : undefined)
+  const starter = useStarterPackOffer(open ? data : undefined, open)
   const userId = useContext(AuthContext)?.user?.id
 
   const [editing, setEditing] = useState(null)          // { style, seq } while the editor is open
@@ -320,7 +320,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
       <div className={styles.wrap}>
         {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
         <p className={styles.hint}>
-          A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.
+          A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes a note you already made unless you choose to update it.
         </p>
 
         <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
@@ -364,7 +364,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
 
         {data && (
           <div className={styles.layout}>
-            <div className={styles.listCol}>
+            <div className={styles.listCol} data-starter-offer={starter.settled ? 'settled' : 'deciding'}>
               {starter.show && <StarterPackOffer onClose={starter.close} offline={offline} />}
               <div className={styles.rowActions}>
                 <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
@@ -372,8 +372,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                   <UIcon name="plus" size={14} gold={false} /> New style
                 </button>
                 {starter.on && (
-                  <button type="button" className={`${styles.btn} ${styles.quiet}`} aria-expanded={starter.show}
-                    onClick={starter.open}>Starter packs</button>
+                  <button type="button" className={`${styles.btn} ${styles.quiet}`} onClick={starter.open}>Starter packs</button>
                 )}
                 {libraryOn && <LibraryDoor label="Community" className={styles.btn} />}
                 {libraryOn && updates.length > 0 && (
