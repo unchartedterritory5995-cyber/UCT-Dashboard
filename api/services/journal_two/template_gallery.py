@@ -1890,14 +1890,19 @@ def _example_sources(kept: list[str], user_id: str, note_id: str) -> list[tuple[
         raise GalleryError(EXAMPLE_IMAGE_COUNT_SENTENCE)
     from api.services.journal_two import notes as notes_service
     from api.services.journal_two.notes_export import _ATTACHMENT_URL_RE
-    out: list[tuple[Path, str]] = []
+    matched = []
     for src in kept:
         m = _ATTACHMENT_URL_RE.match(src) if isinstance(src, str) else None
         if not m or m.group(1) != user_id or m.group(2) != note_id:
             raise GalleryServerError(EXAMPLE_COPY_SENTENCE)     # the reducer keeps only this note's own; fail closed
-        ext = EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower())
-        if ext is None:
-            raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+        matched.append(m)
+    # OI-P3b-9 (review M-3): the TYPE of every image first, then files and sizes. Checked image by image, a missing
+    # first image answered the 500 copy sentence before a later GIF's 400 -- the one the member can act on.
+    exts = [EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower()) for m in matched]
+    if None in exts:
+        raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+    out: list[tuple[Path, str]] = []
+    for m, ext in zip(matched, exts):
         path = notes_service.serve_note_image_path(m.group(1), m.group(2), m.group(3), m.group(4))
         if path is None:
             raise GalleryServerError(EXAMPLE_COPY_SENTENCE)

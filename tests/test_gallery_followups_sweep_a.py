@@ -176,3 +176,24 @@ def test_G3_a_style_resubmitted_as_another_kind_mid_publish_is_refused(api, conn
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": [], "title": "Plan"})
     assert (r.status_code, r.json()["detail"]) == (400, gallery.EXAMPLE_KIND_SENTENCE)
     assert _examples(conn) == 0
+
+
+# ── G4: the type of every image before any file ────────────────────────────────────────────
+
+def test_G4_a_missing_png_then_a_gif_answers_the_fixable_type_sentence(api, conn, ex_on, ocr, att):
+    """Mutation: check the type inside the per-image loop again -> the missing PNG answers 500 first."""
+    sid = _shared_style(conn)
+    nid = _note(conn, images=("missing.png", "moving.gif"), write_files=False)
+    _write(att, "author", nid, "moving.gif", b"GIF89a")          # the PNG is never written
+    on = [_src("author", nid, "missing.png"), _src("author", nid, "moving.gif")]
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": on, "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, gallery.EXAMPLE_IMAGE_TYPE_SENTENCE)
+    assert _examples(conn) == 0
+
+
+def test_G4_CONTROL_a_missing_png_alone_is_still_the_copy_500(api, conn, ex_on, ocr, att):
+    sid = _shared_style(conn)
+    nid = _note(conn, images=("missing.png",), write_files=False)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": [_src("author", nid, "missing.png")],
+                           "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (500, gallery.EXAMPLE_COPY_SENTENCE)
