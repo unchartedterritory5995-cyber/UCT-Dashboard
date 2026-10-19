@@ -6,9 +6,9 @@ Rails:
     make_fixture.py) and carries bars and the expected levels only -- no tickers, no image paths, no record ids.
   * the fixture can tell v2 from the C2 drawer it replaces under the stamp;
   * NO LOOKAHEAD: wild bars after the as-of bar change nothing, and a forming last bar is dropped;
-  * the verbatim blocks still hash as the module says they do;
-  * the dated tier stamp: auto_structures serves the v2 levels only under MEMBER_LEVELS_ROUND, and falls back to
-    the C2 levels on a missing / wrong stamp, a malformed result or a crash.
+  * the verbatim blocks still hash as the module says they do.
+Members are served levels v3 (api/services/levels_v3.py, tests/test_levels_v3.py), which reads THIS module's frozen
+ranker; the tier-stamp and fallback rails live there.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from api.services import auto_draw, auto_structures, levels_v2
+from api.services import auto_draw, levels_v2
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "levels_v2_parity.json"
 SRC = Path(levels_v2.__file__).read_text(encoding="utf-8")
@@ -118,70 +118,3 @@ def test_the_verbatim_blocks_hash_as_declared():
         levels_v2.CORE_BLOCK_SHA256
     assert hashlib.sha256(_block("lab/levels_v2/drawer_v2.py").encode("utf-8")).hexdigest() == \
         levels_v2.DRAWER_BLOCK_SHA256
-
-
-# ------------------------------------------------------------------------------------------- the dated tier stamp
-
-_ROWS = None
-
-
-def _rows():
-    global _ROWS
-    if _ROWS is None:
-        c = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"][0]
-        _ROWS = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in c["bars"]]
-    return _ROWS
-
-
-def _drawn(monkeypatch, v2=None, raise_=False):
-    auto_structures._DRAWN_CACHE.clear()
-    monkeypatch.setattr(auto_structures, "_daily_bars", lambda sym: _rows())
-    monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
-    if raise_:
-        def boom(*a, **k):
-            raise RuntimeError("x")
-        monkeypatch.setattr(levels_v2, "drawn_levels", boom)
-    elif v2 is not None:
-        monkeypatch.setattr(levels_v2, "drawn_levels", lambda *a, **k: v2)
-    out = auto_structures.drawn_for("ZZTEST")
-    auto_structures._DRAWN_CACHE.clear()
-    return out
-
-
-def _c2():
-    rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _rows()]
-    return auto_draw.drawn_set(auto_draw.clean_bars(rows))["horizontals"]
-
-
-def test_the_stamped_v2_levels_replace_the_c2_levels(monkeypatch):
-    out = _drawn(monkeypatch)
-    assert out["levels_tier"] == {"round": auto_structures.MEMBER_LEVELS_ROUND, "source": "levels_v2"}
-    assert out["horizontals"] and all(h["source"] == "levels_v2" for h in out["horizontals"])
-    assert out["horizontals"] != _c2()
-    assert out["trendlines"] is not None
-
-
-def test_the_member_round_is_a_dated_literal_equal_to_the_drawing_round():
-    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", auto_structures.MEMBER_LEVELS_ROUND)
-    assert auto_structures.MEMBER_LEVELS_ROUND == levels_v2.LEVELS_V2_ROUND
-
-
-@pytest.mark.parametrize("bad", [
-    None,
-    {"round": "2026-01-01", "horizontals": [{"source": "levels_v2", "price": 10.0, "t_from": 20240101}]},
-    {"horizontals": [{"source": "levels_v2", "price": 10.0, "t_from": 20240101}]},
-    {"round": "2026-10-18", "horizontals": []},
-    {"round": "2026-10-18", "horizontals": [{"source": "levels_v2", "price": float("nan"), "t_from": 20240101}]},
-    {"round": "2026-10-18", "horizontals": [{"source": "c2", "price": 10.0, "t_from": 20240101}]},
-    {"round": "2026-10-18", "horizontals": [{"source": "levels_v2", "price": 10.0, "t_from": 20240101}] * 4},
-])
-def test_a_missing_wrong_or_malformed_stamp_keeps_the_c2_levels(monkeypatch, bad):
-    out = _drawn(monkeypatch, v2=bad if bad is not None else {"round": None})
-    assert "levels_tier" not in out
-    assert out["horizontals"] == _c2()
-
-
-def test_a_crash_in_v2_keeps_the_c2_levels(monkeypatch):
-    out = _drawn(monkeypatch, raise_=True)
-    assert "levels_tier" not in out
-    assert out["horizontals"] == _c2()

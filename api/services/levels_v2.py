@@ -32,8 +32,9 @@ import types as _types
 
 import numpy as np
 
-#: The dated tier stamp of this drawing. auto_structures serves these levels in place of the C2 levels only
-#: while the stamp equals its own MEMBER_LEVELS_ROUND literal (fail closed to the C2 drawer otherwise).
+#: The dated tier stamp of this drawing. Members are served levels v3 (api/services/levels_v3.py), which keeps
+#: this module's three levels and frozen ranker and adds a guaranteed near support / resistance; auto_structures
+#: no longer serves v2's drawn_levels directly.
 LEVELS_V2_ROUND = "2026-10-18"
 
 #: sha256 of the two verbatim blocks below as they stand in the lab (lab/levels_v2/lv2core.py after its imports;
