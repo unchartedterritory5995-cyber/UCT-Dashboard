@@ -10,19 +10,13 @@ import pytest
 
 from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import template_gallery as gallery
-# P4b-R-X17: the shared fixtures and the one insert helper, imported by name (never copied).
-from tests._style_library_helpers import _row, api, conn  # noqa: F401
+# P4b-R-X17: the shared fixtures and the one insert helper, imported by name (never copied). The layout
+# switches, the preference write and TRADE live there too, so test_page_layout_adopt never imports this module.
+from tests._style_library_helpers import (  # noqa: F401
+    SWITCHES, TRADE, _row, _save_pref, _set, api, conn, sharing_on)
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE_LAYOUTS_JS = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "pageLayouts.js"
-
-SWITCHES = ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED")
-
-
-def _set(monkeypatch, on: dict[str, bool]) -> None:
-    for name in SWITCHES:
-        monkeypatch.setenv(name, "1" if on.get(name) else "0")
-
 
 @pytest.mark.parametrize("combo", list(itertools.product((False, True), repeat=3)))
 def test_layout_sharing_needs_all_three_switches(monkeypatch, combo):
@@ -167,22 +161,6 @@ def test_the_client_item_types_include_page_layout():
 
 
 # ── Task 4: publishing a layout, and held revisions ─────────────────────────────────────────────────
-
-def _save_pref(conn, user_id, blob):
-    # V3 / P4b-R-X1: written through the REAL upsert (`auth_service.set_user_preference`, the statement
-    # `POST /api/auth/preferences` runs) into `user_preferences(pref_key, pref_value)`. `conn` is the test's
-    # connection to the same auth.db; `publish_layout` reads the row back through it.
-    from api.services import auth_service
-    auth_service.set_user_preference(user_id, pls.LAYOUT_PREF, blob if isinstance(blob, str) else json.dumps(blob))
-
-
-@pytest.fixture
-def sharing_on(monkeypatch):
-    _set(monkeypatch, {n: True for n in SWITCHES})
-
-
-TRADE = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}, {"id": "outcome", "shown": True}]
-
 
 def _publish(conn, page="trade", user_id="author", title="Prop trade page"):
     return gallery.publish_layout(user_id, page, title=title, description="", category="journal",

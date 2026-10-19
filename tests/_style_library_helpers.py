@@ -8,6 +8,7 @@ defined in it, so `conn` / `lib_on` / `api` keep working unchanged.
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import tempfile
 import uuid
@@ -15,6 +16,7 @@ import uuid
 import pytest
 
 from api.services.journal_two import journal_styles as js
+from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import template_gallery as gallery
 
 
@@ -118,3 +120,31 @@ def bump_and_approve(conn, item, **style_patch):
                           category="journal", trading_style=None, conn=conn)
     rev = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
     gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=rev["updatedAt"], conn=conn)
+
+
+# ── P4b page layouts: the three switches, the preference write and one trade list ──────────────────
+# Shared by test_page_layout_share and test_page_layout_adopt (P4b T5 final row 11), so neither test module
+# imports from the other.
+
+SWITCHES = ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED")
+
+
+def _set(monkeypatch, on: dict[str, bool]) -> None:
+    for name in SWITCHES:
+        monkeypatch.setenv(name, "1" if on.get(name) else "0")
+
+
+def _save_pref(conn, user_id, blob):
+    # V3 / P4b-R-X1: written through the REAL upsert (`auth_service.set_user_preference`, the statement
+    # `POST /api/auth/preferences` runs) into `user_preferences(pref_key, pref_value)`. `conn` is the test's
+    # connection to the same auth.db; `publish_layout` reads the row back through it.
+    from api.services import auth_service
+    auth_service.set_user_preference(user_id, pls.LAYOUT_PREF, blob if isinstance(blob, str) else json.dumps(blob))
+
+
+@pytest.fixture
+def sharing_on(monkeypatch):
+    _set(monkeypatch, {n: True for n in SWITCHES})
+
+
+TRADE = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}, {"id": "outcome", "shown": True}]
