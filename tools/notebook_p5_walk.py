@@ -112,6 +112,8 @@ _SEED_ROWS = _SEED if isinstance(_SEED, list) else (_SEED.get("rows") or _SEED.g
 PACK_TITLES = [r["title"] for r in _SEED_ROWS if r.get("pack") == PACK]
 USE_ROW = next(r for r in _SEED_ROWS if r.get("title") == STYLE_TO_USE)
 _BLOCKS_JS = (REPO / f"{J2}/lib/journalBlocks.js").read_text(encoding="utf-8")
+NEEDS_TICKER = re.search(r'"needs-ticker":\s*"([^"]+)"', (REPO / "api/services/journal_two/journal_styles.py")
+                         .read_text(encoding="utf-8")).group(1)
 
 
 def block_label(block_id: str) -> str | None:
@@ -494,8 +496,15 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         ids = [(n.get("attrs") or {}).get("widgetId") for n in (got.get("bodyJson") or {}).get("content", [])
                if n.get("type") == "widgetEmbed"]
         st.read("note body blocks", json.dumps(ids))
-        st.check("the saved note carries every block of the style, in order", ids == [b["block"] for b in USE_ROW["blocks"]],
-                 f"{ids} | want {[b['block'] for b in USE_ROW['blocks']]}")
+        # journal_styles._build_chart: with no ticker the chart is not built and the composer writes its
+        # needs-ticker sentence in its place (run 5 read the chart missing and the check had asked for it).
+        want_ids = [b["block"] for b in USE_ROW["blocks"] if got.get("ticker") or b["block"] != "chart"]
+        st.check("the saved note carries the style's blocks, in order (the chart only with a ticker)", ids == want_ids,
+                 f"{ids} | want {want_ids} | ticker={got.get('ticker')!r}")
+        if not got.get("ticker") and any(b["block"] == "chart" for b in USE_ROW["blocks"]):
+            said = ed.get_by_text(NEEDS_TICKER, exact=True).count()
+            st.check("the editor says why the chart is not there (the needs-ticker sentence)", said == 1,
+                     f"{said} x {NEEDS_TICKER!r}")
 
     def s4(st):
         pg.reload(wait_until="domcontentloaded", timeout=60000)
