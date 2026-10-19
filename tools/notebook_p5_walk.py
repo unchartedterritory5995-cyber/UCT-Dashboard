@@ -66,6 +66,7 @@ import notebook_perf_harness as h  # noqa: E402
 import notebook_fin_walk as fw  # noqa: E402  -- flag_sets, settle_first_run, BENIGN, VIEWPORTS
 import notebook_w14q2_tours_walk as q2  # noqa: E402  -- the tour card's state probe (STATE_JS)
 import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
+import secret_scrub  # noqa: E402  -- scrub() before anything reaches disk
 
 VIEWPORTS = fw.VIEWPORTS
 P5_FLAGS = ["NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED",
@@ -142,9 +143,12 @@ JS_STEPS, LIB_STEPS = tour_steps("JOURNAL_STYLES_STEPS"), tour_steps("STYLE_LIBR
 # ── recorder (the P3a walk's, unchanged in shape) ─────────────────────────────────────────
 
 def flush() -> None:
+    """walk.json, through secret_scrub.scrub: a Playwright request error echoes its request headers, cookie
+    included, into the traceback (run 4, p5-walk-20261018T0135Z; the pre-commit leak check refused it)."""
     if OUT is not None:
         tmp = OUT / "walk.json.tmp"
-        tmp.write_text(json.dumps(REC, indent=1, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
+        tmp.write_text(secret_scrub.scrub(json.dumps(REC, indent=1, ensure_ascii=False, default=str)),
+                       encoding="utf-8", newline="\n")
         os.replace(tmp, OUT / "walk.json")
 
 
