@@ -155,6 +155,8 @@ from api.services.pattern_engine.detectors.uct import uct_trendline_break as _uc
 from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as _uct_launch_pad_v4  # noqa: F401
 # Detector recall v4 (flat-top breakout, gated recall branch): INTERNAL, same gate.
 from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout_ftb4 as _uct_flat_top_breakout_ftb4  # noqa: F401
+# Detector recall v4 (inside day, gated recall branch): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_inside_day_id4 as _uct_inside_day_id4  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 

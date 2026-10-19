@@ -31,7 +31,7 @@ with open(os.path.join(_HERE, "fixtures", "flat_top_golden.json"), encoding="utf
 #: new by construction, so they are left out of the comparison; every other
 #: detector must still match byte for byte. Add an id here only for a NEW detector,
 #: never for an existing one that moved.
-_ADDED_SINCE_GOLDEN = ("uct_flat_top_breakout_ftb4",)
+_ADDED_SINCE_GOLDEN = ("uct_flat_top_breakout_ftb4", "uct_inside_day_id4")
 
 
 @pytest.fixture(scope="module")

@@ -161,6 +161,14 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # blind packets (12/15, 13/15 of decided); a pre-registered new-only
     # confirmation 28/32. Experimental, internal; NOT in the team drawing set.
     "uct_flat_top_breakout_ftb4",
+    # Detector recall v4 (2026-10-18): the inside-day rule widened by a gated
+    # second branch (close above a rising 21 EMA, range <= 1.0 ATR, only with
+    # the 50 SMA rising and the close above the 200 SMA). NEW id beside
+    # uct_inside_day, which is unchanged. Lab test-half recall 42.8% vs the
+    # base rule's 23.5%; two fresh blind packets (21/21 and 15/17 of decided);
+    # the new-branch fires alone 12/14. Experimental, internal; NOT in the team
+    # drawing set.
+    "uct_inside_day_id4",
 })
 
 
