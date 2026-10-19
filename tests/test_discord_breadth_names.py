@@ -124,6 +124,19 @@ def test_breadth_adjust_charts_a_market_indicator_as_breadth(everything_publishe
     assert prefs["stats"] is False and prefs["style"] == "line"
 
 
+def test_a_typed_weekly_series_opens_on_the_weekly_chart(everything_published):
+    """UCTESCOMM on a daily chart read "+0 (+0.00%)": COT is held between weekly reports."""
+    from api.routers import discord_interactions as rt
+    from api.services import discord_interactions as di
+    assert rt.weekly_first(di.ChartRequest("UCTESCOMM", "D")).tf == "W"
+    assert rt.weekly_first(di.ChartRequest("UCTNAAIM", "D")).tf == "W"
+    assert rt.weekly_first(di.ChartRequest("UCTNAMO", "D")).tf == "D"     # a daily series stays daily
+    assert rt.weekly_first(di.ChartRequest("NVDA", "60")).tf == "60"
+    # the D button under a chart still means D: breadth_adjust never forces weekly
+    req, _ = rt.breadth_adjust(di.ChartRequest("UCTESCOMM", "D"), {})
+    assert req.tf == "D"
+
+
 def test_the_stand_in_reads_the_sites_own_symbol(everything_published, monkeypatch):
     from api.routers import bars as bars_router
     from api.routers import discord_interactions as rt

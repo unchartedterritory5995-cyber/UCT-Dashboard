@@ -472,6 +472,21 @@ def _served_window(data: dict) -> str | None:
     return raw if raw in di.FLOW_WINDOWS else None
 
 
+def weekly_first(req):
+    """A freshly typed chart of a weekly series (COT, AAII, NAAIM) opens on the weekly
+    chart: held on a daily chart its header reads "+0 (+0.00%)" six days in seven, and
+    the weekly header is the change since the last report. Only the typed command calls
+    this; the D / W buttons under a chart still mean what they say."""
+    try:
+        from api.services import discord_breadth_names as dbn
+        entry = dbn.lookup(req.ticker)
+        if entry is not None and entry.weekly and req.tf != "W":
+            return dataclasses.replace(req, tf="W")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] weekly default failed %s: %s", getattr(req, "ticker", "?"), e)
+    return req
+
+
 def breadth_adjust(req, prefs: dict):
     """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
     series built from the breadth monitor (the bars authority collapses an
@@ -686,7 +701,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             wait = di.user_rate_check(uid)
             if wait:
                 return _ephemeral(di.throttle_message(wait))
-        items = [breadth_adjust(req, dict(prefs)) for req in reqs]
+        items = [breadth_adjust(weekly_first(req), dict(prefs)) for req in reqs]
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
         token = str(interaction.get("token") or "")
         if not app_id or not token:
@@ -878,7 +893,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
                 req = di.parse_component(interaction)          # a button under a chart
             else:
                 kind = "chart"
-                reqs = di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))
+                reqs = [weekly_first(q) for q in di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))]
                 if len(reqs) > 1:               # /chart NVDA AMD AVGO — one door, one message
                     for _ in reqs:
                         wait = di.user_rate_check(uid)

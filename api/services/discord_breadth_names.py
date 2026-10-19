@@ -57,6 +57,7 @@ class Entry:
     title: str       # what the reply and the watermark say
     group: str       # autocomplete group
     kind: str        # 'breadth' (breadth_symbols) | 'indicator' (market_indicators)
+    weekly: bool = False  # one observation a week (COT, AAII, NAAIM): opens on the weekly chart
 
 
 _LOCK = threading.Lock()
@@ -116,7 +117,8 @@ def _build() -> dict:
         if nm is None:
             log.error("[discord-breadth] no Discord name rule for %s; not offered", s.id)
             continue
-        add(Entry(nm, s.id, s.display, _FAMILY_GROUP.get(s.family, s.family), "indicator"))
+        add(Entry(nm, s.id, s.display, _FAMILY_GROUP.get(s.family, s.family), "indicator",
+                  weekly=(s.frequency == reg.FREQ_WEEKLY)))
     return out
 
 
