@@ -56,7 +56,17 @@ export const SURFACES = Object.freeze({
   // notebook_style_library_enabled, so community-gallery-browse never renders them); rail
   // a11y/styleLibrary.a11y.test.jsx.
   'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
+  // P5 fix round 1: the admin Feature/Unfeature + Hide pair, shared by outline and style cards; rail
+  // a11y/styleLibrary.a11y.test.jsx renders it on a style card for an admin.
+  'components/notebook/GalleryAdminActions.jsx': { recipe: 'style-library-card-admin' },
   'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
+  // P4b Task 7: shared page layouts in that library (dark behind NOTEBOOK_LAYOUT_SHARING_ENABLED, so no gallery or
+  // style recipe renders them); rail a11y/layoutLibrary.a11y.test.jsx. LibraryCard is the one card dispatcher, and the
+  // layout card is what it renders for a layout.
+  'components/notebook/LibraryCard.jsx': { coveredBy: 'layout-library-card' },
+  'components/notebook/LayoutLibraryCard.jsx': { recipe: 'layout-library-card' },
+  'components/notebook/LayoutPreviewSheet.jsx': { recipe: 'layout-library-preview' },
+  'components/notebook/AdoptLayoutSheet.jsx': { recipe: 'layout-library-adopt' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
@@ -351,6 +361,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // The trade page rendering from the layout (story first with the chart hidden; every panel hidden). Its own
   // rail file, because that file replaces `swr`.
   'components/trade/TradeDetailPage.jsx': { recipe: 'trade-page-layout', railFile: 'a11y/pageLayoutsTrade.a11y.test.jsx' },
+  // Notebook P4b Task 8: sharing a page layout from Customize (the form in the editor's sheet body) and the door
+  // that opens the library at Page layouts. Rail a11y/pageLayouts.a11y.test.jsx, with layout sharing answering.
+  'components/layout/ShareLayoutForm.jsx': { recipe: 'page-layout-share-form', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
+  'components/layout/LayoutLibraryDoor.jsx': { recipe: 'layout-library-door', railFile: 'a11y/pageLayouts.a11y.test.jsx' },
   // Notebook P3a Task 11: the community style library's doors under components/notebook/styles/ (outside the
   // derived population; dark behind notebook_style_library_enabled, so no styles-manager recipe renders them):
   // sharing a style, reviewing an author's update to an adopted copy, and the door that opens the library at
@@ -359,6 +373,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ShareStyleForm.jsx': { recipe: 'style-library-share-form', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryUpdateSheet.jsx': { recipe: 'style-library-update-sheet', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryDoor.jsx': { recipe: 'style-library-door', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  // Notebook P5 Task 10: "How do you trade?", the starter pack offer (under components/notebook/styles/, outside
+  // the derived population; dark behind notebook_starter_packs_enabled); rail a11y/starterPackOffer.a11y.test.jsx
+  // (the card, its answer, a failed install, offline, and the card at the top of the Styles manager).
+  'components/notebook/styles/StarterPackOffer.jsx': { recipe: 'starter-pack-offer', railFile: 'a11y/starterPackOffer.a11y.test.jsx' },
   // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
   // Checklist from my winners, the Your trading year page and its Report page door; rail
   // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).

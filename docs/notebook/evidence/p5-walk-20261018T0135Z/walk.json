@@ -1,0 +1,942 @@
+{
+ "tool": "tools/notebook_p5_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"reg",
+   "traceback": "thon314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.is_visible: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log",
+   "traceback": "isible(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<2 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 408, in is_visible\n    return await self._channel.send(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n        \"isVisible\", self._timeout, locals_to_params(locals())\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.is_visible: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n    - checking visibility of get_by_role(\"group\", name=\"Start from a kind of note\")\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_j_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_j_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": false,
+     "read": "[1]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": false,
+     "read": "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": false,
+     "read": "{\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types\\\"]\"}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1], \"of\": 4, \"pressed\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"done\": false, \"notes\": [\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\"], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types\\\"]\"}}"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leak"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leak"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"reg",
+   "traceback": "thon314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: APIRequestContext.get: socket hang up\nCall log:\n  - → GET http://127.0.0.1:8181/api/j2/journal-styles\n    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n    - cookie: <redacted> [the rest of this string was removed by the end-of-line cookie redaction]",
+   "traceback": "packages\\playwright\\_impl\\_fetch.py\", line 193, in get\n    return await self.fetch(\n           ^^^^^^^^^^^^^^^^^\n    ...<12 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_fetch.py\", line 319, in fetch\n    return await self._inner_fetch(\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<13 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_fetch.py\", line 410, in _inner_fetch\n    response = await self._channel.send(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<18 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: APIRequestContext.get: socket hang up\nCall log:\n  - → GET http://127.0.0.1:8181/api/j2/journal-styles\n    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n    - cookie: <redacted> [the rest of this string was removed by the end-of-line cookie redaction]",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_m_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_m_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": false,
+     "read": "[1]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": false,
+     "read": "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": false,
+     "read": "{\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types\\\"]\"}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1], \"of\": 4, \"pressed\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"done\": false, \"notes\": [\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\"], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "http": 429,
+      "url": "http://127.0.0.1:8181/api/j2/journal-styles/starter-packs/earnings"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+     },
+     {
+      "http": 429,
+      "url": "http://127.0.0.1:8181/api/j2/journal-styles/starter-packs/earnings"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+     },
+     {
+      "http": 429,
+      "url": "http://127.0.0.1:8181/api/j2/journal-styles/starter-packs/earnings"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+     },
+     {
+      "http": 429,
+      "url": "http://127.0.0.1:8181/api/j2/journal-styles/starter-packs/earnings"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"reg",
+   "traceback": "thon314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True) resolved to 2 elements:\n    1) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    2) <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button> aka get_by_label(\"New note\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.is_visible: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log",
+   "traceback": "isible(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<2 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 408, in is_visible\n    return await self._channel.send(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n        \"isVisible\", self._timeout, locals_to_params(locals())\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.is_visible: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_a_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n    - checking visibility of get_by_role(\"group\", name=\"Start from a kind of note\")\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_d_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n",
+   "traceback": "4\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"group\", name=\"Start from a kind of note\") resolved to 2 elements:\n    1) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka locator(\"[id=\\\"_r_d_cards\\\"]\").get_by_role(\"group\", name=\"Start from a kind of note\")\n    2) <div role=\"group\" class=\"_grid_vofsq_7\" aria-label=\"Start from a kind of note\">…</div> aka get_by_label(\"New note\").get_by_role(\"group\", name=\"Start from a kind of note\")\n\nCall log:\n  - waiting for get_by_role(\"group\", name=\"Start from a kind of note\") to be visible\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": false,
+     "read": "[1]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": false,
+     "read": "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": false,
+     "read": "{\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types\\\"]\"}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": false,
+     "read": "[\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card "
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1], \"of\": 4, \"pressed\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"done\": false, \"notes\": [\"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\", \"step 1: the click reported TimeoutError; the card then read step 1\", \"step 1: pressed again with force (recorded, not a member's tap)\"], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": \"[data-tour=\\\"library-types"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P5 Walk 1280",
+   "viewport": "1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "P5 Walk 820",
+   "viewport": "820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "what": "sign-up limit reached for P5 Walk 390; waiting 62 s",
+   "attempt": 1,
+   "verdict": "INFO"
+  },
+  {
+   "account": "P5 Walk 390",
+   "viewport": "390",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 5\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 5\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 3\n\nNew note\n\nStart a blank note, or pick a template such as the daily note.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  }
+ ],
+ "tip": "5edd7a24f1",
+ "tool_tree": "5edd7a24f1702eb2f7f9428b723c3c019804f610",
+ "base": "http://127.0.0.1:8181",
+ "data_dir": "C:\\data-p5walk4",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STARTER_PACKS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "viewports": [
+  "1280",
+  "820",
+  "390"
+ ],
+ "declared_steps": [
+  [
+   1,
+   "New note > From a style shows How do you trade?"
+  ],
+  [
+   2,
+   "picking Swing adds the three Swing styles"
+  ],
+  [
+   3,
+   "a note from Swing trade plan renders its blocks and outline headings"
+  ],
+  [
+   4,
+   "after a reload the offer is gone; the Styles manager's Starter packs button opens it"
+  ],
+  [
+   5,
+   "the Journal styles tour runs from the Learn menu through every step"
+  ],
+  [
+   6,
+   "the Community library tour runs, opening the gallery when asked"
+  ],
+  [
+   7,
+   "the admin telemetry count has style_applied >= 1, and it rose in this story"
+  ]
+ ],
+ "source_words": {
+  "offer_title": "How do you trade?",
+  "offer_line": "Pick one and we will add three styles you can change.",
+  "packs": [
+   "Swing",
+   "Day",
+   "Prop",
+   "Options",
+   "Earnings"
+  ],
+  "swing_titles": [
+   "Swing trade plan",
+   "Weekend prep",
+   "Swing trade review"
+  ],
+  "journal_styles_steps": 4,
+  "style_library_steps": 4
+ },
+ "started": "2026-10-19T01:21:25+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8181 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T20-21-27.md (identity 60dcbaf91b81..., data dir C:\\data-p5walk4)"
+ },
+ "stories": {
+  "1280": {
+   "member": "p5walk-1280-012125@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  },
+  "820": {
+   "member": "p5walk-820-012125@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  },
+  "390": {
+   "member": "p5walk-390-012125@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  }
+ },
+ "stop": "graceful (rc 0)",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p5-walk-20261018T0135Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 20:21:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 20:23:48",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 20:25:52",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 20:42:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: docs\\notebook\\evidence\\p5-walk-20261018T0135Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 3,
+  "FAIL": 6,
+  "INCONCLUSIVE": 12
+ },
+ "port_free_after": true,
+ "finished": "2026-10-19T01:43:03+00:00"
+}

@@ -1,6 +1,6 @@
 // W14-C1: every registered tour, opened the way a member opens it, MEASURED.
 //
-// For each of the 21 registered tours: start from Help (`/support`), follow the tour's own
+// For each of the 23 registered tours: start from Help (`/support`), follow the tour's own
 // Replay link (`startPath` + `startState`, exactly what Support.jsx renders), through the REAL
 // gate and the REAL engine, in a stand-in app whose pages render a capability's anchors only
 // on the screen where that capability's component really renders (ROUTE_OF_FILE below, one
@@ -44,6 +44,9 @@ const ROUTE_OF_FILE = {
   'components/notebook/ResurfaceVersionSheet.jsx': (l) => onNote(l) && params(l).has('resurfaceVersion'),
   'components/notebook/NoteTasksView.jsx': (l) => onNotebook(l) && params(l).get('view') === 'tasks',
   'components/notebook/TemplatePicker.jsx': () => false,            // a picker open: behind a click
+  'components/notebook/styles/StylesManager.jsx': () => false,      // P5: the Styles manager open: behind a click
+  'components/notebook/TemplateGallery.jsx': () => false,           // P5: the community gallery open: behind two clicks
+  'components/notebook/StyleLibraryCard.jsx': () => false,          // P5 (C11): a library card, inside the open gallery
   'tabs/NotebookTab.jsx': onNotebook,
   'components/notebook/FolderSidebar.jsx': onNotebook,
   'components/notebook/ResearchHome.jsx': onHome,
@@ -121,8 +124,8 @@ let where = ''
 function Where() { const l = useLocation(); where = l.pathname + l.search; return null }
 
 describe('every registered tour, opened from Help the way a member opens it', () => {
-  it('there are 21 registered tours beyond the base tour (20 replayable, 1 passive explainer)', () => {
-    expect(OTHER_TOURS).toHaveLength(21)
+  it('there are 23 registered tours beyond the base tour (22 replayable, 1 passive explainer)', () => {
+    expect(OTHER_TOURS).toHaveLength(23)
     expect(OTHER_TOURS.filter((t) => !t.replayable).map((t) => t.id)).toEqual(['note-resurfaces'])
   })
 

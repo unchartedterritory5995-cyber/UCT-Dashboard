@@ -11,7 +11,8 @@ let lastBody = null
 beforeEach(() => {
   lastBody = null
   global.fetch = vi.fn((url, opts) => {
-    if (opts?.method === 'POST') {
+    // P5 Task 6: a styled create also posts style_applied to /api/j2/telemetry; this file reads the NOTE request.
+    if (opts?.method === 'POST' && url === '/api/j2/notes') {
       lastBody = JSON.parse(opts.body)
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })
     }

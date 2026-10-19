@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/starter-packs/swing",
+    "note": "The same pack again: nothing is copied twice, and all three are named in alreadyHad.",
+    "path": "/api/j2/journal-styles/starter-packs/swing",
+    "status": 200
+  },
+  "body": {
+    "alreadyHad": [
+      "Swing trade plan",
+      "Weekend prep",
+      "Swing trade review"
+    ],
+    "installed": [],
+    "skipped": []
+  }
+}

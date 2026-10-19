@@ -1,0 +1,11 @@
+P5 final fix mutation proofs at 73e772f363607fb42fc027e785547a7f1dd03111
+CONTROL before: failed=0 totals=True :: vitest rc=0 Tests  33 passed (33) | pytest rc=0 18 passed in 0.72s
+item 3 (OFFER_FAILED back to the false sentence) in app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx: KILLED failed=1 :: vitest rc=1 Tests  1 failed | 17 passed (18) :: restore vs HEAD blob OK; git diff empty
+item 7a (a failed installed write is silent again) in app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx: KILLED failed=1 :: vitest rc=1 Tests  1 failed | 17 passed (18) :: restore vs HEAD blob OK; git diff empty
+item 7b (a failed dismissed write closes the card silently again) in app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx: KILLED failed=1 :: vitest rc=1 Tests  1 failed | 17 passed (18) :: restore vs HEAD blob OK; git diff empty
+item 8 (every surface renders the card (no single owner)) in app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx: KILLED failed=5 :: vitest rc=1 Tests  5 failed | 24 passed (29) :: restore vs HEAD blob OK; git diff empty
+item 8/9 page (the inline picker stays under the open sheet) in app/src/pages/journal-2-0/tabs/NotebookTab.jsx: KILLED failed=2 :: vitest rc=1 Tests  2 failed | 2 passed (4) :: restore vs HEAD blob OK; git diff empty
+item 9 engine (waitFor moves on only after an absence (the old rule)) in app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx: KILLED failed=2 :: vitest rc=1 Tests  2 failed | 2 passed (4) :: restore vs HEAD blob OK; git diff empty
+item 10 (the absence is counted without waiting for the settled marker) in tools/notebook_p5_walk.py: KILLED failed=3 :: pytest rc=1 3 failed, 15 passed in 0.67s :: restore vs HEAD blob OK; git diff empty
+CONTROL after: failed=0 totals=True :: vitest rc=0 Tests  33 passed (33) | pytest rc=0 18 passed in 0.60s
+VERDICT: ALL KILLED, ALL RESTORED

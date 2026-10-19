@@ -220,6 +220,9 @@ _J2_TELEMETRY_EVENTS = {
     # opened, and an adopt the server accepted. Enums and a bool only: never an
     # item id, a title or an author handle.
     "library_viewed", "style_adopted",
+    # P5 (starter packs, Task 6) - a note made from a style or a style applied to one, a style created, and a
+    # trader block inserted. Closed enums only: never a style id, a name, a note or a block's params.
+    "style_applied", "style_created", "block_used",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -322,11 +325,24 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     # P3a Task 11 — the community style library.
     "library_viewed": {
-        "type": ("all", "outline", "style"),
+        "type": ("all", "outline", "style", "page_layout"),
         "view": ("browse", "following", "author"),
     },
     "style_adopted": {
         "notify": "bool",
+    },
+    # P5 Task 6. ⛔ `block_used.kind` is journal_styles.BLOCK_KINDS' ids in that order (railed both ways by
+    # tests/test_notebook_telemetry_events.py, with the client's one-line oneOf).
+    "style_applied": {
+        "via": ("new_note", "switch", "update"),
+    },
+    "style_created": {
+        "via": ("editor", "duplicate", "from_note"),
+    },
+    "block_used": {
+        "kind": ("chart", "preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire",
+                 "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
+                 "reminder"),
     },
 }
 

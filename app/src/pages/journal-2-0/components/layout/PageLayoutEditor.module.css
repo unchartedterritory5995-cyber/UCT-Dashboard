@@ -23,6 +23,12 @@
 .actions { display: flex; align-items: center; gap: 8px; }
 .spacer { flex: 1 1 auto; }
 .error { margin: 0; color: var(--danger-ink); font-size: 13px; }
+.share { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border); }
+.shareStatus { margin: 0; font-size: 13px; color: var(--text); }
+.form { display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text); }
+.field input, .field textarea, .field select { font: inherit; font-size: 13.5px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); }
+.field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 1024px) {
@@ -30,6 +36,7 @@
   .iconBtn { min-width: var(--tap-min); }
   .show input { min-width: 24px; min-height: 24px; }
   .show { min-height: var(--tap-min); }
+  .field input, .field select { min-height: var(--tap-min); }
 }
 @media (max-width: 640px) {
   .actions { flex-wrap: wrap; }

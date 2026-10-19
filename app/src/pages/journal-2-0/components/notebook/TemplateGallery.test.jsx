@@ -343,7 +343,7 @@ describe('the review queue', () => {
     // the report the member really sent: its reason worded, its note quoted
     const [report] = reported.reports
     expect(report).toMatchObject({ reason: 'broken', note: 'The second line is cut off.' })
-    expect(screen.getByText(/“Broken or empty” — The second line is cut off\./)).toBeInTheDocument()
+    expect(screen.getByText(/“Broken or empty”: The second line is cut off\./)).toBeInTheDocument()   // no em dash (P4b final)
     // the button names the template it hides now (lane FIN-A11Y, review R4 M-16)
     await user.click(screen.getByRole('button', { name: `Hide template ${reported.title}` }))
     expect(await screen.findByText(`Hid “${reported.title}”.`)).toBeInTheDocument()

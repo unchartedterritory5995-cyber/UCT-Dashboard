@@ -505,6 +505,60 @@ def test_account_purge_removes_library_rows_and_keeps_copies(db_path, monkeypatc
         conn.close()
 
 
+def test_account_purge_removes_layout_items_and_keeps_adopters_layouts(db_path, monkeypatch):
+    """P4b Task 5 -- a leaving author takes their shared page layout with them: the gallery row, the uses other
+    members recorded on it and the Helpful marks they left. An adopter's own `journal_page_layout` preference is
+    THEIRS (R-P4b-8: adopting never wrote it; their own client saved it) and stays byte-equal."""
+    import json
+
+    from api.services import auth_service
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+    from api.services.journal_two import page_layout_share as pls
+    from api.services.journal_two import template_gallery as gallery
+
+    for name in ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED"):
+        monkeypatch.setenv(name, "1")
+    trade = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}]
+    conn = get_connection()
+    try:
+        for uid in ("author", "member"):
+            _seed_user(conn, uid, f"{uid}@test.uct")
+        conn.commit()
+        auth_service.set_user_preference("author", pls.LAYOUT_PREF, json.dumps({"version": 1, "trade": trade}))
+        item = gallery.publish_layout("author", "trade", title="Prop trade page", description="",
+                                      category="journal", trading_style=None, conn=conn)
+        gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+        gid = item["id"]
+        adopted = gallery.adopt_layout("member", gid, version=1, conn=conn)
+        # What the member's client saves after adopting, through the ordinary preference door.
+        auth_service.set_user_preference("member", pls.LAYOUT_PREF,
+                                         json.dumps({"version": 1, "trade": adopted["layout"]["lists"]["trade"]}))
+        gallery.set_helpful("member", gid, True, conn=conn)
+
+        def n(sql, *a):
+            return conn.execute(sql, a).fetchone()[0]
+
+        def pref(uid):
+            row = conn.execute("SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = ?",
+                               (uid, pls.LAYOUT_PREF)).fetchone()
+            return None if row is None else row[0]
+
+        before = pref("member")
+        assert before is not None                                                              # non-vacuity
+        assert n("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", gid) == 1
+        assert n("SELECT COUNT(*) FROM j2_template_gallery_uses WHERE gallery_id = ?", gid) == 1
+        assert n("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", gid) == 1
+
+        assert ap.purge_user_data("author", conn)["ok"] is True
+        assert n("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", gid) == 0
+        assert n("SELECT COUNT(*) FROM j2_template_gallery_uses WHERE gallery_id = ?", gid) == 0
+        assert n("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", gid) == 0
+        assert pref("member") == before                                                        # byte-equal
+    finally:
+        conn.close()
+
+
 def test_j2_task_reminder_log_is_purged_on_account_deletion(db_path, monkeypatch):
     """Wave 6 fix round 4, R4-4 (M-5) — the daily task reminder's claim log
     (`note_tasks.run_task_reminders`) is keyed by `user_id`: which member was

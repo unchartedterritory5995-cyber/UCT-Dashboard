@@ -258,7 +258,7 @@ describe('first-run welcome -- the sample notebook promotion', () => {
 
 describe('integration gate -- the welcome extras ride the checklist gate (not live on merge)', () => {
   // Every capability armed, so a preview rendered by mistake would have lines to show.
-  const ALL_ARMED = Object.fromEntries(CAPABILITY_PREVIEW.map((c) => [c.flag, true]))
+  const ALL_ARMED = Object.fromEntries(CAPABILITY_PREVIEW.flatMap((c) => [c.flag, ...(c.requires || [])]).map((f) => [f, true]))
 
   it('onboarding on, getting-started off: the pre-wave-14 first-run screen', async () => {
     latchNotebookFlags({ ...ALL_ARMED, notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })

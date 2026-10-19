@@ -34,6 +34,10 @@
  * P3a (the community style library, Task 11): `library_viewed` (TemplateGallery, once
  * per view change while the switch is on) and `style_adopted` (StyleLibraryCard, after
  * an adopt the server accepted). Neither carries an id, a title or a handle.
+ *
+ * P5 (starter packs, Task 6): `style_applied` (a note made from a style, or a style switched or updated on a note,
+ * after the server's yes), `style_created` (a new style from the editor, a duplicate or a note) and `block_used`
+ * (a trader block inserted into a note). Closed enums only: never a style id, a name, a note or a block's params.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -54,6 +58,9 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   BULK_USED: 'bulk_used',
   LIBRARY_VIEWED: 'library_viewed',
   STYLE_ADOPTED: 'style_adopted',
+  STYLE_APPLIED: 'style_applied',
+  STYLE_CREATED: 'style_created',
+  BLOCK_USED: 'block_used',
 })
 
 /**
@@ -166,11 +173,23 @@ export const EVENT_SCHEMAS = Object.freeze({
     failed: num,
   },
   library_viewed: {
-    type: oneOf('all', 'outline', 'style'),
+    type: oneOf('all', 'outline', 'style', 'page_layout'),
     view: oneOf('browse', 'following', 'author'),
   },
   style_adopted: {
     notify: bool,
+  },
+  style_applied: {
+    via: oneOf('new_note', 'switch', 'update'),
+  },
+  style_created: {
+    via: oneOf('editor', 'duplicate', 'from_note'),
+  },
+  // ⛔ ONE line (the server rail parses one line per prop): the BLOCK_KINDS ids, in BLOCK_KINDS order, railed
+  // against lib/journalBlocks.js and journal_styles.BLOCK_KINDS. chart, marketcontext and reminder are not
+  // `block: true` in the registry, so insertWidgetEmbed never sends them today; they stay so the enum is the catalog.
+  block_used: {
+    kind: oneOf('chart', 'preEntryChecklist', 'priceStamps', 'positionSizing', 'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn', 'marketcontext', 'reminder'),
   },
 })
 

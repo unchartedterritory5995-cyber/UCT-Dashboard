@@ -138,16 +138,16 @@ def test_the_autocomplete_leaves_room_for_a_real_UCT_ticker(monkeypatch):
     assert "UCTT" in vals and len(vals) <= 25 and sum(v.startswith("UCT") and v != "UCTT" for v in vals) == rt.BREADTH_CHOICES_MAX
 
 
-def test_typing_a_set_offers_the_set_instead_of_no_options(monkeypatch):
-    """2026-10-18, live: typing "UCTA20 UCTNH UCTS2" showed "No options match your search"
-    over a command that then charted all three. The list now offers the set back."""
+def test_typing_a_set_offers_no_choice_so_enter_sends_what_was_typed(monkeypatch):
+    """2026-10-18, live: a "<set> - chart these" choice lagged the typing ("UCTFG UCTA" under
+    "UCTFG UCTA50") and Enter takes the highlighted choice, so it would chart the wrong set.
+    A set gets no choice at all; Enter then submits the typed text."""
     from api.routers import discord_interactions as rt
     from api.routers import ticker_search as ts
     monkeypatch.setattr(ts, "ticker_search", lambda q, limit, type: {"results": []})
-    assert rt.fetch_ticker_choices("uctA20 UCTNH, ucts2") == [
-        {"name": "UCTA20 UCTNH UCTS2 - chart these", "value": "UCTA20 UCTNH UCTS2"}]
-    assert rt.fetch_ticker_choices("NVDA AMD AVGO TSLA AAPL") == []        # over the 4-chart limit: no promise
-    assert rt.fetch_ticker_choices("NVDA not a ticker!") == []
+    assert rt.fetch_ticker_choices("UCTFG UCTA50") == []
+    assert rt.fetch_ticker_choices("NVDA AMD AVGO") == []
+    assert rt.fetch_ticker_choices("AEHL") == [{"name": "AEHL - chart it", "value": "AEHL"}]   # control: a single still gets one
 
 
 def _buttons(req):

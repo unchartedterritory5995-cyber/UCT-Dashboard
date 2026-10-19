@@ -65,6 +65,7 @@ from api.services.journal_two import coach_chat_tools
 from api.services.journal_two import journal_styles
 from api.services.journal_two import earnings_followup
 from api.services.journal_two import template_gallery
+from api.services.journal_two import starter_packs
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -175,6 +176,8 @@ def _server_gates() -> dict:
         # P2 Tier 3: no service module exists yet, so the row is the neighbours' own flag_on parse.
         # Task 6 or 7 swaps it for the service's enabled() once one is built.
         "JOURNAL_TIER3_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_TIER3_ENABLED", False),
+        # P5: the starter-pack service's own gate function (Task 4 replaced the placeholder lambda).
+        "NOTEBOOK_STARTER_PACKS_ENABLED": starter_packs.enabled,
     }
 
 

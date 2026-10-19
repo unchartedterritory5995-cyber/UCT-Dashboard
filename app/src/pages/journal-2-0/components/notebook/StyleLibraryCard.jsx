@@ -3,7 +3,8 @@
 // alone, which is itself a lazy chunk (TemplatePicker.jsx), so none of this is in the first open.
 //
 // The card's controls are SIBLINGS (never a button in a button): Preview, Adopt, Helpful, Report, and
-// the author's name as its own button when the author has a handle.
+// the author's name as its own button when the author has a handle. An admin also gets Feature/Unfeature
+// and Hide (GalleryAdminActions, the one copy GalleryCard renders too; P5 fix round 1).
 //   * Adopt opens an inline confirm: "Notify me when the author updates" (off by default), then Adopt
 //     and Cancel. The copy is the member's own style row; the server makes it (adoptStyle).
 //   * Helpful is a toggle (aria-pressed). It is not offered on your own item (the server refuses it too).
@@ -11,12 +12,14 @@
 // ⛔ Every failure is a sentence on screen; a server refusal shows the server's fixed sentence, and a
 // missing item or an outage a fixed sentence of our own. Nothing fails silently.
 import { useId, useRef, useState } from 'react'
-import { adoptStyle, markHelpful, tradingStyleLabel } from '../../lib/styleLibrary'
+import { adoptStyle, tradingStyleLabel } from '../../lib/styleLibrary'
 import { categoryLabel } from '../../lib/templateGallery'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
 import { libraryError } from './styles/styleErrors'
+import GalleryAdminActions from './GalleryAdminActions'
+import { useHelpfulToggle, withStop } from './useHelpfulToggle'
 import styles from './TemplateGallery.module.css'
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
@@ -27,26 +30,15 @@ export function refusalSentence(err, fallback) {
   return libraryError(err, fallback)
 }
 
-const withStop = (s) => (/[.!?]$/.test(s) ? s : `${s}.`)
 
-export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, busy = false }) {
+export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false }) {
   const uid = useId()
   const [confirming, setConfirming] = useState(false)
   const [notify, setNotify] = useState(false)
   const [adopting, setAdopting] = useState(false)
   const [reporting, setReporting] = useState(false)
-  const [helped, setHelped] = useState(Boolean(item.helpedByMe))
-  const [helpfulCount, setHelpfulCount] = useState(Number(item.helpfulCount) || 0)
-  // Re-seed from the server when the item changes (a different item, or a refresh that brings another
-  // member's vote): the local values hold only until the next answer (review M-6).
-  const seed = `${item.id}|${Boolean(item.helpedByMe)}|${Number(item.helpfulCount) || 0}`
-  const [seenSeed, setSeenSeed] = useState(seed)
-  if (seed !== seenSeed) {
-    setSeenSeed(seed)
-    setHelped(Boolean(item.helpedByMe))
-    setHelpfulCount(Number(item.helpfulCount) || 0)
-  }
-  const [voting, setVoting] = useState(false)
+  // Helpful, re-seeded from the server when the item changes (review M-6): one shared copy (P4b review M-1).
+  const { helped, helpfulCount, voting, toggleHelpful } = useHelpfulToggle(item, onMessage)
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
@@ -72,20 +64,6 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't add "${item.title}" to your styles. Nothing was changed.`) })
     } finally {
       setAdopting(false)
-    }
-  }
-
-  const toggleHelpful = async () => {
-    if (voting) return
-    setVoting(true)
-    try {
-      const out = await markHelpful(item.id, !helped)
-      setHelped(Boolean(out?.helpful))
-      setHelpfulCount(Number(out?.count) || 0)
-    } catch (err) {
-      onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't record that for "${item.title}". Nothing was changed.`) })
-    } finally {
-      setVoting(false)
     }
   }
 
@@ -117,7 +95,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         {!item.mine && (
           <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
             onClick={() => (confirming ? closeConfirm() : setConfirming(true))} disabled={busy}
-            aria-expanded={confirming} aria-label={`Adopt ${item.title}`}>
+            aria-expanded={confirming} aria-label={`Adopt ${item.title}`} data-tour="library-adopt">
             Adopt
           </button>
         )}
@@ -133,6 +111,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
             Report
           </button>
         )}
+        {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
       {confirming && (
         <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>

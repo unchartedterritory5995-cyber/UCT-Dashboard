@@ -13,6 +13,10 @@
 //     a saved market layout that shows all five new panels (Regime first), with the Customize button;
 //   * today-page-layout-panels-states                       -- the same five panels in the states the first
 //     recipe does not reach: no rules, no notices, All Accounts selected (My rules' "Pick an account" line).
+//   * page-layout-share-controls (P4b)                      -- the trade page's editor with layout sharing
+//     answering: the status line, Share this layout and Find shared layouts;
+//   * page-layout-share-form (P4b)                          -- ShareLayoutForm open in the editor's sheet body;
+//   * layout-library-door (P4b)                             -- LayoutLibraryDoor open on the library at Page layouts.
 //
 // The leads and the four panels that existed before P4a (coach strip, week strip, goal progress) are stubs
 // here; Quick actions, the Customize button, and the five new panels are the real components, over the real
@@ -77,7 +81,10 @@ vi.mock('../surfaces/today/TodayWeekStrip', () => ({ default: () => <section ari
 vi.mock('../components/accounts/GoalProgress', () => ({ default: () => <section aria-label="Goal progress"><p>Goal progress</p></section> }))
 
 import PageLayoutEditor from '../components/layout/PageLayoutEditor'
+import LayoutLibraryDoor from '../components/layout/LayoutLibraryDoor'
 import TodaySurface from '../surfaces/TodaySurface'
+import { contractBody } from '../__fixtures__/contract'
+import userEvent from '@testing-library/user-event'
 
 const clone = (v) => JSON.parse(JSON.stringify(v))
 const TODAY = todayET()
@@ -209,5 +216,57 @@ describe('Today with the five new panels shown', () => {
     await settle()
     expect(screen.queryByText(/^Notices · /)).toBeNull()
     return { root: container }
+  })
+})
+
+// ── P4b Task 8: sharing a layout and the shared layouts door ─────────────────────────────────────────────────
+describe('sharing a page layout (P4b)', () => {
+  const PENDING = contractBody('template-gallery.layouts.status.pending')
+  const LISTED = { shared: { ...PENDING.shared, trade: { ...PENDING.shared.trade, status: 'approved', version: 1, hasRevision: false } } }
+  const LAYOUTS = contractBody('template-gallery.list.layouts')
+  const sharingRoutes = () => routes([
+    [/^\/api\/j2\/template-gallery\/layouts\/status$/, LISTED],
+    [/^\/api\/j2\/template-gallery$/, { templates: LAYOUTS.templates, viewer: { admin: false }, capabilities: { layoutSharing: true } }],
+  ])
+  beforeEach(() => {
+    __resetNotebookFlags()                                // the file's own latch is first-write-wins
+    latchNotebookFlags({ journal_page_layouts_enabled: true, notebook_template_gallery_enabled: true, notebook_style_library_enabled: true })
+  })
+
+  const openEditor = async () => {
+    sharingRoutes()
+    render(<Providers route="/journal"><PageLayoutEditor page="trade" onClose={() => {}} onSaved={() => {}} onFindLayouts={() => {}} /></Providers>)
+    await screen.findAllByRole('checkbox', { name: /^Show / })
+    const dialog = screen.getByRole('dialog', { name: 'Customize trade page' })
+    await within(dialog).findByText('Listed. Version 1.')
+    return dialog
+  }
+
+  axeSurface('page-layout-share-controls', async () => {
+    const dialog = await openEditor()
+    within(dialog).getByRole('button', { name: 'Share this layout' })
+    within(dialog).getByRole('button', { name: 'Find shared layouts' })
+    await settle()
+  })
+
+  axeSurface('page-layout-share-form', async () => {
+    const dialog = await openEditor()
+    const user = userEvent.setup()
+    await user.click(within(dialog).getByRole('button', { name: 'Share this layout' }))
+    const form = within(dialog).getByRole('form', { name: 'Share this layout' })
+    await user.selectOptions(within(form).getByLabelText('Category'), 'journal')
+    within(form).getByLabelText('Title in the library')
+    within(form).getByRole('button', { name: 'Submit' })
+    await settle()
+  })
+
+  axeSurface('layout-library-door', async () => {
+    sharingRoutes()
+    render(<Providers route="/journal"><LayoutLibraryDoor open onClose={() => {}} /></Providers>)
+    const sheet = await screen.findByRole('dialog', { name: 'Shared page layouts' })
+    await within(sheet).findAllByRole('heading', { name: LAYOUTS.templates[0].title })
+    const types = within(sheet).getByRole('group', { name: 'Filter by type' })
+    expect(within(types).getByRole('button', { name: 'Page layouts' }).getAttribute('aria-pressed')).toBe('true')
+    await settle()
   })
 })

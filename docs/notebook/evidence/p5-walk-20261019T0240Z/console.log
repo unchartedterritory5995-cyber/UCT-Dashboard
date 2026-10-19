@@ -1,0 +1,27 @@
+[1280] step 0 PASS: on an empty notebook the Community library tour's first step moves on when Templates is pressed
+[1280] step 1 PASS: New note > From a style shows How do you trade?, once on the page
+[1280] step 2 PASS: picking Swing adds the three Swing styles
+[1280] step 3 PASS: a note from Swing trade plan renders its blocks and outline headings
+[1280] step 4 PASS: after a reload the offer is gone; the Styles manager's Starter packs button opens it
+[1280] step 5 PASS: the Journal styles tour runs from the Learn menu through every step
+[1280] step 6 PASS: the Community library tour runs, opening the gallery when asked
+[1280] step 7 PASS: the admin telemetry count has style_applied >= 1, and it rose in this story
+[820] step 0 PASS: on an empty notebook the Community library tour's first step moves on when Templates is pressed
+[820] step 1 PASS: New note > From a style shows How do you trade?, once on the page
+[820] step 2 PASS: picking Swing adds the three Swing styles
+[820] step 3 PASS: a note from Swing trade plan renders its blocks and outline headings
+[820] step 4 PASS: after a reload the offer is gone; the Styles manager's Starter packs button opens it
+[820] step 5 PASS: the Journal styles tour runs from the Learn menu through every step
+[820] step 6 PASS: the Community library tour runs, opening the gallery when asked
+[820] step 7 PASS: the admin telemetry count has style_applied >= 1, and it rose in this story
+[390] step 0 PASS: on an empty notebook the Community library tour's first step moves on when Templates is pressed
+[390] step 1 PASS: New note > From a style shows How do you trade?, once on the page
+[390] step 2 PASS: picking Swing adds the three Swing styles
+[390] step 3 PASS: a note from Swing trade plan renders its blocks and outline headings
+[390] step 4 PASS: after a reload the offer is gone; the Styles manager's Starter packs button opens it
+[390] step 5 PASS: the Journal styles tour runs from the Learn menu through every step
+[390] step 6 PASS: the Community library tour runs, opening the gallery when asked
+[390] step 7 PASS: the admin telemetry count has style_applied >= 1, and it rose in this story
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\p5-walk-20261019T0240Z\integrity.md
+VERDICT: {'PASS': 24, 'FAIL': 0, 'INCONCLUSIVE': 0} not_run=None failure=None sandbox=CLEAN exit=0; raw log: docs\notebook\evidence\p5-walk-20261019T0240Z\walk.json
+WALK EXIT: 0

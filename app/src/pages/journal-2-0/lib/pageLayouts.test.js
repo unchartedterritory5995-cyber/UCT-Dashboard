@@ -6,6 +6,7 @@ import {
   LAYOUT_PREF, PHASES, PHASE_LABELS, PANELS, DEFAULT_LAYOUT,
   LAYOUT_VERSION, LAYOUT_MAX_ENTRIES, LAYOUT_MAX_ID_LENGTH, LAYOUT_MAX_BYTES,
   normalizeLayout, resolvePanels, movePanel, togglePanel, resetPage,
+  LOAD_FAILED, applySharedPage, replaceLists, layoutDiff, listsFor,
 } from './pageLayouts'
 import layoutsSource from './pageLayouts.js?raw'
 
@@ -408,5 +409,106 @@ describe('togglePanel, movePanel, resetPage', () => {
     expect(resolvePanels(a, 'trade', 'premarket')).toEqual(resolvePanels(a, 'trade', 'postclose'))
     expect(ids(movePanel(DEFAULT_LAYOUT, 'trade', 'market', 'story', 'up').trade).slice(4, 8))
       .toEqual(['chart', 'story', 'beforeAfter', 'executions'])
+  })
+})
+
+// ── P4b Task 7: a shared page layout ───────────────────────────────────────────────────────────────────────────────
+describe('applySharedPage', () => {
+  const shared = { trade: [{ id: 'story', shown: true }, { id: 'chart', shown: false }, { id: 'outcome', shown: true }] }
+
+  it('replaces only the shared lists and keeps everything else byte-equal', () => {
+    const mine = movePanel(togglePanel(DEFAULT_LAYOUT, 'today', 'market', 'regime'), 'today', 'market', 'regime', 'up')
+    const next = applySharedPage(mine, 'trade', shared)
+    expect(next.today).toEqual(mine.today)
+    expect(resolvePanels(next, 'trade').slice(0, 3).map((p) => [p.id, p.shown]))
+      .toEqual([['story', true], ['chart', false], ['outcome', true]])
+  })
+
+  it('keeps unknown ids and appends missing panels hidden', () => {
+    const mine = { ...DEFAULT_LAYOUT, trade: [{ id: 'futurePanel', shown: true }, ...DEFAULT_LAYOUT.trade] }
+    const next = applySharedPage(mine, 'trade', shared)
+    expect(next.trade.map((e) => e.id)).toContain('futurePanel')
+    const got = next.trade.map((e) => e.id)
+    expect(new Set(got).size).toBe(got.length)
+    expect(next.trade.find((e) => e.id === 'review')).toEqual({ id: 'review', shown: false })   // not shared: appended hidden
+    // the order: the shared registry entries, the member's unknown id, then the rest of the registry, hidden
+    expect(got).toEqual(['story', 'chart', 'outcome', 'futurePanel',
+      ...TRADE_IDS.filter((id) => !['story', 'chart', 'outcome'].includes(id))])
+    expect(shownIds(next.trade)).toEqual(['story', 'outcome', 'futurePanel'])
+  })
+
+  it('keeps an id this build does not know', () => {
+    const next = applySharedPage(DEFAULT_LAYOUT, 'trade', { trade: [{ id: 'fromANewerBuild', shown: true }] })
+    expect(next.trade.map((e) => e.id)).toContain('fromANewerBuild')
+    expect(resolvePanels(next, 'trade').map((p) => p.id)).not.toContain('fromANewerBuild')
+  })
+
+  it('touches only the phases it is given', () => {
+    const next = applySharedPage(DEFAULT_LAYOUT, 'today', { market: [{ id: 'regime', shown: true }] })
+    expect(next.today.premarket).toEqual(DEFAULT_LAYOUT.today.premarket)
+    expect(next.today.postclose).toEqual(DEFAULT_LAYOUT.today.postclose)
+    expect(resolvePanels(next, 'today', 'market')[0]).toMatchObject({ id: 'regime', shown: true })
+  })
+
+  it('ignores a list name the page does not have, and an unknown page', () => {
+    const next = applySharedPage(DEFAULT_LAYOUT, 'today', { trade: [{ id: 'story', shown: false }], bogus: [] })
+    expect(next).toEqual(normalizeLayout(DEFAULT_LAYOUT))
+    expect(applySharedPage(DEFAULT_LAYOUT, 'settings', shared)).toEqual(normalizeLayout(DEFAULT_LAYOUT))
+  })
+
+  it('is pure', () => {
+    const frozen = deepFreeze(JSON.parse(JSON.stringify(DEFAULT_LAYOUT)))
+    expect(() => applySharedPage(frozen, 'trade', shared)).not.toThrow()
+  })
+})
+
+describe('replaceLists (Undo)', () => {
+  const shared = { trade: [{ id: 'story', shown: true }, { id: 'chart', shown: false }, { id: 'outcome', shown: true }] }
+
+  it('puts the given lists back verbatim, so Undo restores unknown ids in their original slots', () => {
+    const mine = normalizeLayout({ ...DEFAULT_LAYOUT,
+      trade: [DEFAULT_LAYOUT.trade[0], { id: 'futurePanel', shown: true }, ...DEFAULT_LAYOUT.trade.slice(1)] })
+    const adopted = applySharedPage(mine, 'trade', shared)
+    expect(adopted.trade.map((e) => e.id).indexOf('futurePanel')).not.toBe(1)               // the adopt moved it
+    expect(replaceLists(adopted, 'trade', { trade: mine.trade })).toEqual(mine)
+  })
+
+  it('restores the captured Today phases and leaves the others alone', () => {
+    const mine = togglePanel(DEFAULT_LAYOUT, 'today', 'premarket', 'notices')
+    const lists = { market: [{ id: 'regime', shown: true }], postclose: [{ id: 'todayNote', shown: true }] }
+    const captured = listsFor(mine, 'today', lists)
+    expect(Object.keys(captured)).toEqual(['market', 'postclose'])
+    const adopted = applySharedPage(mine, 'today', lists)
+    expect(replaceLists(adopted, 'today', captured)).toEqual(normalizeLayout(mine))
+  })
+
+  it('is pure', () => {
+    const frozen = deepFreeze(clone(DEFAULT_LAYOUT))
+    expect(() => replaceLists(frozen, 'trade', { trade: clone(DEFAULT_LAYOUT.trade) })).not.toThrow()
+  })
+})
+
+describe('layoutDiff', () => {
+  it('names the shown panels now and after, one row per shared list', () => {
+    const rows = layoutDiff(DEFAULT_LAYOUT, 'trade', { trade: [{ id: 'story', shown: true }, { id: 'outcome', shown: true }] })
+    expect(rows).toEqual([{
+      list: 'trade',
+      now: PANELS.trade.map((p) => p.label),
+      after: ['The story', 'Outcome'],
+      changed: true,
+    }])
+  })
+
+  it('a list that does not change reads unchanged; only the given phases have rows, in phase order', () => {
+    const lists = { postclose: DEFAULT_LAYOUT.today.postclose, market: [{ id: 'regime', shown: true }] }
+    const rows = layoutDiff(DEFAULT_LAYOUT, 'today', lists)
+    expect(rows.map((r) => [r.list, r.changed])).toEqual([['market', true], ['postclose', false]])
+    expect(rows[0].after).toEqual(['Market regime'])
+  })
+})
+
+describe('LOAD_FAILED', () => {
+  it('is the one sentence the editor and the adopt confirm both say (X16)', () => {
+    expect(LOAD_FAILED).toBe("Your layout couldn't be loaded, so it can't be saved right now. Reload the page to try again.")
   })
 })

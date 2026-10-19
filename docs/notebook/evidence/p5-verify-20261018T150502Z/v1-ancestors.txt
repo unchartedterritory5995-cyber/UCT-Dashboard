@@ -1,0 +1,9 @@
+# V1 ancestor checks, 2026-10-18T15:05:25Z
+HEAD=04778e06061191747bd00b881a5f227af570df6e
+origin/master=04778e06061191747bd00b881a5f227af570df6e
+branch=notebook-p5-launch
+is-ancestor ecb377b6414e3aa43f3dcfd6862ddd3d8f56e982 Merge pull request #391 from unchartedterritory5995-cyber/notebook-p3a-library -> exit 0
+is-ancestor a512f220f75fcfb3e89fb78595e183a00317eb90 Merge pull request #388 from unchartedterritory5995-cyber/notebook-p4a-layouts -> exit 0
+is-ancestor 4028fe61fe03372329e5e60bb42895225fa1ee09 Merge pull request #373 from unchartedterritory5995-cyber/notebook-lazy-screenshot -> exit 0
+# control: a non-ancestor must answer 1
+is-ancestor HEAD HEAD~1 -> exit 1

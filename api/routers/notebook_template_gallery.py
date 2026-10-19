@@ -11,12 +11,15 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
   member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b; 404 while its switch is off)
   member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b; 404 while off)
+  member  GET    /api/j2/template-gallery/layouts/status      paid     the member's own shared page layouts (P4b; 404 while layout sharing is off)
+  member  POST   /api/j2/template-gallery/layouts             paid     share / reshare a page of their saved layout (P4b; 404 while off; publish budget)
   member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
   member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
   member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt-layout  paid  the listed layout of a shared page (P4b; 404 while layout sharing is off; adopt budget)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
   member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
   member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
@@ -47,7 +50,8 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
     Publishing an example note (P3b, R-P3b-8) SHARES the publish scopes: the same 10/hour and durable 10/day.
     Previewing one (P3b-F-R1) is 60/hour in `notebook-gallery-preview`, in-process only: each preview reduces
     the whole note, measured at up to ~3 s for a 200 KB worst case even once the scrub was made linear.
-  * THE LITERAL `/updates`, `/feed`, `/examples` AND `/authors/...` ROUTES COME BEFORE `/{gallery_id}`: a
+  * THE LITERAL `/updates`, `/feed`, `/examples`, `/layouts/...` AND `/authors/...` ROUTES COME BEFORE
+    `/{gallery_id}`: a
     `GET /{gallery_id}` exists and would take "updates" or "feed" as an item id and answer its 404.
     Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
@@ -95,7 +99,7 @@ HELPFUL_RATE_SENTENCE = "You've marked a lot of styles helpful. Try again later.
 FOLLOW_RATE_SENTENCE = "You've followed or unfollowed a lot of authors. Try again later."
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
-ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
+ADOPT_RATE_SENTENCE = "You've adopted a lot from the library today. Try again later."
 PREVIEW_RATE_SENTENCE = "You've previewed a lot of example notes. Try again later."
 MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
@@ -114,6 +118,14 @@ def _require_library() -> None:
     answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
     exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
     if not gallery.library_enabled():
+        raise public.not_found()
+
+
+def _require_layout_sharing() -> None:
+    """P4b's gate for the LAYOUT routes (R-P4b-10), the same shape as `_require_library`: a route dependency,
+    resolved before the plan check and the body, so while layout sharing is off every caller, paid or not,
+    signed in or not, gets the one 404 a route that does not exist answers."""
+    if not gallery.layout_sharing_enabled():
         raise public.not_found()
 
 
@@ -232,7 +244,11 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
     queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
     `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
     library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
-    either while the switch is off, so a member sees today's gallery (final review M-13, item 4)."""
+    either while the switch is off, so a member sees today's gallery (final review M-13, item 4).
+
+    P4b: `capabilities.layoutSharing` is the server-only layout-sharing switch as this answer saw it (R-P4b-10);
+    the lazy library reads it from here, so it costs the first-open closure nothing. `?type=page_layout` passes
+    the service's own check, which refuses it (400) while that switch is off."""
     try:
         items = gallery.list_gallery(user["id"], q=q, category=category or None, sort=sort,
                                      section=section, item_type=item_type or None,
@@ -241,7 +257,8 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
         raise _bad(e)
     # R-P3b-6 (ruling P3b-R6): what the lazy library may offer, additively. A client reads a missing key as false.
     return {"templates": items, "viewer": {"admin": _is_admin(user)},
-            "capabilities": {"exampleNotes": gallery.example_enabled()}}
+            "capabilities": {"exampleNotes": gallery.example_enabled(),
+                             "layoutSharing": gallery.layout_sharing_enabled()}}
 
 
 @router.get("/admin/queue")
@@ -259,6 +276,33 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
         category=body.get("category"), trading_style=body.get("tradingStyle")))
     dropped = item.pop("droppedProperties", 0)
     return {"template": item, "droppedProperties": dropped}
+
+
+# ⛔ P4b: the literal `/layouts` routes are declared BEFORE `GET /{gallery_id}` too, each gated by
+# `_require_layout_sharing` (R-P4b-10), a route dependency ahead of the plan check and the body.
+
+@router.get("/layouts/status", dependencies=[Depends(_require_layout_sharing)])
+def layout_status_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{shared: {today, trade}}` -- each the member's own layout item for that page (with `status`, `version` and
+    `hasRevision`), or null when they have not shared it."""
+    status = gallery.layout_status(user["id"])
+    if status is None:
+        raise public.not_found()
+    return status
+
+
+@router.post("/layouts", dependencies=[Depends(_require_layout_sharing)])
+def publish_layout_endpoint(body: dict[str, Any] = Depends(paid_body),
+                            user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{page, title, description?, category, tradingStyle?}` -> `{template, droppedPanels}`. The SERVER builds the
+    layout from the member's own saved preference (R-P4b-3/4); the client names only the page. It spends the
+    publish budget through `_charged_publish`, the one charge rule every publish route uses (P4b final m-2), so
+    any refusal, a server error included, gives the day's charge back."""
+    item = _charged_publish(user, lambda: gallery.publish_layout(
+        user["id"], body.get("page"), title=body.get("title"), description=body.get("description"),
+        category=body.get("category"), trading_style=body.get("tradingStyle")))
+    dropped = item.pop("droppedPanels", 0)
+    return {"template": item, "droppedPanels": dropped}
 
 
 # ⛔ The literal `/examples` routes (P3b) are declared BEFORE `/{gallery_id}`, and gated by `_require_example`, a
@@ -465,6 +509,26 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
     return out
 
 
+def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
+    """THE adopt budget, for a style and a layout alike (R-P3-11, F16): 30/hour in-process plus a durable 50/day,
+    and the day's charge given back on every refusal (a `GalleryError`, 400 or 409), on a None (404) and on an
+    exception. ONE copy: both adopt routes call this, never a block of their own."""
+    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+    try:
+        out = adopt()
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise
+    if out is None:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise public.not_found()
+    return out
+
+
 @router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
 def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
                    user: dict = Depends(require_paid)) -> dict[str, Any]:
@@ -476,20 +540,24 @@ def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
         notify = False
     if not isinstance(notify, bool):
         raise HTTPException(status_code=400, detail="notify must be true or false")
-    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
-    try:
-        out = gallery.adopt_style(user["id"], gallery_id, notify=notify)
-    except gallery.GalleryError as e:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise _bad(e)
-    except Exception:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise
-    if out is None:
-        _give_back(day, DAILY_ADOPT_SCOPE, user)
-        raise public.not_found()
-    return out
+    return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
+
+
+LAYOUT_VERSION_SENTENCE = "Say which version you previewed: version must be a whole number."
+
+
+@router.post("/{gallery_id}/adopt-layout", dependencies=[Depends(_require_layout_sharing)])
+def adopt_layout_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+                          user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{version: int}` -> `{layout, version, credit}`: the LISTED layout of a shared page, for the client to apply
+    and save through the member's own preference door (R-P4b-8: the server writes no preference). 404 for everyone
+    while layout sharing is off (`_require_layout_sharing`, before the plan and the body); 409 when a newer version
+    is listed than the one previewed; 400 when `version` is not a whole number (a bool is not one), before any
+    charge. It spends the adopt budget exactly as `POST /{id}/adopt` does (F16, `_spend_adopt`)."""
+    version = body.get("version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise HTTPException(status_code=400, detail=LAYOUT_VERSION_SENTENCE)
+    return _spend_adopt(user, lambda: gallery.adopt_layout(user["id"], gallery_id, version=version))
 
 
 @router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])

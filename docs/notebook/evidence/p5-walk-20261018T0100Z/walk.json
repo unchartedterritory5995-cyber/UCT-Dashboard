@@ -1,0 +1,713 @@
+{
+ "tool": "tools/notebook_p5_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scr",
+   "traceback": "le \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    - locator resolved to <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts",
+   "traceback": "ion.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    - locator resolved to <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    52 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Choose another style for Trade plan\", exact=True)\n    - locator resolved to <button type=\"button\" aria-expanded=\"false\" class=\"_another_vofsq_17\" aria-label=\"Choose another style for Trade plan\">Choose another style</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n     ",
+   "traceback": "...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Choose another style for Trade plan\", exact=True)\n    - locator resolved to <button type=\"button\" aria-expanded=\"false\" class=\"_another_vofsq_17\" aria-label=\"Choose another style for Trade plan\">Choose another style</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    49 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scr",
+   "traceback": "{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    48 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Pre"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done ",
+   "traceback": " line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    48 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done ",
+   "traceback": "^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    50 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP5 Walk 1280\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scr",
+   "traceback": "le \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    51 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    - locator resolved to <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts",
+   "traceback": "ion.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    - locator resolved to <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    51 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Choose another style for Trade plan\", exact=True)\n    - locator resolved to <button type=\"button\" aria-expanded=\"false\" class=\"_another_vofsq_17\" aria-label=\"Choose another style for Trade plan\">Choose another style</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done ",
+   "traceback": " - <h2 id=\"_r_e_\" tabindex=\"-1\" class=\"_title_1i6x5_65\" aria-describedby=\"_r_f_-step\">Folders and tags</h2> from <div class=\"_layer_1i6x5_7\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <h2 id=\"_r_e_\" tabindex=\"-1\" class=\"_title_1i6x5_65\" aria-describedby=\"_r_f_-step\">Folders and tags</h2> from <div class=\"_layer_1i6x5_7\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scr",
+   "traceback": "le \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-15\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    52 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nEdge by setup\n Preview\nEND OF QUARTER"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done ",
+   "traceback": "^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    51 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done ",
+   "traceback": "^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Learn\", exact=True).first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"btn btn-ghost _trigger_1patx_25\" title=\"Walkthroughs of what the Notebook can do\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    52 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nJournal\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉\n\nSTEP 2 OF 3\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-9\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scro",
+   "traceback": "ile \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-9\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    50 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"region\", name=\"How do you trade?\").get_by_role(\"button\", name=\"Swing\", exact=True)\n    - locator resolved to <button type=\"button\" class=\"_pack_1dok4_6\">Swing</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_actions_1i6x5_117\">…</div> from <",
+   "traceback": "\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_actions_1i6x5_117\">…</div> from <div class=\"_layer_1i6x5_7\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Choose another style for Trade plan\", exact=True)\n    - locator resolved to <button type=\"button\" aria-expanded=\"false\" class=\"_another_vofsq_17\" aria-label=\"Choose another style for Trade plan\">Choose another style</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done ",
+   "traceback": "\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_actions_1i6x5_117\">…</div> from <div class=\"_layer_1i6x5_7\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-9\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scro",
+   "traceback": "ile \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"More ways to start a note\", exact=True).first\n    - locator resolved to <button type=\"button\" tabindex=\"-1\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-roving-item=\"tb-9\" class=\"btn btn-primary btn-sm\" aria-label=\"More ways to start a note\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    51 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_layer_1i6x5_7\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    }
+   ],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-tour-active=\\\"true\\\"]\").first\n    - locator resolved to <button tabindex=\"0\" type=\"button\" data-tour=\"templates\" aria-haspopup=\"dialog\" data-roving-item=\"tb-7\" data-tour-active=\"true\" class=\"_templatesBtn_uhpod_475\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n  ",
+   "traceback": "lement is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <span class=\"_canvasStartHint_uhpod_1633\">A board for a chart, your entry, stop and target,…</span> from <div class=\"_backdrop_futca_1 _bottom-sheet_futca_27\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div role=\"group\" aria-label=\"Plan a trade\" class=\"_canvasStart_uhpod_1611\">…</div> from <div class=\"_backdrop_futca_1 _bottom-sheet_futca_27\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_grip_futca_115\">…</div> from <div class=\"_backdrop_futca_1 _bottom-sheet_futca_27\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_grip_futca_115\">…</div> from <div class=\"_backdrop_futca_1 _bottom-sheet_futca_27\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=0"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": false,
+     "read": "count=0"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": false,
+     "read": "before=0 after=0"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=0"
+    }
+   ],
+   "verdict": "FAIL",
+   "events": {
+    "member": []
+   },
+   "page_text": {
+    "member": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nFolders\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nView\nList\nTable\nBoard\nCalendar\nGraph\nTimeline\nTasks\nSave view\nImport\nStyles\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template — or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nHow do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now\nStart from a kind of note\nBrowse community styles\nTrade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style\nUp and Down choose a template. Enter opens it.\nEnter opens Blank note.\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBrowse the community gallery\nBlank note\nAn empty page — structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, and the level of the major indexes goi…\nThis week's focus\n Preview\nTHE WEEKEND LOOK-BACK\nWeekly Review\nPatterns, leaks, and the ONE commitment for next week.\nThe numbers\nStraight from the journal, before any opinions.\nLast week's commitment\n Preview\nTHE FIRST WEEKEND AFTER THE MONTH CLOSES\nMonthly Review\nZoom out from week-to-week — what actually moved the account this month.\nThe month in numbers\nFill these from the journal first; the opinions come after.\nE"
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P5 Walk 1280",
+   "viewport": "1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "P5 Walk 820",
+   "viewport": "820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "what": "sign-up limit reached for P5 Walk 390; waiting 62 s",
+   "attempt": 1,
+   "verdict": "INFO"
+  },
+  {
+   "account": "P5 Walk 390",
+   "viewport": "390",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin"
+  }
+ ],
+ "tip": "479e39270c",
+ "tool_tree": "479e39270c9fd933fd484a83c45abb4213e19e51",
+ "base": "http://127.0.0.1:8181",
+ "data_dir": "C:\\data-p5walk2",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STARTER_PACKS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "viewports": [
+  "1280",
+  "820",
+  "390"
+ ],
+ "declared_steps": [
+  [
+   1,
+   "New note > From a style shows How do you trade?"
+  ],
+  [
+   2,
+   "picking Swing adds the three Swing styles"
+  ],
+  [
+   3,
+   "a note from Swing trade plan renders its blocks and outline headings"
+  ],
+  [
+   4,
+   "after a reload the offer is gone; the Styles manager's Starter packs button opens it"
+  ],
+  [
+   5,
+   "the Journal styles tour runs from the Learn menu through every step"
+  ],
+  [
+   6,
+   "the Community library tour runs, opening the gallery when asked"
+  ],
+  [
+   7,
+   "the admin telemetry count has style_applied >= 1, and it rose in this story"
+  ]
+ ],
+ "source_words": {
+  "offer_title": "How do you trade?",
+  "offer_line": "Pick one and we will add three styles you can change.",
+  "packs": [
+   "Swing",
+   "Day",
+   "Prop",
+   "Options",
+   "Earnings"
+  ],
+  "swing_titles": [
+   "Swing trade plan",
+   "Weekend prep",
+   "Swing trade review"
+  ],
+  "journal_styles_steps": 4,
+  "style_library_steps": 4
+ },
+ "started": "2026-10-19T00:43:10+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8181 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T19-43-12.md (identity 46f66ff2532d..., data dir C:\\data-p5walk2)"
+ },
+ "stories": {
+  "1280": {
+   "member": "p5walk-1280-004310@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  },
+  "820": {
+   "member": "p5walk-820-004310@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  },
+  "390": {
+   "member": "p5walk-390-004310@local.dev",
+   "style_applied_before": 0,
+   "style_applied_after": 0
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p5-walk-20261018T0100Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 19:43:19",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 19:44:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 19:45:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 19:56:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p5-walk-20261018T0100Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 1,
+  "FAIL": 3,
+  "INCONCLUSIVE": 17
+ },
+ "port_free_after": true,
+ "finished": "2026-10-19T00:56:53+00:00"
+}

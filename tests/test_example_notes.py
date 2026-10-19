@@ -502,10 +502,11 @@ def test_with_the_example_switch_off_both_routes_404_and_the_list_says_so(api, c
     assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 404
     assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).status_code == 404
     listed = api.get(URL)
-    assert listed.status_code == 200 and listed.json()["capabilities"] == {"exampleNotes": False}
+    # P4b: the list answer carries layout sharing's capability beside this one (off here: its switches are unset).
+    assert listed.status_code == 200 and listed.json()["capabilities"] == {"exampleNotes": False, "layoutSharing": False}
     # control: the same requests with the switch on
     monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
-    assert api.get(URL).json()["capabilities"] == {"exampleNotes": True}
+    assert api.get(URL).json()["capabilities"] == {"exampleNotes": True, "layoutSharing": False}
     assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 200
     assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).status_code == 200
 
@@ -517,7 +518,7 @@ def test_the_example_switch_needs_the_library_switch(api, conn, monkeypatch, ocr
     assert not gallery.example_enabled()
     assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 404
     assert api.post(EX, json={"noteId": nid, "styleItemId": "x", "title": "Plan"}).status_code == 404
-    assert api.get(URL).json()["capabilities"] == {"exampleNotes": False}
+    assert api.get(URL).json()["capabilities"] == {"exampleNotes": False, "layoutSharing": False}
 
 
 def test_the_switch_off_404_comes_before_the_plan_check(api, conn, lib_on, monkeypatch, ocr):

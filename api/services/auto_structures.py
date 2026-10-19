@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 
 from api.services.pattern_engine import display as _display
@@ -853,6 +854,84 @@ def last_bar_forming(last_t, now=None) -> bool:
         return False
 
 
+#: The levels drawing round confirmed for the chart's `drawn` levels: lab levels_v3 (2026-10-18, pre-registered):
+#: v2's chart-reading levels plus a guaranteed near support / resistance, at most 4. Team agreement on fresh
+#: charts tied C2 (F1 +0.005, lift +0.016 n.s.) with a near support on 100% of charts (C2 91.5%); blind judges
+#: preferred it twice: packet J 2.70 vs 2.10, and the confirmation packet (30 fresh charts, two balanced packets,
+#: four fresh judges) 2.53 vs 2.20, paired +0.33, 90% CI [+0.15, +0.52]. A literal ON PURPOSE, not
+#: levels_v3.LEVELS_V3_ROUND: when the drawing code moves to a new round, the chart falls back to the C2 levels
+#: until that round is confirmed and this is changed by hand.
+MEMBER_LEVELS_ROUND = "2026-10-18-v3"
+#: The v3 drawing never has more levels than this (C2's count; the judged and team-scored cap).
+LEVELS_V3_MAX = 4
+#: v3 labels that must never reach a member (F3): a bare 'level' / 'round' says nothing.
+_LEVELS_V3_BANNED_LABELS = frozenset({"level", "round"})
+
+#: Every time a chart falls back from the v3 levels to the C2 levels, by reason ("crash", "rejected").
+#: Read by an operator / a test; the first fallback in a process also logs at WARNING (F2), later ones at DEBUG.
+LEVELS_FALLBACKS: dict = {"crash": 0, "rejected": 0}
+_levels_fallback_warned = False
+_levels_fallback_lock = threading.Lock()
+
+
+def _levels_fallback(reason: str, sym: str, detail) -> None:
+    global _levels_fallback_warned
+    with _levels_fallback_lock:   # reads run on a threadpool: count and warn-once atomically
+        LEVELS_FALLBACKS[reason] = LEVELS_FALLBACKS.get(reason, 0) + 1
+        first = not _levels_fallback_warned
+        _levels_fallback_warned = True
+    if first:
+        _log.warning("[levels-v3] %s fell back to the C2 levels (%s): %s -- further fallbacks counted in "
+                     "auto_structures.LEVELS_FALLBACKS, logged at DEBUG", sym, reason, detail)
+    else:
+        _log.debug("[levels-v3] %s fell back to the C2 levels (%s): %s", sym, reason, detail)
+
+
+def _levels_v3_ok(v3) -> bool:
+    """True when a levels_v3 result carries the confirmed round's stamp and well-formed levels: 1 to
+    LEVELS_V3_MAX horizontals, each a finite price, an int t_from, the levels_v3 source and a member label."""
+    if not isinstance(v3, dict) or v3.get("round") != MEMBER_LEVELS_ROUND:
+        return False
+    hs = v3.get("horizontals")
+    if not isinstance(hs, list) or not 1 <= len(hs) <= LEVELS_V3_MAX:
+        return False
+    return all(isinstance(h, dict) and h.get("source") == "levels_v3" and _finite(h.get("price"))
+               and type(h.get("t_from")) is int and isinstance(h.get("label"), str) and h.get("label")
+               and h.get("label") not in _LEVELS_V3_BANNED_LABELS for h in hs)
+
+
+def levels_session_state(last_t, now=None) -> str:
+    """'complete' when the daily series' last bar is a COMPLETED session (at or before barspack's
+    _last_complete_session_ymd, the one authority on "complete": a trading day at/after the close, else
+    the prior trading session -- weekends and holidays included), 'forming' when it is a session still in
+    progress, 'unknown' when the session clock (or the bar's date) cannot be read. Only 'complete' may
+    serve the v3 levels: that is the state the lab drew and the judges scored. Never raises."""
+    try:
+        from api.services import barspack
+        done = barspack._last_complete_session_ymd(now)
+        if done is None or last_t is None:
+            return "unknown"
+        return "forming" if int(last_t) > int(done) else "complete"
+    except Exception:  # noqa: BLE001 -- a clock question never breaks the drawing; unknown fails closed
+        return "unknown"
+
+
+def _levels_v3(clean_rows, forming, sym=""):
+    """The levels_v3 drawing when it is stamped with MEMBER_LEVELS_ROUND and well formed, else None (the
+    caller keeps the C2 levels; the fallback is counted and the first one per process logged at WARNING).
+    Never raises."""
+    try:
+        from api.services import levels_v3
+        v3 = levels_v3.drawn_levels(clean_rows, last_bar_forming=forming)
+    except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
+        _levels_fallback("crash", sym, repr(e))
+        return None
+    if _levels_v3_ok(v3):
+        return v3
+    _levels_fallback("rejected", sym, "round=%r" % (v3.get("round") if isinstance(v3, dict) else None))
+    return None
+
+
 def drawn_for(sym: str):
     """The learned drawer's default drawing for the latest daily bars of `sym`
     (api/services/auto_draw.drawn_set), plus the display rules that ride with it:
@@ -861,21 +940,43 @@ def drawn_for(sym: str):
     None when there are too few bars. Never raises."""
     sym = (sym or "").upper()
     now = time.time()
-    hit = _DRAWN_CACHE.get(sym)
-    if hit and now - hit[0] < _CACHE_TTL_S:
-        return hit[1]
     out = None
+    token = None
     try:
-        from api.services import auto_draw
         rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _daily_bars(sym)]
-        forming = bool(rows) and last_bar_forming(rows[-1][0])
-        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)
+        last_t = rows[-1][0] if rows else None
+        forming = bool(rows) and last_bar_forming(last_t)
+        session = levels_session_state(last_t)
+        # R1: ONE cache slot per symbol, reused only for the SAME last bar in the SAME forming / session
+        # state, so a new session (or a forming bar that completes) is never served the old drawing. The
+        # slot is overwritten in place -- no iteration over the shared dict and no delete -- so concurrent
+        # reads on the request threadpool cannot race it.
+        token = (last_t, forming, session)
+        hit = _DRAWN_CACHE.get(sym)
+        if hit and hit[1] == token and now - hit[0] < _CACHE_TTL_S:
+            return hit[2]
+        from api.services import auto_draw
+        clean = auto_draw.clean_bars(rows)
+        drawn = auto_draw.drawn_set(clean, last_bar_forming=forming)
         if drawn is not None:
             suppress = {pid: "hidden_by_default" for pid in sorted(DISPLAY_LEARNED_HIDES)}
             suppress.update({pid: "replaced_by_learned" for pid in sorted(DISPLAY_LEARNED_REPLACES)})
             out = {**drawn, "suppress": suppress}
+            # v3 only on a COMPLETED session's bar -- the state the lab drew and the judges scored. While
+            # the session is forming, or the session clock is unknown, the chart keeps the C2 levels
+            # (today's live behaviour; a policy, not a fallback, so it is not counted).
+            if session == "complete" and not forming:
+                v3 = _levels_v3(clean, False, sym)
+                if v3 is not None and v3.get("asof_t") != int(last_t):
+                    _levels_fallback("rejected", sym, "asof_t=%r last bar=%r" % (v3.get("asof_t"), last_t))
+                    v3 = None
+                if v3 is not None:
+                    out["horizontals"] = v3["horizontals"]
+                    # asof_t: the completed session the levels were drawn at ("levels as of <date> close")
+                    out["levels_tier"] = {"round": v3["round"], "source": "levels_v3", "asof_t": int(last_t)}
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-draw] %s failed: %s", sym, e)
         out = None
-    _DRAWN_CACHE[sym] = (now, out)
+    if token is not None:
+        _DRAWN_CACHE[sym] = (now, token, out)
     return out

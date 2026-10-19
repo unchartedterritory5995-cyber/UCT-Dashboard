@@ -1,0 +1,22 @@
+  CARRIES — C0: IDENTICAL over GATE_READ_PATHS — short-circuit (VITEST half only)
+    ok   C0
+  ⛔ C4 is still owed by the caller — run exactly:
+      cd app && npx vitest run src/components/admin/TemplateGalleryReviewPanel.test.jsx src/hooks/usePreferences.revision.test.jsx src/pages/journal-2-0/a11y/ariaCoverage.test.js src/pages/journal-2-0/a11y/layoutLibrary.a11y.test.jsx src/pages/journal-2-0/a11y/pageLayouts.a11y.test.jsx src/pages/journal-2-0/components/layout/LayoutSharingDoors.test.jsx src/pages/journal-2-0/components/notebook/LayoutLibrary.test.jsx src/pages/journal-2-0/components/notebook/LibraryCard.test.jsx src/pages/journal-2-0/components/notebook/StyleLibrary.test.jsx src/pages/journal-2-0/components/notebook/TemplateGallery.test.jsx src/pages/journal-2-0/components/trade/TradeDetailPage.layout.test.jsx src/pages/journal-2-0/lib/pageLayouts.test.js src/pages/journal-2-0/surfaces/TodaySurface.layout.test.jsx
+      python -m pytest tests/test_example_notes.py tests/test_firm_style_seed.py tests/test_gallery_rows_carry_kind.py tests/test_gate_box_lock.py tests/test_gate_box_sampler.py tests/test_gate_carry_over.py tests/test_gate_shards.py tests/test_journal_two_account_purge.py tests/test_page_layout_adopt.py tests/test_page_layout_share.py tests/test_pre_push_guard.py tests/test_style_library_adopt.py -q
+  ⛔⛔ C4-PYTHON IS MANDATORY ON THE LANDING TREE AND IS NOT SHORT-CIRCUITED BY C0.
+     C0 reads GATE_READ_PATHS, which contains no Python path, so it cannot
+     speak for a landing that carries Python. Branch Python files:
+       api/routers/journal_two.py
+       api/routers/notebook_template_gallery.py
+       api/services/journal_two/page_layout_share.py
+       api/services/journal_two/template_gallery.py
+       tests/_style_library_helpers.py
+       tests/test_example_notes.py
+       tests/test_firm_style_seed.py
+       tests/test_gallery_rows_carry_kind.py
+  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. It gates the
+     PROMOTION of `production`, which is what `web` deploys from -- so a red
+     workflow means no member-facing deploy and an immediate report.
+     ⚠️ It runs FIVE FAST CHECKS, not the full suite (measured 2026-09-20), and
+     the five non-web services deploy from master regardless. The local gate is
+     the only full-suite verification a landing gets -- when in doubt, re-gate.

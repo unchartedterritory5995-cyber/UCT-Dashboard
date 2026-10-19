@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/layouts",
+    "note": "A saved layout this server cannot read (not version 1): nothing is shared.",
+    "path": "/api/j2/template-gallery/layouts",
+    "requestBody": {
+      "category": "journal",
+      "description": "Story first, then the outcome.",
+      "page": "trade",
+      "title": "Prop trade page",
+      "tradingStyle": "swing"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Your layout couldn't be read, so it can't be shared. Open Customize, press Save, and try again."
+  }
+}

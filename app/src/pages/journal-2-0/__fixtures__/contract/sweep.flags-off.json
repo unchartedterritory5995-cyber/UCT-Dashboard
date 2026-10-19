@@ -271,6 +271,12 @@
       },
       "status": 404
     },
+    "GET /api/j2/template-gallery/layouts/status": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "GET /api/j2/template-gallery/updates": {
       "body": {
         "detail": "Not found"
@@ -391,6 +397,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/journal-styles/starter-packs/{pack}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "POST /api/j2/journal-styles/{style_id}/default": {
       "body": {
         "detail": "Not found"
@@ -481,6 +493,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/template-gallery/layouts": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "POST /api/j2/template-gallery/styles": {
       "body": {
         "detail": "Not found"
@@ -494,6 +512,12 @@
       "status": 404
     },
     "POST /api/j2/template-gallery/{gallery_id}/adopt": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/adopt-layout": {
       "body": {
         "detail": "Not found"
       },
