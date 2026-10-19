@@ -8,6 +8,13 @@
 //
 // Unlike workspace templates (arrangement-only), grid templates DO save the
 // tickers + timeframes — a saved multi-chart layout IS its watch set.
+//
+// `features` lets a host outside /charts show the parts that apply to its board (2026-10-18): the
+// screener's Charts view is a screen's results, so it keeps Layout, Custom, the sync toggles,
+// Chart settings and Save grid as… (the page's tickers become a /charts grid), and hides opening a
+// saved grid, Groups and Back to workspace, which would replace or leave the results. Every
+// section is on by default, so /charts is unchanged.
+const ALL_FEATURES = { templates: true, groups: true, workspace: true }
 
 import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
@@ -35,7 +42,8 @@ function LayoutIcon({ rows, cols }) {
   )
 }
 
-export default function MultiChartMenu({ mc, onClose, flyout = false }) {
+export default function MultiChartMenu({ mc, onClose, flyout = false, features = ALL_FEATURES, alignRight = false }) {
+  const show = { ...ALL_FEATURES, ...features }
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout } = useChartLayouts()
@@ -132,6 +140,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         // row's mouseleave killed the flyout mid-reach (mega-review #16). The
         // border supplies the visual separation the margin used to.
         ...(flyout ? { left: '100%', top: -6, marginLeft: 0 } : {}),
+        ...(alignRight && !flyout ? { left: 'auto', right: 0 } : {}),
       }}
     >
       <div className={wsStyles.menuSection}>Layout</div>
@@ -185,13 +194,15 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         />
         Sync time range across charts
       </label>
-      <label className={wsStyles.menuCheck}>
-        <Checkbox
-          checked={mc.state.groupsMode}
-          onChange={e => mc.setGroupsMode(e.target.checked)}
-        />
-        Groups Mode (type a ticker to fill its group)
-      </label>
+      {show.groups && (
+        <label className={wsStyles.menuCheck}>
+          <Checkbox
+            checked={mc.state.groupsMode}
+            onChange={e => mc.setGroupsMode(e.target.checked)}
+          />
+          Groups Mode (type a ticker to fill its group)
+        </label>
+      )}
       {inGrid && (
         <button
           type="button"
@@ -200,9 +211,9 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         >Chart settings…</button>
       )}
 
-      {(gridGlobal.length > 0 || gridMine.length > 0) && <div className={wsStyles.menuDivider} />}
-      {gridGlobal.length > 0 && <div className={wsStyles.menuSection}>Prebuilt grids</div>}
-      {gridGlobal.map(t => (
+      {show.templates && (gridGlobal.length > 0 || gridMine.length > 0) && <div className={wsStyles.menuDivider} />}
+      {show.templates && gridGlobal.length > 0 && <div className={wsStyles.menuSection}>Prebuilt grids</div>}
+      {show.templates && gridGlobal.map(t => (
         <div key={`g${t.id}`} className={wsStyles.menuRow}>
           <button type="button" className={wsStyles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
           {isAdmin && (
@@ -210,8 +221,8 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           )}
         </div>
       ))}
-      {gridMine.length > 0 && <div className={wsStyles.menuSection}>My grids</div>}
-      {gridMine.map(t => (
+      {show.templates && gridMine.length > 0 && <div className={wsStyles.menuSection}>My grids</div>}
+      {show.templates && gridMine.map(t => (
         <div key={`m${t.id}`} className={wsStyles.menuRow}>
           <button type="button" className={wsStyles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
           <button type="button" className={wsStyles.menuDel} title="Delete" onClick={() => deleteLayout(t.id)}>✕</button>
@@ -245,19 +256,23 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
             </button>
             {saveErr && <div className={wsStyles.menuErr}>{saveErr}</div>}
           </div>
-          <div className={wsStyles.menuDivider} />
-          <button
-            type="button"
-            className={wsStyles.addMenuItem}
-            onClick={() => { mc.exitGrid(); onClose() }}
-          >← Back to workspace</button>
+          {show.workspace && (
+            <>
+              <div className={wsStyles.menuDivider} />
+              <button
+                type="button"
+                className={wsStyles.addMenuItem}
+                onClick={() => { mc.exitGrid(); onClose() }}
+              >← Back to workspace</button>
+            </>
+          )}
         </>
       )}
 
-      <div className={wsStyles.menuDivider} />
-      <GroupPicker mc={mc} onClose={onClose} />
+      {show.groups && <div className={wsStyles.menuDivider} />}
+      {show.groups && <GroupPicker mc={mc} onClose={onClose} />}
 
-      {mc.state.group && (
+      {show.groups && mc.state.group && (
         <>
           <div className={wsStyles.menuDivider} />
           {!isIndustryGroup && (

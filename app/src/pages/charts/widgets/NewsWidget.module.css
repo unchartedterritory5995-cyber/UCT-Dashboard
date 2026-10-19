@@ -187,6 +187,9 @@ a.title:hover { text-decoration: underline; }
 }
 
 /* States */
+/* a peeking host's empty state links to the research page's Catalysts tab, which generates */
+.findLink { color: var(--ut-gold); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.findLink:hover { text-decoration: underline; }
 .empty, .generating {
   padding: 16px 12px;
   font-size: 11.5px;
