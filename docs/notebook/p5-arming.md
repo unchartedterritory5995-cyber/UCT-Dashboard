@@ -43,8 +43,23 @@ accepted at merge (P5-AUD-2); nothing in this list needs the starter switch.
    absent in every gallery read (the list, UCT picks, one item, the update list, the review queue, an author page,
    the feed) until the switch is on. So merging shows none of them.
 8. **The P3b merge fix (C1)** is in the landing tree: every gallery row that reaches the visibility rule now carries
-   `kind`. Without it, arming `NOTEBOOK_EXAMPLE_NOTES_ENABLED` in today's state (library on, starter off) would have
-   made every example read and image route answer 500. Rail: `tests/test_gallery_rows_carry_kind.py`.
+   `kind`. `NOTEBOOK_EXAMPLE_NOTES_ENABLED` is already ARMED on `web` (master `docs/feature_flags.json`, armed
+   2026-10-18 22:21 CT), with the library on and the starter switch off. So the C1 risk lands **at the P5 merge
+   itself**, not at some later arming: without the fix, the merge alone would make every example read and every
+   example image route answer 500. Rail: `tests/test_gallery_rows_carry_kind.py` (ruling P5-T11-R2).
+
+### AT-MERGE production check (after the merge, before anyone arms starter packs)
+
+Run this as the smoke account, or as the bench member account, in its own Playwright context (never the owner's
+Chrome):
+
+1. Find one approved example note in the gallery (an `example_note` row from the gallery list).
+2. `GET` that example: expect **200**.
+3. `GET` its linked style (the example read's `linkedStyle`): expect **200**.
+4. `GET` its `images/0`: expect **200**.
+
+If production has no approved example note yet, the check is **vacuous**. Record it as *vacuous*, never as passed.
+Any 500 here means C1 regressed. Roll back the merge (H15), then report.
 
 Dark until the switch is armed: the "How do you trade?" offer (on an empty notebook, in the New note sheet and from
 the Styles manager's "Starter packs" link), `POST /api/j2/journal-styles/starter-packs/{pack}`, and the 15 firm rows.
