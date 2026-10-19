@@ -11,6 +11,7 @@ vi.mock('../components/StockChart', () => ({
     data-breadth={JSON.stringify({ breadthLine: props.breadthLine ?? null, blankVolume: props.blankVolume ?? null,
       watermark: props.watermark ?? null, watermarkName: props.watermarkName ?? null })}
     data-override={JSON.stringify({ bars: props.barsOverride ?? null, pending: !!props.barsOverridePending })}
+    data-bottom-margin={String(props.priceScaleBottomMargin ?? '')}
     width={8} height={8} />,
 }))
 
@@ -71,6 +72,22 @@ describe('ChartRender ?breadth=', () => {
     // the header reads price and change off those bars, never the paid /api/bars
     expect(fetched.some((u) => u.startsWith('/api/bars/'))).toBe(false)
     await waitFor(() => expect(screen.getByText('31.40')).toBeTruthy())   // a percentage: no "$"
+    expect(screen.getByText('-1.80')).toBeTruthy()                        // the move in POINTS leads
+    expect(screen.getByText('(-5.42%)')).toBeTruthy()
+  })
+
+  it('reads the header on the "Earlier" day, not today', async () => {
+    mount('sym=UCTA50&tf=D&token=tok&breadth=1&bname=x&to=2026-10-15')
+    await waitFor(() => expect(screen.getByText('33.20')).toBeTruthy())   // the 10-15 close, not 10-16's 31.40
+    expect(screen.queryByText('31.40')).toBeNull()
+  })
+
+  it('leaves a gap under a breadth line, and none under a stock', () => {
+    mount('sym=UCTA50&tf=D&breadth=1&bname=x')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-bottom-margin')).toBe('0.08')
+    cleanup()
+    mount('sym=NVDA&tf=D')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-bottom-margin')).toBe('')
   })
 
   it('never calls the breadth door for a stock', async () => {
