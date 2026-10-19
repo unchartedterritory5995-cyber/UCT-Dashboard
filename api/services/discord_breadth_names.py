@@ -57,6 +57,7 @@ class Entry:
     title: str       # what the reply and the watermark say
     group: str       # autocomplete group
     kind: str        # 'breadth' (breadth_symbols) | 'indicator' (market_indicators)
+    weekly: bool = False  # one observation a week (COT, AAII, NAAIM): opens on the weekly chart
 
 
 _LOCK = threading.Lock()
@@ -116,7 +117,8 @@ def _build() -> dict:
         if nm is None:
             log.error("[discord-breadth] no Discord name rule for %s; not offered", s.id)
             continue
-        add(Entry(nm, s.id, s.display, _FAMILY_GROUP.get(s.family, s.family), "indicator"))
+        add(Entry(nm, s.id, s.display, _FAMILY_GROUP.get(s.family, s.family), "indicator",
+                  weekly=(s.frequency == reg.FREQ_WEEKLY)))
     return out
 
 
@@ -176,6 +178,13 @@ def choices(q: str, cap: int) -> list:
         picked = [col[i] for i in range(max((len(c) for c in cols), default=0)) for col in cols if i < len(col)]
         return picked[:cap]
     words = [w for w in re.split(r"[\s·:/,-]+", needle) if w]
+    # ⛔ A SET GETS NO CHOICE ("UCTNYMO UCTNQNETHL" arrives truncated as "UCTNYMO UC").
+    # A word search would match it to UCTNYMO, and Enter takes the highlighted choice,
+    # so the member's set would chart one name (the #415 failure, measured live
+    # 2026-10-19). A first word that is already a whole name or ticker means a set.
+    tokens = [t for t in re.split(r"[\s,+]+", needle) if t]
+    if len(tokens) > 1 and (tokens[0] in _candidates() or (tokens[0].startswith("UCT") and len(tokens[0]) > 3)):
+        return []
     prefix = [e for e in rows if e.name.startswith(needle)]
     seen = {e.name for e in prefix}
     titled = [e for e in rows if e.name not in seen and words

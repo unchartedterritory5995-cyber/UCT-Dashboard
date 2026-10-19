@@ -116,6 +116,18 @@ describe('ChartRender ?breadth=', () => {
     expect(priceFormat()).toBe('810,197')                                   // the axis: whole, with commas
   })
 
+  // 2026-10-19: UCTNAMO -37.21 -> -29.98 printed "+7.23 (-19.43%)": a rise read as a fall.
+  it('shows points alone, no percent, off a reading at or below zero', async () => {
+    doorBars = [
+      { t: '2026-10-15', o: -37.21, h: -37.21, l: -37.21, c: -37.21, v: 0 },
+      { t: '2026-10-16', o: -29.98, h: -29.98, l: -29.98, c: -29.98, v: 0 },
+    ]
+    mount('sym=UCTNAMO&tf=D&token=tok&breadth=1&bname=x')
+    await waitFor(() => expect(screen.getByText('-29.98')).toBeTruthy())
+    expect(screen.getByText('+7.23')).toBeTruthy()
+    expect(screen.queryByText(/%/)).toBeNull()
+  })
+
   it('keeps two decimals on a percentage metric and on a stock', async () => {
     mount('sym=UCTA50&tf=D&token=tok&breadth=1&bname=x')
     await waitFor(() => expect(screen.getByText('31.40')).toBeTruthy())    // control: the header did paint

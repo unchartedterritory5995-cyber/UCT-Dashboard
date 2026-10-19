@@ -98,6 +98,21 @@ def test_a_search_finds_a_family_by_word(everything_published):
     assert {e.name for e in dbn.choices("mcclellan", 25)} >= {"UCTNAMO", "UCTNASI", "UCTNYMO", "UCTNYSI"}
 
 
+@pytest.mark.parametrize("typed", ["UCTNYMO UC", "UCTNYMO UCTNQNETHL", "UCTA50 UCTNH", "UCTA20,UCTNH"])
+def test_a_typed_set_gets_no_choice(everything_published, typed):
+    """Measured live 2026-10-19: Discord sends the first 10 characters ("UCTNYMO UC"), the
+    word search matched UCTNYMO, and Enter would have charted one name of three."""
+    from api.routers import discord_interactions as rt
+    from api.services import discord_breadth_names as dbn
+    assert dbn.choices(typed, 24) == []
+    assert rt.breadth_choices(typed) == []
+
+
+def test_a_word_search_after_UCT_still_works(everything_published):
+    from api.services import discord_breadth_names as dbn
+    assert "UCTNQA50" in [e.name for e in dbn.choices("UCT NASDAQ", 24)]
+
+
 def test_breadth_adjust_charts_a_market_indicator_as_breadth(everything_published):
     """NAMO used to draw as a stock: candles, Gap, $Vol 0."""
     from api.routers import discord_interactions as rt
@@ -107,6 +122,19 @@ def test_breadth_adjust_charts_a_market_indicator_as_breadth(everything_publishe
     assert req.breadth_name == "Nasdaq · McClellan Oscillator"
     assert req.display == "UCTNAMO · Nasdaq · McClellan Oscillator"
     assert prefs["stats"] is False and prefs["style"] == "line"
+
+
+def test_a_typed_weekly_series_opens_on_the_weekly_chart(everything_published):
+    """UCTESCOMM on a daily chart read "+0 (+0.00%)": COT is held between weekly reports."""
+    from api.routers import discord_interactions as rt
+    from api.services import discord_interactions as di
+    assert rt.weekly_first(di.ChartRequest("UCTESCOMM", "D")).tf == "W"
+    assert rt.weekly_first(di.ChartRequest("UCTNAAIM", "D")).tf == "W"
+    assert rt.weekly_first(di.ChartRequest("UCTNAMO", "D")).tf == "D"     # a daily series stays daily
+    assert rt.weekly_first(di.ChartRequest("NVDA", "60")).tf == "60"
+    # the D button under a chart still means D: breadth_adjust never forces weekly
+    req, _ = rt.breadth_adjust(di.ChartRequest("UCTESCOMM", "D"), {})
+    assert req.tf == "D"
 
 
 def test_the_stand_in_reads_the_sites_own_symbol(everything_published, monkeypatch):
