@@ -920,15 +920,20 @@ def _library_hides(row: sqlite3.Row) -> bool:
     P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (all three of its switches),
     so `GET /{id}`, Helpful, report, the admin routes and adopt all 404 a layout without a route gate of their own.
     ⛔ ONE ORDER (P4b final T1): the example branch, then the layout branch, then P5's style rule. The two
-    non-style branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`)."""
-    if row["item_type"] == EXAMPLE_ITEM:
+    non-style branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`).
+
+    ⛔ C1 (P5 landing review M-1, P4b final): BOTH columns are read here for EVERY row, before any branch. A narrow
+    SELECT that leaves `kind` out then fails in every test of every switch state, never only for a style row in
+    the one state (library on, starter packs off) that reads `kind`, which is how C1 hid."""
+    item_type, kind = row["item_type"], row["kind"]
+    if item_type == EXAMPLE_ITEM:
         return EXAMPLE_ITEM in _hidden_item_types()
-    if row["item_type"] == LAYOUT_ITEM:
+    if item_type == LAYOUT_ITEM:
         return LAYOUT_ITEM in _hidden_item_types()
-    if row["item_type"] != "style":
+    if item_type != "style":
         return False
     hidden = _hidden_styles()
-    return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
+    return hidden == "all" or (hidden == "firm" and kind == "firm")
 
 
 def _hidden_styles_sql(hidden: str | None = None) -> str:
