@@ -302,7 +302,11 @@ NOT_REHEARSED = {
     # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
     # rows in the gallery (listed only while the library switch is on too, P5-AUD-1); installing a
     # pack writes the member's own styles, which this read-only rehearsal does not do. Its evidence
-    # is the fin walk's starter-packs step, the route-off tests and tests/test_firm_style_seed.py.
+    # is tools/notebook_p5_walk.py (the offer, the install, the reload, the Starter packs button and
+    # the two B4 tours, at 1280/820/390; P5 Task 10), the route-off tests in tests/test_starter_packs.py
+    # (test_while_a_switch_is_off_every_caller_gets_the_identical_404, test_install_needs_both_its_switches)
+    # and tests/test_firm_style_seed.py. (The fin walk has no starter-packs step; it arms the switch in
+    # c2 only through WAVE_FLAGS. Ruling P5-R-T2-2 chose this reword over a new fin-walk step.)
     "NOTEBOOK_STARTER_PACKS_ENABLED": "dark (P5): the How do you trade? offer and the starter-pack install "
                                       "endpoint (need NOTEBOOK_JOURNAL_STYLES_ENABLED also on), and the "
                                       "firm style rows in the gallery, listed only while "
