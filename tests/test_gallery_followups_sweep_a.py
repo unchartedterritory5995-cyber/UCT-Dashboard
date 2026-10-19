@@ -151,3 +151,28 @@ def test_G2_admin_act_rolls_back_even_when_the_undo_raises(api, conn, ex_on, ocr
     assert not conn.in_transaction
     row = conn.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()
     assert row["status"] == "pending"                  # the reject was rolled back
+
+
+# ── G3: the style's kind is read again under the write lock ────────────────────────────────
+
+def test_G3_a_style_resubmitted_as_another_kind_mid_publish_is_refused(api, conn, ex_on, ocr, monkeypatch):
+    """Mutation: delete the recompute of `kind` after the second `_linkable_style` -> the publish succeeds and
+    stores the stale `noteKind`."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    real = gallery._reduce_example
+
+    def flip_then_reduce(*a, **kw):
+        out = real(*a, **kw)
+        payload = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                          (sid,)).fetchone()[0])
+        assert payload["kindId"] == "weekend_prep"     # non-vacuity: the kind does move
+        payload["kindId"] = "trade_plan"
+        conn.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(payload), sid))
+        conn.commit()
+        return out
+
+    monkeypatch.setattr(gallery, "_reduce_example", flip_then_reduce)
+    r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": [], "title": "Plan"})
+    assert (r.status_code, r.json()["detail"]) == (400, gallery.EXAMPLE_KIND_SENTENCE)
+    assert _examples(conn) == 0

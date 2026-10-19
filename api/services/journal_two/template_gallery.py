@@ -2123,6 +2123,11 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         # P3b-T3-R6: the style is linkable AGAIN, under the lock, just before the write -- one withdrawn, hidden
         # or rejected while the note was being reduced is the same sentence, and nothing is written.
         style = _linkable_style(conn, user_id, style["id"])
+        # OI-P3b-5: and its kind is read AGAIN from that row -- a style resubmitted as another kind in the gap would
+        # otherwise store the stale `noteKind`. A note no longer of the style's kind is the same sentence as above.
+        kind = _safe_listed(_listed_payload(style))["kindId"]
+        if note["kind"] != kind:
+            raise GalleryError(EXAMPLE_KIND_SENTENCE)
         existing = conn.execute(
             "SELECT id, status, version FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ?"
             " AND item_type = ?"
