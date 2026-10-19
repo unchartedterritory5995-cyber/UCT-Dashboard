@@ -114,9 +114,12 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     label: 'Journal styles',
     line: 'Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.',
   },
+  // P5 final fix: the library's door is in the template gallery, so the line also needs that switch,
+  // the same `requires` its tour carries (P5-R-C11).
   {
     id: 'style-library',
     flag: 'notebook_style_library_enabled',
+    requires: ['notebook_template_gallery_enabled'],
     label: 'Community library',
     line: 'Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.',
   },
@@ -134,7 +137,8 @@ export const PREVIEW_COPY = Object.freeze({
   sampleTail: 'puts example notes in their own folder, plus one example passed setup and one example notice. It adds no trades. You can remove it all in one click.',
 })
 
-/** The lines armed for this member, in list order. `flag` is injectable for rails only. */
+/** The lines armed for this member, in list order: the line's own flag and every one it `requires`.
+ *  `flag` is injectable for rails only. */
 export function armedCapabilities(flag = notebookFlag) {
-  return CAPABILITY_PREVIEW.filter((c) => flag(c.flag) === true)
+  return CAPABILITY_PREVIEW.filter((c) => [c.flag, ...(c.requires || [])].every((f) => flag(f) === true))
 }

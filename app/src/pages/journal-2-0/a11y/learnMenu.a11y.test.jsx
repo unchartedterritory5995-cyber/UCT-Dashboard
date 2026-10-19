@@ -37,7 +37,7 @@ const ALL_ON = Object.fromEntries([
   ['notebook_onboarding_enabled', true],
   ['notebook_getting_started_enabled', true],
   ...TOUR_REGISTRY.flatMap((t) => [t.flag, ...(t.requires || [])]).map((f) => [f, true]),
-  ...CAPABILITY_PREVIEW.map((c) => [c.flag, true]),
+  ...CAPABILITY_PREVIEW.flatMap((c) => [c.flag, ...(c.requires || [])]).map((f) => [f, true]),
 ])
 
 beforeEach(() => {

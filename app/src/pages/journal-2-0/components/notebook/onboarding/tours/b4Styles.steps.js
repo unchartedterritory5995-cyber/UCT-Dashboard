@@ -33,11 +33,11 @@ export const JOURNAL_STYLES_COPY = Object.freeze({
   },
   manager: {
     title: 'How a note starts',
-    body: 'A style is a starting outline, its blocks and the properties it fills. Changing a style never changes notes you already made.',
+    body: 'A style is a starting outline, its blocks and the properties it fills. Changing a style never changes a note you already made unless you choose to update it.',
   },
   kinds: {
     title: 'Styles by kind of note',
-    body: 'Each kind of note, such as a trade plan or a review, lists its styles here. Set one as the default, or duplicate a UCT style to make it your own.',
+    body: 'Each kind of note, such as a trade plan or a review, lists its styles here. Set one as the default, or use Duplicate to edit on a built-in style to make it your own.',
   },
   new: {
     title: 'Make a new style',
