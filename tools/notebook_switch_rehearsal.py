@@ -295,11 +295,11 @@ NOT_REHEARSED = {
                              "Checklist from my winners and the Your trading year door; creating "
                              "only (an existing check-in block still renders); evidence is the fin "
                              "walk's Tier 3 group (Task 10); waits for the owner's arming",
-    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": "dark (P3b): example notes on a shared style -- the preview, the publish and "
-                                      "the In use section; server-only, NOT on the auth payload (so no payload "
-                                      "key to verify), and every example route answers 404 while off "
-                                      "(tests/test_example_notes.py, the ..._switch_off_... tests); needs the "
-                                      "library switch; waits for the owner's arming",
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": "armed on web 2026-10-18 (P3b, docs/feature_flags.json): example notes on a "
+                                      "shared style -- the preview, the publish and the In use section; "
+                                      "server-only, NOT on the auth payload (so no payload key to verify), and "
+                                      "every example route answers 404 while off (tests/test_example_notes.py, "
+                                      "the ..._switch_off_... tests); needs the library switch",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
