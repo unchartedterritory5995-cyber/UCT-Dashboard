@@ -260,3 +260,21 @@ def test_G5_a_layout_publish_that_loses_the_insert_race_updates_the_twin(conn, s
     assert item["id"] == twin_ids[0]
     rows = conn.execute("SELECT id, title FROM j2_template_gallery WHERE source_page = 'trade'").fetchall()
     assert [(r["id"], r["title"]) for r in rows] == [(twin_ids[0], "Prop trade page")]
+
+
+# ── G6: each firm seed has its own try ─────────────────────────────────────────────────────
+
+def test_G6_a_failed_outline_seed_still_seeds_the_firm_styles_and_names_itself(conn, monkeypatch, capsys):
+    """Mutation: put both seeds back under one `try` -> no firm style row is written."""
+    def boom(c):
+        raise RuntimeError("outline seed broke")
+
+    monkeypatch.setattr(gallery, "seed_firm_templates", boom)
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm'").fetchone()[0] == 0
+    gallery.ensure_gallery_schema(conn)
+    styles = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm' AND item_type = 'style'"
+                          ).fetchone()[0]
+    assert styles > 0
+    out = capsys.readouterr().out
+    assert "firm seed skipped (firm templates): RuntimeError: outline seed broke" in out
+    assert "firm styles" not in out

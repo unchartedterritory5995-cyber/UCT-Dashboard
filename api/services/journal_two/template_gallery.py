@@ -343,11 +343,16 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
                  " ON j2_template_gallery(user_id, source_page)"
                  " WHERE user_id IS NOT NULL AND source_page IS NOT NULL")
     conn.commit()
+    # P5 final-review row 27: each seed has its own `try`, so a failed outline seed never skips the starter-pack
+    # styles, and the log line names the seed that failed.
     try:
         seed_firm_templates(conn)
+    except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
+        print(f"[template-gallery] firm seed skipped (firm templates): {type(e).__name__}: {e}")
+    try:
         seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
-        print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
+        print(f"[template-gallery] firm seed skipped (firm styles): {type(e).__name__}: {e}")
     try:
         fill_missing_previews(conn)
     except Exception as e:  # noqa: BLE001 -- a preview is a courtesy, never a failed boot
