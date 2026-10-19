@@ -16,8 +16,10 @@ vi.mock('../../../charts/WidgetHost', async () => {
   const { WorkspaceContext } = await import('../../../charts/WorkspaceContext')
   const { ChartHostOverlayContext } = await import('../../../charts/widgets/chartHostOverlay')
   function WidgetHost(props) {
-    H.host = { props, ws: useContext(WorkspaceContext), overlay: useContext(ChartHostOverlayContext) }
-    return <div data-testid="widget-host" data-sym={H.host.ws.groupSyms.A} />
+    const seen = { props, ws: useContext(WorkspaceContext), overlay: useContext(ChartHostOverlayContext) }
+    H.hosts[props.widget.type] = seen
+    if (props.widget.type === 'chart') H.host = seen
+    return <div data-testid={props.widget.type === 'chart' ? 'widget-host' : `widget-host-${props.widget.type}`} data-sym={seen.ws.groupSyms.A} />
   }
   return { default: WidgetHost }
 })
@@ -30,10 +32,10 @@ vi.mock('../../../charts/mobile/MobileChartsApp', async () => {
   return { default: MobileChartsApp }
 })
 import ScreenerChartWidget from '../ScreenerChartWidget'
-import { SCREENER_CHART_PREF, SCREENER_CHART_ID, parseScreenerWidgets } from '../screenerChartPrefs'
+import { SCREENER_CHART_PREF, SCREENER_CHART_ID, SCREENER_NEWS_ID, parseScreenerWidgets } from '../screenerChartPrefs'
 
 beforeEach(() => {
-  H.prefs = {}; H.loading = false; H.own = null; H.host = null; H.phone = null
+  H.prefs = {}; H.loading = false; H.own = null; H.host = null; H.hosts = {}; H.phone = null
   // setPrefMerged(key, updater): record what the updater would write.
   H.saved = []
   H.setPrefMerged = vi.fn((key, updater) => { H.saved.push([key, updater(undefined)]) })
@@ -42,6 +44,43 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 const LINES = [{ price: 988, color: '#dcbb5e', title: 'Flat base pivot' }]
+
+describe('desktop: the /charts News & Catalysts widget under the chart', () => {
+  test('the real news widget sits on colour group A, so it follows the selection', () => {
+    const { rerender } = render(<ScreenerChartWidget sym="MU" />)
+    expect(H.hosts.news.props.widget).toMatchObject({ id: SCREENER_NEWS_ID, type: 'news', color: 'A' })
+    rerender(<ScreenerChartWidget sym="ECO" />)
+    expect(H.hosts.news.ws.groupSyms.A).toBe('ECO')
+  })
+
+  test('⛔ it peeks: the host tells it never to start a write-up', () => {
+    render(<ScreenerChartWidget sym="MU" />)
+    expect(H.hosts.news.overlay.newsPeek).toBe(true)
+  })
+
+  test('its filter and look are saved beside the chart, and restored', () => {
+    const { unmount } = render(<ScreenerChartWidget sym="MU" />)
+    act(() => { H.hosts.news.props.onOptsChange({ filter: 'up' }) })
+    act(() => { vi.advanceTimersByTime(500) })
+    const saved = JSON.parse(H.saved.at(-1)[1])
+    expect(saved.news).toEqual({ filter: 'up' })
+    unmount()
+    H.prefs = { [SCREENER_CHART_PREF]: H.saved.at(-1)[1] }
+    render(<ScreenerChartWidget sym="MU" />)
+    expect(H.hosts.news.props.widget.opts).toEqual({ filter: 'up' })
+  })
+
+  test('a header swap keeps it the news widget', () => {
+    render(<ScreenerChartWidget sym="MU" />)
+    act(() => { H.hosts.news.props.onReplaceWidget(SCREENER_NEWS_ID, { type: 'chart', opts: { tf: 'D' } }) })
+    expect(H.hosts.news.props.widget.type).toBe('news')
+  })
+
+  test('the phone chart has no news widget (the sheet has no room)', () => {
+    render(<ScreenerChartWidget sym="MU" phone />)
+    expect(H.hosts.news).toBeUndefined()
+  })
+})
 
 describe('desktop: the /charts Chart widget', () => {
   test('renders the chart widget on colour group A, with the selected stock in group A', () => {
@@ -84,7 +123,7 @@ describe('desktop: the /charts Chart widget', () => {
     act(() => { vi.advanceTimersByTime(499) })
     expect(H.setPrefMerged).not.toHaveBeenCalled()
     act(() => { vi.advanceTimersByTime(1) })
-    expect(H.saved).toEqual([[SCREENER_CHART_PREF, JSON.stringify({ opts: { tf: 'W' }, extras: [] })]])
+    expect(H.saved).toEqual([[SCREENER_CHART_PREF, JSON.stringify({ opts: { tf: 'W' }, extras: [], news: {} })]])
   })
 
   test('a widget swap keeps it a chart', () => {
