@@ -24,6 +24,10 @@ const RESURFACE = new Set(['note_level_touch', 'note_big_move', 'note_date_due']
 const NOTE_LINK = '/journal/notebook?note='
 
 const list = (v) => (Array.isArray(v) ? v : [])
+// The reminder and fill rows carry their own in-app link, but a bell row is data the door should not
+// trust blindly: only a same-site path ('/x', never '//host' or a full URL) is followed; anything else
+// takes the row's default path.
+const inApp = (url, fallback) => (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : fallback)
 
 export function toNotices(alertsBody, insightsBody) {
   const out = []
@@ -31,10 +35,10 @@ export function toNotices(alertsBody, insightsBody) {
     if (!a || a.read) continue
     if (a.type === REMINDER) {
       out.push({ key: `a:${a.id}`, id: a.id, kind: 'reminder', title: a.title || 'Tasks due',
-        line: a.message || '', href: a.data?.research_url || '/journal/notebook?view=tasks', source: 'alert' })
+        line: a.message || '', href: inApp(a.data?.research_url, '/journal/notebook?view=tasks'), source: 'alert' })
     } else if (a.type === FILL) {
       out.push({ key: `a:${a.id}`, id: a.id, kind: 'fill', title: a.title || 'New fill captured',
-        line: a.message || '', href: a.data?.research_url || '/journal?j2tab=positions', source: 'alert' })
+        line: a.message || '', href: inApp(a.data?.research_url, '/journal?j2tab=positions'), source: 'alert' })
     } else if (a.type === FOLLOWUP) {
       // Tier 2 part B: the door only follows the card's own link (the job writes nothing else).
       const url = a.data?.research_url

@@ -45,6 +45,19 @@ describe('toNotices', () => {
     const fill = toNotices(fx.alertsBody, { insights: [] }).find((n) => n.kind === 'fill')
     expect(fill.href).toBe('/journal?j2tab=positions')
   })
+  it('a reminder or fill row whose link is not a same-site path falls back to its default', () => {
+    const defaults = { reminder: '/journal/notebook?view=tasks', fill: '/journal?j2tab=positions' }
+    for (const kind of ['reminder', 'fill']) {
+      const row = { ...fx.alertsBody.find((r) => toNotices([r], { insights: [] })[0]?.kind === kind) }
+      for (const url of ['https://evil.example', '//evil', '//evil.example/journal', 'javascript:alert(1)', 7, '', null, undefined]) {
+        row.data = { ...row.data, research_url: url }
+        expect(toNotices([row], { insights: [] })[0].href, `${kind}: ${String(url)}`).toBe(defaults[kind])
+      }
+      // The control: a same-site path the row carries is still followed.
+      row.data = { ...row.data, research_url: '/journal/notebook?note=abc' }
+      expect(toNotices([row], { insights: [] })[0].href).toBe('/journal/notebook?note=abc')
+    }
+  })
   it('a follow-up says what the bell said and opens the card', () => {
     const f = toNotices(ALERTS, { insights: [] }).find((n) => n.kind === 'followup')
     expect(f.title).toBe('ORCL reported: write your follow-up')
