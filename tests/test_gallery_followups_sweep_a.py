@@ -1,6 +1,6 @@
 """Notebook follow-ups sweep, batch a (backend-gallery): G1-G6.
 
-Each test fails on the base `dbdf76d76d` and passes with its fix; the mutation that proves it is named in the
+Each test fails on the base `91f12716c3` and passes with its fix; the mutation that proves it is named in the
 test's docstring and recorded in the sweep ledger's `batch-a-report.md`.
 """
 from __future__ import annotations
@@ -74,3 +74,80 @@ def test_G1_CONTROL_share_keeps_it_and_gallery_keeps_a_link_with_no_address(note
     plain = "https://x.com/@trader/status/1"            # an @ handle is not an email address
     assert _hrefs(_gallery_reduce(doc(p(t("post", _link(plain)))), "gallery")) == [plain]
     assert notes == []
+
+
+# ── G2: hardening in the example paths ─────────────────────────────────────────────────────
+
+def test_G2_a_unicode_digit_tail_is_skipped_by_the_reducer_not_a_500(monkeypatch):
+    """Mutation: `not tail.isdigit()` in `_reduce_example` -> `int("²")` raises ValueError."""
+    prefix = gallery.EXAMPLE_IMAGE_PATH.format(item_id="ITEM")
+    odd = {"type": "doc", "content": [{"type": "image", "attrs": {"src": f"{prefix}²"}}]}
+    monkeypatch.setattr(gallery.public, "reduce", lambda body, **kw: json.loads(json.dumps(odd)))
+    body, kept = gallery._reduce_example(odd, user_id="u", note_id="n", images_on=[], brokers=(),
+                                         item_id="ITEM", report=None)
+    assert kept == []
+    assert body["content"][0]["attrs"]["src"] == f"{prefix}²"
+
+
+def test_G2_a_unicode_digit_tail_is_skipped_by_the_preview_not_a_500(api, conn, ex_on, ocr, monkeypatch):
+    """Mutation: `if tail.isdigit()` in `preview_example` -> `int("²")` raises ValueError."""
+    nid = _note(conn)
+    prefix = gallery.EXAMPLE_IMAGE_PATH.format(item_id=gallery._PREVIEW_ITEM_ID)
+    odd = {"type": "doc", "content": [{"type": "image", "attrs": {"src": f"{prefix}²"}},
+                                      {"type": "image", "attrs": {"src": f"{prefix}0"}}]}
+    monkeypatch.setattr(gallery, "_reduce_example", lambda *a, **kw: (json.loads(json.dumps(odd)), ["/kept.png"]))
+    out = gallery.preview_example(conn, "author", nid, [])
+    srcs = [n["attrs"]["src"] for n in find(out["bodyJson"], "image")]
+    assert srcs == [f"{prefix}²", "/kept.png"]        # control: the ASCII "0" is still rebound
+
+
+def test_G2_the_example_image_route_refuses_a_trailing_newline():
+    """Mutation: `$` in place of `\\Z` in `EXAMPLE_IMAGE_ROUTE` -> `.match` admits one trailing newline."""
+    good = "/api/j2/template-gallery/abc123/images/0"
+    assert pnp.EXAMPLE_IMAGE_ROUTE.match(good)                    # control
+    assert pnp.EXAMPLE_IMAGE_ROUTE.match(good + "\n") is None
+
+
+def test_G2_publish_rolls_back_even_when_the_undo_raises(api, conn, ex_on, ocr, monkeypatch):
+    """Mutation: drop the `try/finally` around `moves.undo()` in `publish_example` -> the connection is left
+    inside BEGIN IMMEDIATE."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+
+    def boom_bind(*a, **kw):
+        assert conn.in_transaction                     # non-vacuity: the failure lands under the write lock
+        raise RuntimeError("bind failed")
+
+    def boom_undo(self):
+        raise OSError("undo failed")
+
+    monkeypatch.setattr(gallery, "_bind_images", boom_bind)
+    monkeypatch.setattr(gallery._DirMoves, "undo", boom_undo)
+    with pytest.raises(OSError):
+        gallery.publish_example(conn, "author", nid, sid, [], "Plan")
+    assert not conn.in_transaction
+    assert _examples(conn) == 0
+
+
+def test_G2_admin_act_rolls_back_even_when_the_undo_raises(api, conn, ex_on, ocr, monkeypatch):
+    """Mutation: drop the `try/finally` around `moves.undo()` in `admin_act` -> the reject's UPDATE is left
+    uncommitted inside an open transaction."""
+    sid = _shared_style(conn)
+    nid = _note(conn)
+    item = gallery.publish_example(conn, "author", nid, sid, [], "Plan")
+
+    def boom_set_aside(self, path):
+        assert conn.in_transaction                     # non-vacuity: the reject's UPDATE has run
+        raise gallery.GalleryServerError(gallery.EXAMPLE_MOVE_SENTENCE)
+
+    def boom_undo(self):
+        raise OSError("undo failed")
+
+    monkeypatch.setattr(gallery._DirMoves, "set_aside", boom_set_aside)
+    monkeypatch.setattr(gallery._DirMoves, "undo", boom_undo)
+    with pytest.raises(OSError):
+        gallery.admin_act("admin", item["id"], "reject", note="Not an example.",
+                          reviewed_updated_at=item["updatedAt"], conn=conn)
+    assert not conn.in_transaction
+    row = conn.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()
+    assert row["status"] == "pending"                  # the reject was rolled back

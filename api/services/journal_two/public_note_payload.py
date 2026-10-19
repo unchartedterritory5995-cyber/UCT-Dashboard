@@ -403,7 +403,9 @@ EXAMPLE_OVERRIDES: dict[str, str] = {
 
 #: Where an example's switched-on image may point after `image_src_for` (plan R-P3b-7's route,
 #: `GET /api/j2/template-gallery/{item_id}/images/{n}`): nothing else is ever published.
-EXAMPLE_IMAGE_ROUTE = re.compile(r"^/api/j2/template-gallery/[A-Za-z0-9_-]{1,64}/images/[A-Za-z0-9_-]{1,32}$")
+#: Anchored with `\Z`, never `$` (OI-P3b-11): `$` also matches before ONE trailing newline, so `.match` admitted
+#: `.../images/0\n`.
+EXAMPLE_IMAGE_ROUTE = re.compile(r"^/api/j2/template-gallery/[A-Za-z0-9_-]{1,64}/images/[A-Za-z0-9_-]{1,32}\Z")
 
 
 def node_action(type_: Any, mode: str) -> str | None:

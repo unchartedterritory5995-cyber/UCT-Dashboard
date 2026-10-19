@@ -1602,7 +1602,8 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
     for node in _image_nodes(reduced):
         src = node["attrs"].get("src")
         tail = src[len(prefix):] if isinstance(src, str) and src.startswith(prefix) else ""
-        if not tail.isdigit() or int(tail) >= len(called):
+        # OI-P3b-10: ASCII digits only -- `str.isdigit` admits "²", which `int` refuses (a 500), as review M-1 found
+        if not (tail.isascii() and tail.isdigit()) or int(tail) >= len(called):
             continue                     # the reducer only keeps an image it rewrote; anything else is left as is
         original = called[int(tail)]
         if original not in kept:
@@ -1743,7 +1744,7 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         prefix = EXAMPLE_IMAGE_PATH.format(item_id=_PREVIEW_ITEM_ID)
         for node in _image_nodes(body):
             tail = str(node["attrs"].get("src") or "")[len(prefix):]
-            if tail.isdigit() and int(tail) < len(kept):
+            if tail.isascii() and tail.isdigit() and int(tail) < len(kept):    # OI-P3b-10: ASCII digits only
                 node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
         images = []
         for src in offered:
@@ -2166,11 +2167,14 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         # ⛔ P3b-T4-R6(b): the directories are put back WHILE THE WRITE LOCK IS STILL HELD, and only then is the
         # transaction rolled back (which releases it). The other order lets a waiting publish take the lock and own
         # the destination before this undo renames it away (review I-1).
-        moves.undo()                                 # the old copies back where they were (a no-op once finished)
-        if stage is not None:
-            _remove_dir(stage)                       # the staged copies, renamed back by undo (or never moved)
-        if conn.in_transaction:
-            conn.rollback()                          # only ever this function's own transaction (M-8)
+        # OI-P3b-12: an undo that raises must not skip the rollback, or the connection stays inside BEGIN IMMEDIATE.
+        try:
+            moves.undo()                             # the old copies back where they were (a no-op once finished)
+            if stage is not None:
+                _remove_dir(stage)                   # the staged copies, renamed back by undo (or never moved)
+        finally:
+            if conn.in_transaction:
+                conn.rollback()                      # only ever this function's own transaction (M-8)
         raise
     finally:
         if owned:
@@ -2969,9 +2973,11 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         # Only a failure that touched the copies rolls back here (the listing must not stand without them); every
         # other refusal keeps today's behaviour, so a caller's own transaction is never rolled back for a 400.
         if isinstance(e, GalleryServerError) or moves.active:
-            moves.undo()                                # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
-            if conn.in_transaction:
-                conn.rollback()
+            try:
+                moves.undo()                            # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
+            finally:
+                if conn.in_transaction:
+                    conn.rollback()                     # OI-P3b-12: even when the undo itself raises
         raise
     finally:
         if owned:
