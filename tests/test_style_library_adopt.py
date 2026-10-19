@@ -74,7 +74,8 @@ def test_a_pending_or_rejected_style_cannot_be_adopted(conn, lib_on):
     item = gallery.publish_style("author", s["id"], title="T", description="", category="journal",
                                  trading_style=None, conn=conn)
     assert gallery.adopt_style("member", item["id"], notify=False, conn=conn) is None        # pending
-    gallery.admin_act("admin", item["id"], "reject", note="Needs work", conn=conn)
+    gallery.admin_act("admin", item["id"], "reject", note="Needs work", reviewed_updated_at=item["updatedAt"],
+                      conn=conn)
     assert gallery.adopt_style("member", item["id"], notify=False, conn=conn) is None        # rejected
 
 

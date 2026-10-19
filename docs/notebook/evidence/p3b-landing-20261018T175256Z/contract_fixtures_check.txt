@@ -1,0 +1,12 @@
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\notebook_contract_oy7japqn.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+OK: 322 contract fixtures match the server

@@ -162,6 +162,10 @@ _STATUS_PENDING = "pending"
 _STATUS_READY = "ready"
 _STATUS_FAILED = "processing_failed"
 _STATUS_NO_TEXT = "no_text"
+#: The public names of the two states a reader outside this module compares a document's `status` against
+#: (P3b's example-note OCR line, `template_gallery._image_ocr`). The same values, never a second spelling.
+STATUS_PENDING = _STATUS_PENDING
+STATUS_FAILED = _STATUS_FAILED
 
 
 def _now_iso() -> str:
