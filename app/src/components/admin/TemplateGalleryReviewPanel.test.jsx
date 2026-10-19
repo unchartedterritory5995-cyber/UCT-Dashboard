@@ -461,3 +461,28 @@ describe('the Reported section for a page layout item (P4b final A2)', () => {
     expect(within(row).queryByText(/^Page: /)).not.toBeInTheDocument()
   })
 })
+
+// P4b final, merge-time minors: the Reported line carries no em dash (a layout row reaches it since P4b), and every
+// details card reads through the ONE `useReviewCardRead` (the layout card's own copy of that read is gone, m-1).
+describe('P4b final merge-time minors on the review panel', () => {
+  it('a report with a note reads “Reason”: note, never with an em dash', async () => {
+    extraReported = [{ ...reportOf(PENDING_LAYOUT), reports: [{ id: 'rep_note', reason: 'spam', note: 'Looks copied.', createdAt: QUEUE_STAMP }] }]
+    renderPanel()
+    await screen.findByRole('heading', { name: QUEUE.pending[0].title })
+    const row = document.querySelector(`[data-gallery-reported="${PENDING_LAYOUT.id}"]`)
+    const line = within(row).getByText(/Looks copied\./)
+    expect(line.textContent).toBe('“Spam or advertising”: Looks copied.')
+    expect(line.textContent).not.toMatch(/—|–/)
+  })
+
+  it('one copy of the card read: useSWR over reviewCardKey appears once, inside useReviewCardRead', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'src', 'components', 'admin', 'TemplateGalleryReviewPanel.jsx'), 'utf8')
+    expect(src.match(/useSWR\(reviewCardKey\(/g)).toHaveLength(1)
+    for (const card of ['StyleReviewDetails', 'LayoutReviewDetails', 'ExampleReviewDetails']) {
+      const body = src.slice(src.indexOf(`function ${card}(`))
+      expect(body.slice(0, body.indexOf('\n}\n')).includes('useReviewCardRead(item, onRead)'), card).toBe(true)
+    }
+  })
+})

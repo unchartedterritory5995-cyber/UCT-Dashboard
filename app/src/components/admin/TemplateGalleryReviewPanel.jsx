@@ -63,7 +63,8 @@ const reviewCardKey = (item) => ['gallery-review-card', item.id, item.updatedAt]
 /** P3a-T10-R7, ONCE (ruling P3b-T6-R5): a details card's single read of its item, keyed on the queue row's
  *  `updatedAt` (so a resubmission is read afresh, and `openPreview` can put a newer read into the card through the
  *  same key), and the handoff of THAT read's `updatedAt` up as the approve token. Approve can therefore only ever
- *  send the version the card shows. Every card with details (a style's, an example's) uses this one hook. */
+ *  send the version the card shows. Every card with details (a style's, an example's, a layout's) uses this one
+ *  hook (P4b final m-1: the layout card's own copy of it is gone). */
 function useReviewCardRead(item, onRead) {
   const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
     { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -131,9 +132,7 @@ function LayoutList({ page, name, list }) {
 /** A page layout item's page, trading style and lists (for a revision, the revision's own), from ONE read. Keyed and
  *  token-pinned exactly as the style card is. ⛔ A null payload is never read past (P4b-T6b-R1). */
 function LayoutReviewDetails({ item, onRead }) {
-  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
-    { revalidateOnFocus: false, shouldRetryOnError: false })
-  useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
+  const { data, error } = useReviewCardRead(item, onRead)
   const shown = underReview(item, data)
   const page = item.layoutPage === 'today' ? 'today' : 'trade'
   const payload = shown?.payload
@@ -362,7 +361,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <span className={styles.meta}>by {item.author} · {item.openReports} open report{item.openReports === 1 ? '' : 's'}</span>
             {(item.reports || []).map((r) => (
               <div key={r.id} className={styles.actions}>
-                <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? ` — ${r.note}` : ''}</p>
+                <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? `: ${r.note}` : ''}</p>
                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                   onClick={() => act(() => resolveGalleryReport(r.id, 'hide'), `Hid “${item.title}”.`)}
                   aria-label={`Hide ${hideNoun(item)} ${item.title}`}>{`Hide ${hideNoun(item)}`}</button>
