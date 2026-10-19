@@ -82,7 +82,7 @@ def test_render_options_hide_mas_and_volume_via_positional_overlays():
 def test_build_commands_has_chart_alias_and_settings_subcommands():
     from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
     cmds = {c["name"]: c for c in build_commands()}
-    assert set(cmds) == {"chart", "c", "chartsettings", "buzz", "flow"}  # five doors since /flow (08cadbba9)
+    assert set(cmds) == {"chart", "c", "chartsettings", "buzz", "flow", "lesson"}  # six doors since /lesson
     assert cmds["chart"] == dict(build_chart_command(), **GUILD_ONLY)
     # every registered command is GUILD_INSTALL-only and usable only inside a guild —
     # never a user install that could carry /chart into any server or DM

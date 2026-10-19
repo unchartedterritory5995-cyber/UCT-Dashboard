@@ -374,6 +374,8 @@ MULTI_MAX = 4
 
 BUZZ_COMMAND = "buzz"
 FLOW_COMMAND = "flow"
+LESSON_COMMAND = "lesson"
+LESSON_OPTION = "about"
 
 
 def cmd_channel_ids() -> tuple:
@@ -1068,6 +1070,21 @@ def build_settings_command() -> dict:
     }
 
 
+def build_lesson_command() -> dict:
+    """`/lesson stop loss` - search the video-lesson library. One required text
+    field; the reply is private to the member and carries the two or three
+    lessons that answer, each opened at the moment the words are said. No
+    picker, no channel gate: a member asks a question, nobody else sees it."""
+    return {
+        "name": LESSON_COMMAND, "type": 1,
+        "description": "Search the video lessons - a topic, a ticker or a phrase, e.g. stop loss",
+        "options": [
+            {"name": LESSON_OPTION, "type": 3, "required": True,
+             "description": "What you want to learn about, e.g. stop loss, NVDA, red to green"},
+        ],
+    }
+
+
 def build_buzz_command() -> dict:
     """`/buzz` - what the room is talking about.
 
@@ -1164,7 +1181,8 @@ def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
-            build_settings_command(), build_buzz_command(), build_flow_command()]
+            build_settings_command(), build_buzz_command(), build_flow_command(),
+            build_lesson_command()]
     if activity:
         cmds.append(build_launch_command())
     if renderhealth:
