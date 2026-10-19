@@ -136,13 +136,20 @@ def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def run(detect_all, build_context, drop_flat_top: bool = True):
-    """({key: digest}, counts) for one implementation of the pattern engine."""
+def run(detect_all, build_context, drop_flat_top: bool = True, drop_ids=()):
+    """({key: digest}, counts) for one implementation of the pattern engine.
+
+    `drop_ids`: pattern ids registered AFTER the golden was written. Their rows are
+    removed before counting and digesting (and counted in `dropped_new_ids`), so the
+    golden still proves no EXISTING detector moved. The generator never passes it."""
     out = {}
     counts = {"scans": 0, "detections": 0, "flat_top": 0, "flat_top_stamped": 0, "pattern_ids": 0}
     seen_ids = set()
     for key, bars in scans():
         dets = detect_all(bars, build_context(bars[-200:], sym="SYN"), base_depth=BASE_DEPTH, sym="SYN")
+        kept = [d for d in dets if d.get("pattern_id") not in drop_ids]
+        counts["dropped_new_ids"] = counts.get("dropped_new_ids", 0) + len(dets) - len(kept)
+        dets = kept
         counts["scans"] += 1
         for d in dets:
             counts["detections"] += 1
