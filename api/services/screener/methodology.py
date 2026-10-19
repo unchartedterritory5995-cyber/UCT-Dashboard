@@ -177,7 +177,16 @@ def _percentile_scale() -> str:
 
 
 def _other_methods() -> list:
-    return [_rs_rank_method(), *_OTHER]
+    # The sector floor is read from the code that applies it, never typed.
+    from api.services.research import ratings_db as _rdb   # noqa: PLC0415
+    fill = {"sector_min": _rdb.SECTOR_MIN_SAMPLE}
+    out = []
+    for m in _OTHER:
+        m = dict(m)
+        if isinstance(m.get("caveat"), str) and "{sector_min}" in m["caveat"]:
+            m["caveat"] = m["caveat"].format(**fill)
+        out.append(m)
+    return [_rs_rank_method(), *out]
 
 
 def _rs_rank_method() -> dict:
@@ -225,14 +234,14 @@ _OTHER = [
         # snapshot's range is 1..99 and `ratings_db._rank` clamps to exactly
         # that; the scale is now measured off `_rank` in `all_methods`.
         "scale": None,
-        "how": "The symbol's relative-strength return ranked against the other "
-               "members of its sector rather than the whole universe.",
+        "how": "The RS Ret column, ranked against the other names in the "
+               "same sector that we screen rather than the whole universe. It "
+               "is recomputed after every nightly build, so within a sector it "
+               "always orders names the same way RS Ret does.",
         "caveat": "A high sector rank in a weak sector is still a weak stock "
-                  "in absolute terms — read it beside rs_rank, not instead. "
-                  "⚠️ It ranks the ratings store's own copy of the RS return, "
-                  "refreshed on a rolling cycle of up to six days, so within "
-                  "one sector it can order two names differently from the RS "
-                  "Ret column beside it.",
+                  "in absolute terms — read it beside rs_rank, not instead. A "
+                  "sector with fewer than {sector_min} ranked names gets no "
+                  "Sector RS.",
     },
 ]
 
