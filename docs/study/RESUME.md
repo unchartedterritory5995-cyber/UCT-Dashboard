@@ -62,9 +62,12 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   1998 and the April 2025 low. `reveal_json.depth` wiring (summary + sources under the reveal) not built yet.
 - Early-merge branch `fix/wire-archive-market-call` in worktree `C:\Users\pgosz\uct-worktrees\wire-call`
   (from origin/master d0c406824d): 8f5a530f72 (cherry-pick of ad2f95cbf9) + 0dbadeef29 (scans copy script +
-  test). 38 tests pass there. PUSHED 2026-10-18, PR #416 open:
-  https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/416 (merge FIRST). After merge + web
-  SUCCESS run the scans copy on the pod (commands in "Owner commands" below).
+  test). PR #416 MERGED 2026-10-19 12:22 ET (ea07799f08, web deploy SUCCESS 12:4x ET after a GitHub
+  Actions/Webhooks degradation delayed the promote by ~10 min). **Scans copy DONE on the pod 2026-10-19:**
+  3096 sunday_scans images, 3095 stored in R2 `study/scans/<sha256>.<ext>`, ledger `/data/study_scans_ledger.json`;
+  1 permanent failure (`url-sha256:4da8be83fa8e…`, "Theory of Reflexivity" diagram on a dead Amazon bucket,
+  http 403; not a chart, nothing to retry). Every ledger `ticker_hint` is unconfirmed until the owner
+  confirms it on the review screen.
 - Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
 - Phase 1 backend: SKELETON LANDED 47476c0328 (study_store/scoring/select + router + 6 test files,
   125 tests). Integrator re-ran all six in this session (125 passed) plus the four rails
@@ -167,7 +170,13 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 
 ## Owner commands
 Pushes + PRs DONE 2026-10-18 (#416 wire-call, #417 feat/study; the AI push went through once the owner
-asked for it directly). Merge order: #416 first, then #417 (never merge from the AI session).
+asked for it directly). #416 merged + deployed + scans copied 2026-10-19. The AI session CANNOT merge a PR
+(server-side classifier refuses `gh pr merge` even with an allow rule); the owner runs it as a `!` line:
+`! gh pr merge 417 --merge --repo unchartedterritory5995-cyber/UCT-Dashboard`. Railway builds only after the
+"master deploy gate" workflow passes and "promote to production" pushes the `production` branch; watch
+`railway deployment list --service web --json` (from C:\Users\pgosz\projects\UCT-Dashboard, the linked
+checkout) until the merge commit reads SUCCESS. `railway ssh` must run from PowerShell (Git Bash mangles
+`/opt/venv/bin/python` into a C:/Program path).
 ```
 # after that PR merges and web is SUCCESS:
 railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --dry-run
