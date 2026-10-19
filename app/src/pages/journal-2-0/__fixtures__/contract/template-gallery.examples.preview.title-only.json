@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/examples/preview",
+    "note": "P3b-F2-R2: the typed title alone, as other members would see it. It reduces none of the note and is not charged to the preview limit.",
+    "path": "/api/j2/template-gallery/examples/preview",
+    "requestBody": {
+      "noteId": "82409fcb795f46ee93ccfa66e386523b",
+      "title": "Weekend plan",
+      "titleOnly": true
+    },
+    "status": 200
+  },
+  "body": {
+    "title": "Weekend plan"
+  }
+}

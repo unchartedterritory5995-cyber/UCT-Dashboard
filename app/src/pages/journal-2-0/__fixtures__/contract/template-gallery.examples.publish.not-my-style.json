@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/examples",
+    "path": "/api/j2/template-gallery/examples",
+    "requestBody": {
+      "noteId": "82409fcb795f46ee93ccfa66e386523b",
+      "styleItemId": "nope",
+      "title": "My weekend plan"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Pick one of your own shared styles."
+  }
+}

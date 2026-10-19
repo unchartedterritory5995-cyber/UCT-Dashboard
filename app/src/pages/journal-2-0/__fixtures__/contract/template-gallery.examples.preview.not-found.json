@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/examples/preview",
+    "note": "Not the caller's live note (or the sample notebook's): the one 404.",
+    "path": "/api/j2/template-gallery/examples/preview",
+    "requestBody": {
+      "noteId": "nope"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

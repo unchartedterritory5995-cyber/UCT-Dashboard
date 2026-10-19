@@ -320,7 +320,9 @@ def test_every_schema_type_has_a_declared_policy(type_):
     assert type_ in pnp.NODE_POLICY, (
         f"`{type_}` is in lib/notebookSchema.js and has NO row in public_note_payload.NODE_POLICY -- "
         "decide what a stranger sees before a note holding it can be shared or published")
-    assert set(pnp.NODE_POLICY[type_]) == set(pnp.MODES) == {"share", "publish", "gallery"}, type_
+    # P3b Task 2: `example` is a fourth MODE with no column -- `node_action` derives it from
+    # gallery's (rail: tests/test_example_reduce.py). The columns are the base modes.
+    assert set(pnp.NODE_POLICY[type_]) == set(pnp.BASE_MODES) == {"share", "publish", "gallery"}, type_
     assert type_ in EXPECTED and type_ in FIXTURES and type_ in EXPECTED_GALLERY, (
         f"`{type_}` has a policy but no expectation/fixture in this rail")
 
@@ -782,7 +784,7 @@ def test_every_schema_attribute_row_has_a_decision_in_every_mode():
     missing = [r for r in rows if r not in pnp.ATTR_POLICY]
     assert missing == [], f"attribute rows with no public decision: {missing}"
     for row in rows:
-        assert set(pnp.ATTR_POLICY[row]) == set(pnp.MODES), row
+        assert set(pnp.ATTR_POLICY[row]) == set(pnp.BASE_MODES), row   # example: attr_decision
         assert set(pnp.ATTR_POLICY[row].values()) <= {"drop", "keep"}, row
 
 

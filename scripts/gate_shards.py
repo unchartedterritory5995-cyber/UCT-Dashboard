@@ -497,6 +497,13 @@ GATE_READ_PATHS = (
     "tests/test_note_sync_router.py",
     "tests/test_notebook_journal_styles_router.py",
     "tests/test_notebook_transcript_capture.py",
+    # Notebook P3b (example notes, 2026-10-18; named by this rail on the P3b landing tree): the
+    # one-fact-in-two-files rails (`ExamplePreviewSheet.test.jsx` CHANGE_KINDS, `ExamplesInUse.test.jsx`)
+    # and the lib comments they pin read the sanitizer's KINDS and the gallery service and router.
+    # Exact paths (ruling P3b-T9-R4).
+    "api/routers/notebook_template_gallery.py",
+    "api/services/journal_two/example_sanitize.py",
+    "api/services/journal_two/template_gallery.py",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named

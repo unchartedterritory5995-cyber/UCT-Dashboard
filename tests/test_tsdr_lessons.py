@@ -1865,3 +1865,113 @@ def test_youtube_video_gone_only_on_a_definite_404(monkeypatch):
         raise httpx.ConnectError("offline")
     monkeypatch.setattr(httpx, "get", boom)
     assert gone("x") is False
+
+
+# ── /lesson: searching the library ───────────────────────────────────────────
+
+def _searchable(aid, day, title, *, transcript, recap="A. B.", tickers=("NVDA",), tags=("setups",),
+                section="setups", level="intermediate", segments=None, youtube_id=None):
+    _thread_lesson(aid, day, title=title, section=section, level=level, tags=tags, tickers=tickers,
+                   transcript=transcript)
+    tl._update(aid, recap=recap, segments=json.dumps(segments or []), youtube_id=youtube_id)
+
+
+def test_search_words_keep_what_matters():
+    assert tl.search_words("How do I set a stop loss on $NVDA?") == ["set", "stop", "loss", "nvda"]
+    assert tl.search_words("the and of") == []
+    assert tl.search_words("Red-to-green") == ["red-to-green"]
+    assert tl.search_words("") == []
+
+
+def test_search_ranks_title_and_ticker_matches_above_passing_mentions_and_points_at_the_moment(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("s1", 1, "Where to put the stop loss", transcript="we talk about the stop loss here " * 5,
+                recap="Placing the stop under the low.", section="management", level="beginner", tickers=("TSLA",),
+                segments=[[0, "Good morning everyone, markets look fine."],
+                          [300, "So the stop loss goes right under the low of the day, every single time."]],
+                youtube_id="YTVID00001")
+    _searchable("s2", 2, "NVDA earnings setup", transcript="one stop loss mention " + "filler words " * 40,
+                tickers=("NVDA",), segments=[[0, "one stop loss mention and then filler"]])
+    _searchable("s3", 3, "Market read for the week", transcript="nothing relevant at all " * 10,
+                tickers=("SPY",), tags=("market",), section="market")
+    hits = tl.search_lessons("stop loss")
+    assert [h["attachment_id"] for h in hits] == ["s1", "s2"]          # s3 never says it
+    top = hits[0]
+    assert top["title"] == "Where to put the stop loss" and top["level"] == "beginner"
+    assert top["section"] == "Trade Management" and top["day"].startswith("Mar 1, ")
+    assert top["url"] == f"https://discord.com/channels/{GUILD}/t-management/msg-s1"
+    assert top["at"] == "5:00" and top["watch"] == "https://youtu.be/YTVID00001?t=300"
+    assert "stop loss goes right under the low" in top["quote"]
+    assert hits[1]["watch"] == "" and hits[1]["at"] == "0:00"          # no YouTube copy: no seek link
+    assert tl.search_lessons("NVDA")[0]["attachment_id"] == "s2"        # a ticker finds its lesson
+    assert [h["attachment_id"] for h in tl.search_lessons("$spy")] == ["s3"]   # even when only the ticker list has it
+    assert tl.search_lessons("nothing relevant")[0]["attachment_id"] == "s3"
+    assert tl.search_lessons("the of") == [] and tl.search_lessons("zebra") == []
+
+
+def test_search_skips_lessons_that_are_not_posted_and_prefers_lessons_over_clips(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("c1", 1, "Breakout quick clip", transcript="breakout " * 8, section="clips")   # 11 points before the clip discount
+    _searchable("l1", 2, "Breakout entries", transcript="breakout", section="setups")
+    _searchable("gone", 3, "Breakout lesson taken down", transcript="breakout breakout breakout")
+    tl._update("gone", status="skipped")
+    hits = tl.search_lessons("breakout")
+    assert [h["attachment_id"] for h in hits] == ["l1", "c1"]
+
+
+def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
+    hits = [{"attachment_id": "a", "title": "Where to put the stop loss", "url": "https://discord.com/channels/1/2/3",
+             "level": "beginner", "section": "Trade Management", "day": "Mar 1, 2026", "score": 9.0,
+             "at": "5:00", "watch": "https://youtu.be/X?t=300", "quote": "…the stop goes under the low…"},
+            {"attachment_id": "b", "title": "NVDA earnings setup", "url": "https://discord.com/channels/1/2/4",
+             "level": "", "section": "Setups & Entries", "day": "Mar 2, 2026", "score": 3.0,
+             "at": "0:00", "watch": "", "quote": "one stop loss mention"}]
+    text = tl.format_search_reply("stop   loss", hits)
+    lines = text.split("\n")
+    assert lines[0] == "**Lessons on “stop loss”**"
+    assert lines[1] == "1. **[Where to put the stop loss](<https://discord.com/channels/1/2/3>)** · Beginner · Trade Management · Mar 1, 2026"
+    assert lines[2] == "   ▸ [Watch from 5:00](<https://youtu.be/X?t=300>) — “…the stop goes under the low…”"
+    assert lines[3] == "2. **[NVDA earnings setup](<https://discord.com/channels/1/2/4>)** · Setups & Entries · Mar 2, 2026"
+    assert lines[4] == "   ▸ At 0:00 — “one stop loss mention”"
+    assert "https://" not in text.replace("(<https://", "")               # every link is wrapped: no previews
+    assert len(text) <= 1900
+    empty = tl.format_search_reply("zebra stripes", [])
+    assert "Nothing in the lesson library" in empty and "“zebra stripes”" in empty
+
+
+def test_a_post_whose_title_is_only_a_link_gets_the_videos_name_or_a_dated_one(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _seed_threads()
+    m = msg(sf(2026, 5, 3), content="https://youtu.be/ALIVE000001")           # a linked clip, caption = the URL
+    tl.record_message(m, TSDR)
+    aid = f"{tl.LINK_PREFIX}ALIVE000001"
+    tl._update(aid, status="posted", title="https://youtu.be/ALIVE000001", recap="A clip.", section="clips",
+               tags=json.dumps(["clip"]), discord_post_id="msg-link", post_channel_id="t-clips")
+    _thread_lesson("att", 2, title="<@&1216780250286002297> https://x.y/z", section="clips", level=None)
+    _thread_lesson("fine", 3, title="A real title")
+    monkeypatch.setattr(tl, "youtube_video_title", lambda v: "Patrick on gap fills" if v == "ALIVE000001" else "")
+    patched = {}
+    fake = FakeDiscord({("PATCH", "/channels/t-clips/messages/msg-link"): lambda p, b: patched.update(link=b) or {},
+                        ("PATCH", "/channels/t-clips/messages/msg-att"): lambda p, b: patched.update(att=b) or {}})
+    monkeypatch.setattr(tl, "_discord", fake)
+    tl.set_state("index_dirty", "")
+    assert tl.run_title_repair(deadline=9e12) == {"retitled": 2, "errors": 0}
+    assert tl.get_lesson(aid)["title"] == "Patrick on gap fills"
+    assert patched["link"]["embeds"][0]["title"] == "Patrick on gap fills"
+    assert tl.get_lesson("att")["title"] == "Quick clip, Mar 2, 2026"
+    assert patched["att"]["embeds"][0]["title"] == "Quick clip, Mar 2, 2026"
+    assert tl.get_lesson("fine")["title"] == "A real title" and not any("msg-fine" in c[1] for c in fake.calls)
+    assert tl.get_state("index_dirty") == "1"
+    assert tl.run_title_repair(deadline=9e12) == {"retitled": 0, "errors": 0}   # nothing left to rename
+    assert tl.search_lessons("gap fills")[0]["title"] == "Patrick on gap fills"   # and the search sees the new name
+
+
+def test_the_title_repair_runs_each_tick_in_thread_mode_only(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_ENABLED", "1")
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(tl, "run_lessons", lambda **k: {})
+    calls = []
+    monkeypatch.setattr(tl, "run_title_repair", lambda **k: calls.append(1) or {"retitled": 1, "errors": 0})
+    assert "titles" not in tl.tick() and calls == []
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    assert tl.tick()["titles"] == {"retitled": 1, "errors": 0} and calls == [1]
