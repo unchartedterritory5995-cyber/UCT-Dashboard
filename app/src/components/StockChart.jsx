@@ -14184,6 +14184,16 @@ export default function StockChart({
     updateChart()
   }, [updateChart])
 
+  // A priceFormat can arrive AFTER the price series exists: ChartRender decides a breadth
+  // count's whole-number format only once its bars land, and the chart was already built on
+  // the pending render. The series-creation block applies priceFormat once, at creation, so
+  // a late one never reached the axis ("825000.00" under a header reading "810,197").
+  // Placed after the effect above so a series created in this same commit exists by now.
+  useEffect(() => {
+    if (!priceFormat) return
+    try { candleSeriesRef.current?.applyOptions({ priceFormat }) } catch { /* older LWC */ }
+  }, [priceFormat])
+
   // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
   // PASSIVE, so it runs AFTER the frame is composited. On a symbol change that
   // orders the two halves of the member's chart one frame apart:
