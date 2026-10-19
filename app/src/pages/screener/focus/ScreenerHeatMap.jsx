@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { heatTileInks, TIER_HEAT_TOKEN } from '../../breadth/heatTiles'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { useThemeInk, CHROME_INK, SEMANTIC_INK, SIZE_INK } from '../../../lib/theme'
-import { buildHeatMap, GROUP_BYS } from './heatMapModel'
+import { buildHeatMap, GROUP_BYS, LABEL_SIZES, labelSize, LINE_T, LINE_C, tilePads } from './heatMapModel'
 import styles from './FocusScreener.module.css'
 
 // The Map view: the screen's results as a treemap (Finviz's map), sized by market cap, coloured
@@ -23,9 +23,6 @@ const cap = v => {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
   return `$${(v / 1e6).toFixed(0)}M`
 }
-// A tile's label grows with its share of the map (Finviz's big-name labels): [ticker, change] px.
-const LABEL_SIZES = { xl: [26, 15], l: [18, 12], m: [13, 10], s: [10, 9] }
-const labelSize = share => (share > 0.08 ? 'xl' : share > 0.03 ? 'l' : share > 0.008 ? 'm' : 's')
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen }) {
@@ -37,6 +34,11 @@ export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen })
   const ink = useThemeInk({ bg: CHROME_INK.bg, surface: CHROME_INK.surface, elevated: CHROME_INK.elevated,
     text: CHROME_INK.text, muted: CHROME_INK.muted, gold: SEMANTIC_INK.gold, ...HEAT_INK, ...SIZE_INK })
   const model = useMemo(() => buildHeatMap(rows, { groupBy, themeData, livePrices }), [rows, groupBy, themeData, livePrices])
+  // Per-tile label padding from the rendered layout (tilePads); a layout that has not changed
+  // leaves it alone, so this settles after one pass.
+  const [pads, setPads] = useState({})
+  const chartRef = useRef(null)
+  const padSig = useRef('')
 
   const option = useMemo(() => {
     const tileInk = { bg: ink.bg, surface: ink.surface, text: ink.text, muted: ink.muted,
@@ -47,15 +49,16 @@ export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen })
       const c = heatTileInks(t, tileInk)
       fill[t] = c.fill
       for (const [sz, [tf, cf]] of Object.entries(LABEL_SIZES)) {
-        rich[`t_${t || 'none'}_${sz}`] = { fontFamily: CHART_FONT_FAMILY, fontWeight: 700, fontSize: tf, color: c.value, lineHeight: Math.round(tf * 1.25) }
-        rich[`c_${t || 'none'}_${sz}`] = { fontFamily: CHART_FONT_FAMILY, fontWeight: 600, fontSize: cf, color: c.label, lineHeight: Math.round(cf * 1.3) }
+        rich[`t_${t || 'none'}_${sz}`] = { fontFamily: CHART_FONT_FAMILY, fontWeight: 700, fontSize: tf, color: c.value, lineHeight: LINE_T(tf) }
+        rich[`c_${t || 'none'}_${sz}`] = { fontFamily: CHART_FONT_FAMILY, fontWeight: 600, fontSize: cf, color: c.label, lineHeight: LINE_C(cf) }
       }
     }
     const total = model.groups.reduce((s, g) => s + g.value, 0) || 1
     const data = model.groups.map(g => ({
       name: g.name, value: g.value,
       children: g.children.map(c => ({ name: c.ticker, value: c.value, ticker: c.ticker, company: c.company, cap: c.cap, chg: c.chg, tier: c.tier,
-        size: labelSize(c.value / total), itemStyle: { color: fill[c.tier] ?? fill[''] } })),
+        size: labelSize(c.value / total), itemStyle: { color: fill[c.tier] ?? fill[''] },
+        ...(pads[c.ticker] ? { label: { padding: [pads[c.ticker], 0, 0, 0] } } : {}) })),
     }))
     return {
       backgroundColor: 'transparent', animation: false,
@@ -92,9 +95,25 @@ export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen })
         ],
       }],
     }
-  }, [model, ink])
+  }, [model, ink, pads])
 
-  const onEvents = useMemo(() => ({ click: p => { if (p.data?.ticker) onOpen?.(p.data.ticker) } }), [onOpen])
+  const measure = useCallback(() => {
+    const data = chartRef.current?.getEchartsInstance?.()?.getModel?.()?.getSeriesByIndex?.(0)?.getData?.()
+    if (!data) return
+    const leaves = []
+    data.each(i => {
+      const raw = data.getRawDataItem(i)
+      const L = data.getItemLayout(i)
+      if (raw?.ticker && L) leaves.push({ ticker: raw.ticker, height: L.height, size: raw.size })
+    })
+    const next = tilePads(leaves)
+    const sig = JSON.stringify(next)
+    if (sig !== padSig.current) { padSig.current = sig; setPads(next) }
+  }, [])
+  const onEvents = useMemo(() => ({
+    click: p => { if (p.data?.ticker) onOpen?.(p.data.ticker) },
+    finished: measure,
+  }), [onOpen, measure])
   const shown = model.groups.reduce((s, g) => s + g.children.length, 0)
   return (
     <div className={styles.gridView} data-testid="focus-heat-map">
@@ -118,7 +137,7 @@ export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen })
             <li key={c.ticker}><button type="button" onClick={() => onOpen?.(c.ticker)}>{`${c.ticker}, ${g.name}, ${pct(c.chg)}`}</button></li>
           )))}
         </ul>
-        <ReactECharts option={option} style={{ width: '100%', height: '100%' }} opts={{ renderer: 'canvas' }} notMerge onEvents={onEvents} />
+        <ReactECharts ref={chartRef} option={option} style={{ width: '100%', height: '100%' }} opts={{ renderer: 'canvas' }} notMerge onEvents={onEvents} />
       </div>
     </div>
   )

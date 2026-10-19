@@ -357,7 +357,12 @@ def aggregate(days=None, all_data=False, table="darkpool_trades"):
                 except (TypeError, ValueError):
                     pass
             avgvol_m = _AVGVOL_RE.search(msg)
-            pct_avg_vol = float(avgvol_m.group(1)) if avgvol_m else 0.0
+            # ⛔ A print whose message carries no "% of avg vol" was NOT 0% of
+            # average volume: we were not told. None, never a fabricated 0.0 (the
+            # same rule darkpool_db._pct_avg_vol enforces for the stored field).
+            # Every reader guards with `> 0` / `>= N` / `|| 0`, so None reads as
+            # "not shown" there, exactly as the 0.0 did, without claiming a size.
+            pct_avg_vol = float(avgvol_m.group(1)) if avgvol_m else None
             industry = (row["industry"] or "").strip()
             sector   = (row["sector"] or "").strip()
             security_type = (row["security_type"] or "").strip()
@@ -468,7 +473,7 @@ def aggregate(days=None, all_data=False, table="darkpool_trades"):
                 big_print_date = big_print_dk
         else:
             big_print_date = None
-        big_print_pct_avg_vol = big["pctAvgVol"] if big else 0
+        big_print_pct_avg_vol = big["pctAvgVol"] if big else None
 
         cat = classify_ticker(tk, total_n, num_dates)
         avg30 = ticker_avg30.get(tk, 0)
@@ -717,7 +722,7 @@ CACHE_DIR = os.path.join(os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data"), "
 # a code version an old (possibly buggy) cached result keeps being served until
 # the next data upload. Prefixing the sig with AGG_CODE_VERSION makes every
 # window auto-rebuild on the first request after a logic change ships.
-AGG_CODE_VERSION = "3"
+AGG_CODE_VERSION = "4"  # 4: an absent "% AvgVol" publishes None, not 0.0
 COMMON_WINDOWS = [1, 5, 20, 60, 90]  # plus "all"
 # Build order: the page default (90d — DarkPool.jsx fetchDays=90) FIRST, so
 # the first visitor after a rebuild lands on a warm default window instead of
