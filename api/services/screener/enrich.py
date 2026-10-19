@@ -85,11 +85,29 @@ What Task 10 must never do is wire the Finviz reader in a commit where this
 module (or a revert of this one) is ALSO still writing the column — that
 pairing is what "no dual-writer window ever exists" means.
 """
+import math
+
 from api.services.research import ratings_db
 from api.services.research.ratings import (
     _band, _value_score, _smr, _accdis_letter, _letter, _composite,
     _RS_BANDS, _EPS_BANDS, _GROWTH_BANDS,
 )
+
+
+def _publishable(v) -> bool:
+    """A stored metric that may become a snapshot column: present, and finite
+    when numeric.
+
+    🔴 THE STORE ALREADY HOLDS AN `inf` (measured on prod 2026-10-18: KOPN
+    `pe_fwd`). `fundamentals._round` now refuses non-finite at the source, but a
+    row gathered before that fix lives in `research_ratings.db` for up to its
+    6-day refresh TTL, and one `inf` in a column 500s every scan page that
+    carries the row (JSON has no infinity). This is the column's producer, so it
+    is the place that decides what the column may publish.
+    """
+    if v is None:
+        return False
+    return not (isinstance(v, float) and not math.isfinite(v))
 
 
 def load_distributions():
@@ -144,7 +162,7 @@ def ratings_fields(metrics: dict | None, dists: dict | None, sdists: dict | None
         "pe_fwd": "pe_fwd", "sector": "sector",
     }
     for col, src in direct.items():
-        if metrics.get(src) is not None:
+        if _publishable(metrics.get(src)):
             out[col] = metrics[src]
 
     # ── composite (mirrors ratings.get_ratings percentile path) ──
@@ -177,7 +195,7 @@ def ratings_fields(metrics: dict | None, dists: dict | None, sdists: dict | None
         out["accdis"] = accdis
 
     # ── Wave 2: components + sector RS + sponsorship ──
-    if metrics.get("blended_growth") is not None:
+    if _publishable(metrics.get("blended_growth")):
         out["blended_growth"] = metrics["blended_growth"]
     if eps is not None:
         out["rating_eps"] = int(round(eps))
