@@ -168,7 +168,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
       // A patch: the outline goes only when it is new, or the member changed it.
       const body = { name: name.trim(), kindId, blocks, properties: cleanProperties }
       if (isNew || outlineDirty) { body.outlineTemplateId = outline.tid; body.outlineBodyJson = outline.doc }
-      const out = isNew ? await createJournalStyle(body) : await updateJournalStyle(style.id, body)
+      const out = isNew ? await createJournalStyle(body, { via: 'editor' }) : await updateJournalStyle(style.id, body)
       onSaved(out.style)
     } catch (e) {
       setError(reportError(e))

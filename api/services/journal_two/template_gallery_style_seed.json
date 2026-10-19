@@ -1,0 +1,152 @@
+{
+  "v": 1,
+  "note": "P5 firm styles (UCT picks), three per starter pack, seeded into the community gallery as style rows. INSERT OR IGNORE by seedKey (R-P5-4): to change a shipped row, add a -v2 row and retire the -v1 one; never edit a row in place. outlineHeadings becomes the outline (template_gallery._outline_from_headings). category is mapped from kindId (P5-R-C5). tests/test_firm_style_seed.py pins this file to the ruled table.",
+  "styles": [
+    {"seedKey": "uct-style-swing-trade-plan-v1", "pack": "swing", "title": "Swing trade plan",
+     "description": "A swing entry with the pre-entry checklist, position sizing, the market at entry and a daily chart.",
+     "kindId": "trade_plan", "category": "trade_plan",
+     "blocks": [
+       {"block": "preEntryChecklist", "enabled": true, "settings": {"includeRules": "yes", "requireAll": "no"}},
+       {"block": "positionSizing", "enabled": true, "settings": {"grade": "A"}},
+       {"block": "marketcontext", "enabled": true, "settings": {"fields": "all"}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "D"}}
+     ],
+     "outlineHeadings": ["Thesis", "Entry trigger", "Stop and invalidation", "Targets", "What would make me wrong"],
+     "properties": {}},
+    {"seedKey": "uct-style-swing-weekend-prep-v1", "pack": "swing", "title": "Weekend prep",
+     "description": "Prep for the week ahead with your movers, your key levels, your active rules and the market regime.",
+     "kindId": "weekend_prep", "category": "research",
+     "blocks": [
+       {"block": "prepMovers", "enabled": true, "settings": {}},
+       {"block": "prepLevels", "enabled": true, "settings": {}},
+       {"block": "myRules", "enabled": true, "settings": {"which": "active"}},
+       {"block": "marketcontext", "enabled": true, "settings": {"fields": "regime"}}
+     ],
+     "outlineHeadings": ["Market read", "Leaders and themes", "Names to watch", "Plan for the week"],
+     "properties": {}},
+    {"seedKey": "uct-style-swing-trade-review-v1", "pack": "swing", "title": "Swing trade review",
+     "description": "Review a closed swing trade against the plan you made and the rules you trade by.",
+     "kindId": "post_trade_review", "category": "review",
+     "blocks": [
+       {"block": "tradeReview", "enabled": true, "settings": {}},
+       {"block": "myRules", "enabled": true, "settings": {"which": "active"}}
+     ],
+     "outlineHeadings": ["What I planned", "What I did", "What I would do differently"],
+     "properties": {}},
+    {"seedKey": "uct-style-day-daily-prep-v1", "pack": "day", "title": "Day trading prep",
+     "description": "The morning plan with the wire, earnings for your names, your movers, your key levels and your rules.",
+     "kindId": "daily_prep", "category": "research",
+     "blocks": [
+       {"block": "prepWire", "enabled": true, "settings": {}},
+       {"block": "prepEarnings", "enabled": true, "settings": {}},
+       {"block": "prepMovers", "enabled": true, "settings": {}},
+       {"block": "prepLevels", "enabled": true, "settings": {}},
+       {"block": "myRules", "enabled": true, "settings": {"which": "active"}}
+     ],
+     "outlineHeadings": ["Overnight and premarket", "Levels that matter", "A plus setups", "Risk for today"],
+     "properties": {}},
+    {"seedKey": "uct-style-day-trade-plan-v1", "pack": "day", "title": "Intraday trade plan",
+     "description": "An intraday entry with a checklist you must clear, position sizing, price stamps and a 5 minute chart.",
+     "kindId": "trade_plan", "category": "trade_plan",
+     "blocks": [
+       {"block": "preEntryChecklist", "enabled": true, "settings": {"includeRules": "yes", "requireAll": "yes"}},
+       {"block": "positionSizing", "enabled": true, "settings": {"grade": "A"}},
+       {"block": "priceStamps", "enabled": true, "settings": {"on": "yes"}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "5"}}
+     ],
+     "outlineHeadings": ["Setup", "Trigger", "Stop", "Scale out"],
+     "properties": {}},
+    {"seedKey": "uct-style-day-trade-review-v1", "pack": "day", "title": "Day trade review",
+     "description": "Grade the entry and the exit of a day trade, and check it against your active rules.",
+     "kindId": "post_trade_review", "category": "review",
+     "blocks": [
+       {"block": "tradeReview", "enabled": true, "settings": {}},
+       {"block": "myRules", "enabled": true, "settings": {"which": "active"}}
+     ],
+     "outlineHeadings": ["Entry quality", "Exit quality", "Rule followed or broken"],
+     "properties": {}},
+    {"seedKey": "uct-style-prop-daily-prep-v1", "pack": "prop", "title": "Prop desk daily prep",
+     "description": "Start the session with every rule you trade by, the morning wire and your key levels.",
+     "kindId": "daily_prep", "category": "research",
+     "blocks": [
+       {"block": "myRules", "enabled": true, "settings": {"which": "all"}},
+       {"block": "prepWire", "enabled": true, "settings": {}},
+       {"block": "prepLevels", "enabled": true, "settings": {}}
+     ],
+     "outlineHeadings": ["Daily loss limit", "Focus list", "Rules I will not break"],
+     "properties": {}},
+    {"seedKey": "uct-style-prop-trade-plan-v1", "pack": "prop", "title": "Prop trade plan",
+     "description": "A desk trade with a checklist you must clear, position sizing and a 15 minute chart.",
+     "kindId": "trade_plan", "category": "trade_plan",
+     "blocks": [
+       {"block": "preEntryChecklist", "enabled": true, "settings": {"includeRules": "yes", "requireAll": "yes"}},
+       {"block": "positionSizing", "enabled": true, "settings": {"grade": "A"}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "15"}}
+     ],
+     "outlineHeadings": ["Setup", "Size and risk in dollars", "Stop", "Exit plan"],
+     "properties": {}},
+    {"seedKey": "uct-style-prop-weekly-review-v1", "pack": "prop", "title": "Prop weekly review",
+     "description": "Check the week against every rule you trade by and pick one thing to change next week.",
+     "kindId": "weekly_review", "category": "review",
+     "blocks": [
+       {"block": "myRules", "enabled": true, "settings": {"which": "all"}}
+     ],
+     "outlineHeadings": ["Rules kept", "Rules broken", "One change for next week"],
+     "properties": {}},
+    {"seedKey": "uct-style-options-trade-plan-v1", "pack": "options", "title": "Options trade plan",
+     "description": "An options entry with the pre-entry checklist, the market at entry and a daily chart.",
+     "kindId": "trade_plan", "category": "trade_plan",
+     "blocks": [
+       {"block": "preEntryChecklist", "enabled": true, "settings": {"includeRules": "yes", "requireAll": "no"}},
+       {"block": "marketcontext", "enabled": true, "settings": {"fields": "all"}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "D"}}
+     ],
+     "outlineHeadings": ["Thesis", "Contract and expiry", "Max loss", "Exit plan"],
+     "properties": {}},
+    {"seedKey": "uct-style-options-earnings-prep-v1", "pack": "options", "title": "Options earnings prep",
+     "description": "Plan a position into a report with the earnings for your names, the index read and a daily chart.",
+     "kindId": "earnings", "category": "research",
+     "blocks": [
+       {"block": "prepEarnings", "enabled": true, "settings": {}},
+       {"block": "marketcontext", "enabled": true, "settings": {"fields": "indexes"}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "D"}}
+     ],
+     "outlineHeadings": ["Expected move", "Position and risk", "Plan for the reaction"],
+     "properties": {}},
+    {"seedKey": "uct-style-options-trade-review-v1", "pack": "options", "title": "Options trade review",
+     "description": "Review an options trade by what you expected against what the contract actually did.",
+     "kindId": "post_trade_review", "category": "review",
+     "blocks": [
+       {"block": "tradeReview", "enabled": true, "settings": {}}
+     ],
+     "outlineHeadings": ["What I expected", "What the contract did", "What I would do differently"],
+     "properties": {}},
+    {"seedKey": "uct-style-earnings-prep-v1", "pack": "earnings", "title": "Earnings prep",
+     "description": "Get ready for a report with the earnings for your names, a daily chart and the market regime.",
+     "kindId": "earnings", "category": "research",
+     "blocks": [
+       {"block": "prepEarnings", "enabled": true, "settings": {}},
+       {"block": "chart", "enabled": true, "settings": {"tf": "D"}},
+       {"block": "marketcontext", "enabled": true, "settings": {"fields": "regime"}}
+     ],
+     "outlineHeadings": ["The setup into the report", "What a beat needs", "Plan for each reaction"],
+     "properties": {}},
+    {"seedKey": "uct-style-earnings-followup-v1", "pack": "earnings", "title": "Earnings follow-up",
+     "description": "Look back on a report with a daily chart: what you expected, what happened and what you learned.",
+     "kindId": "earnings_followup", "category": "review",
+     "blocks": [
+       {"block": "chart", "enabled": true, "settings": {"tf": "D"}}
+     ],
+     "outlineHeadings": ["What I expected", "What happened", "What I learned"],
+     "properties": {}},
+    {"seedKey": "uct-style-earnings-watchlist-v1", "pack": "earnings", "title": "Earnings watchlist",
+     "description": "Keep a name on watch into its report with a weekly chart and your key levels.",
+     "kindId": "watchlist_note", "category": "research",
+     "blocks": [
+       {"block": "chart", "enabled": true, "settings": {"tf": "W"}},
+       {"block": "prepLevels", "enabled": true, "settings": {}}
+     ],
+     "outlineHeadings": ["Why it is on the list", "Levels", "What would make me act"],
+     "properties": {}}
+  ]
+}

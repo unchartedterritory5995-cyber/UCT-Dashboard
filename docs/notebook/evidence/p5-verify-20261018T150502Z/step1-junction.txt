@@ -1,0 +1,1 @@
+LinkType=Junction Target=C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules shared_entries=377 through_link=377

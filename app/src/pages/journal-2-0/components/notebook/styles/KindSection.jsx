@@ -5,6 +5,10 @@
 // and the hook refuses to fetch with it off. This file restates neither (a guard repeated is a guard unproved).
 // P3a Task 10: "Browse community styles" opens the community library at Styles (LibraryDoor), only while the
 // library switch (styleLibraryEnabled) is on. The gallery's import lives in this lazy chunk, never in the picker.
+// P5 Task 5: "How do you trade?" (StarterPackOffer) sits at the top while R-P5-5 holds: the starter-packs switch
+// is on, the member has no styles of their own and has not answered it. The rule is useStarterPackOffer's alone,
+// and so is which surface shows it: an empty notebook holds this section twice (inline and in the New note
+// sheet), and the hook gives the card to one of them (ruling P5-T10-R2).
 import { useId, useRef, useState } from 'react'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import useJournalStyles from '../../../hooks/useJournalStyles'
@@ -15,6 +19,7 @@ import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
 import TemplatePreview from '../TemplatePreview'
 import { styleLibraryEnabled } from '../../../lib/styleLibraryFlag'
 import LibraryDoor from './LibraryDoor'
+import StarterPackOffer, { useStarterPackOffer } from './StarterPackOffer'
 import { reportError } from './styleErrors'
 import styles from './KindSection.module.css'
 
@@ -43,6 +48,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const { data, error, isLoading } = useJournalStyles()
   const [openKind, setOpenKind] = useState(null)
   const [preview, setPreview] = useState(null)   // { style, loading, body, ticker, error }
+  const offer = useStarterPackOffer(data)
 
   if (isLoading) return <p className={styles.status} role="status">Loading kinds of note…</p>
   if (error || !data) return <p className={styles.status} role="alert">Couldn't load your journal styles.</p>
@@ -60,7 +66,8 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const offline = data.fromCache === true
 
   return (
-    <section className={styles.wrap} aria-labelledby={headingId}>
+    <section className={styles.wrap} aria-labelledby={headingId} data-starter-offer={offer.settled ? 'settled' : 'deciding'}>
+      {offer.show && <StarterPackOffer onClose={offer.close} offline={offline} />}
       <h3 id={headingId} className={styles.h}>Start from a kind of note</h3>
       {styleLibraryEnabled() && <LibraryDoor label="Browse community styles" className={styles.libraryDoor} />}
       {offline && <p className={styles.status} role="status">You're offline. These are your saved styles; a new note needs a connection.</p>}

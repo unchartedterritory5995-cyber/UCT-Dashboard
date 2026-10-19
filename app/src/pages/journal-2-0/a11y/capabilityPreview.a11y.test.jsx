@@ -22,7 +22,7 @@ vi.mock('../hooks/useNotebookHome', () => ({
   default: () => ({ home: { continueWorking: [], favorites: [], activeTheses: [], openPositionResearch: [], needsReview: [] }, isLoading: false }),
 }))
 
-const ALL_ON = Object.fromEntries(CAPABILITY_PREVIEW.map((c) => [c.flag, true]))
+const ALL_ON = Object.fromEntries(CAPABILITY_PREVIEW.flatMap((c) => [c.flag, ...(c.requires || [])]).map((f) => [f, true]))
 
 beforeEach(() => {
   __resetNotebookFlags()

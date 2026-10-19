@@ -56,6 +56,9 @@ export const SURFACES = Object.freeze({
   // notebook_style_library_enabled, so community-gallery-browse never renders them); rail
   // a11y/styleLibrary.a11y.test.jsx.
   'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
+  // P5 fix round 1: the admin Feature/Unfeature + Hide pair, shared by outline and style cards; rail
+  // a11y/styleLibrary.a11y.test.jsx renders it on a style card for an admin.
+  'components/notebook/GalleryAdminActions.jsx': { recipe: 'style-library-card-admin' },
   'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
@@ -359,6 +362,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ShareStyleForm.jsx': { recipe: 'style-library-share-form', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryUpdateSheet.jsx': { recipe: 'style-library-update-sheet', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
   'components/notebook/styles/LibraryDoor.jsx': { recipe: 'style-library-door', railFile: 'a11y/styleLibrary.a11y.test.jsx' },
+  // Notebook P5 Task 10: "How do you trade?", the starter pack offer (under components/notebook/styles/, outside
+  // the derived population; dark behind notebook_starter_packs_enabled); rail a11y/starterPackOffer.a11y.test.jsx
+  // (the card, its answer, a failed install, offline, and the card at the top of the Styles manager).
+  'components/notebook/styles/StarterPackOffer.jsx': { recipe: 'starter-pack-offer', railFile: 'a11y/starterPackOffer.a11y.test.jsx' },
   // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
   // Checklist from my winners, the Your trading year page and its Report page door; rail
   // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).

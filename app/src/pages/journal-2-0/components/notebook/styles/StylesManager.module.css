@@ -5,6 +5,8 @@
 .listCol, .editorCol { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
 .kindGroup { display: flex; flex-direction: column; gap: 6px; }
+/* the P5 tour's styles-kinds anchor: wraps the kind groups with the column's own 12px gap, so layout is unchanged */
+.kindGroups { display: flex; flex-direction: column; gap: 12px; }
 .stickyTop { position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface); }
 /* nothing to say: out of flow, so the wrap's flex gap does not leave an empty strip (the live region stays in the tree) */
 .stickyTop[data-empty] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -24,6 +26,7 @@
 .btn:disabled, .iconBtn:disabled { opacity: 0.45; cursor: default; }
 .iconBtn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; }
 .danger { color: var(--danger-ink); }
+.quiet { border-color: transparent; background: none; color: var(--accent); }   /* P5: the Starter packs link */
 
 .notice { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .error { margin: 0; color: var(--danger-ink); font-size: 13px; }

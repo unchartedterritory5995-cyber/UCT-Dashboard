@@ -1,0 +1,38 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p5/app[39m
+
+[90mstdout[2m | src/pages/journal-2-0/components/notebook/onboarding/tourReachability.test.jsx
+[22m[39m
+REACHABILITY
+writing-help | {"note":"recent"} | opens | /journal/notebook?note=n-recent
+image-docx-import | {"note":"recent"} | opens | /journal/notebook?note=n-recent
+publish-share | {"note":"recent"} | opens | /journal/notebook?note=n-recent
+task-reminders | "/journal/notebook?view=tasks" | opens | /journal/notebook?view=tasks
+template-gallery | "/journal/notebook?view=all" | opens | /journal/notebook?view=all
+voice-notes | "/journal/notebook" | opens | /journal/notebook
+meaning-search | "/journal/notebook?view=all" | opens | /journal/notebook?view=all
+formulas-rollups | {"note":"recent"} | opens | /journal/notebook?note=n-recent
+plan-grading | {"trade":"recent"} | opens | /journal-2-0/trade/501
+entry-context | {"trade":"recent"} | opens | /journal-2-0/trade/501
+review-drafts | "/journal/notebook" | opens | /journal/notebook
+my-playbook | "/journal-2-0/playbook" | opens | /journal-2-0/playbook
+chart-plan-basics | {"note":"sample:plan","embed":"chart"} | opens | /journal/notebook?note=n-plan
+chart-plan-replay | {"note":"sample:plan","embed":"chart"} | opens | /journal/notebook?note=n-plan
+ta-fingerprint | {"note":"sample:plan","embed":"chart"} | opens | /journal/notebook?note=n-plan
+visual-playbook | {"note":"sample:plan","embed":"chart"} | opens | /journal/notebook?note=n-plan
+setups-board | "/journal/notebook/setups" | opens | /journal/notebook/setups
+earnings-prep | "/journal/notebook" | opens | /journal/notebook
+transcript-capture | {"note":"sample:transcript"} | opens | /journal/notebook?note=n-transcript
+passed-setups | "/journal/notebook" | opens | /journal/notebook
+note-resurfaces | (none) | opens | /journal/notebook?note=n-thesis&resurfaceVersion=v1
+
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/onboarding/tourReachability.test.jsx [2m([22m[2m22 tests[22m[2m)[22m[33m 2456[2mms[22m[39m
+     [33m[2m✓[22m[39m writing-help opens at its first step [33m 730[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m   Start at [22m 10:06:47
+[2m   Duration [22m 4.51s[2m (transform 1.21s, setup 683ms, import 474ms, tests 2.46s, environment 736ms)[22m
+
+EXIT: 0

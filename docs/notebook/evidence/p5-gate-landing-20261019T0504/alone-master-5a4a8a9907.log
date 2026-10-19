@@ -1,0 +1,1722 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app
+
+ ✓ src/pages/journal-2-0/components/notebook/styles/ExamplesInUse.test.jsx (11 tests) 2114ms
+     ✓ the section renders: one card per example, its title and its stored body, read-only  362ms
+     ✓ reports THAT example through the gallery's own report flow, and says so on its card  902ms
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > CONTROL — pre-open, a last-session set paints from mem with the network pending
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to IndicatorLibraryDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > CONTROL — pre-open, a last-session set paints from mem with the network pending
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > AFTER THE BELL — a set written after the close (sealed) paints from mem
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > AFTER THE BELL — a set written after the close (sealed) paints from mem
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > GUARD KEPT — a set written mid-session is still refused after the bell
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > GUARD KEPT — a set written mid-session is still refused after the bell
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > GUARD KEPT — a set written mid-session is still refused after the bell
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a warmed daily neighbour draws from the cache on the first frame > GUARD KEPT — a set written mid-session is still refused after the bell
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+Error: useNavigate() may be used only in the context of a <Router> component.
+    at invariant (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:188:11)
+    at useNavigateUnstable (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:5556:3)
+    at useNavigate (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:5553:46)
+    at ChartWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/widgets/ChartWidget.jsx:59:20)
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:25904:20)
+    at renderWithHooks (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:10166:19)
+    at beginWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:11778:18)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at performUnitOfWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17641:22) {
+  [stack]: [Getter/Setter],
+  [message]: 'useNavigate() may be used only in the context of a <Router> component.'
+}
+
+The above error occurred in the <ChartWidget> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+
+[ErrorBoundary] Error: useNavigate() may be used only in the context of a <Router> component.
+    at invariant (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:188:11)
+    at useNavigateUnstable (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:5556:3)
+    at useNavigate (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:5553:46)
+    at ChartWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/widgets/ChartWidget.jsx:59:20)
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:25904:20)
+    at renderWithHooks (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:10166:19)
+    at beginWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:11778:18)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at performUnitOfWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17641:22) 
+    at ChartWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/widgets/ChartWidget.jsx:75:24)
+    at Suspense (<anonymous>)
+    at ErrorBoundary (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/ErrorBoundary.jsx:11:5)
+    at WidgetBody (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/WidgetHost.jsx:145:23)
+    at div (<anonymous>)
+    at ErrorBoundary (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/ErrorBoundary.jsx:11:5)
+    at div (<anonymous>)
+    at WidgetHost (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/WidgetHost.jsx:181:3)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at ScreenerChartWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/screener/focus/ScreenerChartWidget.jsx:28:32)
+    at div (<anonymous>)
+    at section (<anonymous>)
+    at ChartPane (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/screener/focus/ChartPane.jsx:29:22)
+    at Focus (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/StockChart.focusWarmStep.test.jsx:206:19)
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+An update to NewsWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHost inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NewsWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NewsWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHost inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ScreenerChartWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ScreenerChartWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHeader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHeader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ScreenerChartWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ScreenerChartWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHeader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to WidgetHeader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+An update to NewsWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+An update to NewsWidget inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+TypeError: Cannot destructure property 'basename' of 'React10.useContext(...)' as it is null.
+    at LinkWithRef (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:9956:11)
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:25904:20)
+    at renderWithHooks (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:7662:22)
+    at updateForwardRef (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:9724:19)
+    at beginWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:12117:18)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at performUnitOfWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17641:22)
+    at workLoopSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17469:41)
+    at renderRootSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17450:11)
+    at performWorkOnRoot (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:16583:35) {
+  [stack]: [Getter/Setter],
+  [message]: "Cannot destructure property 'basename' of 'React10.useContext(...)' as it is null."
+}
+
+The above error occurred in the <Link> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+
+[ErrorBoundary] TypeError: Cannot destructure property 'basename' of 'React10.useContext(...)' as it is null.
+    at LinkWithRef (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:9956:11)
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:25904:20)
+    at renderWithHooks (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:7662:22)
+    at updateForwardRef (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:9724:19)
+    at beginWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:12117:18)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at performUnitOfWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17641:22)
+    at workLoopSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17469:41)
+    at renderRootSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17450:11)
+    at performWorkOnRoot (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:16583:35) 
+    at LinkWithRef (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/react-router/dist/development/chunk-JZWAC4HX.mjs:9942:5)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at NewsWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/widgets/NewsWidget.jsx:81:3)
+    at Suspense (<anonymous>)
+    at ErrorBoundary (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/ErrorBoundary.jsx:11:5)
+    at WidgetBody (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/WidgetHost.jsx:145:23)
+    at div (<anonymous>)
+    at ErrorBoundary (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/ErrorBoundary.jsx:11:5)
+    at div (<anonymous>)
+    at WidgetHost (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/charts/WidgetHost.jsx:181:3)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at ScreenerChartWidget (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/screener/focus/ScreenerChartWidget.jsx:28:32)
+    at div (<anonymous>)
+    at section (<anonymous>)
+    at ChartPane (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/pages/screener/focus/ChartPane.jsx:29:22)
+    at Focus (C:/Users/Patrick/uct-worktrees/notebook-p5-masterprobe/app/src/components/StockChart.focusWarmStep.test.jsx:206:19)
+
+ ❯ src/components/StockChart.focusWarmStep.test.jsx (4 tests | 1 failed) 12085ms
+     ✓ CONTROL — pre-open, a last-session set paints from mem with the network pending 128ms
+     ✓ AFTER THE BELL — a set written after the close (sealed) paints from mem 40ms
+     ✓ GUARD KEPT — a set written mid-session is still refused after the bell  423ms
+     × 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land 11492ms
+ ❯ src/pages/command/keyListenerCensus.test.js (7 tests | 3 failed) 16881ms
+     ✓ CONTROL: a comment or prose mention is not a listener; a real call is 6ms
+     ✓ CONTROL: a dynamic registration and a wrapper hook are caught as orphans 2ms
+     ✓ CONTROL: dispatching a key event is not listening for one 1ms
+     × NON-VACUITY: it walks the whole tree, parses every file, and finds the registry 16864ms
+     × no file holds MORE raw key listeners than its baseline (new ones go through the registry) 6ms
+     ✓ no baseline row is STALE (a migrated listener must leave the baseline in the same commit) 0ms
+     × the baseline sits at or under the stated CEILING, and the CEILING is tight 2ms
+stdout | src/lib/presentation/handRolledFormatters.census.test.js > the census, printed > reports totals, by kind, the largest files and the partner line
+[term-066 census]
+    population 2491 files · with sites 415 · sites 1701
+    by kind {"toLocaleString":340,"toLocaleDateString":122,"toFixed":1054,"toLocaleTimeString":37,"Intl.DateTimeFormat":66,"toPrecision":5,"Intl.NumberFormat":3,"magnitudeSuffix":74}
+    partner-owned (baselined, not dropped): app/src/pages/OptionsFlow.jsx = 194
+    largest:
+     250  app/src/pages/OptionsFlow_admin.jsx
+     194  app/src/pages/OptionsFlow.jsx
+      58  app/src/pages/DarkPool.jsx
+      55  app/src/components/StockChart.jsx
+      33  app/src/pages/LiveFlowMassive.jsx
+      16  app/src/pages/journal-2-0/tabs/AnalyticsTab.jsx
+      15  app/src/pages/breadth/heatmapMetrics.js
+      14  app/src/pages/breadth/views/RadarView.jsx
+      13  app/src/agent/capabilities/stock.js
+      13  app/src/pages/breadth/views/RegimeClockView.jsx
+      12  app/src/agent/capabilities/screener.js
+      12  app/src/econHarness/econHarness.js
+      11  app/src/components/fundamentals/AboutPanel.jsx
+      11  app/src/pages/ChartRender.jsx
+      11  app/src/pages/LiveFlow.jsx
+
+ ❯ src/lib/presentation/handRolledFormatters.census.test.js (15 tests | 1 failed) 1905ms
+     ✓ counts each kind once in code 4ms
+     ✓ sees a magnitude suffix in a template literal AND in a string concatenation 1ms
+     ✓ a kind named like an Object.prototype method still counts as a NUMBER 0ms
+     ✓ does NOT count a division that is not followed by a unit, or a unit with no division 0ms
+     ✓ ignores comments and string contents — and the control proves code IS seen 0ms
+     ✓ a computed access or a look-alike name is not a site 0ms
+     ✓ git returned a real tree, and parse failures are zero  1885ms
+     ✓ names a known offender — the census is not silently empty 0ms
+     ✓ the owner module is excluded, and the exclusion is load-bearing 2ms
+     ✓ a planted new file with sites is ADDED, by name 0ms
+     ✓ growth is caught by name, and a shrink is slack to bank 0ms
+     × no file gained a site, and no new file appeared 7ms
+     ✓ the baseline is tight — progress is banked in the commit that makes it 1ms
+     ✓ the committed baseline is byte-exactly what its writer produces 1ms
+     ✓ reports totals, by kind, the largest files and the partner line 1ms
+ ❯ src/components/chart/engine/__tests__/enumerationSites.test.js (41 tests | 1 failed) 5846ms
+     ✓ holds 17 live sites, and every one of them is still where it says it is 19ms
+     ✓ exempts NO row from the anchor check — the one fuse has fired 0ms
+     ✓ every B4 region is retired — 2 to C, 5 kept, and NO B4, B5 or phase key 1ms
+     ✓ every site names its own fate, so a permutation cannot pass 2ms
+     ✓ the closed-table manifest is on the ledger the moment it exists 0ms
+     ✓ the ledger names the file that will hold the closed table, and says why 0ms
+     ✓ ⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity 4ms
+     ✓ the two sites this task retired are GONE, not merely unlisted 2ms
+     ✓ ⭐ and the settings-row list B4 Task 6 retired is GONE too 1ms
+     ✓ ⭐ and the toolbar's fifteen indicator rows — and the three helpers that kept them honest — are GONE 2ms
+     ✓ ⭐ and the voice bus no longer hand-lists indicators 1ms
+     ✓ ⭐ and the alert dropdown's five-part twin of INDICATOR_FUNCS is GONE 2ms
+     ✓ ⭐ and the legend's three-part indicator enumeration is GONE — all of it 74ms
+     ✓ ⛔ the three regions RETIRED_BY_B5_TASK9 took are GONE, and the allow-list DESTROYS 9ms
+     ✓ ⛔ the four regions RETIRED_BY_B5_TASK8 took are GONE, not merely unlisted 31ms
+     ✓ ⛔ StockChart imports no compute function at all — the lane is the ENGINE lane 101ms
+     ✓ ⛔ …and every definition still resolves a compute — the exports are NOT dead 28ms
+     ✓ ⭐ and the share link no longer hand-lists the four pilots 5ms
+     ✓ ⭐ and the four keyboard regions B4 Task 4 retired are GONE too 12ms
+     ✓ names every shipped module that hand-lists four or more indicators  2354ms
+     × names every shipped Python module that hand-lists four or more indicators 3043ms
+     ✓ ⭐ the two Python address tables are the size the ledger says — 28 addresses, and NO `sar` alias 4ms
+     ✓ ⭐ the scan reads CODE, not prose — and still reads code 1ms
+     ✓ ⭐ the PYTHON scan reads CODE, not prose — and still reads code 1ms
+     ✓ ⛔ the two tables COVER the flip set — a missing row is a silent no-op 38ms
+     ✓ declares no series ref and creates no series for a flipped id 18ms
+     ✓ runs no second computation for a flipped id — the engine computes it once 3ms
+     ✓ ⛔ and the STRIPPER is load-bearing, not decorative — measured on ichimoku 1ms
+     ✓ keeps no Flip-A guard for a flipped id — the block should be GONE, not guarded 6ms
+     ✓ creates no migrated-but-un-flipped definition while the settings migration is open 3ms
+     ✓ ⭐ the repaint badge is a shared DEFAULT, and this record says so — the biconditional 8ms
+     ✓ ⭐ every test title the decision record cites verbatim is a title that exists 55ms
+     ✓ listIndicators() contains no migrated definition, by id or by settings path 1ms
+     ✓ and the engine-owned rows hand-write no field — they are derived 3ms
+     ✓ a price overlay reserves no vertical space — adjudication A6, at its new address 0ms
+     ✓ every settings section has an engine definition, or is a named exemption 0ms
+     ✓ every definition is REACHABLE from a v1 blob that names it 3ms
+     ✓ pins exactly which declared inputs the toolbar cannot reach 3ms
+     ✓ every declared input of every definition is reachable from the generated dialog 1ms
+     ✓ MACD's two colours have a control now — the gap B3 measured and could not close 1ms
+     ✓ and nothing was silently dropped: every migrated id's toolbar gap is named above 3ms
+ ❯ src/pages/terminal/themeColours.rail.test.js (6 tests | 1 failed) 1828ms
+     ✓ CONTROL: the scope is the real terminal import graph, not an empty walk 2ms
+     ✓ CONTROL: the detector sees a literal, and only the sanctioned forms pass 6ms
+     ✓ CONTROL: the verdict reds on a new literal and on a ledger that was not lowered 1ms
+     × ⛔ no terminal-mounted file gains a hardcoded colour (fix it with a token, not the ledger) 1814ms
+     ✓ ⛔ the ledger only shrinks: a count that dropped is lowered in the same commit 0ms
+     ✓ every ledger entry carries a reason, and no file is in both halves 2ms
+ ❯ src/pages/terminal/a11y/terminalReachableContrast.test.js (7 tests | 3 failed) 334ms
+     ✓ walked the reachable stylesheets (non-vacuity) 2ms
+     × no var(--loss)/var(--gain) as text colour in any reachable stylesheet 191ms
+     × no inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses 135ms
+     × every other failing text rule is in the shrink-only baseline, file by file 1ms
+     ✓ every baseline entry carries a reason 2ms
+     ✓ CONTROL: the text check SEES --loss/--gain as text (plain and with a fallback) and ignores fills/borders 1ms
+     ✓ CONTROL: the contrast audit SEES a failing rule and records an unreadable one instead of throwing 1ms
+ ❯ src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js (7 tests | 2 failed) 63ms
+     ✓ reads the offline modules (non-vacuity) 2ms
+     ✓ no object literal in lib/offline/ names `computed` or `propertiesJson` 40ms
+     ✓ CONTROL: a record literal carrying either key is caught 1ms
+     × App.jsx and the Focus chart pane are the only production <SWRConfig>s 6ms
+     ✓ App.jsx passes no provider, so the cache is a Map that dies with the tab 9ms
+     × pages/screener/focus/ChartPane.jsx passes no provider, so the cache is a Map that dies with the tab 3ms
+     ✓ CONTROL: a provider is caught, inline or through a const 1ms
+ ❯ src/components/chart/engine/__tests__/lwcHazards.test.js (28 tests | 1 failed) 20ms
+     ✓ the sweep can see the codebase at all 1ms
+     × ⛔ every call site that passes an object literal names lineStyle 10ms
+     ✓ THE CONTROL: the sweep catches a call site that omits it 1ms
+     ✓ THE CONTROL: and passes one that names it, even with nested braces 0ms
+     ✓ the default really is Dashed, and the map still says so 0ms
+     ✓ refuses to leave the style to LWC, and says what the default would be 1ms
+     ✓ accepts an explicit style and keeps it 0ms
+     ✓ defaults axisLabelVisible to false, because Pine hlines draw no label 0ms
+     ✓ clamps Pine's unbounded width into the native four 0ms
+     ✓ names an unknown style rather than passing it through 0ms
+     ✓ is exactly 1|2|3|4 0ms
+     ✓ clamps out-of-range widths and says it clamped 0ms
+     ✓ ⚠️ the module says the clamp is native-only 0ms
+     ✓ a one-bar box has inclusive length 1 and gap-corrected length 0 1ms
+     ✓ a ten-bar span is 11 inclusive, which is the trap 0ms
+     ✓ normalises a reversed span 0ms
+     ✓ refuses a non-finite index 0ms
+     ✓ is 10000 back and 500 forward 0ms
+     ✓ accepts the edges and rejects just outside them 0ms
+     ✓ reports rather than clamps 0ms
+     ✓ knows the polyline budget 0ms
+     ✓ says to cull when the point count exceeds the visible range 0ms
+     ✓ ⛔ 500 boxes are ONE primitive, not 500 0ms
+     ✓ hides the series AND removes it from autoscale 0ms
+     ✓ the capability map still specifies both halves 0ms
+     ✓ every registered hazard is named by a describe block in this file 0ms
+     ✓ THE CONTROL: the register check can spot an uncovered hazard 0ms
+     ✓ names seven hazards 0ms
+stdout | src/components/provenance/panelAdoption.ratchet.test.js > ⭐⭐ the ratchet — adoption may not go backwards > prints the population, the frontier, and the labels
+
+════ PROVENANCE ADOPTION RATCHET ══════════════════════════════════════
+  the four primitives : Provenance.jsx · FreshnessBadge.jsx · CoverageLine.jsx · Cited.jsx
+  re-export aliases   : (none)
+  reachable modules   : 2388 tracked non-test under app/src
+  of those, with JSX  : 1080
+
+  POPULATION (32) — every reachable module that adopts, derived:
+      app/src/components/calendar/CallRecapSection.jsx
+      app/src/components/chart/builder/EvidenceTab.jsx
+      app/src/components/research/fmpDepth/SourceLine.jsx
+      app/src/components/screener/ScanResults.jsx
+      app/src/components/tiles/CatalystTable.jsx
+      app/src/pages/Breadth.jsx
+      app/src/pages/ProvenanceDemo.jsx
+      app/src/pages/breadth/views/TheReadStrip.jsx
+      app/src/pages/charts/widgets/AiSearchWidget.jsx
+      app/src/pages/charts/widgets/DockFinancials.jsx
+      app/src/pages/charts/widgets/PeriodSortResults.jsx
+      app/src/pages/charts/widgets/ScannerResults.jsx
+      app/src/pages/charts/widgets/VolumeScanWidget.jsx
+      app/src/pages/cot/PositioningRail.jsx
+      app/src/pages/journal-2-0/components/notebook/AskPanel.jsx
+      app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx
+      app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+      app/src/pages/research/ResearchComparePage.jsx
+      app/src/pages/research/components/ComparisonAskAi.jsx
+      app/src/pages/research/tabs/AnalystRatingsTab.jsx
+      app/src/pages/research/tabs/AskAiTab.jsx
+      app/src/pages/research/tabs/CatalystsTab.jsx
+      app/src/pages/research/tabs/DecisionRecordTab.jsx
+      app/src/pages/research/tabs/FlowTab.jsx
+      app/src/pages/research/tabs/NewsTab.jsx
+      app/src/pages/research/tabs/OwnershipTab.jsx
+      app/src/pages/screener/focus/DataReceipt.jsx
+      app/src/pages/screener/options/OptionsScreener.jsx
+      app/src/pages/screener/shell/ScannerShell.jsx
+      app/src/pages/terminal/TerminalShell.jsx
+      app/src/pages/terminal/panels/BreakoutPanel.jsx
+      app/src/pages/terminal/panels/MoversPanel.jsx
+
+  baseline records 32  ·  observed 32  ·  lost 0  ·  unbanked 0
+  baseline file : app/src/components/provenance/panelAdoption.baseline.json
+
+  ⭐ ADOPTING ONLY THROUGH A DERIVED ALIAS (0) — a naive import scan
+     would call each of these NOT-adopting and the shim a fifth implementation:
+      (none)
+
+  adopters without JSX (0) — the gap between this population and the
+     census's JSX-filtered D-ALL adopting set, derived rather than assumed. Empty
+     means the two coincide today, which is why the census's number can be read
+     straight across:
+      (none)
+
+── THE FRONTIER — where the number can go up ───────────────────────────
+   ⭐ directories that already show provenance, adopting / with-JSX:
+         7 / 29    pages/research/tabs
+         5 / 55    pages/charts/widgets
+         2 / 61    pages
+         2 / 131   pages/journal-2-0/components/notebook
+         2 / 33    pages/terminal/panels
+         1 / 7     components/calendar
+         1 / 11    components/chart/builder
+         1 / 4     components/research/fmpDepth
+         1 / 4     components/screener
+         1 / 12    components/tiles
+         1 / 20    pages/breadth/views
+         1 / 1     pages/cot
+         1 / 10    pages/optionsAnalytics
+         1 / 11    pages/research
+         1 / 1     pages/research/components
+         1 / 21    pages/screener/focus
+         1 / 1     pages/screener/options
+         1 / 17    pages/screener/shell
+         1 / 7     pages/terminal
+
+── THE LARGEST ZERO-ADOPTION DIRECTORIES ───────────────────────────────
+   ⛔ derived, printed, and asserted over by NOTHING. The top row is why the
+      population above is the adopter set and not `pages/**`: a rail scoped
+      there is a Notebook rail wearing a provenance label. No literal in this
+      file names it — it is absent from the population because it has no
+      adopters, so the day it gains one this rail protects that gain instead.
+        69  pages/journal-2-0/components
+        35  components/chart
+        29  components
+        22  floor2
+        17  components/voice
+        17  hub
+
+── PARTNER-OWNED, LABELLED NOT FILTERED ────────────────────────────────
+      app/src/pages/OptionsFlow.jsx   adopting=false   (Ravi — ack before any edit)
+
+═══════════════════════════════════════════════════════════════════════
+
+
+stdout | src/components/provenance/panelAdoption.ratchet.test.js > TERM-047 — CoverageLine on every result surface > prints the derived set, how each routes, and the exemptions by kind
+
+════ TERM-047 — CoverageLine ON EVERY RESULT SURFACE ═════════════════════
+  route-family stems : scan · screen   (A9 Screening & Discovery)
+  CoverageLine doors : app/src/components/provenance/CoverageLine.jsx
+  RESULT SURFACES (25), derived:
+      routes direct                app/src/components/chart/builder/EvidenceTab.jsx
+                                   /api/screener/backtest  /api/scans/definition-record
+      VIOLATION                    app/src/components/chart/pane/ChartPane.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      EXEMPT                       app/src/components/screener/MethodologyPanel.jsx
+                                   /api/screener/methodology
+      EXEMPT                       app/src/components/screener/RunNowButton.jsx
+                                   /api/scans/run  useScreenerMeta.js→/api/screener/meta
+      routes direct                app/src/components/screener/ScanResults.jsx
+                                   /api/scans/definition-results
+      EXEMPT                       app/src/components/screener/StructureProvenance.jsx
+                                   /api/screener/structures
+      EXEMPT                       app/src/components/settings/StandingAlertsPanel.jsx
+                                   /api/screener/spec-alerts  /api/screener/spec-alerts/
+      VIOLATION                    app/src/components/terminal/SecurityHeadline.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      VIOLATION                    app/src/pages/Watchlists.jsx
+                                   useVolumeCurve.js→/api/screener/volume-curve?tickers=  useVolumeCurve.js→/api/screener/volume-curve
+      EXEMPT                       app/src/pages/charts/widgets/ListSubscription.jsx
+                                   /api/screener/saved-screens
+      routes direct                app/src/pages/charts/widgets/PeriodSortResults.jsx
+                                   /api/scans/period-change?start=  /api/scans/period-change-groups?start=
+      routes direct                app/src/pages/charts/widgets/ScannerResults.jsx
+                                   /api/scans/highest-volume-1y  /api/scans/highest-volume-ever  /api/scans/ipo-1y  /api/scans/top-gainers-30d  /api/scans/top-gainers-60d  /api/scans/top-gainers-90d
+      routes direct                app/src/pages/charts/widgets/VolumeScanWidget.jsx
+                                   /api/volume-scan/live?show_all=1&limit=300&min_rvol=
+      routes direct                app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+                                   /api/options-screener/strategies  /api/options-screener/strategy/  /api/options-screener/more-strategies  /api/options-screener/more/  /api/options-screener/multi-leg  /api/options-screener/sizzle
+      EXEMPT                       app/src/pages/screener/ScreensManager.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/  useScreenAlerts.js→/api/screener/alerts  useScreenAlerts.js→/api/screener/alerts/
+      EXEMPT                       app/src/pages/screener/focus/FocusScreener.jsx
+                                   useScreenerMeta.js→/api/screener/meta  useScreenerScan.js→/api/screener/scan  useScreenerCount.js→/api/screener/count  useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/  useScreenSpec.js→/api/screener/saved-screens  useNewToday.js→/api/screener/membership-diff  useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      EXEMPT                       app/src/pages/screener/focus/FocusStates.jsx
+                                   useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      VIOLATION                    app/src/pages/screener/focus/ResultList.jsx
+                                   useSparks.js→/api/screener/sparks?tickers=
+      EXEMPT                       app/src/pages/screener/focus/ScreenMenu.jsx
+                                   useLazyCounts.js→/api/screener/count  useLazyCounts.js→/api/screener/count/batch
+      routes direct                app/src/pages/screener/options/OptionsScreener.jsx
+                                   /api/options-screener/screen  /api/options-screener/unusual-volume  /api/options-screener/iv-percentile
+      EXEMPT                       app/src/pages/screener/shell/PresetChips.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      EXEMPT                       app/src/pages/screener/shell/ResultCards.jsx
+                                   useScreenSpec.js→/api/screener/saved-screens
+      EXEMPT                       app/src/pages/screener/shell/SaveScanButton.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      routes direct                app/src/pages/screener/shell/ScannerShell.jsx
+                                   useScreenerMeta.js→/api/screener/meta  useScreenerScan.js→/api/screener/scan  useScreenerCount.js→/api/screener/count  useScreenSpec.js→/api/screener/saved-screens
+      routes direct                app/src/pages/terminal/panels/BreakoutPanel.jsx
+                                   /api/screener/scan
+
+  routing 9  ·  exempt 12  ·  violations 4  ·  stale exemptions 0
+
+── EXEMPTIONS BY KIND — the follow-up list ─────────────────────────────
+   not-a-result-set: 9
+      app/src/components/screener/MethodologyPanel.jsx
+         not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count
+      app/src/components/screener/StructureProvenance.jsx
+         not-a-result-set: renders the structure-library catalogue from /api/screener/structures (criteria and their sources), not symbols a screen matched
+      app/src/components/settings/StandingAlertsPanel.jsx
+         not-a-result-set: Settings list of the member's standing spec-alert SUBSCRIPTIONS from /api/screener/spec-alerts (what each watches + a suspend action); it shows no symbols a screen matched
+      app/src/pages/charts/widgets/ListSubscription.jsx
+         not-a-result-set: its /api/screener/saved-screens door lists the member's saved screen DEFINITIONS to pick a list source (COV-10); the subscribed members come from /api/charts/list-sources, not an A9 route
+      app/src/pages/screener/focus/FocusStates.jsx
+         not-a-result-set: the empty state shows, for each remove-one pill, the COUNT that removal would bring back from /api/screener/count/batch; it lists no symbols, and the screen it returns to carries its receipt through DataReceipt.jsx
+      app/src/pages/screener/focus/ScreenMenu.jsx
+         not-a-result-set: the screen picker shows each preset's match COUNT from /api/screener/count[/batch] to help choose a screen; it lists no symbols, and the chosen screen's rows carry their receipt through DataReceipt.jsx
+      app/src/pages/screener/shell/PresetChips.jsx
+         not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results
+      app/src/pages/screener/shell/ResultCards.jsx
+         not-a-result-set: reaches /api/screener/saved-screens only through useScreenSpec's savedScreen= door (build D, 2026-09-30), which loads a saved SPEC to apply, never a result set; the screener's results carry their own CoverageLine
+      app/src/pages/screener/shell/SaveScanButton.jsx
+         not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results
+   no-counts: 0
+   delegates: 3
+      app/src/components/screener/RunNowButton.jsx
+         delegates: hands the finished run to its parent via onResult(toScanResultsPayload(run)); app/src/components/screener/ScanResults.jsx renders that run's four counts
+      app/src/pages/screener/ScreensManager.jsx
+         delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts
+      app/src/pages/screener/focus/FocusScreener.jsx
+         delegates: the Focus layout's scan result carries its four counts into app/src/pages/screener/focus/DataReceipt.jsx (the top bar's data receipt), which renders them through <CoverageLine>
+═══════════════════════════════════════════════════════════════════════
+
+
+ ❯ src/components/provenance/panelAdoption.ratchet.test.js (26 tests | 1 failed) 558ms
+     ✓ ⛔⛔ the transcribed census layer is byte-identical to panelAdoption.measure.test.js 18ms
+     ✓ ⛔ the transcribed resolver reaches through to components/screener/reachable.test.js 23ms
+     ✓ ⛔ the graph walk found a real graph and the population is non-empty 1ms
+     ✓ ⛔⛔ the detector can SEE a planted import, and can tell an absent one 1ms
+     ✓ ⛔ the file-reading predicate and the source predicate are the SAME predicate 131ms
+     ✓ ⛔ a RE-EXPORT SHIM resolves to the primitive it fronts, and the alias set is load-bearing 1ms
+     ✓ ⛔ a KNOWN adopter is in the population AND in the baseline, BY NAME 0ms
+     ✓ ⛔⛔ MUTATION, PERMANENT: strip a real adopter's imports and the ratchet names it 5ms
+     ✓ ⛔ the ratchet verdict can FAIL — table cases, with a discriminator 0ms
+     ✓ ⛔ a missing adopter is DIAGNOSED, not just named — and the branches differ 3ms
+     ✓ ⛔ the committed baseline is byte-exactly what the writer produces 1ms
+     ✓ ⭐⭐ every adopter the baseline records STILL ADOPTS — failing BY NAME 1ms
+     ✓ ⭐ the baseline is CURRENT — a new adopter is banked in the same commit 0ms
+     ✓ prints the population, the frontier, and the labels  315ms
+     ✓ the derivation is not vacuous: a known member BY NAME, and it discriminates 1ms
+     ✓ THE HOOK HOP IS LOAD-BEARING: the screener shell is a surface only through its hooks 16ms
+     ✓ the classifier: a route stem, a template head, a hook, and prose are told apart 1ms
+     ✓ every exemption has a KIND and a one-line reason, and the map is sorted 1ms
+     ✓ a `delegates:` exemption names its delegate, and the delegate RENDERS the line 19ms
+     × every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME 7ms
+     ✓ the exemption list can only SHRINK — an entry outliving its gap fails by name 0ms
+     ✓ PLANTED VIOLATION: a new result surface with no receipt is NAMED 1ms
+     ✓ MUTATION, PERMANENT: strip ScanResults' CoverageLine import and the rail names it 7ms
+     ✓ an IMPORT is not a RENDER, and a NAMED import is not the component 1ms
+     ✓ the verdict can FAIL both ways — table cases, with a discriminator 0ms
+     ✓ prints the derived set, how each routes, and the exemptions by kind 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+AssertionError: Q1 ready after null ms: expected null not to be null
+ ❯ src/components/StockChart.focusWarmStep.test.jsx:188:80
+    186|       }
+    187|       expect(steps.map(x => x.s)).toEqual(syms.slice(1, 9))
+    188|       for (const x of steps) expect(x.at, `${x.s} ready after ${x.at} …
+       |                                                                                ^
+    189|       for (const x of steps) expect(x.at, `${x.s} ready after ${x.at} …
+    190|     } finally { idbh.on = false }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  src/components/provenance/panelAdoption.ratchet.test.js > TERM-047 — CoverageLine on every result surface > every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME
+AssertionError: RESULT SURFACES WITHOUT A COVERAGE RECEIPT. Each of these shows the answer to a screen (an A9 route) and renders no <CoverageLine> — so a screen that silently loses symbols reads as a quiet market. Render <CoverageLine coverage={…}/> from the BACKEND's four counts, or — if the backend returns none, or this is not a result set — add a one-line reason to coverage_line_exempt in app/src/components/provenance/panelAdoption.baseline.json (not-a-result-set: no-counts: delegates:).: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/components/chart/pane/ChartPane.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",
++   "app/src/components/terminal/SecurityHeadline.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",
++   "app/src/pages/Watchlists.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",
++   "app/src/pages/screener/focus/ResultList.jsx   doors: /api/screener/sparks?tickers=",
++ ]
+
+ ❯ src/components/provenance/panelAdoption.ratchet.test.js:1412:8
+    1410|       + `or — if the backend returns none, or this is not a result set…
+    1411|       + `coverage_line_exempt in ${key(BASELINE_FILE)} (${EXEMPT_KINDS…
+    1412|       .toEqual([])
+       |        ^
+    1413|   }, 600000)
+    1414| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  src/lib/presentation/handRolledFormatters.census.test.js > ⭐ HAND-ROLLED FORMATTERS MAY NOT GROW > no file gained a site, and no new file appeared
+AssertionError: NEW hand-rolled formatter file(s) — format through lib/presentation/presentationPrimitives instead:
+  app/src/pages/screener/focus/ScreenerHeatMap.jsx (3 site(s)): expected [ { …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "app/src/pages/screener/focus/ScreenerHeatMap.jsx",
++     "now": 3,
++   },
++ ]
+
+ ❯ src/lib/presentation/handRolledFormatters.census.test.js:376:66
+    374|     expect(v.added, 'NEW hand-rolled formatter file(s) — format throug…
+    375|       + 'lib/presentation/presentationPrimitives instead:\n  '
+    376|       + fmtList(v.added, (r) => `${r.file} (${r.now} site(s))`)).toEqu…
+       |                                                                  ^
+    377|     expect(v.grew, 'these files gained hand-rolled formatter sites:\n …
+    378|       + fmtList(v.grew, (r) => `${r.file}: ${r.was} -> ${r.now}`)).toE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  src/pages/command/keyListenerCensus.test.js > TERM-063 — the census can see (controls) > NON-VACUITY: it walks the whole tree, parses every file, and finds the registry
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/command/keyListenerCensus.test.js:298:5
+    296|   })
+    297| 
+    298|   it('NON-VACUITY: it walks the whole tree, parses every file, and fin…
+       |     ^
+    299|     const { failures, parsed } = census()
+    300|     expect(failures, 'a file the census cannot parse is a file it cann…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet > no file holds MORE raw key listeners than its baseline (new ones go through the registry)
+AssertionError: RAW KEY LISTENER ADDED OUTSIDE THE REGISTRY. Declare the binding in app/src/pages/command/shortcutRegistry.js and bind it with registerShortcuts(). Current census, for reference:
+{
+ "app/src/components/chart/BoardsToolButton.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/builder/editor/CodeEditor.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartContextMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartDrawingOverlay.jsx": {
+  "literal": 2
+ },
+ "app/src/components/chart/ChartSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartThemesModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/EarningsMarkerPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/KeyboardHelpOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/keyboardShortcuts.js": {
+  "literal": 1
+ },
+ "app/src/components/chart/PatternSidePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/SymbolSearch.jsx": {
+  "literal": 1
+ },
+ "app/src/components/IntradayDayPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/intro/IntroAnimation.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/ContextPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/Sheet.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/useFocusTrap.js": {
+  "literal": 1
+ },
+ "app/src/components/research/EarningsResearchModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/research-kit/InfoTip.jsx": {
+  "literal": 1
+ },
+ "app/src/components/StockChart.jsx": {
+  "literal": 2
+ },
+ "app/src/components/TickerPopup.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AgentPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AudioPlayerBar.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/VisionAttachButton.jsx": {
+  "literal": 1
+ },
+ "app/src/lib/todayPackClient.js": {
+  "orphan": 1
+ },
+ "app/src/pages/admin/GoldReview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Admin.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/breadth/BreadthDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViews.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViewsCustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/CustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/drill/BreadthDrillModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/PresetRow.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/CalendarHeader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/DayDetailDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Calendar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/ChartsWorkspace.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/CompareSymbolsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/grid/MultiChartGrid.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/LayoutDock.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/placement/GhostPreview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/popout/PopoutWindow.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/WidgetHeader.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/widgets/BreadthSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/BreadthWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/LeverageInverseControl.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NewsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlUniverseMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ScatterWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/TimeframeMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/community/components/ProfileCard.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/DarkPool.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/ArticleReader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/VideosSection.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/DeleteAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/NewAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddTradeModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/calendar/MiniMonthNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ClosePositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ColumnsPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ConfirmModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/DeleteAllModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/EditPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/GenerateReportModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ImportCsvModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/CaptureHost.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/UnsentTrashDialog.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/AddOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/CloseOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/scope/ScopeBar.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeDetailPage.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeScreenshots.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/TradeDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/blockHandle.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/calloutNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/codeBlockNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/mathNodes.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/tabs/NotebookTab.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/Landing.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/LiveFlowMassive.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/modelbook/SetupsView.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/ModelBook.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/OptionsFlow_admin.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/focus/ScreenerChartGrid.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/screener/shell/ColumnDesc.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/FilterRail.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ScreenerReviewOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Settings.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/ThemeTrackerPage.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/traderArchive/ArchiveThumbs.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/watchlist/WatchlistSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Watchlists.jsx": {
+  "literal": 2
+ }
+}: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/pages/admin/GoldReview.jsx: literal 1 > baseline 0",
++   "app/src/pages/screener/focus/ScreenerChartGrid.jsx: literal 2 > baseline 0",
++   "app/src/pages/traderArchive/ArchiveThumbs.jsx: literal 1 > baseline 0",
++ ]
+
+ ❯ src/pages/command/keyListenerCensus.test.js:324:13
+    322|         + 'app/src/pages/command/shortcutRegistry.js and bind it with …
+    323|         + `Current census, for reference:\n${JSON.stringify(Object.fro…
+    324|       : '').toEqual([])
+       |             ^
+    325|   })
+    326| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+ FAIL  src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet > the baseline sits at or under the stated CEILING, and the CEILING is tight
+AssertionError: expected 115 to be 111 // Object.is equality
+
+- Expected
++ Received
+
+- 111
++ 115
+
+ ❯ src/pages/command/keyListenerCensus.test.js:343:34
+    341|       s + (r.literal || 0) + (r.onprop || 0) + (r.orphan || 0), 0)
+    342|     expect(sum).toBeLessThanOrEqual(CEILING)
+    343|     expect(total(census().rows)).toBe(CEILING)
+       |                                  ^
+    344|   })
+    345| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/14]⎯
+
+ FAIL  src/pages/terminal/themeColours.rail.test.js > terminal theme rail — hardcoded colours > ⛔ no terminal-mounted file gains a hardcoded colour (fix it with a token, not the ledger)
+AssertionError: hardcoded colours in terminal-mounted code:
+pages/charts/CompareSymbolsPanel.module.css: 1 colour literal(s), ledger allows 0
+    pages/charts/CompareSymbolsPanel.module.css:243  rgba(2
+pages/charts/grid/GridChartCell.jsx: 14 colour literal(s), ledger allows 0
+    pages/charts/grid/GridChartCell.jsx:91  #55606e
+    pages/charts/grid/GridChartCell.jsx:91  #9b9684
+    pages/charts/grid/GridChartCell.jsx:92  #0a5c22
+    pages/charts/grid/GridChartCell.jsx:92  #22c45c
+    pages/charts/grid/GridChartCell.jsx:93  #0a5c22
+    pages/charts/grid/GridChartCell.jsx:93  #7fb26a
+    pages/charts/grid/GridChartCell.jsx:94  #7a5c16
+    pages/charts/grid/GridChartCell.jsx:94  #c9a84c
+    pages/charts/grid/GridChartCell.jsx:95  #7d1620
+    pages/charts/grid/GridChartCell.jsx:95  #c07a63
+    pages/charts/grid/GridChartCell.jsx:330  #c9a84c
+    pages/charts/grid/GridChartCell.jsx:334  #6ba3be
+    pages/charts/grid/GridChartCell.jsx:349  #22c55e
+    pages/charts/grid/GridChartCell.jsx:349  #f87171
+pages/charts/grid/GroupHeatHeader.jsx: 2 colour literal(s), ledger allows 0
+    pages/charts/grid/GroupHeatHeader.jsx:29  #22c55e
+    pages/charts/grid/GroupHeatHeader.jsx:29  #f87171
+pages/charts/grid/MultiChartGrid.module.css: 2 colour literal(s), ledger allows 0
+    pages/charts/grid/MultiChartGrid.module.css:72  rgba(2
+    pages/charts/grid/MultiChartGrid.module.css:111  rgba(2
+pages/charts/mobile/MobileCharts.module.css: 10 colour literal(s), ledger allows 0
+    pages/charts/mobile/MobileCharts.module.css:489  #fff
+    pages/charts/mobile/MobileCharts.module.css:808  #14161c
+    pages/charts/mobile/MobileCharts.module.css:841  rgba(2
+    pages/charts/mobile/MobileCharts.module.css:1177  rgba(2
+    pages/charts/mobile/MobileCharts.module.css:1179  rgba(8
+    pages/charts/mobile/MobileCharts.module.css:1179  #7ab7ff
+    pages/charts/mobile/MobileCharts.module.css:1180  rgba(1
+    pages/charts/mobile/MobileCharts.module.css:1180  #c39bff
+    pages/charts/mobile/MobileCharts.module.css:1183  rgba(2
+    pages/charts/mobile/MobileCharts.module.css:1183  #ff8b8b
+pages/charts/mobile/MobileIndicatorSheet.jsx: 8 colour literal(s), ledger allows 0
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #7b68ee
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #38bdf8
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #f472b6
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #c9a84c
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #4ade80
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #f87171
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #e0dac8
+    pages/charts/mobile/MobileIndicatorSheet.jsx:15  #fb923c
+pages/charts/widgets/ChartDayGain.jsx: 4 colour literal(s), ledger allows 0
+    pages/charts/widgets/ChartDayGain.jsx:26  #0a5c22
+    pages/charts/widgets/ChartDayGain.jsx:26  #1ae51a
+    pages/charts/widgets/ChartDayGain.jsx:27  #7d1620
+    pages/charts/widgets/ChartDayGain.jsx:27  #ff3b47
+utils/traderArchive.js: 3 colour literal(s), ledger allows 0
+    utils/traderArchive.js:48  #c9a84c
+    utils/traderArchive.js:49  #60a5fa
+    utils/traderArchive.js:50  #f87171
+Use a token (var(--…) / color-mix(…)) or, on a canvas, lib/theme useThemeInk.: expected [ …(8) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "pages/charts/CompareSymbolsPanel.module.css: 1 colour literal(s), ledger allows 0
++     pages/charts/CompareSymbolsPanel.module.css:243  rgba(2",
++   "pages/charts/grid/GridChartCell.jsx: 14 colour literal(s), ledger allows 0
++     pages/charts/grid/GridChartCell.jsx:91  #55606e
++     pages/charts/grid/GridChartCell.jsx:91  #9b9684
++     pages/charts/grid/GridChartCell.jsx:92  #0a5c22
++     pages/charts/grid/GridChartCell.jsx:92  #22c45c
++     pages/charts/grid/GridChartCell.jsx:93  #0a5c22
++     pages/charts/grid/GridChartCell.jsx:93  #7fb26a
++     pages/charts/grid/GridChartCell.jsx:94  #7a5c16
++     pages/charts/grid/GridChartCell.jsx:94  #c9a84c
++     pages/charts/grid/GridChartCell.jsx:95  #7d1620
++     pages/charts/grid/GridChartCell.jsx:95  #c07a63
++     pages/charts/grid/GridChartCell.jsx:330  #c9a84c
++     pages/charts/grid/GridChartCell.jsx:334  #6ba3be
++     pages/charts/grid/GridChartCell.jsx:349  #22c55e
++     pages/charts/grid/GridChartCell.jsx:349  #f87171",
++   "pages/charts/grid/GroupHeatHeader.jsx: 2 colour literal(s), ledger allows 0
++     pages/charts/grid/GroupHeatHeader.jsx:29  #22c55e
++     pages/charts/grid/GroupHeatHeader.jsx:29  #f87171",
++   "pages/charts/grid/MultiChartGrid.module.css: 2 colour literal(s), ledger allows 0
++     pages/charts/grid/MultiChartGrid.module.css:72  rgba(2
++     pages/charts/grid/MultiChartGrid.module.css:111  rgba(2",
++   "pages/charts/mobile/MobileCharts.module.css: 10 colour literal(s), ledger allows 0
++     pages/charts/mobile/MobileCharts.module.css:489  #fff
++     pages/charts/mobile/MobileCharts.module.css:808  #14161c
++     pages/charts/mobile/MobileCharts.module.css:841  rgba(2
++     pages/charts/mobile/MobileCharts.module.css:1177  rgba(2
++     pages/charts/mobile/MobileCharts.module.css:1179  rgba(8
++     pages/charts/mobile/MobileCharts.module.css:1179  #7ab7ff
++     pages/charts/mobile/MobileCharts.module.css:1180  rgba(1
++     pages/charts/mobile/MobileCharts.module.css:1180  #c39bff
++     pages/charts/mobile/MobileCharts.module.css:1183  rgba(2
++     pages/charts/mobile/MobileCharts.module.css:1183  #ff8b8b",
++   "pages/charts/mobile/MobileIndicatorSheet.jsx: 8 colour literal(s), ledger allows 0
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #7b68ee
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #38bdf8
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #f472b6
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #c9a84c
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #4ade80
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #f87171
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #e0dac8
++     pages/charts/mobile/MobileIndicatorSheet.jsx:15  #fb923c",
++   "pages/charts/widgets/ChartDayGain.jsx: 4 colour literal(s), ledger allows 0
++     pages/charts/widgets/ChartDayGain.jsx:26  #0a5c22
++     pages/charts/widgets/ChartDayGain.jsx:26  #1ae51a
++     pages/charts/widgets/ChartDayGain.jsx:27  #7d1620
++     pages/charts/widgets/ChartDayGain.jsx:27  #ff3b47",
++   "utils/traderArchive.js: 3 colour literal(s), ledger allows 0
++     utils/traderArchive.js:48  #c9a84c
++     utils/traderArchive.js:49  #60a5fa
++     utils/traderArchive.js:50  #f87171",
++ ]
+
+ ❯ src/pages/terminal/themeColours.rail.test.js:122:90
+    120|     })
+    121|     expect(detail, `hardcoded colours in terminal-mounted code:\n${det…
+    122|       + 'Use a token (var(--…) / color-mix(…)) or, on a canvas, lib/th…
+       |                                                                                          ^
+    123|   })
+    124| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/14]⎯
+
+ FAIL  src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme > no var(--loss)/var(--gain) as text colour in any reachable stylesheet
+AssertionError: chart-candle hue used as TEXT — use var(--danger-ink) / var(--success-ink):
+pages/charts/mobile/MobileBoardsSheet.module.css:91 .danger [color]
+pages/charts/mobile/MobileCharts.module.css:167 .chgUp [color]
+pages/charts/mobile/MobileCharts.module.css:168 .chgDown [color]
+pages/charts/mobile/MobileCharts.module.css:644 .alertBtnUp [color]
+pages/charts/mobile/MobileCharts.module.css:650 .alertBtnDown [color]
+pages/charts/mobile/MobileCharts.module.css:657 .alertOk [color]
+pages/charts/mobile/MobileCharts.module.css:658 .alertErr [color]
+pages/charts/mobile/MobileCharts.module.css:788 0%, 40% [color]
+pages/charts/mobile/MobileCharts.module.css:789 0%, 40% [color]
+pages/charts/mobile/MobileCharts.module.css:1023 .removeRow .rowLabel [color]
+pages/charts/mobile/MobileCharts.module.css:1051 .layoutDel:active [color]
+pages/charts/mobile/MobileCharts.module.css:1089 .layoutConfirmYes [color]
+pages/charts/mobile/MobileCharts.module.css:1144 .layoutErr [color]: expected [ …(13) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "pages/charts/mobile/MobileBoardsSheet.module.css:91 .danger [color]",
++   "pages/charts/mobile/MobileCharts.module.css:167 .chgUp [color]",
++   "pages/charts/mobile/MobileCharts.module.css:168 .chgDown [color]",
++   "pages/charts/mobile/MobileCharts.module.css:644 .alertBtnUp [color]",
++   "pages/charts/mobile/MobileCharts.module.css:650 .alertBtnDown [color]",
++   "pages/charts/mobile/MobileCharts.module.css:657 .alertOk [color]",
++   "pages/charts/mobile/MobileCharts.module.css:658 .alertErr [color]",
++   "pages/charts/mobile/MobileCharts.module.css:788 0%, 40% [color]",
++   "pages/charts/mobile/MobileCharts.module.css:789 0%, 40% [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1023 .removeRow .rowLabel [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1051 .layoutDel:active [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1089 .layoutConfirmYes [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1144 .layoutErr [color]",
++ ]
+
+ ❯ src/pages/terminal/a11y/terminalReachableContrast.test.js:53:117
+     51|     const hits = FILES.flatMap((f) => lossGainTextUses(f))
+     52|       .map((h) => `${h.file}:${h.line} ${h.selector} [${h.prop}]`)
+     53|     expect(hits, `chart-candle hue used as TEXT — use var(--danger-ink…
+       |                                                                                                                     ^
+     54|   })
+     55| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/14]⎯
+
+ FAIL  src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme > no inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses
+AssertionError: a new inline --loss/--gain beside color/fill: if it is text use --danger-ink/--success-ink; if it is a fill/border/series, declare it in JS_NOT_TEXT with its reason: expected { 'components/Sparkline.jsx': 1, …(4) } to deeply equal { …(4) }
+
+- Expected
++ Received
+
+  {
++   "components/Sparkline.jsx": 1,
+    "components/TickerPopup.jsx": 1,
+    "components/calendar/CallRecapSection.jsx": 2,
+    "components/tiles/MARelationship.jsx": 1,
+    "pages/optionsAnalytics/VolSkewPanels.jsx": 1,
+  }
+
+ ❯ src/pages/terminal/a11y/terminalReachableContrast.test.js:63:185
+     61|     }
+     62|     const want = Object.fromEntries(Object.entries(JS_NOT_TEXT).map(([…
+     63|     expect(got, 'a new inline --loss/--gain beside color/fill: if it i…
+       |                                                                                                                                                                                         ^
+     64|   })
+     65| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/14]⎯
+
+ FAIL  src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme > every other failing text rule is in the shrink-only baseline, file by file
+AssertionError: NEW text under WCAG AA — fix it in a TOKEN, not per theme:
+pages/charts/CompareSymbolsPanel.module.css: 2 > 0
+  .rm:hover [color] uct:coolgray on own 4.28 < 4.5
+  .hideBaseBox [color] dark on --bg 1.00 < 4.5
+pages/charts/mobile/MobileBoardsSheet.module.css: 1 > 0
+  .danger [color] uct:nord on --bg-hover 3.18 < 4.5
+pages/charts/mobile/MobileCharts.module.css: 17 > 0
+  .chgUp [color] uct:sand on --bg-hover 4.19 < 4.5
+  .chgDown [color] uct:nord on --bg-hover 3.18 < 4.5
+  .alertBtnUp [color] uct:sand on own 4.37 < 4.5
+  .alertBtnDown [color] uct:nord on own 4.04 < 4.5
+  .alertOk [color] uct:sand on --bg-hover 4.19 < 4.5
+  .alertErr [color] uct:nord on --bg-hover 3.18 < 4.5
+  0%, 40% [color] uct:sand on --bg-hover 4.19 < 4.5
+  0%, 40% [color] uct:nord on --bg-hover 3.18 < 4.5
+  .tbBadge [color] light on own 2.90 < 4.5
+  .removeRow .rowLabel [color] uct:nord on --bg-hover 3.18 < 4.5
+  .layoutDel:active [color] uct:nord on --bg-hover 3.18 < 4.5
+  .layoutConfirmYes [color] uct:nord on --bg-hover 3.18 < 4.5
+  .layoutErr [color] uct:nord on --bg-hover 3.18 < 4.5
+  .symBadge_etf [color] uct:sand on own 1.70 < 4.5
+  .symBadge_index [color] uct:sand on own 1.82 < 4.5
+  .symBadge_breadth [color] uct:sand on own 4.49 < 4.5
+  .symBadge_delisted [color] uct:sand on own 1.77 < 4.5
+pages/charts/review/ReviewNavControl.module.css: 1 > 0
+  .btn:disabled [color] uct:sand on --bg-hover 1.86 < 4.5: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "pages/charts/CompareSymbolsPanel.module.css: 2 > 0
++   .rm:hover [color] uct:coolgray on own 4.28 < 4.5
++   .hideBaseBox [color] dark on --bg 1.00 < 4.5",
++   "pages/charts/mobile/MobileBoardsSheet.module.css: 1 > 0
++   .danger [color] uct:nord on --bg-hover 3.18 < 4.5",
++   "pages/charts/mobile/MobileCharts.module.css: 17 > 0
++   .chgUp [color] uct:sand on --bg-hover 4.19 < 4.5
++   .chgDown [color] uct:nord on --bg-hover 3.18 < 4.5
++   .alertBtnUp [color] uct:sand on own 4.37 < 4.5
++   .alertBtnDown [color] uct:nord on own 4.04 < 4.5
++   .alertOk [color] uct:sand on --bg-hover 4.19 < 4.5
++   .alertErr [color] uct:nord on --bg-hover 3.18 < 4.5
++   0%, 40% [color] uct:sand on --bg-hover 4.19 < 4.5
++   0%, 40% [color] uct:nord on --bg-hover 3.18 < 4.5
++   .tbBadge [color] light on own 2.90 < 4.5
++   .removeRow .rowLabel [color] uct:nord on --bg-hover 3.18 < 4.5
++   .layoutDel:active [color] uct:nord on --bg-hover 3.18 < 4.5
++   .layoutConfirmYes [color] uct:nord on --bg-hover 3.18 < 4.5
++   .layoutErr [color] uct:nord on --bg-hover 3.18 < 4.5
++   .symBadge_etf [color] uct:sand on own 1.70 < 4.5
++   .symBadge_index [color] uct:sand on own 1.82 < 4.5
++   .symBadge_breadth [color] uct:sand on own 4.49 < 4.5
++   .symBadge_delisted [color] uct:sand on own 1.77 < 4.5",
++   "pages/charts/review/ReviewNavControl.module.css: 1 > 0
++   .btn:disabled [color] uct:sand on --bg-hover 1.86 < 4.5",
++ ]
+
+ ❯ src/pages/terminal/a11y/terminalReachableContrast.test.js:71:100
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/14]⎯
+
+ FAIL  src/components/chart/engine/__tests__/enumerationSites.test.js > the enumeration ledger — the count is a test, not a comment > names every shipped Python module that hand-lists four or more indicators
+AssertionError: a PYTHON module hand-lists four or more indicators and is not on the ledger. Either it is a new enumeration site (add it, and raise SITE_COUNT), or it reads the registry and the scan is over-matching (say which, in the ledger).: expected [ 'api/services/screener/filters.py' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "api/services/screener/filters.py",
++ ]
+
+ ❯ src/components/chart/engine/__tests__/enumerationSites.test.js:2336:7
+    2334|       'Either it is a new enumeration site (add it, and raise SITE_COU…
+    2335|       'the registry and the scan is over-matching (say which, in the l…
+    2336|     ).toEqual([])
+       |       ^
+    2337| 
+    2338|     // ⛔⭐⭐ PHASE D TASK 15 — THE WHOLE-SET PIN, ADDED BECAUSE THE LEDG…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/14]⎯
+
+ FAIL  src/components/chart/engine/__tests__/lwcHazards.test.js > H1 — createPriceLine must always name lineStyle > ⛔ every call site that passes an object literal names lineStyle
+AssertionError: expected [ 'components\StockChart.jsx:3338' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components\\StockChart.jsx:3338",
++ ]
+
+ ❯ src/components/chart/engine/__tests__/lwcHazards.test.js:96:57
+     94|     const literals = sites.filter((s) => s.args.includes(':'))
+     95|     const offenders = literals.filter((s) => !s.namesLineStyle)
+     96|     expect(offenders.map((o) => `${o.file}:${o.line}`)).toEqual([])
+       |                                                         ^
+     97|     expect(literals.length).toBeGreaterThan(0)     // the filter must …
+     98|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/14]⎯
+
+ FAIL  src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js > the list's SWR cache stays in memory > App.jsx and the Focus chart pane are the only production <SWRConfig>s
+AssertionError: expected [ 'App.jsx' ] to deeply equal [ 'App.jsx', …(1) ]
+
+- Expected
++ Received
+
+  [
+    "App.jsx",
+-   "pages/screener/focus/ChartPane.jsx",
+  ]
+
+ ❯ src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js:159:83
+    157| 
+    158|   it('App.jsx and the Focus chart pane are the only production <SWRCon…
+    159|     expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/…
+       |                                                                                   ^
+    160|   })
+    161| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/14]⎯
+
+ FAIL  src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js > the list's SWR cache stays in memory > pages/screener/focus/ChartPane.jsx passes no provider, so the cache is a Map that dies with the tab
+AssertionError: expected 0 to be greater than 0
+ ❯ src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js:164:27
+    162|   it.each(PRODUCTION_MOUNTS)('%s passes no provider, so the cache is a…
+    163|     const mounts = swrConfigMounts(readFileSync(join(SRC_ROOT, file), …
+    164|     expect(mounts.length).toBeGreaterThan(0)
+       |                           ^
+    165|     for (const m of mounts) {
+    166|       expect(m.resolved).toBe(true)            // an unresolvable valu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/14]⎯
+
+
+ Test Files  9 failed | 1 passed (10)
+      Tests  14 failed | 138 passed (152)
+   Start at  00:09:54
+   Duration  53.14s (transform 12.33s, setup 2.15s, import 37.48s, tests 41.63s, environment 4.77s)
+
