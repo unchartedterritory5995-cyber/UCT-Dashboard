@@ -1,0 +1,448 @@
+{
+ "tool": "tools/notebook_example_notes_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "author writes a trade plan note: $1,240 at Schwab, a sizing block with an account size, one pasted image",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"fe37c701922c48b99e50a542836c8d24\",\"name\":\"P3b walk 1280 115917\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":"
+    },
+    {
+     "what": "a note was made from the style (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"0657d286637f488b840437c9d4a27576\",\"userId\":\"d6f4e778-04c0-4c5a-801e-b12331154042\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan desk bbfjbh\",\"subtitle\":null,\"bodyJson\":{\"type\":\"d"
+    },
+    {
+     "what": "the note is a trade plan (its kind, as stamped)",
+     "ok": true,
+     "read": "builtin:note_kind=trade_plan"
+    },
+    {
+     "what": "the style put a position sizing block in the note",
+     "ok": true,
+     "read": "[\"widgetEmbed\", \"paragraph\"]"
+    },
+    {
+     "what": "the pasted image was uploaded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"url\":\"/api/j2/notes/attachments/d6f4e778-04c0-4c5a-801e-b12331154042/0657d286637f488b840437c9d4a27576/inline/fe97a0d60f7629577477999f1b7359cd.png\",\"width\":96,\"height\":64}"
+    },
+    {
+     "what": "the note was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"0657d286637f488b840437c9d4a27576\",\"userId\":\"d6f4e778-04c0-4c5a-801e-b12331154042\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan desk bbfjbh\",\"subtitle\":null,\"bodyJson\":{\"type\":\"d"
+    },
+    {
+     "what": "the editor shows \"made $1,240 at Schwab\"",
+     "ok": true,
+     "read": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull"
+    },
+    {
+     "what": "the pasted image shows in the editor",
+     "ok": true,
+     "read": "/api/j2/notes/attachments/d6f4e778-04c0-4c5a-801e-b12331154042/0657d286637f488b840437c9d4a27576/inline/fe97a0d60f7629577477999f1b7359cd.png"
+    },
+    {
+     "what": "the position sizing block holds the account size (the note read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\", \"regimeId\": \"amber\", \"regimeAsOf\": \"2026-01-02\", \"accountSize\": 25000}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the note in the editor",
+     "text": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull width\nAdd caption"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "author shares the style (P3a flow) and adds the note as an example",
+   "checks": [
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the Styles manager says the style was shared",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the Share form offers \"Add an example note\"",
+     "ok": true,
+     "read": "Add an example note"
+    },
+    {
+     "what": "the picker lists the trade plan note",
+     "ok": true,
+     "read": "Trade plan desk bbfjbh, Oct 18, 2026"
+    },
+    {
+     "what": "the preview sheet opened for the note",
+     "ok": true,
+     "read": "Preview your example"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "door",
+     "text": "Add an example note"
+    },
+    {
+     "what": "picker row",
+     "text": "Trade plan desk bbfjbh\nOct 18, 2026"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "the preview: the counts sentence, the replaced spans, the image off",
+   "checks": [
+    {
+     "what": "the counts sentence names the amount",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the broker name",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the reset block",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence says the image was left out",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the amount reads \"your value here\", marked as money",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the broker reads \"your broker\", marked as broker",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the author's amount and broker are not in the body",
+     "ok": true,
+     "read": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the body shows no image while it is off",
+     "ok": true,
+     "read": "0 img"
+    },
+    {
+     "what": "the image's switch is off",
+     "ok": true,
+     "read": "aria-checked=false"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "counts sentence",
+     "text": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "replaced spans",
+     "text": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the body members will see",
+     "text": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "image row",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe found no text in this image.\nShare this image"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "author switches the image on through the second confirm, and submits",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Preview your example\").locator(\"[data-example-image=\\\"/api/j2/notes/attachments/d6f4e778-04c0-4c5a-801e-b12331154042/0657d286637f488b840437c9d4a27576/inline/fe97a0d60f7629577477999f1b7359cd.png\\\"]\").get_by_role(\"group\", name=\"This image may show an account detail. Share it anyway?\") to be visible\n",
+   "traceback": "Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Preview your example\").locator(\"[data-example-image=\\\"/api/j2/notes/attachments/d6f4e778-04c0-4c5a-801e-b12331154042/0657d286637f488b840437c9d4a27576/inline/fe97a0d60f7629577477999f1b7359cd.png\\\"]\").get_by_role(\"group\", name=\"This image may show an account detail. Share it anyway?\") to be visible\n\n",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Author\nPRO\nSettings\nSupport\nWebsite\nNew in your Notebook: Writing help\n\nA short walkthrough shows where it is and how to use it. You can always find it again under Help.\n\nTake the tour\nNot now\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nRECENTS\nTrade plan desk bbfjbh\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nNew note\nLearn\nRECENT NOTES\nAll notes\nTrade plan desk bbfjbh\ntoday\nACTIVE SETUPS · NONE OPEN\nOpen the setups board\nYour open chart plans, closest to their entry first\nAsk\nOr tell Notebook what to change\nREPORTING SOON\nNone of your names in the next 7 days\nPASSED SETUPS\nNone saved yet\nREVIEWS THAT WRITE THEMSELVES\nDaily, weekly and monthly\nReviews that write themselves\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 3 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nToday\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3b walk 1280 115917\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\nche",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "admin approves it (the style and the example) in the review queue",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "KeyError: 'exid'",
+   "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\tools\\notebook_example_notes_walk.py\", line 165, in run_step\n    fn(st)\n    ~~^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\tools\\notebook_example_notes_walk.py\", line 489, in s5\n    erow = lib.locator(f'[data-gallery-pending=\"{S[\"exid\"]}\"]')\n                                                 ~^^^^^^^^\nKeyError: 'exid'\n",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Author\nPRO\nSettings\nSupport\nWebsite\nNew in your Notebook: Writing help\n\nA short walkthrough shows where it is and how to use it. You can always find it again under Help.\n\nTake the tour\nNot now\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nRECENTS\nTrade plan desk bbfjbh\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nNew note\nLearn\nRECENT NOTES\nAll notes\nTrade plan desk bbfjbh\ntoday\nACTIVE SETUPS · NONE OPEN\nOpen the setups board\nYour open chart plans, closest to their entry first\nAsk\nOr tell Notebook what to change\nREPORTING SOON\nNone of your names in the next 7 days\nPASSED SETUPS\nNone saved yet\nREVIEWS THAT WRITE THEMSELVES\nDaily, weekly and monthly\nReviews that write themselves\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 3 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nToday\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3b walk 1280 115917\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\nche",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\n?\n◉",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "second member opens the style: In use shows \"your value here\" and \"your broker\", the image loads",
+   "checks": [],
+   "rendered": [],
+   "verdict": "INCONCLUSIVE",
+   "error": "TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Community styles\").locator(\"[data-library-style][data-gallery-id=\\\"79c9ff902f3b4059b9376b6682ba349d\\\"]\") to be visible\n",
+   "traceback": "_sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Community styles\").locator(\"[data-library-style][data-gallery-id=\\\"79c9ff902f3b4059b9376b6682ba349d\\\"]\") to be visible\n\n",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Author\nPRO\nSettings\nSupport\nWebsite\nNew in your Notebook: Writing help\n\nA short walkthrough shows where it is and how to use it. You can always find it again under Help.\n\nTake the tour\nNot now\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nRECENTS\nTrade plan desk bbfjbh\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nNew note\nLearn\nRECENT NOTES\nAll notes\nTrade plan desk bbfjbh\ntoday\nACTIVE SETUPS · NONE OPEN\nOpen the setups board\nYour open chart plans, closest to their entry first\nAsk\nOr tell Notebook what to change\nREPORTING SOON\nNone of your names in the next 7 days\nPASSED SETUPS\nNone saved yet\nREVIEWS THAT WRITE THEMSELVES\nDaily, weekly and monthly\nReviews that write themselves\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 3 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nToday\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3b walk 1280 115917\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\nche",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPic",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "author withdraws the style; the image URL answers 404",
+   "checks": [
+    {
+     "what": "there is an example whose image answered 200 before the withdraw",
+     "ok": false,
+     "read": "exid=None image_ok=None"
+    }
+   ],
+   "rendered": [],
+   "verdict": "FAIL",
+   "error": "AssertionError: stopped: there is an example whose image answered 200 before the withdraw",
+   "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\tools\\notebook_example_notes_walk.py\", line 165, in run_step\n    fn(st)\n    ~~^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\tools\\notebook_example_notes_walk.py\", line 565, in s7\n    st.must(\"there is an example whose image answered 200 before the withdraw\", bool(S.get(\"exid\"))\n    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n            and S.get(\"image_ok\") is True, f\"exid={S.get('exid')} image_ok={S.get('image_ok')}\")\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\tools\\notebook_example_notes_walk.py\", line 159, in must\n    raise AssertionError(f\"stopped: {what}\")\nAssertionError: stopped: there is an example whose image answered 200 before the withdraw\n",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   },
+   "page_text": {
+    "author": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Author\nPRO\nSettings\nSupport\nWebsite\nNew in your Notebook: Writing help\n\nA short walkthrough shows where it is and how to use it. You can always find it again under Help.\n\nTake the tour\nNot now\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nRECENTS\nTrade plan desk bbfjbh\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nNew note\nLearn\nRECENT NOTES\nAll notes\nTrade plan desk bbfjbh\ntoday\nACTIVE SETUPS · NONE OPEN\nOpen the setups board\nYour open chart plans, closest to their entry first\nAsk\nOr tell Notebook what to change\nREPORTING SOON\nNone of your names in the next 7 days\nPASSED SETUPS\nNone saved yet\nREVIEWS THAT WRITE THEMSELVES\nDaily, weekly and monthly\nReviews that write themselves\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 3 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nToday\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nP3b walk 1280 115917\nv1\nEdit\nDuplicate\nShare to community\nSet as default\nDelete\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\nche",
+    "member": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nP3b Member\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmark\nAdd kind\n\nPic",
+    "admin": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nCommunity\nhubtest\nADMIN\nAdmin\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nResearch home\nWelcome to your Notebook\nLearn\n\nYour research lives here: theses, company notes and everything tied to your trades.\n\nStart a note\nAdd a sample notebook\nImport notes\n\nOr\ncreate a thesis\n·\nopen today's note\n\nSee what it can do\nGET STARTED\n0 of 4 done\nHide\nWrite your first note\nStart a note from a template\nOpen the sample notebook\nTake the Notebook basics tour\nJournal styles\n×\n\nA style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.\n\n New style\nCommunity\nTRADE PLAN\nTrade plan\nDefault\nv2\nDuplicate to edit\nDAILY PREP\nDaily prep\nDefault\nv2\nDuplicate to edit\nWEEKEND PREP\nWeekend prep\nDefault\nv1\nDuplicate to edit\nEARNINGS\nEarnings\nDefault\nv1\nDuplicate to edit\nEARNINGS FOLLOW-UP\nEarnings follow-up\nDefault\nv1\nDuplicate to edit\nPOST-TRADE REVIEW\nPost-trade review\nDefault\nv2\nDuplicate to edit\nWEEKLY REVIEW\nWeekly review\nDefault\nv1\nDuplicate to edit\nTHESIS\nThesis\nDefault\nv1\nDuplicate to edit\nWATCHLIST NOTE\nWatchlist note\nDefault\nv1\nDuplicate to edit\nYOUR KINDS OF NOTE\n\nYou have no kinds of your own yet. Add one below.\n\nNew kind name\nIcon\nind-trend\nind-oscillator\nind-momentum\nind-band\nind-volume\nind-breadth\nind-fundamental\nind-security\nind-formula\nind-series\ndashboard\nwire\nstar\nstar-fill\nbreadth\nmarkets\nmore\nchart\ncalendar\nscreener\npatterns\nflow\nmoon\nsun\nbook\nsave\nlibrary\njournal\ncommunity\npin\nflame\neducation\ndesk\nchat\nshield\ngear\nsliders\nglobe\nbell\nflag\ncheck\nx\nexpand\ncollapse\nlink\nmic\nlock\nunlock\nedit\nvolume\nmenu\ndownload\nupload\nclock\nwarning\ninfo\nsparkle\nsearch\nplus\nchevronDown\nchevronUp\nchevronRight\nchevronLeft\ncompass\nrefresh\neye\neyeOff\ntrash\nequity\npaperclip\nquote\nrocket\ndollar\ndocument\nuser\npill\nscale\nthumbsUp\nthumbsDown\nwave\nfactory\ncopy\npopOut\ncamera\nmagnet\nplay\npause\nskipBack\nskipForward\nbolt\nvolumeOff\ntag\nruler\nwrench\nnoEntry\ncolumns\nrows\nboard\ngraph\nmicrosoft\nonenote\nonedrive\nmoveStop\nearnings\nxWordmar"
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P3b Author",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "P3b Member",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin",
+   "paid_equiv": true
+  }
+ ],
+ "deliberately_broken": null,
+ "tip": "fc2453c8b0",
+ "tool_tree": "fc2453c8b08a578c897520c829f6c56d2bd789ce",
+ "base": "http://127.0.0.1:8091",
+ "data_dir": "C:\\data-p3bwalk2",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "started": "2026-10-18T11:58:37+00:00",
+ "status": "COMPLETE",
+ "sandbox_pid": 61544,
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8091 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T06-58-39.md (identity 162df9ea8e78..., data dir C:\\data-p3bwalk2)"
+ },
+ "stories": {
+  "1280": {
+   "style_name": "P3b walk 1280 115917",
+   "note_title": "Trade plan desk bbfjbh",
+   "style_id": "fe37c701922c48b99e50a542836c8d24",
+   "note_id": "0657d286637f488b840437c9d4a27576",
+   "attachment_url": "/api/j2/notes/attachments/d6f4e778-04c0-4c5a-801e-b12331154042/0657d286637f488b840437c9d4a27576/inline/fe97a0d60f7629577477999f1b7359cd.png",
+   "gid": "79c9ff902f3b4059b9376b6682ba349d"
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p3b-walk-20261018T115836Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 06:58:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 06:59:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 07:01:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 07:01:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p3b-walk-20261018T115836Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 3,
+  "FAIL": 1,
+  "INCONCLUSIVE": 3
+ },
+ "port_free_after": true,
+ "finished": "2026-10-18T12:01:45+00:00"
+}

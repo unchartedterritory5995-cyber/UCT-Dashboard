@@ -304,7 +304,7 @@ def test_rejecting_a_revision_keeps_the_listed_version(conn, lib_on):
     gallery.publish_style("author", s["id"], title="V2", description="", category="journal",
                           trading_style=None, conn=conn)
     rev = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
-    gallery.admin_act("admin", item["id"], "reject", note="Too thin", conn=conn)
+    gallery.admin_act("admin", item["id"], "reject", note="Too thin", reviewed_updated_at=rev["updatedAt"], conn=conn)
     listed = gallery.get_item("viewer", item["id"], conn=conn)
     assert listed["title"] == "V1" and listed["version"] == 1
     mine = gallery.get_item("author", item["id"], conn=conn)
@@ -319,7 +319,8 @@ def test_rejecting_a_first_submission_still_unlists_it(conn, lib_on):
     # A row WITHOUT a revision keeps today's reject (status rejected, off the list).
     s = _style(conn)
     item = _publish(conn, s["id"])
-    gallery.admin_act("admin", item["id"], "reject", note="Needs a title", conn=conn)
+    gallery.admin_act("admin", item["id"], "reject", note="Needs a title", reviewed_updated_at=item["updatedAt"],
+                      conn=conn)
     assert conn.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == "rejected"
 
 
@@ -468,7 +469,8 @@ def test_a_held_revision_and_a_review_note_are_invisible_to_a_browsing_member(co
                  next(r for r in gallery.list_gallery("admin", is_admin=True, conn=conn) if r["id"] == gid)):
         assert view["hasRevision"] is True and "revisionTitle" in view
     # the review note: the author and an admin read it, a browsing member does not
-    gallery.admin_act("admin", gid, "reject", note="Too thin", conn=conn)
+    gallery.admin_act("admin", gid, "reject", note="Too thin", conn=conn,
+                      reviewed_updated_at=conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0])
     assert gallery.get_item("author", gid, conn=conn)["reviewNote"] == "Too thin"
     assert gallery.get_item("admin", gid, is_admin=True, conn=conn)["reviewNote"] == "Too thin"
     assert "reviewNote" not in gallery.get_item("viewer", gid, conn=conn)
@@ -514,9 +516,9 @@ def test_admin_act_on_a_style_row_is_the_one_not_found_while_the_library_is_off(
     before = tuple(status(style))
     for action, kw in (("approve", {}), ("reject", {"note": "no"}), ("hide", {}), ("unhide", {}),
                        ("feature", {}), ("unfeature", {})):
-        if action == "approve":
-            kw = {"reviewed_updated_at": conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
-                                                      (style,)).fetchone()[0]}
+        if action in ("approve", "reject"):
+            kw = {**kw, "reviewed_updated_at": conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
+                                                            (style,)).fetchone()[0]}
         assert gallery.admin_act("admin", style, action, conn=conn, **kw) is None, action
     assert tuple(status(style)) == before                                    # nothing was written
     # an outline row still acts

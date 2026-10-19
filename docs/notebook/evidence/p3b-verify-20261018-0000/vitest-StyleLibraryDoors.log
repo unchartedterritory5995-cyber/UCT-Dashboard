@@ -1,0 +1,25 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p3b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/styles/StyleLibraryDoors.test.jsx [2m([22m[2m31 tests[22m[2m)[22m[33m 9861[2mms[22m[39m
+     [33m[2m✓[22m[39m KindSection has no "Browse community styles" and the manager has no Share, Community or Updates [33m 603[2mms[22m[39m
+     [33m[2m✓[22m[39m Updates (N) is not shown when the recorded Updates list is empty [33m 321[2mms[22m[39m
+     [33m[2m✓[22m[39m Duplicate of an adopted copy sends duplicateOf, and the duplicate (which carries the source) offers no Share [33m 546[2mms[22m[39m
+     [33m[2m✓[22m[39m KindSection's "Browse community styles" opens the library with Styles chosen [33m 648[2mms[22m[39m
+     [33m[2m✓[22m[39m the manager's Community button opens the same library [33m 414[2mms[22m[39m
+     [33m[2m✓[22m[39m lists the added blocks by their label, the defaults count and the promise, and updates without the outline [33m 461[2mms[22m[39m
+     [33m[2m✓[22m[39m I-2: after a successful update focus lands on the updated copy's row, never on <body> [33m 915[2mms[22m[39m
+     [33m[2m✓[22m[39m "Use the author's new outline" starts UNticked beside a read-only preview, and Update sends takeOutline: false [33m 531[2mms[22m[39m
+     [33m[2m✓[22m[39m ticking it sends takeOutline: true [33m 450[2mms[22m[39m
+     [33m[2m✓[22m[39m M-1: the base is the one captured with the plan, even when the list revalidates before Update [33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 shows the server's stale sentence, and Look again re-reads the copy and sends the NEW base [33m 559[2mms[22m[39m
+     [33m[2m✓[22m[39m M-8: a newer listed version than the one previewed is the server's 409, and Look again re-reads the plan [33m 524[2mms[22m[39m
+     [33m[2m✓[22m[39m M-6: a plan that answers 404 after Look again says the copy is already up to date [33m 444[2mms[22m[39m
+     [33m[2m✓[22m[39m M-6: when the copy is not in the styles list, it says why Update is unavailable [33m 422[2mms[22m[39m
+     [33m[2m✓[22m[39m Not now closes the sheet and writes nothing [33m 434[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m31 passed[39m[22m[90m (31)[39m
+[2m   Start at [22m 23:58:34
+[2m   Duration [22m 12.57s[2m (transform 1.32s, setup 292ms, import 1.64s, tests 9.86s, environment 623ms)[22m
+

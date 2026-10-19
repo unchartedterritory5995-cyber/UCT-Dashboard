@@ -1865,3 +1865,75 @@ def test_youtube_video_gone_only_on_a_definite_404(monkeypatch):
         raise httpx.ConnectError("offline")
     monkeypatch.setattr(httpx, "get", boom)
     assert gone("x") is False
+
+
+# ── /lesson: searching the library ───────────────────────────────────────────
+
+def _searchable(aid, day, title, *, transcript, recap="A. B.", tickers=("NVDA",), tags=("setups",),
+                section="setups", level="intermediate", segments=None, youtube_id=None):
+    _thread_lesson(aid, day, title=title, section=section, level=level, tags=tags, tickers=tickers,
+                   transcript=transcript)
+    tl._update(aid, recap=recap, segments=json.dumps(segments or []), youtube_id=youtube_id)
+
+
+def test_search_words_keep_what_matters():
+    assert tl.search_words("How do I set a stop loss on $NVDA?") == ["set", "stop", "loss", "nvda"]
+    assert tl.search_words("the and of") == []
+    assert tl.search_words("Red-to-green") == ["red-to-green"]
+    assert tl.search_words("") == []
+
+
+def test_search_ranks_title_and_ticker_matches_above_passing_mentions_and_points_at_the_moment(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("s1", 1, "Where to put the stop loss", transcript="we talk about the stop loss here " * 5,
+                recap="Placing the stop under the low.", section="management", level="beginner", tickers=("TSLA",),
+                segments=[[0, "Good morning everyone, markets look fine."],
+                          [300, "So the stop loss goes right under the low of the day, every single time."]],
+                youtube_id="YTVID00001")
+    _searchable("s2", 2, "NVDA earnings setup", transcript="one stop loss mention " + "filler words " * 40,
+                tickers=("NVDA",), segments=[[0, "one stop loss mention and then filler"]])
+    _searchable("s3", 3, "Market read for the week", transcript="nothing relevant at all " * 10,
+                tickers=("SPY",), tags=("market",), section="market")
+    hits = tl.search_lessons("stop loss")
+    assert [h["attachment_id"] for h in hits] == ["s1", "s2"]          # s3 never says it
+    top = hits[0]
+    assert top["title"] == "Where to put the stop loss" and top["level"] == "beginner"
+    assert top["section"] == "Trade Management" and top["day"].startswith("Mar 1, ")
+    assert top["url"] == f"https://discord.com/channels/{GUILD}/t-management/msg-s1"
+    assert top["at"] == "5:00" and top["watch"] == "https://youtu.be/YTVID00001?t=300"
+    assert "stop loss goes right under the low" in top["quote"]
+    assert hits[1]["watch"] == "" and hits[1]["at"] == "0:00"          # no YouTube copy: no seek link
+    assert tl.search_lessons("NVDA")[0]["attachment_id"] == "s2"        # a ticker finds its lesson
+    assert [h["attachment_id"] for h in tl.search_lessons("$spy")] == ["s3"]   # even when only the ticker list has it
+    assert tl.search_lessons("nothing relevant")[0]["attachment_id"] == "s3"
+    assert tl.search_lessons("the of") == [] and tl.search_lessons("zebra") == []
+
+
+def test_search_skips_lessons_that_are_not_posted_and_prefers_lessons_over_clips(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("c1", 1, "Breakout quick clip", transcript="breakout " * 8, section="clips")   # 11 points before the clip discount
+    _searchable("l1", 2, "Breakout entries", transcript="breakout", section="setups")
+    _searchable("gone", 3, "Breakout lesson taken down", transcript="breakout breakout breakout")
+    tl._update("gone", status="skipped")
+    hits = tl.search_lessons("breakout")
+    assert [h["attachment_id"] for h in hits] == ["l1", "c1"]
+
+
+def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
+    hits = [{"attachment_id": "a", "title": "Where to put the stop loss", "url": "https://discord.com/channels/1/2/3",
+             "level": "beginner", "section": "Trade Management", "day": "Mar 1, 2026", "score": 9.0,
+             "at": "5:00", "watch": "https://youtu.be/X?t=300", "quote": "…the stop goes under the low…"},
+            {"attachment_id": "b", "title": "NVDA earnings setup", "url": "https://discord.com/channels/1/2/4",
+             "level": "", "section": "Setups & Entries", "day": "Mar 2, 2026", "score": 3.0,
+             "at": "0:00", "watch": "", "quote": "one stop loss mention"}]
+    text = tl.format_search_reply("stop   loss", hits)
+    lines = text.split("\n")
+    assert lines[0] == "**Lessons on “stop loss”**"
+    assert lines[1] == "1. **[Where to put the stop loss](<https://discord.com/channels/1/2/3>)** · Beginner · Trade Management · Mar 1, 2026"
+    assert lines[2] == "   ▸ [Watch from 5:00](<https://youtu.be/X?t=300>) — “…the stop goes under the low…”"
+    assert lines[3] == "2. **[NVDA earnings setup](<https://discord.com/channels/1/2/4>)** · Setups & Entries · Mar 2, 2026"
+    assert lines[4] == "   ▸ At 0:00 — “one stop loss mention”"
+    assert "https://" not in text.replace("(<https://", "")               # every link is wrapped: no previews
+    assert len(text) <= 1900
+    empty = tl.format_search_reply("zebra stripes", [])
+    assert "Nothing in the lesson library" in empty and "“zebra stripes”" in empty

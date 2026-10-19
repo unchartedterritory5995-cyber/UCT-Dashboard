@@ -210,6 +210,24 @@ def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
     edit(app_id, token, content=text)
 
 
+def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None, edit_fn=None) -> None:
+    """The far side of a `/lesson` defer: search the library and PATCH the
+    private reply. Never raises; a failure tells the member so instead of
+    leaving a spinner."""
+    from api.services import tsdr_lessons
+    search = search_fn or tsdr_lessons.search_lessons
+    edit = edit_fn or di.edit_original
+    try:
+        text = tsdr_lessons.format_search_reply(query, search(query))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-lesson] search failed for %r: %s", query[:60], e)
+        text = "The lesson search hit a snag. Try again in a minute."
+    try:
+        edit(app_id, token, content=text)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-lesson] could not deliver the reply: %s", e)
+
+
 def _flow_fmt_m(v) -> str:
     v = float(v or 0)
     if v >= 1e9:
@@ -642,6 +660,25 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
                             house_fn=house.render_house_chart if house.house_enabled() else None,
                             quote_fn=fetch_ext_quote, components_fn=di.multi_components)
         return {"type": 5}
+    if itype == 2 and name == di.LESSON_COMMAND:
+        # /lesson <about> - a PRIVATE search of the video-lesson library. Defer
+        # first (the search opens a database), work after; the flag on the defer
+        # is what keeps the reply to the member who asked.
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="searches"))
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        query = str(opts.get(di.LESSON_OPTION) or "").strip()
+        if not query:
+            return _ephemeral("Tell me what to look for, e.g. `/lesson stop loss` or `/lesson NVDA`.")
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_lesson_search_job, app_id, token, query)
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`

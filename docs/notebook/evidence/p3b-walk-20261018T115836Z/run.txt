@@ -1,0 +1,3 @@
+tool tree: fc2453c8b0 + the door locator and step-7 precondition fixes (uncommitted at run time)
+command: python -u tools/notebook_example_notes_walk.py --data-dir C:\data-p3bwalk2 --port 8091 --tip fc2453c8b0 --out docs/notebook/evidence/p3b-walk-20261018T115836Z --viewports 1280
+exit: 1

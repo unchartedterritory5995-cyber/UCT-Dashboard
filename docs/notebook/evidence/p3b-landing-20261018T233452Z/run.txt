@@ -1,0 +1,4 @@
+tree: 551bdf544d271ea6e4ba2705e280725aabe093b0 (merge of origin/master f202ff9c48 onto gate-fix tip 7268de9551)
+bytes: 2,239,350 B branch vs 2,239,362 B master f202ff9c48 (same tool, same build), so -12 B from this branch; budget 2,260,793 B, PASS
+fixtures: --check exit 0, OK 322
+rails: 30 pytest files, 2115 passed, 6 failed; the same 6 known base reds with identical named failures to p3b-landing-20261018T175256Z

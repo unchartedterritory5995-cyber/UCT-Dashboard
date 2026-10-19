@@ -71,7 +71,9 @@ def test_hide_and_reject_do_not_ring_and_unhide_does(conn, lib_on):
     gallery.publish_style("author", item["sourceStyleId"], title=item["title"], description="",
                           category="journal", trading_style=None, conn=conn)
     with mock.patch(ADD) as add:
-        gallery.admin_act("admin", item["id"], "reject", note="Not yet", conn=conn)
+        gallery.admin_act("admin", item["id"], "reject", note="Not yet", conn=conn,
+                          reviewed_updated_at=conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
+                                                           (item["id"],)).fetchone()[0])
         gallery.admin_act("admin", item["id"], "hide", conn=conn)
     assert add.call_count == 0
     with mock.patch(ADD) as add:
