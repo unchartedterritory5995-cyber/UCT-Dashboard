@@ -94,7 +94,7 @@ import json
 import re
 import unicodedata
 from typing import Any, Callable, Iterable, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
 
@@ -192,6 +192,23 @@ _GALLERY_RULES = frozenset({"gallery", "example"})
 #: What an email address becomes in a gallery copy (wave 12, lane 12A).
 EMAIL_TEXT = "email address"
 _EMAIL_IN_TEXT = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.IGNORECASE)
+
+
+def _email_in_href(href: Any) -> str | None:
+    """The first email address an href carries once percent-decoded (`?email=me@x.com`, `me%40x.com`), or None.
+
+    OI-P3b-4: gallery mode drops a `mailto:` link, and the same address in a web link's query string is as
+    personal. Decoded a few times over, so `%2540` (an encoded `%40`) is read as the `@` it ends up as."""
+    if not isinstance(href, str):
+        return None
+    s = href.strip()
+    for _ in range(3):
+        decoded = unquote(s)
+        if decoded == s:
+            break
+        s = decoded
+    m = _EMAIL_IN_TEXT.search(s)
+    return m.group(0) if m else None
 
 #: ONE neutral paragraph where a market-data item stood (ruling D-B4, extended to share
 #: links by the owner's L3). Adjacent ones collapse to one.
@@ -386,7 +403,9 @@ EXAMPLE_OVERRIDES: dict[str, str] = {
 
 #: Where an example's switched-on image may point after `image_src_for` (plan R-P3b-7's route,
 #: `GET /api/j2/template-gallery/{item_id}/images/{n}`): nothing else is ever published.
-EXAMPLE_IMAGE_ROUTE = re.compile(r"^/api/j2/template-gallery/[A-Za-z0-9_-]{1,64}/images/[A-Za-z0-9_-]{1,32}$")
+#: Anchored with `\Z`, never `$` (OI-P3b-11): `$` also matches before ONE trailing newline, so `.match` admitted
+#: `.../images/0\n`.
+EXAMPLE_IMAGE_ROUTE = re.compile(r"^/api/j2/template-gallery/[A-Za-z0-9_-]{1,64}/images/[A-Za-z0-9_-]{1,32}\Z")
 
 
 def node_action(type_: Any, mode: str) -> str | None:
@@ -1183,6 +1202,9 @@ def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) ->
                 mailto = str(href).strip().lower().startswith("mailto:")
                 note("email" if mailto else "dropped", str(href).strip()[7:] if mailto else href)
                 continue                            # gallery: an address is personal; the words stay
+            if mode in _GALLERY_RULES and (address := _email_in_href(href)) is not None:
+                note("email", address)              # OI-P3b-4: an address in a web link's query, the mailto rule
+                continue
         if action in ("mark", "link-mark"):
             m = _clean_mark(m, mode, ctx.attr_policy if ctx is not None else None)   # the attribute table, every mode (I-4)
             if m is None:
