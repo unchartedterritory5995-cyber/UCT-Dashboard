@@ -1926,6 +1926,7 @@ def list_notes_endpoint(
     propertyFilter: str | None = None,
     propertySort: str | None = None,
     meaning: bool = False,
+    excludeSample: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
@@ -1948,7 +1949,12 @@ def list_notes_endpoint(
     client sent alongside the id (directive §87's "never trust
     client-supplied raw query clauses for saved views"). This is the one
     place that distinction is enforced; every other call site (the plain
-    ad-hoc filter path) is unaffected."""
+    ad-hoc filter path) is unaffected.
+
+    OI-P3b-13: `excludeSample=1` (opt-in, additive) leaves the sample
+    notebook's notes out of the page AND its total -- the example picker asks
+    it, because a sample note is refused at publish. Omitted, nothing about
+    the query or the response changes."""
     date_from = _parse_search_date(dateFrom, "dateFrom")
     date_to = _parse_search_date(dateTo, "dateTo")
     symbol_in = notes_service.resolve_sector_theme_symbols(
@@ -1989,6 +1995,7 @@ def list_notes_endpoint(
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             property_filter=property_filter, property_sort=property_sort,
             property_filter_strict=property_filter_strict,
+            exclude_sample=excludeSample,
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))

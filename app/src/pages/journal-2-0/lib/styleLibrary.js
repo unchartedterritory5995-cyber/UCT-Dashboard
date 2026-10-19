@@ -228,20 +228,22 @@ export async function getStyleItemKind(styleItemId) {
 }
 
 /** The notes list call (GET /api/j2/notes, `notes._row_to_note_summary` rows) for the member's notes of one kind,
- *  newest first: the server filters by the `builtin:note_kind` property. Null (nothing asked) without a kind. */
+ *  newest first: the server filters by the `builtin:note_kind` property, and `excludeSample=1` (OI-P3b-13) leaves
+ *  the sample notebook's notes out, since publishing one is refused. Null (nothing asked) without a kind. */
 export function exampleCandidatesKey(kindId) {
   if (!kindId) return null
   const params = new URLSearchParams()
   params.set('sort', 'created')
   params.set('limit', '200')
   params.set('propertyFilter', JSON.stringify([{ propertyId: NOTE_KIND_PROPERTY, op: 'eq', value: kindId }]))
+  params.set('excludeSample', '1')
   return `/api/j2/notes?${params.toString()}`
 }
 
 /** The member's live notes of `kindId`, newest first: `{notes, error, isLoading}`. The kind is checked here too
  *  (the list is filtered, never trusted to be): a note of any other kind, or a trashed or archived one, is never
- *  offered. ⚠️ A sample-notebook note cannot be told apart from a list row; the server answers its 404 (P3b-R11)
- *  and the preview says so. */
+ *  offered. A sample-notebook note is left out by the server (`excludeSample`, above): a list row cannot tell one
+ *  apart, so it is not filtered here; should one arrive anyway, the server answers its 404 (P3b-R11). */
 export function useExampleCandidates(kindId) {
   const { data, error, isLoading } = useSWR(exampleCandidatesKey(kindId), fetcher, SWR_OPTS)
   const notes = (Array.isArray(data?.notes) ? data.notes : []).filter((n) => n && n.id && !n.deletedAt && !n.archivedAt
