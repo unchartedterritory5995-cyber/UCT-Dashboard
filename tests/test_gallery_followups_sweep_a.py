@@ -197,3 +197,66 @@ def test_G4_CONTROL_a_missing_png_alone_is_still_the_copy_500(api, conn, ex_on, 
     r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "imagesOn": [_src("author", nid, "missing.png")],
                            "title": "Plan"})
     assert (r.status_code, r.json()["detail"]) == (500, gallery.EXAMPLE_COPY_SENTENCE)
+
+
+# ── G5: two concurrent first publishes ─────────────────────────────────────────────────────
+
+class _TwinBeforeInsert:
+    """Stands in for `gallery.uuid`: the first `uuid4()` drawn by `_held_or_replaced_once` (after its lookup found
+    no row, just before its INSERT) first writes the twin's row, as a double-click's other request would."""
+
+    def __init__(self, insert_twin):
+        self._insert_twin = insert_twin
+        self.fired = 0
+
+    def uuid4(self):
+        if not self.fired and sys._getframe(1).f_code.co_name == "_held_or_replaced_once":
+            self.fired += 1
+            self._insert_twin()
+        return uuid.uuid4()
+
+    def __getattr__(self, name):
+        return getattr(uuid, name)
+
+
+def _twin(conn, *, key_column: str, key: str, item_type: str) -> str:
+    gid = uuid.uuid4().hex
+    conn.execute(
+        f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description, category,"
+        " body_json, status, created_at, updated_at, preview_json, item_type, payload_json, version)"
+        " VALUES (?, 'author', ?, 'member', 'Twin', '', 'journal', '{}', 'pending', 'x', 'x', '[]', ?, '{}', 1)",
+        (gid, key, item_type))
+    conn.commit()
+    return gid
+
+
+def test_G5_a_style_publish_that_loses_the_insert_race_updates_the_twin(conn, lib_on, monkeypatch):
+    """Mutation: let the INSERT's `IntegrityError` propagate (no retry) -> the losing publish raises (a 500)."""
+    s = _style(conn, "author")
+    gallery.author_handle("author", conn)
+    twin_ids = []
+    fake = _TwinBeforeInsert(lambda: twin_ids.append(
+        _twin(conn, key_column="source_style_id", key=s["id"], item_type="style")))
+    monkeypatch.setattr(gallery, "uuid", fake)
+    item = _publish_style(conn, s["id"], "author", title="Weekend Prep")
+    assert fake.fired == 1                             # non-vacuity: the twin really was written first
+    assert item["id"] == twin_ids[0]
+    rows = conn.execute("SELECT id, title FROM j2_template_gallery WHERE source_style_id = ?", (s["id"],)).fetchall()
+    assert [(r["id"], r["title"]) for r in rows] == [(twin_ids[0], "Weekend Prep")]
+    assert not conn.in_transaction
+
+
+def test_G5_a_layout_publish_that_loses_the_insert_race_updates_the_twin(conn, sharing_on, monkeypatch):
+    """Mutation: as above, for `publish_layout`."""
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    gallery.author_handle("author", conn)
+    twin_ids = []
+    fake = _TwinBeforeInsert(lambda: twin_ids.append(
+        _twin(conn, key_column="source_page", key="trade", item_type="page_layout")))
+    monkeypatch.setattr(gallery, "uuid", fake)
+    item = gallery.publish_layout("author", "trade", title="Prop trade page", description="", category="journal",
+                                  trading_style="prop", conn=conn)
+    assert fake.fired == 1
+    assert item["id"] == twin_ids[0]
+    rows = conn.execute("SELECT id, title FROM j2_template_gallery WHERE source_page = 'trade'").fetchall()
+    assert [(r["id"], r["title"]) for r in rows] == [(twin_ids[0], "Prop trade page")]

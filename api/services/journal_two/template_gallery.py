@@ -1258,6 +1258,27 @@ def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_colum
     payload_json = json.dumps(payload)
     body_json = json.dumps(body)
     preview_json = json.dumps(preview)
+    # OI-P4b-3 (row 6): two first publishes at once (a double-click) both find no row, and the slower INSERT meets
+    # the unique source index. That loser goes round ONCE more and takes the update path onto the twin's row,
+    # instead of answering 500. The failed INSERT is rolled back only when it opened the transaction itself; a
+    # caller's open transaction is never rolled back here (SQLite already backed the one statement out).
+    for retried in (False, True):
+        gid = _held_or_replaced_once(
+            conn, user_id=user_id, key_column=key_column, key=key, item_type=item_type, title=title,
+            description=description, category=category, trading_style=trading_style, body_json=body_json,
+            preview=preview, preview_json=preview_json, payload=payload, payload_json=payload_json, now=now,
+            retried=retried)
+        if gid is not None:
+            return gid
+    raise AssertionError("unreachable: the retry either returns an id or raises")
+
+
+def _held_or_replaced_once(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any, item_type: str,
+                           title: str, description: str, category: str, trading_style: str | None, body_json: str,
+                           preview: list, preview_json: str, payload: dict, payload_json: str, now: str,
+                           retried: bool) -> str | None:
+    """One pass of `_write_held_or_replaced`: the item id, or None when the INSERT lost to a twin (go round again).
+    On the second pass a lost INSERT raises: the twin's row was not there to update, so it is some other refusal."""
     existing = conn.execute(
         f"SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND {key_column} = ? AND item_type = ?",
         (user_id, key, item_type)).fetchone()
@@ -1279,13 +1300,21 @@ def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_colum
              preview_json, existing["id"]))
         return existing["id"]
     gid = uuid.uuid4().hex
-    conn.execute(
-        f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
-        " category, body_json, status, created_at, updated_at, preview_json, item_type,"
-        " payload_json, version, trading_style)"
-        " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
-        (gid, user_id, key, title, description, category, body_json, now, now,
-         preview_json, item_type, payload_json, trading_style))
+    opened = not conn.in_transaction             # the INSERT's implicit BEGIN is ours to roll back, nothing else
+    try:
+        conn.execute(
+            f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
+            " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+            " payload_json, version, trading_style)"
+            " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+            (gid, user_id, key, title, description, category, body_json, now, now,
+             preview_json, item_type, payload_json, trading_style))
+    except sqlite3.IntegrityError:
+        if retried:
+            raise
+        if opened and conn.in_transaction:
+            conn.rollback()
+        return None
     return gid
 
 
