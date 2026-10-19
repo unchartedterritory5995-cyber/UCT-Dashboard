@@ -43,6 +43,14 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (scripts/study/corrections.py; docs/study/corrections/*.jsonl; owner-approved items import approved).
   Integrator re-ran lane W: backend 6 files 177 passed; WalkthroughDrill 5, DrillPlayer 9,
   useStudySession 12, CoursesSection 14. Bank now 660 (walk.method 25).
+- **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
+  Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
+  inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
+  (recall 374, spot 132, size 48, family 42, regime 39, walkthrough 25; lanes deterministic 401 / manual
+  259), `study_terms` 0 (no terms posted yet), every `bars_ref` resolves. The StudyReview admin screen
+  (PatternReview `?mode=study`) now has content; nothing is approved, so members still see nothing.
+  The importer + its 8 unit tests ride in `scripts/study/import_bank.py` /
+  `tests/test_study_import_bank.py` (PR from branch feat/study-import-bank). Re-runs upsert by id.
 - **2026-10-18 HOLD (owner):** item 2 in its third shape was still "improper": "these are very nuanced".
   Quiz items built from playbook PROSE (rules / named mistakes) are on hold: the prose does not carry
   the owner's real rules (he buys ahead of a HOD break, buys under the 20 EMA on an undercut). Proposal
@@ -177,15 +185,19 @@ asked for it directly). #416 merged + deployed + scans copied 2026-10-19. The AI
 `railway deployment list --service web --json` (from C:\Users\pgosz\projects\UCT-Dashboard, the linked
 checkout) until the merge commit reads SUCCESS. `railway ssh` must run from PowerShell (Git Bash mangles
 `/opt/venv/bin/python` into a C:/Program path).
+The AI session is ALSO refused `railway ssh` when the remote command writes ("Remote Shell Writes"), so
+every pod-side import/copy is the owner's `!` line too. Both of these are DONE (2026-10-19); keep for re-runs:
 ```
-# after that PR merges and web is SUCCESS:
-railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --dry-run
-railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --limit 50
-railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py
+# from PowerShell (not Git Bash), in C:\Users\pgosz\projects\UCT-Dashboard
+railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py            # scans -> R2 (done)
+railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --dry-run         # count only
+railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py                   # bank -> /data/study.db (done)
+railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only recall.glossary
 ```
 
 ## Resume procedure
-1. `cd C:\Users\pgosz\uct-worktrees\study && git status && git log --oneline -5`
+1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
+   C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
 2. Read this file's State block, then the spec §13 and §11/§13.9.
 3. Continue the first unchecked item above. Commit at every checkpoint with a message starting `study:`.
    If the owner review is mid-batch, re-present the batch from the State block (segment + item range)
