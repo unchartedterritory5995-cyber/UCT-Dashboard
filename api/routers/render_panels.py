@@ -613,6 +613,83 @@ def render_breadth_bars(ticker: str, token: str = "", tf: str = "D", bars: int =
         raise HTTPException(status_code=503, detail=str(e))
 
 
+# ── Discord /cot: the COT Data page, rendered logged OUT ─────────────────────
+#
+# 🔑 WHY THESE DOORS EXIST. `/cot` screenshots the site's own COT Data page (charts
+# + positioning panel) in chart-renderer, which loads `/r/cot` with no session.
+# Every read that page makes on the site is `require_paid` (`/api/cot/*`), and the
+# price pane's `/api/bars/{ETF}` is bars-gated for most proxies (USO, UUP answered
+# 401 logged out, 2026-10-19). So the render page reads through these four doors.
+#
+# ⛔ Same standard as /r/breadth-bars: answers only COT symbols, never an ETF the
+# caller names (the price door resolves the proxy itself), so none of these is a
+# general data API. The narrative door is READ-ONLY: it returns a read already
+# stored (by the Friday pre-warm or a member's visit) and never calls the model —
+# the render token ships in the bundle, so a door that generated would be an
+# anonymous way to spend the LLM budget.
+_RL_COT_MAX_PER_MIN = 120          # one /cot render = up to four reads
+
+
+def _cot_symbol(symbol: str) -> str:
+    from api.services import cot_service
+    sym = (symbol or "").upper()
+    if sym not in cot_service.SYMBOL_MAP:
+        raise HTTPException(status_code=404, detail="not a COT symbol")
+    return sym
+
+
+@router.get("/r/cot-symbols")
+def render_cot_symbols(token: str = ""):
+    """The market list with display names. Mirrors `GET /api/cot/symbols`."""
+    _check_token(token, bucket="cot", limit=_RL_COT_MAX_PER_MIN)
+    from api.services import cot_service
+    return {"groups": {grp: [{"symbol": s, "name": cot_service.SYMBOL_NAMES.get(s, s)} for s in syms]
+                       for grp, syms in cot_service.SYMBOL_GROUPS.items()}}
+
+
+@router.get("/r/cot/{symbol}")
+def render_cot(symbol: str, token: str = "", weeks: int = 520):
+    """Weekly COT rows for one market. Mirrors `GET /api/cot/{symbol}` (same 1..520 bound)."""
+    _check_token(token, bucket="cot", limit=_RL_COT_MAX_PER_MIN)
+    sym = _cot_symbol(symbol)
+    from api.services import cot_service
+    return cot_service.get_cot_data(sym, max(1, min(int(weeks or 520), 520)))
+
+
+@router.get("/r/cot/{symbol}/price")
+def render_cot_price(symbol: str, token: str = ""):
+    """The market's price-proxy weekly bars, `{ticker, bars}`. The proxy is resolved
+    HERE from the site's own map (the same Node bundle the Friday pre-warm reads), so
+    a caller can only ever get the proxy of a COT market."""
+    _check_token(token, bucket="cot", limit=_RL_COT_MAX_PER_MIN)
+    sym = _cot_symbol(symbol)
+    from api.services import cot_prewarm
+    p = (cot_prewarm.proxies() or {}).get(sym) or {}
+    ticker = p.get("ticker") if isinstance(p, dict) else None
+    if not ticker:
+        return {"ticker": None, "bars": []}
+    return {"ticker": ticker, "bars": cot_prewarm.fetch_proxy_bars(ticker)}
+
+
+@router.get("/r/cot/{symbol}/narrative")
+def render_cot_narrative(symbol: str, token: str = "", report_date: str = ""):
+    """The STORED weekly read for (symbol, report week), or status "unavailable".
+    Never generates (see the note above)."""
+    _check_token(token, bucket="cot", limit=_RL_COT_MAX_PER_MIN)
+    sym = _cot_symbol(symbol)
+    import re
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", report_date or ""):
+        raise HTTPException(status_code=400, detail="report_date must be YYYY-MM-DD")
+    from api.services import cot_narrative
+    try:
+        row = cot_narrative.get_for(sym, report_date)
+    except Exception:  # noqa: BLE001 — a storage hiccup is a missing read, the page has a template
+        row = None
+    if row and row.get("text"):
+        return {"status": "ok", "text": row["text"]}
+    return {"status": "unavailable", "text": None}
+
+
 @router.get("/r/breadth")
 def render_breadth(token: str = ""):
     """The engine's pushed breadth summary (UCT Exposure Rating + MA percentages)
