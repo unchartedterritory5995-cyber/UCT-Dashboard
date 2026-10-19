@@ -442,6 +442,63 @@ def test_the_one_rule_and_its_two_renderings_agree(conn, monkeypatch, library, s
     assert (firm_styles <= kept) is (library == "1" and starter == "1")
 
 
+EXAMPLES = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
+PAGE_LAYOUTS = "JOURNAL_PAGE_LAYOUTS_ENABLED"
+SHARING = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
+#: Every switch a row's visibility can turn on: (library, examples, starter, page layouts, layout sharing).
+EVERY_STATE = [tuple("1" if (i >> b) & 1 else "0" for b in range(5)) for i in range(32)]
+
+
+def _typed_row(conn, item_type, kind, user_id=ADMIN, **cols):
+    """One APPROVED, visible gallery row of `item_type`/`kind`, written directly (a probe, never a member path)."""
+    gid = uuid.uuid4().hex
+    extra = ", ".join(cols)
+    conn.execute(
+        "INSERT INTO j2_template_gallery (id, user_id, kind, title, description, category, body_json, status,"
+        " listed_at, created_at, updated_at, preview_json, item_type" + (f", {extra}" if extra else "") + ")"
+        " VALUES (?, ?, ?, ?, '', 'journal', '{\"type\": \"doc\", \"content\": []}', 'approved', '2026-10-10',"
+        " '2026-10-10', '2026-10-10', '[]', ?" + ", ?" * len(cols) + ")",
+        (gid, user_id, kind, f"{item_type} {kind}", item_type, *cols.values()))
+    conn.commit()
+    return gid
+
+
+@pytest.mark.parametrize("state", EVERY_STATE, ids=lambda s: "lib{}-ex{}-starter{}-pl{}-share{}".format(*s))
+def test_the_one_order_holds_for_every_row_type_in_every_switch_state(conn, monkeypatch, state):
+    """P4b final I-M2 (T1). `_library_hides` keeps ONE order -- the example branch, the layout branch, then P5's
+    style rule -- and it is the same decision as the list WHERE (`_hidden_styles_sql AND _type_visible_clause`) for
+    EVERY kind of row: an outline, a firm style, a member's style, an example note and a page layout, over all 32
+    states of the five switches (library, examples, starter packs, page layouts, layout sharing), the "library on,
+    sharing off" mixed state included (triage 4). Then each answer is held to what the switches MEAN, so the two
+    renderings cannot agree by both being wrong, and two readers that ask the rule are checked against it: an
+    admin's single read (`get_item`) and the member's list, where `_NEVER_LISTED` also keeps every example out."""
+    library, examples, starter, page_layouts, sharing = (v == "1" for v in state)
+    for name, value in zip((LIBRARY, EXAMPLES, STARTER, PAGE_LAYOUTS, SHARING), state):
+        monkeypatch.setenv(name, value)
+    ids = {
+        "outline": _typed_row(conn, "outline", "firm", user_id=None),
+        "firm_style": _typed_row(conn, "style", "firm", user_id=None),
+        "member_style": _typed_row(conn, "style", "member"),
+        "example": _typed_row(conn, gallery.EXAMPLE_ITEM, "member"),
+        "layout": _typed_row(conn, gallery.LAYOUT_ITEM, "member", source_page="trade"),
+    }
+    ours = set(ids.values())
+    rows = conn.execute(f"SELECT id, item_type, kind FROM j2_template_gallery WHERE id IN ({','.join('?' * 5)})",
+                        tuple(ours)).fetchall()
+    shown = {r["id"] for r in rows if not gallery._library_hides(r)}
+    where = f"{gallery._hidden_styles_sql()} AND {gallery._type_visible_clause()}"
+    kept = {r[0] for r in conn.execute(f"SELECT g.id FROM j2_template_gallery g WHERE {where}")} & ours
+    assert shown == kept, "the row rule and the list WHERE disagree"
+    want = {"outline": True, "firm_style": library and starter, "member_style": library,
+            "example": library and examples, "layout": library and page_layouts and sharing}
+    assert {k: ids[k] in shown for k in ids} == want
+    # Two readers that ask the rule: an admin's single read sees exactly the shown rows (a hidden type reads as
+    # absent for an admin too), and the member's list lists exactly the shown rows minus every example.
+    assert {i for i in ours if gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is not None} == shown
+    listed = {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn)} & ours
+    assert listed == shown - {ids["example"]}
+
+
 def test_one_list_request_reads_the_switches_once(conn, monkeypatch):
     """P5-T5b-R1. `list_gallery` decides once per request: a library switch that flips between two reads (off,
     then on, with the starter switch on) cannot pair the library-off branch, which adds no item-type filter, with
