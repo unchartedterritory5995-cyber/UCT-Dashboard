@@ -602,7 +602,7 @@ Shortcuts (§2 "Append to today's note", §3 "Save to UCT" from the Share Sheet)
 every possible error response means in plain language (§4), and the one thing to know about
 photos/HEIC (§5).
 
-1. In UCT: Settings → Personal API → make a token, copy it.
+1. In UCT: Settings → Connections → Connect apps & shortcuts → make a token, copy it.
 2. Build "Append to today's note" (`ios-shortcuts.md` §2, ~5 min). Test it: say something, check
    today's note in the app.
 3. Build "Save to UCT" (`ios-shortcuts.md` §3, ~5 min). Test it: share a web page from Safari,

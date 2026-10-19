@@ -73,7 +73,13 @@ describe('CapabilityPreview', () => {
     // ⛔ ONE payload: the latch keeps the first one it sees, so a loop would arm one line only.
     latchNotebookFlags(Object.fromEntries(CAPABILITY_PREVIEW.flatMap((c) => [c.flag, ...(c.requires || [])]).map((f) => [f, true])))
     render(<CapabilityPreview canAddSample />)
-    expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(CAPABILITY_PREVIEW.length)
+    // Exactly one item per capability, in the capability list (found by its accessible name, so the
+    // capture doors' own list can never pad the count), each item carrying its own label and line.
+    const items = within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem')
+    expect(items).toHaveLength(CAPABILITY_PREVIEW.length)
+    for (const c of CAPABILITY_PREVIEW) {
+      expect(items.some((li) => li.textContent === `${c.label}. ${c.line}`), `${c.id}: its line is listed`).toBe(true)
+    }
     // P0.8: the "Capture from anywhere" box under the list asks its two capture gates (the same
     // endpoints the Settings cards ask), and nothing else. Never a model, never a note read.
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
