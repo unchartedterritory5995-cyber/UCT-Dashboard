@@ -471,7 +471,34 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // The popover closes itself on a mouse press outside it, which includes the press on this
   // very button; the click that follows would then toggle it straight back open. The press
   // records whether the menu WAS open, and the click honours that.
+  //
+  // ⛔ A press that is never followed by its click leaves that record behind: press on the
+  // open button, drag off, release elsewhere. The next Enter or Space arrives as a click with
+  // no press before it and was swallowed. So the record is dropped on a release outside the
+  // button, on a cancelled pointer, and when the button loses focus.
   const moreWasOpenRef = useRef(false)
+  const moreReleaseOffRef = useRef(null)
+  const dropMorePress = () => {
+    moreWasOpenRef.current = false
+    moreReleaseOffRef.current?.()
+  }
+  const onMoreMouseDown = () => {
+    moreReleaseOffRef.current?.()
+    moreWasOpenRef.current = moreOpen
+    if (!moreOpen) return
+    const onRelease = (e) => {
+      // A release ON the button is followed by its click, which reads and clears the record.
+      if (moreRef.current?.contains(e.target)) { off(); return }
+      dropMorePress()
+    }
+    const off = () => {
+      for (const t of ['pointerup', 'mouseup', 'pointercancel']) document.removeEventListener(t, onRelease, true)
+      moreReleaseOffRef.current = null
+    }
+    for (const t of ['pointerup', 'mouseup', 'pointercancel']) document.addEventListener(t, onRelease, true)
+    moreReleaseOffRef.current = off
+  }
+  useEffect(() => () => moreReleaseOffRef.current?.(), [])
   const toggleMore = () => {
     if (moreWasOpenRef.current) { moreWasOpenRef.current = false; return }
     const r = moreRef.current?.getBoundingClientRect?.()
@@ -675,15 +702,35 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   const isLiveChart = attrs.widgetId === 'chart' && decision.kind === 'live'
   const moreItems = [
     widgetMeta(attrs.widgetId)?.liveCapable === true
-      && { label: attrs.mode === 'live' ? 'Snapshot' : 'Live', onClick: toggleLive },
-    { label: half ? 'Full width' : 'Half width', onClick: toggleWidth },
+      && {
+        label: attrs.mode === 'live' ? 'Snapshot' : 'Live',
+        hint: attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY} per note)`,
+        onClick: toggleLive,
+      },
+    { label: half ? 'Full width' : 'Half width', hint: half ? undefined : 'Pair two side by side', onClick: toggleWidth },
     attrs.widgetId === 'chart' && attrs.params?.symbol
       && { label: 'Open in Charts', href: chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf }) },
-    canPeek && { label: 'Aftermath', onClick: togglePeek },
-    decision.kind === 'live' && { label: 'Re-capture', onClick: recapture },
-    isLiveChart && { label: 'Chart settings', onClick: openEmbedSettings },
-    isLiveChart && { label: 'Sync', onClick: syncFromMyChart },
-    decision.kind === 'live' && { label: 'Freeze', onClick: freezeChart },
+    canPeek && {
+      label: 'Aftermath',
+      hint: peek
+        ? 'Back to the frozen window'
+        : 'What happened next: show this window through today (view-only, nothing saved)',
+      onClick: togglePeek,
+    },
+    decision.kind === 'live' && { label: 'Re-capture', hint: 'Re-capture the archive image', onClick: recapture },
+    isLiveChart && { label: 'Chart settings', hint: 'Settings for this chart only', onClick: openEmbedSettings },
+    isLiveChart && {
+      label: 'Sync',
+      hint: 'Pull your current Charts-page settings and drawings into this embed',
+      onClick: syncFromMyChart,
+    },
+    decision.kind === 'live' && {
+      label: 'Freeze',
+      hint: 'Make the chart static (no crosshair, not interactive); it stays crystal clear',
+      onClick: freezeChart,
+    },
+    // The one destructive row is set apart from the safe ones.
+    { separator: true },
     { label: 'Remove embed', danger: true, onClick: () => deleteNode?.() },
   ].filter(Boolean)
 
@@ -833,7 +880,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               aria-label="More chart actions"
               data-tour="chart-embed-more"
               title="More chart actions"
-              onMouseDown={() => { moreWasOpenRef.current = moreOpen }}
+              onMouseDown={onMoreMouseDown}
+              onPointerCancel={dropMorePress}
+              onBlur={dropMorePress}
               onClick={toggleMore}
             >
               <UIcon name="more" size={14} gold={false} /> More
