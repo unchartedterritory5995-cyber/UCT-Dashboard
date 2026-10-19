@@ -1,0 +1,24 @@
+{
+  "suite": "pytest",
+  "collected": 3660,
+  "passed": 3643,
+  "failed": 15,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 825.51,
+  "failed_files": [
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_single_authority_rails.py",
+    "tests/test_skill_whitelist.py",
+    "tests/test_spa_head_reachability.py",
+    "tests/test_split_killswitch_reaches_serve.py",
+    "tests/test_starter_library.py",
+    "tests/test_term013_bars_rail_reader.py",
+    "tests/test_term048_watchlist_alerts_s7.py",
+    "tests/test_term082_day_metrics_serve_stale.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "15 failed, 3643 passed, 2 skipped, 14718 warnings in 825.51s (0:13:45)",
+  "ok": true
+}
