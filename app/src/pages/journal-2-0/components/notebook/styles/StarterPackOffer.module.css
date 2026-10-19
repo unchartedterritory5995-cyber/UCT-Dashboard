@@ -1,0 +1,16 @@
+/* "How do you trade?" (P5). Breakpoints: only 640 and 1024. Every button reaches var(--tap-min) at <=1024
+   (styles/tapFloor.test.js: declared at the touch tier, which covers the phone too). */
+.card { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 12px; border: 1px solid var(--border-accent, var(--border)); border-radius: 10px; background: var(--bg-surface); color: var(--text); }
+.title { margin: 0; font-size: 15px; color: var(--text-bright, var(--text)); }
+.line { margin: 0; font-size: 13px; color: var(--text-muted); }
+.packs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pack, .quiet { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.pack { border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); }
+.pack:hover:not(:disabled) { border-color: var(--accent); }
+.quiet { border: none; background: none; color: var(--accent); }
+.pack:disabled, .quiet:disabled { opacity: 0.45; cursor: default; }
+.result { margin: 0; font-size: 13px; color: var(--text); }
+.error { margin: 0; font-size: 13px; color: var(--danger-ink); }
+@media (max-width: 1024px) {
+  .pack, .quiet { min-height: var(--tap-min); min-width: var(--tap-min); }
+}

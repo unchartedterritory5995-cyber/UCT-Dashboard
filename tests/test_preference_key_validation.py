@@ -247,8 +247,10 @@ def test_every_key_the_client_writes_is_still_accepted(client):
         closed = auth_router._CLOSED_VALUES.get(key)
         # A key with a real shape schema is driven with its smallest valid value
         # (`indicator_templates`' shape is railed by test_indicator_templates_pref.py;
-        # `journal_page_layout`'s by test_page_layout_preference.py).
-        shaped = {"joystick_hub": "{}", "indicator_templates": "[]", "journal_page_layout": '{"version": 1}'}
+        # `journal_page_layout`'s by test_page_layout_preference.py; `notebook_starter_pack`'s by
+        # test_starter_packs.py, whose client writer lands in P5 Task 5).
+        shaped = {"joystick_hub": "{}", "indicator_templates": "[]", "journal_page_layout": '{"version": 1}',
+                  "notebook_starter_pack": '{"v": 1, "state": "dismissed", "at": "2026-10-17T00:00:00.000Z"}'}
         value = shaped.get(key) or (sorted(closed)[0] if closed else "x")
         resp = client.post("/api/auth/preferences", json={"key": key, "value": value})
         if resp.status_code != 200:

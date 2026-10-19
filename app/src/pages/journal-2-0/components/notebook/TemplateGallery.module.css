@@ -427,3 +427,80 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* P3b Task 6: a style's Preview (styles/StyleItemPreview.jsx; its sheet rules mirror TemplatePreview's) and its
+   examples, "In use" (styles/ExamplesInUse.jsx). HERE, not a module of their own: this sheet is already in the lazy
+   gallery's shared chunk, and a new stylesheet would add a file to the eager chunk's preload list. */
+.spWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.spSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.spStatus {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.spActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.spActions button {
+  min-height: var(--tap-min, 44px);
+}
+.inUse {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.inUseHeading {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 14px;
+  font-weight: 700;
+}
+.inUseNote {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.inUseList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inUseCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inUseTitle {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+}
+/* P3b-F-R8: an example card's own Report control, beside its title. Small to look at, a full touch target to hit. */
+.inUseHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.inUseReport {
+  flex: none;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  justify-content: center;
+}

@@ -199,6 +199,11 @@ export const alertKind = {
   // A delete is a HARD delete in the product: nothing can bring the same alert back.
   undoPatch: () => null,
   fingerprint: (snap) => (snap ? rowSig(snap) : 'gone'),       // after its delete there is no row
+  // ⛔ APPROVAL BINDING: the alert book is re-read from the server before "do it" re-plans (an alert
+  // that went off or was deleted elsewhere is then seen); unreadable → the approval fails closed.
+  async refreshForApproval() {
+    try { await loadAlerts({ force: true }); return { ok: true } } catch { return { ok: false, what: 'your alerts' } }
+  },
 }
 
 function libraryEntry(refFor) {

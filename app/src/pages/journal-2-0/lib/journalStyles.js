@@ -17,6 +17,7 @@ import { settleNoteWrite, settleNoteWrites } from './offline/settleNoteWrite'
 import { openNotebookDb, getMeta, putMeta, offlineStorageAvailable } from './offline/notebookDb'
 import { offlineEnabled } from './offline/offlineFlag'
 import { getCurrentAccountId } from './offline/currentAccount'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 export const STYLES_URL = '/api/j2/journal-styles'
 /** The server's cap on a style's name (journal_styles.MAX_STYLE_NAME_CHARS), pinned by
@@ -77,7 +78,13 @@ export async function fetchJournalStyles({ readCache = readCachedStyles } = {}) 
 
 const enc = encodeURIComponent
 export const getJournalStyle = (id) => call(`${STYLES_URL}/${enc(id)}`)
-export const createJournalStyle = (body) => call(STYLES_URL, { method: 'POST', body })
+/** P5 Task 6: `via` names the door ('editor' | 'duplicate' | 'from_note'); one `style_created` is counted after
+ *  the server's yes, carrying only that door. A refusal throws as before and counts nothing. */
+export async function createJournalStyle(body, { via } = {}) {
+  const out = await call(STYLES_URL, { method: 'POST', body })
+  trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_CREATED, { via })
+  return out
+}
 export const updateJournalStyle = (id, patch) => call(`${STYLES_URL}/${enc(id)}`, { method: 'PUT', body: patch })
 export const deleteJournalStyle = (id) => call(`${STYLES_URL}/${enc(id)}`, { method: 'DELETE' })
 export const restoreJournalStyle = (id) => call(`${STYLES_URL}/${enc(id)}/restore`, { method: 'POST' })

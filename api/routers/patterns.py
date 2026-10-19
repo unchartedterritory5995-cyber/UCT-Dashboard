@@ -153,6 +153,10 @@ from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as _uct_ma_
 # Team setup recognition rules, third port (trendline break on a frozen drawer line, launch pad v4): INTERNAL, same gate.
 from api.services.pattern_engine.detectors.uct import uct_trendline_break as _uct_trendline_break  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_launch_pad_v4 as _uct_launch_pad_v4  # noqa: F401
+# Detector recall v4 (flat-top breakout, gated recall branch): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout_ftb4 as _uct_flat_top_breakout_ftb4  # noqa: F401
+# Detector recall v4 (inside day, gated recall branch): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_inside_day_id4 as _uct_inside_day_id4  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 
@@ -803,7 +807,7 @@ def get_detections(
                                         min_conf=min_conf, include_internal=is_admin)
     # Display-only drawing policy per row, from the ONE registry constant
     # (registry.display_policy). Additive keys: no existing field changes.
-    rows = [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in rows]
+    rows = [{**r, **_pe_registry.row_display_policy(r)} for r in rows]
     out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
     # Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED + AUTO_STRUCTURES_ENABLED,
     # both read per request): a non-admin's chart toggle asks with include_structures=true,
@@ -827,10 +831,19 @@ def get_detections(
                                                        min_conf=min_conf, include_internal=True)
                           if wanted else [])
             rows = auto_structures.member_rows(
-                [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in member_raw])
+                [{**r, **_pe_registry.row_display_policy(r)} for r in member_raw])
+            # Only the ticker's LATEST scan, and a flat top only as of the newest COMPLETED daily
+            # bar: an older scan's row (a different hash_key for the same pattern) stays "active"
+            # for 7 days and must not reach a member. Fails closed. Admins are not filtered.
+            rows = auto_structures.fresh_member_rows(sym.upper(), tf, rows)
             mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                # a served (stamped) cup outranks a bc:flat-base covering the same base (members only)
+                boxes = auto_structures.member_cup_precedence(boxes)
+                # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
+                # covering the same base wins over the bc:base drawing (members only)
+                boxes = auto_structures.member_base_precedence(rows, boxes)
                 if boxes:
                     mout["structures"] = boxes
                 drawn = auto_structures.drawn_for(sym)

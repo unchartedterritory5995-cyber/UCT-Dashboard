@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/journal-styles/starter-packs/long_term",
+    "note": "A trading style that is not a starter pack: the one 404, and nothing is charged.",
+    "path": "/api/j2/journal-styles/starter-packs/long_term",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

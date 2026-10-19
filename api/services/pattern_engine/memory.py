@@ -219,6 +219,23 @@ def get_active_detections(
         conn.close()
 
 
+def latest_scan_at(sym: str, tf: str) -> Optional[int]:
+    """When the newest scan that wrote anything for (sym, tf) ran: MAX(last_seen_at) over EVERY
+    stored row of that ticker and timeframe -- any pattern, any status, any age, internal ids
+    included. Each scan stamps last_seen_at on every row it writes (store_detection's upsert), so
+    this is the scan a row must belong to for the member set to call it current
+    (auto_structures.latest_scan_rows). None when the ticker has no rows at all."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT MAX(last_seen_at) FROM pattern_detections WHERE sym = ? AND tf = ?",
+            (sym.upper(), tf),
+        ).fetchone()
+        return int(row[0]) if row and row[0] is not None else None
+    finally:
+        conn.close()
+
+
 def get_detection_by_id(detection_id: str) -> Optional[dict]:
     conn = get_connection()
     try:

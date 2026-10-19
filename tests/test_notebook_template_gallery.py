@@ -331,9 +331,10 @@ def test_a_submission_is_pending_and_invisible_until_an_admin_approves_it(svc):
 
 def test_a_rejection_needs_a_reason_and_the_author_reads_it(svc):
     gid = _publish(svc)["id"]
+    seen = svc.get_item(ADMIN, gid, is_admin=True)["updatedAt"]
     with pytest.raises(svc.GalleryError):
-        svc.admin_act(ADMIN, gid, "reject", note="")
-    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.")
+        svc.admin_act(ADMIN, gid, "reject", note="", reviewed_updated_at=seen)
+    svc.admin_act(ADMIN, gid, "reject", note="Too thin -- add your exit rules.", reviewed_updated_at=seen)
     mine = svc.list_gallery(A, section="mine")[0]
     assert mine["status"] == "rejected" and mine["reviewNote"] == "Too thin -- add your exit rules."
     assert gid not in _listed(svc, B)
@@ -493,7 +494,9 @@ def test_the_firm_picks_are_seeded_once_and_an_admin_choice_survives_a_reboot(sv
     svc.admin_act(ADMIN, target, "unfeature")
     conn = _conn()
     svc.ensure_gallery_schema(conn)                                # a reboot
-    n = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm'").fetchone()[0]
+    # P5-R-C4: the firm STYLE rows (tests/test_firm_style_seed.py) are counted there, not against the outline seed.
+    n = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm'"
+                     " AND item_type = 'outline'").fetchone()[0]
     conn.close()
     assert n == len(seeds)
     assert target not in _listed(svc, B, section="picks")          # not re-featured
@@ -682,7 +685,8 @@ def test_an_authors_account_deletion_takes_their_listings_and_leaves_the_firm_pi
     report = account_purge.purge_user_data(A, conn)
     assert report["errors"] == [], report["errors"]
     left = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE user_id = ?", (A,)).fetchone()[0]
-    firm = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm'").fetchone()[0]
+    firm = conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = 'firm'"
+                        " AND item_type = 'outline'").fetchone()[0]    # P5-R-C4
     b_copies = conn.execute("SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ?", (B,)).fetchone()[0]
     conn.close()
     assert left == 0 and firm == len(svc.load_seed()) and b_copies == 1

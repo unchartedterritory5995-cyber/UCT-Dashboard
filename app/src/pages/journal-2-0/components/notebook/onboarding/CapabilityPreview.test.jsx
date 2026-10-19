@@ -71,7 +71,7 @@ describe('CapabilityPreview', () => {
 
   it('calls no model (static text; no AI call before a member has written anything)', async () => {
     // ⛔ ONE payload: the latch keeps the first one it sees, so a loop would arm one line only.
-    latchNotebookFlags(Object.fromEntries(CAPABILITY_PREVIEW.map((c) => [c.flag, true])))
+    latchNotebookFlags(Object.fromEntries(CAPABILITY_PREVIEW.flatMap((c) => [c.flag, ...(c.requires || [])]).map((f) => [f, true])))
     render(<CapabilityPreview canAddSample />)
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(CAPABILITY_PREVIEW.length)
     // P0.8: the "Capture from anywhere" box under the list asks its two capture gates (the same

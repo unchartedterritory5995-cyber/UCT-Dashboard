@@ -8,6 +8,7 @@
   },
   "body": {
     "capabilities": {
+      "exampleNotes": true,
       "layoutSharing": true
     },
     "templates": [
@@ -38,6 +39,114 @@
         "updatedAt": "2026-10-05T14:30:00+00:00",
         "usedBy": 1,
         "version": 2
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "description": "Review a closed swing trade against the plan you made and the rules you trade by.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "162cb6525dca55a484b5e521b540bf85",
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What I planned"
+          },
+          {
+            "kind": "heading",
+            "text": "What I did"
+          },
+          {
+            "kind": "heading",
+            "text": "What I would do differently"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Swing trade review",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "description": "Prep for the week ahead with your movers, your key levels, your active rules and the market regime.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "57faa453eaae59398f38447d6c9ce867",
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Market read"
+          },
+          {
+            "kind": "heading",
+            "text": "Leaders and themes"
+          },
+          {
+            "kind": "heading",
+            "text": "Names to watch"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekend prep",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "description": "A swing entry with the pre-entry checklist, position sizing, the market at entry and a daily chart.",
+        "featured": true,
+        "firm": true,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "8142b55e0fc9566fa73933fb592b5f69",
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Thesis"
+          },
+          {
+            "kind": "heading",
+            "text": "Entry trigger"
+          },
+          {
+            "kind": "heading",
+            "text": "Stop and invalidation"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Swing trade plan",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
       }
     ],
     "viewer": {

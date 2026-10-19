@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "endpoint": "POST /api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/adopt-layout",
     "note": "The member previewed version 1 and version 2 is listed now: nothing is adopted.",
-    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/adopt-layout",
+    "path": "/api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/adopt-layout",
     "requestBody": {
       "version": 1
     },

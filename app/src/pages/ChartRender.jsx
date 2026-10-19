@@ -83,6 +83,11 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 import { renderTokenOk } from '../lib/renderToken'
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
 
+// How much breadth history the page asks `/api/r/breadth-bars/` for: the same full
+// depth a stock chart's page holds, so zoom and MAs read the same. Breadth is
+// served from the web pod's own cache, so the depth costs no provider call.
+export const BREADTH_FETCH_BARS = 5000
+
 // Height of the optional `?stats=` strip; the caller adds it to `?h=`.
 export const STATS_STRIP_H = 28
 
@@ -520,6 +525,33 @@ export default function ChartRender() {
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk
   // that only a ?fixedbars= load ever pulls.
+  // A breadth series comes through the token-gated `/api/r/breadth-bars/` door,
+  // because `/api/bars/{sym}` is paid-gated and this page runs logged OUT: for a
+  // breadth symbol (served by the web pod, not the ungated bars tier) StockChart's
+  // own fetch answered 401, drew nothing, and every Discord breadth chart fell back
+  // to the mplfinance candle stand-in. The bars go in through the same
+  // `barsOverride` seam the parity fixtures use. A failed fetch settles to null,
+  // which leaves StockChart's own fetch in charge, exactly as before.
+  const breadthFetch = breadthParam && !fixedBars
+  const [breadthBars, setBreadthBars] = useState(null)
+  const [breadthSettled, setBreadthSettled] = useState(!breadthFetch)
+  useEffect(() => {
+    if (!breadthFetch || !sym) { setBreadthBars(null); setBreadthSettled(true); return undefined }
+    let alive = true
+    setBreadthSettled(false)
+    const qs = new URLSearchParams({ token, tf, bars: String(BREADTH_FETCH_BARS) })
+    fetch(`/api/r/breadth-bars/${encodeURIComponent(sym)}?${qs}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive) return
+        const b = j?.bars
+        setBreadthBars(Array.isArray(b) && b.length ? b : null)
+        setBreadthSettled(true)
+      })
+      .catch(() => { if (alive) { setBreadthBars(null); setBreadthSettled(true) } })
+    return () => { alive = false }
+  }, [breadthFetch, sym, tf, token])
+
   const [fixtureBars, setFixtureBars] = useState(null)
   const [fixtureSettled, setFixtureSettled] = useState(!fixedBars)
   useEffect(() => {
@@ -595,6 +627,28 @@ export default function ChartRender() {
       window.__chartHeaderReady = true
       return undefined
     }
+    // A breadth series has no company and its `/api/bars` lookup is paid-gated, so
+    // the header reads price and change off the bars this page already holds.
+    if (breadthFetch) {
+      if (!breadthSettled) return undefined
+      // "◀ Earlier" (?to=) shows the chart ending on that day, so the header reads that
+      // day too - not today's value above a chart whose last-price tag says otherwise.
+      const shown = toParam ? (breadthBars || []).filter((b) => String(b.t).slice(0, 10) <= toParam) : (breadthBars || [])
+      const last = shown.length ? shown[shown.length - 1] : null
+      const prev = shown.length > 1 ? shown[shown.length - 2] : null
+      const c = last?.c, pc = prev?.c
+      setMeta({
+        company: want.company,
+        price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
+        chg: want.chg != null ? want.chg
+          : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+        // A breadth reading moves in POINTS: UCTA50 33.2 -> 31.4 is "-1.80", and the
+        // percent of a percent (-5.42%) alone misleads, so the header leads with this.
+        pts: Number.isFinite(c) && Number.isFinite(pc) ? c - pc : null,
+      })
+      window.__chartHeaderReady = true
+      return undefined
+    }
     Promise.allSettled([
       want.company ? Promise.resolve(null) : fetch(`/api/ticker-meta/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)),
       (want.price != null && want.chg != null)
@@ -616,7 +670,7 @@ export default function ChartRender() {
       window.__chartHeaderReady = true
     })
     return () => { alive = false }
-  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
+  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars, breadthFetch, breadthSettled, breadthBars, toParam])
 
   // ── Signal readiness — PIXEL STABILITY, not a stopwatch ────────────────────
   //
@@ -922,8 +976,10 @@ export default function ChartRender() {
               verbatim, and these two headers sit in the same issue. */}
           <span style={{ marginLeft: 12 }}>{tf}</span>
           {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
-          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>${meta.price.toFixed(2)}</span>}
-          {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%</span>}
+          {/* A breadth reading is a percentage or a count, never dollars. */}
+          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{meta.price.toFixed(2)}</span>}
+          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{meta.pts.toFixed(2)}</span>}
+          {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts != null ? '(' : ''}{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%{meta.pts != null ? ')' : ''}</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
@@ -951,8 +1007,8 @@ export default function ChartRender() {
             {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
-            barsOverride={fixtureBars}
-            barsOverridePending={!!fixedBars && !fixtureSettled}
+            barsOverride={fixtureBars || breadthBars}
+            barsOverridePending={(!!fixedBars && !fixtureSettled) || (breadthFetch && !breadthSettled)}
             // ⚠️ MEASURED NONDETERMINISM, NOT A PREFERENCE. Over 40 runs of
             // `engine_rsi_toggle_off` (2026-08-02) the DASHED LAST-PRICE LINE
             // rasterised into one of exactly TWO states — 24 px on one row,
@@ -973,6 +1029,10 @@ export default function ChartRender() {
             // MAs never stretch the price scale (TC2000-style): a 200-day line far
             // below price used to squash every candle into the top third.
             fitPriceToCandles={!fixedBars}
+            // A breadth LINE whose newest point is its low sat ON the volume pane's
+            // divider, last-price tag and all (UCTFG 17.90, 2026-10-16). A small gap
+            // keeps it in view; stock charts keep the tight fit they always had.
+            {...(breadthParam ? { priceScaleBottomMargin: 0.08 } : {})}
             alwaysShowLegend
             liveUpdates={false}
           />

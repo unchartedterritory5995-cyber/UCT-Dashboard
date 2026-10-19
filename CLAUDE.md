@@ -484,7 +484,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   the hourly half), and since P3a (the community style library, dark) three more on the same
   router: `notebook-gallery-adopt` (30/hour, plus a DURABLE 50/day, so a second process
   doubles only the hourly half) and `notebook-gallery-helpful` and `notebook-gallery-follow`
-  (60/hour each, in-process only, so a second process doubles both) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  (60/hour each, in-process only, so a second process doubles both), and since P3b (example
+  notes, dark) one more on the same router: `notebook-gallery-preview` (60/hour, keyed on the
+  member, in-process only: each example preview reduces the whole note, so a second process
+  doubles how many a member can run), and since P5 (starter packs, dark) `notebook-starter-pack`
+  on the journal styles router (10/hour, plus a DURABLE 5/day, so a second process doubles only
+  the hourly half) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·

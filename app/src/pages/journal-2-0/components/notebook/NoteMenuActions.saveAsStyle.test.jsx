@@ -56,7 +56,7 @@ describe('Save this note\'s setup as a style', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     expect(await screen.findByText('Saved as the style “My trade plan”.')).toBeInTheDocument()
     // the kind is the note's own and was not changed: the server's fallback (property, then column) decides
-    expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'My trade plan' })
+    expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'My trade plan' }, { via: 'from_note' })
     expect(order[0]).toBe('flush')
     expect(order.at(-1)).toBe('create')
   })
@@ -77,7 +77,7 @@ describe('Save this note\'s setup as a style', () => {
       expect(kind).toHaveValue('earnings')
       fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
       await screen.findByText(/^Saved as the style/)
-      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan' })
+      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan' }, { via: 'from_note' })
     })
 
     it('a kind the member picks instead IS sent', async () => {
@@ -85,7 +85,7 @@ describe('Save this note\'s setup as a style', () => {
       fireEvent.change(kind, { target: { value: 'thesis' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
       await screen.findByText(/^Saved as the style/)
-      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'thesis' })
+      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'thesis' }, { via: 'from_note' })
     })
 
     it('with no kind at all nothing is guessed: Save waits for a choice, then sends it', async () => {
@@ -96,7 +96,7 @@ describe('Save this note\'s setup as a style', () => {
       expect(screen.getByRole('button', { name: 'Save style' })).not.toBeDisabled()
       fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
       await screen.findByText(/^Saved as the style/)
-      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'daily_prep' })
+      expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'daily_prep' }, { via: 'from_note' })
     })
 
     it('a default kind this app does not know is treated as none', async () => {
@@ -189,7 +189,7 @@ describe('Save this note\'s setup as a style', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save style' })).not.toBeDisabled())
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     await screen.findByText(/^Saved as the style/)
-    expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'A'.repeat(MAX_STYLE_NAME_CHARS) })
+    expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'A'.repeat(MAX_STYLE_NAME_CHARS) }, { via: 'from_note' })
   })
 
   it('Cancel closes the form without creating anything', async () => {

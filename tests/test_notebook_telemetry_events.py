@@ -339,3 +339,79 @@ def test_the_admin_door_counts_every_allow_listed_event_and_is_admin_only(db):
     body = client.get("/api/admin/notebook-telemetry").json()
     assert set(body["events"]) == set(_J2_TELEMETRY_EVENTS)
     assert body["windows"]["7"]["switcher_used"]["count"] == 1
+    # P5 Task 6: the three journal-style events are counted too (derived from the allow-list, never typed there).
+    for ev in ("style_applied", "style_created", "block_used"):
+        assert ev in body["events"], ev
+        assert ev in body["windows"]["7"] and ev in body["windows"]["30"], ev
+
+
+# ── P5 Task 6: style_applied, style_created and block_used ───────────────────
+
+P5_EVENTS = {"style_applied", "style_created", "block_used"}
+
+
+def _client_block_used_kind_line() -> list[str]:
+    """`block_used.kind`'s values IN SOURCE ORDER, read off its ONE line (the schema parser above is single-line,
+    P5-R-C8: a oneOf wrapped over two lines would not parse, so this also proves it is one line)."""
+    src = CLIENT.read_text(encoding="utf-8")
+    lines = [ln for ln in src.splitlines() if re.match(r"^    kind: oneOf\(", ln)
+             and "'positionSizing'" in ln]
+    assert len(lines) == 1, f"block_used.kind must be ONE oneOf line, found {len(lines)}"
+    return re.findall(r"'([^']*)'", lines[0])
+
+
+def test_the_p5_events_are_on_both_sides_and_read_not_typed():
+    names = set(_client_event_names())
+    assert P5_EVENTS <= names, P5_EVENTS - names
+    assert P5_EVENTS <= _J2_TELEMETRY_EVENTS
+    # P5-R-C7: 17 + 3 = 20 names on the client.
+    assert len(_client_event_names()) == 20
+
+
+def test_block_used_kind_is_the_block_catalog_both_sides():
+    """P5-R-C8: `block_used.kind` is exactly journal_styles.BLOCK_KINDS' ids (13 since P2 Tier 3), in that order,
+    on the client and on the server; and every trader block (trader_blocks.BLOCK_IDS, the `block: true` registry
+    rows) is one of them, so a block can never be counted as 'other'. A drift on either side reds here."""
+    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
+    from api.services.journal_two import journal_styles, trader_blocks
+    catalog = [k["id"] for k in journal_styles.BLOCK_KINDS]
+    assert len(catalog) == 13                                    # control: the catalog was read
+    assert list(_NOTEBOOK_PROP_SCHEMAS["block_used"]["kind"]) == catalog
+    assert _client_block_used_kind_line() == catalog
+    assert set(trader_blocks.BLOCK_IDS) <= set(catalog)
+    assert len(trader_blocks.BLOCK_IDS) == 10                    # control: the trader blocks were read
+
+
+def test_the_style_events_carry_only_their_closed_via():
+    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
+    assert _NOTEBOOK_PROP_SCHEMAS["style_applied"] == {"via": ("new_note", "switch", "update")}
+    assert _NOTEBOOK_PROP_SCHEMAS["style_created"] == {"via": ("editor", "duplicate", "from_note")}
+    assert set(_NOTEBOOK_PROP_SCHEMAS["block_used"]) == {"kind"}
+
+
+def test_unknown_kind_is_other(telemetry_app):
+    client, logged = telemetry_app
+    r = client.post("/api/j2/telemetry", json={"event": "block_used", "props": {"kind": "free text"}})
+    assert r.status_code == 200
+    [(_, action, details)] = logged.rows
+    assert action == "j2:block_used"
+    assert json.loads(details) == {"kind": "other"}
+
+
+def test_the_server_drops_style_names_ids_and_params_from_the_p5_events(telemetry_app):
+    client, logged = telemetry_app
+    sends = [
+        ("style_applied", {"via": "switch", "styleId": "s_123", "name": "My NVDA swing style"}, {"via": "switch"}),
+        ("style_applied", {"via": "my private words"}, {"via": "other"}),
+        ("style_created", {"via": "from_note", "noteId": "n_9", "title": "My private NVDA plan"},
+         {"via": "from_note"}),
+        ("block_used", {"kind": "positionSizing", "params": {"entry": 123.45}, "ticker": "NVDA"},
+         {"kind": "positionSizing"}),
+    ]
+    for event, props, _ in sends:
+        assert client.post("/api/j2/telemetry", json={"event": event, "props": props}).status_code == 200
+    got = [(a, json.loads(d)) for _, a, d in logged.rows]
+    assert got == [(f"j2:{e}", want) for e, _, want in sends]
+    blob = json.dumps(got)
+    for leaked in ("s_123", "NVDA", "private", "n_9", "123.45"):
+        assert leaked not in blob, leaked

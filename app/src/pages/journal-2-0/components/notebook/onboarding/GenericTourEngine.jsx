@@ -310,19 +310,23 @@ export default function GenericTourEngine({
   // thing -- the anchor appearing after the step was shown -- never because it is already
   // there: Back onto this step with the panel still open used to jump straight forward
   // again, so Back read as broken (W14-Q2 round 2). Then only Next, or redoing it, moves on.
+  // "Appearing" is a NEW element, not only a gap: on an empty notebook the inline picker's gallery
+  // door is on screen when "Select Templates" is shown, and opening the sheet REPLACES it with the
+  // sheet's own door in one commit, so the anchor is never absent (P5 final fix, item 9).
   useEffect(() => {
     if (!step?.waitFor || moving) return undefined
-    let seenAbsent = !anchorFor(step.waitFor)
+    let shown = anchorFor(step.waitFor)          // the element on screen when the step was shown
     const timer = setInterval(() => {
-      if (!anchorFor(step.waitFor)) {
-        seenAbsent = true
+      const now = anchorFor(step.waitFor)
+      if (!now) {
+        shown = null
         // The member did the thing (this step's own anchor has gone, e.g. they tapped Back)
         // and what comes next is hidden in a region that opens: ask it to open. Never while
         // this step's anchor is still on screen, or the drawer would open over the step.
         if (!anchorFor(step.anchor)) requestReveal(step.waitFor)
         return
       }
-      if (!seenAbsent) return
+      if (now === shown) return
       clearInterval(timer)
       const owner = steps.findIndex((s, j) => j > index && s.anchor === step.waitFor)
       goTo(owner >= 0 ? owner : Math.min(index + 1, steps.length - 1))

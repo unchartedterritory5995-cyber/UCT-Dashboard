@@ -1,0 +1,90 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery",
+    "note": "The author's own list: their shared style, carrying the id of the style it shares, and their pending example note, with `capabilities.exampleNotes`.",
+    "path": "/api/j2/template-gallery?section=mine",
+    "status": 200
+  },
+  "body": {
+    "capabilities": {
+      "exampleNotes": true,
+      "layoutSharing": true
+    },
+    "templates": [
+      {
+        "author": "Erin Example",
+        "authorHandle": "gcra2MCZaDHz",
+        "category": "journal",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hasRevision": false,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "hidden": false,
+        "id": "bf1ea35b5c8e49689378a7e94a37fead",
+        "itemType": "example_note",
+        "layoutPage": null,
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "text",
+            "text": "made your value here on NVDA, up your value here, at your broker. Watch…"
+          }
+        ],
+        "propertyCount": 0,
+        "reviewNote": "",
+        "revisionTitle": null,
+        "sourceStyleId": null,
+        "status": "pending",
+        "title": "My weekend plan",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "Erin Example",
+        "authorHandle": "gcra2MCZaDHz",
+        "category": "journal",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hasRevision": false,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "hidden": false,
+        "id": "c56b4ed84d6f452db201026b9614b0cb",
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "text",
+            "text": "What moved this week, and why?"
+          }
+        ],
+        "propertyCount": 0,
+        "reviewNote": "",
+        "revisionTitle": null,
+        "sourceStyleId": "88361d68dbc1454a82ee73390fb52fdb",
+        "status": "pending",
+        "title": "Weekend prep",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      }
+    ],
+    "viewer": {
+      "admin": false
+    }
+  }
+}

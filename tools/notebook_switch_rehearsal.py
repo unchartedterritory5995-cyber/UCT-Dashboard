@@ -295,10 +295,29 @@ NOT_REHEARSED = {
                              "Checklist from my winners and the Your trading year door; creating "
                              "only (an existing check-in block still renders); evidence is the fin "
                              "walk's Tier 3 group (Task 10); waits for the owner's arming",
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": "dark (P3b): example notes on a shared style -- the preview, the publish and "
+                                      "the In use section; server-only, NOT on the auth payload (so no payload "
+                                      "key to verify), and every example route answers 404 while off "
+                                      "(tests/test_example_notes.py, the ..._switch_off_... tests); needs the "
+                                      "library switch; waits for the owner's arming",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
                                         "client-only, no route; waits for the owner to arm it",
+    # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
+    # rows in the gallery (listed only while the library switch is on too, P5-AUD-1); installing a
+    # pack writes the member's own styles, which this read-only rehearsal does not do. Its evidence
+    # is tools/notebook_p5_walk.py (the offer, the install, the reload, the Starter packs button and
+    # the two B4 tours, at 1280/820/390; P5 Task 10), the route-off tests in tests/test_starter_packs.py
+    # (test_while_a_switch_is_off_every_caller_gets_the_identical_404, test_install_needs_both_its_switches)
+    # and tests/test_firm_style_seed.py. (The fin walk has no starter-packs step; it arms the switch in
+    # c2 only through WAVE_FLAGS. Ruling P5-R-T2-2 chose this reword over a new fin-walk step.)
+    "NOTEBOOK_STARTER_PACKS_ENABLED": "dark (P5): the How do you trade? offer and the starter-pack install "
+                                      "endpoint (need NOTEBOOK_JOURNAL_STYLES_ENABLED also on), and the "
+                                      "firm style rows in the gallery, listed only while "
+                                      "NOTEBOOK_STYLE_LIBRARY_ENABLED is on too; installing a pack writes "
+                                      "the member's own styles, so there is no rendered on/off probe in "
+                                      "this tool; waits for the owner's arming",
     "NOTEBOOK_LAYOUT_SHARING_ENABLED": "dark (P4b): sharing and adopting page layouts; server-only, rehearsed by the P4b walk (tools/notebook_layout_library_walk.py)",
 }
 

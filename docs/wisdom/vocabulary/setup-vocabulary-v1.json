@@ -528,7 +528,12 @@
    "aliases": [
     "flag out",
     "flagging out",
-    "hourly flag"
+    "hourly flag",
+    "flagging",
+    "tight flag",
+    "falling flag",
+    "weekly flag",
+    "pennant"
    ],
    "evidence_count": 2,
    "evidence": [
@@ -2508,10 +2513,22 @@
      "note": "team-setup lab rule (inside day in a stacked uptrend), internal detector"
     },
     {
+     "external_name": "uct_inside_day_id4",
+     "vocab_id": "inside_day",
+     "mismatch": 0,
+     "note": "id4 recall variant of uct_inside_day (inside day in a stacked uptrend); team-setup lab rule, internal detector"
+    },
+    {
      "external_name": "uct_flat_top_breakout",
      "vocab_id": "range_breakout",
      "mismatch": 1,
      "note": "flat-top breakouts are the flat-base case of a range breakout; team-setup lab rule, internal detector"
+    },
+    {
+     "external_name": "uct_flat_top_breakout_ftb4",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "ftb4 recall variant of uct_flat_top_breakout (flat-base case of a range breakout); team-setup lab rule, internal detector"
     },
     {
      "external_name": "uct_flag_htf",

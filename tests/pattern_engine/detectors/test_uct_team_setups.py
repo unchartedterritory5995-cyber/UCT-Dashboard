@@ -8,8 +8,9 @@ Synthetic fixtures only. What each test pins:
   * the liquidity floor, the warm-up, and the prior-session trigger rule;
   * detection shape: levels, candle_mark anchors with anchor_roles on real bar
     times, display-only secondary lines, narrative, canonical confidence;
-  * registration: internal, out of the member catalog, NOT in the team drawing
-    set, drawn experimental; flat_top declares its history to the scan.
+  * registration: internal, out of the member catalog; inside_day is NOT in the
+    team drawing set and is drawn experimental, flat_top IS (team + member set,
+    trusted, since 2026-10-18); flat_top declares its history to the scan.
 The lab parity (lab vs app, no lookahead) lives in test_uct_team_setups_parity.py.
 """
 import pytest
@@ -199,12 +200,24 @@ def test_registered_internal_and_kept_out_of_the_member_catalog():
         assert pid not in patterns_router._PATTERN_METADATA
 
 
-def test_not_in_the_team_drawing_set_and_drawn_experimental():
-    for pid in _IDS:
-        assert pid not in registry.DISPLAY_TEAM_SET and pid not in registry.DISPLAY_TRUSTED
-        assert pid not in registry.DISPLAY_HIDDEN
-        pol = registry.display_policy(pid)
-        assert pol["display_tier"] == "experimental" and pol["display_layer"] == "structures"
+def test_inside_day_is_not_in_the_team_drawing_set_and_drawn_experimental():
+    pid = "uct_inside_day"
+    assert pid not in registry.DISPLAY_TEAM_SET and pid not in registry.DISPLAY_TRUSTED
+    assert pid not in registry.DISPLAY_HIDDEN
+    pol = registry.display_policy(pid)
+    assert pol["display_tier"] == "experimental" and pol["display_layer"] == "structures"
+
+
+def test_flat_top_is_in_the_team_and_member_sets_and_drawn_trusted():
+    """2026-10-18 (lab flattop_draw_v2): the "flat top" ceiling passed two blind packets AS DRAWN,
+    so the detector joined the team set and the member set; a member is served only its v2-stamped
+    drawing (tests/test_flat_top_member_drawing.py). Firing is unchanged: it stays INTERNAL."""
+    pid = "uct_flat_top_breakout"
+    assert pid in registry.DISPLAY_TEAM_SET and pid in registry.DISPLAY_MEMBER_SET
+    assert pid not in registry.DISPLAY_HIDDEN and registry.is_internal(pid)
+    pol = registry.display_policy(pid)
+    assert pol["display_tier"] == "trusted" and pol["display_layer"] == "structures"
+    assert pol["draw_entry"] is False
 
 
 def test_scan_depth_declarations():

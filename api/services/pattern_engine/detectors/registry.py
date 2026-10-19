@@ -153,6 +153,22 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # blind packets (pooled precision of decided 82.4%). Experimental, internal;
     # NOT in the team drawing set.
     "uct_launch_pad_v4",
+    # Detector recall v4 (2026-10-18): the flat-top breakout rule widened by a
+    # gated second branch (the same frozen decision at a 25- or 60-session
+    # ceiling, only when the ceiling is mature, not nested in a larger base,
+    # and the 200 SMA is rising). NEW id beside uct_flat_top_breakout, which
+    # is unchanged. Lab test-half recall 27.0% vs the base rule's 23.0%; two
+    # blind packets (12/15, 13/15 of decided); a pre-registered new-only
+    # confirmation 28/32. Experimental, internal; NOT in the team drawing set.
+    "uct_flat_top_breakout_ftb4",
+    # Detector recall v4 (2026-10-18): the inside-day rule widened by a gated
+    # second branch (close above a rising 21 EMA, range <= 1.0 ATR, only with
+    # the 50 SMA rising and the close above the 200 SMA). NEW id beside
+    # uct_inside_day, which is unchanged. Lab test-half recall 42.8% vs the
+    # base rule's 23.5%; two fresh blind packets (21/21 and 15/17 of decided);
+    # the new-branch fires alone 12/14. Experimental, internal; NOT in the team
+    # drawing set.
+    "uct_inside_day_id4",
 })
 
 
@@ -234,6 +250,8 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "bull_flag",
     "flat_base", "bc:flat-base", "bc:cup-with-handle",
     "uct_pullback_ma_v5",
+    "uct_flat_top_breakout",
+    "bc:base",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -256,15 +274,52 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: only while it is not stale and carries extras.draw_round equal to the confirmed
 #: round: a row stored by older drawing code, or one whose verdicts never finished,
 #: is dropped (an admin still sees it).
-#: NOT confirmed, so admin-only (Team/All) and never served to a member:
-#: bc:cup-with-handle, every other id. Admins' tiers are unchanged:
+#: NOT confirmed, so admin-only (Team/All) and never served to a member: every other id. Admins'
+#: tiers are unchanged:
 #: DISPLAY_TRUSTED above still stamps the whole team set `trusted`.
 #: uct_pullback_ma_v5 stays INTERNAL everywhere else; the member route serves its
 #: rows ONLY through this set (api/routers/patterns.py, member branch).
+#: uct_flat_top_breakout (lab flattop_draw_v2, 2026-10-18) passed two fresh blind packets AS DRAWN
+#: -- the "flat top" ceiling plus its touch markers, only under the v2 draw conditions: A 2.60
+#: [2.30, 2.83] and B 2.57 [2.30, 2.80]. auto_structures.member_rows serves it only while it carries
+#: extras.draw_round == MEMBER_FLAT_TOP_ROUND beside a well-formed draw_flat_top (fail closed). Its
+#: trusted tier is per ROW (DISPLAY_TRUSTED_WHEN_STAMPED / row_display_policy): an unstamped
+#: flat-top row keeps the experimental tier it always had, for admins too.
+#: bc:base (lab base_draw, 2026-10-18) is the shape-agnostic BASE drawing -- the base's extent, its
+#: pivot on the top cluster of the candle bodies and its low (api/services/pattern_engine/base_draw.py).
+#: It passed its pre-registered team-axis pivot test on the held-out half (14 of 17 charts; a naive
+#: 20-bar highest-body line hits 13 of 17, so its value is WHEN it draws and the extent, not the pivot
+#: price) and two fresh blind packets AS DRAWN: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97], 100% of
+#: charts >= 2 in both. The extent test was NOT validated against extents the team drew (the team's
+#: base there is derived by the lab's own span rule; one comparison against team boxes). A member is
+#: served it only where no incumbent base drawing covers the same base
+#: (auto_structures.member_base_precedence). A bc:base row
+#: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
+#: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
+#: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup
+#: recognition tier draws it (pattern_engine/cup_tier.py): recognition 28 of 33 = 84.8% on two fresh
+#: blind packets (live detector alone 14.3%), and drawing round 4 on two fresh pre-registered packets,
+#: two judges each: d1 2.42 [2.20, 2.62] 96% >= 2, d2 2.50 [2.28, 2.72] 88% >= 2.
+#: auto_structures.member_rows serves it only while it carries extras.cup_tier with draw_round ==
+#: MEMBER_CUP_TIER_ROUND, not withheld, and then draws the tier's pivot / handle / rim reference in place
+#: of the admin rounds' drawing. An unstamped cup row stays admin-only. Served population (lab, measured):
+#: the admin display rounds mark 63.6% of the 1,402 tier fires stale before the stamp runs and round 4
+#: withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member can be
+#: served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc); served recognition 8 of 8 decided. Where a
+#: stamped cup is served, bc:flat-base (member_cup_precedence) and bc:base (member_base_precedence) near
+#: its pivot or overlapping its span are dropped for members: the cup is the confirmed, judged drawing.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
+    "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
+#: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp
+#: named here (the extras key the blind-confirmed drawing code writes, display.draw_geometry). Every
+#: other row of that id keeps the tier it had before the id joined the team set (`experimental`),
+#: so an admin's chart draws it exactly as before and the member gate never sees it trusted.
+#: Served per row by `row_display_policy`; `display_policy(id)` alone answers for the stamped row.
+DISPLAY_TRUSTED_WHEN_STAMPED: dict = {"uct_flat_top_breakout": "draw_flat_top"}
+assert set(DISPLAY_TRUSTED_WHEN_STAMPED) <= DISPLAY_TEAM_SET
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
     "double_bottom", "double_top", "head_shoulders", "vcp",
@@ -327,6 +382,22 @@ def display_policy(pattern_id) -> dict:
         "intraday_only": pid in DISPLAY_INTRADAY_ONLY,
         "draw_entry": pid in DISPLAY_DRAW_ENTRY,
     }
+
+
+def row_display_policy(row) -> dict:
+    """`display_policy` for one detection ROW: the same, except that a row of an id in
+    DISPLAY_TRUSTED_WHEN_STAMPED is `trusted` only while its geometry.extras carries that id's stamp
+    as a dict; otherwise it is `experimental`, the tier it had before the id joined the team set."""
+    r = row if isinstance(row, dict) else {}
+    pid = r.get("pattern_id")
+    pol = display_policy(pid)
+    stamp = DISPLAY_TRUSTED_WHEN_STAMPED.get(str(pid or ""))
+    if stamp is not None and pol["display_tier"] == "trusted":
+        geom = r.get("geometry")
+        ex = geom.get("extras") if isinstance(geom, dict) else None
+        if not (isinstance(ex, dict) and isinstance(ex.get(stamp), dict)):
+            pol = {**pol, "display_tier": "experimental"}
+    return pol
 
 
 def drop_internal(rows, key: str = "pattern_id") -> list:

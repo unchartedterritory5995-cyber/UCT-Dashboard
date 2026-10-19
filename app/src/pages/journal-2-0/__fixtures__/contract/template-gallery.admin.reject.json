@@ -5,7 +5,8 @@
     "path": "/api/j2/template-gallery/admin/items/5a0bbe1fc29544bdb71b275fb117a0d1",
     "requestBody": {
       "action": "reject",
-      "note": "Too thin to be useful yet."
+      "note": "Too thin to be useful yet.",
+      "reviewedUpdatedAt": "2026-10-05T14:30:00+00:00"
     },
     "status": 200
   },

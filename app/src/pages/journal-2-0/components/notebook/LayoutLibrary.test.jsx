@@ -21,7 +21,7 @@ import TemplateGallery from './TemplateGallery'
 import { CHANGE_FAILED, REFRESH_TIMEOUT_MS, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
 import usePreferences, { __resetRevisionStateForTests, mergeIntoPreferenceCache } from '../../../../hooks/usePreferences'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
-import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE } from '../../lib/styleLibrary'
+import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE, LISTED_ITEM_TYPES } from '../../lib/styleLibrary'
 import { DEFAULT_LAYOUT, LAYOUT_PREF, LOAD_FAILED, PANELS, normalizeLayout } from '../../lib/pageLayouts'
 import { contract, contractBody } from '../../__fixtures__/contract'
 
@@ -174,7 +174,7 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     await screen.findByRole('heading', { name: OUTLINES[0].title })
     expect(listCalls().some((c) => c.search === '')).toBe(true)
     expect(within(types).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['All', ...ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: ROW.title })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: `Use template ${ROW.title}` })).not.toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     await openLayouts()
     await waitFor(() => expect(listCalls().some((c) => c.search.includes('type=page_layout'))).toBe(true))
     const types = screen.getByRole('group', { name: 'Filter by type' })
-    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...ITEM_TYPES.map((t) => t.label)])
+    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...LISTED_ITEM_TYPES.map((t) => t.label)])   // an example note is never a chip (R-P3b-2)
     expect(within(types).getByRole('button', { name: 'Page layouts' })).toHaveAttribute('aria-pressed', 'true')
     // the trading-style row shows for page layouts too
     expect(screen.getByRole('group', { name: 'Filter by trading style' })).toBeInTheDocument()

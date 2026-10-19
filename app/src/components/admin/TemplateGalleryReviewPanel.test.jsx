@@ -272,6 +272,40 @@ describe('the review queue for a style item', () => {
     await waitFor(() => expect(within(row).queryByText(CARD_REFRESHED_LINE)).toBeNull())
   })
 
+  // P3b-F-R4 (final review M-3): a rejection names the version the reviewer saw, the same token Approve sends.
+  it('F-R4: Reject sends the version the card renders', async () => {
+    renderPanel()
+    const row = await refreshCard()                                              // the card renders the resubmission
+    fireEvent.click(within(row).getByRole('button', { name: `Reject ${PENDING_STYLE.title}` }))
+    const form = await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })
+    fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'Too thin yet.' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Reject' }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].body).toEqual({ action: 'reject', note: 'Too thin yet.', reviewedUpdatedAt: RESUBMITTED_STAMP })
+    expect(RESUBMITTED_STAMP).not.toBe(PENDING_STYLE.updatedAt)                   // non-vacuity: not the queue row's
+  })
+
+  it('F-R4: a Reject the server refuses (409) says why and reads the queue again', async () => {
+    const STALE = contract('template-gallery.admin.reject.stale')
+    expect(STALE._contract.status).toBe(409)
+    renderPanel()
+    const row = await rowOf(PENDING_STYLE.id)
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn((input, init = {}) => {
+      if ((init.method || '').toUpperCase() !== 'PATCH') return real(input, init)
+      calls.push({ method: 'PATCH', path: String(input), body: JSON.parse(init.body) })
+      return Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve(STALE.body) })
+    })
+    const queueReads = () => calls.filter((c) => c.method === 'GET' && c.path === '/api/j2/template-gallery/admin/queue').length
+    const before = queueReads()
+    fireEvent.click(within(row).getByRole('button', { name: `Reject ${PENDING_STYLE.title}` }))
+    const form = await screen.findByRole('form', { name: `Reject ${PENDING_STYLE.title}` })
+    fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'Too thin yet.' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Reject' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent(STALE.body.detail)
+    await waitFor(() => expect(queueReads()).toBeGreaterThan(before))
+  })
+
   it('M-1: an Approve the server refuses (409) leaves the refreshed line where it was', async () => {
     renderPanel()
     const row = await refreshCard()

@@ -73,7 +73,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
         fromNoteId: note.id, name: name.trim() || undefined,
         // An explicit kind overrides the server's fallback, so it is sent only when the member chose one.
         ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
-      })
+      }, { via: 'from_note' })
       mutate()
       onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
     } catch (err) {

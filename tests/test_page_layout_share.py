@@ -149,11 +149,15 @@ def test_layout_rows_list_when_all_three_are_on(conn, monkeypatch):
 
 
 def test_one_rule_decides_type_visibility(monkeypatch):
+    # P4b final T1: the type rule covers the NON-STYLE types only (an example note, a layout); style rows are
+    # `_hidden_styles`'s. With the library off both of those are hidden; with every switch on, neither is.
+    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
     _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": False})
-    assert set(gallery._hidden_item_types()) == {"style", "page_layout"}
+    assert set(gallery._hidden_item_types()) == {"example_note", "page_layout"}
+    assert "style" not in gallery._hidden_item_types()
     _set(monkeypatch, {n: True for n in SWITCHES})
     assert gallery._hidden_item_types() == ()
-    assert gallery._type_visible_clause() == "1"
+    assert gallery._type_visible_clause() == "1 = 1"
 
 
 def test_the_client_item_types_include_page_layout():

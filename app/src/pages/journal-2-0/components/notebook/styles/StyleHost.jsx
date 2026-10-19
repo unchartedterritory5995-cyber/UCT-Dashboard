@@ -14,6 +14,7 @@ import { mutate } from 'swr'
 import { invalidateNoteLinkTarget } from '../../../lib/noteLinkTargetsBatch'
 import { isNoteListKey } from '../../../hooks/useJ2NoteVersions'
 import { noteIsLocked } from '../../../lib/lockedNote'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 import StyleUpdateBanner from './StyleUpdateBanner'
 import StyleUpdateSheet, { StyleChooser } from './StyleUpdateSheet'
 import styles from './StyleHost.module.css'
@@ -67,6 +68,9 @@ export default function StyleHost({ note, ask, api }) {
   // if it is still clean. If it is not, nothing is swapped in over the member's words: the update is said to
   // be applied (it is), it is not offered again, and the re-read waits for the words to land.
   const finish = (applied, plan) => {
+    // P5 Task 6 (P5-R-C9): the write has landed in BOTH branches below, so it counts here, before the dirty
+    // editor's early return. Only the closed 'switch' / 'update' word leaves, never the style or the note.
+    trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_APPLIED, { via: plan?.switching ? 'switch' : 'update' })
     if (api.dirty().length) {
       setSheet(null)
       setLanded(Number(plan?.toVersion) || Number.MAX_SAFE_INTEGER)

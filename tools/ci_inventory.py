@@ -252,6 +252,21 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
             invalid.append("current: %s = %s" % (field, p[field]))
     if not p.get("collected"):
         invalid.append("current: collected is 0 — the suite did not run")
+    # ⛔⛔ A0 (2026-10-13) — THE FRONTEND SUITE IS HALF OF "THE SUITE", AND IT WAS NEVER
+    # ASKED. Every check above reads `pytest` only, so a run whose vitest job was killed
+    # before its totals line (`collected: 0`, an EMPTY junit) contributed no failure keys
+    # and could diff as NO_NEW_FAILURES. Measured on `ci-results`: no vitest record from
+    # run 37124865179 (2026-10-03) onward — 99 consecutive runs — because the job's
+    # 45-minute timeout fell below the suite's wall time (35,702 tests took 2,475 s on the
+    # last complete run). A frontend suite that did not finish is an unknown, never zero.
+    v = s.get("vitest")
+    if not isinstance(v, dict):
+        invalid.append("current: no vitest record — the frontend suite's result is unknown")
+    elif not v.get("collected") or v.get("totals_line_found") is False:
+        invalid.append("current: vitest collected %s with %s — the frontend suite did not "
+                       "finish" % (v.get("collected") or 0,
+                                   "no totals line" if v.get("totals_line_found") is False
+                                   else "a totals line"))
     if not current_ran:
         invalid.append("current: no junit testcases could be read — RAN is unknowable, "
                        "so FIXED and MISSING cannot be told apart")
@@ -1257,8 +1272,16 @@ def _self_check() -> int:
     B = ("pytest", "tests.test_b", "test_two")
     C = ("pytest", "tests.test_c", "test_three")
     GOOD = {"pytest": {"shards_total": 2, "shards_success": 2, "shards_unreadable": [],
-                       "shards_without_totals": [], "shards_missing": [], "collected": 100}}
+                       "shards_without_totals": [], "shards_missing": [], "collected": 100},
+            "vitest": {"collected": 50, "totals_line_found": True}}
     RAN = {A, B, C}
+
+    # ⛔ A0 — a vitest job killed before its totals line must not read as a clean diff.
+    dv = diff({A, B}, {A, B}, RAN, dict(GOOD, vitest={"collected": 0, "totals_line_found": False}))
+    show("a vitest run with no totals line -> INVALID", dv["verdict"], "INVALID")
+    show("  ...and it NAMES vitest", any("vitest" in r for r in dv["invalid_because"]), True)
+    dvm = diff({A, B}, {A, B}, RAN, {"pytest": GOOD["pytest"]})
+    show("no vitest record at all -> INVALID", dvm["verdict"], "INVALID")
 
     # 1 identical
     d1 = diff({A, B}, {A, B}, RAN, GOOD)

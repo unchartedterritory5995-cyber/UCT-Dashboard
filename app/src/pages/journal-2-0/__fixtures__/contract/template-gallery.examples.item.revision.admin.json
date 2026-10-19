@@ -1,0 +1,123 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead",
+    "note": "A reviewer's read of an approved example with a HELD revision: the listed `payload`, the admin-only `pendingRevision` (its images are served on `?rev=pending`), and `linkedStyle`.",
+    "path": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Erin Example",
+      "authorHandle": "gcra2MCZaDHz",
+      "bodyJson": {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "made your value here on NVDA, up your value here, at your broker. Watching 132.40 on Monday.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "hasRevision": true,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "bf1ea35b5c8e49689378a7e94a37fead",
+      "itemType": "example_note",
+      "layoutPage": null,
+      "linkedStyle": {
+        "id": "c56b4ed84d6f452db201026b9614b0cb",
+        "title": "Weekend prep"
+      },
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "openReports": 0,
+      "payload": {
+        "bodyJson": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "made your value here on NVDA, up your value here, at your broker. Watching 132.40 on Monday.",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "attrs": {
+                "alt": "NVDA daily",
+                "src": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/0"
+              },
+              "type": "image"
+            }
+          ],
+          "type": "doc"
+        },
+        "linkedItemId": "c56b4ed84d6f452db201026b9614b0cb",
+        "noteKind": "weekend_prep"
+      },
+      "pendingRevision": {
+        "category": "journal",
+        "description": "",
+        "payload": {
+          "bodyJson": {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "made your value here on NVDA at your broker. Watching 140.00 on Tuesday.",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "attrs": {
+                  "alt": "NVDA daily",
+                  "src": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/0"
+                },
+                "type": "image"
+              }
+            ],
+            "type": "doc"
+          },
+          "linkedItemId": "c56b4ed84d6f452db201026b9614b0cb",
+          "noteKind": "weekend_prep"
+        },
+        "title": "My weekend plan, revised",
+        "tradingStyle": null,
+        "version": 2
+      },
+      "preview": [
+        {
+          "kind": "text",
+          "text": "made your value here on NVDA, up your value here, at your broker. Watch…"
+        }
+      ],
+      "propertyCount": 0,
+      "propertyDefs": [],
+      "reviewNote": "",
+      "revisionTitle": "My weekend plan, revised",
+      "sourceStyleId": null,
+      "status": "approved",
+      "title": "My weekend plan",
+      "tradingStyle": null,
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

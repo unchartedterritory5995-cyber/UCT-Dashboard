@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/helpful",
-    "path": "/api/j2/template-gallery/a2e205cbae944883907d244b102bd32b/helpful",
+    "endpoint": "POST /api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/helpful",
+    "path": "/api/j2/template-gallery/fe945544b95f411b885465c35840dd0a/helpful",
     "status": 200
   },
   "body": {

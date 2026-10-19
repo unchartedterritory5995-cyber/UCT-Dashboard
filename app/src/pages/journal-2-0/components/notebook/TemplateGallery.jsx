@@ -28,21 +28,26 @@
 // P4b Task 7: every card goes through LibraryCard (the ONE dispatcher; shared PAGE LAYOUTS are LayoutLibraryCard),
 // the Page layouts chip shows only while the list answer says `capabilities.layoutSharing`, and the message host
 // renders a message's `action` (Undo) as a button beside its text.
-import { useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
-  copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate, reviewGalleryTemplate,
+  copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate,
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
-  ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
+  EXAMPLE_NOTE_TYPE, LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, previewLibraryStyle,
+  tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
+// P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
+import StyleItemPreview from './styles/StyleItemPreview'
 import { refusalSentence } from './StyleLibraryCard'
 import LibraryCard from './LibraryCard'
+import GalleryAdminActions from './GalleryAdminActions'
 import AuthorView from './AuthorView'
+import lazyChunk from '../../lib/lazyChunk'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
@@ -109,24 +114,10 @@ export function ReportForm({ item, onDone, onCancel }) {
 export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
   const uid = useId()
   const [reporting, setReporting] = useState(false)
-  const [working, setWorking] = useState(false)
   // FIN-A11Y (review R4, M-4): closing the Report form removes the control that had focus;
   // the Report button is still there, so focus goes back to it.
   const reportBtnRef = useRef(null)
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
-  const admin = async (action) => {
-    setWorking(true)
-    try {
-      await reviewGalleryTemplate(item.id, action)
-      onMessage({ tone: 'ok', text: action === 'hide' ? `Hid “${item.title}”. It is still in the Review queue.`
-        : action === 'feature' ? `“${item.title}” is now a UCT pick.` : `“${item.title}” is no longer a UCT pick.` })
-      onChanged()
-    } catch (err) {
-      onMessage({ tone: 'error', text: err?.message || "Couldn't update that template." })
-    } finally {
-      setWorking(false)
-    }
-  }
   return (
     <li className={styles.card} data-gallery-card="" data-gallery-id={item.id}>
       <div className={styles.cardHead}>
@@ -154,19 +145,7 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
             Report
           </button>
         )}
-        {isAdmin && (
-          <>
-            <button type="button" className={styles.btn} disabled={working}
-              onClick={() => admin(item.featured ? 'unfeature' : 'feature')}
-              aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${item.title}`}>
-              {item.featured ? 'Unfeature' : 'Feature'}
-            </button>
-            <button type="button" className={styles.btn} disabled={working} onClick={() => admin('hide')}
-              aria-label={`Hide ${item.title}`}>
-              Hide
-            </button>
-          </>
-        )}
+        {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
       {reporting && (
         <ReportForm
@@ -184,8 +163,18 @@ function statusText(item) {
   return STATUS_LABELS[item.status] || item.status
 }
 
+// P3b: with the library on, the list is read through the library's hook (the same key), which also reads the server's
+// `capabilities.exampleNotes`: an approved or pending style of the author's carries "Add an example note" (ruling
+// P3b-R7), and the author's example notes are rows here too, with their status and any reviewer note (P3b-R12).
+// The latched switch picks the hook once for the life of the tab, as TemplateGallery's own list does.
+const EXAMPLE_ROW_NOTE = 'Example note'
+// Loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
+const AddExampleNoteDoor = lazyChunk(() => import('./styles/AddExampleNoteDoor'))
+
 function MySubmissions({ onMessage }) {
-  const { templates, error, isLoading, refresh } = useTemplateGallery({ section: 'mine' })
+  const uid = useId()
+  const useMine = styleLibraryEnabled() ? useLibraryList : useTemplateGallery
+  const { templates, error, isLoading, refresh, exampleNotes = false } = useMine({ section: 'mine' })
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
   // FIN-A11Y (review R4, M-4): Unpublish swaps itself for a confirm row and "Keep it" swaps
@@ -232,10 +221,11 @@ function MySubmissions({ onMessage }) {
       {templates.map((item) => (
         <li key={item.id} className={styles.card} data-gallery-mine={item.status} data-gallery-row={item.id}>
           <div className={styles.cardHead}>
-            <h4 className={styles.cardTitle}>{item.title}</h4>
+            <h4 className={styles.cardTitle} id={`${uid}-${item.id}`}>{item.title}</h4>
             <span className={`${styles.status} ${styles[`status_${item.hidden ? 'hidden' : item.status}`] || ''}`}>
               {statusText(item)}
             </span>
+            {item.itemType === EXAMPLE_NOTE_TYPE && <span className={styles.meta}>{EXAMPLE_ROW_NOTE}</span>}
           </div>
           {/* R-P3-3's client half (final review I-1). An APPROVED row carries a note only after a declined
               update (approve and a new share both clear it), so the author reads why; a held update is said too. */}
@@ -250,7 +240,11 @@ function MySubmissions({ onMessage }) {
           )}
           {confirm === item.id ? (
             <div className={styles.actions} role="group" aria-label={`Unpublish ${item.title}?`}>
-              <span className={styles.note}>Take “{item.title}” out of the gallery?</span>
+              <span className={styles.note}>
+                {item.itemType === EXAMPLE_NOTE_TYPE
+                  ? `Withdraw the example “${item.title}”? It will no longer show on your style.`
+                  : <>Take “{item.title}” out of the gallery?</>}
+              </span>
               <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                 onClick={() => unpublish(item)}>Unpublish</button>
               <button type="button" className={styles.btn} onClick={() => keep(item)} data-gallery-focus="keep">Keep it</button>
@@ -259,6 +253,14 @@ function MySubmissions({ onMessage }) {
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => askUnpublish(item)}
                 aria-label={`Unpublish ${item.title}`} data-gallery-focus="open">Unpublish</button>
+              {exampleNotes && isLinkableStyleItem(item) && (
+                <span data-example-door="">
+                  <Suspense fallback={null}>
+                    <AddExampleNoteDoor styleItemId={item.id} describedBy={`${uid}-${item.id}`}
+                      onSent={(text) => { onMessage({ tone: 'ok', text }); refresh() }} />
+                  </Suspense>
+                </span>
+              )}
             </div>
           )}
         </li>
@@ -277,7 +279,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
-  const [itemType, setItemType] = useState(() => (libraryOn && ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  const [itemType, setItemType] = useState(() => (libraryOn && LISTED_ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
   const [tradingStyle, setTradingStyle] = useState(ALL)
   const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
@@ -377,11 +379,12 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         <br />Your own property defaults are not shared.
       </>
     )
-    const base = { label: item.title, subtitle, style: true }
+    // P3b-F-R8: a style's examples are its author's own, so its author gets no Report control on them.
+    const base = { label: item.title, subtitle, style: true, examplesReportable: !item.mine }
     setPreview({ ...base, body: null, loading: true })
     try {
       const out = await previewLibraryStyle(item)
-      setPreview({ ...base, body: out?.bodyJson || null })
+      setPreview({ ...base, body: out?.bodyJson || null, examples: out?.examples || [] })
     } catch (err) {
       setPreview({ ...base, body: null, loadError: refusalSentence(err, "Couldn't load this preview.") })
     }
@@ -472,8 +475,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
               aria-label="Search the community gallery"
             />
             {libraryOn && (
-              <div className={styles.chipRow} role="group" aria-label="Filter by type">
-                {[{ key: ALL, label: 'All' }, ...ITEM_TYPES.filter((t) => t.key !== 'page_layout' || layoutSharing)].map((t) => (
+              <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
+                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' || layoutSharing)].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>
@@ -552,14 +555,25 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
       {view === 'review' && isAdmin && <TemplateGalleryReviewPanel onMessage={setMessage} />}
 
       <TemplatePreview
-        open={Boolean(preview)}
+        open={Boolean(preview) && !preview.style}
         onClose={() => setPreview(null)}
         title={preview?.label}
         subtitle={preview?.subtitle}
         body={preview?.body}
         onUse={preview?.onUse}
-        showUse={!preview?.style}
         busy={busy || using}
+        loading={Boolean(preview?.loading)}
+        loadError={preview?.loadError || null}
+      />
+      {/* A style's Preview (P3a Task 9) is its own sheet since P3b Task 6: the same surface, plus "In use". */}
+      <StyleItemPreview
+        open={Boolean(preview?.style)}
+        onClose={() => setPreview(null)}
+        title={preview?.label}
+        subtitle={preview?.subtitle}
+        body={preview?.body}
+        examples={preview?.examples}
+        examplesReportable={Boolean(preview?.examplesReportable)}
         loading={Boolean(preview?.loading)}
         loadError={preview?.loadError || null}
       />

@@ -7,6 +7,8 @@
 // Styled apart from every engine shape — violet, long-dash, and every label tagged "learned" — so a
 // learned line is never read as a detector's. Display-only; never clickable as a detection.
 
+import { nudgeLabelOffsets } from './learnedLabelNudge'
+
 export const LEARNED_COLOR = '#a78bfa'
 export const LEARNED_TAG = 'learned'
 const EXTEND_PX = 48
@@ -43,7 +45,7 @@ function Trendline({ line, asofT, tToX, priceToY, index }) {
   )
 }
 
-function Level({ level, asofT, tToX, priceToY, index }) {
+function Level({ level, asofT, tToX, priceToY, index, labelDy = 0 }) {
   const y = priceToY(level.price)
   if (y == null) return null
   const xEnd = asofT != null ? tToX(asofT) : null
@@ -56,8 +58,8 @@ function Level({ level, asofT, tToX, priceToY, index }) {
       <title>{level.why ? `${levelLabel(level)} — ${level.why}` : levelLabel(level)}</title>
       <line x1={x1} y1={y} x2={x2} y2={y} stroke={LEARNED_COLOR} strokeWidth={1.25}
         strokeDasharray="8,4" opacity={0.8} />
-      <text x={x2 + 4} y={y + 3} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
-        style={{ pointerEvents: 'none' }}>
+      <text x={x2 + 4} y={y + 3 + labelDy} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
+        style={{ pointerEvents: 'none' }} data-label-dy={labelDy || undefined}>
         {levelLabel(level)}
       </text>
     </g>
@@ -70,13 +72,16 @@ export default function LearnedDrawn({ drawn, tToX, priceToY }) {
   const horizontals = Array.isArray(drawn.horizontals) ? drawn.horizontals : []
   if (!trendlines.length && !horizontals.length) return null
   const asofT = drawn.asof_t ?? null
+  // display only: labels of levels a few px apart are spaced vertically; the lines are not moved
+  const labelDy = nudgeLabelOffsets(horizontals.map((h) => priceToY(h.price) ?? null))
   return (
     <g data-layer="learned" style={{ pointerEvents: 'none' }}>
       {trendlines.map((line, i) => (
         <Trendline key={`tl${i}`} line={line} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i} />
       ))}
       {horizontals.map((level, i) => (
-        <Level key={`h${i}`} level={level} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i} />
+        <Level key={`h${i}`} level={level} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i}
+          labelDy={labelDy[i]} />
       ))}
     </g>
   )

@@ -55,6 +55,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import secrets
 import sqlite3
 import uuid
@@ -63,8 +64,11 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import example_sanitize
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import page_layout_share as pls
+from api.services.journal_two import sample_marker
+from api.services.journal_two import starter_packs
 from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
 from api.services.notebook_flags import TRUTHY, flag_on
 
@@ -75,9 +79,20 @@ FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 #: PARSES the client file and holds the two equal.
 CATEGORIES = ("trade_plan", "journal", "research", "review")
 LIBRARY_FLAG = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
+#: P3b (R-P3b-6): the example-note switch. SERVER-ONLY -- it is not in `auth.NOTEBOOK_FLAGS` and has no
+#: client fallback row; the lazy library list reports it as `capabilities.exampleNotes`. Read per call by
+#: `example_enabled`, with a plain `os.environ.get` so the feature-flag index sees it (a `flag_on` call is
+#: for payload flags only, `notebook_flags.py`'s rule) and the ledger declares it.
+EXAMPLE_FLAG = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
+#: The item type of an example note (P3b). An example belongs to a style (R-P3b-2) and is NEVER listed on its
+#: own: no list, section, filter, author page or feed returns one, and the library's type chips skip it.
+EXAMPLE_ITEM = "example_note"
 #: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
 #: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
-ITEM_TYPES = ("outline", "style", LAYOUT_ITEM)
+ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM, LAYOUT_ITEM)
+#: The item types a member can list or filter by: every type but the example note (R-P3b-2). It includes
+#: `page_layout` (P4b); whether a layout row is SHOWN is the switch's business (`_hidden_item_types`).
+LISTED_ITEM_TYPES = tuple(t for t in ITEM_TYPES if t != EXAMPLE_ITEM)
 TRADING_STYLES = ("swing", "day", "prop", "options", "earnings", "long_term")
 SORTS = ("newest", "most_used", "trending")
 TRENDING_DAYS = 7
@@ -118,6 +133,9 @@ APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing wa
 #: The same sentence for a page layout row: a layout is not a template (P4b final, item 5).
 LAYOUT_APPROVE_STALE_SENTENCE = ("This layout changed after you opened it. Nothing was listed. "
                                  "Look at it again, then approve.")
+#: ...and when the template they are rejecting is not the one they looked at (P3b-F-R4), or the tab names no version
+#: at all -- a tab still on a bundle from before reject was pinned (P3b-F2-R3): reloading the queue is the fix either way.
+REJECT_STALE_SENTENCE = "This item changed since you opened it. Reload the review queue to see the current version."
 
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
@@ -131,6 +149,11 @@ class GalleryError(ValueError):
 
 class GalleryConflict(GalleryError):
     """A request that conflicts with the current state -- answered 409."""
+
+
+class GalleryServerError(Exception):
+    """A failure the member cannot fix (P3b Task 4: an example's image copy) -- answered 500 with this sentence.
+    Deliberately NOT a `GalleryError`: that one is a 400, a request the member can change."""
 
 
 def enabled() -> bool:
@@ -151,13 +174,34 @@ LAYOUT_SHARING_FLAG = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
 PAGE_LAYOUTS_FLAG = "JOURNAL_PAGE_LAYOUTS_ENABLED"
 
 
+def _layout_switches_on() -> bool:
+    """The two switches that are layout sharing's OWN (page layouts and the sharing env), read PER CALL and
+    WITHOUT the library switch, so a list that has already read `library_enabled` once can combine the two
+    without reading it again (P5's one-read rule, `test_one_list_request_reads_the_switches_once`)."""
+    return (flag_on(PAGE_LAYOUTS_FLAG, False)
+            and (os.environ.get(LAYOUT_SHARING_FLAG) or "").strip().lower() in TRUTHY)
+
+
 def layout_sharing_enabled() -> bool:
     """P4b's gate: all three switches on, read PER CALL. Default OFF; an unrecognised value is OFF.
 
     The fourth switch, the gallery's own (`FLAG`), is the router's dependency, not part of this function,
     exactly as `library_enabled` leaves it to the router: every route that calls this is behind it."""
-    return (library_enabled() and flag_on(PAGE_LAYOUTS_FLAG, False)
-            and (os.environ.get(LAYOUT_SHARING_FLAG) or "").strip().lower() in TRUTHY)
+    return library_enabled() and _layout_switches_on()
+
+
+def example_enabled() -> bool:
+    """P3b's gate (R-P3b-6): `NOTEBOOK_EXAMPLE_NOTES_ENABLED` AND the library switch, read PER CALL.
+
+    Default OFF, and an unrecognised value is OFF: for a default-off gate that is exactly `flag_on`'s
+    truth table, so the one TRUTHY set decides (`notebook_flags.TRUTHY`)."""
+    return library_enabled() and _example_switch_on()
+
+
+def _example_switch_on() -> bool:
+    """The example switch alone, without the library switch (the same split as `_layout_switches_on`), so a list
+    that has already read `library_enabled` can combine them without reading it again."""
+    return (os.environ.get(EXAMPLE_FLAG) or "").strip().lower() in TRUTHY
 
 
 def _now() -> str:
@@ -283,6 +327,8 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
         ("source_style_id", "TEXT"),
         ("pending_json", "TEXT"),
         ("pending_at", "TEXT"),
+        # P3b: the author's own note an example note was reduced from (a snapshot: the row never reads it again).
+        ("source_note_id", "TEXT"),
         ("source_page", "TEXT"),
     ):
         if name not in columns:
@@ -290,6 +336,8 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_style_source"
                  " ON j2_template_gallery(user_id, source_style_id)"
                  " WHERE user_id IS NOT NULL AND source_style_id IS NOT NULL")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_template_gallery_note_source"
+                 " ON j2_template_gallery(user_id, source_note_id) WHERE source_note_id IS NOT NULL")
     # P4b: one live gallery copy per (author, page) -- sharing a page's layout again UPDATES it.
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_layout_source"
                  " ON j2_template_gallery(user_id, source_page)"
@@ -297,6 +345,7 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
     try:
         seed_firm_templates(conn)
+        seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
         print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
     try:
@@ -341,6 +390,75 @@ def seed_firm_templates(conn: sqlite3.Connection) -> int:
             " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?)",
             (uuid.uuid4().hex, t["seedKey"], t["title"], t.get("description") or "",
              t["category"], json.dumps(body), now, now, now, json.dumps(preview_lines(body))),
+        )
+        added += cur.rowcount or 0
+    conn.commit()
+    return added
+
+
+# ── P5: the firm styles of the starter packs ────────────────────────────────────────────
+
+#: The fifteen firm STYLE rows, three per starter pack (R-P5-3). A file of its own, never rows in
+#: `template_gallery_seed.json`: `load_seed` is the OUTLINE seed, and its 4-6 rail counts it.
+STYLE_SEED_FILE = Path(__file__).with_name("template_gallery_style_seed.json")
+
+
+def load_style_seed() -> list[dict[str, Any]]:
+    """The firm style rows, in file order. Like `load_seed`, the file's `v` is never read."""
+    data = json.loads(STYLE_SEED_FILE.read_text(encoding="utf-8"))
+    return list(data.get("styles") or [])
+
+
+def _outline_from_headings(headings: list[str]) -> list[dict]:
+    """A firm style's outline: one level-2 heading, then one empty paragraph, per heading.
+
+    The seed file holds the heading words and never TipTap JSON, so this is the one place that shape
+    is written. The result passes the gallery reducer unchanged (tests/test_firm_style_seed.py)."""
+    out: list[dict] = []
+    for text in headings:
+        out.append({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": text}]})
+        out.append({"type": "paragraph"})
+    return out
+
+
+def firm_style_id(seed_key: str) -> str:
+    """A firm style's row id: a pure function of its seed key, the same on every database.
+
+    ⛔ Not `uuid.uuid4()` (which `seed_firm_templates` uses): this seed runs inside every
+    `ensure_schema`, and `tools/notebook_contract_fixtures.py` makes uuid4 a deterministic COUNTER, so
+    fifteen extra draws at boot would shift every id the fixtures record after it."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, "uctintelligence.com/firm-style/" + seed_key).hex
+
+
+def seed_firm_styles(conn: sqlite3.Connection) -> int:
+    """INSERT OR IGNORE each firm style by `seed_key` (F9): approved, featured, no author,
+    `item_type = 'style'`, `trading_style` = its pack. Returns how many rows were added (0 on every boot
+    after the first), so an admin's later hide or unfeature is never undone by a reboot.
+
+    The payload is P3a's own shape (`{kindId, outlineBodyJson, blocks, properties}`, what `style_payload`
+    produces and `_safe_listed` reads), at version 1; `body_json` is the outline and `preview_json` its
+    preview, exactly as `publish_style` stores them. To change a shipped row, add a `-v2` row and retire
+    the `-v1` one (R-P5-4); there is no in-place upsert.
+
+    ⛔ Visibility is NOT decided here. A firm style row is listed, in every gallery read and in UCT picks, only
+    while BOTH the library switch and the starter-packs switch are on (P5-AUD-1, superseding P5-R-C3), by the one
+    rule `_hidden_styles`; either switch alone shows nothing. Task 4's install reads these rows directly, so it
+    does not need them listed."""
+    added = 0
+    now = _now()
+    for s in load_style_seed():
+        outline = sanitize_body({"type": "doc", "content": _outline_from_headings(s["outlineHeadings"])}, "")
+        payload = {"kindId": s["kindId"], "outlineBodyJson": outline,
+                   "blocks": s["blocks"], "properties": s.get("properties") or {}}
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO j2_template_gallery (id, user_id, source_template_id, seed_key,"
+            " kind, title, description, category, body_json, property_defs_json, status,"
+            " featured, listed_at, created_at, updated_at, preview_json, item_type, payload_json,"
+            " version, trading_style)"
+            " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?, 'style', ?, 1, ?)",
+            (firm_style_id(s["seedKey"]), s["seedKey"], s["title"], s.get("description") or "", s["category"],
+             json.dumps(outline), now, now, now, json.dumps(preview_lines(outline)), json.dumps(payload),
+             s["pack"]),
         )
         added += cur.rowcount or 0
     conn.commit()
@@ -456,7 +574,9 @@ def author_handle(user_id: str, conn: sqlite3.Connection) -> str:
             return handle
         except sqlite3.IntegrityError:
             # Either the handle is taken (draw again) or another request minted this author's handle first
-            # (use theirs: one author, one handle).
+            # (use theirs: one author, one handle). P3b-T3-R3: the failed insert left the implicit transaction
+            # open; end it here, as the success path's commit does, so no caller inherits it.
+            conn.rollback()
             row = conn.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (user_id,)).fetchone()
             if row:
                 return row["handle"]
@@ -592,7 +712,12 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 #                                      unreadable revision must not take the whole queue down.
 _LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
                  " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_page,")
+                 " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_style_id,"
+                 " g.source_page,")
+#: ⛔ P3b-T5-R7 (review I-1): `source_style_id` is READ by every list, and `_summary` still EMITS it only for the
+#: author and admins (`sourceStyleId`). Without it the author's Your submissions row could not say which of their
+#: styles it is, so the Share form's "Add an example note" door never found its item. `source_page` (P4b) is read
+#: the same way: `_summary` turns it into `layoutPage`.
 _REVISION_TITLE = ("CASE WHEN json_valid(g.pending_json)"
                    " THEN json_extract(g.pending_json, '$.title') END AS revision_title,")
 _COMPUTED = (
@@ -634,6 +759,10 @@ def _check_select_shapes() -> None:
 
 _check_select_shapes()
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
+#: R-P3b-2: an example note belongs to a style and is never a list row of its own. Every list read (the gallery's
+#: `all` and `picks` sections, an author's page and its count, the feed) carries this; the author's own `mine`
+#: carries it only while the example switch is off (ruling P3b-R12).
+_NEVER_LISTED = f"g.item_type != '{EXAMPLE_ITEM}'"
 
 
 def _read(conn: sqlite3.Connection, viewer_id: str | None, where: str, args: Any = (), *,
@@ -662,19 +791,27 @@ def list_gallery(
         raise GalleryError("Unknown gallery section.")
     # With the library off the gallery must look exactly like today's: "trending" is a P3a sort,
     # so it answers what any unknown sort answered before it existed (same 400, same sentence).
-    library_on = library_enabled()
+    # The switches are read ONCE per request (P5-T5b-R1): `library_on` and the WHERE term below both derive
+    # from this one answer, so a switch flip mid-request cannot pair a library-off branch with a style row.
+    hidden = _hidden_styles()
+    library_on = hidden != "all"
     if sort not in SORTS or (sort == "trending" and not library_on):
         raise GalleryError("Sort by newest, most adopted or trending." if library_on
                            else "Sort by newest or most used.")
     if category not in (None, "", *CATEGORIES):
         raise GalleryError("Unknown category.")
-    if item_type not in (None, "", *ITEM_TYPES):
-        raise GalleryError("Unknown item type.")
+    if item_type not in (None, "", *LISTED_ITEM_TYPES):
+        raise GalleryError("Unknown item type.")         # an example note is never listed on its own (R-P3b-2)
     if trading_style not in (None, "", *TRADING_STYLES):
         raise GalleryError("Unknown trading style.")
     query = q.strip()[:MAX_QUERY_CHARS] if isinstance(q, str) else ""
     where: list[str] = []
     args: list[Any] = []
+    # Ruling P3b-R12: an author's OWN Your submissions lists their example notes too, with the status and any
+    # reviewer's note, while the switch is on (R-P3b-2's "never listed on its own" governs the library, where
+    # other members browse). With the switch off an example reads as absent everywhere, here included.
+    if section != "mine" or not example_enabled():
+        where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
         args.append(viewer_id)
@@ -685,14 +822,19 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    # ⛔ P4b: the ONE type rule (`_hidden_item_types`). A hidden type asked for by name is unknown (the same 400
-    # as before it existed); a trading-style filter is a library filter, so it still refuses while that is off.
-    if item_type in _hidden_item_types() or (trading_style and not library_enabled()):
+    # A library type (a style, a layout) or a trading-style filter asked for while the library is off is unknown:
+    # the same 400 as before either existed. Then the ONE type rule for the non-style types (`_hidden_item_types`,
+    # given this request's `library_on` so `library_enabled` is read once): a hidden type asked for by name is
+    # unknown, and every row of one is kept out of the WHERE. Style rows are `_hidden_styles_sql`'s, below.
+    if not library_on and (item_type in ("style", LAYOUT_ITEM) or trading_style):
         raise GalleryError("Unknown item type.")
-    where.append(_type_visible_clause())
+    if item_type in _hidden_item_types(library_on):
+        raise GalleryError("Unknown item type.")
+    where.append(_type_visible_clause(library_on))
     if item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
+    where.append(_hidden_styles_sql(hidden))    # every style row the switches hide (P5-AUD-1), picks included
     if trading_style:
         where.append("g.trading_style = ?")
         args.append(trading_style)
@@ -721,35 +863,111 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
-def _hidden_item_types() -> tuple[str, ...]:
-    """⛔ THE ONE RULE for which item TYPES are absent right now (R-P3-10, R-P4b-10). Every read and write path
-    asks this, never its own copy: list, get, author page, feed, the queue, Helpful, report, adopt, publish."""
+def _hidden_item_types(library_on: bool | None = None) -> tuple[str, ...]:
+    """⛔ THE ONE RULE for which NON-STYLE item types are absent right now (R-P3b-6, R-P4b-10): an example note
+    while its switch is off, a page layout while layout sharing is off. Style rows are NOT this function's:
+    `_hidden_styles` owns them (P5-AUD-1), so there is one decision over style visibility, not two.
+
+    A caller that already read `library_enabled` for this request passes it as `library_on`, so a list reads the
+    library switch once (P5-T5b-R1); every other caller lets this read it."""
+    if library_on is None:
+        library_on = library_enabled()
     hidden = []
-    if not library_enabled():
-        hidden.append("style")
-    if not layout_sharing_enabled():
+    if not (library_on and _example_switch_on()):
+        hidden.append(EXAMPLE_ITEM)
+    if not (library_on and _layout_switches_on()):
         hidden.append(LAYOUT_ITEM)
     return tuple(hidden)
 
 
-def _type_visible_clause() -> str:
-    hidden = _hidden_item_types()
-    return "1" if not hidden else "g.item_type NOT IN (" + ", ".join(f"'{t}'" for t in hidden) + ")"
+def _type_visible_clause(library_on: bool | None = None) -> str:
+    """`_hidden_item_types` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in."""
+    hidden = _hidden_item_types(library_on)
+    return "1 = 1" if not hidden else "g.item_type NOT IN (" + ", ".join(f"'{t}'" for t in hidden) + ")"
+
+
+# ── which STYLE rows the gallery hides: ONE rule, two renderings (P5-AUD-1) ─────────────────────
+#
+# `_hidden_styles()` is the only place the decision is made. `_library_hides` renders it for one row (the
+# single-item reads and the write doors) and `_hidden_styles_sql` renders it as a WHERE term (every list read),
+# so the two cannot disagree about a switch state: they branch on the same answer, and
+# tests/test_firm_style_seed.py holds them equal over every switch state and every kind of row.
+
+def _hidden_styles() -> str:
+    """What the gallery hides of its style rows right now, read PER CALL.
+
+    `"all"`  -- the library switch is off: every style row reads as absent (R-P3-10, R-T3-w1).
+    `"firm"` -- the library is on and the starter-packs switch is off: the firm style rows (`kind = 'firm'`, the
+               starter packs' fifteen seeded picks) read as absent (P5-AUD-1). So a firm style row is listed, in
+               every read and in UCT picks, ONLY while BOTH switches are on, and NOTEBOOK_STARTER_PACKS_ENABLED=0
+               hides them again. The pack install does not go through this: it reads its rows directly
+               (`starter_packs.install`, behind its own switches)."""
+    if not library_enabled():
+        return "all"
+    if not starter_packs.enabled():
+        return "firm"
+    return ""
 
 
 def _library_hides(row: sqlite3.Row) -> bool:
-    """R-T3-w1 (R-P3-10: every style route 404s while the library is off; R-P4b-10: every layout route while
-    layout sharing is off). A hidden type's row reads exactly like one that does not exist: for the author and
-    an admin as much as for a browsing member. The decision is `_hidden_item_types`, never a copy here."""
-    return row["item_type"] in _hidden_item_types()
+    """`_hidden_styles()` for one row. A hidden row reads exactly like one that does not exist: for its author
+    and an admin as much as for a browsing member. `row` must carry `item_type` and `kind`.
+
+    P3b (R-P3b-6): an example-note row reads the same way while ITS switch is off (which the library switch
+    being off implies). Stored, never deleted: arming the switch again brings it back as it was. This branch
+    comes FIRST (P5-FIN-R1): the style rule below answers False for every non-style row.
+
+    P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (all three of its switches),
+    so `GET /{id}`, Helpful, report, the admin routes and adopt all 404 a layout without a route gate of their own.
+    ⛔ ONE ORDER (P4b final T1): the example branch, then the layout branch, then P5's style rule. The two
+    non-style branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`)."""
+    if row["item_type"] == EXAMPLE_ITEM:
+        return EXAMPLE_ITEM in _hidden_item_types()
+    if row["item_type"] == LAYOUT_ITEM:
+        return LAYOUT_ITEM in _hidden_item_types()
+    if row["item_type"] != "style":
+        return False
+    hidden = _hidden_styles()
+    return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
 
 
-def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool) -> bool:
+def _hidden_styles_sql(hidden: str | None = None) -> str:
+    """`_hidden_styles()` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in.
+    A caller that already holds this request's `_hidden_styles()` answer passes it, so the switches are read once."""
+    if hidden is None:
+        hidden = _hidden_styles()
+    if hidden == "all":
+        return "g.item_type = 'outline'"
+    if hidden == "firm":
+        return "NOT (g.item_type = 'style' AND g.kind = 'firm')"
+    return "1 = 1"
+
+
+def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool, conn: sqlite3.Connection) -> bool:
+    """THE visibility rule for one gallery row: the author and an admin always; anyone else only when it is approved
+    and not hidden. `conn` is required because of the clause below: no caller can skip it by omission.
+
+    P3b-T6-R6: an EXAMPLE note is also only shown to anyone else while the style it shows is shown (approved, not
+    hidden, its own author's). A moderator who hides a style hides what shows it in use: the example's read and its
+    image route answer their one 404, while its author and an admin still see it. Stored, never touched: unhiding the
+    style brings it back."""
     if row is None or _library_hides(row):
         return False
     if is_admin or (viewer_id and row["user_id"] == viewer_id):
         return True
-    return row["status"] == "approved" and not row["hidden"]
+    if not (row["status"] == "approved" and not row["hidden"]):
+        return False
+    return row["item_type"] != EXAMPLE_ITEM or _example_style_shown(conn, row)
+
+
+def _example_style_shown(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
+    """Is the style an example row shows visible to every member (approved, not hidden, the example's own author's)?"""
+    link = _safe_example(_listed_payload(row))["linkedItemId"]
+    if not link:
+        return False
+    style = conn.execute("SELECT id, user_id, item_type, kind, status, hidden FROM j2_template_gallery"
+                         " WHERE id = ? AND item_type = 'style'", (link,)).fetchone()
+    return style is not None and style["user_id"] == row["user_id"] and _can_see(style, "", False, conn)
 
 
 def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
@@ -760,7 +978,7 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, viewer_id)
-        if not _can_see(row, viewer_id, is_admin):
+        if not _can_see(row, viewer_id, is_admin, conn):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
         if row["item_type"] == LAYOUT_ITEM:
@@ -779,10 +997,61 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
                 rev = _pending_revision(row)
                 if rev is not None:
                     out["pendingRevision"] = rev
+            # P3b Task 6: the style's own examples ("In use"), only while the example switch is on (absent, not
+            # empty, while it is off: the key itself is the switch's answer, as everywhere an example is absent).
+            if example_enabled():
+                out["examples"] = _style_examples(conn, row)
+        elif row["item_type"] == EXAMPLE_ITEM:
+            # P3b: an example's LISTED snapshot (`payload_json`, never `pending_json`) and, for a reviewer only, its
+            # held revision -- the same rule as a style's, so a revision is seen before it is approved.
+            out["payload"] = _safe_example(_listed_payload(row))
+            if is_admin:
+                rev = _pending_revision(row)
+                if rev is not None:
+                    out["pendingRevision"] = rev
+            # P3b Task 6: the style it shows, by title, for whoever may see THAT style (the reviewer's "linked
+            # style's title"); None when the reader may not see it (a pending one, say), never a hint it exists.
+            out["linkedStyle"] = _linked_style(conn, out["payload"]["linkedItemId"], viewer_id, is_admin)
+            # P3b-T6-R7: the style's id travels under the SAME gate as its title -- a reader who may not see the style
+            # (it is gone, say) gets neither, never the id one key away from a carefully withheld title.
+            if out["linkedStyle"] is None:
+                out["payload"].pop("linkedItemId", None)
         return out
     finally:
         if owned:
             conn.close()
+
+
+#: P3b Task 6: how many examples a style shows ("In use").
+STYLE_EXAMPLES_SHOWN = 3
+
+
+def _style_examples(conn: sqlite3.Connection, style: sqlite3.Row) -> list[dict[str, Any]]:
+    """A style's examples as every member sees them: up to `STYLE_EXAMPLES_SHOWN` APPROVED, non-hidden example items
+    linked to it by ITS OWN author, newest listed first, each exactly `{id, title, bodyJson, updatedAt}`.
+
+    ⛔ The columns are NAMED, and `pending_json` is not among them: a held revision (an author's next version, not yet
+    reviewed) never leaves this read. ⛔ `bodyJson` is the stored LISTED example reduction (`payload.bodyJson`, ruling
+    P3b-R13), read through `_safe_example`; it is never re-reduced (gallery mode drops every image)."""
+    rows = conn.execute(
+        "SELECT id, title, payload_json, updated_at FROM j2_template_gallery g"
+        f" WHERE g.item_type = ? AND {_VISIBLE} AND g.user_id = ?"
+        " AND CASE WHEN json_valid(g.payload_json) THEN json_extract(g.payload_json, '$.linkedItemId') END = ?"
+        f" ORDER BY COALESCE(g.listed_at, g.created_at) DESC, g.rowid DESC LIMIT {STYLE_EXAMPLES_SHOWN}",
+        (EXAMPLE_ITEM, style["user_id"], style["id"])).fetchall()
+    return [{"id": r["id"], "title": r["title"], "bodyJson": _safe_example(_listed_payload(r))["bodyJson"],
+             "updatedAt": r["updated_at"]} for r in rows]
+
+
+def _linked_style(conn: sqlite3.Connection, style_id: Any, viewer_id: str, is_admin: bool) -> dict | None:
+    """The style an example shows, `{id, title}`, or None when there is none the viewer may see (`_can_see`)."""
+    if not isinstance(style_id, str) or not style_id:
+        return None
+    row = conn.execute("SELECT id, user_id, title, item_type, kind, status, hidden FROM j2_template_gallery"
+                       " WHERE id = ? AND item_type = 'style'", (style_id,)).fetchone()
+    if not _can_see(row, viewer_id, is_admin, conn):
+        return None
+    return {"id": row["id"], "title": row["title"]}
 
 
 def _pending_revision(row: sqlite3.Row) -> dict | None:
@@ -804,11 +1073,13 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
     # P4b (P4b-R-X5): a held LAYOUT revision is read through `usable_layout` (`safe_layout`, then drift-emptied
     # lists dropped: P4b-T6-R1), never the style reader, so a reviewer sees what adopting it would apply.
-    layout = "item_type" in keys and row["item_type"] == LAYOUT_ITEM
+    item_type = row["item_type"] if "item_type" in keys else None
+    payload = (_safe_example(rev.get("payload")) if item_type == EXAMPLE_ITEM
+               else pls.usable_layout(rev.get("payload")) if item_type == LAYOUT_ITEM
+               else _safe_listed(rev.get("payload")))
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
-            "tradingStyle": text("tradingStyle"),
-            "payload": pls.usable_layout(rev.get("payload")) if layout else _safe_listed(rev.get("payload"))}
+            "tradingStyle": text("tradingStyle"), "payload": payload}
 
 
 def _layout_item(out: dict[str, Any], row: sqlite3.Row, is_admin: bool) -> dict[str, Any]:
@@ -1193,16 +1464,705 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             "DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id),
         )
-        if cur.rowcount:
-            conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gallery_id,))
-            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,))
+        # P3b Task 4: withdrawing a STYLE withdraws its example notes the same way (they show that style, R-P3b-2,
+        # and nothing else may list them), and withdrawing anything removes its image copies. The examples are
+        # the author's own (a style links only its author's examples), read whatever the switches say: taking your
+        # own content down is always possible. Read AFTER the delete above, which holds the write lock, so an
+        # example published at the same moment is either committed and found here, or refused by its own in-lock
+        # re-check of the style (P3b-T3-R6).
+        examples = [] if not cur.rowcount or item is None or item["item_type"] != "style" else [
+            r["id"] for r in conn.execute(
+                "SELECT id FROM j2_template_gallery WHERE user_id = ? AND kind = 'member' AND item_type = ?"
+                " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
+                (user_id, EXAMPLE_ITEM, gallery_id)).fetchall()]
+        removed = [gallery_id] + examples if cur.rowcount else []
+        for gid in removed:
+            if gid != gallery_id:
+                conn.execute("DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ?", (gid, user_id))
+            conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gid,))
+            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gid,))
         conn.commit()
+        remove_example_images(removed)                # after the commit: a copy is never gone while its row is not
         if cur.rowcount:
             for watcher in watchers:
                 _ring(watcher, item["title"], WITHDRAW_NOTICE.format(title=item["title"]), {"galleryId": gallery_id})
         return bool(cur.rowcount)
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── example notes: the preview, the publish, held revisions (P3b Task 3) ──────────────────────
+#
+# An EXAMPLE NOTE is a reduced SNAPSHOT of one of the author's own notes, shown on one of their shared styles
+# so browsers see the style in use (R-P3b-1, R-P3b-2). It is reduced by the ONE reducer in its `example` mode
+# (`public_note_payload.reduce`), on the server, from the note as the DATABASE holds it: a request never
+# carries a body, and anything one sends is ignored. `payload_json` holds
+# `{"bodyJson", "linkedItemId", "noteKind"}`; a later edit to the note never reaches it.
+#
+# ⛔ A change entry's `before` is the author's own text (R-P3b-4). The preview hands it to the AUTHOR and
+# nowhere else; publish asks the reducer for no report at all, so there is nothing of it to store or log.
+
+EXAMPLE_STYLE_SENTENCE = "Pick one of your own shared styles."
+EXAMPLE_KIND_SENTENCE = "This note is a different kind from the style."
+EXAMPLE_TOO_LONG_SENTENCE = "That note is too long to share as an example. Trim it and try again."
+#: The gallery image route an example's switched-on image is rewritten to (Task 4 serves it); `n` is the
+#: image's place in the reduced body, from 0. It must match `public.EXAMPLE_IMAGE_ROUTE`.
+EXAMPLE_IMAGE_PATH = "/api/j2/template-gallery/{item_id}/images/"
+#: The preview's stand-in item id. The reducer keeps an image only on the gallery route, so the preview
+#: reduces against this one and then points each kept image back at the author's own address: a preview is
+#: the author's own view of their own images.
+_PREVIEW_ITEM_ID = "preview"
+#: The OCR states an image is listed with (R-P3b-5).
+OCR_STATES = ("ready", "no_text", "processing", "unavailable")
+
+
+def _example_note(conn: sqlite3.Connection, user_id: str, note_id: Any) -> dict | None:
+    """The note an example is made from, or None when it may not be one: not this member's, trashed,
+    archived, unreadable, or written by the sample notebook (ruling P3b-R11 -- a sample is never shown to
+    other members as a member's own example). A PLAIN SELECT: reading a note to reduce it writes nothing."""
+    from api.services.journal_two.note_kinds import NOTE_KIND_PROPERTY
+    if not isinstance(note_id, str) or not note_id.strip():
+        return None
+    row = conn.execute(
+        "SELECT id, title, body_json, properties_json, import_source FROM j2_notes"
+        " WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+        (note_id, user_id)).fetchone()
+    if row is None or sample_marker.is_sample(row["import_source"]):
+        return None
+    # ⛔ P3b-T3-R1 (review I-1): BOUNDED BEFORE ANY REDUCTION. A note body may be 1 MB and a reduction of one is
+    # seconds of CPU on the one web process; an example's stored body may be at most MAX_BODY_BYTES, so a note
+    # whose stored body is already larger is refused here, measured on the stored text, before it is parsed.
+    # Only after the ownership check: the size of a note that is not yours is never an answer.
+    if len((row["body_json"] or "").encode("utf-8")) > MAX_BODY_BYTES:
+        raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
+    try:
+        body = json.loads(row["body_json"] or '{"type": "doc", "content": []}')
+    except (TypeError, ValueError, RecursionError):
+        return None
+    try:
+        props = json.loads(row["properties_json"] or "{}")
+    except (TypeError, ValueError, RecursionError):
+        props = {}
+    kind = props.get(NOTE_KIND_PROPERTY) if isinstance(props, dict) else None
+    return {"id": row["id"], "title": row["title"] or "", "body": body,
+            "kind": kind if isinstance(kind, str) and kind else None}
+
+
+def _author_brokers(conn: sqlite3.Connection, user_id: str) -> tuple[str, ...]:
+    """The author's own brokerage institution names (V6: `j2_broker_accounts.brokerage_name`), for the
+    reducer's broker pass. The house `BROKER_NAMES` always apply on top (example_sanitize, fail closed), so
+    a member with no connected broker still gets them."""
+    try:
+        rows = conn.execute("SELECT DISTINCT brokerage_name FROM j2_broker_accounts"
+                            " WHERE user_id = ? AND brokerage_name IS NOT NULL", (user_id,)).fetchall()
+    except sqlite3.OperationalError:
+        return ()
+    return tuple(sorted({r[0].strip() for r in rows if isinstance(r[0], str) and r[0].strip()}))
+
+
+def _image_nodes(doc: Any):
+    """Every image node in a document, in body order."""
+    if isinstance(doc, dict):
+        if doc.get("type") == "image" and isinstance(doc.get("attrs"), dict):
+            yield doc
+        for c in doc.get("content") or []:
+            yield from _image_nodes(c)
+
+
+def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, brokers: tuple[str, ...],
+                    item_id: str, report: list | None, offered: list | None = None) -> tuple[dict, list[str]]:
+    """The example copy of a note's body, and the ORIGINAL address of each image it keeps, by its `n`.
+
+    Each switched-on image the reducer keeps is rewritten to `EXAMPLE_IMAGE_PATH` with its `n`: its place
+    among the kept images in BODY order, from 0 (the same image twice is one `n`). The numbers are assigned
+    on the reduced body, so an image the reducer called for and then dropped leaves no gap."""
+    prefix = EXAMPLE_IMAGE_PATH.format(item_id=item_id)
+    called: list[str] = []
+
+    def src_for(src: str) -> str:
+        if src not in called:
+            called.append(src)
+        return f"{prefix}{called.index(src)}"
+
+    reduced = public.reduce(body, mode="example", owner_id=user_id, note_id=note_id, attachment_base="",
+                            images_on=frozenset(s for s in images_on or () if isinstance(s, str)),
+                            brokers=brokers, image_src_for=src_for, report=report, offered=offered)
+    kept: list[str] = []
+    for node in _image_nodes(reduced):
+        src = node["attrs"].get("src")
+        tail = src[len(prefix):] if isinstance(src, str) and src.startswith(prefix) else ""
+        if not tail.isdigit() or int(tail) >= len(called):
+            continue                     # the reducer only keeps an image it rewrote; anything else is left as is
+        original = called[int(tail)]
+        if original not in kept:
+            kept.append(original)
+        node["attrs"] = {**node["attrs"], "src": f"{prefix}{kept.index(original)}"}
+    return reduced, kept
+
+
+#: `_example_title` caps by truncation after the scrubs, so gallery's `_clean_text` is asked for no cap of its own.
+_NO_TITLE_LIMIT = 10 ** 9
+#: ⛔ Ruling P3b-F2-R1 (final re-review N-1): a typed title is scrubbed WHOLE -- the scrub is linear -- and a raw
+#: title longer than this is refused. A window over a longer one failed OPEN: a value whose deciding words sat past
+#: the cut ("3.2R ... loss", a card number after a long address) was shown. Only a hand-built request reaches the
+#: refusal: the sheet's field holds 80 characters and a note's title 300.
+MAX_RAW_TITLE_CHARS = 2_000
+RAW_TITLE_TOO_LONG_SENTENCE = "A title can be at most 2,000 characters."
+
+
+def _example_text(raw: Any, brokers: tuple[str, ...]) -> Any:
+    """A line of the author's text (the title) through the SAME example text pass the body takes: one
+    paragraph reduced in `example` mode. Anything that is not text is returned as it is, for `_clean_text`
+    to refuse."""
+    if not isinstance(raw, str):
+        return raw
+    doc = public.reduce({"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": raw}]}]},
+                        mode="example", owner_id="", note_id="", attachment_base="", brokers=brokers)
+    return _node_text(doc)
+
+
+def _example_title(raw: Any, brokers: tuple[str, ...], *, required: bool = True) -> str:
+    """The title other members see (P3b-T3-R5). SCRUBBED FIRST -- gallery's text scrub (`_clean_text`, which also
+    refuses anything but text, and an empty title when one is required), then the example text pass -- and only
+    then capped at `MAX_TITLE_CHARS` by shortening it with an ellipsis. A scrub grows text ("$1" becomes "your
+    value here", an email "email address"), so the SHOWN length is never a reason to refuse. The preview, with or
+    without a typed title, shows this same title; the preview, the publish and a held revision all come here.
+
+    P3b-F2-R1: the WHOLE raw title is scrubbed, never a window of it, and a raw title over `MAX_RAW_TITLE_CHARS`
+    is refused (`RAW_TITLE_TOO_LONG_SENTENCE`), so the scrub's cost is bounded by what it reads."""
+    if isinstance(raw, str) and len(raw) > MAX_RAW_TITLE_CHARS:
+        raise GalleryError(RAW_TITLE_TOO_LONG_SENTENCE)
+    cleaned = _clean_text(raw, field="title", limit=_NO_TITLE_LIMIT, required=required)
+    scrubbed = " ".join(str(_example_text(cleaned, brokers)).split())
+    if len(scrubbed) > MAX_TITLE_CHARS:
+        scrubbed = scrubbed[: MAX_TITLE_CHARS - 1].rstrip() + "…"
+    return scrubbed
+
+
+def _image_ocr(conn: sqlite3.Connection, user_id: str, note_id: str, src: str,
+               brokers: tuple[str, ...]) -> tuple[str, list[dict]]:
+    """An image's OCR state and its warnings (R-P3b-5), read from the document pipeline that already runs on
+    pasted images. Looked up by (note_id, attachment_url) through the existing document lookup (ruling
+    P3b-R8); no document row -- the image documents switch off, or never made -- is `unavailable`.
+
+    `ready` (the page holds text) warns about amounts, digit runs of 6+ and broker names; `no_text` has none;
+    `processing` (still being read) and `unavailable` (failed, or nothing will read it) carry none either,
+    and the client asks its second question for them. A warning never blocks: the author decides.
+
+    ⛔ FAIL-CLOSED (ruling P3b-T8-R1). `no_text` is a claim that the image WAS READ and holds nothing, and the
+    client lets it skip the second question. A document row's own `no_text` status does not say that: with no
+    OCR engine wired, extraction gives an image one empty native page, planning claims nothing, and the row
+    lands `no_text` without any read (document_extraction: "no engine means the row lands `no_text`"). So
+    `no_text` is answered only when an OCR job for the image actually COMPLETED; an image no engine read is
+    `unavailable`, never `no_text`. (The walk of record p3b-walk-20261018T121236Z found this, step 4.)"""
+    from api.services.journal_two import document_extraction as dx
+    from api.services.journal_two import document_ocr as docr
+    try:
+        doc = dx.get_document_by_attachment(user_id, note_id, src, conn=conn)
+        if not doc or not doc.get("id"):
+            return "unavailable", []
+        state = docr.document_text_state(conn, user_id, doc["id"])
+        if not state.get("exists"):
+            return "unavailable", []
+        if state.get("pages_with_text"):
+            page = docr.page_transcript(user_id, doc["id"], 1, conn=conn)
+            text = page.get("text") if isinstance(page, dict) else ""
+            return "ready", example_sanitize.ocr_warnings(text if isinstance(text, str) else "", brokers)
+        if state.get("ocr_unavailable") or state.get("status") == dx.STATUS_FAILED:
+            return "unavailable", []
+        if state.get("pages_awaiting_ocr") or state.get("status") == dx.STATUS_PENDING:
+            return "processing", []
+        jobs = state.get("ocr_jobs") if isinstance(state.get("ocr_jobs"), dict) else {}
+        if not jobs.get(docr.OCR_COMPLETE):
+            return "unavailable", []                 # never read: no OCR job finished for it
+        return "no_text", []
+    except Exception as e:  # noqa: BLE001 -- an unreadable state is "we couldn't read it", never a failed preview
+        print(f"[template-gallery] example OCR state unread: {type(e).__name__}")
+        return "unavailable", []
+
+
+def preview_example_title(conn: sqlite3.Connection | None, user_id: str, note_id: Any, title: Any) -> dict | None:
+    """P3b-F2-R2: the title alone, as other members would see it: `{"title": str}`. It scrubs the typed title (at most
+    `MAX_RAW_TITLE_CHARS`) and reduces NOTHING of the note, so a member typing a title never re-reduces the body.
+    The note must still be one that may be an example (None, the route's 404, otherwise); its body is not read
+    beyond `_example_note`'s own checks. Writes nothing."""
+    if not example_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        brokers = _author_brokers(conn, user_id)
+        return {"title": _example_title(note["title"] if title is None else title, brokers, required=False)}
+    finally:
+        if owned:
+            conn.close()
+
+
+def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, images_on: Any,
+                    title: Any = None) -> dict | None:
+    """Exactly what other members would see of this note, for its author (R-P3b-4). None when the switch is
+    off or the note may not be an example (the route answers 404); `GalleryError` for a note too long to be one
+    or a title that is not text. Writes nothing.
+
+    `{"bodyJson": reduced, "changes": [{kind, before, after, path}], "counts": {kind: n},
+      "images": [{src, name, ocr, warnings}], "title": str}` -- `images` lists every image of this note the
+    author may switch on, in body order, at the author's own address; a switched-on one appears in `bodyJson`
+    at that address too. `title` is the scrubbed form of `title` (or of the note's own title when none is
+    given). `before` is the author's own text and goes to the author only."""
+    if not example_enabled():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        brokers = _author_brokers(conn, user_id)
+        shown_title = _example_title(note["title"] if title is None else title, brokers, required=False)
+        changes: list[dict] = []
+        # The images the author may switch on are the ones THIS reduction's walk reaches (P3b-T3-R4): the reducer
+        # records each of this note's own images it meets, switched on or not, so one inside a node the policy
+        # drops is never offered. One reduction, one walk, never a second copy of the own-attachment check.
+        offered: list[str] = []
+        body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                     brokers=brokers, item_id=_PREVIEW_ITEM_ID, report=changes, offered=offered)
+        prefix = EXAMPLE_IMAGE_PATH.format(item_id=_PREVIEW_ITEM_ID)
+        for node in _image_nodes(body):
+            tail = str(node["attrs"].get("src") or "")[len(prefix):]
+            if tail.isdigit() and int(tail) < len(kept):
+                node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
+        images = []
+        for src in offered:
+            state, warnings = _image_ocr(conn, user_id, note["id"], src, brokers)
+            images.append({"src": src, "name": src.rsplit("/", 1)[-1], "ocr": state, "warnings": warnings})
+        counts: dict[str, int] = {}
+        for c in changes:
+            counts[c["kind"]] = counts.get(c["kind"], 0) + 1
+        return {"bodyJson": body, "changes": changes, "counts": counts, "images": images, "title": shown_title}
+    finally:
+        if owned:
+            conn.close()
+
+
+def _linkable_style(conn: sqlite3.Connection, user_id: str, style_item_id: Any) -> sqlite3.Row:
+    """The style an example is linked to (R-P3b-2): the author's OWN style item, listed or pending, not
+    withdrawn. Anything else -- someone else's, an outline, rejected, hidden, withdrawn (unpublish deletes
+    the row) or not an id -- is `EXAMPLE_STYLE_SENTENCE`."""
+    if not isinstance(style_item_id, str) or not style_item_id:
+        raise GalleryError(EXAMPLE_STYLE_SENTENCE)
+    row = conn.execute(
+        "SELECT * FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'"
+        " AND item_type = 'style' AND status IN ('approved', 'pending') AND hidden = 0",
+        (style_item_id, user_id)).fetchone()
+    if row is None:
+        raise GalleryError(EXAMPLE_STYLE_SENTENCE)
+    return row
+
+
+def _safe_example(payload: Any) -> dict:
+    """An example's payload in its one shape, whatever is stored: a body document, the linked style's id and
+    the note's kind (None when unreadable)."""
+    raw = payload if isinstance(payload, dict) else {}
+    body, link, kind = raw.get("bodyJson"), raw.get("linkedItemId"), raw.get("noteKind")
+    return {"bodyJson": body if isinstance(body, dict) else {"type": "doc", "content": []},
+            "linkedItemId": link if isinstance(link, str) else None,
+            "noteKind": kind if isinstance(kind, str) else None}
+
+
+def _bind_images(body: dict, draft_id: str, item_id: str) -> dict:
+    """Point the image addresses of a body reduced against `draft_id` at the row it is written to (P3b-T3-R1:
+    the reduction runs before the lock, so before the row is known). Runs INSIDE the short write transaction,
+    between the lookup and the write. `EXAMPLE_IMAGE_ROUTE` fixes the address's shape, so only the id moves."""
+    if draft_id != item_id:
+        old, new = EXAMPLE_IMAGE_PATH.format(item_id=draft_id), EXAMPLE_IMAGE_PATH.format(item_id=item_id)
+        for node in _image_nodes(body):
+            src = node["attrs"].get("src")
+            if isinstance(src, str) and src.startswith(old):
+                node["attrs"] = {**node["attrs"], "src": new + src[len(old):]}
+    return body
+
+
+# ── example notes: the image copies (P3b Task 4) ───────────────────────────────────────────────
+#
+# Ruling P3b-R14. An example never points at the author's own attachment: each switched-on image the reduction
+# keeps is COPIED at publish, so a later edit or delete of the note's image never reaches the example, and the
+# copy is served by the gallery's own route to whoever may see the item.
+#   * approved (or pending, never approved) copies: `<attachment_root>/gallery/<item_id>/<n>.<ext>`;
+#   * a HELD revision's copies:                     `<attachment_root>/gallery/<item_id>/v<version>/<n>.<ext>`,
+#     `version` being the one members will see once it is approved (the listed version + 1);
+#   * the stored src stays `/api/j2/template-gallery/<item_id>/images/<n>` (no version): `?rev=pending` asks for
+#     the held copy, and only the author or an admin gets it.
+# Approval moves the held copies into place and deletes the old; rejection deletes the held ones; withdrawing an
+# example (or the style it shows) and the author's account deletion delete the item's whole directory.
+#
+# ⛔ ALL OR NOTHING. The copies are made into a STAGING directory before the write lock is taken (a copy is disk
+# I/O, never held under auth.db's lock); under the lock the staged directory is RENAMED into place (cheap) and the
+# row written; a failure anywhere undoes the renames and removes the staging directory, so no row ever names a
+# copy that is not there and no copy outlives a write that failed. The old copies are deleted only after commit.
+
+EXAMPLE_MAX_IMAGES = 6
+EXAMPLE_MAX_IMAGE_BYTES = 2 * 1024 * 1024
+#: The stored extensions an example may show (R-P3b-7, the extension the attachment root records), and the one
+#: each copy is stored under. A GIF, or anything else, is refused.
+EXAMPLE_IMAGE_EXTENSIONS = {".png": ".png", ".jpg": ".jpg", ".jpeg": ".jpg", ".webp": ".webp"}
+_COPY_EXTENSIONS = tuple(sorted(set(EXAMPLE_IMAGE_EXTENSIONS.values())))
+EXAMPLE_IMAGE_COUNT_SENTENCE = "An example can show up to 6 images."
+EXAMPLE_IMAGE_TYPE_SENTENCE = "Only PNG, JPEG or WebP images can be shared."
+EXAMPLE_IMAGE_SIZE_SENTENCE = "An image in an example can be at most 2 MB."
+EXAMPLE_COPY_SENTENCE = "Couldn't copy an image. Nothing was shared."
+EXAMPLE_MOVE_SENTENCE = "Couldn't move the example's images into place. Nothing was listed."
+#: The directory under the attachment root the copies live in (R-P3b-7). A member's own tree is
+#: `<root>/<user_id>/...`; this one is shared by every author and is never one member's.
+GALLERY_IMAGE_DIR = "gallery"
+#: The `rev` the image route accepts besides none: the held revision's copy (author or admin only).
+REV_PENDING = "pending"
+
+
+def _gallery_root() -> Path:
+    """Where the copies live, read PER CALL through the one attachment-root authority."""
+    from api.services.journal_two.attachment_root import attachment_root
+    return attachment_root() / GALLERY_IMAGE_DIR
+
+
+_ITEM_ID_SEGMENT = re.compile(r"[A-Za-z0-9_-]{1,64}")        # the id shape `public.EXAMPLE_IMAGE_ROUTE` admits
+#: An image number on the route: 1 to 3 ASCII digits, nothing else (review M-1: `str.isdigit` admits Unicode digits).
+_IMAGE_NUMBER = re.compile(r"[0-9]{1,3}")
+
+
+def _item_dir(item_id: str, version: int | None = None) -> Path:
+    """An item's copy directory. The id is always a database row's, and must still be ONE plain path segment: a
+    value that could climb, or name the gallery root itself, raises instead of resolving."""
+    if not isinstance(item_id, str) or not _ITEM_ID_SEGMENT.fullmatch(item_id):
+        raise ValueError("not an item id")
+    base = _gallery_root() / item_id
+    return base / f"v{int(version)}" if version is not None else base
+
+
+def _rename(src: Path, dst: Path) -> None:
+    """The one rename every move here goes through (a seam the tests fail on purpose)."""
+    os.replace(src, dst)
+
+
+def _copy_image(src: Path, dest: Path) -> None:
+    """One copy, written to a temp file beside `dest` and then renamed onto it: `dest` is never opened for writing."""
+    import shutil
+    tmp = dest.with_name(f".{dest.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, dest)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _remove_dir(path: Path) -> bool:
+    """Delete a copy directory, best-effort (an old copy left behind is served by nothing). True when one was there."""
+    import shutil
+    if not path.is_dir():
+        return False
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"[template-gallery] could not remove {path.name} under the gallery image directory")
+    return True
+
+
+def _example_sources(kept: list[str], user_id: str, note_id: str) -> list[tuple[Path, str]]:
+    """`(file, stored extension)` for each image the reduction kept, in its `n` order, through the ONE attachment
+    resolver (ruling P3b-R8: `notes.serve_note_image_path`, root-anchored, after the URL shape `notes_export`
+    owns). `GalleryError` for too many, a GIF (or any type but PNG, JPEG, WebP) and a file over 2 MB;
+    `GalleryServerError` for one the attachment root does not hold (a copy cannot be made of it)."""
+    if len(kept) > EXAMPLE_MAX_IMAGES:
+        raise GalleryError(EXAMPLE_IMAGE_COUNT_SENTENCE)
+    from api.services.journal_two import notes as notes_service
+    from api.services.journal_two.notes_export import _ATTACHMENT_URL_RE
+    out: list[tuple[Path, str]] = []
+    for src in kept:
+        m = _ATTACHMENT_URL_RE.match(src) if isinstance(src, str) else None
+        if not m or m.group(1) != user_id or m.group(2) != note_id:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE)     # the reducer keeps only this note's own; fail closed
+        ext = EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower())
+        if ext is None:
+            raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+        path = notes_service.serve_note_image_path(m.group(1), m.group(2), m.group(3), m.group(4))
+        if path is None:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE)
+        try:
+            size = path.stat().st_size
+        except OSError as e:
+            raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+        if size > EXAMPLE_MAX_IMAGE_BYTES:
+            raise GalleryError(EXAMPLE_IMAGE_SIZE_SENTENCE)
+        out.append((path, ext))
+    return out
+
+
+def _assert_copy_headroom(sources: list[tuple[Path, str]]) -> None:
+    """P3b-F-R7 (final review M-6): the copies ask the volume the question every upload and import asks first --
+    `notes_quota.assert_import_headroom`, with the sources' summed size -- and a refusal is that check's own
+    sentence (a 400, as an upload's is), before anything is copied. Up to 12 MB a publish, 10 a day a member,
+    would otherwise be written past the reserve the uploads keep."""
+    if not sources:
+        return
+    from api.services.journal_two import notes_quota
+    try:
+        wanted = sum(path.stat().st_size for path, _ in sources)
+    except OSError as e:
+        raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+    try:
+        notes_quota.assert_import_headroom(wanted)
+    except notes_quota.NoteQuotaExceeded as e:
+        raise GalleryError(str(e)) from e
+
+
+def _stage_images(sources: list[tuple[Path, str]]) -> Path | None:
+    """Copy every source into a fresh staging directory as `<n>.<ext>`. None when there is nothing to copy. On any
+    failure the staging directory is removed and `GalleryServerError(EXAMPLE_COPY_SENTENCE)` raised."""
+    if not sources:
+        return None
+    stage = _gallery_root() / f".stage-{uuid.uuid4().hex}"
+    try:
+        stage.mkdir(parents=True)
+        for n, (path, ext) in enumerate(sources):
+            _copy_image(path, stage / f"{n}{ext}")
+    except Exception as e:  # noqa: BLE001 -- any failed copy is the one sentence, and nothing is left behind
+        _remove_dir(stage)
+        print(f"[template-gallery] example image copy failed: {type(e).__name__}")
+        raise GalleryServerError(EXAMPLE_COPY_SENTENCE) from e
+    return stage
+
+
+class _DirMoves:
+    """The directory renames made inside one write transaction: `undo()` reverses them (the transaction failed),
+    `finish()` deletes what they set aside (it committed). Every rename goes through `_rename`."""
+
+    def __init__(self, sentence: str):
+        self._sentence = sentence
+        self._done: list[tuple[Path, Path]] = []
+        self._trash: list[Path] = []
+
+    @property
+    def active(self) -> bool:
+        """True while a move has been made and neither undone nor finished."""
+        return bool(self._done)
+
+    def _move(self, src: Path, dst: Path) -> None:
+        try:
+            _rename(src, dst)
+        except OSError as e:
+            print(f"[template-gallery] example image move failed: {type(e).__name__}")
+            raise GalleryServerError(self._sentence) from e
+        self._done.append((src, dst))
+
+    def _set_aside(self, path: Path) -> Path:
+        trash = _gallery_root() / f".trash-{uuid.uuid4().hex}"
+        self._move(path, trash)
+        self._trash.append(trash)
+        return trash
+
+    def set_aside(self, path: Path) -> None:
+        """Move `path` out of the way (deleted by `finish()`, put back by `undo()`); nothing when it is not there."""
+        if path.exists():
+            self._set_aside(path)
+
+    def put(self, stage: Path | None, dest: Path) -> None:
+        """Make `dest` hold exactly the staged copies (none when `stage` is None); its old copies are set aside."""
+        if dest.exists():
+            self._set_aside(dest)
+        if stage is not None:
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise GalleryServerError(self._sentence) from e
+            self._move(stage, dest)
+
+    def promote(self, item_id: str, version: int) -> None:
+        """Approval of a held revision: the item's directory becomes what `v<version>` held, and the old copies
+        (with the rest of the old directory) are set aside."""
+        base = _item_dir(item_id)
+        if not base.exists():
+            return
+        trash = self._set_aside(base)
+        held = trash / f"v{int(version)}"
+        if held.is_dir():
+            self._move(held, base)
+
+    def undo(self) -> None:
+        for src, dst in reversed(self._done):
+            try:
+                _rename(dst, src)
+            except OSError as e:
+                print(f"[template-gallery] example image move could not be undone: {type(e).__name__}")
+        self._done.clear()
+        self._trash.clear()
+
+    def finish(self) -> None:
+        for trash in self._trash:
+            _remove_dir(trash)
+        self._done.clear()
+        self._trash.clear()
+
+
+def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool = False, rev: Any = None,
+                       conn: sqlite3.Connection | None = None) -> Path | None:
+    """The file `GET /{item_id}/images/{n}` serves, or None (the route's one 404).
+
+    The item must be an example note the viewer may see -- approved and not hidden, or the viewer is its author or
+    an admin (`_can_see`, the one visibility rule, which also hides it while the switch is off). `rev` "pending" asks
+    for the HELD revision's copy: only the author or an admin, and only while a revision is held. Any other `rev`,
+    or a number that is not a plain small integer, is None."""
+    if rev not in (None, "", REV_PENDING):
+        return None
+    if not isinstance(item_id, str) or not item_id or not isinstance(n, str) or not _IMAGE_NUMBER.fullmatch(n):
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute("SELECT id, user_id, item_type, kind, status, hidden, version, pending_json, payload_json"
+                           " FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
+        visible = row is not None and row["item_type"] == EXAMPLE_ITEM and _can_see(row, viewer_id, is_admin, conn)
+    finally:
+        if owned:
+            conn.close()
+    if not visible or not _ITEM_ID_SEGMENT.fullmatch(str(row["id"])):
+        return None
+    if rev == REV_PENDING:
+        if not (is_admin or (viewer_id and row["user_id"] == viewer_id)) or not row["pending_json"]:
+            return None
+        folder = _item_dir(row["id"], int(row["version"] or 1) + 1)
+    else:
+        folder = _item_dir(row["id"])
+    for ext in _COPY_EXTENSIONS:
+        path = folder / f"{int(n)}{ext}"   # `n` is digits and `folder` an id-checked directory: nothing can climb
+        if path.is_file():
+            return path
+    return None
+
+
+def example_image_ids(conn: sqlite3.Connection, user_id: str) -> list[str]:
+    """The ids of a member's example notes, for the account purge to remove their copy directories (read BEFORE the
+    rows are deleted). Empty when the table does not exist yet."""
+    try:
+        return [r[0] for r in conn.execute("SELECT id FROM j2_template_gallery WHERE user_id = ? AND item_type = ?",
+                                           (user_id, EXAMPLE_ITEM)).fetchall()]
+    except sqlite3.OperationalError:
+        return []
+
+
+def remove_example_images(item_ids: Any) -> int:
+    """Delete each item's copy directory (best-effort); returns how many there were."""
+    return sum(1 for gid in item_ids or ()
+               if isinstance(gid, str) and _ITEM_ID_SEGMENT.fullmatch(gid) and _remove_dir(_item_dir(gid)))
+
+
+def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any, style_item_id: Any,
+                    images_on: Any, title: Any) -> dict | None:
+    """Submit (or resubmit) one of the member's own notes as an example of one of their shared styles.
+
+    None when the switch is off or the note may not be an example (the route answers 404).
+    `GalleryError` for a style that is not theirs to link (`EXAMPLE_STYLE_SENTENCE`), a note of another
+    kind (`EXAMPLE_KIND_SENTENCE`), a note too long to be one (`EXAMPLE_TOO_LONG_SENTENCE`), or a bad title.
+    `ValueError` for a caller's connection that already holds a transaction (review M-8): this function owns
+    its transaction and must never roll back a caller's work.
+
+    The server reads the note and reduces it ITSELF; nothing a client sends is a body. First publish: a
+    PENDING `example_note` item. Again (same author, note and style) while pending or rejected: replaced in
+    place, back to pending. Again while APPROVED: the new version is HELD in `pending_json` and the approved
+    one stays listed, as a style's does (R-P3-3).
+
+    ⛔ P3b-T3-R1 (review I-1): the note is bounded before it is reduced (`_example_note`), and the reduction
+    runs BEFORE `BEGIN IMMEDIATE`, against a fresh id. Only the lookup, the image rebinding and the write sit
+    inside the write lock, so a publish never holds auth.db's lock for the length of a reduction."""
+    if not example_enabled():
+        return None
+    if conn is not None and conn.in_transaction:
+        raise ValueError("publish_example needs a connection with no open transaction")
+    owned = conn is None
+    conn = conn or get_connection()
+    moves, stage = _DirMoves(EXAMPLE_COPY_SENTENCE), None
+    try:
+        note = _example_note(conn, user_id, note_id)
+        if note is None:
+            return None
+        style = _linkable_style(conn, user_id, style_item_id)
+        kind = _safe_listed(_listed_payload(style))["kindId"]
+        if not note["kind"] or note["kind"] != kind:
+            raise GalleryError(EXAMPLE_KIND_SENTENCE)
+        brokers = _author_brokers(conn, user_id)
+        clean_title = _example_title(title, brokers)
+        draft_id = uuid.uuid4().hex                  # the new row's id, if the lookup below finds none
+        body, kept = _reduce_example(note["body"], user_id=user_id, note_id=note["id"], images_on=images_on,
+                                     brokers=brokers, item_id=draft_id, report=None)
+        sources = _example_sources(kept, user_id, note["id"])   # R-P3b-7: at most 6, PNG/JPEG/WebP, 2 MB each
+        stored = json.dumps({"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind})
+        if len(stored.encode("utf-8")) > MAX_BODY_BYTES:
+            raise GalleryError(EXAMPLE_TOO_LONG_SENTENCE)
+        preview = json.dumps(preview_lines(body))
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle (commits)
+        # P3b Task 4: the copies are made HERE, before the write lock, into a staging directory. A failed copy is
+        # 500 `EXAMPLE_COPY_SENTENCE` with nothing left behind; under the lock the staged directory is renamed in.
+        _assert_copy_headroom(sources)               # P3b-F-R7: room on the volume first, as an upload asks
+        stage = _stage_images(sources)
+        if not conn.in_transaction:                  # P3b-T3-R3 (M-8 refuses a caller's open transaction above)
+            conn.execute("BEGIN IMMEDIATE")          # the lookup and the write cannot interleave with a twin
+        # P3b-T3-R6: the style is linkable AGAIN, under the lock, just before the write -- one withdrawn, hidden
+        # or rejected while the note was being reduced is the same sentence, and nothing is written.
+        style = _linkable_style(conn, user_id, style["id"])
+        existing = conn.execute(
+            "SELECT id, status, version FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ?"
+            " AND item_type = ?"
+            " AND CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.linkedItemId') END = ?",
+            (user_id, note["id"], EXAMPLE_ITEM, style["id"])).fetchone()
+        gid = existing["id"] if existing else draft_id
+        body = _bind_images(body, draft_id, gid)
+        # P3b-R14: a held revision's copies go beside the listed ones, under the version members will see once it
+        # is approved; anything else (a new row, a pending or rejected one replaced in place) owns the item's
+        # directory. What was there before is set aside, and deleted only after the commit.
+        held = bool(existing) and existing["status"] == "approved"
+        moves.put(stage, _item_dir(gid, int(existing["version"] or 1) + 1 if held else None))
+        payload = {"bodyJson": body, "linkedItemId": style["id"], "noteKind": kind}
+        payload_json = json.dumps(payload)
+        now = _now()
+        if held:
+            revision = {"title": clean_title, "description": "", "category": style["category"],
+                        "tradingStyle": style["trading_style"], "payload": payload, "preview": json.loads(preview)}
+            conn.execute(
+                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+                " updated_at = ? WHERE id = ?", (json.dumps(revision), now, now, gid))
+        elif existing:
+            conn.execute(
+                "UPDATE j2_template_gallery SET title = ?, description = '', category = ?, trading_style = ?,"
+                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
+                " pending_json = NULL, pending_at = NULL WHERE id = ?",
+                (clean_title, style["category"], style["trading_style"], json.dumps(body), payload_json, now,
+                 preview, gid))
+        else:
+            conn.execute(
+                "INSERT INTO j2_template_gallery (id, user_id, source_note_id, kind, title, description,"
+                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+                " payload_json, version, trading_style)"
+                " VALUES (?, ?, ?, 'member', ?, '', ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+                (gid, user_id, note["id"], clean_title, style["category"], json.dumps(body), now, now,
+                 preview, EXAMPLE_ITEM, payload_json, style["trading_style"]))
+        conn.commit()
+        moves.finish()                               # committed: the set-aside copies go, and nothing can undo it
+        return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
+    except Exception:
+        # ⛔ P3b-T4-R6(b): the directories are put back WHILE THE WRITE LOCK IS STILL HELD, and only then is the
+        # transaction rolled back (which releases it). The other order lets a waiting publish take the lock and own
+        # the destination before this undo renames it away (review I-1).
+        moves.undo()                                 # the old copies back where they were (a no-op once finished)
+        if stage is not None:
+            _remove_dir(stage)                       # the staged copies, renamed back by undo (or never moved)
+        if conn.in_transaction:
+            conn.rollback()                          # only ever this function's own transaction (M-8)
+        raise
     finally:
         if owned:
             conn.close()
@@ -1247,9 +2207,10 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        # P4b-R-X8: a layout is not a template. Copying one would write an empty note template under its title
-        # and count a use; it reads exactly like an item `/use` cannot see.
-        if not _can_see(row, user_id, False) or row["item_type"] == LAYOUT_ITEM:
+        # An example note is a snapshot of another member's note shown on their style, never a template to copy.
+        # P4b-R-X8: nor is a layout. Copying one would write an empty note template under its title and count a
+        # use; either reads exactly like an item `/use` cannot see.
+        if not _can_see(row, user_id, False, conn) or row["item_type"] in (EXAMPLE_ITEM, LAYOUT_ITEM):
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),
@@ -1285,22 +2246,28 @@ UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the
                          "Look again.")
 
 
-def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str) -> sqlite3.Row | None:
-    """The row of an item a member may adopt: one of `item_type`, approved and not hidden, and of a type that is
-    not absent right now (`_library_hides`, the one rule). Shared by adopting a style and adopting a layout, so
-    "listed" means one thing for both."""
+def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str, *,
+                hides: bool = True) -> sqlite3.Row | None:
+    """The row of an item a member may adopt: one of `item_type`, approved and not hidden, and (with `hides`, the
+    default) of a type that is not absent right now (`_library_hides`, the one rule). Shared by adopting a style
+    and adopting a layout, so "listed" means one thing for both."""
     if not isinstance(gallery_id, str) or not gallery_id:
         return None
     row = _row(conn, gallery_id)             # no viewer: adopt and update read the item, not the member's vote
-    if (row is None or _library_hides(row) or row["item_type"] != item_type or row["status"] != "approved"
-            or row["hidden"]):
+    if (row is None or (hides and _library_hides(row)) or row["item_type"] != item_type
+            or row["status"] != "approved" or row["hidden"]):
         return None
     return row
 
 
 def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
-    """The row of a style a member may adopt: a style item that is approved and not hidden."""
-    return _listed_row(conn, gallery_id, "style")
+    """The row of a style a member may adopt: a style item that is approved and not hidden.
+
+    ⛔ WITHOUT `_library_hides` (P4b final, merge): P5's starter-pack install reads its firm rows through this
+    behind its OWN two switches, and the library switch has no effect on an install
+    (tests/test_starter_packs.py::test_the_library_switch_has_no_effect_on_install). Every member-facing caller
+    (`adopt_style`, `_plan`) applies `_library_hides` itself, as it did before P4b."""
+    return _listed_row(conn, gallery_id, "style", hides=False)
 
 
 def _record_use(conn: sqlite3.Connection, row: sqlite3.Row, user_id: str, now: str) -> None:
@@ -1363,6 +2330,61 @@ def _outline_hash(outline: Any) -> str | None:
     return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
+                      commit: bool) -> dict:
+    """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
+
+    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`) and by
+    the starter-pack install (`starter_packs.install`, behind its own two switches, `commit=False`), so every
+    rule an adopt obeys holds for both. With `commit=False` nothing here commits or rolls back: the caller
+    owns the transaction (the install wraps each row in a SAVEPOINT and commits once). Raises `GalleryError`
+    for a row that cannot be adopted: an unreadable payload, a kind that is not built in, or a style the
+    member's account refuses (the style cap among them)."""
+    from api.services.journal_two import journal_styles as js
+    raw_payload = _listed_payload(row)
+    if raw_payload is None:
+        raise GalleryError("That style could not be read, so it cannot be adopted.")
+    payload = _safe_listed(raw_payload)
+    from api.services.journal_two import note_kinds as nk
+    if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
+        # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
+        # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
+        raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
+    version = int(row["version"] or 1)
+    now = _now()
+    # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
+    # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
+    # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
+    # handle (R3/R5), and "Nothing was changed" would be false.
+    try:
+        style = js.create_style(user_id, {
+            "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
+            "kindId": payload["kindId"], "blocks": payload["blocks"],
+            "outlineBodyJson": payload["outlineBodyJson"],
+            "properties": payload["properties"]}, conn,
+            provenance=(row["id"], version, json.dumps(_block_ids(payload)),
+                        _outline_hash(payload["outlineBodyJson"])),
+            commit=False)
+    except js.StyleValidationError as e:
+        if commit and conn.in_transaction:
+            conn.rollback()
+        raise GalleryError(str(e)) from e
+    if row["user_id"] != user_id:
+        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
+    if notify:
+        conn.execute(
+            "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+            " style_id = excluded.style_id, notified_version = excluded.notified_version",
+            (row["id"], user_id, style["id"], version, now))
+    if commit:
+        conn.commit()
+    return {"style": js.get_style(user_id, style["id"], conn),
+            "notify": bool(notify),
+            "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+
+
 def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
                 conn: sqlite3.Connection | None = None) -> dict | None:
     """The member's own copy of a listed style (R-P3-10).
@@ -1371,7 +2393,8 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
     `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
     Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
-    as a second use. `notify` records a watch row so a later task can tell them about an update."""
+    as a second use. `notify` records a watch row so a later task can tell them about an update.
+    The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1)."""
     from api.services.journal_two import journal_styles as js
     if not library_enabled():
         return None
@@ -1381,47 +2404,9 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     conn = conn or get_connection()
     try:
         row = _listed_style_row(conn, gallery_id)
-        if row is None:
+        if row is None or _library_hides(row):         # a firm style while starter packs are off (P5-AUD-1)
             return None
-        raw_payload = _listed_payload(row)
-        if raw_payload is None:
-            raise GalleryError("That style could not be read, so it cannot be adopted.")
-        payload = _safe_listed(raw_payload)
-        from api.services.journal_two import note_kinds as nk
-        if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
-            # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
-            # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
-            raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
-        version = int(row["version"] or 1)
-        now = _now()
-        # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
-        # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
-        # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
-        # handle (R3/R5), and "Nothing was changed" would be false.
-        try:
-            style = js.create_style(user_id, {
-                "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
-                "kindId": payload["kindId"], "blocks": payload["blocks"],
-                "outlineBodyJson": payload["outlineBodyJson"],
-                "properties": payload["properties"]}, conn,
-                provenance=(row["id"], version, json.dumps(_block_ids(payload)),
-                            _outline_hash(payload["outlineBodyJson"])),
-                commit=False)
-        except js.StyleValidationError as e:
-            if conn.in_transaction:
-                conn.rollback()
-            raise GalleryError(str(e)) from e
-        _record_use(conn, row, user_id, now)
-        if notify:
-            conn.execute(
-                "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
-                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
-                " style_id = excluded.style_id, notified_version = excluded.notified_version",
-                (row["id"], user_id, style["id"], version, now))
-        conn.commit()
-        return {"style": js.get_style(user_id, style["id"], conn),
-                "notify": bool(notify),
-                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+        return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -1496,6 +2481,7 @@ def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[d
             " g.title, g.version FROM j2_journal_styles s JOIN j2_template_gallery g"
             " ON g.id = s.source_gallery_id WHERE s.user_id = ? AND s.deleted_at IS NULL"
             " AND g.item_type = 'style' AND g.status = 'approved' AND g.hidden = 0"
+            f" AND {_hidden_styles_sql()}"
             " AND g.version > COALESCE(s.source_version, 0) ORDER BY g.updated_at DESC",
             (user_id,)).fetchall()
         return [{"galleryId": r["gallery_id"], "title": r["title"], "styleId": r["style_id"],
@@ -1520,6 +2506,8 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     if mine is None or mine.get("builtin") or not mine.get("sourceGalleryId"):
         return None, None, None
     row = _listed_style_row(conn, mine["sourceGalleryId"])
+    if row is not None and _library_hides(row):        # a firm style while starter packs are off (P5-AUD-1)
+        row = None
     if row is None or int(row["version"] or 1) <= int(mine.get("sourceVersion") or 0):
         return mine, row, None
     raw_theirs = _listed_payload(row)
@@ -1643,7 +2631,11 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
 def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
            conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """Report a listed template. None when the member cannot see it. One report per
-    member per template: a second one answers `already: true` and changes nothing."""
+    member per template: a second one answers `already: true` and changes nothing.
+
+    P3b-F-R2 (final review M-1): "cannot see it" is THE visibility rule, `_can_see` -- the same gate Helpful
+    takes -- so an approved example whose style is pending, rejected or hidden is absent here too, never an
+    accepted report that tells the reporter the example exists."""
     if reason not in REPORT_REASONS:
         raise GalleryError("Pick a reason for the report.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
@@ -1651,7 +2643,7 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if row is None or row["status"] != "approved" or row["hidden"] or _library_hides(row):
+        if not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]:
             return None
         if row["user_id"] == user_id:
             noun = "layout" if row["item_type"] == LAYOUT_ITEM else "template"
@@ -1689,7 +2681,7 @@ def set_helpful(user_id: str, gallery_id: Any, on: bool,
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id, user_id)
-        if (not _can_see(row, user_id, False) or row["status"] != "approved" or row["hidden"]
+        if (not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]
                 or row["user_id"] == user_id):
             return None
         if on:
@@ -1729,7 +2721,8 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND g.user_id = ? AND {_type_visible_clause()}"
+        where = (f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
+                 " AND g.user_id = ?")
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -1779,8 +2772,8 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)"
-                     f" AND {_type_visible_clause()}",
+                     f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
+                     " AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
     finally:
@@ -1796,15 +2789,19 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # R-T3-R2: with the library off the queue is today's -- no style rows. A style row (and its held
-        # revision) is reviewable only while the library is on; a layout row only while layout sharing is on
-        # (R-P4b-10). The decision is the one type rule.
-        visible_types = f" AND {_type_visible_clause()}"
+        # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
+        # held revision) is reviewable only while the library is on, and a firm style row only while the
+        # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
+        # P3b: an example note is reviewable only while ITS switch is on, the same rule one level down.
+        # P4b (R-P4b-10): a layout row only while layout sharing is on: `_type_visible_clause`, the type rule.
+        visible_terms = f" AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
+        if not example_enabled():
+            visible_terms += f" AND {_NEVER_LISTED}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in _read(conn, None, f"({where}){visible_types}", (), list_only=True, queue=queue,
+                    for r in _read(conn, None, f"({where}){visible_terms}", (), list_only=True, queue=queue,
                                    tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never
@@ -1847,18 +2844,27 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
     its own WHERE clause, so there is no gap between the check and the write: publishing
     again replaces the body and moves `updated_at`, and an approval of the earlier version
     then changes nothing and raises `GalleryConflict` (409). An approval that names no
-    version is refused the same way -- nothing may be listed unseen."""
+    version is refused the same way -- nothing may be listed unseen.
+
+    ⛔ A REJECTION NAMES IT TOO (P3b-F-R4, final review M-3), for a style and an example alike: the same
+    `reviewed_updated_at`, the same conditional UPDATE. Unpinned, an author re-publishing while the reviewer
+    read would have the NEW revision declined -- its copies set aside -- and a note about a version nobody saw."""
     if action not in ADMIN_ACTIONS:
         raise GalleryError("Unknown review action.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
     owned = conn is None
     conn = conn or get_connection()
+    # P3b Task 4 (ruling P3b-R14): approving an example's held revision moves its copies into place inside the same
+    # transaction; a failure to move them undoes the move AND the listing (`EXAMPLE_MOVE_SENTENCE`, nothing listed).
+    moves = _DirMoves(EXAMPLE_MOVE_SENTENCE)
     try:
         row = conn.execute("SELECT * FROM j2_template_gallery WHERE id = ?", (gallery_id,)).fetchone()
         # R-T4-3 (R-P3-10): a style row is absent while the library is off, for a reviewer who knows its id
         # as much as for a member. The queue and `get_item` already hide it; this is the write door.
         if row is None or _library_hides(row):
             return None
+        is_example = row["item_type"] == EXAMPLE_ITEM
+        held_version = int(row["version"] or 1) + 1     # the version a held revision becomes, and its copies' folder
         now = _now()
         stale = LAYOUT_APPROVE_STALE_SENTENCE if row["item_type"] == LAYOUT_ITEM else APPROVE_STALE_SENTENCE
         if action == "approve":
@@ -1873,7 +2879,9 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                         # P4b (R-P4b-6a): a held layout revision passes the write door before it is listed. Its
                         # refusal is a LayoutPayloadError, a ValueError, so it lands on the sentence below.
                         pls.validate_layout_payload(rev["payload"])
-                    new_body = rev["payload"].get("outlineBodyJson") or {"type": "doc", "content": []}
+                    # A style's listed body is its outline; an example note's is its reduced snapshot (P3b).
+                    body_key = "bodyJson" if row["item_type"] == EXAMPLE_ITEM else "outlineBodyJson"
+                    new_body = rev["payload"].get(body_key) or {"type": "doc", "content": []}
                     args = (rev["title"], rev["description"], rev["category"], rev.get("tradingStyle"),
                             json.dumps(rev["payload"]), json.dumps(new_body),
                             json.dumps(rev.get("preview") or preview_lines(new_body)),
@@ -1895,22 +2903,36 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             if cur.rowcount != 1:
                 conn.rollback()
                 raise GalleryConflict(stale)
+            if row["pending_json"] and is_example:
+                moves.promote(gallery_id, held_version)  # the held copies become the listed ones; the old set aside
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")
+            if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
+                raise GalleryConflict(REJECT_STALE_SENTENCE)
             if row["pending_json"]:
                 # A held revision is declined; the APPROVED listing stays exactly as it was (status,
                 # listed_at, featured). The author reads the note; the revision is cleared.
-                conn.execute(
+                cur = conn.execute(
                     "UPDATE j2_template_gallery SET pending_json = NULL, pending_at = NULL, review_note = ?,"
-                    " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
-                    (clean_note, admin_id, now, now, gallery_id))
-                conn.commit()
-                return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
-            conn.execute(
-                "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
-                " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ?",
-                (clean_note, admin_id, now, now, gallery_id))
+                    " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ? AND updated_at = ?",
+                    (clean_note, admin_id, now, now, gallery_id, reviewed_updated_at))
+            else:
+                cur = conn.execute(
+                    "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
+                    " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ? AND updated_at = ?",
+                    (clean_note, admin_id, now, now, gallery_id, reviewed_updated_at))
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise GalleryConflict(REJECT_STALE_SENTENCE)
+            if is_example:
+                # P3b-R14 + P3b-T4-R6(a): the declined copies are moved aside UNDER THE LOCK, before the commit,
+                # and deleted after it (`moves.finish()` below). Deleting after the commit could hit copies a
+                # republish wrote the moment the lock was released (review I-1). A held revision's are its
+                # `v<N>` folder; a first submission's (P3b-F-R6, final review M-5) are the item's whole folder --
+                # an example declined for what an image shows must not keep that image on the volume. The
+                # author's next publish writes a fresh set.
+                moves.set_aside(_item_dir(gallery_id, held_version) if row["pending_json"] else _item_dir(gallery_id))
         elif action == "hide":
             conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_by = ?, hidden_at = ?"
                          " WHERE id = ?", (admin_id, now, gallery_id))
@@ -1926,6 +2948,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             conn.execute("UPDATE j2_template_gallery SET featured = ? WHERE id = ?",
                          (1 if action == "feature" else 0, gallery_id))
         conn.commit()
+        moves.finish()                                  # committed: the old copies go, and nothing can undo it
         # P3a Task 7: AFTER the review has committed, so a notice can never undo it. An approved revision
         # bumps the version, so its watchers are behind; any later review action retries a failed delivery.
         if action in _RING_ACTIONS and row["item_type"] == "style":
@@ -1935,6 +2958,14 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                 conn.rollback()      # only the current watcher's uncommitted mark; earlier ones are committed
                 print(f"[template-gallery] update notices for {gallery_id} stopped: {type(e).__name__}: {e}")
         return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
+    except Exception as e:
+        # Only a failure that touched the copies rolls back here (the listing must not stand without them); every
+        # other refusal keeps today's behaviour, so a caller's own transaction is never rolled back for a 400.
+        if isinstance(e, GalleryServerError) or moves.active:
+            moves.undo()                                # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
+            if conn.in_transaction:
+                conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -1953,7 +2984,7 @@ def admin_report_act(admin_id: str, report_id: str, action: Any,
                          (report_id,)).fetchone()
         if r is None:
             return False
-        target = conn.execute("SELECT item_type FROM j2_template_gallery WHERE id = ?",
+        target = conn.execute("SELECT item_type, kind FROM j2_template_gallery WHERE id = ?",
                               (r["gallery_id"],)).fetchone()
         if target is not None and _library_hides(target):      # R-T4-3: a style's report is as absent as the style
             return False

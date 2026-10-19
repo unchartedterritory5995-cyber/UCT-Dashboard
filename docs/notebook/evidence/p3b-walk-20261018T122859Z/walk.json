@@ -1,0 +1,1546 @@
+{
+ "tool": "tools/notebook_example_notes_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "author writes a trade plan note: $1,240 at Schwab, a sizing block with an account size, one pasted image",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"bf6095f34f8042c4bd27834c295866ad\",\"name\":\"P3b walk 1280 122947\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":"
+    },
+    {
+     "what": "a note was made from the style (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"146fe4041b1b4b5a8d830f5fe5521d83\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan desk bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":\"d"
+    },
+    {
+     "what": "the note is a trade plan (its kind, as stamped)",
+     "ok": true,
+     "read": "builtin:note_kind=trade_plan"
+    },
+    {
+     "what": "the style put a position sizing block in the note",
+     "ok": true,
+     "read": "[\"widgetEmbed\", \"paragraph\"]"
+    },
+    {
+     "what": "the pasted image was uploaded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"url\":\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png\",\"width\":96,\"height\":64}"
+    },
+    {
+     "what": "the note was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"146fe4041b1b4b5a8d830f5fe5521d83\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan desk bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":\"d"
+    },
+    {
+     "what": "the editor shows \"made $1,240 at Schwab\"",
+     "ok": true,
+     "read": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull"
+    },
+    {
+     "what": "the pasted image shows in the editor",
+     "ok": true,
+     "read": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png"
+    },
+    {
+     "what": "the position sizing block holds the account size (the note read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\", \"regimeId\": \"amber\", \"regimeAsOf\": \"2026-01-02\", \"accountSize\": 25000}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the note in the editor",
+     "text": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull width\nAdd caption"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "author shares the style (P3a flow) and adds the note as an example",
+   "checks": [
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the Styles manager says the style was shared",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the Share form offers \"Add an example note\"",
+     "ok": true,
+     "read": "Add an example note"
+    },
+    {
+     "what": "the picker lists the trade plan note",
+     "ok": true,
+     "read": "Trade plan desk bccjeh, Oct 18, 2026"
+    },
+    {
+     "what": "the preview sheet opened for the note",
+     "ok": true,
+     "read": "Preview your example"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "door",
+     "text": "Add an example note"
+    },
+    {
+     "what": "picker row",
+     "text": "Trade plan desk bccjeh\nOct 18, 2026"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "the preview: the counts sentence, the replaced spans, the image off",
+   "checks": [
+    {
+     "what": "the counts sentence names the amount",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the broker name",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the reset block",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence says the image was left out",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the amount reads \"your value here\", marked as money",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the broker reads \"your broker\", marked as broker",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the author's amount and broker are not in the body",
+     "ok": true,
+     "read": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the body shows no image while it is off",
+     "ok": true,
+     "read": "0 img"
+    },
+    {
+     "what": "the image's switch is off",
+     "ok": true,
+     "read": "aria-checked=false"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "counts sentence",
+     "text": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "replaced spans",
+     "text": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the body members will see",
+     "text": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "image row",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "author switches the image on through the second confirm, and submits",
+   "checks": [
+    {
+     "what": "switching it on asks the second question (the image was never read: no OCR engine here)",
+     "ok": true,
+     "read": "asked=True; OCR line: fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image; states: [{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the switch stays off until the answer",
+     "ok": true,
+     "read": "aria-checked=false"
+    },
+    {
+     "what": "the switch is on after the answer",
+     "ok": true,
+     "read": "aria-checked=true"
+    },
+    {
+     "what": "the body now shows the image",
+     "ok": true,
+     "read": "1 img"
+    },
+    {
+     "what": "the submit was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the submit sent the switched-on image and no body",
+     "ok": true,
+     "read": "{\"noteId\": \"146fe4041b1b4b5a8d830f5fe5521d83\", \"styleItemId\": \"c022303710164d888668809c1ae35dd4\", \"imagesOn\": [\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png\"], \"title\": \"Trade plan desk bccjeh\"}"
+    },
+    {
+     "what": "the door says it was sent for review",
+     "ok": true,
+     "read": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the preview's image states (raw)",
+     "text": "[{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the OCR line under the image",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    },
+    {
+     "what": "second confirm",
+     "text": "This image may show an account detail. Share it anyway?\n\nCancel\nShare it"
+    },
+    {
+     "what": "title in the library",
+     "text": "Trade plan desk bccjeh"
+    },
+    {
+     "what": "door status",
+     "text": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "admin approves it (the style and the example) in the review queue",
+   "checks": [
+    {
+     "what": "the example's row names its style",
+     "ok": true,
+     "read": "Trade plan desk bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 1280 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer sees the reduced words",
+     "ok": true,
+     "read": "Trade plan desk bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 1280 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "the reviewer sees the image, from the gallery route",
+     "ok": true,
+     "read": "/api/j2/template-gallery/7518c14d26e54d469876a1dbcbee9b5e/images/0"
+    },
+    {
+     "what": "the gallery says “P3b walk 1280 122947” is listed",
+     "ok": true,
+     "read": "Approved “P3b walk 1280 122947”. It is listed now."
+    },
+    {
+     "what": "the gallery says “Trade plan desk bccjeh” is listed",
+     "ok": true,
+     "read": "Approved “Trade plan desk bccjeh”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the example's review row",
+     "text": "Trade plan desk bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 1280 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer's preview",
+     "text": "Trade plan desk bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 1280 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3b walk 1280 122947”. It is listed now."
+    },
+    {
+     "what": "message",
+     "text": "Approved “Trade plan desk bccjeh”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "second member opens the style: In use shows \"your value here\" and \"your broker\", the image loads",
+   "checks": [
+    {
+     "what": "the style's Preview has an \"In use\" section",
+     "ok": true,
+     "read": "1 section(s); preview text: P3b walk 1280 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLa"
+    },
+    {
+     "what": "\"In use\" names the example",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your value here\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your broker\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the author's amount, broker and account size are not shown",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the image loads in the member's browser",
+     "ok": true,
+     "read": "src=/api/j2/template-gallery/7518c14d26e54d469876a1dbcbee9b5e/images/0 naturalWidth=96"
+    },
+    {
+     "what": "the image is on the gallery route, never the author's attachment",
+     "ok": true,
+     "read": "/api/j2/template-gallery/7518c14d26e54d469876a1dbcbee9b5e/images/0"
+    },
+    {
+     "what": "the image URL answers 200 with an image",
+     "ok": true,
+     "read": "HTTP 200 image/png"
+    },
+    {
+     "what": "the stored example's position sizing block carries no account size (the member's read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\"}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the style's Preview",
+     "text": "P3b walk 1280 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "In use",
+     "text": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan desk bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "author withdraws the style; the image URL answers 404",
+   "checks": [
+    {
+     "what": "there is an example whose image answered 200 before the withdraw",
+     "ok": true,
+     "read": "exid=7518c14d26e54d469876a1dbcbee9b5e image_ok=True"
+    },
+    {
+     "what": "the gallery says the style was withdrawn",
+     "ok": true,
+     "read": "Unpublished “P3b walk 1280 122947”."
+    },
+    {
+     "what": "the example's image URL now answers 404",
+     "ok": true,
+     "read": "GET /api/j2/template-gallery/7518c14d26e54d469876a1dbcbee9b5e/images/0 -> HTTP 404"
+    },
+    {
+     "what": "the example itself now answers 404",
+     "ok": true,
+     "read": "HTTP 404"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3b walk 1280 122947”. Copies other members made are theirs and stay."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "author writes a trade plan note: $1,240 at Schwab, a sizing block with an account size, one pasted image",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"0f45d05189f143399b4efe7e44110645\",\"name\":\"P3b walk 820 122947\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "a note was made from the style (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"637042957f234e9b850e5dd2cb8afe3a\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan tablet bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":"
+    },
+    {
+     "what": "the note is a trade plan (its kind, as stamped)",
+     "ok": true,
+     "read": "builtin:note_kind=trade_plan"
+    },
+    {
+     "what": "the style put a position sizing block in the note",
+     "ok": true,
+     "read": "[\"widgetEmbed\", \"paragraph\"]"
+    },
+    {
+     "what": "the pasted image was uploaded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"url\":\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png\",\"width\":96,\"height\":64}"
+    },
+    {
+     "what": "the note was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"637042957f234e9b850e5dd2cb8afe3a\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan tablet bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":"
+    },
+    {
+     "what": "the editor shows \"made $1,240 at Schwab\"",
+     "ok": true,
+     "read": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull"
+    },
+    {
+     "what": "the pasted image shows in the editor",
+     "ok": true,
+     "read": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png"
+    },
+    {
+     "what": "the position sizing block holds the account size (the note read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\", \"regimeId\": \"amber\", \"regimeAsOf\": \"2026-01-02\", \"accountSize\": 25000}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the note in the editor",
+     "text": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull width\nAdd caption"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "author shares the style (P3a flow) and adds the note as an example",
+   "checks": [
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the Styles manager says the style was shared",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the Share form offers \"Add an example note\"",
+     "ok": true,
+     "read": "Add an example note"
+    },
+    {
+     "what": "the picker lists the trade plan note",
+     "ok": true,
+     "read": "Trade plan tablet bccjeh, Oct 18, 2026"
+    },
+    {
+     "what": "the preview sheet opened for the note",
+     "ok": true,
+     "read": "Preview your example"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "door",
+     "text": "Add an example note"
+    },
+    {
+     "what": "picker row",
+     "text": "Trade plan tablet bccjeh\nOct 18, 2026"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "the preview: the counts sentence, the replaced spans, the image off",
+   "checks": [
+    {
+     "what": "the counts sentence names the amount",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the broker name",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the reset block",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence says the image was left out",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the amount reads \"your value here\", marked as money",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the broker reads \"your broker\", marked as broker",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the author's amount and broker are not in the body",
+     "ok": true,
+     "read": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the body shows no image while it is off",
+     "ok": true,
+     "read": "0 img"
+    },
+    {
+     "what": "the image's switch is off",
+     "ok": true,
+     "read": "aria-checked=false"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "counts sentence",
+     "text": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "replaced spans",
+     "text": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the body members will see",
+     "text": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "image row",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "author switches the image on through the second confirm, and submits",
+   "checks": [
+    {
+     "what": "switching it on asks the second question (the image was never read: no OCR engine here)",
+     "ok": true,
+     "read": "asked=True; OCR line: fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image; states: [{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the switch stays off until the answer",
+     "ok": true,
+     "read": "aria-checked=false"
+    },
+    {
+     "what": "the switch is on after the answer",
+     "ok": true,
+     "read": "aria-checked=true"
+    },
+    {
+     "what": "the body now shows the image",
+     "ok": true,
+     "read": "1 img"
+    },
+    {
+     "what": "the submit was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the submit sent the switched-on image and no body",
+     "ok": true,
+     "read": "{\"noteId\": \"637042957f234e9b850e5dd2cb8afe3a\", \"styleItemId\": \"faeef3d5f2674125b1e0dcac5c1e472e\", \"imagesOn\": [\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png\"], \"title\": \"Trade plan tablet bccjeh\"}"
+    },
+    {
+     "what": "the door says it was sent for review",
+     "ok": true,
+     "read": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the preview's image states (raw)",
+     "text": "[{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the OCR line under the image",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    },
+    {
+     "what": "second confirm",
+     "text": "This image may show an account detail. Share it anyway?\n\nCancel\nShare it"
+    },
+    {
+     "what": "title in the library",
+     "text": "Trade plan tablet bccjeh"
+    },
+    {
+     "what": "door status",
+     "text": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "admin approves it (the style and the example) in the review queue",
+   "checks": [
+    {
+     "what": "the example's row names its style",
+     "ok": true,
+     "read": "Trade plan tablet bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 820 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer sees the reduced words",
+     "ok": true,
+     "read": "Trade plan tablet bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 820 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "the reviewer sees the image, from the gallery route",
+     "ok": true,
+     "read": "/api/j2/template-gallery/f36f0f46e6304148820fa113fe24ac04/images/0"
+    },
+    {
+     "what": "the gallery says “P3b walk 820 122947” is listed",
+     "ok": true,
+     "read": "Approved “P3b walk 820 122947”. It is listed now."
+    },
+    {
+     "what": "the gallery says “Trade plan tablet bccjeh” is listed",
+     "ok": true,
+     "read": "Approved “Trade plan tablet bccjeh”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the example's review row",
+     "text": "Trade plan tablet bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 820 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer's preview",
+     "text": "Trade plan tablet bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 820 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3b walk 820 122947”. It is listed now."
+    },
+    {
+     "what": "message",
+     "text": "Approved “Trade plan tablet bccjeh”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "second member opens the style: In use shows \"your value here\" and \"your broker\", the image loads",
+   "checks": [
+    {
+     "what": "the style's Preview has an \"In use\" section",
+     "ok": true,
+     "read": "1 section(s); preview text: P3b walk 820 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nL"
+    },
+    {
+     "what": "\"In use\" names the example",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your value here\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your broker\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the author's amount, broker and account size are not shown",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the image loads in the member's browser",
+     "ok": true,
+     "read": "src=/api/j2/template-gallery/f36f0f46e6304148820fa113fe24ac04/images/0 naturalWidth=96"
+    },
+    {
+     "what": "the image is on the gallery route, never the author's attachment",
+     "ok": true,
+     "read": "/api/j2/template-gallery/f36f0f46e6304148820fa113fe24ac04/images/0"
+    },
+    {
+     "what": "the image URL answers 200 with an image",
+     "ok": true,
+     "read": "HTTP 200 image/png"
+    },
+    {
+     "what": "the stored example's position sizing block carries no account size (the member's read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\"}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the style's Preview",
+     "text": "P3b walk 820 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "In use",
+     "text": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan tablet bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "author withdraws the style; the image URL answers 404",
+   "checks": [
+    {
+     "what": "there is an example whose image answered 200 before the withdraw",
+     "ok": true,
+     "read": "exid=f36f0f46e6304148820fa113fe24ac04 image_ok=True"
+    },
+    {
+     "what": "the gallery says the style was withdrawn",
+     "ok": true,
+     "read": "Unpublished “P3b walk 820 122947”."
+    },
+    {
+     "what": "the example's image URL now answers 404",
+     "ok": true,
+     "read": "GET /api/j2/template-gallery/f36f0f46e6304148820fa113fe24ac04/images/0 -> HTTP 404"
+    },
+    {
+     "what": "the example itself now answers 404",
+     "ok": true,
+     "read": "HTTP 404"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3b walk 820 122947”. Copies other members made are theirs and stay."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "author writes a trade plan note: $1,240 at Schwab, a sizing block with an account size, one pasted image",
+   "checks": [
+    {
+     "what": "the style was created (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"style\":{\"id\":\"9b7bf54453534314ab0e8b116d03334e\",\"name\":\"P3b walk 390 122947\",\"kindId\":\"trade_plan\",\"builtin\":false,\"isDefault\":false,\"version\":1,\"outlineTemplateId\":null,\"hasOutline\":true,\"blocks\":["
+    },
+    {
+     "what": "a note was made from the style (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"de48fc58efbe44b7ac6cf8e37df5e1f0\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan phone bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":\""
+    },
+    {
+     "what": "the note is a trade plan (its kind, as stamped)",
+     "ok": true,
+     "read": "builtin:note_kind=trade_plan"
+    },
+    {
+     "what": "the style put a position sizing block in the note",
+     "ok": true,
+     "read": "[\"widgetEmbed\", \"paragraph\"]"
+    },
+    {
+     "what": "the pasted image was uploaded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"url\":\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png\",\"width\":96,\"height\":64}"
+    },
+    {
+     "what": "the note was saved (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200 {\"note\":{\"id\":\"de48fc58efbe44b7ac6cf8e37df5e1f0\",\"userId\":\"2f36171d-7c62-457f-9bcb-7f62d5fba71c\",\"accountId\":null,\"folderId\":null,\"title\":\"Trade plan phone bccjeh\",\"subtitle\":null,\"bodyJson\":{\"type\":\""
+    },
+    {
+     "what": "the editor shows \"made $1,240 at Schwab\"",
+     "ok": true,
+     "read": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull"
+    },
+    {
+     "what": "the pasted image shows in the editor",
+     "ok": true,
+     "read": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png"
+    },
+    {
+     "what": "the position sizing block holds the account size (the note read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\", \"regimeId\": \"amber\", \"regimeAsOf\": \"2026-01-02\", \"accountSize\": 25000}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the note in the editor",
+     "text": "Last week I made $1,240 at Schwab on NVDA. Watching 132.40 for the entry.\n\nPosition sizing\nRemove\nEntry\nStop\nSetup grade\nA+\nA\nB\nAccount size for this note\n\nSized against this note's $25,000.\n\nSized for a Yellow market (as of 2026-01-02).\n\nEnter an entry and a stop above zero.\n\nLeft\nCenter\nRight\nFull width\nAdd caption"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "author shares the style (P3a flow) and adds the note as an example",
+   "checks": [
+    {
+     "what": "the share was recorded (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the Styles manager says the style was shared",
+     "ok": true,
+     "read": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "the Share form offers \"Add an example note\"",
+     "ok": true,
+     "read": "Add an example note"
+    },
+    {
+     "what": "the picker lists the trade plan note",
+     "ok": true,
+     "read": "Trade plan phone bccjeh, Oct 18, 2026"
+    },
+    {
+     "what": "the preview sheet opened for the note",
+     "ok": true,
+     "read": "Preview your example"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "status line",
+     "text": "Sent for review. It is listed once an admin approves it."
+    },
+    {
+     "what": "door",
+     "text": "Add an example note"
+    },
+    {
+     "what": "picker row",
+     "text": "Trade plan phone bccjeh\nOct 18, 2026"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "the preview: the counts sentence, the replaced spans, the image off",
+   "checks": [
+    {
+     "what": "the counts sentence names the amount",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the broker name",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence names the reset block",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the counts sentence says the image was left out",
+     "ok": true,
+     "read": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "the amount reads \"your value here\", marked as money",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the broker reads \"your broker\", marked as broker",
+     "ok": true,
+     "read": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the author's amount and broker are not in the body",
+     "ok": true,
+     "read": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the body shows no image while it is off",
+     "ok": true,
+     "read": "0 img"
+    },
+    {
+     "what": "the image's switch is off",
+     "ok": true,
+     "read": "aria-checked=false"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "counts sentence",
+     "text": "1 amount, 1 broker name and 1 block were replaced, and 1 image was left out. Here is exactly what other members will see."
+    },
+    {
+     "what": "replaced spans",
+     "text": "[{\"kind\": \"money\", \"text\": \"your value here\"}, {\"kind\": \"broker\", \"text\": \"your broker\"}]"
+    },
+    {
+     "what": "the body members will see",
+     "text": "Last week I made your value here\n(replaced: an amount)\n at your broker\n(replaced: a broker name)\n on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "image row",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "author switches the image on through the second confirm, and submits",
+   "checks": [
+    {
+     "what": "switching it on asks the second question (the image was never read: no OCR engine here)",
+     "ok": true,
+     "read": "asked=True; OCR line: fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image; states: [{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the switch stays off until the answer",
+     "ok": true,
+     "read": "aria-checked=false"
+    },
+    {
+     "what": "the switch is on after the answer",
+     "ok": true,
+     "read": "aria-checked=true"
+    },
+    {
+     "what": "the body now shows the image",
+     "ok": true,
+     "read": "1 img"
+    },
+    {
+     "what": "the submit was taken (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the submit sent the switched-on image and no body",
+     "ok": true,
+     "read": "{\"noteId\": \"de48fc58efbe44b7ac6cf8e37df5e1f0\", \"styleItemId\": \"1d126ef27f284be4a534e95ab8ef49d3\", \"imagesOn\": [\"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png\"], \"title\": \"Trade plan phone bccjeh\"}"
+    },
+    {
+     "what": "the door says it was sent for review",
+     "ok": true,
+     "read": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the preview's image states (raw)",
+     "text": "[{\"src\": \"/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png\", \"name\": \"fe97a0d60f7629577477999f1b7359cd.png\", \"ocr\": \"unavailable\", \"warnings\": []}]"
+    },
+    {
+     "what": "the OCR line under the image",
+     "text": "fe97a0d60f7629577477999f1b7359cd.png\nWe couldn't read this image yet. Check it yourself before switching it on.\nShare this image"
+    },
+    {
+     "what": "second confirm",
+     "text": "This image may show an account detail. Share it anyway?\n\nCancel\nShare it"
+    },
+    {
+     "what": "title in the library",
+     "text": "Trade plan phone bccjeh"
+    },
+    {
+     "what": "door status",
+     "text": "Sent for review. It will show on your style once approved."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "admin approves it (the style and the example) in the review queue",
+   "checks": [
+    {
+     "what": "the example's row names its style",
+     "ok": true,
+     "read": "Trade plan phone bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 390 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer sees the reduced words",
+     "ok": true,
+     "read": "Trade plan phone bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 390 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "the reviewer sees the image, from the gallery route",
+     "ok": true,
+     "read": "/api/j2/template-gallery/80489e9295b245838c9a3c5c5270eecf/images/0"
+    },
+    {
+     "what": "the gallery says “P3b walk 390 122947” is listed",
+     "ok": true,
+     "read": "Approved “P3b walk 390 122947”. It is listed now."
+    },
+    {
+     "what": "the gallery says “Trade plan phone bccjeh” is listed",
+     "ok": true,
+     "read": "Approved “Trade plan phone bccjeh”. It is listed now."
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the example's review row",
+     "text": "Trade plan phone bccjeh\nby P3b Author · Trade plan\n\nAn example of the style “P3b walk 390 122947”\n\nPreview\nApprove\nReject…"
+    },
+    {
+     "what": "the reviewer's preview",
+     "text": "Trade plan phone bccjeh\n×\n\nby P3b Author · Trade plan · as members will see it · An example of the style “P3b walk 390 122947”\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "message",
+     "text": "Approved “P3b walk 390 122947”. It is listed now."
+    },
+    {
+     "what": "message",
+     "text": "Approved “Trade plan phone bccjeh”. It is listed now."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [],
+    "admin": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "second member opens the style: In use shows \"your value here\" and \"your broker\", the image loads",
+   "checks": [
+    {
+     "what": "the style's Preview has an \"In use\" section",
+     "ok": true,
+     "read": "1 section(s); preview text: P3b walk 390 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLa"
+    },
+    {
+     "what": "\"In use\" names the example",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your value here\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "\"In use\" shows \"your broker\"",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the author's amount, broker and account size are not shown",
+     "ok": true,
+     "read": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    },
+    {
+     "what": "the image loads in the member's browser",
+     "ok": true,
+     "read": "src=/api/j2/template-gallery/80489e9295b245838c9a3c5c5270eecf/images/0 naturalWidth=96"
+    },
+    {
+     "what": "the image is on the gallery route, never the author's attachment",
+     "ok": true,
+     "read": "/api/j2/template-gallery/80489e9295b245838c9a3c5c5270eecf/images/0"
+    },
+    {
+     "what": "the image URL answers 200 with an image",
+     "ok": true,
+     "read": "HTTP 200 image/png"
+    },
+    {
+     "what": "the stored example's position sizing block carries no account size (the member's read)",
+     "ok": true,
+     "read": "{\"grade\": \"A\"}"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "the style's Preview",
+     "text": "P3b walk 390 122947\n×\n\nby P3b Author · Swing\nRendered with your own data.\nYour own property defaults are not shared.\n\nAuthor outline: the plan, the size, the stop.\n\nIn use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry.\n\nClose"
+    },
+    {
+     "what": "In use",
+     "text": "In use\n\nNotes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.\n\nTrade plan phone bccjeh\n\nLast week I made your value here at your broker on NVDA. Watching 132.40 for the entry."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [],
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "admin": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "author withdraws the style; the image URL answers 404",
+   "checks": [
+    {
+     "what": "there is an example whose image answered 200 before the withdraw",
+     "ok": true,
+     "read": "exid=80489e9295b245838c9a3c5c5270eecf image_ok=True"
+    },
+    {
+     "what": "the gallery says the style was withdrawn",
+     "ok": true,
+     "read": "Unpublished “P3b walk 390 122947”."
+    },
+    {
+     "what": "the example's image URL now answers 404",
+     "ok": true,
+     "read": "GET /api/j2/template-gallery/80489e9295b245838c9a3c5c5270eecf/images/0 -> HTTP 404"
+    },
+    {
+     "what": "the example itself now answers 404",
+     "ok": true,
+     "read": "HTTP 404"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "message",
+     "text": "Unpublished “P3b walk 390 122947”. Copies other members made are theirs and stay."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "author": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ],
+    "member": [],
+    "admin": []
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P3b Author",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "P3b Member",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "role": "member"
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin",
+   "paid_equiv": true
+  }
+ ],
+ "ocr_engine_on_box": null,
+ "deliberately_broken": null,
+ "tip": "8e4dedc998",
+ "tool_tree": "8e4dedc99875fd204c2b9ace4975abf164e2e0f4",
+ "base": "http://127.0.0.1:8091",
+ "data_dir": "C:\\data-p3bwalk6",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "started": "2026-10-18T12:29:00+00:00",
+ "status": "COMPLETE",
+ "sandbox_pid": 26544,
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8091 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p3b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T07-29-01.md (identity c58d99e45d2c..., data dir C:\\data-p3bwalk6)"
+ },
+ "stories": {
+  "1280": {
+   "style_name": "P3b walk 1280 122947",
+   "note_title": "Trade plan desk bccjeh",
+   "style_id": "bf6095f34f8042c4bd27834c295866ad",
+   "note_id": "146fe4041b1b4b5a8d830f5fe5521d83",
+   "attachment_url": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/146fe4041b1b4b5a8d830f5fe5521d83/inline/fe97a0d60f7629577477999f1b7359cd.png",
+   "gid": "c022303710164d888668809c1ae35dd4",
+   "example_title": "Trade plan desk bccjeh",
+   "exid": "7518c14d26e54d469876a1dbcbee9b5e",
+   "image_url": "/api/j2/template-gallery/7518c14d26e54d469876a1dbcbee9b5e/images/0",
+   "image_ok": true
+  },
+  "820": {
+   "style_name": "P3b walk 820 122947",
+   "note_title": "Trade plan tablet bccjeh",
+   "style_id": "0f45d05189f143399b4efe7e44110645",
+   "note_id": "637042957f234e9b850e5dd2cb8afe3a",
+   "attachment_url": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/637042957f234e9b850e5dd2cb8afe3a/inline/fe97a0d60f7629577477999f1b7359cd.png",
+   "gid": "faeef3d5f2674125b1e0dcac5c1e472e",
+   "example_title": "Trade plan tablet bccjeh",
+   "exid": "f36f0f46e6304148820fa113fe24ac04",
+   "image_url": "/api/j2/template-gallery/f36f0f46e6304148820fa113fe24ac04/images/0",
+   "image_ok": true
+  },
+  "390": {
+   "style_name": "P3b walk 390 122947",
+   "note_title": "Trade plan phone bccjeh",
+   "style_id": "9b7bf54453534314ab0e8b116d03334e",
+   "note_id": "de48fc58efbe44b7ac6cf8e37df5e1f0",
+   "attachment_url": "/api/j2/notes/attachments/2f36171d-7c62-457f-9bcb-7f62d5fba71c/de48fc58efbe44b7ac6cf8e37df5e1f0/inline/fe97a0d60f7629577477999f1b7359cd.png",
+   "gid": "1d126ef27f284be4a534e95ab8ef49d3",
+   "example_title": "Trade plan phone bccjeh",
+   "exid": "80489e9295b245838c9a3c5c5270eecf",
+   "image_url": "/api/j2/template-gallery/80489e9295b245838c9a3c5c5270eecf/images/0",
+   "image_ok": true
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p3b-walk-20261018T122859Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 07:29:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 07:29:46",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 07:31:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 07:32:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p3b-walk-20261018T122859Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 21,
+  "FAIL": 0,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-18T12:32:35+00:00"
+}

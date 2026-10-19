@@ -1,0 +1,238 @@
+{
+ "closure_chunk_count": 61,
+ "closure_chunks": [
+  "assets/AskInsertView-BRqzGR2j.js",
+  "assets/AskPanel.module-Djla8sya.js",
+  "assets/CapturedSourceSheet-l0qIV1UR.js",
+  "assets/CollapsibleSection-Ds_Ridmh.js",
+  "assets/ConfirmModal-DPvFyEE2.js",
+  "assets/ContextPopover-B8jd1GmD.js",
+  "assets/DeleteAccountModalDoor-Cp6uxKqL.js",
+  "assets/FolderSidebar-CQTH9hBa.js",
+  "assets/JournalLayout-Svx7k6bt.js",
+  "assets/JournalLayout.module-DikITloP.js",
+  "assets/LoadFailed-BvcTE9U6.js",
+  "assets/ModalShell.module-BBDh_wSF.js",
+  "assets/NotebookFlagGate-BTQvbzJe.js",
+  "assets/NotebookSurface-CgUdz4Fg.js",
+  "assets/Provenance-GyQ3gfTV.js",
+  "assets/RsBadge-C3AQmPRZ.js",
+  "assets/ShortcutCheatSheetDoor-DjEDkQAq.js",
+  "assets/Toast-DHxLWwC_.js",
+  "assets/TranscriptDoors-xaWb1KaU.js",
+  "assets/TranscriptPanel-B258AX3F.js",
+  "assets/UnreadableNoteNotice-6pyPCBNc.js",
+  "assets/askInsert-C3cjIrK5.js",
+  "assets/calendar-CAFqs8qo.js",
+  "assets/computed-DFSFrGp8.js",
+  "assets/documentProvenance-BdzAm6ny.js",
+  "assets/drawingsStore-BFYRuH6i.js",
+  "assets/embedArchive-CFCIaj1C.js",
+  "assets/fontFamilies-kMTQjQyI.js",
+  "assets/index-C6sM4wFz.js",
+  "assets/index-C7yKKq-w.js",
+  "assets/index-CaNAX5hp.js",
+  "assets/index-MoHFm5_E.js",
+  "assets/index-UBDLhx5m.js",
+  "assets/index-Vcq4gwWv.js",
+  "assets/journalRoutes-HtVy9PaN.js",
+  "assets/journalStylesFlag-B5l7_zsr.js",
+  "assets/noteHasUnsentWork-CfgeNpZF.js",
+  "assets/offlineFlag-BpnCBFxF.js",
+  "assets/platform-BjMEggDU.js",
+  "assets/registry-6viWF354.js",
+  "assets/researchCapture-DD7CtkgE.js",
+  "assets/reviewDraftsFlag-CybNWKLa.js",
+  "assets/routeFocus-CINOaRiC.js",
+  "assets/sampleNotebook-BV8ZJeI9.js",
+  "assets/tier3Flag-CTiSSsiP.js",
+  "assets/tiptap-ir9sNKzm.js",
+  "assets/uid-BuiH9E25.js",
+  "assets/useDurableNote-CYQjcN3I.js",
+  "assets/useJ2AccountComparison-DbnNAO1V.js",
+  "assets/useJ2Accounts-B6aSD7Fv.js",
+  "assets/useJ2Positions-B_YSr6ww.js",
+  "assets/useJ2SelectedAccount-CqV4PSva.js",
+  "assets/useJ2Settings-Bb4mmAfq.js",
+  "assets/useLongPress-BFZb_6ZI.js",
+  "assets/useNoteConnectors-CPWvus1X.js",
+  "assets/useRovingTabIndex-DLd4zs36.js",
+  "assets/useToolbarRoving-CoLxT1uq.js",
+  "assets/vendor-react-BrA_wePN.js",
+  "assets/vendor-swr-DMX8TUtE.js",
+  "assets/voiceNote-DifKTNte.js",
+  "assets/widgetEmbedCore-JL6AE8So.js"
+ ],
+ "markers": [
+  {
+   "file": "lib/notebookTelemetry.js",
+   "marker": "conflict_forked",
+   "in_closure": [
+    "assets/NotebookFlagGate-BTQvbzJe.js",
+    "assets/index-CaNAX5hp.js"
+   ],
+   "outside_closure": []
+  },
+  {
+   "file": "onboarding/tourRegistry.js",
+   "marker": "tour registry: ",
+   "in_closure": [
+    "assets/index-CaNAX5hp.js"
+   ],
+   "outside_closure": []
+  },
+  {
+   "file": "onboarding/tours/b1Core.js",
+   "marker": "formulas-rollups",
+   "in_closure": [
+    "assets/index-CaNAX5hp.js"
+   ],
+   "outside_closure": [
+    "assets/learnTours-DK1Zh1JK.js"
+   ]
+  },
+  {
+   "file": "onboarding/learnTours.js",
+   "marker": "Writing and capture",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/learnTours-DK1Zh1JK.js"
+   ]
+  },
+  {
+   "file": "onboarding/capabilityList.js",
+   "marker": "What your Notebook can do",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/capabilityList-CFHeAvnw.js"
+   ]
+  },
+  {
+   "file": "lib/offline/notebookFlags.js FLAG_FALLBACKS",
+   "marker": "notebook_style_library_enabled",
+   "in_closure": [
+    "assets/index-CaNAX5hp.js"
+   ],
+   "outside_closure": [
+    "assets/styleErrors-BMhSp8JO.js"
+   ]
+  },
+  {
+   "file": "lib/noteCreation.js",
+   "marker": "Could not create note (",
+   "in_closure": [
+    "assets/index-CaNAX5hp.js"
+   ],
+   "outside_closure": []
+  },
+  {
+   "file": "lib/widgetEmbedNode.jsx",
+   "marker": "uct-widget-embed",
+   "in_closure": [
+    "assets/tiptap-ir9sNKzm.js"
+   ],
+   "outside_closure": []
+  },
+  {
+   "file": "lib/journalStyles.js",
+   "marker": "/mapping-offer",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/styleErrors-BMhSp8JO.js"
+   ]
+  },
+  {
+   "file": "styles/StyleHost.jsx",
+   "marker": "Updated to the latest version of",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/StyleSurfaces-hi3Z6TnU.js"
+   ]
+  },
+  {
+   "file": "styles/KindSection.jsx",
+   "marker": "Choose another style",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/StyleSurfaces-hi3Z6TnU.js"
+   ]
+  },
+  {
+   "file": "styles/StylesManager.jsx",
+   "marker": "A style is how a kind of note starts",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/StylesManager-aWaR1EUI.js"
+   ]
+  },
+  {
+   "file": "TemplateGallery.jsx",
+   "marker": "Search the community gallery",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/TemplateGallery-lPGC0X2N.js"
+   ]
+  },
+  {
+   "file": "TemplatePicker.jsx",
+   "marker": "Browse the community gallery",
+   "in_closure": [
+    "assets/NotebookFlagGate-BTQvbzJe.js"
+   ],
+   "outside_closure": [
+    "assets/b1TemplateGallery.steps-DeQWbnXb.js"
+   ]
+  },
+  {
+   "file": "StyleLibraryCard.jsx",
+   "marker": "Adopt ",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/CatalystTable-Bg6Ao1X5.js",
+    "assets/TemplateGallery-lPGC0X2N.js"
+   ]
+  },
+  {
+   "file": "styles/LibraryDoor.jsx",
+   "marker": "Loading the community library",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/LibraryDoor-DDN1_l5O.js"
+   ]
+  },
+  {
+   "file": "tabs/NotebookTab.jsx",
+   "marker": "Notes list tools",
+   "in_closure": [
+    "assets/NotebookFlagGate-BTQvbzJe.js"
+   ],
+   "outside_closure": []
+  },
+  {
+   "file": "widgets/registry.js blockManifest",
+   "marker": "Morning wire and exposure",
+   "in_closure": [
+    "assets/registry-6viWF354.js"
+   ],
+   "outside_closure": [
+    "assets/journalBlocks--b9Divjb.js"
+   ]
+  },
+  {
+   "file": "lib/journalBlocks.js",
+   "marker": "Include my before-entry rules",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/journalBlocks--b9Divjb.js"
+   ]
+  },
+  {
+   "file": "surfaces/TodaySurface.jsx (P4a)",
+   "marker": "Loading your day",
+   "in_closure": [],
+   "outside_closure": [
+    "assets/TodaySurface-g_tAOOgk.js"
+   ]
+  }
+ ]
+}

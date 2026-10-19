@@ -12,6 +12,7 @@ import functools
 import json
 import logging
 import os
+import re
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
@@ -74,6 +75,43 @@ def fetch_ext_quote(ticker: str):
     return None
 
 
+#: How many breadth suggestions a typed "UCT…" may fill. Discord shows at most 25
+#: choices; one slot stays free so a real ticker that starts the same way (UCTT)
+#: can still be picked.
+BREADTH_CHOICES_MAX = 24
+#: Anything else that matches a breadth name ("highs", "50-day") is a side dish to
+#: the stock search, so it stays short.
+BREADTH_CHOICES_SIDE = 5
+
+
+def breadth_choices(q: str) -> list[dict]:
+    """Breadth symbols for the /chart autocomplete.
+
+    Typing "UCT…" (or "breadth") is asking for the breadth catalogue, so it may fill
+    the list; the bare "UCT"/"BREADTH" takes the groups in turn (MA, momentum,
+    highs/lows, regime) so no group is cut off by the 25-choice cap. Every other
+    query matches symbol or name and keeps to BREADTH_CHOICES_SIDE."""
+    from api.services import breadth_symbols as bs
+    needle = (q or "").strip().upper().lstrip("$")
+    if not needle:
+        return []
+    rows = list(getattr(bs, "_ROWS", None) or [])
+    if not rows:     # the catalogue is the authority; a bare SYMBOLS dict still answers
+        rows = [(s, (m or {}).get("metric"), (m or {}).get("name") or "", (m or {}).get("group"))
+                for s, m in (bs.SYMBOLS or {}).items()]
+    catalogue_ask = needle.startswith("UCT") or needle == "BREADTH"
+    if needle in ("UCT", "BREADTH"):
+        groups: dict = {}
+        for row in rows:
+            groups.setdefault(row[3], []).append(row)
+        cols = list(groups.values())
+        picked = [col[i] for i in range(max(len(c) for c in cols)) for col in cols if i < len(col)]
+    else:
+        picked = [r for r in rows if r[0].startswith(needle) or needle in str(r[2]).upper()]
+    cap = BREADTH_CHOICES_MAX if catalogue_ask else BREADTH_CHOICES_SIDE
+    return [{"name": (f"{s} - {nm}" if nm else s)[:100], "value": s} for s, _m, nm, _g in picked[:cap]]
+
+
 def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
     """Autocomplete choices from the dashboard's own ticker search (exact >
     prefix > substring over cap_universe, names from the meta cache). Called
@@ -90,14 +128,7 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
         # so — the autocomplete is where a member would find out.
         try:
-            from api.services import breadth_symbols as bs
-            needle = (q or "").strip().upper()
-            for symbol, meta in (bs.SYMBOLS or {}).items():
-                nm = str((meta or {}).get("name") or "")
-                if needle and (symbol.startswith(needle) or needle in nm.upper() or needle in ("BREADTH", "UCT")):
-                    out.append({"name": f"{symbol} - {nm}"[:100] if nm else symbol, "value": symbol})
-                if len(out) >= 5:
-                    break
+            out.extend(breadth_choices(q))
         except Exception as e:  # noqa: BLE001 — breadth is a bonus, never the reason autocomplete fails
             log.debug("[discord-chart] breadth autocomplete skipped: %s", e)
         for row in rows:
@@ -121,6 +152,13 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         typed = (q or "").strip().upper().lstrip("$")
         if not out and typed and di._TICKER_RE.match(typed):
             out.append({"name": f"{typed} - chart it"[:100], "value": typed})
+        # A SET ("UCTA20 UCTNH UCTS2", "NVDA, AMD") matched nothing above, and Discord
+        # then said "No options match your search" over a command that works - the
+        # same refusal-shaped silence the single-ticker line fixes. Offer the set back.
+        parts = [p.lstrip("$") for p in re.split(r"[\s,]+", typed) if p]
+        if not out and 1 < len(parts) <= di.MULTI_MAX and all(di._TICKER_RE.match(p) for p in parts):
+            joined = " ".join(parts)
+            out.append({"name": f"{joined} - chart these"[:100], "value": joined[:100]})
         return out[:25]
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] ticker autocomplete failed %r: %s", q, e)
@@ -208,6 +246,24 @@ def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
         run_buzz_image_job(app_id, token, text, window, render_fn=render_fn, edit_fn=edit_fn)
         return
     edit(app_id, token, content=text)
+
+
+def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None, edit_fn=None) -> None:
+    """The far side of a `/lesson` defer: search the library and PATCH the
+    private reply. Never raises; a failure tells the member so instead of
+    leaving a spinner."""
+    from api.services import tsdr_lessons
+    search = search_fn or tsdr_lessons.search_lessons
+    edit = edit_fn or di.edit_original
+    try:
+        text = tsdr_lessons.format_search_reply(query, search(query))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-lesson] search failed for %r: %s", query[:60], e)
+        text = "The lesson search hit a snag. Try again in a minute."
+    try:
+        edit(app_id, token, content=text)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-lesson] could not deliver the reply: %s", e)
 
 
 def _flow_fmt_m(v) -> str:
@@ -642,6 +698,25 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
                             house_fn=house.render_house_chart if house.house_enabled() else None,
                             quote_fn=fetch_ext_quote, components_fn=di.multi_components)
         return {"type": 5}
+    if itype == 2 and name == di.LESSON_COMMAND:
+        # /lesson <about> - a PRIVATE search of the video-lesson library. Defer
+        # first (the search opens a database), work after; the flag on the defer
+        # is what keeps the reply to the member who asked.
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="searches"))
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        query = str(opts.get(di.LESSON_OPTION) or "").strip()
+        if not query:
+            return _ephemeral("Tell me what to look for, e.g. `/lesson stop loss` or `/lesson NVDA`.")
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_lesson_search_job, app_id, token, query)
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`
