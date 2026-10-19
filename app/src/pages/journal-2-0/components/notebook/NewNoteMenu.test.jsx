@@ -177,6 +177,13 @@ describe.each([["Home's form", (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />],
       fireEvent.keyDown(caretOf(), { key: 'ArrowDown' })
       expect(document.activeElement).toBe(screen.getAllByRole('menuitem')[0])
     })
+    it('a click after an ArrowUp-open still starts at the first item (the request is read once)', () => {
+      page(doors())
+      fireEvent.keyDown(caretOf(), { key: 'ArrowUp' })
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+      fireEvent.click(caretOf())
+      expect(document.activeElement).toBe(screen.getAllByRole('menuitem')[0])
+    })
     it('ArrowDown on the caret of an already-open menu moves into it; other keys do not open it', () => {
       page(doors())
       fireEvent.click(caretOf())
