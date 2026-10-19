@@ -1,0 +1,31 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...........                                                              [100%]
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 220 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 11 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_notebook_flag_table_form.py::test_a_gate_table_is_derived_with_its_defaults
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ASK_INSERT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-J2_SHARE_LINKS_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_PUBLISH_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ONBOARDING_ENABLED]
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+11 passed, 240 warnings in 190.86s (0:03:10)
+EXIT: 0

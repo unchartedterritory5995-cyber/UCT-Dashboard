@@ -23,7 +23,13 @@ import {
 import TemplateGallery from '../TemplateGallery'
 import ExamplesInUse, { IN_USE_HEADING, REPORT_EXAMPLE_LABEL } from './ExamplesInUse'
 
-const STYLE = contractBody('template-gallery.list.styles').templates[0]
+// P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
+// and one of the swing three shares this member item's title ("Weekend prep"). These tests are
+// about a MEMBER's listed style and its In use examples, so they serve exactly the member rows,
+// the set the fixture held before P5 (ruling P5-T11-R3). The firm rows are pinned server-side
+// (tests/test_firm_style_seed.py).
+const memberRows = (list) => ({ ...list, templates: list.templates.filter((t) => !t.firm) })
+const STYLE = memberRows(contractBody('template-gallery.list.styles')).templates[0]
 const WITH_EXAMPLES = contractBody('template-gallery.examples.style-item').template
 const WITHOUT = contractBody('template-gallery.styles.item').template
 const EXAMPLES = WITH_EXAMPLES.examples
@@ -44,7 +50,7 @@ beforeEach(() => {
     const method = (init.method || 'GET').toUpperCase()
     const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
-      const list = contractBody('template-gallery.list.styles')
+      const list = memberRows(contractBody('template-gallery.list.styles'))
       const picks = u.searchParams.get('section') === 'picks'
       return json({ ...list, templates: list.templates.filter((t) => !picks || t.featured).map((t) => ({ ...t, mine: listMine })),
         viewer: { admin: false } })

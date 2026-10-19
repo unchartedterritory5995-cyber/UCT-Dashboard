@@ -1,0 +1,177 @@
+{
+ "tool": "tools/notebook_p5_walk.py",
+ "steps": [],
+ "setup": [
+  {
+   "account": "P5 Walk 1280",
+   "viewport": "1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "P5 Walk 820",
+   "viewport": "820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  }
+ ],
+ "tip": "13ee489ef7",
+ "tool_tree": "13ee489ef70f1e5922ec4a8f8da1f426e3a7353c",
+ "base": "http://127.0.0.1:8181",
+ "data_dir": "C:\\data-p5walk",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STARTER_PACKS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "viewports": [
+  "1280",
+  "820",
+  "390"
+ ],
+ "declared_steps": [
+  [
+   1,
+   "New note > From a style shows How do you trade?"
+  ],
+  [
+   2,
+   "picking Swing adds the three Swing styles"
+  ],
+  [
+   3,
+   "a note from Swing trade plan renders its blocks and outline headings"
+  ],
+  [
+   4,
+   "after a reload the offer is gone; the Styles manager's Starter packs button opens it"
+  ],
+  [
+   5,
+   "the Journal styles tour runs from the Learn menu through every step"
+  ],
+  [
+   6,
+   "the Community library tour runs, opening the gallery when asked"
+  ],
+  [
+   7,
+   "the admin telemetry count has style_applied >= 1, and it rose in this story"
+  ]
+ ],
+ "source_words": {
+  "offer_title": "How do you trade?",
+  "offer_line": "Pick one and we will add three styles you can change.",
+  "packs": [
+   "Swing",
+   "Day",
+   "Prop",
+   "Options",
+   "Earnings"
+  ],
+  "swing_titles": [
+   "Swing trade plan",
+   "Weekend prep",
+   "Swing trade review"
+  ],
+  "journal_styles_steps": 4,
+  "style_library_steps": 4
+ },
+ "started": "2026-10-19T00:38:35+00:00",
+ "status": "NOT COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8181 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T19-38-37.md (identity 3d9214a4f6a4..., data dir C:\\data-p5walk)"
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p5-walk-20261018T0040Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 19:38:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 19:39:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 19:41:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 19:41:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: NOT RUN (could not sign in p5walk-390-003835@local.dev: HTTP 401) -- the sandbox's checkpoints: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p5-walk-20261018T0040Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": "could not sign in p5walk-390-003835@local.dev: HTTP 401",
+ "failure": null,
+ "counts": {
+  "PASS": 0,
+  "FAIL": 0,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-19T00:42:06+00:00"
+}

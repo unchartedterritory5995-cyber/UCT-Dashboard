@@ -67,6 +67,7 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import example_sanitize
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import sample_marker
+from api.services.journal_two import starter_packs
 from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -303,6 +304,7 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
     try:
         seed_firm_templates(conn)
+        seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
         print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
     try:
@@ -347,6 +349,75 @@ def seed_firm_templates(conn: sqlite3.Connection) -> int:
             " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?)",
             (uuid.uuid4().hex, t["seedKey"], t["title"], t.get("description") or "",
              t["category"], json.dumps(body), now, now, now, json.dumps(preview_lines(body))),
+        )
+        added += cur.rowcount or 0
+    conn.commit()
+    return added
+
+
+# ── P5: the firm styles of the starter packs ────────────────────────────────────────────
+
+#: The fifteen firm STYLE rows, three per starter pack (R-P5-3). A file of its own, never rows in
+#: `template_gallery_seed.json`: `load_seed` is the OUTLINE seed, and its 4-6 rail counts it.
+STYLE_SEED_FILE = Path(__file__).with_name("template_gallery_style_seed.json")
+
+
+def load_style_seed() -> list[dict[str, Any]]:
+    """The firm style rows, in file order. Like `load_seed`, the file's `v` is never read."""
+    data = json.loads(STYLE_SEED_FILE.read_text(encoding="utf-8"))
+    return list(data.get("styles") or [])
+
+
+def _outline_from_headings(headings: list[str]) -> list[dict]:
+    """A firm style's outline: one level-2 heading, then one empty paragraph, per heading.
+
+    The seed file holds the heading words and never TipTap JSON, so this is the one place that shape
+    is written. The result passes the gallery reducer unchanged (tests/test_firm_style_seed.py)."""
+    out: list[dict] = []
+    for text in headings:
+        out.append({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": text}]})
+        out.append({"type": "paragraph"})
+    return out
+
+
+def firm_style_id(seed_key: str) -> str:
+    """A firm style's row id: a pure function of its seed key, the same on every database.
+
+    ⛔ Not `uuid.uuid4()` (which `seed_firm_templates` uses): this seed runs inside every
+    `ensure_schema`, and `tools/notebook_contract_fixtures.py` makes uuid4 a deterministic COUNTER, so
+    fifteen extra draws at boot would shift every id the fixtures record after it."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, "uctintelligence.com/firm-style/" + seed_key).hex
+
+
+def seed_firm_styles(conn: sqlite3.Connection) -> int:
+    """INSERT OR IGNORE each firm style by `seed_key` (F9): approved, featured, no author,
+    `item_type = 'style'`, `trading_style` = its pack. Returns how many rows were added (0 on every boot
+    after the first), so an admin's later hide or unfeature is never undone by a reboot.
+
+    The payload is P3a's own shape (`{kindId, outlineBodyJson, blocks, properties}`, what `style_payload`
+    produces and `_safe_listed` reads), at version 1; `body_json` is the outline and `preview_json` its
+    preview, exactly as `publish_style` stores them. To change a shipped row, add a `-v2` row and retire
+    the `-v1` one (R-P5-4); there is no in-place upsert.
+
+    ⛔ Visibility is NOT decided here. A firm style row is listed, in every gallery read and in UCT picks, only
+    while BOTH the library switch and the starter-packs switch are on (P5-AUD-1, superseding P5-R-C3), by the one
+    rule `_hidden_styles`; either switch alone shows nothing. Task 4's install reads these rows directly, so it
+    does not need them listed."""
+    added = 0
+    now = _now()
+    for s in load_style_seed():
+        outline = sanitize_body({"type": "doc", "content": _outline_from_headings(s["outlineHeadings"])}, "")
+        payload = {"kindId": s["kindId"], "outlineBodyJson": outline,
+                   "blocks": s["blocks"], "properties": s.get("properties") or {}}
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO j2_template_gallery (id, user_id, source_template_id, seed_key,"
+            " kind, title, description, category, body_json, property_defs_json, status,"
+            " featured, listed_at, created_at, updated_at, preview_json, item_type, payload_json,"
+            " version, trading_style)"
+            " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?, 'style', ?, 1, ?)",
+            (firm_style_id(s["seedKey"]), s["seedKey"], s["title"], s.get("description") or "", s["category"],
+             json.dumps(outline), now, now, now, json.dumps(preview_lines(outline)), json.dumps(payload),
+             s["pack"]),
         )
         added += cur.rowcount or 0
     conn.commit()
@@ -673,7 +744,10 @@ def list_gallery(
         raise GalleryError("Unknown gallery section.")
     # With the library off the gallery must look exactly like today's: "trending" is a P3a sort,
     # so it answers what any unknown sort answered before it existed (same 400, same sentence).
-    library_on = library_enabled()
+    # The switches are read ONCE per request (P5-T5b-R1): `library_on` and the WHERE term below both derive
+    # from this one answer, so a switch flip mid-request cannot pair a library-off branch with a style row.
+    hidden = _hidden_styles()
+    library_on = hidden != "all"
     if sort not in SORTS or (sort == "trending" and not library_on):
         raise GalleryError("Sort by newest, most adopted or trending." if library_on
                            else "Sort by newest or most used.")
@@ -701,13 +775,13 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    if not library_enabled():
+    if not library_on:
         if item_type == "style" or trading_style:
             raise GalleryError("Unknown item type.")
-        where.append("g.item_type = 'outline'")
     elif item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
+    where.append(_hidden_styles_sql(hidden))    # every style row the switches hide (P5-AUD-1), picks included
     if trading_style:
         where.append("g.trading_style = ?")
         args.append(trading_style)
@@ -736,15 +810,54 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
+# ── which STYLE rows the gallery hides: ONE rule, two renderings (P5-AUD-1) ─────────────────────
+#
+# `_hidden_styles()` is the only place the decision is made. `_library_hides` renders it for one row (the
+# single-item reads and the write doors) and `_hidden_styles_sql` renders it as a WHERE term (every list read),
+# so the two cannot disagree about a switch state: they branch on the same answer, and
+# tests/test_firm_style_seed.py holds them equal over every switch state and every kind of row.
+
+def _hidden_styles() -> str:
+    """What the gallery hides of its style rows right now, read PER CALL.
+
+    `"all"`  -- the library switch is off: every style row reads as absent (R-P3-10, R-T3-w1).
+    `"firm"` -- the library is on and the starter-packs switch is off: the firm style rows (`kind = 'firm'`, the
+               starter packs' fifteen seeded picks) read as absent (P5-AUD-1). So a firm style row is listed, in
+               every read and in UCT picks, ONLY while BOTH switches are on, and NOTEBOOK_STARTER_PACKS_ENABLED=0
+               hides them again. The pack install does not go through this: it reads its rows directly
+               (`starter_packs.install`, behind its own switches)."""
+    if not library_enabled():
+        return "all"
+    if not starter_packs.enabled():
+        return "firm"
+    return ""
+
+
 def _library_hides(row: sqlite3.Row) -> bool:
-    """R-T3-w1 (R-P3-10: every style route 404s while the library is off). A style row reads exactly
-    like one that does not exist: for the author and an admin as much as for a browsing member.
+    """`_hidden_styles()` for one row. A hidden row reads exactly like one that does not exist: for its author
+    and an admin as much as for a browsing member. `row` must carry `item_type` and `kind`.
 
     P3b (R-P3b-6): an example-note row reads the same way while ITS switch is off (which the library switch
-    being off implies). Stored, never deleted: arming the switch again brings it back as it was."""
+    being off implies). Stored, never deleted: arming the switch again brings it back as it was. This branch
+    comes FIRST (P5-FIN-R1): the style rule below answers False for every non-style row."""
     if row["item_type"] == EXAMPLE_ITEM:
         return not example_enabled()
-    return row["item_type"] == "style" and not library_enabled()
+    if row["item_type"] != "style":
+        return False
+    hidden = _hidden_styles()
+    return hidden == "all" or (hidden == "firm" and row["kind"] == "firm")
+
+
+def _hidden_styles_sql(hidden: str | None = None) -> str:
+    """`_hidden_styles()` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in.
+    A caller that already holds this request's `_hidden_styles()` answer passes it, so the switches are read once."""
+    if hidden is None:
+        hidden = _hidden_styles()
+    if hidden == "all":
+        return "g.item_type = 'outline'"
+    if hidden == "firm":
+        return "NOT (g.item_type = 'style' AND g.kind = 'firm')"
+    return "1 = 1"
 
 
 def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool, conn: sqlite3.Connection) -> bool:
@@ -769,7 +882,7 @@ def _example_style_shown(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     link = _safe_example(_listed_payload(row))["linkedItemId"]
     if not link:
         return False
-    style = conn.execute("SELECT id, user_id, item_type, status, hidden FROM j2_template_gallery"
+    style = conn.execute("SELECT id, user_id, item_type, kind, status, hidden FROM j2_template_gallery"
                          " WHERE id = ? AND item_type = 'style'", (link,)).fetchone()
     return style is not None and style["user_id"] == row["user_id"] and _can_see(style, "", False, conn)
 
@@ -849,7 +962,7 @@ def _linked_style(conn: sqlite3.Connection, style_id: Any, viewer_id: str, is_ad
     """The style an example shows, `{id, title}`, or None when there is none the viewer may see (`_can_see`)."""
     if not isinstance(style_id, str) or not style_id:
         return None
-    row = conn.execute("SELECT id, user_id, title, item_type, status, hidden FROM j2_template_gallery"
+    row = conn.execute("SELECT id, user_id, title, item_type, kind, status, hidden FROM j2_template_gallery"
                        " WHERE id = ? AND item_type = 'style'", (style_id,)).fetchone()
     if not _can_see(row, viewer_id, is_admin, conn):
         return None
@@ -1715,7 +1828,7 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute("SELECT id, user_id, item_type, status, hidden, version, pending_json, payload_json"
+        row = conn.execute("SELECT id, user_id, item_type, kind, status, hidden, version, pending_json, payload_json"
                            " FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
         visible = row is not None and row["item_type"] == EXAMPLE_ITEM and _can_see(row, viewer_id, is_admin, conn)
     finally:
@@ -2002,6 +2115,61 @@ def _outline_hash(outline: Any) -> str | None:
     return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
+                      commit: bool) -> dict:
+    """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
+
+    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`) and by
+    the starter-pack install (`starter_packs.install`, behind its own two switches, `commit=False`), so every
+    rule an adopt obeys holds for both. With `commit=False` nothing here commits or rolls back: the caller
+    owns the transaction (the install wraps each row in a SAVEPOINT and commits once). Raises `GalleryError`
+    for a row that cannot be adopted: an unreadable payload, a kind that is not built in, or a style the
+    member's account refuses (the style cap among them)."""
+    from api.services.journal_two import journal_styles as js
+    raw_payload = _listed_payload(row)
+    if raw_payload is None:
+        raise GalleryError("That style could not be read, so it cannot be adopted.")
+    payload = _safe_listed(raw_payload)
+    from api.services.journal_two import note_kinds as nk
+    if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
+        # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
+        # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
+        raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
+    version = int(row["version"] or 1)
+    now = _now()
+    # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
+    # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
+    # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
+    # handle (R3/R5), and "Nothing was changed" would be false.
+    try:
+        style = js.create_style(user_id, {
+            "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
+            "kindId": payload["kindId"], "blocks": payload["blocks"],
+            "outlineBodyJson": payload["outlineBodyJson"],
+            "properties": payload["properties"]}, conn,
+            provenance=(row["id"], version, json.dumps(_block_ids(payload)),
+                        _outline_hash(payload["outlineBodyJson"])),
+            commit=False)
+    except js.StyleValidationError as e:
+        if commit and conn.in_transaction:
+            conn.rollback()
+        raise GalleryError(str(e)) from e
+    if row["user_id"] != user_id:
+        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
+    if notify:
+        conn.execute(
+            "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+            " style_id = excluded.style_id, notified_version = excluded.notified_version",
+            (row["id"], user_id, style["id"], version, now))
+    if commit:
+        conn.commit()
+    return {"style": js.get_style(user_id, style["id"], conn),
+            "notify": bool(notify),
+            "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+
+
 def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
                 conn: sqlite3.Connection | None = None) -> dict | None:
     """The member's own copy of a listed style (R-P3-10).
@@ -2010,7 +2178,8 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
     `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
     Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
-    as a second use. `notify` records a watch row so a later task can tell them about an update."""
+    as a second use. `notify` records a watch row so a later task can tell them about an update.
+    The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1)."""
     from api.services.journal_two import journal_styles as js
     if not library_enabled():
         return None
@@ -2020,49 +2189,9 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     conn = conn or get_connection()
     try:
         row = _listed_style_row(conn, gallery_id)
-        if row is None:
+        if row is None or _library_hides(row):         # a firm style while starter packs are off (P5-AUD-1)
             return None
-        raw_payload = _listed_payload(row)
-        if raw_payload is None:
-            raise GalleryError("That style could not be read, so it cannot be adopted.")
-        payload = _safe_listed(raw_payload)
-        from api.services.journal_two import note_kinds as nk
-        if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
-            # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
-            # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
-            raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
-        version = int(row["version"] or 1)
-        now = _now()
-        # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
-        # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
-        # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
-        # handle (R3/R5), and "Nothing was changed" would be false.
-        try:
-            style = js.create_style(user_id, {
-                "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
-                "kindId": payload["kindId"], "blocks": payload["blocks"],
-                "outlineBodyJson": payload["outlineBodyJson"],
-                "properties": payload["properties"]}, conn,
-                provenance=(row["id"], version, json.dumps(_block_ids(payload)),
-                            _outline_hash(payload["outlineBodyJson"])),
-                commit=False)
-        except js.StyleValidationError as e:
-            if conn.in_transaction:
-                conn.rollback()
-            raise GalleryError(str(e)) from e
-        if row["user_id"] != user_id:
-            conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                         " VALUES (?, ?, ?)", (row["id"], user_id, now))
-        if notify:
-            conn.execute(
-                "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
-                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
-                " style_id = excluded.style_id, notified_version = excluded.notified_version",
-                (row["id"], user_id, style["id"], version, now))
-        conn.commit()
-        return {"style": js.get_style(user_id, style["id"], conn),
-                "notify": bool(notify),
-                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+        return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -2087,6 +2216,7 @@ def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[d
             " g.title, g.version FROM j2_journal_styles s JOIN j2_template_gallery g"
             " ON g.id = s.source_gallery_id WHERE s.user_id = ? AND s.deleted_at IS NULL"
             " AND g.item_type = 'style' AND g.status = 'approved' AND g.hidden = 0"
+            f" AND {_hidden_styles_sql()}"
             " AND g.version > COALESCE(s.source_version, 0) ORDER BY g.updated_at DESC",
             (user_id,)).fetchall()
         return [{"galleryId": r["gallery_id"], "title": r["title"], "styleId": r["style_id"],
@@ -2111,6 +2241,8 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     if mine is None or mine.get("builtin") or not mine.get("sourceGalleryId"):
         return None, None, None
     row = _listed_style_row(conn, mine["sourceGalleryId"])
+    if row is not None and _library_hides(row):        # a firm style while starter packs are off (P5-AUD-1)
+        row = None
     if row is None or int(row["version"] or 1) <= int(mine.get("sourceVersion") or 0):
         return mine, row, None
     raw_theirs = _listed_payload(row)
@@ -2323,7 +2455,7 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
         author_id = _author_of(conn, handle)
         if author_id is None:
             return None
-        where = f"{_VISIBLE} AND {_NEVER_LISTED} AND g.user_id = ?"
+        where = f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()} AND g.user_id = ?"
         rows = _read(conn, viewer_id, where, (author_id,), list_only=True, tail=_NEWEST_FIRST).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM j2_template_gallery g WHERE {where}", (author_id,)).fetchone()[0]
         following = conn.execute("SELECT 1 FROM j2_gallery_follows WHERE follower_id = ? AND author_id = ?",
@@ -2373,7 +2505,7 @@ def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[st
     conn = conn or get_connection()
     try:
         rows = _read(conn, viewer_id,
-                     f"{_VISIBLE} AND {_NEVER_LISTED}"
+                     f"{_VISIBLE} AND {_NEVER_LISTED} AND {_hidden_styles_sql()}"
                      " AND g.user_id IN (SELECT author_id FROM j2_gallery_follows WHERE follower_id = ?)",
                      (viewer_id,), list_only=True, tail=_NEWEST_FIRST)
         return [_summary(r, viewer_id=viewer_id, is_admin=False) for r in rows]
@@ -2391,19 +2523,17 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     conn = conn or get_connection()
     try:
         # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
-        # held revision) is reviewable only while the library is on.
+        # held revision) is reviewable only while the library is on, and a firm style row only while the
+        # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
         # P3b: an example note is reviewable only while ITS switch is on, the same rule one level down.
-        if not library_enabled():
-            outlines_only = " AND g.item_type = 'outline'"
-        elif not example_enabled():
-            outlines_only = f" AND {_NEVER_LISTED}"
-        else:
-            outlines_only = ""
+        visible_styles = f" AND {_hidden_styles_sql()}"
+        if not example_enabled():
+            visible_styles += f" AND {_NEVER_LISTED}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in _read(conn, None, f"({where}){outlines_only}", (), list_only=True, queue=queue,
+                    for r in _read(conn, None, f"({where}){visible_styles}", (), list_only=True, queue=queue,
                                    tail=f" ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         # The pending rows add the held revision's title (`_select(queue=True)`): still narrow columns, never
@@ -2581,7 +2711,7 @@ def admin_report_act(admin_id: str, report_id: str, action: Any,
                          (report_id,)).fetchone()
         if r is None:
             return False
-        target = conn.execute("SELECT item_type FROM j2_template_gallery WHERE id = ?",
+        target = conn.execute("SELECT item_type, kind FROM j2_template_gallery WHERE id = ?",
                               (r["gallery_id"],)).fetchone()
         if target is not None and _library_hides(target):      # R-T4-3: a style's report is as absent as the style
             return False

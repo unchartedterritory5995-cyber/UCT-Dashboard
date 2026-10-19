@@ -22,6 +22,9 @@
 //    sheet is removed with its Updates row, and restoring focus to it would drop the member on <body>.
 // ⛔ Share is not offered on any style that carries library provenance (`sourceGalleryId`): an adopted copy, its
 //    duplicate, or a style saved from a note made with one (rulings P3a-T10-R3/R5/R6; the server refuses them too).
+// P5 Task 5 (ruling P5-R-C12): "How do you trade?" (StarterPackOffer) sits at the top of the list column while
+//    R-P5-5 holds, and a quiet "Starter packs" button beside New style and Community opens it whenever the
+//    starter-packs switch is on, whatever the member answered before.
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -44,6 +47,7 @@ import StyleEditor from './StyleEditor'
 import LibraryDoor from './LibraryDoor'
 import ShareStyleForm from './ShareStyleForm'
 import LibraryUpdateSheet from './LibraryUpdateSheet'
+import StarterPackOffer, { useStarterPackOffer } from './StarterPackOffer'
 import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
 import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
@@ -101,6 +105,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
+  const starter = useStarterPackOffer(open ? data : undefined, open)
   const userId = useContext(AuthContext)?.user?.id
 
   const [editing, setEditing] = useState(null)          // { style, seq } while the editor is open
@@ -190,6 +195,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   }
   const finish = () => {
     setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
+    starter.reset()
     onClose()
   }
   /** Closing over an editor with unsaved changes asks first, in the page (never window.confirm). */
@@ -221,7 +227,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (full.outlineBodyJson) body.outlineBodyJson = full.outlineBodyJson
     // P3a-T10-R6: the server carries the original's community-library provenance to the copy.
     if (!full.builtin) body.duplicateOf = full.id
-    const out = await createJournalStyle(body)
+    const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
   })
@@ -309,12 +315,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const notNow = () => { setPref('notebook_kind_mapping', 'dismissed') }
 
   return (
-    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
+    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }} data-tour="styles-manager">Journal styles</h2>}
       labelledByTitle variant="auto" maxWidth={960}>
       <div className={styles.wrap}>
         {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
         <p className={styles.hint}>
-          A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.
+          A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes a note you already made unless you choose to update it.
         </p>
 
         <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
@@ -358,20 +364,22 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
 
         {data && (
           <div className={styles.layout}>
-            <div className={styles.listCol}>
-              <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length}
-                onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
-                <UIcon name="plus" size={14} gold={false} /> New style
-              </button>
-              {libraryOn && (
-                <div className={styles.rowActions}>
-                  <LibraryDoor label="Community" className={styles.btn} />
-                  {updates.length > 0 && (
-                    <button type="button" className={styles.btn} aria-expanded={showUpdates} aria-controls="js-library-updates"
-                      onClick={() => setShowUpdates((v) => !v)}>{`Updates (${updates.length})`}</button>
-                  )}
-                </div>
-              )}
+            <div className={styles.listCol} data-starter-offer={starter.settled ? 'settled' : 'deciding'}>
+              {starter.show && <StarterPackOffer onClose={starter.close} offline={offline} />}
+              <div className={styles.rowActions}>
+                <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
+                  onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
+                  <UIcon name="plus" size={14} gold={false} /> New style
+                </button>
+                {starter.on && (
+                  <button type="button" className={`${styles.btn} ${styles.quiet}`} onClick={starter.open}>Starter packs</button>
+                )}
+                {libraryOn && <LibraryDoor label="Community" className={styles.btn} />}
+                {libraryOn && updates.length > 0 && (
+                  <button type="button" className={styles.btn} aria-expanded={showUpdates} aria-controls="js-library-updates"
+                    onClick={() => setShowUpdates((v) => !v)}>{`Updates (${updates.length})`}</button>
+                )}
+              </div>
               {libraryOn && showUpdates && updates.length > 0 && (
                 <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the community library">
                   <ul className={styles.styleList}>
@@ -391,6 +399,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 </section>
               )}
 
+              {/* P5 tour anchor (Journal styles, step 3): the styles grouped by kind of note */}
+              <div className={styles.kindGroups} data-tour="styles-kinds">
               {kinds.map((k) => {
                 const list = stylesOfKind(data, k.id)
                 return (
@@ -440,6 +450,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                   </section>
                 )
               })}
+              </div>
 
               <section className={styles.kindGroup} aria-labelledby="js-own-kinds">
                 <h3 id="js-own-kinds" className={styles.kindHead}>Your kinds of note</h3>

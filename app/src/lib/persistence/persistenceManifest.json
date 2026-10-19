@@ -480,6 +480,16 @@
       ]
     },
     {
+      "key": "notebook_starter_pack",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Starter pack offer answer",
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
       "key": "notebook_tour",
       "store": "server-preference",
       "scope": "cross-device",

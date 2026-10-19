@@ -94,6 +94,8 @@ WAVE_FLAGS = [
     "JOURNAL_PAGE_LAYOUTS_ENABLED",
     # Notebook P3a (community style library), dark in production.
     "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+    # Notebook P5 (starter packs), dark in production.
+    "NOTEBOOK_STARTER_PACKS_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.

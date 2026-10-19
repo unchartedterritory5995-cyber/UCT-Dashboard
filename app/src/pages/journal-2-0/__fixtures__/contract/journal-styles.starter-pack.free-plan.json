@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/journal-styles/starter-packs/swing",
+    "path": "/api/j2/journal-styles/starter-packs/swing",
+    "status": 402
+  },
+  "body": {
+    "detail": "Journal styles require a paid plan"
+  }
+}

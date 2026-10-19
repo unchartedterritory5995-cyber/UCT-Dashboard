@@ -1,0 +1,1235 @@
+{
+ "tool": "tools/notebook_p5_walk.py",
+ "steps": [
+  {
+   "viewport": "1280",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "the offer says what it does",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "every pack is a button",
+     "ok": true,
+     "read": "found ['Swing', 'Day', 'Prop', 'Options', 'Earnings'] of ['Swing', 'Day', 'Prop', 'Options', 'Earnings']"
+    },
+    {
+     "what": "Not now is offered",
+     "ok": true,
+     "read": "Not now"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer regions on the page (the sheet's, plus the empty list's own)",
+     "text": "2"
+    },
+    {
+     "what": "offer",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [
+    {
+     "what": "the install was accepted (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the answer names each of the three Swing styles",
+     "ok": true,
+     "read": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles. | want ['Swing trade plan', 'Weekend prep', 'Swing trade review']"
+    },
+    {
+     "what": "the member now owns exactly those three styles (the styles list)",
+     "ok": true,
+     "read": "[\"Swing trade plan\", \"Weekend prep\", \"Swing trade review\"]"
+    },
+    {
+     "what": "Not now became Done",
+     "ok": true,
+     "read": "Done"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "added line",
+     "text": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200/201)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "every outline heading renders in the editor",
+     "ok": true,
+     "read": "['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong'] | want ['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong']"
+    },
+    {
+     "what": "the Pre-entry checklist block renders",
+     "ok": true,
+     "read": "Pre-entry checklist"
+    },
+    {
+     "what": "the Position sizing block renders",
+     "ok": true,
+     "read": "Position sizing"
+    },
+    {
+     "what": "the saved note carries the style's blocks, in order (the chart only with a ticker)",
+     "ok": true,
+     "read": "['preEntryChecklist', 'positionSizing', 'marketcontext'] | want ['preEntryChecklist', 'positionSizing', 'marketcontext'] | ticker=None"
+    },
+    {
+     "what": "the editor says why the chart is not there (the needs-ticker sentence)",
+     "ok": true,
+     "read": "1 x 'Add a ticker to this note, then type /chart to add the chart.'"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "styles for the kind",
+     "text": "Trade plan · Built-in · Default\nPreview\nUse\nSwing trade plan\nPreview\nUse"
+    },
+    {
+     "what": "editor headings",
+     "text": "[\"Thesis\", \"Entry trigger\", \"Stop and invalidation\", \"Targets\", \"What would make me wrong\"]"
+    },
+    {
+     "what": "note body blocks",
+     "text": "[\"preEntryChecklist\", \"positionSizing\", \"marketcontext\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [
+    {
+     "what": "the offer is gone from New note > From a style",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "the Styles manager does not offer it by itself",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "Starter packs opens How do you trade?",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "the button says it is expanded",
+     "ok": true,
+     "read": "aria-expanded=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker after reload",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer from Starter packs",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": true,
+     "read": "[1, 2]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": true,
+     "read": "{\"picker_door\": true, \"gallery_types\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1, 2], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}, {\"n\": 2, \"title\": \"Open the community gallery\", \"waiting\": true, \"active\": \"template-gallery-door\"}, {\"n\": 3, \"title\": \"Outlines and styles\", \"waiting\": false, \"active\": \"library-types\"}, {\"n\": 4, \"title\": \"Adopt a style\", \"waiting\": false, \"active\": \"library-adopt\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": true}}"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "1"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "1280",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=1"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": true,
+     "read": "count=1"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": true,
+     "read": "before=0 after=1"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=0 after=1"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "the offer says what it does",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "every pack is a button",
+     "ok": true,
+     "read": "found ['Swing', 'Day', 'Prop', 'Options', 'Earnings'] of ['Swing', 'Day', 'Prop', 'Options', 'Earnings']"
+    },
+    {
+     "what": "Not now is offered",
+     "ok": true,
+     "read": "Not now"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer regions on the page (the sheet's, plus the empty list's own)",
+     "text": "2"
+    },
+    {
+     "what": "offer",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [
+    {
+     "what": "the install was accepted (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the answer names each of the three Swing styles",
+     "ok": true,
+     "read": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles. | want ['Swing trade plan', 'Weekend prep', 'Swing trade review']"
+    },
+    {
+     "what": "the member now owns exactly those three styles (the styles list)",
+     "ok": true,
+     "read": "[\"Swing trade plan\", \"Weekend prep\", \"Swing trade review\"]"
+    },
+    {
+     "what": "Not now became Done",
+     "ok": true,
+     "read": "Done"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "added line",
+     "text": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200/201)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "every outline heading renders in the editor",
+     "ok": true,
+     "read": "['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong'] | want ['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong']"
+    },
+    {
+     "what": "the Pre-entry checklist block renders",
+     "ok": true,
+     "read": "Pre-entry checklist"
+    },
+    {
+     "what": "the Position sizing block renders",
+     "ok": true,
+     "read": "Position sizing"
+    },
+    {
+     "what": "the saved note carries the style's blocks, in order (the chart only with a ticker)",
+     "ok": true,
+     "read": "['preEntryChecklist', 'positionSizing', 'marketcontext'] | want ['preEntryChecklist', 'positionSizing', 'marketcontext'] | ticker=None"
+    },
+    {
+     "what": "the editor says why the chart is not there (the needs-ticker sentence)",
+     "ok": true,
+     "read": "1 x 'Add a ticker to this note, then type /chart to add the chart.'"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "styles for the kind",
+     "text": "Trade plan · Built-in · Default\nPreview\nUse\nSwing trade plan\nPreview\nUse"
+    },
+    {
+     "what": "editor headings",
+     "text": "[\"Thesis\", \"Entry trigger\", \"Stop and invalidation\", \"Targets\", \"What would make me wrong\"]"
+    },
+    {
+     "what": "note body blocks",
+     "text": "[\"preEntryChecklist\", \"positionSizing\", \"marketcontext\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [
+    {
+     "what": "the offer is gone from New note > From a style",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "the Styles manager does not offer it by itself",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "Starter packs opens How do you trade?",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "the button says it is expanded",
+     "ok": true,
+     "read": "aria-expanded=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker after reload",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer from Starter packs",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": true,
+     "read": "[1, 2]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": true,
+     "read": "{\"picker_door\": true, \"gallery_types\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1, 2], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}, {\"n\": 2, \"title\": \"Open the community gallery\", \"waiting\": true, \"active\": \"template-gallery-door\"}, {\"n\": 3, \"title\": \"Outlines and styles\", \"waiting\": false, \"active\": \"library-types\"}, {\"n\": 4, \"title\": \"Adopt a style\", \"waiting\": false, \"active\": \"library-adopt\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": true}}"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "1"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "820",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=2"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": true,
+     "read": "count=2"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": true,
+     "read": "before=1 after=2"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=1 after=2"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 1,
+   "title": "New note > From a style shows How do you trade?",
+   "checks": [
+    {
+     "what": "the member starts with no styles of their own (the styles list)",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "the offer says what it does",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "every pack is a button",
+     "ok": true,
+     "read": "found ['Swing', 'Day', 'Prop', 'Options', 'Earnings'] of ['Swing', 'Day', 'Prop', 'Options', 'Earnings']"
+    },
+    {
+     "what": "Not now is offered",
+     "ok": true,
+     "read": "Not now"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer regions on the page (the sheet's, plus the empty list's own)",
+     "text": "2"
+    },
+    {
+     "what": "offer",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 2,
+   "title": "picking Swing adds the three Swing styles",
+   "checks": [
+    {
+     "what": "the install was accepted (HTTP 200)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "the answer names each of the three Swing styles",
+     "ok": true,
+     "read": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles. | want ['Swing trade plan', 'Weekend prep', 'Swing trade review']"
+    },
+    {
+     "what": "the member now owns exactly those three styles (the styles list)",
+     "ok": true,
+     "read": "[\"Swing trade plan\", \"Weekend prep\", \"Swing trade review\"]"
+    },
+    {
+     "what": "Not now became Done",
+     "ok": true,
+     "read": "Done"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "added line",
+     "text": "Added: Swing trade plan, Weekend prep, Swing trade review. They are in your Styles."
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 3,
+   "title": "a note from Swing trade plan renders its blocks and outline headings",
+   "checks": [
+    {
+     "what": "the note was created (HTTP 200/201)",
+     "ok": true,
+     "read": "HTTP 200"
+    },
+    {
+     "what": "every outline heading renders in the editor",
+     "ok": true,
+     "read": "['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong'] | want ['Thesis', 'Entry trigger', 'Stop and invalidation', 'Targets', 'What would make me wrong']"
+    },
+    {
+     "what": "the Pre-entry checklist block renders",
+     "ok": true,
+     "read": "Pre-entry checklist"
+    },
+    {
+     "what": "the Position sizing block renders",
+     "ok": true,
+     "read": "Position sizing"
+    },
+    {
+     "what": "the saved note carries the style's blocks, in order (the chart only with a ticker)",
+     "ok": true,
+     "read": "['preEntryChecklist', 'positionSizing', 'marketcontext'] | want ['preEntryChecklist', 'positionSizing', 'marketcontext'] | ticker=None"
+    },
+    {
+     "what": "the editor says why the chart is not there (the needs-ticker sentence)",
+     "ok": true,
+     "read": "1 x 'Add a ticker to this note, then type /chart to add the chart.'"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "styles for the kind",
+     "text": "Trade plan · Built-in · Default\nPreview\nUse\nSwing trade plan\nPreview\nUse"
+    },
+    {
+     "what": "editor headings",
+     "text": "[\"Thesis\", \"Entry trigger\", \"Stop and invalidation\", \"Targets\", \"What would make me wrong\"]"
+    },
+    {
+     "what": "note body blocks",
+     "text": "[\"preEntryChecklist\", \"positionSizing\", \"marketcontext\"]"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 4,
+   "title": "after a reload the offer is gone; the Styles manager's Starter packs button opens it",
+   "checks": [
+    {
+     "what": "the offer is gone from New note > From a style",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "the Styles manager does not offer it by itself",
+     "ok": true,
+     "read": "0 offer region(s)"
+    },
+    {
+     "what": "Starter packs opens How do you trade?",
+     "ok": true,
+     "read": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    },
+    {
+     "what": "the button says it is expanded",
+     "ok": true,
+     "read": "aria-expanded=true"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "kind picker after reload",
+     "text": "Trade plan\nTrade plan\nChoose another style\nDaily prep\nDaily prep\nChoose another style\nWeekend prep\nWeekend prep\nChoose another style\nEarnings\nEarnings\nChoose another style\nEarnings follow-up\nEarnings follow-up\nChoose another style\nPost-trade review\nPost-trade review\nChoose another style\nWeekly review\nWeekly review\nChoose another style\nThesis\nThesis\nChoose another style\nWatchlist note\nWatchlist note\nChoose another style"
+    },
+    {
+     "what": "offer from Starter packs",
+     "text": "How do you trade?\n\nPick one and we will add three styles you can change.\n\nSwing\nDay\nProp\nOptions\nEarnings\nNot now"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     },
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 5,
+   "title": "the Journal styles tour runs from the Learn menu through every step",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the first step's control was pressed and opened the Styles manager",
+     "ok": true,
+     "read": "{\"pressed\": [1], \"styles_manager\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Journal styles tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Journal styles\", \"waiting\": true, \"active\": \"styles-button\"}, {\"n\": 2, \"title\": \"How a note starts\", \"waiting\": false, \"active\": \"styles-manager\"}, {\"n\": 3, \"title\": \"Styles by kind of note\", \"waiting\": false, \"active\": \"styles-kinds\"}, {\"n\": 4, \"title\": \"Make a new style\", \"waiting\": false, \"active\": \"styles-new\"}], \"seen\": {\"styles_manager\": true}}"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 6,
+   "title": "the Community library tour runs, opening the gallery when asked",
+   "checks": [
+    {
+     "what": "every declared step was shown, in order (4)",
+     "ok": true,
+     "read": "[1, 2, 3, 4]"
+    },
+    {
+     "what": "the card counts the declared steps",
+     "ok": true,
+     "read": "of=4 declared=4"
+    },
+    {
+     "what": "the two do-this steps were answered by pressing their controls",
+     "ok": true,
+     "read": "[1, 2]"
+    },
+    {
+     "what": "the gallery opened when the card asked (the type chips showed)",
+     "ok": true,
+     "read": "{\"picker_door\": true, \"gallery_types\": true}"
+    },
+    {
+     "what": "Done closed the tour",
+     "ok": true,
+     "read": "[]"
+    },
+    {
+     "what": "every control the card asked for took a plain press (no forced press)",
+     "ok": true,
+     "read": "[]"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "Learn menu item",
+     "text": "Community library tour"
+    },
+    {
+     "what": "tour",
+     "text": "{\"shown\": [1, 2, 3, 4], \"of\": 4, \"pressed\": [1, 2], \"done\": true, \"notes\": [], \"cards\": [{\"n\": 1, \"title\": \"Styles other traders share\", \"waiting\": true, \"active\": \"templates\"}, {\"n\": 2, \"title\": \"Open the community gallery\", \"waiting\": true, \"active\": \"template-gallery-door\"}, {\"n\": 3, \"title\": \"Outlines and styles\", \"waiting\": false, \"active\": \"library-types\"}, {\"n\": 4, \"title\": \"Adopt a style\", \"waiting\": false, \"active\": \"library-adopt\"}], \"seen\": {\"picker_door\": true, \"gallery_types\": true}}"
+    },
+    {
+     "what": "gallery heading count",
+     "text": "1"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": [
+     {
+      "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+     }
+    ]
+   }
+  },
+  {
+   "viewport": "390",
+   "step": 7,
+   "title": "the admin telemetry count has style_applied >= 1, and it rose in this story",
+   "checks": [
+    {
+     "what": "the admin can read the telemetry",
+     "ok": true,
+     "read": "count=3"
+    },
+    {
+     "what": "style_applied >= 1",
+     "ok": true,
+     "read": "count=3"
+    },
+    {
+     "what": "it rose during this viewport's story",
+     "ok": true,
+     "read": "before=2 after=3"
+    }
+   ],
+   "rendered": [
+    {
+     "what": "style_applied (7-day window)",
+     "text": "before=2 after=3"
+    }
+   ],
+   "verdict": "PASS",
+   "events": {
+    "member": []
+   }
+  }
+ ],
+ "setup": [
+  {
+   "account": "P5 Walk 1280",
+   "viewport": "1280",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "P5 Walk 820",
+   "viewport": "820",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "what": "sign-up limit reached for P5 Walk 390; waiting 62 s",
+   "attempt": 1,
+   "verdict": "INFO"
+  },
+  {
+   "account": "P5 Walk 390",
+   "viewport": "390",
+   "comp": 200,
+   "verify": 200,
+   "paid_equiv": true,
+   "starter_packs_key": true
+  },
+  {
+   "account": "admin (ADMIN_EMAILS)",
+   "role": "admin"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 5\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 5\n\nFolders and tags\n\nYour folders, tags and saved views live here. Choose one to see just those notes.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  },
+  {
+   "what": "skipped the base Notebook tour a new member is shown",
+   "card": "STEP 1 OF 3\n\nNew note\n\nStart a blank note, or pick a template such as the daily note.\n\nSkip tour\nBack\nNext",
+   "url": "http://127.0.0.1:8181/journal/notebook?view=all",
+   "verdict": "INFO"
+  }
+ ],
+ "tip": "b70b158b28",
+ "tool_tree": "b70b158b28e8a813bc7cd19a6c0f0a18419cc66b",
+ "base": "http://127.0.0.1:8181",
+ "data_dir": "C:\\data-p5walk6",
+ "flags_on": [
+  "AWARENESS_NOTE_RESURFACE_ENABLED",
+  "COMPASS_NOTES_TOOL_ENABLED",
+  "J2_SHARE_LINKS_ENABLED",
+  "NOTEBOOK_AI_ACTIONS_ENABLED",
+  "NOTEBOOK_ASK_INSERT_ON",
+  "NOTEBOOK_CHART_PLAN_ENABLED",
+  "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED",
+  "NOTEBOOK_FORMULAS_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED",
+  "NOTEBOOK_PLAN_GRADING_ENABLED",
+  "NOTEBOOK_PLAYBOOK_ENABLED",
+  "NOTEBOOK_PUBLISH_ENABLED",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+  "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED",
+  "NOTEBOOK_SMART_CHIPS_ENABLED",
+  "NOTEBOOK_STARTER_PACKS_ENABLED",
+  "NOTEBOOK_STYLE_LIBRARY_ENABLED",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+  "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+  "NOTEBOOK_VOICE_NOTES_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED"
+ ],
+ "viewports": [
+  "1280",
+  "820",
+  "390"
+ ],
+ "declared_steps": [
+  [
+   1,
+   "New note > From a style shows How do you trade?"
+  ],
+  [
+   2,
+   "picking Swing adds the three Swing styles"
+  ],
+  [
+   3,
+   "a note from Swing trade plan renders its blocks and outline headings"
+  ],
+  [
+   4,
+   "after a reload the offer is gone; the Styles manager's Starter packs button opens it"
+  ],
+  [
+   5,
+   "the Journal styles tour runs from the Learn menu through every step"
+  ],
+  [
+   6,
+   "the Community library tour runs, opening the gallery when asked"
+  ],
+  [
+   7,
+   "the admin telemetry count has style_applied >= 1, and it rose in this story"
+  ]
+ ],
+ "source_words": {
+  "offer_title": "How do you trade?",
+  "offer_line": "Pick one and we will add three styles you can change.",
+  "packs": [
+   "Swing",
+   "Day",
+   "Prop",
+   "Options",
+   "Earnings"
+  ],
+  "swing_titles": [
+   "Swing trade plan",
+   "Weekend prep",
+   "Swing trade review"
+  ],
+  "journal_styles_steps": 4,
+  "style_library_steps": 4
+ },
+ "started": "2026-10-19T01:55:10+00:00",
+ "status": "COMPLETE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8181 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-p5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-18T20-55-12.md (identity 7c7a2f242a55..., data dir C:\\data-p5walk6)"
+ },
+ "stories": {
+  "1280": {
+   "member": "p5walk-1280-015510@local.dev",
+   "style_applied_before": 0,
+   "offers_on_page": 2,
+   "note_id": "411efb0f83be43fcbaf8d0f316002b38",
+   "style_applied_after": 1
+  },
+  "820": {
+   "member": "p5walk-820-015510@local.dev",
+   "style_applied_before": 1,
+   "offers_on_page": 2,
+   "note_id": "efefd2ace47647bea564cf8ad77051e5",
+   "style_applied_after": 2
+  },
+  "390": {
+   "member": "p5walk-390-015510@local.dev",
+   "style_applied_before": 2,
+   "offers_on_page": 2,
+   "note_id": "5f8e26491b21498e800d0ea1a25dff78",
+   "style_applied_after": 3
+  }
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\p5-walk-20261018T0215Z\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-18 20:55:17",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-18 20:55:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-18 20:57:48",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-18 21:01:41",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\p5-walk-20261018T0215Z\\integrity.md",
+ "driver_imported_api": [],
+ "not_run": null,
+ "failure": null,
+ "counts": {
+  "PASS": 21,
+  "FAIL": 0,
+  "INCONCLUSIVE": 0
+ },
+ "port_free_after": true,
+ "finished": "2026-10-19T02:02:12+00:00"
+}

@@ -23,9 +23,14 @@ import { GALLERY_SORTS } from '../../lib/templateGallery'
 import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
 
-const OUTLINES = contractBody('template-gallery.list').templates
+// P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
+// and one of the swing three shares this member item's title ("Weekend prep"). These tests are
+// about community outlines and a MEMBER's listed style, so they serve exactly those, the sets
+// the fixtures held before P5. The firm rows are pinned server-side (tests/test_firm_style_seed.py).
+const OUTLINES = contractBody('template-gallery.list').templates.filter((t) => t.itemType !== 'style')
 const STYLES_SWING = contract('template-gallery.list.styles')
-const STYLE = STYLES_SWING.body.templates[0]
+const MEMBER_SWING = STYLES_SWING.body.templates.filter((t) => !t.firm)
+const STYLE = MEMBER_SWING[0]
 const STYLE_ITEM = contractBody('template-gallery.styles.item').template
 const PREVIEW = contract('template-gallery.styles.preview')
 const AUTHOR_PAGE = contractBody('template-gallery.authors.page')
@@ -40,14 +45,14 @@ const composedText = (doc) => (doc?.content || []).filter((n) => n.type === 'par
 let server
 let calls
 beforeEach(() => {
-  server = { library: true, following: false, feedEmpty: false, adoptAnswer: 'template-gallery.adopt', styleMine: false }
+  server = { library: true, following: false, feedEmpty: false, adoptAnswer: 'template-gallery.adopt', styleMine: false, admin: false, styleFeatured: null }
   calls = []
   global.fetch = vi.fn(async (url, init = {}) => {
     const u = new URL(String(url), 'http://x')
     const method = init.method || 'GET'
     const body = init.body ? JSON.parse(init.body) : null
     calls.push({ path: u.pathname, search: u.search, method, body })
-    const styles = STYLES_SWING.body.templates.map((t) => ({ ...t, mine: server.styleMine }))
+    const styles = MEMBER_SWING.map((t) => ({ ...t, mine: server.styleMine, ...(server.styleFeatured === null ? {} : { featured: server.styleFeatured }) }))
     if (u.pathname === '/api/j2/note-templates') return json({ templates: [{ id: 't1', name: 'Swing plan', title: 'Swing plan', createdAt: '1' }] })
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
       const type = u.searchParams.get('type') || ''
@@ -57,7 +62,7 @@ beforeEach(() => {
         : type === 'style' ? styles : type === 'outline' ? OUTLINES : [...OUTLINES, ...styles]
       if (ts) list = list.filter((t) => t.tradingStyle === ts)
       if (section === 'picks') list = list.filter((t) => t.featured)
-      return json({ templates: list, viewer: { admin: false } })
+      return json({ templates: list, viewer: { admin: server.admin } })
     }
     if (u.pathname === '/api/j2/journal-styles/preview' && method === 'POST') return answer('template-gallery.styles.preview')
     if (u.pathname === '/api/j2/template-gallery/feed') return answer(server.feedEmpty ? 'template-gallery.feed.empty' : 'template-gallery.feed')
@@ -72,6 +77,8 @@ beforeEach(() => {
       const page = contractBody('template-gallery.authors.page')
       return json({ ...page, author: { ...page.author, following: server.following } })
     }
+    m = u.pathname.match(/^\/api\/j2\/template-gallery\/admin\/items\/([\w-]+)$/)
+    if (m && method === 'PATCH') return answer('template-gallery.admin.hide')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt$/)
     if (m) return answer(server.adoptAnswer)
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
@@ -407,7 +414,7 @@ describe('an author’s page', () => {
       if (u.pathname.startsWith('/api/j2/template-gallery/authors/')) return json({ ...own, author: { ...own.author, mine: true } })
       if (u.pathname === '/api/j2/template-gallery') {
         const picks = u.searchParams.get('section') === 'picks'
-        return json({ templates: STYLES_SWING.body.templates.filter((t) => !picks || t.featured), viewer: { admin: false } })
+        return json({ templates: MEMBER_SWING.filter((t) => !picks || t.featured), viewer: { admin: false } })
       }
       return answer('template-gallery.item.not-found')
     })
@@ -566,5 +573,59 @@ describe('fix round 1: the card', () => {
     rerender(card(newer))
     expect(btn()).toHaveAttribute('aria-pressed', String(newer.helpedByMe))
     expect(screen.getByText(`${newer.helpfulCount} found this helpful`)).toBeInTheDocument()
+  })
+})
+
+// P5 fix round 1 (ruling P5-T9-R1): an admin can feature, unfeature and hide a STYLE card, through the same
+// PATCH the outline cards use (GalleryAdminActions, the one copy). A member never sees the controls.
+describe('fix round 1 (P5): admin controls on a style card', () => {
+  const adminPatches = () => calls.filter((c) => c.path === `/api/j2/template-gallery/admin/items/${STYLE.id}` && c.method === 'PATCH')
+
+  it('a member sees no Feature, Unfeature or Hide on a style card', async () => {
+    flags()
+    await openStyles()
+    const card = styleCard()
+    expect(within(card).getByRole('button', { name: `Adopt ${STYLE.title}` })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: `Feature ${STYLE.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Unfeature ${STYLE.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Hide ${STYLE.title}` })).toBeNull()
+  })
+
+  it('an admin features a style: the button reads Feature, the PATCH says feature, and the sentence says so', async () => {
+    server.admin = true
+    server.styleFeatured = false
+    flags()
+    const user = await openStyles()
+    const card = styleCard()
+    const btn = within(card).getByRole('button', { name: `Feature ${STYLE.title}` })
+    expect(btn).toHaveTextContent(/^Feature$/)
+    expect(within(card).getByRole('button', { name: `Hide ${STYLE.title}` })).toHaveTextContent(/^Hide$/)
+    const before = listCalls().length
+    await user.click(btn)
+    expect(await screen.findByText(`“${STYLE.title}” is now a UCT pick.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'feature', note: '' }])
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(before))
+  })
+
+  it('an admin unfeatures a featured style: the button reads Unfeature and the PATCH says unfeature', async () => {
+    server.admin = true
+    server.styleFeatured = true
+    flags()
+    const user = await openStyles()
+    const btn = within(styleCard()).getByRole('button', { name: `Unfeature ${STYLE.title}` })
+    expect(btn).toHaveTextContent(/^Unfeature$/)
+    await user.click(btn)
+    expect(await screen.findByText(`“${STYLE.title}” is no longer a UCT pick.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'unfeature', note: '' }])
+  })
+
+  it('an admin hides a style: the PATCH says hide and the sentence says it stays in the Review queue', async () => {
+    server.admin = true
+    server.styleFeatured = false
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Hide ${STYLE.title}` }))
+    expect(await screen.findByText(`Hid “${STYLE.title}”. It is still in the Review queue.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'hide', note: '' }])
   })
 })

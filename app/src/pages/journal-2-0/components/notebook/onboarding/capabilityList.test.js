@@ -79,6 +79,21 @@ describe('capabilityList -- the list', () => {
     expect(c.line).toBe('Ask Compass in chat about something you wrote and it searches your notes. Find Compass in the Journal navigation.')
   })
 
+  // P5 Task 8: styles and the library. The library line says "ask to be told" because the update notice
+  // is opt-in (StyleLibraryCard's "Notify me when the author updates", off by default).
+  it('journal styles and the community library: each on its own switch, with its line', () => {
+    const s = CAPABILITY_PREVIEW.find((c) => c.id === 'journal-styles')
+    expect(s, 'journal-styles must be in the list').toBeTruthy()
+    expect(s.flag).toBe('notebook_journal_styles_enabled')
+    expect(s.label).toBe('Journal styles')
+    expect(s.line).toBe('Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.')
+    const l = CAPABILITY_PREVIEW.find((c) => c.id === 'style-library')
+    expect(l, 'style-library must be in the list').toBeTruthy()
+    expect(l.flag).toBe('notebook_style_library_enabled')
+    expect(l.label).toBe('Community library')
+    expect(l.line).toBe('Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.')
+  })
+
   it('the compass gate has a client fallback that is OFF (an unarmed tab never names it)', () => {
     expect(Object.prototype.hasOwnProperty.call(FLAG_FALLBACKS, 'compass_notes_tool_enabled')).toBe(true)
     expect(FLAG_FALLBACKS.compass_notes_tool_enabled).toBe(false)
@@ -109,11 +124,34 @@ describe('armedCapabilities', () => {
     expect(ids).toHaveLength(2)
   })
 
-  it('every line can be armed on its own (discriminator: no line is tied to another flag)', () => {
+  it('every line can be armed on its own flag and what it requires (discriminator: no line is tied to another flag)', () => {
     for (const c of CAPABILITY_PREVIEW) {
-      const got = armedCapabilities((k) => (k === c.flag ? true : null))
-      expect(got.map((x) => x.id), c.id).toEqual([c.id])
+      const keys = new Set([c.flag, ...(c.requires || [])])
+      const got = armedCapabilities((k) => (keys.has(k) ? true : null))
+      expect(got.map((x) => x.id), c.id).toContain(c.id)
+      // nothing else rides on these keys alone, except a line whose own flag is one of them
+      for (const x of got) expect(keys.has(x.flag), `${x.id} armed by ${[...keys]}`).toBe(true)
     }
+  })
+
+  // P5 final fix: the library's door is in the template gallery, so its line carries the same `requires`
+  // as its tour (b4Styles.js, P5-R-C11) and stays hidden while the gallery is off.
+  it('the community library line requires the template gallery, as its tour does', async () => {
+    const line = CAPABILITY_PREVIEW.find((c) => c.id === 'style-library')
+    const { TOURS } = await import('./tours/b4Styles')
+    const tour = TOURS.find((t) => t.id === 'style-library')
+    expect(line.requires).toEqual([...tour.requires])
+    expect(line.requires).toEqual(['notebook_template_gallery_enabled'])
+    const on = (keys) => (k) => (keys.includes(k) ? true : null)
+    expect(armedCapabilities(on(['notebook_style_library_enabled'])).map((c) => c.id)).not.toContain('style-library')
+    expect(armedCapabilities(on(['notebook_style_library_enabled', 'notebook_template_gallery_enabled'])).map((c) => c.id))
+      .toContain('style-library')
+  })
+
+  it('every `requires` key is a real gate that falls back to OFF', () => {
+    const keys = CAPABILITY_PREVIEW.flatMap((c) => c.requires || [])
+    expect(keys.length).toBeGreaterThan(0)
+    for (const k of keys) expect(FLAG_FALLBACKS[k], k).toBe(false)
   })
 
   it('a non-true answer (null, false, a string) never arms a line', () => {

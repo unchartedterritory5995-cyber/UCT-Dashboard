@@ -93,6 +93,9 @@ FLAGS = (
     "JOURNAL_TIER3_ENABLED",
     # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
     "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+    # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, and, with the library
+    # switch above, the firm style rows in the gallery lists: P5-AUD-1).
+    "NOTEBOOK_STARTER_PACKS_ENABLED",
 )
 
 
@@ -360,6 +363,11 @@ class World:
         self.db_path = tmp.name
         self.tmpdir = tempfile.mkdtemp(prefix="notebook_contract_")
         self.p.setenv("AUTH_DB_PATH", tmp.name)
+        # The note and gallery image files, per run like the database. The census pins DATA_DIR once per
+        # PROCESS, so without this a second run in one process found the first run's example image directory
+        # already there, drew one more id setting it aside, and moved every id after it (P5 landing: the
+        # starter-pack builder, now after example_notes, was not byte-identical across two runs).
+        self.p.setenv("J2_ATTACHMENT_ROOT", os.path.join(self.tmpdir, "j2_attachments"))
         for flag in FLAGS:
             self.p.setenv(flag, "1")
         from api.services import auth_db
@@ -2505,7 +2513,7 @@ def checklist_from_winners_too_few_others(w: World) -> None:
 
 @builder
 def example_notes(w: World) -> None:
-    """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). LAST, so adding it moved no
+    """P3b Task 3: an example note's preview and publish (the switch is in FLAGS). Last at P3b, so adding it moved no
     earlier builder's ids. A member of its own shares a style, then previews and publishes one of their notes as
     an example of it. No document row exists for the note's image, so its OCR state reads `unavailable`.
 
@@ -2610,6 +2618,26 @@ def example_notes(w: World) -> None:
     w.record("template-gallery.examples.item.revision.admin", "GET", f"{base}/{gid}", case="success", expect=200,
              note="A reviewer's read of an approved example with a HELD revision: the listed `payload`, the "
                   "admin-only `pendingRevision` (its images are served on `?rev=pending`), and `linkedStyle`.")
+
+
+# ── Notebook P5 (NOTEBOOK_STARTER_PACKS_ENABLED). Appended after every other builder, with a member of its
+# own, so no earlier builder's seeded ids, rows or answers move. ─────────────────────────────────────────
+
+@builder
+def starter_packs(w: World) -> None:
+    """P5 Task 4: POST /api/j2/journal-styles/starter-packs/{pack} (starter_packs.install). The pack's three
+    firm styles become the member's own copies, in seed order; installing again copies nothing twice."""
+    base = "/api/j2/journal-styles/starter-packs"
+    who = w.member("starter", "Sky Starter")
+    w.as_user(who)
+    w.record("journal-styles.starter-pack.install", "POST", f"{base}/swing", case="success", expect=200,
+             note="The swing pack: three firm styles, each now the member's own copy (installed, in seed order).")
+    w.record("journal-styles.starter-pack.again", "POST", f"{base}/swing", case="success", expect=200,
+             note="The same pack again: nothing is copied twice, and all three are named in alreadyHad.")
+    w.record("journal-styles.starter-pack.unknown", "POST", f"{base}/long_term", case="error", expect=404,
+             note="A trading style that is not a starter pack: the one 404, and nothing is charged.")
+    w.as_user(who, FREE)
+    w.record("journal-styles.starter-pack.free-plan", "POST", f"{base}/swing", case="error", expect=402)
     w.as_user(MEMBER)
 
 

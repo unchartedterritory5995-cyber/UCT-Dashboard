@@ -2507,7 +2507,7 @@ export default function NotebookTab() {
               <span className={styles.actionLabel}>Import</span>
             </button>
             {stylesOn && (
-              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog">
+              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
                 <span className={styles.actionLabel}>Styles</span>
               </button>
@@ -2668,8 +2668,10 @@ export default function NotebookTab() {
                 </button>
               </div>
             )}
+            {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
+                gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} kindSection={kindSection(false)} />
+              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (
