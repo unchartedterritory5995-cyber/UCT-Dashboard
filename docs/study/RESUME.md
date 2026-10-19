@@ -18,8 +18,9 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 
 ## State (update this block at every checkpoint)
 - Branch `feat/study`, worktree `C:\Users\pgosz\uct-worktrees\study` (owner file present), based on
-  master `f2e816e042` (2026-10-17). Nothing merged to master. Nothing deployed. **NOT pushed to
-  origin yet** (push blocked for the AI session; owner runs `git push -u origin feat/study`).
+  master `f2e816e042` (2026-10-17). Nothing merged to master. Nothing deployed. **PUSHED 2026-10-18**
+  (origin/master merged in at 6d19526e41, one trivial AuthContext.jsx conflict, both flags kept);
+  PR #417 open: https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/417 (merge AFTER #416).
 - Python: `.venv/` in this worktree (Python 3.12, requirements + pytest installed 2026-10-17).
   Run tests as `.venv/Scripts/python.exe -m pytest tests/<named files> -q -p no:cacheprovider`.
 - Commits so far: c8edff5363 spec+plan+RESUME · 22980148dc five Phase 0 files · b568f4d580 RESUME ·
@@ -61,8 +62,9 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   1998 and the April 2025 low. `reveal_json.depth` wiring (summary + sources under the reveal) not built yet.
 - Early-merge branch `fix/wire-archive-market-call` in worktree `C:\Users\pgosz\uct-worktrees\wire-call`
   (from origin/master d0c406824d): 8f5a530f72 (cherry-pick of ad2f95cbf9) + 0dbadeef29 (scans copy script +
-  test). 38 tests pass there. NOT pushed (AI push blocked). Owner: push it, open the PR, after merge run
-  the scans copy on the pod (commands in "Owner commands" below).
+  test). 38 tests pass there. PUSHED 2026-10-18, PR #416 open:
+  https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/416 (merge FIRST). After merge + web
+  SUCCESS run the scans copy on the pod (commands in "Owner commands" below).
 - Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
 - Phase 1 backend: SKELETON LANDED 47476c0328 (study_store/scoring/select + router + 6 test files,
   125 tests). Integrator re-ran all six in this session (125 passed) plus the four rails
@@ -163,11 +165,10 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 - [x] Tests (6 files, 125 passing): `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
       `test_study_import.py`, `test_study_flags.py`; frontend `StudyPanel.test.jsx`, `DrillPlayer.test.jsx`.
 
-## Owner commands (the AI session cannot push)
+## Owner commands
+Pushes + PRs DONE 2026-10-18 (#416 wire-call, #417 feat/study; the AI push went through once the owner
+asked for it directly). Merge order: #416 first, then #417 (never merge from the AI session).
 ```
-cd C:\Users\pgosz\uct-worktrees\study && git push -u origin feat/study
-cd C:\Users\pgosz\uct-worktrees\wire-call && git push -u origin fix/wire-archive-market-call
-gh pr create --base master --head fix/wire-archive-market-call --title "wire_archive: record the market call (tier word + score); Scans image copy job" --fill
 # after that PR merges and web is SUCCESS:
 railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --dry-run
 railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --limit 50
