@@ -255,10 +255,11 @@ def test_a_price_that_is_not_a_real_number_is_left_out(member, monkeypatch):
         assert "Price when planned" not in _text(_body(note)), bad
 
 
-def test_a_style_with_neither_chart_nor_sizer_gets_no_source_line(member):
+def test_a_style_with_neither_chart_nor_sizer_gets_no_source_line(member, monkeypatch):
     """R-T2A-3: the member's style is honoured. With nowhere to put the levels, saying "Levels from your
     note" would claim a copy that did not happen."""
     member.make_note("NVDA", "NVDA base", "Entry: 181.5\nStop: 174")
+    monkeypatch.setattr(tb, "price_stamp_quote", lambda sym, now=None: dict(GOOD_QUOTE))   # never the live vendor
     s = journal_styles.create_style(member.user_id, {
         "name": "bare plan", "kindId": "trade_plan",
         "outlineBodyJson": {"type": "doc", "content": [
