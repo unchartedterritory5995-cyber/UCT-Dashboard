@@ -7,13 +7,16 @@
 //    member's own style id (shareStyle's body is exactly {styleId, title, description, category, tradingStyle}).
 // ⛔ P3a-T4-m6: a style whose outline points at a template the member deleted is shared WITHOUT an outline.
 //    The server does that silently, so this form says it first (OUTLINE_GONE_SENTENCE).
-import { useEffect, useId, useState } from 'react'
+// P3b Task 5: for a style already in the library, the form also carries "Add an example note" (AddExampleNoteDoor,
+//    loaded on demand), read from the author's own Your submissions list and its `capabilities.exampleNotes`.
+import { Suspense, useEffect, useId, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
-import { TRADING_STYLES, shareStyle } from '../../../lib/styleLibrary'
+import { TRADING_STYLES, linkedStyleItem, shareStyle, useLibraryList } from '../../../lib/styleLibrary'
 import { getJournalStyle } from '../../../lib/journalStyles'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { libraryError } from './styleErrors'
+import lazyChunk from '../../../lib/lazyChunk'
 import styles from './StylesManager.module.css'
 
 export const SHARE_NOTE = 'An admin reviews it before it is listed. Your own property defaults are not shared.'
@@ -22,6 +25,9 @@ export const SENT_SENTENCE = 'Sent for review. It is listed once an admin approv
 export const REVISION_SENT_SENTENCE = 'Sent for review. The version listed now stays listed until an admin approves this update.'
 export const OUTLINE_GONE_SENTENCE = 'This style’s outline came from a template you deleted, so it will be shared without an outline.'
 const FAILED_SENTENCE = "Couldn't share that style. Nothing was sent."
+export const EXAMPLE_DOOR_HINT = 'Show other members this style in use with one of your notes. You see exactly what they will see before anything is sent.'
+// P3b: loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
+const AddExampleNoteDoor = lazyChunk(() => import('./AddExampleNoteDoor'))
 const MAX_TITLE = 80          // template_gallery.MAX_TITLE_CHARS
 const MAX_DESCRIPTION = 280   // template_gallery.MAX_DESCRIPTION_CHARS
 
@@ -69,6 +75,11 @@ export default function ShareStyleForm({ style, onShared, onClose }) {
   }, [style?.id, style?.outlineTemplateId])
 
   const gone = outlineGone(full, templatesLoading || templatesError ? null : templates)
+  // P3b Task 5: a style ALREADY in the library (the author's own item, pending or approved, not hidden) can have
+  // an example note added from here, while the server's list says `capabilities.exampleNotes` (ruling P3b-R7). A
+  // style shared just now has it the next time this form opens; the post-share flow is P3a's, unchanged.
+  const mine = useLibraryList({ section: 'mine' })
+  const linked = mine.exampleNotes ? linkedStyleItem(mine.templates, style?.id) : null
 
   const submit = async (e) => {
     e.preventDefault()
@@ -121,6 +132,12 @@ export default function ShareStyleForm({ style, onShared, onClose }) {
           </button>
         </div>
       </form>
+      {linked && (
+        <section className={styles.fieldset} aria-labelledby={`${uid}-example`} data-example-door="">
+          <p className={styles.hint} id={`${uid}-example`}>{EXAMPLE_DOOR_HINT}</p>
+          <Suspense fallback={null}><AddExampleNoteDoor styleItemId={linked.id} /></Suspense>
+        </section>
+      )}
     </Sheet>
   )
 }

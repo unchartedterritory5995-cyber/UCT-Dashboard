@@ -74,6 +74,43 @@ def fetch_ext_quote(ticker: str):
     return None
 
 
+#: How many breadth suggestions a typed "UCT…" may fill. Discord shows at most 25
+#: choices; one slot stays free so a real ticker that starts the same way (UCTT)
+#: can still be picked.
+BREADTH_CHOICES_MAX = 24
+#: Anything else that matches a breadth name ("highs", "50-day") is a side dish to
+#: the stock search, so it stays short.
+BREADTH_CHOICES_SIDE = 5
+
+
+def breadth_choices(q: str) -> list[dict]:
+    """Breadth symbols for the /chart autocomplete.
+
+    Typing "UCT…" (or "breadth") is asking for the breadth catalogue, so it may fill
+    the list; the bare "UCT"/"BREADTH" takes the groups in turn (MA, momentum,
+    highs/lows, regime) so no group is cut off by the 25-choice cap. Every other
+    query matches symbol or name and keeps to BREADTH_CHOICES_SIDE."""
+    from api.services import breadth_symbols as bs
+    needle = (q or "").strip().upper().lstrip("$")
+    if not needle:
+        return []
+    rows = list(getattr(bs, "_ROWS", None) or [])
+    if not rows:     # the catalogue is the authority; a bare SYMBOLS dict still answers
+        rows = [(s, (m or {}).get("metric"), (m or {}).get("name") or "", (m or {}).get("group"))
+                for s, m in (bs.SYMBOLS or {}).items()]
+    catalogue_ask = needle.startswith("UCT") or needle == "BREADTH"
+    if needle in ("UCT", "BREADTH"):
+        groups: dict = {}
+        for row in rows:
+            groups.setdefault(row[3], []).append(row)
+        cols = list(groups.values())
+        picked = [col[i] for i in range(max(len(c) for c in cols)) for col in cols if i < len(col)]
+    else:
+        picked = [r for r in rows if r[0].startswith(needle) or needle in str(r[2]).upper()]
+    cap = BREADTH_CHOICES_MAX if catalogue_ask else BREADTH_CHOICES_SIDE
+    return [{"name": (f"{s} - {nm}" if nm else s)[:100], "value": s} for s, _m, nm, _g in picked[:cap]]
+
+
 def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
     """Autocomplete choices from the dashboard's own ticker search (exact >
     prefix > substring over cap_universe, names from the meta cache). Called
@@ -90,14 +127,7 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
         # so — the autocomplete is where a member would find out.
         try:
-            from api.services import breadth_symbols as bs
-            needle = (q or "").strip().upper()
-            for symbol, meta in (bs.SYMBOLS or {}).items():
-                nm = str((meta or {}).get("name") or "")
-                if needle and (symbol.startswith(needle) or needle in nm.upper() or needle in ("BREADTH", "UCT")):
-                    out.append({"name": f"{symbol} - {nm}"[:100] if nm else symbol, "value": symbol})
-                if len(out) >= 5:
-                    break
+            out.extend(breadth_choices(q))
         except Exception as e:  # noqa: BLE001 — breadth is a bonus, never the reason autocomplete fails
             log.debug("[discord-chart] breadth autocomplete skipped: %s", e)
         for row in rows:

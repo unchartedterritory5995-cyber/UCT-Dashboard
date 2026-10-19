@@ -55,3 +55,23 @@ export function buildHeatMap(rows = [], { groupBy = 'sector', themeData = {}, li
   groups.sort((a, b) => b.value - a.value)
   return { groups, missingCap }
 }
+
+// A tile's label grows with its share of the map (Finviz's big-name labels): [ticker, change] px.
+export const LABEL_SIZES = { xl: [26, 15], l: [18, 12], m: [13, 10], s: [10, 9] }
+export const labelSize = share => (share > 0.08 ? 'xl' : share > 0.03 ? 'l' : share > 0.008 ? 'm' : 's')
+export const LINE_T = tf => Math.round(tf * 1.25)
+export const LINE_C = cf => Math.round(cf * 1.3)
+// The two-line label's height at each size (the rich lineHeights ScreenerHeatMap draws with).
+const LABEL_H = Object.fromEntries(Object.entries(LABEL_SIZES).map(([k, [tf, cf]]) => [k, LINE_T(tf) + LINE_C(cf)]))
+// ⛔ ECharts centres a PLAIN-text label in its tile, but a RICH-text label (ours: a big ticker over
+// a small change) is laid out from the TOP of the tile-sized text box, whatever `verticalAlign`
+// says (zrender Text: rich lines start at boxY of the fixed outer height). So once the treemap has
+// laid the tiles out, each tile gets a top padding of half its spare height: measured from the
+// chart's own layout, never guessed (tilePads).
+export function tilePads(leaves) {
+  const out = {}
+  for (const { ticker, height, size } of leaves) {
+    out[ticker] = Math.max(0, Math.floor((height - (LABEL_H[size] ?? LABEL_H.s)) / 2))
+  }
+  return out
+}

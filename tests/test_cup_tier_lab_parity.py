@@ -276,6 +276,8 @@ def test_structures_rows_are_byte_identical_with_the_stamp_off(judged, monkeypat
     """structures_for on the real 600-bar slice of every judged case: with the stamp on, every row equals the
     row with the stamp switched off once extras.cup_tier is removed; and the stamp does fire on real rows."""
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
+    from api.services import barspack
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd", lambda now=None: 99991231)
     stamped = rows_seen = 0
     real = auto_structures.cup_tier_stamp
     for name, cid, tk, rows, A, st, ld in judged:

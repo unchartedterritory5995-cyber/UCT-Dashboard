@@ -366,4 +366,13 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/insights/ChecklistFromWinners.jsx': { recipe: 'checklist-from-winners', railFile: 'a11y/tier3.a11y.test.jsx' },
   'surfaces/WrappedSurface.jsx': { recipe: 'wrapped-surface', railFile: 'a11y/tier3.a11y.test.jsx' },
   'components/WrappedDoor.jsx': { recipe: 'wrapped-door', railFile: 'a11y/tier3.a11y.test.jsx' },
+  // Notebook P3b Task 8: example notes, under components/notebook/styles/ (outside the derived population; dark
+  // behind notebook_style_library_enabled and the server's NOTEBOOK_EXAMPLE_NOTES_ENABLED): the author's door and its
+  // picker, the exact-public preview sheet (its replaced spans, its image rows, an unread image's second confirm), and
+  // a library style's Preview with its "In use" section. Rail a11y/exampleNotes.a11y.test.jsx.
+  'components/notebook/styles/AddExampleNoteDoor.jsx': { recipe: 'example-note-picker', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExampleNotePicker.jsx': { recipe: 'example-note-picker', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
 })

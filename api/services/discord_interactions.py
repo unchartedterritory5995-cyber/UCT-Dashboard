@@ -759,7 +759,9 @@ def chart_help_text() -> str:
         "\u2022 `/chart NVDA AMD AVGO` - up to four at once, in one message.",
         "\u2022 `/chart NVDA compare:SPY QQQ` - overlays them as % lines against NVDA.",
         "\u2022 `/chart NVDA tf:5` - five-minute chart (also 15m, 60m, W).",
-        "\u2022 Breadth reads as a chart too: `/chart UCTA5`, `/chart UCTA50`.",
+        "\u2022 **Market breadth** charts too: type `UCT` in `/chart` for the list - `UCTA50` (% above the 50-day), "
+        "`UCTNH` / `UCTNL` (new highs / lows), `UCTAD` (A/D line), `UCTS2` (Stage 2 count) and more. "
+        "Daily or Weekly; most of them update their latest point through the session.",
         "",
         "**Your defaults**",
         "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
@@ -879,12 +881,15 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
         row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Later \u25b6", "custom_id": sid("l", to=later or ""),
                      "disabled": not st["to"]})
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid("m", mas=ma_next)})
-    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
-                 "custom_id": sid("v", vol=not st["vol"])})
-    _dp_on = str(st.get("dp", "0")) == "1"   # dark-pool overlay toggle (blurple when on)
-    row5.append({"type": 2, "style": (_STYLE_PRIMARY if _dp_on else _STYLE_SECONDARY),
-                 "emoji": {"name": "\U0001F30A"}, "label": "Dark Pools",
-                 "custom_id": sid("dp", dp=("0" if _dp_on else "1"))})
+    # A breadth metric has no volume and no dark-pool prints: both buttons would only
+    # redraw the same chart, so a breadth reply does not offer them.
+    if not req.breadth_name:
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
+                     "custom_id": sid("v", vol=not st["vol"])})
+        _dp_on = str(st.get("dp", "0")) == "1"   # dark-pool overlay toggle (blurple when on)
+        row5.append({"type": 2, "style": (_STYLE_PRIMARY if _dp_on else _STYLE_SECONDARY),
+                     "emoji": {"name": "\U0001F30A"}, "label": "Dark Pools",
+                     "custom_id": sid("dp", dp=("0" if _dp_on else "1"))})
     if guild_id and str(guild_id) in activity_guilds():
         # The (parked) Activity: in an activity guild the last slot launches it instead.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
@@ -1317,6 +1322,25 @@ def _log_timing(req, cls, result) -> None:
         pass
 
 
+def stand_in_style(req: ChartRequest, prefs: dict) -> dict:
+    """The mplfinance stand-in's style kwargs, for BOTH paths that draw it (the
+    fallback after an empty house render and the fast preview). Only non-default
+    keys are returned, so a stock chart calls `render_fn` exactly as before.
+
+    The stand-in draws what the house chart would have: breadth_adjust sets the
+    style to "line" for a breadth metric (a member may choose it too), and a
+    breadth percentage has no volume, so its pane is dropped rather than left as
+    an empty box captioned "Avg Vol(50) 0"."""
+    kw = {}
+    if prefs.get("mas") == "off":
+        kw["show_mas"] = False
+    if prefs.get("volume") is False or req.breadth_name:
+        kw["show_volume"] = False
+    if prefs.get("style") in ("line", "area"):
+        kw["chart_type"] = "line"
+    return kw
+
+
 def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
                    bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0,
                    cls: int) -> tuple:
@@ -1435,11 +1459,7 @@ def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple
             bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
             if not bars:
                 return ("no_bars", None, None)
-        kw = {"daily_bars": daily if options["stats"] else None}
-        if prefs.get("mas") == "off":
-            kw["show_mas"] = False
-        if prefs.get("volume") is False:
-            kw["show_volume"] = False
+        kw = {"daily_bars": daily if options["stats"] else None, **stand_in_style(req, prefs)}
         try:
             png = render_fn(req.ticker, req.tf, bars, **kw)
         except Exception as e:  # noqa: BLE001
@@ -1935,11 +1955,7 @@ def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *
         if req.tf != "D":
             with bars_warm_gate():
                 daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
-        kw = {"daily_bars": daily}
-        if prefs.get("mas") == "off":
-            kw["show_mas"] = False
-        if prefs.get("volume") is False:
-            kw["show_volume"] = False
+        kw = {"daily_bars": daily, **stand_in_style(req, prefs)}
         png = render_fn(req.ticker, req.tf, bars, **kw)
         if not png:
             return False

@@ -1,0 +1,1252 @@
+{
+ "address-text:0:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:0:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:0:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:0:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:10:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/article\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/article\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/article\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:10:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}"
+ },
+ "address-text:10:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/article, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/article, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/article, then decide.\"}]}]}"
+ },
+ "address-text:10:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/article\"}]}]}"
+ },
+ "address-text:11:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/pic.png\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/pic.png\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/pic.png\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:11:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}"
+ },
+ "address-text:11:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/pic.png, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/pic.png, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.com/pic.png, then decide.\"}]}]}"
+ },
+ "address-text:11:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.com/pic.png\"}]}]}"
+ },
+ "address-text:12:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:12:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:12:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:12:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:13:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:13:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:13:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:13:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:1:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:1:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:1:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:1:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:2:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:2:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:2:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:2:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:3:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:3:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:3:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:3:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:4:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:4:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:4:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:4:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:5:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:5:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:5:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}"
+ },
+ "address-text:5:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}"
+ },
+ "address-text:6:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:6:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}]}]}"
+ },
+ "address-text:6:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See http://127.0.0.1:8580/journal/notebook?note=other-n2, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See http://127.0.0.1:8580/journal/notebook?note=other-n2, then decide.\"}]}]}"
+ },
+ "address-text:6:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}]}]}"
+ },
+ "address-text:7:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:7:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}]}]}"
+ },
+ "address-text:7:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2, then decide.\"}]}]}"
+ },
+ "address-text:7:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}]}]}"
+ },
+ "address-text:8:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.org/anything?x=1&note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.org/anything?x=1&note=other-n2\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:8:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\"}]}]}"
+ },
+ "address-text:8:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.org/anything?x=1&note=other-n2, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See https://example.org/anything?x=1&note=other-n2, then decide.\"}]}]}"
+ },
+ "address-text:8:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"https://example.org/anything?x=1&note=other-n2\"}]}]}"
+ },
+ "address-text:9:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"http://localhost:8000/api/j2/notes/abc\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"http://localhost:8000/api/j2/notes/abc\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "address-text:9:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\"}]}]}"
+ },
+ "address-text:9:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See in-app link, then decide.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See http://localhost:8000/api/j2/notes/abc, then decide.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"See http://localhost:8000/api/j2/notes/abc, then decide.\"}]}]}"
+ },
+ "address-text:9:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"in-app link\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"heading \"}]}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"http://localhost:8000/api/j2/notes/abc\"}]}]}"
+ },
+ "emails": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"write to email address or \"}, {\"type\": \"text\", \"text\": \"here\"}, {\"type\": \"text\", \"text\": \" -- or the site\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/contact\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"write to me@example.com or \"}, {\"type\": \"text\", \"text\": \"here\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"mailto:me@example.com\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}, {\"type\": \"text\", \"text\": \" -- or the site\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/contact\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"write to me@example.com or \"}, {\"type\": \"text\", \"text\": \"here\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"mailto:me@example.com\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}, {\"type\": \"text\", \"text\": \" -- or the site\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/contact\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "example-prose": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"made $1,240 on NVDA, up 3.2R, at Schwab\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"NVDA 132.40 support; -$500k and $2.5M; Down 4% today; RS up 4% vs SPY\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Charles Schwab, Interactive Brokers, E*TRADE, Public.com, NVDA 3.2R target\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"made $1,240 on NVDA, up 3.2R, at Schwab\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"NVDA 132.40 support; -$500k and $2.5M; Down 4% today; RS up 4% vs SPY\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Charles Schwab, Interactive Brokers, E*TRADE, Public.com, NVDA 3.2R target\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"made $1,240 on NVDA, up 3.2R, at Schwab\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"NVDA 132.40 support; -$500k and $2.5M; Down 4% today; RS up 4% vs SPY\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Charles Schwab, Interactive Brokers, E*TRADE, Public.com, NVDA 3.2R target\"}]}]}"
+ },
+ "facts": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"TSLA · Note: my target 300 — why I think so (captured 2026-09-04)\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"TSLA · Note: my target 300 — why I think so (captured 2026-09-04)\"}]}]}"
+ },
+ "fixture:askCitation": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"question\": \"q\", \"action\": \"rewrite\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"question\": \"q\", \"action\": \"rewrite\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}, {\"type\": \"askCitation\", \"attrs\": {\"n\": 1}}]}]}]}"
+ },
+ "fixture:askInsert": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"what?\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"an Ask answer\"}]}]}]}"
+ },
+ "fixture:attachmentChip": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "fixture:blockMath": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockMath\", \"attrs\": {\"latex\": \"E=mc^2\"}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockMath\", \"attrs\": {\"latex\": \"E=mc^2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockMath\", \"attrs\": {\"latex\": \"E=mc^2\"}}]}"
+ },
+ "fixture:blockquote": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockquote\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"q\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockquote\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"q\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"blockquote\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"q\"}]}]}]}"
+ },
+ "fixture:bold": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"b\", \"marks\": [{\"type\": \"bold\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"b\", \"marks\": [{\"type\": \"bold\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"b\", \"marks\": [{\"type\": \"bold\"}]}]}]}"
+ },
+ "fixture:bulletList": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}"
+ },
+ "fixture:callout": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}"
+ },
+ "fixture:code": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\", \"marks\": [{\"type\": \"code\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\", \"marks\": [{\"type\": \"code\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\", \"marks\": [{\"type\": \"code\"}]}]}]}"
+ },
+ "fixture:codeBlock": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"codeBlock\", \"attrs\": {\"language\": \"python\"}, \"content\": [{\"type\": \"text\", \"text\": \"x = 1\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"codeBlock\", \"attrs\": {\"language\": \"python\"}, \"content\": [{\"type\": \"text\", \"text\": \"x = 1\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"codeBlock\", \"attrs\": {\"language\": \"python\"}, \"content\": [{\"type\": \"text\", \"text\": \"x = 1\"}]}]}"
+ },
+ "fixture:column": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}"
+ },
+ "fixture:columns": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"l\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"r\"}]}]}]}]}"
+ },
+ "fixture:dateMention": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"dateMention\", \"attrs\": {\"date\": \"2026-10-01\"}}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"dateMention\", \"attrs\": {\"date\": \"2026-10-01\"}}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"dateMention\", \"attrs\": {\"date\": \"2026-10-01\"}}]}]}"
+ },
+ "fixture:doc": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}"
+ },
+ "fixture:documentExcerpt": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "fixture:financialFact": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "fixture:hardBreak": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}, {\"type\": \"hardBreak\"}, {\"type\": \"text\", \"text\": \"b\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}, {\"type\": \"hardBreak\"}, {\"type\": \"text\", \"text\": \"b\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}, {\"type\": \"hardBreak\"}, {\"type\": \"text\", \"text\": \"b\"}]}]}"
+ },
+ "fixture:heading": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}"
+ },
+ "fixture:highlight": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\", \"marks\": [{\"type\": \"highlight\", \"attrs\": {\"color\": \"yellow\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\", \"marks\": [{\"type\": \"highlight\", \"attrs\": {\"color\": \"yellow\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\", \"marks\": [{\"type\": \"highlight\", \"attrs\": {\"color\": \"yellow\"}}]}]}]}"
+ },
+ "fixture:horizontalRule": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"horizontalRule\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"horizontalRule\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"horizontalRule\"}]}"
+ },
+ "fixture:image": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\", \"alt\": \"mine\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\", \"alt\": \"mine\"}}]}"
+ },
+ "fixture:imageCaption": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "fixture:imageFigure": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "fixture:inlineMath": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"inlineMath\", \"attrs\": {\"latex\": \"x\"}}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"inlineMath\", \"attrs\": {\"latex\": \"x\"}}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"inlineMath\", \"attrs\": {\"latex\": \"x\"}}]}]}"
+ },
+ "fixture:italic": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"i\", \"marks\": [{\"type\": \"italic\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"i\", \"marks\": [{\"type\": \"italic\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"i\", \"marks\": [{\"type\": \"italic\"}]}]}]}"
+ },
+ "fixture:link": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"web\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/x\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"web\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/x\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"web\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"https://example.com/x\", \"target\": \"_blank\", \"rel\": \"noreferrer\"}}]}]}]}"
+ },
+ "fixture:linkPreview": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/a\", \"title\": \"Example\", \"domain\": \"example.com\"}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/a\", \"title\": \"Example\", \"domain\": \"example.com\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/a\", \"title\": \"Example\", \"domain\": \"example.com\"}}]}"
+ },
+ "fixture:listItem": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"bulletList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}"
+ },
+ "fixture:noteLink": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"see \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"see \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"see \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}"
+ },
+ "fixture:orderedList": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"orderedList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"orderedList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"orderedList\", \"content\": [{\"type\": \"listItem\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"a\"}]}]}]}]}"
+ },
+ "fixture:paragraph": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}"
+ },
+ "fixture:strike": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"s\", \"marks\": [{\"type\": \"strike\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"s\", \"marks\": [{\"type\": \"strike\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"s\", \"marks\": [{\"type\": \"strike\"}]}]}]}"
+ },
+ "fixture:table": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}"
+ },
+ "fixture:tableCell": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}"
+ },
+ "fixture:tableHeader": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}"
+ },
+ "fixture:tableOfContents": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"tableOfContents\"}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"tableOfContents\"}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"tableOfContents\"}, {\"type\": \"heading\", \"attrs\": {\"level\": 2}, \"content\": [{\"type\": \"text\", \"text\": \"H\"}]}]}"
+ },
+ "fixture:tableRow": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"h\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}]}"
+ },
+ "fixture:taskItem": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}"
+ },
+ "fixture:taskList": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": true}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": true}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"do\"}]}]}]}]}"
+ },
+ "fixture:text": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}]}"
+ },
+ "fixture:textColor": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"tc\", \"marks\": [{\"type\": \"textColor\", \"attrs\": {\"color\": \"red\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"tc\", \"marks\": [{\"type\": \"textColor\", \"attrs\": {\"color\": \"red\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"tc\", \"marks\": [{\"type\": \"textColor\", \"attrs\": {\"color\": \"red\"}}]}]}]}"
+ },
+ "fixture:textStyle": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"ts\", \"marks\": [{\"type\": \"textStyle\", \"attrs\": {\"fontSize\": \"18px\"}}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"ts\", \"marks\": [{\"type\": \"textStyle\", \"attrs\": {\"fontSize\": \"18px\"}}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"ts\", \"marks\": [{\"type\": \"textStyle\", \"attrs\": {\"fontSize\": \"18px\"}}]}]}]}"
+ },
+ "fixture:toggle": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}"
+ },
+ "fixture:toggleContent": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}"
+ },
+ "fixture:toggleSummary": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"toggle\", \"content\": [{\"type\": \"toggleSummary\", \"content\": [{\"type\": \"text\", \"text\": \"s\"}]}, {\"type\": \"toggleContent\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"c\"}]}]}]}]}"
+ },
+ "fixture:tradeCanvas": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "fixture:underline": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"u\", \"marks\": [{\"type\": \"underline\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"u\", \"marks\": [{\"type\": \"underline\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"u\", \"marks\": [{\"type\": \"underline\"}]}]}]}"
+ },
+ "fixture:videoTimestamp": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"videoTimestamp\", \"attrs\": {\"seconds\": 42}}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"videoTimestamp\", \"attrs\": {\"seconds\": 42}}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"videoTimestamp\", \"attrs\": {\"seconds\": 42}}]}]}"
+ },
+ "fixture:webEmbed": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://youtu.be/dQw4w9WgXcQ\"}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://youtu.be/dQw4w9WgXcQ\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://youtu.be/dQw4w9WgXcQ\"}}]}"
+ },
+ "fixture:widgetEmbed": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "images": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/a.png\", \"alt\": \"a\", \"width\": 300}}, {\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\", \"title\": \"t\"}}, {\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/c.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap $9\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/a.png\", \"alt\": \"a\", \"width\": 300}}, {\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\", \"title\": \"t\"}}, {\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/c.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap $9\"}]}]}]}"
+ },
+ "leaky-note": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"Ask q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"an ask answer\"}, {\"type\": \"askCitation\", \"attrs\": {\"n\": 1}}]}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}, {\"type\": \"askCitation\", \"attrs\": {\"n\": 2}}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "leaky-note+links": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The other published note\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"/p/SLUG/n/PID-OTHER\"}}]}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"Ask q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"an ask answer\"}, {\"type\": \"askCitation\", \"attrs\": {\"n\": 1}}]}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"mine \"}, {\"type\": \"askCitation\", \"attrs\": {\"n\": 2}}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \"trade\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "nested:askInsert:chart widget": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}"
+ },
+ "nested:askInsert:consensus fact (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}]}"
+ },
+ "nested:askInsert:fundamentals widget (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"q\"}, \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}]}"
+ },
+ "nested:askInsert:price fact (finnhub)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}]}"
+ },
+ "nested:askInsert:price fact (massive)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"askInsert\", \"attrs\": {\"scope\": \"notebook\", \"question\": \"q\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}"
+ },
+ "nested:callout:chart widget": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}"
+ },
+ "nested:callout:consensus fact (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}]}"
+ },
+ "nested:callout:fundamentals widget (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}]}"
+ },
+ "nested:callout:price fact (finnhub)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}]}"
+ },
+ "nested:callout:price fact (massive)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"callout\", \"attrs\": {\"variant\": \"info\"}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}"
+ },
+ "nested:columns:chart widget": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}"
+ },
+ "nested:columns:consensus fact (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}"
+ },
+ "nested:columns:fundamentals widget (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}"
+ },
+ "nested:columns:price fact (finnhub)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}"
+ },
+ "nested:columns:price fact (massive)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"columns\", \"content\": [{\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}, {\"type\": \"column\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"right\"}]}]}]}]}"
+ },
+ "nested:tableCell:chart widget": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}"
+ },
+ "nested:tableCell:consensus fact (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"AAPL · Analyst Price Target (Consensus): $212.50 (captured 2026-09-01)\"}]}]}]}]}]}"
+ },
+ "nested:tableCell:fundamentals widget (fmp)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}]}]}]}"
+ },
+ "nested:tableCell:price fact (finnhub)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"MSFT · Price: $401.00 (captured 2026-09-02)\"}]}]}]}]}]}"
+ },
+ "nested:tableCell:price fact (massive)": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"table\", \"content\": [{\"type\": \"tableRow\", \"content\": [{\"type\": \"tableHeader\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"head\"}]}]}, {\"type\": \"tableCell\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}]}]}]}"
+ },
+ "notelinks": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \" / \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The other published note\", \"marks\": [{\"type\": \"link\", \"attrs\": {\"href\": \"/p/SLUG/n/PID-OTHER\"}}]}, {\"type\": \"text\", \"text\": \" / \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"linked note\"}, {\"type\": \"text\", \"text\": \" / \"}, {\"type\": \"text\", \"text\": \"linked note\"}]}]}"
+ },
+ "task-checked": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"done\"}]}]}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": true}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"done\"}]}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": true}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"done\"}]}]}]}]}"
+ },
+ "url-attr:image.src:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/article\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/article\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/p.png\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/p.png\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:image.src:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.org/anything?x=1&note=other-n2\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.org/anything?x=1&note=other-n2\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:image.src:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://localhost:8000/api/j2/notes/abc\", \"alt\": \"x\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://localhost:8000/api/j2/notes/abc\", \"alt\": \"x\"}}]}"
+ },
+ "url-attr:imageFigure.image.src:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/article\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/article\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.com/pic.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/p.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"/api/j2/shared/TOK/att/inline/p.png\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:imageFigure.image.src:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.org/anything?x=1&note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"https://example.org/anything?x=1&note=other-n2\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:imageFigure.image.src:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://localhost:8000/api/j2/notes/abc\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"imageFigure\", \"content\": [{\"type\": \"image\", \"attrs\": {\"src\": \"http://localhost:8000/api/j2/notes/abc\"}}, {\"type\": \"imageCaption\", \"content\": [{\"type\": \"text\", \"text\": \"cap\"}]}]}]}"
+ },
+ "url-attr:linkPreview.image:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.com/article\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.com/article\"}}]}"
+ },
+ "url-attr:linkPreview.image:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.com/pic.png\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.com/pic.png\"}}]}"
+ },
+ "url-attr:linkPreview.image:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"/api/j2/shared/TOK/att/inline/p.png\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"/api/j2/shared/TOK/att/inline/p.png\"}}]}"
+ },
+ "url-attr:linkPreview.image:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.image:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}]}"
+ },
+ "url-attr:linkPreview.image:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}]}"
+ },
+ "url-attr:linkPreview.image:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.org/anything?x=1&note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"https://example.org/anything?x=1&note=other-n2\"}}]}"
+ },
+ "url-attr:linkPreview.image:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"http://localhost:8000/api/j2/notes/abc\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": \"http://localhost:8000/api/j2/notes/abc\"}}]}"
+ },
+ "url-attr:linkPreview.url:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/article\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.url:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/pic.png\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/pic.png\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.com/pic.png\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.url:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}"
+ },
+ "url-attr:linkPreview.url:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.url:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.url:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.org/anything?x=1&note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"https://example.org/anything?x=1&note=other-n2\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:linkPreview.url:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"http://localhost:8000/api/j2/notes/abc\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"linkPreview\", \"attrs\": {\"url\": \"http://localhost:8000/api/j2/notes/abc\", \"title\": \"A card\", \"description\": \"d\", \"domain\": \"example.com\", \"image\": null}}]}"
+ },
+ "url-attr:webEmbed.url:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/article\"}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/article\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/article\"}}]}"
+ },
+ "url-attr:webEmbed.url:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/pic.png\"}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/pic.png\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.com/pic.png\"}}]}"
+ },
+ "url-attr:webEmbed.url:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}"
+ },
+ "url-attr:webEmbed.url:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\"}}]}"
+ },
+ "url-attr:webEmbed.url:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\"}}]}"
+ },
+ "url-attr:webEmbed.url:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.org/anything?x=1&note=other-n2\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"https://example.org/anything?x=1&note=other-n2\"}}]}"
+ },
+ "url-attr:webEmbed.url:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": null}}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"http://localhost:8000/api/j2/notes/abc\"}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"webEmbed\", \"attrs\": {\"provider\": \"youtube\", \"ref\": \"dQw4w9WgXcQ\", \"url\": \"http://localhost:8000/api/j2/notes/abc\"}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:0": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:1": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:10": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.com/article\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.com/article\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:11": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.com/pic.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.com/pic.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:12": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/p.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/p.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:13": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:2": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:3": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:4": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:5": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": null, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:6": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"http://127.0.0.1:8580/journal/notebook?note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:7": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://web-production-05cb6.up.railway.app/journal/notebook?note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:8": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.org/anything?x=1&note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"https://example.org/anything?x=1&note=other-n2\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "url-attr:widgetEmbed.fallback.url:9": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"http://localhost:8000/api/j2/notes/abc\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"http://localhost:8000/api/j2/notes/abc\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "widget:aisearch": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:alerts": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:breadth": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:calendar": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:chart": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:cot": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:fundamentals": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"fundamentals\", \"mode\": \"snapshot\", \"capturedAt\": \"2026-09-01T12:00:00Z\", \"fallback\": {\"url\": \"/api/j2/shared/TOK/att/inline/w.png\", \"w\": 900, \"h\": 500}, \"frozen\": false, \"caption\": \"the member's caption\", \"layout\": {\"width\": \"full\", \"height\": 320}, \"params\": {\"symbol\": \"AAPL\", \"view\": \"quarterly\"}}}]}"
+ },
+ "widget:indexes": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:marketcontext": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:modelbook": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:myRules": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:news": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:nhnl": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:nhnlPulse": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:notebook": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:optionsflow": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:periodsort": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:positionSizing": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:preEntryChecklist": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:prepEarnings": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:prepLevels": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:prepMovers": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:prepWire": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:priceStamps": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:profile": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:scanner": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:scatter": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:screener": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:themes": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:tradeReview": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:volumescan": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ },
+ "widget:watchlist": {
+  "gallery": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "publish": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}",
+  "share": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"A market-data item is not shown on public pages.\"}]}]}"
+ }
+}

@@ -171,6 +171,13 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 - On-disk attachments — `attachment_root()/<user_id>/**` (notebook images and files AND trade
   screenshots, which nest under the same per-user directory), plus the legacy root fallback:
   one `shutil.rmtree` per root.
+- Example-note image copies — `attachment_root()/gallery/<item_id>/` for each of the member's
+  example notes (P3b): copies of the member's own images, kept OUTSIDE the per-member tree. The
+  purge reads the member's example ids in the same write transaction as the row deletes
+  (`purge_user_rows(..., example_ids=...)`) and removes each directory after it commits
+  (`template_gallery.remove_example_images`). Rails:
+  `tests/test_example_note_images.py::test_purge_removes_rows_and_files_for_that_member_only` and
+  `::test_purge_reads_the_example_ids_in_the_same_transaction_as_the_deletes`.
 - External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
   purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
   on the 5 broker tables it covers and extends to the other 9.

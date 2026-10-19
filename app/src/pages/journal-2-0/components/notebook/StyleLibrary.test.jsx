@@ -20,7 +20,7 @@ import TemplateGallery from './TemplateGallery'
 import StyleLibraryCard from './StyleLibraryCard'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_SORTS } from '../../lib/templateGallery'
-import { ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES } from '../../lib/styleLibrary'
+import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
 
 const OUTLINES = contractBody('template-gallery.list').templates
@@ -152,7 +152,12 @@ describe('the switch', () => {
     flags()
     await openGallery()
     const types = await screen.findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...ITEM_TYPES.map((t) => t.label)])
+    // P3b (R-P3b-2): an example note is never a chip of its own
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...LISTED_ITEM_TYPES.map((t) => t.label)])
+    expect(within(types).queryByRole('button', { name: 'Example notes' })).toBeNull()
+    expect(ITEM_TYPES.some((t) => t.key === EXAMPLE_NOTE_TYPE)).toBe(true)
+    expect(LISTED_ITEM_TYPES.map((t) => t.key)).toEqual(ITEM_TYPES.map((t) => t.key).filter((k) => k !== EXAMPLE_NOTE_TYPE))
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })
     expect(within(ts).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...TRADING_STYLES.map((t) => t.label)])
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(LIBRARY_SORTS.map((s) => s.label))

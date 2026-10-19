@@ -22,6 +22,12 @@ members), checked in this order:
   above_pivot  a close since the right-side peak already sits > ABOVE_ATR ATR above the pivot.
 Coverage cost: round 4 withholds 48.4% of the lab's 1,402 tier fires (pivot_short 22.0%, handle_deep 20.9%,
 above_pivot 3.1%, spike_lip 2.4%); a withheld fire keeps its recognition stamp but draws nothing.
+Served population (measured in the lab by the independent verifier, 2026-10-18): the admin display rounds mark
+63.6% of the 1,402 tier fires stale BEFORE the stamp runs (failed_breakout 297, gap_island 176, rim_broken 173,
+short_of_rim 164, ...), so those rows are never served at all, and round 4 withholds 169 more. End-to-end member
+coverage is 341 of 1,402 tier fires = 24.3%. Of the 50 judged round-4 charts, the 21 a member can actually be
+served score mean 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc, not a pre-registered gate); served recognition is
+8 of 8 decided.
 
 Every read is on the bars up to the last one: no later bar exists for it to see. Needs at most the last 446 bars
 (best_window's 325-bar lip search + the 120-bar prior-advance look-back), so the 600 bars auto_structures hands it
@@ -337,7 +343,8 @@ def stamp(bars: list) -> dict | None:
     d = drawing(b, A, f)
     out = {'tier': TIER_NAME, 'v': TIER_VERSION, 't': T, 'C': round(float(f['C']), 4),
            'lip_t': int(b[f['L'], 0]), 'low_t': int(b[f['m'], 0]), 'right_t': int(b[f['R'], 0]),
-           'asof_t': int(b[A, 0]), 'draw_round': DRAW_ROUND, 'withheld': d['withheld'], 'm': d['m']}
+           'asof_t': int(b[A, 0]), 'atr': round(float(f['atr']), 4), 'draw_round': DRAW_ROUND,
+           'withheld': d['withheld'], 'm': d['m']}
     if not d['withheld']:
         out.update({'pivot_at': d['pivot_at'], 'pivot': d['pivot'], 'rim_ref': d['rim_ref'], 'handle': d['handle']})
     return out

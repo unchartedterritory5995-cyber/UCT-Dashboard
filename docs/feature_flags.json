@@ -1912,6 +1912,12 @@
       "where": ["web"],
       "note": "ARMED on web 2026-10-18 11:01 CT (=1), owner's go: one --set (16:01:23Z), web auto-redeployed (deploy created 16:01:27Z, SUCCESS, production fe2d5fae5e), the running process read '1', the smoke account's payload read journal_tier3_enabled true; a note with a check-in moved By check-in checkInDays 0 to 1, checklist-suggestions and wrapped/2025 answered 200 (no_trades), trashing the note brought checkInDays back to 0, hub_nav_smoke --auth PASS. P2 Tier 3. Gates creating the mood check-in block, the By check-in psychology view, Checklist from my winners and the Your trading year door. Off: none is offered; an existing check-in block still renders. Payload key journal_tier3_enabled. Arm: railway variables --service web --set JOURNAL_TIER3_ENABLED=1 (the owner's). Rollback: 0; check-ins already stored stay stored and unread."
     },
+    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": {
+      "member_facing": { "label": "Example notes on community styles", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "P3b. Server-only (no client fallback row); gates example-note preview, publish and the In use section. Needs NOTEBOOK_STYLE_LIBRARY_ENABLED. Arm: railway variables --service web --set NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 (the owner's). Rollback: 0; stored examples stay stored and unlisted."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

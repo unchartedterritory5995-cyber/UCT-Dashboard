@@ -235,6 +235,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "flat_base", "bc:flat-base", "bc:cup-with-handle",
     "uct_pullback_ma_v5",
     "uct_flat_top_breakout",
+    "bc:base",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -268,16 +269,32 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: extras.draw_round == MEMBER_FLAT_TOP_ROUND beside a well-formed draw_flat_top (fail closed). Its
 #: trusted tier is per ROW (DISPLAY_TRUSTED_WHEN_STAMPED / row_display_policy): an unstamped
 #: flat-top row keeps the experimental tier it always had, for admins too.
+#: bc:base (lab base_draw, 2026-10-18) is the shape-agnostic BASE drawing -- the base's extent, its
+#: pivot on the top cluster of the candle bodies and its low (api/services/pattern_engine/base_draw.py).
+#: It passed its pre-registered team-axis pivot test on the held-out half (14 of 17 charts; a naive
+#: 20-bar highest-body line hits 13 of 17, so its value is WHEN it draws and the extent, not the pivot
+#: price) and two fresh blind packets AS DRAWN: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97], 100% of
+#: charts >= 2 in both. The extent test was NOT validated against extents the team drew (the team's
+#: base there is derived by the lab's own span rule; one comparison against team boxes). A member is
+#: served it only where no incumbent base drawing covers the same base
+#: (auto_structures.member_base_precedence). A bc:base row
+#: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
+#: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
 #: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup
 #: recognition tier draws it (pattern_engine/cup_tier.py): recognition 28 of 33 = 84.8% on two fresh
 #: blind packets (live detector alone 14.3%), and drawing round 4 on two fresh pre-registered packets,
 #: two judges each: d1 2.42 [2.20, 2.62] 96% >= 2, d2 2.50 [2.28, 2.72] 88% >= 2.
 #: auto_structures.member_rows serves it only while it carries extras.cup_tier with draw_round ==
 #: MEMBER_CUP_TIER_ROUND, not withheld, and then draws the tier's pivot / handle / rim reference in place
-#: of the admin rounds' drawing. An unstamped cup row stays admin-only.
+#: of the admin rounds' drawing. An unstamped cup row stays admin-only. Served population (lab, measured):
+#: the admin display rounds mark 63.6% of the 1,402 tier fires stale before the stamp runs and round 4
+#: withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member can be
+#: served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc); served recognition 8 of 8 decided. Where a
+#: stamped cup is served, bc:flat-base (member_cup_precedence) and bc:base (member_base_precedence) near
+#: its pivot or overlapping its span are dropped for members: the cup is the confirmed, judged drawing.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
-    "uct_flat_top_breakout", "bc:cup-with-handle",
+    "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

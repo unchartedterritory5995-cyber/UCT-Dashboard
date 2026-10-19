@@ -54,7 +54,7 @@ def test_every_existing_structure_is_byte_for_byte_unchanged(swept):
 
 
 def test_control_the_comparison_sees_a_stamp_when_it_is_kept(monkeypatch):
-    """Every row is stamped here (cup_tier_stamp is forced onto all rows), so every scan with rows must move."""
+    """Every base box is stamped here (cup_tier_stamp is forced onto all of them), so the scans must move."""
     forced = {"tier": "cup_conf", "draw_round": 4, "withheld": "x"}
 
     def stamp_all(det, bars):
@@ -63,5 +63,5 @@ def test_control_the_comparison_sees_a_stamp_when_it_is_kept(monkeypatch):
     monkeypatch.setattr(auto_structures, "cup_tier_stamp", stamp_all)
     kept, counts = SW.run(auto_structures, strip=False)
     moved = {k for k, d in GOLDEN["digests"].items() if kept.get(k) != d}
-    assert counts["stamped"] == counts["rows"] > 0
+    assert counts["rows"] >= counts["stamped"] > 0      # every base box (bc:base rows are appended unstamped)
     assert len(moved) > 0
