@@ -2369,9 +2369,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
         if commit and conn.in_transaction:
             conn.rollback()
         raise GalleryError(str(e)) from e
-    if row["user_id"] != user_id:
-        conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
-                     " VALUES (?, ?, ?)", (row["id"], user_id, now))
+    _record_use(conn, row, user_id, now)   # the ONE use-count copy, for an adopt and a pack install alike (AUD-5)
     if notify:
         conn.execute(
             "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"

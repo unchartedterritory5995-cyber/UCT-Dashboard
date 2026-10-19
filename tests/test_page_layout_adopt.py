@@ -244,6 +244,24 @@ def test_use_template_copies_a_listed_outline_and_refuses_an_example_and_a_layou
     assert conn.execute("SELECT COUNT(*) FROM j2_note_templates WHERE user_id = 'author'").fetchone()[0] == 0
 
 
+def test_one_copy_counts_a_use():
+    """P4b final I-M5 (AUD-5): `_record_use` is the ONE place a use is counted -- once ever per member, never the
+    author's own -- and every door that counts one goes through it: use, adopting a style AND installing a starter
+    pack (both `_adopt_listed_row`), and adopting a layout. A second inline INSERT is a second rule that can drift."""
+    import ast
+    from pathlib import Path
+    src = Path(gallery.__file__).read_text(encoding="utf-8")
+    services = Path(gallery.__file__).parent
+    inserts = {p.name: p.read_text(encoding="utf-8").count("INTO j2_template_gallery_uses") for p in services.glob("*.py")}
+    assert {k: v for k, v in inserts.items() if v} == {"template_gallery.py": 1}
+    tree = ast.parse(src)
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "INTO j2_template_gallery_uses" in ast.get_source_segment(src, fns["_record_use"])
+    def calls_record_use(name):
+        return any(isinstance(c, ast.Call) and getattr(c.func, "id", None) == "_record_use" for c in ast.walk(fns[name]))
+    assert {n: calls_record_use(n) for n in ("use_template", "_adopt_listed_row", "adopt_layout")} ==         {"use_template": True, "_adopt_listed_row": True, "adopt_layout": True}
+
+
 def test_every_can_see_call_passes_the_connection():
     """P4b final I-M4, structurally: every `_can_see(...)` call in the service passes all four arguments, so no call
     site can skip the example clause by omission (the reason `conn` is required)."""
