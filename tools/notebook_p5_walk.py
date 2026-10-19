@@ -22,7 +22,10 @@ PRECONDITIONS (the run refuses or records NOT RUN without each; it never assumes
   The accounts and their password are this tool's SANDBOX SEED; they exist only in the throwaway data dir.
 
 THE STORY, once per viewport (1280, 820, 390):
-  1. the member opens New note > From a style and sees How do you trade?;
+  0. on the still EMPTY notebook, the Community library tour's first step moves on when Templates is pressed
+     (P5 final fix, item 9: the inline picker's gallery door is on screen before the press);
+  1. the member opens New note > From a style and sees How do you trade?, and the page holds ONE such card
+     (ruling P5-T10-R2: an empty notebook used to show it twice);
   2. picks Swing and sees the three Swing styles added;
   3. creates a note from "Swing trade plan"; its blocks and outline headings render;
   4. reloads: the offer is gone, and the Styles manager's Starter packs button opens it again;
@@ -31,9 +34,19 @@ THE STORY, once per viewport (1280, 820, 390):
   7. the admin's telemetry count has style_applied >= 1, and it rose during this viewport's story.
 
 Every step records PASS, FAIL or INCONCLUSIVE with the rendered text it read. PASS needs every check to have
-read the product's answer and found it right; FAIL is a product answer that was wrong; INCONCLUSIVE is a step
-the driver could not read to its end. A declared step that left no row is a FAIL ("never ran"), never a
-silent skip. R-RAW: walk.json is rewritten after every step, before any verdict.
+read the product's answer and found it right; FAIL is a product answer that was wrong, or a wait for the
+product that TIMED OUT (the product never showed what the step waited for); INCONCLUSIVE is any other read the
+driver could not finish. A declared step that left no row is a FAIL ("never ran"), never a silent skip. A press
+the card asked for that reported an error, even one after which the card moved on, is a FAIL unless the step
+says it allows it. R-RAW: walk.json is rewritten after every step, before any verdict.
+
+An ABSENCE is read only after the product has SAID it decided: KindSection and the Styles manager carry
+`data-starter-offer="settled"` once the offer's inputs (the styles list, the preferences read) are in and its
+decision is made, and the walk waits for that marker before it counts (Task 10 review I-1: a sleep and one
+sample let a late decision pass).
+
+Exit code: 4 when the sandbox integrity verdict is not CLEAN (whatever the steps said), 3 when the walk could
+not start, 1 on any FAIL or INCONCLUSIVE or a driver failure, 0 only on all PASS with a CLEAN sandbox.
 
 Waiting is always a Playwright call (`wait_for`, `expect_response`, `page.wait_for_timeout`), never
 time.sleep: the sync API delivers events only during Playwright calls. The intro overlay that every page load
@@ -79,7 +92,8 @@ TRADE_PLAN_KIND = "trade_plan"
 
 # The declared story. A (viewport, step) with no row at the end is a FAIL, never a skip.
 STEPS = (
-    (1, "New note > From a style shows How do you trade?"),
+    (0, "on an empty notebook the Community library tour's first step moves on when Templates is pressed"),
+    (1, "New note > From a style shows How do you trade?, once on the page"),
     (2, "picking Swing adds the three Swing styles"),
     (3, "a note from Swing trade plan renders its blocks and outline headings"),
     (4, "after a reload the offer is gone; the Styles manager's Starter packs button opens it"),
@@ -199,8 +213,7 @@ def run_step(vp: str, n: int, title: str, fn, pages: dict) -> dict:
         checks = st.row["checks"]
         st.row["verdict"] = "PASS" if checks and all(c["ok"] for c in checks) else "FAIL"
     except Exception as e:  # noqa: BLE001 -- a read the driver could not finish
-        failed = [c for c in st.row["checks"] if not c["ok"]]
-        st.row["verdict"] = "FAIL" if failed else "INCONCLUSIVE"
+        st.row["verdict"] = verdict_after_error(st.row["checks"], e)
         st.row["error"] = f"{type(e).__name__}: {str(e)[:500]}"
         st.row["traceback"] = traceback.format_exc()[-1500:]
     for role, (pg, watch) in pages.items():
@@ -220,6 +233,52 @@ def run_step(vp: str, n: int, title: str, fn, pages: dict) -> dict:
     flush()
     print(f"[{vp}] step {n} {st.row['verdict']}: {title}", flush=True)
     return st.row
+
+
+def verdict_after_error(checks: list[dict], e: BaseException) -> str:
+    """A step that raised: FAIL when a check had already failed, or when the raise is a TIMEOUT (Playwright's
+    TimeoutError, or the builtin): the product never showed what the step waited for, which is a wrong answer,
+    not an unreadable one (Task 10 review Minor 4). INCONCLUSIVE only for any other read the driver could not
+    finish."""
+    if any(not c["ok"] for c in checks):
+        return "FAIL"
+    return "FAIL" if type(e).__name__ == "TimeoutError" else "INCONCLUSIVE"
+
+
+def exit_code(integ: dict, not_run: str | None, failure: str | None, counts: dict) -> int:
+    """The process's verdict. A sandbox that is NOT CLEAN (dirty, incomplete or missing) is 4 whatever the steps
+    said (Task 10 review Minor 3: it used to appear only in first_line, and 21 PASS exited 0)."""
+    if not integ.get("clean"):
+        return 4
+    if not_run:
+        return 3
+    return 1 if failure or counts.get("FAIL") or counts.get("INCONCLUSIVE") else 0
+
+
+def press_problems(notes: list[str], allowed: tuple[int, ...] = ()) -> list[str]:
+    """The tour notes that say a press the card asked for did not land cleanly: the click itself reported an
+    error (even when the card then moved on), or it was pressed again with force. A step number in `allowed`
+    is excused, by name. Task 10 review Minor 5: only "with force" used to be read."""
+    out = []
+    for x in notes:
+        m = re.match(r"step (\d+): ", x)
+        if m and int(m.group(1)) in allowed:
+            continue
+        if "the click reported" in x or "with force" in x:
+            out.append(x)
+    return out
+
+
+SETTLED = '[data-starter-offer="settled"]'
+
+
+def offers_once_settled(scope, count_in=None) -> int:
+    """How many How do you trade? cards `count_in` (default: `scope`) holds, read only AFTER `scope`'s offer
+    decision has settled (its `data-starter-offer="settled"` marker). Task 10 review I-1: a fixed sleep and one
+    sample let a decision that arrived late pass as an absence. The wait raises a TimeoutError when the decision
+    never settles, so the step FAILS instead of counting."""
+    scope.locator(SETTLED).first.wait_for(timeout=T)
+    return (count_in if count_in is not None else scope).get_by_role("region", name=OFFER_TITLE).count()
 
 
 def unregistered_rows(viewports: list[str]) -> list[dict]:
@@ -423,15 +482,44 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
     S["style_applied_before"] = style_applied_count(admin_req, base)
     flush()
 
+    def s0(st):
+        got = ctx.request.get(base + "/api/j2/notes").json()
+        listed = got.get("notes") if isinstance(got, dict) else None     # {notes: [...]}; anything else is no answer
+        st.check("the notebook is empty (the notes list answered, with no notes)", listed == [],
+                 json.dumps(listed if not isinstance(listed, list) else [n.get("id") for n in listed]))
+        goto(pg, base, "/journal/notebook?view=all")
+        inline = pg.locator('[data-tour="template-gallery-door"]')
+        inline.first.wait_for(timeout=T)
+        st.check("the empty notebook's inline picker shows its gallery door before the tour starts",
+                 inline.count() == 1 and inline.first.is_visible(), f"{inline.count()} door(s)")
+        goto(pg, base, "/journal/notebook")
+        seen = {"picker_door": '[role="dialog"] [data-tour="template-gallery-door"]',
+                "gallery_types": '[data-tour="library-types"]'}
+        out = run_tour(pg, st, LIB_TOUR, LIB_STEPS, seen)
+        st.check("step 1 was answered by pressing Templates, and the card moved on to step 2",
+                 out["pressed"][:1] == [1] and 2 in out["shown"],
+                 json.dumps({"pressed": out["pressed"], "shown": out["shown"]}))
+        st.check("the door step pointed at the New note sheet's door (the page held one)",
+                 seen["picker_door"] is True, json.dumps(seen))
+        st.check(f"every declared step was shown, in order ({LIB_STEPS})", out["shown"] == list(range(1, LIB_STEPS + 1)),
+                 json.dumps(out["shown"]))
+        st.check("Done closed the tour", out["done"], json.dumps(out["notes"]))
+        bad = press_problems(out["notes"])
+        st.check("every control the card asked for took a plain press that reported no error", not bad,
+                 json.dumps(bad or out["notes"]))
+        pg.keyboard.press("Escape")
+
     def s1(st):
         mine = [s for s in ctx.request.get(base + "/api/j2/journal-styles").json().get("styles", []) if not s.get("builtin")]
         st.check("the member starts with no styles of their own (the styles list)", not mine, json.dumps([s.get("name") for s in mine]))
         group = open_from_a_style(pg, base)
         st.read("kind picker", group.inner_text())
-        S["offers_on_page"] = pg.get_by_role("region", name=OFFER_TITLE).count()
-        st.read("offer regions on the page (the sheet's, plus the empty list's own)", S["offers_on_page"])
         offer = sheet(pg).get_by_role("region", name=OFFER_TITLE)
         offer.wait_for(timeout=T)
+        S["offers_on_page"] = offers_once_settled(sheet(pg), count_in=pg)
+        st.read("offer regions on the page, once the sheet's decision settled", S["offers_on_page"])
+        st.check("the page holds ONE How do you trade? (ruling P5-T10-R2)", S["offers_on_page"] == 1,
+                 f"{S['offers_on_page']} offer region(s) on the page")
         text = st.read("offer", offer.inner_text())
         st.check("the offer says what it does", OFFER_LINE in text, text)
         labels = [b for b in PACK_LABELS if offer.get_by_role("button", name=b, exact=True).count() == 1]
@@ -511,24 +599,25 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         settle(pg)
         group = open_from_a_style(pg, base)
         st.read("kind picker after reload", group.inner_text())
-        pg.wait_for_timeout(2500)        # the preference read settles; the offer decision follows it
-        n = pg.get_by_role("region", name=OFFER_TITLE).count()
-        st.check("the offer is gone from New note > From a style", n == 0, f"{n} offer region(s)")
+        n = offers_once_settled(sheet(pg), count_in=pg)     # read only once the sheet's decision has settled
+        st.check("the offer is gone from New note > From a style (read after the decision settled)", n == 0,
+                 f"{n} offer region(s)")
         pg.keyboard.press("Escape")
         goto(pg, base, "/journal/notebook?styles=1")
         dlg = pg.get_by_role("dialog", name="Journal styles")
         dlg.wait_for(timeout=T)
-        pg.wait_for_timeout(1500)        # the list and the preference read settle before the absence is read
-        before = dlg.get_by_role("region", name=OFFER_TITLE).count()
-        st.check("the Styles manager does not offer it by itself", before == 0, f"{before} offer region(s)")
+        before = offers_once_settled(dlg)                  # the manager's own decision, settled, then counted
+        st.check("the Styles manager does not offer it by itself (read after the decision settled)", before == 0,
+                 f"{before} offer region(s)")
         btn = dlg.get_by_role("button", name="Starter packs", exact=True)
         btn.click(timeout=T)
         offer = dlg.get_by_role("region", name=OFFER_TITLE)
         offer.wait_for(timeout=T)
         text = st.read("offer from Starter packs", offer.inner_text())
         st.check("Starter packs opens How do you trade?", OFFER_LINE in text, text)
-        st.check("the button says it is expanded", btn.get_attribute("aria-expanded") == "true",
-                 f"aria-expanded={btn.get_attribute('aria-expanded')}")
+        # Task 5 review Minor 4: the button does not toggle, so it claims no expanded state.
+        st.check("the button claims no expanded state (it opens the card, it does not toggle it)",
+                 btn.get_attribute("aria-expanded") is None, f"aria-expanded={btn.get_attribute('aria-expanded')}")
         pg.keyboard.press("Escape")
 
     def s5(st):
@@ -541,8 +630,9 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         st.check("the first step's control was pressed and opened the Styles manager",
                  out["pressed"] == [1] and seen["styles_manager"] is True, json.dumps({"pressed": out["pressed"], **seen}))
         st.check("Done closed the tour", out["done"], json.dumps(out["notes"]))
-        st.check("every control the card asked for took a plain press (no forced press)",
-                 not any("with force" in x for x in out["notes"]), json.dumps(out["notes"]))
+        bad = press_problems(out["notes"])
+        st.check("every control the card asked for took a plain press that reported no error", not bad,
+                 json.dumps(bad or out["notes"]))
         pg.keyboard.press("Escape")
 
     def s6(st):
@@ -559,8 +649,9 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
         heading = pg.get_by_role("heading", name="Community gallery").count()
         st.read("gallery heading count", heading)
         st.check("Done closed the tour", out["done"], json.dumps(out["notes"]))
-        st.check("every control the card asked for took a plain press (no forced press)",
-                 not any("with force" in x for x in out["notes"]), json.dumps(out["notes"]))
+        bad = press_problems(out["notes"])
+        st.check("every control the card asked for took a plain press that reported no error", not bad,
+                 json.dumps(bad or out["notes"]))
         pg.keyboard.press("Escape")
 
     def s7(st):
@@ -580,7 +671,7 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
 
     try:
         for n, title in STEPS:
-            run_step(vp, n, title, {1: s1, 2: s2, 3: s3, 4: s4, 5: s5, 6: s6, 7: s7}[n], pages)
+            run_step(vp, n, title, {0: s0, 1: s1, 2: s2, 3: s3, 4: s4, 5: s5, 6: s6, 7: s7}[n], pages)
     finally:
         ctx.close()
         flush()
@@ -698,10 +789,10 @@ def main(argv=None) -> int:
                 "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "status": "COMPLETE" if not (not_run or failure) else "NOT COMPLETE"})
     flush()
-    print(f"VERDICT: {counts} not_run={not_run} failure={failure}; raw log: {OUT / 'walk.json'}")
-    if not_run:
-        return 3
-    return 1 if failure or counts["FAIL"] or counts["INCONCLUSIVE"] else 0
+    code = exit_code(integ, not_run, failure, counts)
+    print(f"VERDICT: {counts} not_run={not_run} failure={failure} sandbox={integ.get('status')} exit={code}; "
+          f"raw log: {OUT / 'walk.json'}")
+    return code
 
 
 if __name__ == "__main__":
