@@ -8,19 +8,22 @@
 // What stays instant (owner decision 2026-10-16): EXACT Undo, Confirm and Cancel, and only when
 // there is something for them to act on (exactLane). Everything else is the model's reading.
 //
-// Flag: localStorage `uct.agent.nl1 = '1'` (this browser) AND the server's UCT_AGENT_NL1=1. With
-// either off, the request is the legacy request and the server treats it as one.
+// Flag: localStorage `uct.agent.nl1 = '1'` (this browser) AND the server's UCT_AGENT_NL1=1, which the
+// browser learns from GET /api/agent/config. With either off — or before the config has answered — the
+// browser takes the legacy path end to end and sends the legacy request.
 //
 // This module builds the NL-1 request. The SAME function is used by the panel (useAgent) and by the
 // eval capture (eval/capture.js), so what is measured is what would be sent.
 
 import { buildContext, manifestFor, getCapability, isRef, MANIFEST_VERSION } from '../capabilities'
 import { planOps, collectTargets } from '../executor'
+import { serverServesNl1 } from '../agentClient'
 
 export const NL1_KEY = 'uct.agent.nl1'
 export const INTERPRETER = 'nl1'
 
 export function nl1Enabled() {
+  if (!serverServesNl1()) return false
   try { return globalThis.localStorage?.getItem(NL1_KEY) === '1' } catch { return false }
 }
 

@@ -3,7 +3,8 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream}: does this server stream turns (UCT_AGENT_STREAM)
+  GET  /api/agent/config                   {stream, nl1}: does this server stream turns (UCT_AGENT_STREAM),
+                                           does it serve NL-1 (UCT_AGENT_NL1)
   POST /api/agent/record                   record what the BROWSER did (fast-path
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
@@ -184,8 +185,10 @@ def streaming_enabled() -> bool:
 
 @router.get("/api/agent/config")
 def agent_config(user: dict = Depends(require_admin_dark)):
-    """What the browser needs to know about this server's Agent: whether turns stream (flags only)."""
-    return {"stream": streaming_enabled()}
+    """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
+    NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
+    from api.services.uct_agent import turn
+    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled()}
 
 
 @router.post("/api/agent/turn/stream")

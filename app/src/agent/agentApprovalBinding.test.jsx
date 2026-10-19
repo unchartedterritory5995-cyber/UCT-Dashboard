@@ -19,6 +19,7 @@ import { _resetScreenerCache, loadMeta } from './capabilities/screener'
 import { getCapability } from './capabilities'
 import { buildWidgetSync } from './host'
 import { NL1_KEY } from './nl1/interpreter'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -39,7 +40,7 @@ beforeEach(() => {
     const body = init.body ? JSON.parse(init.body) : null
     if (u === '/api/agent/turn' || u === '/api/agent/turn/stream') { turns.push(body); return json(script(body, turns.length)) }
     if (u === '/api/agent/record') return json({ conversationId: 'c1' })
-    if (u === '/api/agent/config') return json({ stream: false })
+    if (u === '/api/agent/config') return json({ stream: false, nl1: true })    // NL-1 tests below set this browser's switch
     if (u.includes('ticker-search') || u.includes('/api/tickers')) return json({ results: ['AMD', 'NVDA', 'TSLA', 'QQQ', 'AAA', 'BBB'].map(t => ({ ticker: t, symbol: t })) })
     if (u === '/api/screener/fields') return json({ fields: [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' }] })
     if (u === '/api/screener/scan') return json({ total: 2, rows: [{ ticker: 'AAA', adr_pct: 9, price: 60 }, { ticker: 'BBB', adr_pct: 7, price: 55 }], snapshot_date: '2026-10-15' })
@@ -436,10 +437,10 @@ describe('special flows keep working, and stay bound', () => {
 
 // NL-1 (model-first interpretation, flag off by default) reaches the same approve / Undo code: the binding holds
 describe('NL-1 on — the approval binding holds when the model reads every request', () => {
-  const nl1On = () => localStorage.setItem(NL1_KEY, '1')
+  const nl1On = async () => { localStorage.setItem(NL1_KEY, '1'); _resetAgentConfig(); await loadAgentConfig() }
 
   it('ANOTHER DEVICE grows the list after the card: "do it" (exact lane) re-reads and refuses; nothing deleted', async () => {
-    nl1On()
+    await nl1On()
     const b = board()
     const { say, transcript } = mount(b.host)
     script = (body) => apply(op('watchlist.delete', listRef(body, 'Swing')))
@@ -454,7 +455,7 @@ describe('NL-1 on — the approval binding holds when the model reads every requ
   })
 
   it('an Undo (exact lane) of an earlier change withdraws the waiting card; "do it" then does nothing', async () => {
-    nl1On()
+    await nl1On()
     const b = board()
     const { say, transcript } = mount(b.host)
     script = (body, n) => (n === 1

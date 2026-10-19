@@ -208,6 +208,20 @@ def test_nl1_and_repair_fields_never_open_the_route_to_non_admins(make_client, m
     assert make_client(MEMBER).post("/api/agent/turn", json={**body, "reroute": True, "repair": {"errors": ["x"]}}).status_code == 403
 
 
+def test_config_tells_the_browser_whether_this_server_serves_nl1(make_client, monkeypatch):
+    # the browser takes NL-1's path only when this says nl1: true AND its own switch is on
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: u.get("plan") != "free")
+    monkeypatch.delenv(turn.NL1_ENV, raising=False)
+    assert make_client(ADMIN).get("/api/agent/config").json()["nl1"] is False
+    for v in ("0", "true", "yes", ""):
+        monkeypatch.setenv(turn.NL1_ENV, v)
+        assert make_client(ADMIN).get("/api/agent/config").json()["nl1"] is False
+    monkeypatch.setenv(turn.NL1_ENV, "1")
+    assert make_client(ADMIN).get("/api/agent/config").json()["nl1"] is True
+    assert make_client(FREE).get("/api/agent/config").status_code == 402
+    assert make_client(MEMBER).get("/api/agent/config").status_code == 403
+
+
 def test_a_repair_must_continue_a_request(make_client, monkeypatch, flag_on):
     monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
     monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(nl1_env("answer", reply="hi"))))

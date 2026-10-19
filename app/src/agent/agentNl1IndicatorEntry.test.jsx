@@ -18,6 +18,7 @@ import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/author
 import { _resetDraftPreview } from '../components/chart/builder/agentAuthoring'
 import { _resetIndicatorEntry, peekAuthoringIntent } from './indicatorEntry'
 import { NL1_KEY } from './nl1/interpreter'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -49,7 +50,7 @@ function makeHost(syms) {
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   converseCalls = []; turnCalls = []
   script = () => ({ disposition: 'answer', reply: 'ok', question: null, ops: [], unsupported_category: null, correction: null })
   _resetIndicatorEntry(); _simulateReload()
@@ -63,10 +64,12 @@ beforeEach(() => {
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
     if (url === '/api/agent/turn') { const b = JSON.parse(init.body); turnCalls.push(b); return json({ conversationId: 'ac_1', turnId: 1, envelope: script(b), usage: {} }) }
     if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return json({ stream: false, nl1: true })     // this server serves NL-1
     if (String(url).startsWith('/api/agent/conversations')) return json({ conversations: [] })
     if (String(url).startsWith('/api/user-definitions')) return json({ definitions: [] })
     return json({})
   })
+  _resetAgentConfig(); await loadAgentConfig()
 })
 afterEach(() => {
   cleanup()
