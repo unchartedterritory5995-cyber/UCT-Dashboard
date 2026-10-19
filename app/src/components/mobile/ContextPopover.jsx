@@ -17,7 +17,14 @@ import styles from './ContextPopover.module.css'
  *       { label: 'Flag', icon: '⚑', onClick: ... },
  *       { label: 'Remove', danger: true, onClick: ... },
  *     ]} />
+ *
+ * An item may carry an optional `hint`: one sentence saying what the row does, for a label
+ * too short to say it. It becomes the row's `title` (the pointer tooltip) and its
+ * `aria-description` (read after the name). An item without one renders exactly as before.
  */
+// Nothing at all when there is no hint, so a caller that never passes one is unchanged.
+const hintProps = (it) => (it.hint ? { title: it.hint, 'aria-description': it.hint } : null)
+
 export default function ContextPopover({
   open,
   onClose,
@@ -158,6 +165,7 @@ export default function ContextPopover({
           role={asMenu ? 'menuitem' : undefined}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           href={it.href}
+          {...hintProps(it)}
           onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
@@ -169,6 +177,7 @@ export default function ContextPopover({
           role={asMenu ? 'menuitem' : undefined}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           disabled={it.disabled}
+          {...hintProps(it)}
           onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
