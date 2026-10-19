@@ -13,11 +13,21 @@ from __future__ import annotations
 
 import copy
 
+import pytest
+
 from api.services.pattern_engine import display
 from tests.detector_fixtures import ymd_t
 from tests.test_team_drawing_set_r4 import FLAG, PRE, _flag_det
 
 FROZEN = ("confidence", "levels", "start_t", "end_t", "pivot_ts")
+
+
+@pytest.fixture(autouse=True)
+def _round_7_lanes(monkeypatch):
+    """These rails pin the round-7 lane refit (the lanes every later verdict reads). Geometry round 3
+    then replaces the drawn UPPER lane at the very end of draw_geometry; it is switched off here and
+    pinned on its own in test_bull_flag_geom_v3.py."""
+    monkeypatch.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
 
 
 def _ohlc(rows):

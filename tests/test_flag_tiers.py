@@ -75,7 +75,11 @@ def test_the_relaxed_reasons_are_exactly_what_the_three_verdicts_can_return():
 
 # -- 2. tier 1 byte-for-byte -----------------------------------------------------------------------
 
-def test_tier_1_is_byte_for_byte_the_pre_tier_code_on_1200_synthetic_scans():
+def test_tier_1_is_byte_for_byte_the_pre_tier_code_on_1200_synthetic_scans(monkeypatch):
+    # geometry round 3 moves a drawn flag's UPPER lane only, after every verdict; with it switched off
+    # every scan must still be byte-identical to the pre-tier golden (round 3 is pinned in
+    # test_bull_flag_geom_v3.py)
+    monkeypatch.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
     golden = json.load(open(GOLDEN, encoding="utf-8"))
     assert (golden["series"], golden["cuts"]) == (sweep.SERIES, list(sweep.CUTS))
     digests, counts = sweep.run(detect_all, build_context, drop_flagging=True)
@@ -101,8 +105,11 @@ def test_the_digest_sees_a_one_field_change():
 def test_a_real_short_pole_flag_is_stamped_flagging_and_a_real_confirmed_one_is_not():
     t2 = _tier2_extras()
     assert t2["stale"] is True and t2["stale_reason"] == "short_pole" and "draw_round" not in t2
-    assert t2["flagging"] == {"tier": "flagging", "draw_round": display.BULL_FLAG_DRAW_ROUND,
-                              "draw_lanes": True}
+    stamp = dict(t2["flagging"])
+    # geometry round 3 adds the flagging tier's drawn lanes (new upper lane) and its own round
+    assert stamp.pop("draw_geom_round") == display.BULL_FLAG_GEOM_ROUND
+    assert len(stamp.pop("draw_anchors")) == 4
+    assert stamp == {"tier": "flagging", "draw_round": display.BULL_FLAG_DRAW_ROUND, "draw_lanes": True}
     t1, _ = _drawn(*_flag_after(TALL_LEG))
     assert t1["draw_round"] == display.BULL_FLAG_DRAW_ROUND and "flagging" not in t1
 

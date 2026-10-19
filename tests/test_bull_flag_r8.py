@@ -153,6 +153,8 @@ def test_lanes_fanning_past_1_45_are_not_drawn():
 
 
 def test_the_DRAWN_lanes_are_held_to_the_same_ratio(monkeypatch):
+    # the refit itself is pinned here; geometry round 3's upper lane (test_bull_flag_geom_v3.py) is off
+    monkeypatch.setattr(display, "stamp_upper_lane_v3", lambda d, bars: None)
     # the detector's lanes are parallel; a refit that fans them (1.0 -> 1.8) must not be drawn
     bars = _ohlc(_plain(PRE + FAST + FLAG))
     fanned = [{"t": bars[19]["t"], "price": 17.5}, {"t": bars[24]["t"], "price": 16.5},
