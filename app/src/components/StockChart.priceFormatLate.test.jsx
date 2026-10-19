@@ -2,29 +2,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 
 // ChartRender hands a breadth COUNT (the A/D line, new highs) a whole-number priceFormat, but
-// only once its bars have landed, so the chart is first built WITHOUT one. The series-creation
-// block applied priceFormat once, at creation, so the late one never reached the axis: the
-// header read "810,197" over an axis reading "825000.00". These cases watch the format on the
-// price series that is ON SCREEN.
+// only once its bars have landed, so the chart is first built WITHOUT one. And
+// lightweight-charts formats a price scale's ticks with the series on it that was added
+// FIRST, which on a real page is an MA line: the price series is rebuilt after the MAs when
+// the chart type changes. These cases read the format the AXIS uses, not the price line's.
 
 let seriesLog
 vi.mock('lightweight-charts', () => {
-  const makeSeries = (kind) => {
+  const makeSeries = (kind, opts, paneIndex) => {
+    const o = { ...(opts || {}) }
     const s = {
-      kind, formats: [],
+      kind, paneIndex: paneIndex || 0, removed: false,
       setData: () => {}, update: () => {},
-      applyOptions: (o) => { if (o && 'priceFormat' in o) s.formats.push(o.priceFormat) },
+      applyOptions: (x) => { Object.assign(o, x || {}) },
+      options: () => o,
+      getPane: () => ({ getSeries: () => seriesLog.filter(t => !t.removed && t.paneIndex === s.paneIndex) }),
       priceScale: () => ({ applyOptions: () => {} }),
       createPriceLine: () => ({}), removePriceLine: () => {},
       setMarkers: () => {}, attachPrimitive: () => {}, detachPrimitive: () => {},
-      priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
+      priceToCoordinate: () => 0, coordinateToPrice: () => 0,
+      priceFormatter: () => ({ format: (v) => String(v) }), data: () => [],
     }
     seriesLog.push(s)
     return s
   }
   const chart = {
-    addSeries: (type) => makeSeries(type?.__kind || 'other'),
-    removeSeries: () => {}, applyOptions: () => {},
+    addSeries: (type, opts, paneIndex) => makeSeries(type?.__kind || 'other', opts, paneIndex),
+    removeSeries: (s) => { if (s) s.removed = true }, applyOptions: () => {},
     priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
     timeScale: () => ({
       applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
@@ -59,16 +63,20 @@ vi.mock('../context/AuthContext', () => ({
 
 const { default: StockChart } = await import('./StockChart')
 
-const bars = [
-  { t: '2026-10-14', o: 811003, h: 811003, l: 811003, c: 811003, v: 0 },
-  { t: '2026-10-15', o: 810500, h: 810500, l: 810500, c: 810500, v: 0 },
-  { t: '2026-10-16', o: 810197, h: 810197, l: 810197, c: 810197, v: 0 },
-]
-const WHOLE = Object.freeze({ type: 'custom', formatter: (v) => String(Math.round(v)), minMove: 1 })
+// enough sessions for every default MA to draw
+const bars = Array.from({ length: 260 }, (_, i) => {
+  const t = new Date(Date.UTC(2025, 9, 1) + i * 86400000).toISOString().slice(0, 10)
+  const c = 810000 + Math.round(Math.sin(i / 9) * 9000)
+  return { t, o: c, h: c, l: c, c, v: 0 }
+})
+const WHOLE = Object.freeze({ type: 'custom', formatter: (v) => Math.round(v).toLocaleString('en-US'), minMove: 1 })
+const CANDLES = { chartType: 'candles' }
 const LINE = { chartType: 'line' }
 
-const onScreen = () => seriesLog.find(s => s.kind === 'line')
-const lastFormat = () => { const s = onScreen(); return s ? s.formats[s.formats.length - 1] : undefined }
+const onMain = () => seriesLog.filter(s => !s.removed && s.paneIndex === 0 && (s.options().priceScaleId ?? 'right') === 'right')
+// What the axis prints: the format of the FIRST live series on the main pane's right scale.
+const axisText = () => { const f = onMain()[0]?.options().priceFormat; return f?.formatter ? f.formatter(825000) : '(default)' }
+const priceLine = () => onMain().find(s => s.kind === 'line' && s.options().priceScaleId == null)
 
 beforeEach(() => {
   cleanup()
@@ -76,18 +84,36 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
 
+// Candles with their MAs first, then the switch to a line: the browser's order.
+async function buildMasThenLine(extra) {
+  const { rerender } = render(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={CANDLES} />)
+  await vi.waitFor(() => expect(onMain().filter(s => s.kind === 'line').length).toBeGreaterThan(0), { timeout: 4000 })
+  rerender(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={LINE} {...extra} />)
+  await vi.waitFor(() => expect(priceLine()).toBeTruthy(), { timeout: 4000 })
+  // the condition that hid it: the axis's format comes from a series added before the price line
+  expect(onMain()[0]).not.toBe(priceLine())
+  return rerender
+}
+
 describe('a priceFormat reaches the price axis', () => {
   it('control: a format present from the first render is applied', async () => {
     render(<StockChart sym="UCTAD" tf="D" barsOverride={bars} priceFormat={WHOLE} settingsOverride={LINE} />)
-    await vi.waitFor(() => expect(lastFormat()).toBe(WHOLE), { timeout: 4000 })
+    await vi.waitFor(() => expect(axisText()).toBe('825,000'), { timeout: 4000 })
   })
 
-  it('a format that arrives after the series exists is applied too', async () => {
-    const { rerender } = render(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={LINE} />)
-    // the series really exists, built without a format
-    await vi.waitFor(() => expect(onScreen()).toBeTruthy(), { timeout: 4000 })
-    expect(lastFormat()).toBeUndefined()
-    rerender(<StockChart sym="UCTAD" tf="D" barsOverride={bars} priceFormat={WHOLE} settingsOverride={LINE} />)
-    await vi.waitFor(() => expect(lastFormat()).toBe(WHOLE), { timeout: 4000 })
+  it('a format that arrives after the price line exists reaches the axis, not just the line', async () => {
+    const rerender = await buildMasThenLine({})
+    expect(axisText()).toBe('(default)')
+    rerender(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={LINE} priceFormat={WHOLE} />)
+    await vi.waitFor(() => expect(axisText()).toBe('825,000'), { timeout: 4000 })
+  })
+
+  it('a price line rebuilt after its MAs carries the format to the axis', async () => {
+    const { rerender } = render(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={CANDLES} priceFormat={WHOLE} />)
+    await vi.waitFor(() => expect(onMain().filter(s => s.kind === 'line').length).toBeGreaterThan(0), { timeout: 4000 })
+    rerender(<StockChart sym="UCTAD" tf="D" barsOverride={bars} settingsOverride={LINE} priceFormat={WHOLE} />)
+    await vi.waitFor(() => expect(priceLine()).toBeTruthy(), { timeout: 4000 })
+    expect(onMain()[0]).not.toBe(priceLine())
+    await vi.waitFor(() => expect(axisText()).toBe('825,000'), { timeout: 4000 })
   })
 })

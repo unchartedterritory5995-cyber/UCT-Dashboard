@@ -1983,6 +1983,14 @@ export function createBinder({ chart, LWC }) {
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
+      // ⭐ A series on the CANDLES' OWN AXIS ('right' in the price pane) takes the chart's
+      // axis format (`ctx.mainPriceFormat`, StockChart's `priceFormat` prop). The library
+      // formats an axis with the series on it added FIRST, and an MA is usually added
+      // before the price series, so an MA left at 2 decimals printed "825000.00" on the
+      // axis of a whole-number count. Same priceIndex default as placement's priceIndexOf.
+      const _priceIdx = ctx.paneLayout && Number.isInteger(ctx.paneLayout.priceIndex) && ctx.paneLayout.priceIndex >= 0
+        ? ctx.paneLayout.priceIndex : 0
+      const _onCandleAxis = scaleId === 'right' && paneIndex === _priceIdx
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
@@ -2004,7 +2012,8 @@ export function createBinder({ chart, LWC }) {
         indicatorsHidden: ctx.indicatorsHidden === true,
         // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
         // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
-        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances)),
+        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances))
+          || (_onCandleAxis && ctx.mainPriceFormat) || null,
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on
