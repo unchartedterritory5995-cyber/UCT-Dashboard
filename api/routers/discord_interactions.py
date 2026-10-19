@@ -12,6 +12,7 @@ import functools
 import json
 import logging
 import os
+import re
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
@@ -151,6 +152,13 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         typed = (q or "").strip().upper().lstrip("$")
         if not out and typed and di._TICKER_RE.match(typed):
             out.append({"name": f"{typed} - chart it"[:100], "value": typed})
+        # A SET ("UCTA20 UCTNH UCTS2", "NVDA, AMD") matched nothing above, and Discord
+        # then said "No options match your search" over a command that works - the
+        # same refusal-shaped silence the single-ticker line fixes. Offer the set back.
+        parts = [p.lstrip("$") for p in re.split(r"[\s,]+", typed) if p]
+        if not out and 1 < len(parts) <= di.MULTI_MAX and all(di._TICKER_RE.match(p) for p in parts):
+            joined = " ".join(parts)
+            out.append({"name": f"{joined} - chart these"[:100], "value": joined[:100]})
         return out[:25]
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] ticker autocomplete failed %r: %s", q, e)
