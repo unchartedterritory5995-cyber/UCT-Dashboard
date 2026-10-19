@@ -86,7 +86,13 @@ def member_rows(rows) -> list:
     under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
     it carries that round's stamp beside a well-formed `draw_flat_top`
     (`_confirmed_flat_top`): any other flat-top row carries no stamp and is dropped.
-    Fail closed."""
+    Fail closed.
+
+    A bc:base (the shape-agnostic base drawing, lab base_draw) passed its blind check as drawn
+    by one round (MEMBER_BASE_ROUND), so a member gets one only while it carries that round's
+    stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed. On the member path
+    the route also applies `member_base_precedence`, so a bc:base never sits beside an incumbent
+    base drawing's breakout line."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
@@ -94,7 +100,8 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or _pivot_only(r))
             and ((r or {}).get("pattern_id") != "bull_flag"
                  or _confirmed_flag(r) or _flagging_flag(r))
-            and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))]
+            and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
+            and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))]
 
 
 #: Rows written by ONE scan of one ticker carry last_seen_at within seconds of each other (every
@@ -215,6 +222,162 @@ def _confirmed_flat_top(row) -> bool:
     return (isinstance(touches, list) and len(touches) >= 3
             and all(isinstance(t, dict) and t.get("t") is not None and _finite(t.get("price"))
                     for t in touches))
+
+
+#: The base drawing's row id. A bc:base row is built ONLY beside a drawing (`base_draw_row`).
+BASE_DRAW_ID = "bc:base"
+#: The base drawing round the blind check confirmed for members (lab base_draw, 2026-10-18: packets
+#: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]). A literal ON PURPOSE, not
+#: base_draw.BASE_DRAW_ROUND: when the drawing code moves to a new round, members stop getting the
+#: base until that round is confirmed and this is changed by hand.
+MEMBER_BASE_ROUND = 1
+#: The drawn labels the judges saw.
+MEMBER_BASE_LABELS = ("pivot", "base low")
+
+
+def _confirmed_base(row) -> bool:
+    """True when a bc:base row is drawn by the confirmed round: not stale, `extras.draw_round`
+    equals MEMBER_BASE_ROUND, and `draw_base` is well formed -- a finite pivot above a finite low,
+    a start before its end, and the judged labels. Anything else is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == MEMBER_BASE_ROUND):
+        return False
+    bd = ex.get("draw_base")
+    if not isinstance(bd, dict) or (bd.get("label"), bd.get("low_label")) != MEMBER_BASE_LABELS:
+        return False
+    if not (_finite(bd.get("pivot")) and _finite(bd.get("low"))):
+        return False
+    if not float(bd["pivot"]) > float(bd["low"]):
+        return False
+    try:
+        return int(bd["start_t"]) < int(bd["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+#: Member-served drawings that already mark a base's breakout line. Where one of them covers the same
+#: base as a bc:base drawing, a member gets the incumbent (already shipped) and NOT the base drawing, so
+#: a chart never shows two or three different "pivot" / "breakout" lines for one base. Cup ids are
+#: listed now so a cup tier that reaches members later is covered the day it lands.
+BASE_INCUMBENT_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout",
+                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct"})
+#: A breakout level within this many ATR(14) of the base drawing's pivot is the same breakout line.
+BASE_PRECEDENCE_ATR = 1.0
+
+
+def _row_levels(row) -> list:
+    """Every horizontal breakout / pivot price a row draws or carries (display stamps included)."""
+    r = row or {}
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    vals = [(r.get("levels") or {}).get("entry"), ex.get("pivot"), ex.get("top"), ex.get("draw_entry_price")]
+    for k in ("draw_pivot", "draw_flat_top", "draw_rim_ref"):
+        v = ex.get(k)
+        if isinstance(v, dict):
+            vals.append(v.get("price"))
+    da = ex.get("draw_anchors")
+    if isinstance(da, list) and da and isinstance(da[0], dict):
+        vals.append(da[0].get("price"))
+    return [float(v) for v in vals if _finite(v)]
+
+
+def _row_span(row):
+    """(start_t, end_t) of a row as ints, from the drawn stamp when present, else the row; or None."""
+    r = row or {}
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    for k in ("draw_flat_top", "draw_pivot"):
+        v = ex.get(k)
+        if isinstance(v, dict) and v.get("start_t") is not None and v.get("end_t") is not None:
+            try:
+                return int(v["start_t"]), int(v["end_t"])
+            except (TypeError, ValueError):
+                pass
+    try:
+        return int(r["start_t"]), int(r["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def member_base_precedence(detections, structures) -> list:
+    """`structures` without the bc:base drawing when a member-served incumbent covers the same base.
+
+    Applied on the MEMBER path only, after member_rows and the freshness filter. An incumbent is any
+    row of BASE_INCUMBENT_IDS among `detections` or `structures`. It covers the base when one of its
+    breakout / pivot prices is within BASE_PRECEDENCE_ATR ATR of the base pivot, OR its span overlaps
+    the base's span. Then bc:base is dropped and the incumbent stays: the base drawing is purely
+    additive where nothing else covers the base. Fails closed: a base drawing without a finite ATR,
+    or an incumbent whose span cannot be read, drops the base drawing. Order is kept; never raises."""
+    try:
+        sts = list(structures or [])
+        bases = [s for s in sts if (s or {}).get("pattern_id") == BASE_DRAW_ID]
+        if not bases:
+            return sts
+        inc = [r for r in list(detections or []) + sts
+               if (r or {}).get("pattern_id") in BASE_INCUMBENT_IDS]
+        if not inc:
+            return sts
+        drop = set()
+        for b in bases:
+            bd = ((b.get("geometry") or {}).get("extras") or {}).get("draw_base") or {}
+            at, piv = bd.get("atr"), bd.get("pivot")
+            try:
+                s0, e0 = int(bd["start_t"]), int(bd["end_t"])
+            except (KeyError, TypeError, ValueError):
+                drop.add(id(b))
+                continue
+            if not (_finite(at) and float(at) > 0 and _finite(piv)):
+                drop.add(id(b))
+                continue
+            for r in inc:
+                span = _row_span(r)
+                near = any(abs(v - float(piv)) <= BASE_PRECEDENCE_ATR * float(at) for v in _row_levels(r))
+                if near or span is None or (span[0] <= e0 and s0 <= span[1]):
+                    drop.add(id(b))
+                    break
+        return [s for s in sts if id(s) not in drop]
+    except Exception:  # noqa: BLE001 -- fail closed: no base drawing rather than a duplicate line
+        return [s for s in (structures or []) if (s or {}).get("pattern_id") != BASE_DRAW_ID]
+
+
+def base_draw_row(sym: str, bars: list):
+    """The bc:base row for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest first), or
+    None when no base is drawn there. A forming session (auto_structures.last_bar_forming) is dropped
+    first: the lab judged drawings at finished sessions. Display only. Never raises."""
+    try:
+        from api.services.pattern_engine import base_draw
+        b = list(bars or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return None
+        d = base_draw.base_drawing(b, len(b) - 1)
+        if d is None:
+            return None
+        sym = (sym or "").upper()
+        return {
+            "id": f"{BASE_DRAW_ID}:{sym}:{d['start_t']}:{d['end_t']}",
+            "sym": sym,
+            "tf": "D",
+            "pattern_id": BASE_DRAW_ID,
+            "pattern_name": "Base",
+            "category": "base",
+            "direction": "bullish",
+            "start_t": d["start_t"],
+            "end_t": d["end_t"],
+            "geometry": {
+                "shape": "base_draw",
+                "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
+                "extras": {"draw_base": d, "draw_round": base_draw.BASE_DRAW_ROUND},
+            },
+            "levels": {"entry": d["pivot"]},
+            "confidence": None,
+            "status": "forming",
+            **display_policy(BASE_DRAW_ID),
+        }
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return None
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
@@ -501,6 +664,10 @@ def structures_for(sym: str) -> list:
                 if (det.get("geometry") or {}).get("extras", {}).get("stale"):
                     continue
                 out.append(det)
+            # the shape-agnostic base drawing (lab base_draw): its own row, after every box
+            bd = base_draw_row(sym, bars)
+            if bd is not None:
+                out.append(bd)
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []

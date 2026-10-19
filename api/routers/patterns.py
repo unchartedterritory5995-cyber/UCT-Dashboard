@@ -839,6 +839,9 @@ def get_detections(
             mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
+                # covering the same base wins over the bc:base drawing (members only)
+                boxes = auto_structures.member_base_precedence(rows, boxes)
                 if boxes:
                     mout["structures"] = boxes
                 drawn = auto_structures.drawn_for(sym)
