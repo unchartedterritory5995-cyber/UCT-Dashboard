@@ -55,27 +55,47 @@ def _weights():
 #: every number beside it is read from the computation above. Keyed by the same
 #: component keys `_COMPOSITE_WEIGHTS` uses, so a component added there without
 #: a description here is a KeyError at build time rather than a silent blank.
+#:
+#: 🔴 CORRECTED 2026-10-18 (screener column audit). Three of these said "mapped
+#: through a fixed band table". Measured on the prod snapshot, 178 of 2,482
+#: `rating_eps` values and 234 of 3,273 `rating_growth` values sit on a band
+#: score — the other ~93% are universe PERCENTILES, because
+#: `enrich.ratings_fields` ranks against the ratings store's distribution first
+#: and reaches for the band table only when no distribution exists. The prose
+#: now says what the code does; `test_the_ratings_are_percentiles_first` holds
+#: the claim against the computation.
 _COMPONENT_PROSE = {
     "eps": ("EPS rating",
-            "Earnings-per-share growth, mapped to a 1-99 score through a fixed "
-            "band table. Higher is faster earnings growth."),
+            "Earnings growth — the latest reported quarter against the same "
+            "quarter a year earlier — ranked as a 1-99 percentile against the "
+            "rated universe. Higher is faster earnings growth."),
     "rs": ("Relative strength",
            "Price performance against the rest of the universe, as a 1-99 "
-           "rank. 80 means the stock outperformed 80% of the market."),
+           "rank. 80 means the stock outperformed 80% of the market. ⚠️ It "
+           "is ranked from the ratings store's own copy of the weighted "
+           "return, refreshed on a rolling cycle of up to six days, so it can "
+           "sit a few points away from the RS Rank column."),
     "growth": ("Growth rating",
-               "Revenue and earnings growth blended, mapped through its own "
-               "band table to 1-99."),
+               "Earnings growth (60%) and revenue growth (40%) blended — the "
+               "Blend Gr column — ranked as a 1-99 percentile against the "
+               "rated universe."),
     "smr": ("Sales / Margins / Return",
-            "A single 1-99 reading of sales growth, operating margin and "
-            "return on equity taken together — the quality of the growth "
-            "rather than its speed."),
+            "The average of three 1-99 percentiles — revenue growth, operating "
+            "margin and return on equity — the quality of the growth rather "
+            "than its speed. ⚠️ The margin and return inputs come from the "
+            "ratings store's provider (Yahoo), not from the Op Mgn and ROE "
+            "columns, which are FMP's, so they can rank differently."),
     "accdis": ("Accumulation / distribution",
                "Whether the stock is being bought or sold on volume, graded "
                "A through E. A means accumulation."),
     "value": ("Value rating",
-              "Valuation against the universe. ⚠️ It carries the SMALLEST "
-              "weight of the six, deliberately — this is a momentum-first "
-              "composite and cheapness is a tiebreaker in it, not a thesis."),
+              "Valuation against the universe: Yahoo's trailing PEG ranked "
+              "as an inverted 1-99 percentile (lower PEG scores higher), or a "
+              "forward-P/E band when the PEG is not positive. ⚠️ That PEG is "
+              "NOT the PEG column, which is FMP's — the two can disagree. It "
+              "carries the SMALLEST weight of the six, deliberately — this is "
+              "a momentum-first composite and cheapness is a tiebreaker in it, "
+              "not a thesis."),
 }
 
 
@@ -139,17 +159,55 @@ def composite_method() -> dict:
 #: ⚠️ These are DESCRIBED rather than derived because their inputs are not a
 #: weight table this module can read — and where that is true it is said so,
 #: rather than a formula being invented to look rigorous.
-_OTHER = [
-    {
+def _rs_terms_prose() -> str:
+    """The RS weighting in words, READ FROM `rs_weighted_return.RS_TERMS` at
+    call time — the module's own rule, applied to the one formula this file
+    used to paraphrase as "trailing return"."""
+    from api.services import rs_weighted_return as _rsw   # noqa: PLC0415
+    parts = [f"{round(100 * w)}% {label}" for label, _n, w in _rsw.RS_TERMS]
+    return ", ".join(parts)
+
+
+def _percentile_scale() -> str:
+    """The bounds `ratings_db._rank` actually emits, measured off the function
+    rather than typed: the lowest and highest value in a population."""
+    from api.services.research import ratings_db as _rdb   # noqa: PLC0415
+    vals = [float(i) for i in range(100)]
+    return f"{_rdb._rank(vals, -1.0)}-{_rdb._rank(vals, 1e9)}"
+
+
+def _other_methods() -> list:
+    # The sector floor is read from the code that applies it, never typed.
+    from api.services.research import ratings_db as _rdb   # noqa: PLC0415
+    fill = {"sector_min": _rdb.SECTOR_MIN_SAMPLE}
+    out = []
+    for m in _OTHER:
+        m = dict(m)
+        if isinstance(m.get("caveat"), str) and "{sector_min}" in m["caveat"]:
+            m["caveat"] = m["caveat"].format(**fill)
+        out.append(m)
+    return [_rs_rank_method(), *out]
+
+
+def _rs_rank_method() -> dict:
+    return {
         "column": "rs_rank", "label": "RS Rank",
         "one_line": "Price performance rank against the whole universe, 1-99.",
         "scale": "1-99, higher is stronger",
-        "how": "Each symbol's trailing return is ranked against every other "
-               "symbol in the nightly universe; the result is the percentile. "
-               "80 means it outperformed 80% of the names we cover.",
+        "how": "Each symbol's weighted return — " + _rs_terms_prose() + " — "
+               "is ranked against every other symbol in the ranked universe; "
+               "the result is the percentile (the RS Ret column is that "
+               "weighted return). 80 means it outperformed 80% of the names "
+               "we cover. A missing period is dropped and the remaining "
+               "weights rescaled; without a 3-month return there is no rank.",
         "caveat": "The universe is our own coverage list, not the whole "
                   "market, so the rank is relative to what we screen.",
-    },
+    }
+
+
+#: 🔴 rs_rank moved into `_rs_rank_method()` (2026-10-18) so its weighting is
+#: read from the formula; it said "trailing return", which no single window is.
+_OTHER = [
     {
         "column": "accdis", "label": "Accumulation / Distribution",
         "one_line": "Whether the stock is being bought or sold on volume.",
@@ -172,11 +230,18 @@ _OTHER = [
     {
         "column": "sector_rs_pct", "label": "Sector RS",
         "one_line": "Relative strength rank WITHIN the company's own sector.",
-        "scale": "0-100 percentile",
-        "how": "The symbol's relative-strength return ranked against the other "
-               "members of its sector rather than the whole universe.",
+        # 🔴 CORRECTED 2026-10-18: this said "0-100 percentile". The prod
+        # snapshot's range is 1..99 and `ratings_db._rank` clamps to exactly
+        # that; the scale is now measured off `_rank` in `all_methods`.
+        "scale": None,
+        "how": "The RS Ret column, ranked against the other names in the "
+               "same sector that we screen rather than the whole universe. It "
+               "is recomputed after every nightly build, so within a sector it "
+               "always orders names the same way RS Ret does.",
         "caveat": "A high sector rank in a weak sector is still a weak stock "
-                  "in absolute terms — read it beside rs_rank, not instead.",
+                  "in absolute terms — read it beside rs_rank, not instead. A "
+                  "sector with fewer than {sector_min} ranked names gets no "
+                  "Sector RS.",
     },
 ]
 
@@ -202,12 +267,18 @@ def all_methods() -> dict:
             "label": label,
             "one_line": what,
             "scale": "1-99, higher is stronger",
-            "how": "Mapped through a fixed band table, then carried into "
-                   f"uct_composite at {round(100.0 * weight / sum(w for _k, w in weights), 1)}% "
+            "how": "Ranked as a 1-99 percentile against the rated universe; "
+                   "the fixed band table is used only when no universe "
+                   "distribution is available. Carried into uct_composite at "
+                   f"{round(100.0 * weight / sum(w for _k, w in weights), 1)}% "
                    "of the blend.",
             "caveat": "A missing input is left blank rather than scored zero.",
         })
-    out.extend(_OTHER)
+    for m in _other_methods():
+        m = dict(m)
+        if m.get("scale") is None:
+            m["scale"] = f"{_percentile_scale()} percentile within the sector"
+        out.append(m)
     return {
         "methods": out,
         "as_of_note": (
