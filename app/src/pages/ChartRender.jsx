@@ -88,6 +88,17 @@ const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '
 // served from the web pod's own cache, so the depth costs no provider call.
 export const BREADTH_FETCH_BARS = 5000
 
+// A breadth COUNT (new highs, the A/D line, the Stage 2 count) is a whole number, and
+// "810197.00 -806.00" read it as a price. Decided from the series itself - every close
+// whole - so a percentage or a ratio (31.4, 0.48) keeps its two decimals.
+export function isWholeSeries(bars) {
+  if (!Array.isArray(bars) || !bars.length) return false
+  return bars.every((b) => { const c = Number(b?.c); return Number.isFinite(c) && Math.abs(c - Math.round(c)) < 1e-9 })
+}
+export const fmtWhole = (v) => Math.round(Number(v)).toLocaleString('en-US')
+// Module-level so the chart is handed the same object every render.
+const WHOLE_PRICE_FORMAT = Object.freeze({ type: 'custom', formatter: fmtWhole, minMove: 1 })
+
 // Height of the optional `?stats=` strip; the caller adds it to `?h=`.
 export const STATS_STRIP_H = 28
 
@@ -551,6 +562,7 @@ export default function ChartRender() {
       .catch(() => { if (alive) { setBreadthBars(null); setBreadthSettled(true) } })
     return () => { alive = false }
   }, [breadthFetch, sym, tf, token])
+  const wholeSeries = useMemo(() => breadthFetch && isWholeSeries(breadthBars), [breadthFetch, breadthBars])
 
   const [fixtureBars, setFixtureBars] = useState(null)
   const [fixtureSettled, setFixtureSettled] = useState(!fixedBars)
@@ -977,8 +989,8 @@ export default function ChartRender() {
           <span style={{ marginLeft: 12 }}>{tf}</span>
           {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
           {/* A breadth reading is a percentage or a count, never dollars. */}
-          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{meta.price.toFixed(2)}</span>}
-          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{meta.pts.toFixed(2)}</span>}
+          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{wholeSeries ? fmtWhole(meta.price) : meta.price.toFixed(2)}</span>}
+          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{wholeSeries ? fmtWhole(meta.pts) : meta.pts.toFixed(2)}</span>}
           {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts != null ? '(' : ''}{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%{meta.pts != null ? ')' : ''}</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
@@ -1033,6 +1045,7 @@ export default function ChartRender() {
             // divider, last-price tag and all (UCTFG 17.90, 2026-10-16). A small gap
             // keeps it in view; stock charts keep the tight fit they always had.
             {...(breadthParam ? { priceScaleBottomMargin: 0.08 } : {})}
+            {...(wholeSeries ? { priceFormat: WHOLE_PRICE_FORMAT } : {})}
             alwaysShowLegend
             liveUpdates={false}
           />
