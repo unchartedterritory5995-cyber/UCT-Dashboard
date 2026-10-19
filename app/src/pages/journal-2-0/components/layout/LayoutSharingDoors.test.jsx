@@ -8,7 +8,7 @@
 // ⛔ Feedback is asserted by RENDERED TEXT, never by a state transition.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
-import { render, screen, within, waitFor, act } from '@testing-library/react'
+import { render, screen, within, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
@@ -50,7 +50,10 @@ beforeEach(() => {
     if (u.pathname === '/api/j2/template-gallery/layouts/status') {
       return server.statusCode === 200 ? json(server.status) : json({ detail: 'Not Found' }, server.statusCode)
     }
-    if (u.pathname === '/api/j2/template-gallery/layouts' && method === 'POST') return json(server.publish, server.publishCode || 200)
+    if (u.pathname === '/api/j2/template-gallery/layouts' && method === 'POST') {
+      if (server.publishGate) await server.publishGate
+      return json(server.publish, server.publishCode || 200)
+    }
     if (u.pathname === '/api/j2/telemetry') return json({ ok: true })
     if (u.pathname === '/api/j2/template-gallery' && method === 'GET') {
       return json({ templates: u.searchParams.get('type') === 'page_layout' ? LIST.templates : [], viewer: { admin: false },
@@ -166,7 +169,8 @@ describe('2. sharing a page that is not shared yet', () => {
     }))
     expect(writes()).toHaveLength(1)                                                          // no preference, no note
     expect(within(dialog).queryByRole('form')).not.toBeInTheDocument()                        // back to the editor
-    expect(within(dialog).getByRole('button', { name: 'Share this layout' })).toHaveFocus()
+    // the editor puts focus back on Share in the next frame (requestAnimationFrame): wait for it, never sample it
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Share this layout' })).toHaveFocus())
   })
 
   it('Today: the title starts as My Today layout, and one dropped panel is said in the singular', async () => {
@@ -196,6 +200,56 @@ describe('2. sharing a page that is not shared yet', () => {
     await user.click(within(form).getByRole('button', { name: 'Cancel' }))
     expect(within(dialog).queryByRole('form')).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+})
+
+// P4b-T8 m3: Cancel is disabled while a share is in flight, so Escape and the sheet's close are refused too.
+describe('2b. a share in flight cannot be escaped', () => {
+  it('Escape and the close button do nothing until the answer lands; then the sent sentence renders', async () => {
+    let release
+    server.publishGate = new Promise((r) => { release = r })
+    const { user } = renderEditor('trade')
+    const dialog = await editorDialog()
+    await user.click(await within(dialog).findByRole('button', { name: 'Share this layout' }))
+    const form = within(dialog).getByRole('form', { name: 'Share this layout' })
+    await user.selectOptions(within(form).getByLabelText('Category'), 'journal')
+    await user.click(within(form).getByRole('button', { name: 'Submit' }))
+    expect(within(form).getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+    await settle()
+    expect(within(dialog).getByRole('form', { name: 'Share this layout' })).toBeInTheDocument()   // not escaped
+    release()
+    expect(await within(dialog).findByText(LAYOUT_SENT_SENTENCE, { exact: false })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('form')).not.toBeInTheDocument()
+    expect(sharePosts()).toHaveLength(1)
+  })
+
+  it('control: with no share in flight, Escape closes the form back to the editor', async () => {
+    const { user } = renderEditor('trade')
+    const dialog = await editorDialog()
+    await user.click(await within(dialog).findByRole('button', { name: 'Share this layout' }))
+    expect(within(dialog).getByRole('form', { name: 'Share this layout' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(within(dialog).queryByRole('form')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+
+  it('after a refused share, Escape closes the form again (the guard is released)', async () => {
+    const refused = contract('template-gallery.layouts.publish.nothing-to-share')
+    server.publish = refused.body
+    server.publishCode = refused._contract.status
+    const { user } = renderEditor('trade')
+    const dialog = await editorDialog()
+    await user.click(await within(dialog).findByRole('button', { name: 'Share this layout' }))
+    const form = within(dialog).getByRole('form', { name: 'Share this layout' })
+    await user.selectOptions(within(form).getByLabelText('Category'), 'journal')
+    await user.click(within(form).getByRole('button', { name: 'Submit' }))
+    await within(form).findByRole('alert')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(within(dialog).queryByRole('form')).not.toBeInTheDocument()
   })
 })
 

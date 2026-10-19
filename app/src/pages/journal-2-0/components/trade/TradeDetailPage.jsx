@@ -361,6 +361,14 @@ export default function TradeDetailPage() {
   // P4b: "Find shared layouts" closes Customize and opens the library, so one sheet is open at a time.
   const [findingLayouts, setFindingLayouts] = useState(false)
   const findLayouts = () => { setCustomizing(false); setFindingLayouts(true) }
+  // P4b-T8 m2 (D-46 class): the library's opener is Find, which unmounted with the editor, so the Sheet's own
+  // restore targets a detached node. When the library closes, focus goes back to Customize.
+  const customizeRef = useRef(null)
+  const wasFinding = useRef(false)
+  useEffect(() => {
+    if (wasFinding.current && !findingLayouts) customizeRef.current?.focus()
+    wasFinding.current = findingLayouts
+  }, [findingLayouts])
 
   const { data, error: loadError, isLoading, mutate } = useSWR(
     id ? `/api/j2/trades/${encodeURIComponent(id)}` : null,
@@ -972,7 +980,7 @@ export default function TradeDetailPage() {
         <Link to={backTo} className={styles.back}>← Trade Journal</Link>
         <div className={styles.navBtns}>
           {pageLayoutsEnabled() && (
-            <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+            <button type="button" ref={customizeRef} className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
               <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
               Customize
             </button>

@@ -464,6 +464,24 @@ describe('Find shared layouts (P4b)', () => {
     expect(screen.queryByTestId('door-stub')).toBeNull()
   })
 
+  // P4b-T8 m2 (D-46 class): the library's opener (Find) unmounts with the editor, so on close focus must be
+  // put back on Customize by the page, never left on <body>.
+  it('closing the library returns focus to the Customize button', async () => {
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }))
+    const find = screen.getByRole('button', { name: 'stub find' })
+    find.focus()
+    fireEvent.click(find)
+    const close = screen.getByRole('button', { name: 'stub close library' })
+    close.focus()
+    expect(document.activeElement).toBe(close)          // focus was inside the library
+    fireEvent.click(close)
+    expect(screen.queryByTestId('door-stub')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Customize' }))
+  })
+
   it('X9: while the library is open the arrow and j / k keys do not change the trade', async () => {
     tradesRef.current = [
       { id: 't0', symbol: 'AMD', side: 'Long', setup: 'VCP', entryDate: '2026-04-28' },

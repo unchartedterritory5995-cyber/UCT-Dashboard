@@ -513,4 +513,30 @@ describe('Find shared layouts (P4b)', () => {
     expect(screen.queryByTestId('editor-stub')).toBeNull()
     expect(screen.queryByText('Layout saved.')).toBeNull()
   })
+
+  // P4b-T8 m2 (D-46 class): the library's opener (Find) unmounts with the editor, so on close focus must be
+  // put back on Customize by the page, never left on <body>.
+  it('closing the library returns focus to the Customize button', () => {
+    flagRef.current = true
+    renderToday()
+    const customize = screen.getByRole('button', { name: 'Customize' })
+    fireEvent.click(customize)
+    const find = screen.getByRole('button', { name: 'stub find' })
+    find.focus()
+    fireEvent.click(find)
+    const close = screen.getByRole('button', { name: 'stub close library' })
+    close.focus()
+    expect(document.activeElement).toBe(close)          // focus was inside the library
+    fireEvent.click(close)
+    expect(screen.queryByTestId('door-stub')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Customize' }))
+  })
+
+  it('control: the page mounting, and Customize opening, never move focus to Customize (only the library close does)', () => {
+    flagRef.current = true
+    renderToday()
+    expect(document.activeElement).toBe(document.body)
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }))
+    expect(document.activeElement).toBe(document.body)
+  })
 })

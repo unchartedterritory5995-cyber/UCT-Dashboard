@@ -215,6 +215,7 @@ export async function refreshPreferences({ signal } = {}) {
   let data
   try {
     const res = await (signal ? fetch(PREFS_URL, { signal }) : fetch(PREFS_URL))
+    if (signal?.aborted) return null     // an abandoned read touches no revision state either (P4b-T8 m1)
     noteWorkspaceDocResponse(res)
     noteRevision(res, true)
     if (!res || !res.ok) return null

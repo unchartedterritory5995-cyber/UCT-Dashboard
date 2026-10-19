@@ -162,7 +162,12 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged, re
   )
 
   const openShare = () => { if (unsaved || savingRef.current) return; setShareNote(''); setSharing(true) }
+  // P4b-T8 m3: while a share is in flight Cancel is disabled, and Escape, the close button and a drag are refused
+  //    the same way (the dismiss guard above, for a share). The answer then closes the form through `shared`.
+  const shareBusyRef = useRef(false)
+  const escapeShare = () => { if (shareBusyRef.current) return; closeShare() }
   const closeShare = () => {
+    shareBusyRef.current = false
     setSharing(false)
     requestAnimationFrame(() => shareBtnRef.current?.focus())
   }
@@ -209,9 +214,10 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged, re
   )
 
   return (
-    <Sheet open onClose={sharing ? closeShare : dismiss} title={TITLES[page]} footer={footer} dismissOnBackdrop={false} maxWidth={520} labelledByTitle>
+    <Sheet open onClose={sharing ? escapeShare : dismiss} title={TITLES[page]} footer={footer} dismissOnBackdrop={false} maxWidth={520} labelledByTitle>
       {sharing ? (
-        <ShareLayoutForm page={page} existing={existing} onDone={shared} onCancel={closeShare} />
+        <ShareLayoutForm page={page} existing={existing} onDone={shared} onCancel={closeShare}
+          onBusy={(b) => { shareBusyRef.current = b }} />
       ) : (
       <div className={styles.editor}>
         {tabs}

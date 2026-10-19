@@ -35,8 +35,9 @@ export function layoutSharedSentence(droppedPanels, { revision = false } = {}) {
  * @param existing the member's shared item for this page (`status.shared[page]`), or null
  * @param onDone   `(sentence) => void` once the server took it
  * @param onCancel Cancel, or the sheet's own close
+ * @param onBusy   `(inFlight) => void`: true when Submit sends, false when it fails (P4b-T8 m3)
  */
-export default function ShareLayoutForm({ page, existing, onDone, onCancel }) {
+export default function ShareLayoutForm({ page, existing, onDone, onCancel, onBusy }) {
   const uid = useId()
   const [title, setTitle] = useState(DEFAULT_TITLES[page] || DEFAULT_TITLES.trade)
   const [description, setDescription] = useState('')
@@ -52,6 +53,7 @@ export default function ShareLayoutForm({ page, existing, onDone, onCancel }) {
     e.preventDefault()
     if (working || !title.trim() || !category) return
     setWorking(true)
+    onBusy?.(true)
     setError(null)
     try {
       const out = await shareLayout({ page, title, description, category, tradingStyle })
@@ -62,6 +64,7 @@ export default function ShareLayoutForm({ page, existing, onDone, onCancel }) {
     } catch (err) {
       setError(refusalSentence(err, SHARE_LAYOUT_FAILED))
       setWorking(false)
+      onBusy?.(false)
     }
   }
 

@@ -88,6 +88,22 @@ describe('board writes carry the revision this tab last saw — and only the ser
     expect(posts[1].base_version).toBe(20)
   })
 
+  it('an ABORTED refreshPreferences adopts no revision, even when the fetch ignored the abort (P4b-T8 m1)', async () => {
+    const { result } = await mount()
+    readVersion = 20                                     // the late answer carries a newer revision
+    const ctl = new AbortController()
+    ctl.abort()                                          // the caller gave up; this fake fetch answers anyway
+    let out
+    await act(async () => { out = await refreshPreferences({ signal: ctl.signal }) })
+    expect(out).toBe(null)
+    await act(async () => { await result.current.setPref('chart_settings', '{"x":1}') })
+    expect(posts[0].base_version).toBe(7)                // still the version the tab LOADED at, not 20
+    // control: the same read without an abort DOES adopt the newer revision
+    await act(async () => { await refreshPreferences() })
+    await act(async () => { await result.current.setPref('chart_settings', '{"x":2}') })
+    expect(posts[1].base_version).toBe(20)
+  })
+
   it('a 409 is NOT a save: false, the workspace is told once, the key stops writing, other keys still save', async () => {
     const { result } = await mount()
     const seen = []
