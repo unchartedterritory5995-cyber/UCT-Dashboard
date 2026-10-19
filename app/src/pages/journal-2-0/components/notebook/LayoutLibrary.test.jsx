@@ -51,7 +51,7 @@ let server
 let calls
 beforeEach(() => {
   server = { sharing: true, adoptAnswer: 'template-gallery.layouts.adopt', prefStatus: [200], prefsRead: 200,
-    itemPayload: undefined, rows: [ROW] }
+    itemPayload: undefined, rows: [ROW], admin: false }
   calls = []
   __resetRevisionStateForTests()
   global.fetch = vi.fn(async (url, init = {}) => {
@@ -81,7 +81,10 @@ beforeEach(() => {
       if (type === 'page_layout' && !server.sharing) return json({ detail: 'Unknown item type.' }, 400)
       let list = type === 'page_layout' ? server.rows : type === 'outline' ? OUTLINES : [...OUTLINES, ...server.rows]
       if (section === 'picks') list = list.filter((t) => t.featured)
-      return json({ templates: list, viewer: { admin: false }, capabilities: { layoutSharing: server.sharing } })
+      return json({ templates: list, viewer: { admin: server.admin }, capabilities: { layoutSharing: server.sharing } })
+    }
+    if (/^\/api\/j2\/template-gallery\/admin\/items\/[\w-]+$/.test(u.pathname) && method === 'PATCH') {
+      return answer(body?.action === 'hide' ? 'template-gallery.admin.hide' : 'template-gallery.admin.approve')
     }
     let m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt-layout$/)
     if (m) {
@@ -682,5 +685,41 @@ describe('T7-R4: the put-back after a double failure, and the bounded re-read', 
     } finally {
       abort.mockRestore()
     }
+  })
+})
+
+// P4b final I-M1: a layout card carries the admin pair every library card carries (GalleryAdminActions, the one copy),
+// and only for an admin. Asserted by RENDERED TEXT and by the PATCH the click sends, never by a prop.
+describe('I-M1: an admin features or hides a shared layout from its card; a member never sees the controls', () => {
+  const adminPatches = () => calls.filter((c) => c.path.startsWith('/api/j2/template-gallery/admin/items/') && c.method === 'PATCH')
+
+  it('a member sees no Feature, Unfeature or Hide on a layout card', async () => {
+    await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByRole('button', { name: `Use this layout: ${ROW.title}` })).toBeInTheDocument()   // control
+    expect(within(card).queryByRole('button', { name: `Feature ${ROW.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Unfeature ${ROW.title}` })).toBeNull()
+    expect(within(card).queryByRole('button', { name: `Hide ${ROW.title}` })).toBeNull()
+  })
+
+  it('an admin hides a layout: the PATCH names this layout and "hide", and the sentence says where it went', async () => {
+    server.admin = true
+    const user = await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByRole('button', { name: `${ROW.featured ? 'Unfeature' : 'Feature'} ${ROW.title}` })).toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: `Hide ${ROW.title}` }))
+    expect(await screen.findByText(`Hid “${ROW.title}”. It is still in the Review queue.`)).toBeInTheDocument()
+    expect(adminPatches()).toHaveLength(1)
+    expect(adminPatches()[0].path).toBe(`/api/j2/template-gallery/admin/items/${ROW.id}`)
+    expect(adminPatches()[0].body).toMatchObject({ action: 'hide' })
+  })
+
+  it('an admin features a layout: the PATCH says feature, and the sentence says it is a UCT pick', async () => {
+    server.admin = true
+    server.rows = [{ ...ROW, featured: false }]
+    const user = await openLayouts()
+    await user.click(within(layoutCard()).getByRole('button', { name: `Feature ${ROW.title}` }))
+    expect(await screen.findByText(`“${ROW.title}” is now a UCT pick.`)).toBeInTheDocument()
+    expect(adminPatches().map((c) => c.body.action)).toEqual(['feature'])
   })
 })

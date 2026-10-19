@@ -8,6 +8,8 @@
 //     confirm that shows what changes. A layout whose `payload` is null cannot be used: it says the server's
 //     sentence and opens nothing (P4b-T6b-R1).
 //   * Helpful is a toggle (aria-pressed), not offered on your own item.
+//   * An admin also gets Feature/Unfeature and Hide (P4b final I-M1): GalleryAdminActions, the ONE copy the outline
+//     and style cards render, so a layout is featured or taken down exactly as they are. Members never see it.
 // ⛔ The sheets are the card's; the message they leave (the success line and its Undo) goes to the gallery's own
 //    message host, which outlives this card and both sheets (F19).
 // ⛔ An author is only ever the opaque `authorHandle` (R-P3-2).
@@ -17,6 +19,7 @@ import { categoryLabel, getGalleryTemplate } from '../../lib/templateGallery'
 import { ReportForm } from './TemplateGallery'
 import { refusalSentence } from './StyleLibraryCard'
 import { useHelpfulToggle } from './useHelpfulToggle'
+import GalleryAdminActions from './GalleryAdminActions'
 import LayoutPreviewSheet from './LayoutPreviewSheet'
 import AdoptLayoutSheet from './AdoptLayoutSheet'
 import UIcon from '../../../../components/ui/UIcon'
@@ -24,7 +27,7 @@ import styles from './TemplateGallery.module.css'
 
 export const PAGE_BADGES = Object.freeze({ today: 'Today', trade: 'Trade page' })
 
-export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, busy = false }) {
+export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, onChanged, isAdmin = false, busy = false }) {
   const uid = useId()
   const [previewing, setPreviewing] = useState(false)
   const [adopting, setAdopting] = useState(null)          // { version, layout } while the confirm is open
@@ -98,6 +101,7 @@ export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, busy 
             Report
           </button>
         )}
+        {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
       {reporting && (
         <ReportForm
