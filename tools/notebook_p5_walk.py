@@ -145,10 +145,19 @@ JS_STEPS, LIB_STEPS = tour_steps("JOURNAL_STYLES_STEPS"), tour_steps("STYLE_LIBR
 def flush() -> None:
     """walk.json, through secret_scrub.scrub: a Playwright request error echoes its request headers, cookie
     included, into the traceback (run 4, p5-walk-20261018T0135Z; the pre-commit leak check refused it)."""
+    # Scrubbed value by value, never the serialized text: the cookie-header rule redacts to the end of a
+    # LINE, and in serialized JSON that ate a string's closing quote (run 4's file had to be repaired).
+    def clean(v):
+        if isinstance(v, str):
+            return secret_scrub.scrub(v)
+        if isinstance(v, dict):
+            return {k: clean(x) for k, x in v.items()}
+        if isinstance(v, (list, tuple)):
+            return [clean(x) for x in v]
+        return v
     if OUT is not None:
         tmp = OUT / "walk.json.tmp"
-        tmp.write_text(secret_scrub.scrub(json.dumps(REC, indent=1, ensure_ascii=False, default=str)),
-                       encoding="utf-8", newline="\n")
+        tmp.write_text(json.dumps(clean(REC), indent=1, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
         os.replace(tmp, OUT / "walk.json")
 
 
