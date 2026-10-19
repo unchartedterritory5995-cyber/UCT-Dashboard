@@ -2172,6 +2172,18 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
 # losing the firm's own methodology the way "exhaustion extension" did.
 _BRAIN_ELIGIBLE = {"concept-education", "valuation", "compare", "setup-technical", "other"}
 _BRAIN_MIN_SCORE = 0.34   # same floor the Phase-2 memory blend uses
+# Per-hit text caps (2026-10-18, utilization P1). A generic KB passage keeps its
+# 350-char lead. A distilled setup_knowledge entry (source == "setup_knowledge":
+# de-identified, trader "UCT Team", never a person) carries its Trigger, Stop and
+# the measured record at roughly chars 400-1,400, so a 350 cut dropped exactly
+# the part a member asks for; it gets its whole chunk (brain_kb_service chunks
+# at 1,500). _BRAIN_TEXT_BUDGET bounds the hits' text together, so two full
+# setup entries cannot grow the prompt past it (the second is clipped to the
+# remainder; a remainder under _BRAIN_MIN_SEG_CHARS is dropped).
+_BRAIN_HIT_CHARS = 350
+_BRAIN_SETUP_KNOWLEDGE_CHARS = 1500
+_BRAIN_TEXT_BUDGET = 2400
+_BRAIN_MIN_SEG_CHARS = 120
 
 
 def _brain_enabled() -> bool:
@@ -2192,10 +2204,17 @@ def _brain_context(query: str, question_type: str | None, verdict_ask: bool) -> 
             if (h.get("score") or 0) >= _BRAIN_MIN_SCORE][:2]
     if not hits:
         return ""
-    segs = []
+    segs, left = [], _BRAIN_TEXT_BUDGET
     for h in hits:
+        cap = (_BRAIN_SETUP_KNOWLEDGE_CHARS if h.get("source") == "setup_knowledge"
+               else _BRAIN_HIT_CHARS)
+        cap = min(cap, left)
+        if cap < _BRAIN_MIN_SEG_CHARS:
+            break
+        text = (h.get("text") or "").strip()[:cap]
+        left -= len(text)
         who = h.get("trader") or "firm KB"
-        segs.append(f"[{who} — {h.get('title')}] {(h.get('text') or '').strip()[:350]}")
+        segs.append(f"[{who} — {h.get('title')}] {text}")
     return (
         "\n\nUCT PLAYBOOK (the firm's own trading methodology — timeless craft, "
         "not today's data; cite as 'the UCT playbook'): " + " | ".join(segs)
