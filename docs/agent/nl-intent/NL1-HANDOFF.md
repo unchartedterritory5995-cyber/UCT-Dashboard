@@ -1,5 +1,7 @@
 # NL-1 handoff: evaluation candidate 1 (frozen 2026-10-16)
 
+> **Rebased 2026-10-19** onto master `7d0ee0e300`, which holds the released Gate C (PR #403) and its stabilization (PR #423, S6/S11). Branch `feat/agent-nl1-rebased`, worktree `C:\UCT\nl1-rebase`. The 8 NL-1 commits were reapplied unchanged except one `useAgent.js` conflict (Undo's return value beside the released `withdrawPending`). One integration fix: the S11 layout-visit check now runs before the NL-1 path too. See [NL1-PROGRESS.md](NL1-PROGRESS.md), iteration 4. The evaluation instructions below still apply; read `C:\UCT\nl1` as `C:\UCT\nl1-rebase`.
+
 ## Candidate
 | | |
 |---|---|
@@ -93,7 +95,7 @@ npx vitest run src/agent/agentNl1EvalScore.test.js                      # free: 
 ```
 For LEAN, add `--catalog lean`. The full eval drops `--keys`. The sealed sets run whole and are reported in aggregate only.
 
-## Acceptance thresholds (sealed sets only; fixed before any paid run; `app/src/agent/eval/acceptance.js`)
+## Acceptance thresholds (sealed sets only; fixed before any paid run; `app/src/agent/testing/acceptance.js`)
 
 | Gate | Bar |
 |---|---|
@@ -109,7 +111,7 @@ For LEAN, add `--catalog lean`. The full eval drops `--keys`. The sealed sets ru
 
 NL-1 must also beat the legacy baseline's sealed interpretation accuracy on the same model.
 
-**Sealed sets:** `heldout-v2.json` and `sealed-v3.json`, hash-locked in `eval/sealed.lock.json`. They have never been read by the implementer and never tuned against. `heldout-v1.json` is "exposed" and is reported apart from the headline.
+**Sealed sets:** `heldout-v2.json` and `sealed-v3.json`, hash-locked in `app/src/agent/testing/sealed.lock.json`. They have never been read by the implementer and never tuned against. `heldout-v1.json` is "exposed" and is reported apart from the headline.
 
 ## Further reading
 [NL1-AUDIT.md](NL1-AUDIT.md) · [NL1-DECISIONS.md](NL1-DECISIONS.md) · [NL1-EVAL.md](NL1-EVAL.md) · [NL1-TRIAL.md](NL1-TRIAL.md) · [NL1-ROUTES.md](NL1-ROUTES.md) · [NL1-PROXY-SMOKE.md](NL1-PROXY-SMOKE.md) · [NL1-PROGRESS.md](NL1-PROGRESS.md)
