@@ -6,8 +6,8 @@
  *
  * The editor and the lock are read AFTER the create returns (`liveEditor()` / `isLocked()`), because the member may
  * have locked the note or left it while the create was in flight; the link then is not inserted, and the sentence
- * says the plan exists. Returns `{ message, tone }` for the page's toast, or null when there is nothing to say. A
- * failed create throws (the page says nothing was saved).
+ * says the plan exists. Returns `{ message, tone }` for the page's toast, always. A failed create throws (the page
+ * says nothing was saved); a create that answers with no id says the same here, since there is no note to link.
  */
 import { mutate as globalMutate } from 'swr'
 import { createPlanNote } from './planCreate'
@@ -23,5 +23,5 @@ export async function createAndLinkPlan({ symbol, folderId, liveEditor, isLocked
     return { message: `Trade plan for ${symbol} created and linked. Open it from the link.`, tone: 'success' }
   }
   if (created?.id) return { message: `Trade plan for ${symbol} created. This note could not take the link.`, tone: 'error' }
-  return null
+  return { message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' }
 }

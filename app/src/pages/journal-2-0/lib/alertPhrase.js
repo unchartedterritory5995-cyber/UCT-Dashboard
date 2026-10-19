@@ -17,7 +17,14 @@ import { parseAlertPrice } from '../../terminal/alertModel'
 export const MAX_PHRASE_TEXT = 280
 
 const ASK = /\balert\b/i
-const NEGATED = /\b(?:don'?t|do\s+not|never|no)\b[^.!?]{0,20}\balert\b/i
+// E7: a negator refuses the sentence only when it governs the ask itself: it is followed by "alert",
+// with at most a few helper words between ("don't alert", "do not ever alert", "not going to alert",
+// "no alert"). A "not" anywhere else in the sentence is about something else ("Not sure, but alert
+// me if..."), and a negated verb that is not the ask leaves the ask standing ("Don't forget to alert
+// me if...", "do not hesitate to alert me..."). ⛔ Never a character window: "not" plus any 20
+// characters refused "Not sure, but alert me", which the member never sees as a refusal. The
+// apostrophe may be curly: iOS types "Don’t" by default.
+const NEGATED = /\b(?:don['’]?t|do\s+not|not|never|no)\s+(?:(?:ever|even|please|going\s+to|gonna|need\s+to|want\s+to|have\s+to|bother\s+to|to)\s+)*alert\b/i
 const PHRASE = /\b(?:if|when|once)\s+(?<sym>it|the\s+stock|the\s+price|price|\$?[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\s+(?<verb>closes|close|trades|trade|goes|gets|moves|drops|falls|breaks|crosses|hits|touches|reaches|is)\s+(?:(?<dir>above|below|over|under|through|to)\s+)?(?<price>\$?(?:\d{1,3}(?:,\d{3})+|\d{1,7})(?:\.\d{1,4})?)(?!\d|[.,]\d)(?![-\s]?(?:(?:days?|dma|ema|sma|ma|k|shares?)\b|%))(?:\s+on\s+the\s+(?<tf>daily|weekly)(?:\s+chart)?)?/gi
 
 const DIR = { above: 'above', over: 'above', below: 'below', under: 'below' }
