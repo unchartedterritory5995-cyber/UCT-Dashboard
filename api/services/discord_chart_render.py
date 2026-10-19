@@ -300,11 +300,14 @@ def _stats_rows(st: dict):
 
 
 def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[dict] | None = None,
-                     show_mas: bool = True, show_volume: bool = True) -> bytes:
+                     show_mas: bool = True, show_volume: bool = True, chart_type: str = "candle") -> bytes:
     """Exact 1920x1080 PNG: header (title, MA legend, stats strip) over a
     candle pane and a volume pane with right-side axes and a last-price tag.
     `daily_bars` feeds the stats strip; without it the strip is omitted.
+    `chart_type="line"` draws the closes as one line instead of candles - what a
+    breadth metric (a percentage, no OHLC story) looks like in the app.
     Raises ValueError for an unknown tf or fewer than 3 bars."""
+    as_line = chart_type == "line"
     view = build_frame(bars, tf)
     import mplfinance as mpf
     import matplotlib.pyplot as plt
@@ -333,10 +336,13 @@ def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[di
                         for n, c in _MAS if show_mas and view[f"SMA{n}"].notna().any()]
             if vax is not None and view["VolAvg"].notna().any():
                 addplots.append(mpf.make_addplot(view["VolAvg"], ax=vax, color=_VOL_AVG_COLOR, width=1.1, alpha=0.85))
-            kwargs = dict(type="candle", ax=ax, volume=vax if vax is not None else False, style=_style(), xrotation=0,
+            kwargs = dict(type="line" if as_line else "candle", ax=ax, volume=vax if vax is not None else False,
+                          style=_style(), xrotation=0,
                           datetime_format="%b %d" if tf == "D" else "%b %y" if tf == "W" else "%m-%d %H:%M",
                           update_width_config=dict(candle_linewidth=1.1, candle_width=0.72,
                                                    volume_width=0.72, volume_linewidth=0.6))
+            if as_line:
+                kwargs["linecolor"] = CREAM
             if addplots:
                 kwargs["addplot"] = addplots
             mpf.plot(view, **kwargs)
