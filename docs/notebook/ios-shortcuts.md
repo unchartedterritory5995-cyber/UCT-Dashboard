@@ -16,7 +16,7 @@ minutes each.
 > 2026-09-26 23:11:17Z. The record is `docs/feature_flags.json`, entry
 > `NOTEBOOK_PERSONAL_API_ENABLED` (`status` `armed`, `where` `web`): "set to 1 on web 2026-09-26
 > 23:11:17Z ... GET /api/j2/personal/tokens read as the smoke account went 404 -> 200 on the
-> new boot". **Settings → Personal API** is there for members now.
+> new boot". **Settings → Connections → Connect apps & shortcuts** is there for members now.
 > ⚰️ As written on 2026-09-25, struck 2026-10-07: ~~the personal API is built and DARK
 > (`NOTEBOOK_PERSONAL_API_ENABLED`). Until it is switched on, **Settings →
 > Personal API** does not appear and every request answers `404`.~~ (A bare `404` still means
@@ -29,7 +29,7 @@ minutes each.
 
 ## 1. Make a token (once)
 
-1. In UCT, open **Settings → Personal API**.
+1. In UCT, open **Settings → Connections → Connect apps & shortcuts**.
 2. Name the token — for example *iPhone Shortcuts* — and tap **Make a token**.
 3. Tap **Copy**. The token is shown **once**; if you lose it, revoke it and
    make another.
@@ -37,12 +37,12 @@ minutes each.
 You will paste this token into each Shortcut **one time**, in a *Text* action
 at the top. After that the Shortcut carries it. Anyone who can open your
 Shortcuts can read it, so keep your phone locked; if the phone is lost, revoke
-the token in **Settings → Personal API** and it stops working immediately.
+the token in **Settings → Connections → Connect apps & shortcuts** and it stops working immediately.
 
 > **Never share these Shortcuts.** Sharing a Shortcut (an iCloud link, AirDrop,
 > *Add to Home Screen* for someone else) sends the token inside it, and the
 > token lets whoever has it write to your Notebook for up to a year. If you
-> did share one, revoke that token in **Settings → Personal API**, make a new
+> did share one, revoke that token in **Settings → Connections → Connect apps & shortcuts**, make a new
 > one, and paste the new one into your own copy.
 
 ---

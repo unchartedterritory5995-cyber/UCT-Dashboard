@@ -22,7 +22,7 @@ trades, list your folders, or sign in as you.
 
 ## 1. Make a token
 
-1. Open **Settings → Personal API** in UCT.
+1. Open **Settings → Connections → Connect apps & shortcuts** in UCT.
 2. Give the token a name you will recognise later (for example *iPhone
    Shortcuts*) and choose **Make a token**.
 3. **Copy it now.** The token is shown exactly once. UCT keeps only a one-way
@@ -61,7 +61,7 @@ own card in Settings.
 
 ### Revoking
 
-**Settings → Personal API → Revoke** on the token's row. It stops working on
+**Settings → Connections → Connect apps & shortcuts → Revoke** on the token's row. It stops working on
 its very next request, everywhere. Revoking one token signs nobody out and
 touches no other token or device.
 
@@ -215,7 +215,7 @@ shown to you as-is (an iOS Shortcut's *Show Result* displays it):
 |---|---|---|
 | `400` | the body is not JSON, or a field is the wrong kind, or there is nothing to add | fix the request; the sentence names the field |
 | `401` | the token is missing, mistyped, expired or revoked | make a new token in Settings and paste it in |
-| `403` | the token is not a personal-API token (for example a Browser Capture connection) | use a token from **Settings → Personal API** |
+| `403` | the token is not a personal-API token (for example a Browser Capture connection) | use a token from **Settings → Connections → Connect apps & shortcuts** |
 | `404` | the note does not exist, is in the trash, or is not yours — or the personal API is switched off | check the note id |
 | `409` | the note changed at the exact moment the append was written | send it again |
 | `413` | the Markdown is over 200 KB | send it in smaller pieces |
