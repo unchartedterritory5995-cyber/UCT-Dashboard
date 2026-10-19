@@ -16,7 +16,9 @@ Opus whole-branch review (1 Critical at the P3b merge, 0 Important, 6 Minor) and
 (the image tree is per run, so two runs in one process are byte-identical with `starter_packs` last). Nothing here
 has been run on production.
 
-LANDING: `<landing tip>`, gated at `<gate tree>`. **GATE AND C4 LINES ARE PLACEHOLDERS UNTIL TASK 11 PART B.**
+LANDING: the PR head. Its code tree was gated at `276c22bc24`: Task 11 part A, plus the ExamplesInUse test fix
+`df8a36632e` (P5-T11-R3), plus the merge of origin/master `5a4a8a9907`. Every commit after that is docs or
+evidence only, and carry-over says CARRIES (C0 IDENTICAL).
 
 ## What merging does, before anything is armed (ruling P5-AUD-2)
 
@@ -150,8 +152,25 @@ switch it names is on. No agent posts it.
 
 ## Evidence
 
-- **Gate of record:** `<gate manifest path>` at `<gate tree>`. PLACEHOLDER, Task 11 part B.
-- **Carry-over and C4 on the landing tree:** `<carry-over result>`. PLACEHOLDER, Task 11 part B.
+- **Gate of record:** `docs/notebook/evidence/p5-gate-landing2-20261019T0618/2026-10-19T01-18-36.{json,md}` at
+  `276c22bc24`.
+  - Result: 17 NEW, 3,595 test files, totals reconcile.
+  - Classified in `classification.md` beside it, each file run alone on the branch and on origin/master
+    `5a4a8a9907`: 0 this branch's, 13 master's, 4 load-sensitive.
+  - The first gate (`p5-gate-landing-20261019T0504`, at `a368118fc3`) found 6 branch rows, every case in
+    `ExamplesInUse.test.jsx` (the P5-R-T3-3 "Weekend prep" collision). They were fixed test-only by ruling
+    P5-T11-R3, and the second gate is clean.
+- **Carry-over and C4 on the landing tree:** `276c22bc24` -> `0abb32a33d` against origin/master `5a4a8a9907`, with
+  `--edges-json`. Result: **CARRIES** (C0 IDENTICAL over `GATE_READ_PATHS`).
+  - C4 vitest: 26 files, 412 passed.
+  - C4 pytest: 879 passed, 2 skipped, 3 failed. All 3 are known base reds: `test_notebook_flag_parse` x2 and
+    `test_notebook_telemetry_events::test_the_p3a_library_events_are_on_both_sides_and_read_not_typed`.
+  - Evidence: `carry-over-0abb32a33d.txt`, `c4-vitest-0abb32a33d.txt` and `c4-pytest-0abb32a33d.txt`, in the same
+    directory.
+- **Bytes (final tree):** `bytes.notebook_first_open` is 2,240,572 B on the landing tree and 2,239,350 B on
+  origin/master `5a4a8a9907`. Both were built and measured the same way. The delta is **+1,222 B**, under the
+  +1,500 B ceiling (P5-AUD-4). The budget file's ceiling, 2,260,793 B, was not raised. Evidence:
+  `bytes-0abb32a33d.txt`.
 - **Landing rails (part A, on `43ff1d64e0`):** see `.superpowers/sdd/2026-10-17-notebook-p5-launch/task-11-report.md`
   in the spec worktree (the ledger is local).
 - **Bytes (part A):** see the same report: the branch and origin/master `79bb686978`, built and measured the same way
