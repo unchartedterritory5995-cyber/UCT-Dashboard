@@ -39,7 +39,20 @@ def test_no_name_is_a_real_ticker():
     """A Discord name that is also a listed stock would chart breadth for a member who meant the stock."""
     real = set(json.loads(Path("api/data/cap_universe.json").read_text()))
     assert "AAPL" in real                                   # the list really is tickers
-    assert sorted(set(_all()) & real) == []
+    # ETFs too: UCTX was the Exposure Rating's name until 2026-10-19, and it is a listed
+    # fund (Corgi UCTT 2x Daily ETF), which cap_universe does not carry.
+    etfs = {line.split(",", 1)[0].strip() for line in
+            Path("tests/fixtures/finviz_etf_sample.csv").read_text(encoding="utf-8").splitlines()[1:]}
+    assert "UCTX" in etfs and "SPYQ" in etfs                # the list really is ETFs
+    assert sorted(set(_all()) & (real | etfs)) == []
+
+
+def test_the_exposure_rating_is_UCTEXP_and_UCTX_is_the_fund():
+    from api.services import breadth_symbols as bs
+    from api.services import discord_breadth_names as dbn
+    assert bs.SYMBOLS["UCTEXP"]["metric"] == "uct_exposure"
+    assert not bs.is_breadth_symbol("UCTX")                 # a member asking for UCTX gets the fund
+    assert dbn.lookup("UCTX") is None and dbn.lookup("UCTEXP").symbol == "UCTEXP"
 
 
 def test_the_45_shipped_symbols_keep_their_names():
