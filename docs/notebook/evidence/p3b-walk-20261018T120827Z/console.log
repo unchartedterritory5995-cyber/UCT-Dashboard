@@ -1,0 +1,9 @@
+[1280] step 1 PASS: author writes a trade plan note: $1,240 at Schwab, a sizing block with an account size, one pasted image
+[1280] step 2 PASS: author shares the style (P3a flow) and adds the note as an example
+[1280] step 3 PASS: the preview: the counts sentence, the replaced spans, the image off
+[1280] step 4 FAIL: author switches the image on through the second confirm, and submits
+[1280] step 5 PASS: admin approves it (the style and the example) in the review queue
+[1280] step 6 PASS: second member opens the style: In use shows "your value here" and "your broker", the image loads
+[1280] step 7 PASS: author withdraws the style; the image URL answers 404
+SANDBOX INTEGRITY: NOT RUN (could not sign in hubtest@local.dev: HTTP 429) -- the sandbox's checkpoints: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\p3b-walk-20261018T120827Z\integrity.md
+VERDICT: {'PASS': 6, 'FAIL': 1, 'INCONCLUSIVE': 0} not_run=could not sign in hubtest@local.dev: HTTP 429 failure=None broken=None; raw log: docs\notebook\evidence\p3b-walk-20261018T120827Z\walk.json

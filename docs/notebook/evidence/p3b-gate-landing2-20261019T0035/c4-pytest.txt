@@ -1,0 +1,7 @@
+E       AssertionError: these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation would carry a verdict across a change to them:
+E           api/routers/notebook_template_gallery.py
+E           api/services/journal_two/example_sanitize.py
+E           api/services/journal_two/template_gallery.py
+E       assert not ['api/routers/notebook_template_gallery.py', 'api/services/journal_two/example_sanitize.py', 'api/services/journal_two/template_gallery.py']
+FAILED tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads
+1 failed, 1363 passed, 2 skipped, 73514 warnings in 1079.21s (0:17:59)

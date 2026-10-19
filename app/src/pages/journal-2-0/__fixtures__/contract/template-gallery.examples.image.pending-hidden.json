@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/0",
+    "note": "A pending example's image copy is its author's and an admin's only: the one 404.",
+    "path": "/api/j2/template-gallery/bf1ea35b5c8e49689378a7e94a37fead/images/0",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

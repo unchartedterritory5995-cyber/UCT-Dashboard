@@ -24,7 +24,24 @@ describe('the journal-styles surfaces load through one dynamic import', () => {
   // NotebookTab's lazyDialog. It is a large, rarely opened dialog; folding it into StyleSurfaces would make every
   // editor-surface load carry it. Its one import() was already counted in lane C's measured first-open bytes.
   // The list stays EXACT: a third styles/ import, or a second import of either module, still fails here.
-  it('exactly two import()s of a styles/ module in all of journal-2-0: the surfaces module and the Styles manager dialog', () => {
+  //
+  // ALLOWLIST, P3b "example notes" (ruling P3b-T9-G2): AddExampleNoteDoor ("Add an example note") is imported on
+  // demand from its TWO hosts, and both hosts are themselves LAZY chunks -- TemplateGallery (opened by
+  // TemplatePicker's and LibraryDoor's lazyChunk) and ShareStyleForm (inside the Styles manager's own chunk). The
+  // cost this rail bounds is an import() in an EAGER file (its expression plus its preload list in the first
+  // open); an import() inside a lazy chunk is not in the first open at all (tools/notebook_perf_budgets.py
+  // excludes dynamic imports). Folding was measured against both allowed boundaries and both cost more:
+  //   * into StyleSurfaces (via loadStyle): first open +0 B, but every styled note then fetches the door, the
+  //     picker and the preview sheet with the editor surfaces -- StyleSurfaces' on-demand load went
+  //     25,947 B -> 46,028 B, the very cost the Styles manager ruling above refused;
+  //   * a static import from both lazy hosts: a shared chunk named in the eager preload lists, first open +91 B.
+  // Kept on demand: first open 2,238,561 B, unchanged. These two entries are the door's ONLY imports; a third
+  // import of it, or of any other styles/ module, still fails here.
+  const EXAMPLE_DOOR_LAZY_HOSTS = [
+    ['components/notebook/TemplateGallery.jsx', './styles/AddExampleNoteDoor'],
+    ['components/notebook/styles/ShareStyleForm.jsx', './AddExampleNoteDoor'],
+  ]
+  it('exactly two import()s of a styles/ module from eager code (the surfaces module and the Styles manager dialog), plus the example door from its two lazy hosts', () => {
     const found = []
     for (const f of walk(NOTEBOOK)) {
       const src = fs.readFileSync(f, 'utf8')
@@ -34,8 +51,9 @@ describe('the journal-styles surfaces load through one dynamic import', () => {
     }
     expect(found.sort()).toEqual([
       ['components/notebook/styles/lazyStyles.js', './StyleSurfaces'],
+      ...EXAMPLE_DOOR_LAZY_HOSTS,
       ['tabs/NotebookTab.jsx', '../components/notebook/styles/StylesManager'],
-    ])
+    ].sort())
   })
 
   it('the three surfaces are exported from that one module', () => {
