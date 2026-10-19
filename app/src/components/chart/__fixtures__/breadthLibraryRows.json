@@ -689,7 +689,7 @@
 "universe_label": "UCT",
 "metric": "uct_exposure",
 "code": "X",
-"symbol": "UCTX",
+"symbol": "UCTEXP",
 "name": "UCT Exposure Rating",
 "short_name": "Exposure",
 "group": "score_regime",

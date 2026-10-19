@@ -93,7 +93,9 @@ _ROWS = [
 
     # ── Score / Regime ──────────────────────────────────────────────────────
     ("UCTHS",   "breadth_score",    "UCT Breadth Health Score",     G_REG),
-    ("UCTX",    "uct_exposure",     "UCT Exposure Rating",          G_REG),
+    # (2026-10-19) UCTEXP, was UCTX: UCTX is a real listed fund (Corgi UCTT 2x Daily ETF),
+    # so a member asking for it got our rating instead. Owner ruling.
+    ("UCTEXP",  "uct_exposure",     "UCT Exposure Rating",          G_REG),
     # ⭐ "(Raw)" since 2026-10-07: the ratio-adjusted US/NYSE/NASDAQ McClellans now sit beside it in
     # search, and a member cannot tell raw from ratio-adjusted by the curve. Name only — symbol unchanged.
     ("UCTMC",   "mcclellan_osc",    "McClellan Oscillator (Raw)",   G_REG),
