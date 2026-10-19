@@ -75,6 +75,7 @@ describe('parseAlertPhrase -- what it refuses', () => {
     'Not going to alert me if NVDA closes above 150',   // E7: "not" negates
     'do not alert me if NVDA closes above 150',          // control: still negated with "not" in the list
     "Don't alert me if NVDA closes above 150",           // E7 owner ruling: the negator governs the ask
+    'Don’t alert me if NVDA closes above 150',            // iOS types a curly apostrophe by default
     'not alert me if NVDA closes above 150',
     'never alert me if NVDA closes above 150',
     'Do not ever alert me if NVDA closes above 150',     // helper words between the negator and the ask
