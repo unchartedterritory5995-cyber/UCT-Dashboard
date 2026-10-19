@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useCallba
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
+import { acquireFullscreenSheet } from './fullscreenSheetAttr'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
@@ -195,6 +196,14 @@ export default function Sheet({
     // `openerAtRender` changes exactly when `open` does (it is memoised on it),
     // so this is still keyed once per open.
   }, [open, openerAtRender])
+
+  // A fullscreen sheet owns the whole screen, so chrome that floats over the
+  // page (the joystick hub) must stand down while it is open. Announced on
+  // <html> through a ref-counted attribute — see fullscreenSheetAttr.js.
+  useEffect(() => {
+    if (!open || resolved !== 'fullscreen') return undefined
+    return acquireFullscreenSheet()
+  }, [open, resolved])
 
   // Reset drag offset whenever opened
   useEffect(() => { if (open) { dragYRef.current = 0; setDragY(0) } }, [open])

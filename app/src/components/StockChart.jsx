@@ -2387,7 +2387,8 @@ export default function StockChart({
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
   watermarkIndustry = null,  // Model Book: curated historical industry (paired with watermarkSector).
   className = '',
-  showDrawingTools = true,
+  showDrawingTools: showDrawingToolsProp = true,
+  studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -2628,6 +2629,9 @@ export default function StockChart({
   const resolvedTf = _econId ? economicPrimaryTf(tf || prefs.default_chart_tf) : (tf || prefs.default_chart_tf || 'D')
   const econPrimary = useEconomicPrimary(_econId ? sym : null, resolvedTf)
   const barsOverride = _econId ? econPrimary.bars : barsOverrideProp
+  // Study mode (T1): one switch, read by every sym-keyed side fetch below.
+  const _study = !!studyMode
+  const showDrawingTools = _study ? false : showDrawingToolsProp
   const barsOverridePending = _econId ? (!econPrimary.bars && econPrimary.pending) : barsOverridePendingProp
   const liveUpdates = liveUpdatesProp && !_econId
   const backgroundWarm = backgroundWarmProp && !_econId
@@ -3249,7 +3253,7 @@ export default function StockChart({
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym && !_econId ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
+    markersEnabled && sym && !_econId && !_study ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
     instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -3260,7 +3264,7 @@ export default function StockChart({
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
   const { data: newsData } = useSWR(
-    showNews && sym && !_econId ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
+    showNews && sym && !_econId && !_study ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes
@@ -3306,7 +3310,7 @@ export default function StockChart({
   // error here must never take the other marker categories down with it.
   const deskEnabled = !!cs.markers?.desk
   const { data: deskData } = useSWR(
-    deskEnabled && sym && !_econId ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
+    deskEnabled && sym && !_econId && !_study ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
@@ -3663,7 +3667,7 @@ export default function StockChart({
   const divBadgeAttachedRef = useRef(false)
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
-  const tickerMeta = useTickerMeta(_econId ? null : sym)
+  const tickerMeta = useTickerMeta(_econId || _study ? null : sym)
   // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
   //
   // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
@@ -3688,7 +3692,7 @@ export default function StockChart({
   const symbolMeta = useMemo(() => (
     sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
   ), [sym, tickerMeta])
-  const ipoInfo = useTickerIpo(_econId ? null : sym)       // { list_date } — official first-listing day
+  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -6330,7 +6334,7 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(_study ? null : sym)
   addDrawingRef.current = addDrawing
   clearAllRef.current = clearAll
   drawingCountRef.current = drawings.length
@@ -18839,10 +18843,10 @@ export default function StockChart({
           })}
         </div>
       )}
-      {showSkeleton && <ChartSkeleton label={`Loading ${sym}…`} />}
+      {showSkeleton && <ChartSkeleton label={_study ? 'Loading chart…' : `Loading ${sym}…`} />}
       {showFatalError && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
-          <span>Failed to load chart for {sym}</span>
+          <span>{_study ? 'Failed to load the chart' : `Failed to load chart for ${sym}`}</span>
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}

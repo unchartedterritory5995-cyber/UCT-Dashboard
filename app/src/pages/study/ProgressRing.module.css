@@ -1,0 +1,19 @@
+/* Study — nine-rung ring (D17). Gold for a lit rung, hairline for the rest;
+   no gradient, no motion. */
+.ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ring svg { position: absolute; inset: 0; }
+.lit { stroke: var(--ut-gold); }
+.unlit { stroke: var(--border-accent); }
+.center {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

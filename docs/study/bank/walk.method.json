@@ -1,0 +1,786 @@
+[
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_381c8a77159b",
+  "lesson_origin": "source",
+  "lesson_text": "The score maps to a permission band: GREEN / YELLOW / ORANGE.",
+  "module": "M1",
+  "prompt_json": {
+   "order": 1,
+   "part": 1,
+   "parts": 2,
+   "q": "Regime",
+   "steps": [
+    "The firm publishes a proprietary UCT Exposure Rating",
+    "A 0-150 score computed daily from breadth participation, the distribution-day count, and index moving-average structure.",
+    "The score maps to a permission band: GREEN / YELLOW / ORANGE."
+   ],
+   "subject": "Regime"
+  },
+  "reveal_json": {
+   "quote": "**Regime — what am I permitted to do today?** The firm publishes a proprietary **UCT Exposure Rating**, a 0-150 score computed daily from breadth participation, the distribution-day count, and index moving-average structure. The score maps to a **permission band: GREEN / YELLOW / ORANGE**. The doctrine you must repeat correctly on camera: a band is *permission, not prediction*. GREEN does not mean the market will go up; it means more of the playbook is authorized. ORANGE does not forecast a crash; it revokes rights. Say it that way every time.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Regime",
+   "station": "Regime"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.bands",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Regime",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_93d146958810",
+  "lesson_origin": "source",
+  "lesson_text": "Say it that way every time.",
+  "module": "M1",
+  "prompt_json": {
+   "order": 2,
+   "part": 2,
+   "parts": 2,
+   "q": "Regime",
+   "steps": [
+    "The doctrine you must repeat correctly on camera: a band is permission, not prediction.",
+    "GREEN does not mean the market will go up; it means more of the playbook is authorized.",
+    "ORANGE does not forecast a crash; it revokes rights.",
+    "Say it that way every time."
+   ],
+   "subject": "Regime"
+  },
+  "reveal_json": {
+   "quote": "**Regime — what am I permitted to do today?** The firm publishes a proprietary **UCT Exposure Rating**, a 0-150 score computed daily from breadth participation, the distribution-day count, and index moving-average structure. The score maps to a **permission band: GREEN / YELLOW / ORANGE**. The doctrine you must repeat correctly on camera: a band is *permission, not prediction*. GREEN does not mean the market will go up; it means more of the playbook is authorized. ORANGE does not forecast a crash; it revokes rights. Say it that way every time.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Regime",
+   "station": "Regime"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.bands",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Regime",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_b634de8fc2f2",
+  "lesson_origin": "source",
+  "lesson_text": "Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening.",
+  "module": "M6",
+  "prompt_json": {
+   "order": 3,
+   "part": 1,
+   "parts": 2,
+   "q": "Scan",
+   "steps": [
+    "A nightly filter chain takes roughly 3,700 tickers to about ten names in twenty minutes:",
+    "Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening."
+   ],
+   "subject": "Scan"
+  },
+  "reveal_json": {
+   "quote": "**Scan — which names earned a place on my list?** A nightly filter chain takes roughly 3,700 tickers to about ten names in twenty minutes: Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening. Survivors split into an **A-list** (at the pivot within a day or two, alert armed at the exact trigger price) and a **B-list** (right pattern, needs time).",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Scan",
+   "station": "Scan"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Scan",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_bcab7caa9445",
+  "lesson_origin": "source",
+  "lesson_text": "And a B-list (right pattern, needs time).",
+  "module": "M6",
+  "prompt_json": {
+   "order": 4,
+   "part": 2,
+   "parts": 2,
+   "q": "Scan",
+   "steps": [
+    "Survivors split into an A-list",
+    "(at the pivot within a day or two, alert armed at the exact trigger price)",
+    "And a B-list (right pattern, needs time)."
+   ],
+   "subject": "Scan"
+  },
+  "reveal_json": {
+   "quote": "**Scan — which names earned a place on my list?** A nightly filter chain takes roughly 3,700 tickers to about ten names in twenty minutes: Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening. Survivors split into an **A-list** (at the pivot within a day or two, alert armed at the exact trigger price) and a **B-list** (right pattern, needs time).",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Scan",
+   "station": "Scan"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.funnel",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Scan",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_0733552ec419",
+  "lesson_origin": "source",
+  "lesson_text": "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims.",
+  "module": "M7",
+  "prompt_json": {
+   "order": 5,
+   "part": 1,
+   "parts": 2,
+   "q": "Setup",
+   "steps": [
+    "Every trade is named from the firm's setup catalog, organized into four families:",
+    "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims."
+   ],
+   "subject": "Setup"
+  },
+  "reveal_json": {
+   "quote": "**Setup — what exactly is this trade?** Every trade is named from the firm's setup catalog, organized into four families: **Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims**. Every entry fires as one of exactly four triggers: **BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN**. Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Setup",
+   "station": "Setup"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.card",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Setup",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_cb1d7a93ac58",
+  "lesson_origin": "source",
+  "lesson_text": "Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode.",
+  "module": "M7",
+  "prompt_json": {
+   "order": 6,
+   "part": 2,
+   "parts": 2,
+   "q": "Setup",
+   "steps": [
+    "Every entry fires as one of exactly four triggers:",
+    "BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN.",
+    "Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode."
+   ],
+   "subject": "Setup"
+  },
+  "reveal_json": {
+   "quote": "**Setup — what exactly is this trade?** Every trade is named from the firm's setup catalog, organized into four families: **Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims**. Every entry fires as one of exactly four triggers: **BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN**. Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Setup",
+   "station": "Setup"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.card",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Setup",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_1dbe2e21d004",
+  "lesson_origin": "source",
+  "lesson_text": "With a 2% hard maximum per trade and a stated preference for under 1%.",
+  "module": "M5",
+  "prompt_json": {
+   "order": 7,
+   "part": 1,
+   "parts": 3,
+   "q": "Size",
+   "steps": [
+    "The formula is stated verbatim across the course:",
+    "Account Risk % = Position Size % × Stop Distance %",
+    "With a 2% hard maximum per trade and a stated preference for under 1%."
+   ],
+   "subject": "Size"
+  },
+  "reveal_json": {
+   "quote": "**Size — how much, derived from the stop and never from conviction?** The formula is stated verbatim across the course: **Account Risk % = Position Size % × Stop Distance %**, with a **2% hard maximum per trade and a stated preference for under 1%**. Worked: 1% account risk with a 5% stop distance is a 20% position (0.01 ÷ 0.05 = 0.20). The regime × grade table caps it further — **GREEN + A+ = 20-25% · YELLOW + A+ = 15% · ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip**. Across the whole book, **portfolio heat** — the sum of (entry − stop) × shares divided by equity — is **capped at 10%**, and no new buy goes on above the cap.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+   "station": "Size"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_5986239beed7",
+  "lesson_origin": "source",
+  "lesson_text": "ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip.",
+  "module": "M5",
+  "prompt_json": {
+   "order": 8,
+   "part": 2,
+   "parts": 3,
+   "q": "Size",
+   "steps": [
+    "Worked: 1% account risk with a 5% stop distance is a 20% position (0.01 ÷ 0.05 = 0.20).",
+    "The regime × grade table caps it further",
+    "GREEN + A+ = 20-25% · YELLOW + A+ = 15%",
+    "ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip."
+   ],
+   "subject": "Size"
+  },
+  "reveal_json": {
+   "quote": "**Size — how much, derived from the stop and never from conviction?** The formula is stated verbatim across the course: **Account Risk % = Position Size % × Stop Distance %**, with a **2% hard maximum per trade and a stated preference for under 1%**. Worked: 1% account risk with a 5% stop distance is a 20% position (0.01 ÷ 0.05 = 0.20). The regime × grade table caps it further — **GREEN + A+ = 20-25% · YELLOW + A+ = 15% · ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip**. Across the whole book, **portfolio heat** — the sum of (entry − stop) × shares divided by equity — is **capped at 10%**, and no new buy goes on above the cap.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+   "station": "Size"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_f8256f64f3e1",
+  "lesson_origin": "source",
+  "lesson_text": "Is capped at 10%, and no new buy goes on above the cap.",
+  "module": "M5",
+  "prompt_json": {
+   "order": 9,
+   "part": 3,
+   "parts": 3,
+   "q": "Size",
+   "steps": [
+    "Across the whole book, portfolio heat, the sum of (entry − stop) × shares divided by equity",
+    "Is capped at 10%, and no new buy goes on above the cap."
+   ],
+   "subject": "Size"
+  },
+  "reveal_json": {
+   "quote": "**Size — how much, derived from the stop and never from conviction?** The formula is stated verbatim across the course: **Account Risk % = Position Size % × Stop Distance %**, with a **2% hard maximum per trade and a stated preference for under 1%**. Worked: 1% account risk with a 5% stop distance is a 20% position (0.01 ÷ 0.05 = 0.20). The regime × grade table caps it further — **GREEN + A+ = 20-25% · YELLOW + A+ = 15% · ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip**. Across the whole book, **portfolio heat** — the sum of (entry − stop) × shares divided by equity — is **capped at 10%**, and no new buy goes on above the cap.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+   "station": "Size"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Size",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_ed0eb3084741",
+  "lesson_origin": "source",
+  "lesson_text": "First third off at 2-3R into strength.",
+  "module": "M12",
+  "prompt_json": {
+   "order": 10,
+   "part": 1,
+   "parts": 2,
+   "q": "Manage",
+   "steps": [
+    "The stop is an appointment, not a debate; it is placed where the pattern breaks and never moved lower.",
+    "Breakeven at roughly +1R or the first higher low.",
+    "First third off at 2-3R into strength."
+   ],
+   "subject": "Manage"
+  },
+  "reveal_json": {
+   "quote": "**Manage — is the plan intact, and which rule fires now?** The stop is an appointment, not a debate; it is placed where the pattern breaks and never moved lower. Breakeven at roughly +1R or the first higher low. First third off at 2-3R into strength. Trails are matched to what produced the trade: the 10-day for fast movers, the 10/20-day for Episodic Pivots, the 20 or 50-day for position holds. Never add to a loser.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Manage",
+   "station": "Manage"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.rules",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Manage",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_9db07bbf682b",
+  "lesson_origin": "source",
+  "lesson_text": "Never add to a loser.",
+  "module": "M12",
+  "prompt_json": {
+   "order": 11,
+   "part": 2,
+   "parts": 2,
+   "q": "Manage",
+   "steps": [
+    "Trails are matched to what produced the trade:",
+    "The 10-day for fast movers, the 10/20-day for Episodic Pivots, the 20 or 50-day for position holds.",
+    "Never add to a loser."
+   ],
+   "subject": "Manage"
+  },
+  "reveal_json": {
+   "quote": "**Manage — is the plan intact, and which rule fires now?** The stop is an appointment, not a debate; it is placed where the pattern breaks and never moved lower. Breakeven at roughly +1R or the first higher low. First third off at 2-3R into strength. Trails are matched to what produced the trade: the 10-day for fast movers, the 10/20-day for Episodic Pivots, the 20 or 50-day for position holds. Never add to a loser.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Manage",
+   "station": "Manage"
+  },
+  "review_status": "draft",
+  "skill_id": "manage.rules",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Manage",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_58bc17fa3bde",
+  "lesson_origin": "source",
+  "lesson_text": "Daily tag, weekly stats, monthly audit.",
+  "module": "M12",
+  "prompt_json": {
+   "order": 12,
+   "q": "Review",
+   "steps": [
+    "A fixed seven-field journal entry, filled the day the trade closes:",
+    "Date, setup tag, entry type, planned R, exit-versus-plan, a three-axis grade (Idea / Execution / Preparation), annotated screenshot.",
+    "Zero blank fields, and P&L is not a grade.",
+    "Daily tag, weekly stats, monthly audit."
+   ],
+   "subject": "Review"
+  },
+  "reveal_json": {
+   "quote": "**Review — what did this teach in a form I can aggregate?** A fixed seven-field journal entry, filled the day the trade closes: date, setup tag, entry type, planned R, exit-versus-plan, a three-axis grade (Idea / Execution / Preparation), annotated screenshot. Zero blank fields, and **P&L is not a grade**. Daily tag, weekly stats, monthly audit.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Review",
+   "station": "Review"
+  },
+  "review_status": "draft",
+  "skill_id": "review.journal",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#1 · The system in one page#Review",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_5c78fcebb179",
+  "lesson_origin": "source",
+  "lesson_text": "That every trade and every lesson maps onto.",
+  "module": "M1",
+  "prompt_json": {
+   "order": 13,
+   "q": "THE LOOP",
+   "steps": [
+    "The firm's six-station operating cycle, Regime → Scan → Setup → Size → Manage → Review",
+    "That every trade and every lesson maps onto."
+   ],
+   "subject": "THE LOOP"
+  },
+  "reveal_json": {
+   "quote": "The firm's six-station operating cycle — Regime → Scan → Setup → Size → Manage → Review — that every trade and every lesson maps onto.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "THE LOOP"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.loop",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#THE LOOP",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_3bdcf5963593",
+  "lesson_origin": "source",
+  "lesson_text": "It authorizes what you may do, and explicitly does not predict market direction.",
+  "module": "M1",
+  "prompt_json": {
+   "order": 14,
+   "q": "Permission band",
+   "steps": [
+    "The GREEN / YELLOW / ORANGE state the Exposure Rating maps to",
+    "It authorizes what you may do, and explicitly does not predict market direction."
+   ],
+   "subject": "Permission band"
+  },
+  "reveal_json": {
+   "quote": "The GREEN / YELLOW / ORANGE state the Exposure Rating maps to — it authorizes what you may do, and explicitly does not predict market direction.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Permission band"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.bands",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Permission band",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_23fcaaa0abc5",
+  "lesson_origin": "source",
+  "lesson_text": "Filled once per setup studied and once per live candidate.",
+  "module": "M7",
+  "prompt_json": {
+   "order": 15,
+   "q": "Five-field card",
+   "steps": [
+    "The one-page setup document, Context · Pattern · Trigger · Stop · Failure mode",
+    "Filled once per setup studied and once per live candidate."
+   ],
+   "subject": "Five-field card"
+  },
+  "reveal_json": {
+   "quote": "The one-page setup document — Context · Pattern · Trigger · Stop · Failure mode — filled once per setup studied and once per live candidate.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Five-field card"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.card",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Five-field card",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_b86983610fb1",
+  "lesson_origin": "source",
+  "lesson_text": "BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, RED TO GREEN.",
+  "module": "M7",
+  "prompt_json": {
+   "order": 16,
+   "q": "The four entry triggers",
+   "steps": [
+    "The only ways a UCT entry fires:",
+    "BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, RED TO GREEN."
+   ],
+   "subject": "The four entry triggers"
+  },
+  "reveal_json": {
+   "quote": "The only ways a UCT entry fires: BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, RED TO GREEN.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "The four entry triggers"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.triggers",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#The four entry triggers",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_862760e8a238",
+  "lesson_origin": "source",
+  "lesson_text": "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims.",
+  "module": "M2",
+  "prompt_json": {
+   "order": 17,
+   "q": "Setup families",
+   "steps": [
+    "The catalog's four groupings:",
+    "Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims."
+   ],
+   "subject": "Setup families"
+  },
+  "reveal_json": {
+   "quote": "The catalog's four groupings: Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Setup families"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.gallery",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Setup families",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_d41ded89f5ed",
+  "lesson_origin": "source",
+  "lesson_text": "GREEN+A+ 20-25%, YELLOW+A+ 15%, ORANGE+A+ 8%, B-in-ORANGE = skip.",
+  "module": "M13",
+  "prompt_json": {
+   "order": 18,
+   "q": "The regime × grade table",
+   "steps": [
+    "The sizing ceiling matrix:",
+    "GREEN+A+ 20-25%, YELLOW+A+ 15%, ORANGE+A+ 8%, B-in-ORANGE = skip."
+   ],
+   "subject": "The regime × grade table"
+  },
+  "reveal_json": {
+   "quote": "The sizing ceiling matrix: GREEN+A+ 20-25%, YELLOW+A+ 15%, ORANGE+A+ 8%, B-in-ORANGE = skip.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "The regime × grade table"
+  },
+  "review_status": "draft",
+  "skill_id": "size.cap_table",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#The regime × grade table",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_3fee7a67d83b",
+  "lesson_origin": "source",
+  "lesson_text": "Nothing trades live until it clears.",
+  "module": "M5",
+  "prompt_json": {
+   "order": 19,
+   "q": "The sizing gate",
+   "steps": [
+    "The Module 5 checkpoint, ten sizing problems at a 100% pass bar",
+    "Nothing trades live until it clears."
+   ],
+   "subject": "The sizing gate"
+  },
+  "reveal_json": {
+   "quote": "The Module 5 checkpoint — ten sizing problems at a 100% pass bar; nothing trades live until it clears.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "The sizing gate"
+  },
+  "review_status": "draft",
+  "skill_id": "size.gate",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#The sizing gate",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_93ba89c7e8bd",
+  "lesson_origin": "source",
+  "lesson_text": "Chosen from the member's own drill and field-week data.",
+  "module": "M16",
+  "prompt_json": {
+   "order": 20,
+   "q": "Specialization contract",
+   "steps": [
+    "The capstone commitment to two setup families",
+    "Chosen from the member's own drill and field-week data."
+   ],
+   "subject": "Specialization contract"
+  },
+  "reveal_json": {
+   "quote": "The capstone commitment to two setup families, chosen from the member's own drill and field-week data.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Specialization contract"
+  },
+  "review_status": "draft",
+  "skill_id": "review.specialise",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Specialization contract",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_d603a34b5a21",
+  "lesson_origin": "source",
+  "lesson_text": "Scored against a six-row rubric where every row must pass.",
+  "module": "M16",
+  "prompt_json": {
+   "order": 21,
+   "q": "Playbook defense",
+   "steps": [
+    "The graduation gate, one complete trade plan run through all six stations",
+    "Scored against a six-row rubric where every row must pass."
+   ],
+   "subject": "Playbook defense"
+  },
+  "reveal_json": {
+   "quote": "The graduation gate — one complete trade plan run through all six stations, scored against a six-row rubric where every row must pass.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Playbook defense"
+  },
+  "review_status": "draft",
+  "skill_id": "review.defend",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Playbook defense",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_8c3ac349419b",
+  "lesson_origin": "source",
+  "lesson_text": "Scan nightly, card 2-3 live candidates of that family, log them, grade against plan.",
+  "module": "M7",
+  "prompt_json": {
+   "order": 22,
+   "q": "Field week",
+   "steps": [
+    "The application week that closes each setup-family module:",
+    "Scan nightly, card 2-3 live candidates of that family, log them, grade against plan."
+   ],
+   "subject": "Field week"
+  },
+  "reveal_json": {
+   "quote": "The application week that closes each setup-family module: scan nightly, card 2-3 live candidates of that family, log them, grade against plan.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Field week"
+  },
+  "review_status": "draft",
+  "skill_id": "review.field_week",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Field week",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_85653544c775",
+  "lesson_origin": "source",
+  "lesson_text": "Halve new sizes at −5% of equity, pilot-or-paper only at −10%.",
+  "module": "M13",
+  "prompt_json": {
+   "order": 23,
+   "q": "Drawdown protocol",
+   "steps": [
+    "The pre-committed de-risking rules:",
+    "Halve new sizes at −5% of equity, pilot-or-paper only at −10%."
+   ],
+   "subject": "Drawdown protocol"
+  },
+  "reveal_json": {
+   "quote": "The pre-committed de-risking rules: halve new sizes at −5% of equity, pilot-or-paper only at −10%.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Drawdown protocol"
+  },
+  "review_status": "draft",
+  "skill_id": "size.drawdown",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Drawdown protocol",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_12ba2e0ce6b7",
+  "lesson_origin": "source",
+  "lesson_text": "Where each rung is earned by the performance of the last.",
+  "module": "M13",
+  "prompt_json": {
+   "order": 24,
+   "q": "Progressive exposure",
+   "steps": [
+    "The size ladder Pilot → Half → Full → Overweight",
+    "Where each rung is earned by the performance of the last."
+   ],
+   "subject": "Progressive exposure"
+  },
+  "reveal_json": {
+   "quote": "The size ladder Pilot → Half → Full → Overweight, where each rung is earned by the performance of the last.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Progressive exposure"
+  },
+  "review_status": "draft",
+  "skill_id": "regime.ladder",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Progressive exposure",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_fdb90a4a4f6a",
+  "lesson_origin": "source",
+  "lesson_text": "B-list = right pattern, needs more time.",
+  "module": "M6",
+  "prompt_json": {
+   "order": 25,
+   "q": "A-list / B-list",
+   "steps": [
+    "A-list = scan survivors at their pivot within a day or two with alerts armed at the trigger price",
+    "B-list = right pattern, needs more time."
+   ],
+   "subject": "A-list / B-list"
+  },
+  "reveal_json": {
+   "quote": "A-list = scan survivors at their pivot within a day or two with alerts armed at the trigger price; B-list = right pattern, needs more time.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "A-list / B-list"
+  },
+  "review_status": "draft",
+  "skill_id": "scan.watchlists",
+  "source_kind": "brief",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#A-list / B-list",
+  "type": "walkthrough",
+  "version": 1
+ }
+]
