@@ -244,15 +244,33 @@ def new_ctx(browser, vp: str):
                                reduced_motion="reduce")
 
 
+def paced_signup(req, pacer, base: str, email: str, pw: str, name: str) -> None:
+    """Sign up through the app, waiting out its 3/minute sign-up limit (auth.py `signup`) on a 429.
+    Run 1 (evidence p5-walk-20261018T0040Z) made four sign-ups in one minute; the fourth answered 429 and the
+    walk recorded NOT RUN. The wait is a Playwright call on `pacer` (a page), never time.sleep."""
+    for attempt in range(4):
+        r = req.post(base + "/api/auth/signup", data={"email": email, "password": pw, "display_name": name})
+        if r.status in (200, 201):
+            return
+        if r.status != 429:
+            break
+        REC["setup"].append({"what": f"sign-up limit reached for {name}; waiting 62 s", "attempt": attempt + 1,
+                             "verdict": "INFO"})
+        flush()
+        pacer.wait_for_timeout(62000)
+    h._signup_or_login(req, base, email, pw, name)      # an account that already exists signs in
+
+
 def provision(browser, base: str, members: dict) -> None:
     """Sign up the admin (promoted from ADMIN_EMAILS) and one walk member per viewport; comp and verify them."""
     admin = browser.new_context()
+    pacer = admin.new_page()
     try:
-        h._signup_or_login(admin.request, base, h.ADMIN_EMAIL, h.ADMIN_PW, "hubtest")
+        paced_signup(admin.request, pacer, base, h.ADMIN_EMAIL, h.ADMIN_PW, "hubtest")
         for vp, (email, pw, name) in members.items():
             c = browser.new_context()
             try:
-                h._signup_or_login(c.request, base, email, pw, name)
+                paced_signup(c.request, pacer, base, email, pw, name)
                 comp = admin.request.post(base + "/api/auth/admin/comp-access", data={"email": email, "action": "grant"})
                 ver = admin.request.post(base + "/api/auth/admin/verify-email", data={"email": email})
                 me = c.request.get(base + "/api/auth/me").json()
@@ -342,7 +360,9 @@ def story(browser, base: str, vp: str, who, admin_req) -> None:
     S: dict = {"member": who[0]}
     REC.setdefault("stories", {})[vp] = S
     ctx = new_ctx(browser, vp)
-    h._signup_or_login(ctx.request, base, who[0], who[1], who[2])
+    r = ctx.request.post(base + "/api/auth/login", data={"email": who[0], "password": who[1]})
+    if r.status not in (200, 201):
+        raise h.SetupFailed(f"could not sign in {who[0]}: HTTP {r.status}")
     pg = ctx.new_page()
     watch = Watch(pg)
     pages = {"member": (pg, watch)}
@@ -577,7 +597,9 @@ def main(argv=None) -> int:
                 admin = browser.new_context()
                 try:
                     provision(browser, base, members)
-                    h._signup_or_login(admin.request, base, h.ADMIN_EMAIL, h.ADMIN_PW, "hubtest")
+                    r = admin.request.post(base + "/api/auth/login", data={"email": h.ADMIN_EMAIL, "password": h.ADMIN_PW})
+                    if r.status not in (200, 201):
+                        raise h.SetupFailed(f"the admin could not sign in for the telemetry read: HTTP {r.status}")
                     for vp in viewports:
                         story(browser, base, vp, members[vp], admin.request)
                 except h.SetupFailed as e:
