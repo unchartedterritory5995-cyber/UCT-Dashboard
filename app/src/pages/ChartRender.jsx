@@ -631,14 +631,20 @@ export default function ChartRender() {
     // the header reads price and change off the bars this page already holds.
     if (breadthFetch) {
       if (!breadthSettled) return undefined
-      const last = breadthBars?.length ? breadthBars[breadthBars.length - 1] : null
-      const prev = breadthBars?.length > 1 ? breadthBars[breadthBars.length - 2] : null
+      // "◀ Earlier" (?to=) shows the chart ending on that day, so the header reads that
+      // day too - not today's value above a chart whose last-price tag says otherwise.
+      const shown = toParam ? (breadthBars || []).filter((b) => String(b.t).slice(0, 10) <= toParam) : (breadthBars || [])
+      const last = shown.length ? shown[shown.length - 1] : null
+      const prev = shown.length > 1 ? shown[shown.length - 2] : null
       const c = last?.c, pc = prev?.c
       setMeta({
         company: want.company,
         price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
         chg: want.chg != null ? want.chg
           : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+        // A breadth reading moves in POINTS: UCTA50 33.2 -> 31.4 is "-1.80", and the
+        // percent of a percent (-5.42%) alone misleads, so the header leads with this.
+        pts: Number.isFinite(c) && Number.isFinite(pc) ? c - pc : null,
       })
       window.__chartHeaderReady = true
       return undefined
@@ -664,7 +670,7 @@ export default function ChartRender() {
       window.__chartHeaderReady = true
     })
     return () => { alive = false }
-  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars, breadthFetch, breadthSettled, breadthBars])
+  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars, breadthFetch, breadthSettled, breadthBars, toParam])
 
   // ── Signal readiness — PIXEL STABILITY, not a stopwatch ────────────────────
   //
@@ -972,7 +978,8 @@ export default function ChartRender() {
           {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
           {/* A breadth reading is a percentage or a count, never dollars. */}
           {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{meta.price.toFixed(2)}</span>}
-          {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%</span>}
+          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{meta.pts.toFixed(2)}</span>}
+          {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts != null ? '(' : ''}{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%{meta.pts != null ? ')' : ''}</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
@@ -1022,6 +1029,10 @@ export default function ChartRender() {
             // MAs never stretch the price scale (TC2000-style): a 200-day line far
             // below price used to squash every candle into the top third.
             fitPriceToCandles={!fixedBars}
+            // A breadth LINE whose newest point is its low sat ON the volume pane's
+            // divider, last-price tag and all (UCTFG 17.90, 2026-10-16). A small gap
+            // keeps it in view; stock charts keep the tight fit they always had.
+            {...(breadthParam ? { priceScaleBottomMargin: 0.08 } : {})}
             alwaysShowLegend
             liveUpdates={false}
           />
