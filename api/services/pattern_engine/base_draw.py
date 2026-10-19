@@ -9,9 +9,13 @@ team's own drawn charts: the line sits within 0.5 ATR of the base's highest body
 highest wick on 60%), so the pivot is the top CLUSTER of body tops, not the highest wick.
 
 The lab rule passed its pre-registered checks AS DRAWN here (lab/base_draw/PREREG.txt):
-  * team axis, held-out half: a team line within 0.5 ATR of the pivot on 82% of drawn charts vs 33% for
-    the drawer's pivots carried over from random other charts (lift CI above 0), and the drawn extent
-    overlaps the team's own base beyond the random-chart rate;
+  * team axis, held-out half: a team line within 0.5 ATR of the pivot on 14 of 17 drawn charts (82%) vs
+    33% for the drawer's pivots carried over from random other charts (lift CI above 0). A naive line
+    on the 20-bar highest body hits 13 of 17 on the same charts, so the pivot PRICE is not where this
+    rule adds value: its value is WHEN it draws (a real base, near its pivot) and the extent it draws;
+  * the extent test (T2) is NOT validated against extents the team drew: the "team base" there is
+    derived from the team's ceiling line by the lab's own span rule, and the test against team-drawn
+    boxes had a single comparison (reported, not gated);
   * two fresh blind AI-judge packets ("is this the base and its breakout level?").
 
 `base_drawing(bars, i)` reads bars[:i+1] only (no lookahead) and returns the drawing or None. It is a
@@ -168,7 +172,8 @@ def _evaluate(bars, i, a, k):
 
 def base_drawing(bars: list, i: int):
     """The base drawing at bar `i` from bars[:i+1] only, or None:
-    {pivot, start_t (the lip), end_t (bar i), low, low_t, bars, label, low_label}.
+    {pivot, start_t (the lip), end_t (bar i), low, low_t, bars, atr (ATR(14) at bar i), label,
+    low_label}.
     Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer)."""
     try:
         if not isinstance(i, int) or isinstance(i, bool) or i < MIN_LEN + 5 or i >= len(bars):
@@ -190,7 +195,7 @@ def base_drawing(bars: list, i: int):
             return None
         d = best[1]
         return {"pivot": d["pivot"], "start_t": int(b[d["lip"]]["t"]), "end_t": int(b[i]["t"]),
-                "low": d["low"], "low_t": int(b[d["low_i"]]["t"]), "bars": d["len"],
+                "low": d["low"], "low_t": int(b[d["low_i"]]["t"]), "bars": d["len"], "atr": float(a),
                 "label": PIVOT_LABEL, "low_label": LOW_LABEL}
     except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
         return None

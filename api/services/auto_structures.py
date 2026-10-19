@@ -90,7 +90,9 @@ def member_rows(rows) -> list:
 
     A bc:base (the shape-agnostic base drawing, lab base_draw) passed its blind check as drawn
     by one round (MEMBER_BASE_ROUND), so a member gets one only while it carries that round's
-    stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed."""
+    stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed. On the member path
+    the route also applies `member_base_precedence`, so a bc:base never sits beside an incumbent
+    base drawing's breakout line."""
     allowed = member_ids()
     return [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
@@ -254,6 +256,89 @@ def _confirmed_base(row) -> bool:
         return int(bd["start_t"]) < int(bd["end_t"])
     except (KeyError, TypeError, ValueError):
         return False
+
+
+#: Member-served drawings that already mark a base's breakout line. Where one of them covers the same
+#: base as a bc:base drawing, a member gets the incumbent (already shipped) and NOT the base drawing, so
+#: a chart never shows two or three different "pivot" / "breakout" lines for one base. Cup ids are
+#: listed now so a cup tier that reaches members later is covered the day it lands.
+BASE_INCUMBENT_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout",
+                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct"})
+#: A breakout level within this many ATR(14) of the base drawing's pivot is the same breakout line.
+BASE_PRECEDENCE_ATR = 1.0
+
+
+def _row_levels(row) -> list:
+    """Every horizontal breakout / pivot price a row draws or carries (display stamps included)."""
+    r = row or {}
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    vals = [(r.get("levels") or {}).get("entry"), ex.get("pivot"), ex.get("top"), ex.get("draw_entry_price")]
+    for k in ("draw_pivot", "draw_flat_top", "draw_rim_ref"):
+        v = ex.get(k)
+        if isinstance(v, dict):
+            vals.append(v.get("price"))
+    da = ex.get("draw_anchors")
+    if isinstance(da, list) and da and isinstance(da[0], dict):
+        vals.append(da[0].get("price"))
+    return [float(v) for v in vals if _finite(v)]
+
+
+def _row_span(row):
+    """(start_t, end_t) of a row as ints, from the drawn stamp when present, else the row; or None."""
+    r = row or {}
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    for k in ("draw_flat_top", "draw_pivot"):
+        v = ex.get(k)
+        if isinstance(v, dict) and v.get("start_t") is not None and v.get("end_t") is not None:
+            try:
+                return int(v["start_t"]), int(v["end_t"])
+            except (TypeError, ValueError):
+                pass
+    try:
+        return int(r["start_t"]), int(r["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def member_base_precedence(detections, structures) -> list:
+    """`structures` without the bc:base drawing when a member-served incumbent covers the same base.
+
+    Applied on the MEMBER path only, after member_rows and the freshness filter. An incumbent is any
+    row of BASE_INCUMBENT_IDS among `detections` or `structures`. It covers the base when one of its
+    breakout / pivot prices is within BASE_PRECEDENCE_ATR ATR of the base pivot, OR its span overlaps
+    the base's span. Then bc:base is dropped and the incumbent stays: the base drawing is purely
+    additive where nothing else covers the base. Fails closed: a base drawing without a finite ATR,
+    or an incumbent whose span cannot be read, drops the base drawing. Order is kept; never raises."""
+    try:
+        sts = list(structures or [])
+        bases = [s for s in sts if (s or {}).get("pattern_id") == BASE_DRAW_ID]
+        if not bases:
+            return sts
+        inc = [r for r in list(detections or []) + sts
+               if (r or {}).get("pattern_id") in BASE_INCUMBENT_IDS]
+        if not inc:
+            return sts
+        drop = set()
+        for b in bases:
+            bd = ((b.get("geometry") or {}).get("extras") or {}).get("draw_base") or {}
+            at, piv = bd.get("atr"), bd.get("pivot")
+            try:
+                s0, e0 = int(bd["start_t"]), int(bd["end_t"])
+            except (KeyError, TypeError, ValueError):
+                drop.add(id(b))
+                continue
+            if not (_finite(at) and float(at) > 0 and _finite(piv)):
+                drop.add(id(b))
+                continue
+            for r in inc:
+                span = _row_span(r)
+                near = any(abs(v - float(piv)) <= BASE_PRECEDENCE_ATR * float(at) for v in _row_levels(r))
+                if near or span is None or (span[0] <= e0 and s0 <= span[1]):
+                    drop.add(id(b))
+                    break
+        return [s for s in sts if id(s) not in drop]
+    except Exception:  # noqa: BLE001 -- fail closed: no base drawing rather than a duplicate line
+        return [s for s in (structures or []) if (s or {}).get("pattern_id") != BASE_DRAW_ID]
 
 
 def base_draw_row(sym: str, bars: list):
