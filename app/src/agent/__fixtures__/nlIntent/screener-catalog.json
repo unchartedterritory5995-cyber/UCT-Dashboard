@@ -1,0 +1,34 @@
+{
+  "about": "NL-1 eval fixture: a representative Screener field catalog and starter screens (the shape /api/screener/fields and /api/screener/saved-screens return), so screener requests are asked with the context a member's panel has. Not the production catalog; field keys follow the Screener's naming.",
+  "fields": [
+    { "key": "price", "label": "Price", "type": "range", "unit": "$", "category": "descriptive" },
+    { "key": "market_cap", "label": "Market Cap", "type": "range", "unit": "$", "category": "descriptive" },
+    { "key": "dollar_vol_30d", "label": "Dollar Volume (30d)", "type": "range", "unit": "$", "category": "descriptive" },
+    { "key": "avg_vol_30d", "label": "Avg Volume (30d)", "type": "range", "unit": "", "category": "descriptive" },
+    { "key": "sector", "label": "Sector", "type": "enum", "category": "descriptive" },
+    { "key": "industry", "label": "Industry", "type": "enum", "category": "descriptive" },
+    { "key": "is_etf", "label": "ETF", "type": "bool", "category": "descriptive" },
+    { "key": "adr_pct", "label": "ADR %", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "rs_rank", "label": "RS Rank", "type": "range", "unit": "", "category": "technical" },
+    { "key": "uct_composite", "label": "UCT Composite", "type": "range", "unit": "", "category": "technical" },
+    { "key": "rvol", "label": "Relative Volume", "type": "range", "unit": "x", "category": "technical" },
+    { "key": "change_pct", "label": "Change Today %", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "gap_pct", "label": "Gap %", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "pct_from_52w_high", "label": "% From 52-Week High", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "perf_1m", "label": "Performance 1M %", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "perf_3m", "label": "Performance 3M %", "type": "range", "unit": "%", "category": "technical" },
+    { "key": "above_sma50", "label": "Above 50 SMA", "type": "bool", "category": "technical" },
+    { "key": "above_sma200", "label": "Above 200 SMA", "type": "bool", "category": "technical" },
+    { "key": "earnings_days", "label": "Days to Earnings", "type": "range", "unit": "d", "category": "fundamental" },
+    { "key": "eps_growth_q", "label": "EPS Growth (Q/Q) %", "type": "range", "unit": "%", "category": "fundamental" }
+  ],
+  "options": { "sector": { "values": ["Technology", "Healthcare", "Financials", "Energy", "Consumer Discretionary", "Industrials"] }, "industry": { "values": ["Semiconductors", "Software", "Biotechnology", "Banks", "Oil & Gas"] } },
+  "starters": [
+    { "id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)", "spec": {} },
+    { "id": "starter_stage2_breakout", "name": "Stage-2 breakouts", "spec": {} },
+    { "id": "starter_52w_breakout", "name": "52-Week Breakout on Volume", "spec": {} },
+    { "id": "starter_pullbacks", "name": "Pullbacks to the 21 EMA", "spec": {} },
+    { "id": "starter_tight_bases", "name": "Tight bases", "spec": {} },
+    { "id": "starter_gap_movers", "name": "Gap movers", "spec": {} }
+  ]
+}

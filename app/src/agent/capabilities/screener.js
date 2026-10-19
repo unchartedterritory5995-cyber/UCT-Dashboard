@@ -482,12 +482,13 @@ export function registerScreenerCapabilities() {
 
   registerContextProvider({
     key: 'screener',
-    build: (_host, refFor, { message = '' } = {}) => {
+    build: (_host, refFor, { message = '', nl1 = false } = {}) => {
       const last = cache.last
       // CONTEXT RELEVANCE: the full catalog (key:Label(unit), ~5 KB) only when the request could
       // be about screening; otherwise its KEYS (~2 KB) — the model can still see every field it
       // could screen on and discover a screen is wanted, it just gets no labels/units.
-      const full = !!last || screenRelevant(message)
+      // NL-1 (`nl1`, flag off by default): always the full catalog — no keyword decides it.
+      const full = nl1 || !!last || screenRelevant(message)
       return [{
         ref: refFor('screener', 'screener'), label: 'Screener',
         // The live catalog. Use ONLY these keys.
