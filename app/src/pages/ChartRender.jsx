@@ -652,8 +652,11 @@ export default function ChartRender() {
       setMeta({
         company: want.company,
         price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
+        // ⛔ No percent off a reading at or below zero: the McClellan oscillator going
+        // -37.21 -> -29.98 is +7.23 points and printed "(-19.43%)", a fall, for a rise.
+        // An oscillator, a net count or a COT net position shows the points alone.
         chg: want.chg != null ? want.chg
-          : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+          : (Number.isFinite(c) && Number.isFinite(pc) && pc > 0 ? ((c - pc) / pc) * 100 : null),
         // A breadth reading moves in POINTS: UCTA50 33.2 -> 31.4 is "-1.80", and the
         // percent of a percent (-5.42%) alone misleads, so the header leads with this.
         pts: Number.isFinite(c) && Number.isFinite(pc) ? c - pc : null,

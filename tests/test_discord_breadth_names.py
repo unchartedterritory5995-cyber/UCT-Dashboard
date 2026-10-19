@@ -98,6 +98,21 @@ def test_a_search_finds_a_family_by_word(everything_published):
     assert {e.name for e in dbn.choices("mcclellan", 25)} >= {"UCTNAMO", "UCTNASI", "UCTNYMO", "UCTNYSI"}
 
 
+@pytest.mark.parametrize("typed", ["UCTNYMO UC", "UCTNYMO UCTNQNETHL", "UCTA50 UCTNH", "UCTA20,UCTNH"])
+def test_a_typed_set_gets_no_choice(everything_published, typed):
+    """Measured live 2026-10-19: Discord sends the first 10 characters ("UCTNYMO UC"), the
+    word search matched UCTNYMO, and Enter would have charted one name of three."""
+    from api.routers import discord_interactions as rt
+    from api.services import discord_breadth_names as dbn
+    assert dbn.choices(typed, 24) == []
+    assert rt.breadth_choices(typed) == []
+
+
+def test_a_word_search_after_UCT_still_works(everything_published):
+    from api.services import discord_breadth_names as dbn
+    assert "UCTNQA50" in [e.name for e in dbn.choices("UCT NASDAQ", 24)]
+
+
 def test_breadth_adjust_charts_a_market_indicator_as_breadth(everything_published):
     """NAMO used to draw as a stock: candles, Gap, $Vol 0."""
     from api.routers import discord_interactions as rt
