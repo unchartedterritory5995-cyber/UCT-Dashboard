@@ -463,12 +463,18 @@ def _load_patterns_leader_universe(_plog) -> list[str]:
         return []
 
 
-def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
+def _scan_patterns_daily(symbols, leader_set, _plog, on_progress=None) -> tuple[int, int]:
     """Daily-TF detector pass over `symbols`, storing detections.
 
     ONE implementation shared by the hourly leaders job and the daily universe
     job — a second copy of this loop would be a second authority over what a
     stored detection is. Returns (scanned, stored).
+
+    `on_progress(i, last_sym)` — optional, called BEFORE symbol index `i` is
+    processed (so `i` symbols are finished and `last_sym` is the last of them).
+    The universe job uses it to checkpoint how far it got, so a run killed by a
+    deploy can be resumed on the next boot (universe_scan_runs.py). It never
+    changes what is fetched or stored; a raising callback is swallowed.
     """
     from api.services import bars_sqlite
     from api.services.pattern_engine import detect_all
@@ -506,7 +512,12 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
 
     scanned = 0
     stored = 0
-    for sym in symbols:
+    for _i, sym in enumerate(symbols):
+        if on_progress is not None:
+            try:
+                on_progress(_i, symbols[_i - 1] if _i else None)
+            except Exception as prog_err:  # noqa: BLE001 - a checkpoint never stops the scan
+                _plog.debug("[patterns] progress callback failed: %s", prog_err)
         try:
             bars = bars_sqlite.get_bars(sym, "D", _fetch_depth)
         except Exception as bars_err:
@@ -566,7 +577,86 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     return scanned, stored
 
 
-def _run_patterns_universe_scan():
+def _load_patterns_universe_ordered(_plog):
+    """The universe scan's ordered symbol list: leaders first (tagged), then the
+    rest of cap_universe. Returns (ordered, leader_set, n_leaders), or None when
+    cap_universe.json is missing. ONE builder shared by the cron run and the
+    boot catch-up, so a resume slices the SAME list it was checkpointed over
+    (its hash is stored with the run and checked before any resume)."""
+    leader_tickers = _load_patterns_leader_universe(_plog)
+    leader_set = {t for t in leader_tickers if isinstance(t, str)}
+
+    universe_path = os.path.join(os.path.dirname(__file__), "data", "cap_universe.json")
+    if not os.path.exists(universe_path):
+        universe_path = os.path.join("api", "data", "cap_universe.json")
+    if not os.path.exists(universe_path):
+        _plog.warning("[patterns] universe_scan: cap_universe.json not found at %s", universe_path)
+        print(f"[patterns] universe_scan: cap_universe.json not found at {universe_path}")
+        return None
+
+    with open(universe_path) as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        cap_tickers = [t for t in data if isinstance(t, str)]
+    else:
+        cap_tickers = data.get("tickers", []) if isinstance(data, dict) else []
+
+    ordered = list(leader_tickers) + [s for s in cap_tickers if s not in leader_set]
+    return ordered, leader_set, len(leader_tickers)
+
+
+def _execute_patterns_universe_run(kind, slot, resume_from=None, now_ts=None) -> dict:
+    """Run (or resume) one universe pass under the durable run lease.
+
+    `kind` is 'scheduled' (the 01:00 ET cron) or 'catchup' (the boot/watchdog
+    job). The scan itself is `_scan_patterns_daily` over the same ordered list
+    the cron always used -- a resume is a suffix slice of it -- so a catch-up has
+    the scheduled job's memory profile exactly. Returns a small outcome dict;
+    never raises (an APScheduler job must not)."""
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services.pattern_engine import universe_scan_runs as _usr
+        loaded = _load_patterns_universe_ordered(_plog)
+        if loaded is None:
+            return {"ran": False, "reason": "cap_universe.json missing"}
+        ordered, leader_set, n_leaders = loaded
+        handle = _usr.begin_run(kind, slot, ordered, resume_from=resume_from, now=now_ts)
+        if handle is None:
+            print(f"[patterns] universe_scan ({kind}, slot {slot}): skipped -- "
+                  "another universe run holds the lease")
+            return {"ran": False, "reason": "another universe run is live"}
+    except Exception as e:  # noqa: BLE001
+        _plog.exception("[patterns] universe_scan (%s) could not start: %s", kind, e)
+        print(f"[patterns] universe_scan ({kind}) could not start: {e}")
+        return {"ran": False, "reason": f"start failed: {e}"}
+
+    status, err, scanned, stored = "failed", None, 0, 0
+    try:
+        if handle.offset:
+            print(f"[patterns] universe_scan ({kind}, slot {slot}): resuming at "
+                  f"{handle.offset}/{len(ordered)} after {ordered[handle.offset - 1]}")
+        scanned, stored = _scan_patterns_daily(
+            ordered[handle.offset:], leader_set, _plog, on_progress=handle.progress)
+        status = "completed"
+        _plog.info(
+            "[patterns] universe_scan (%s): scanned %d symbols (full universe, leaders=%d, "
+            "resumed at %d), stored %d", kind, scanned, n_leaders, handle.offset, stored)
+        print(
+            f"[patterns] universe_scan ({kind}, slot {slot}): scanned {scanned} symbols "
+            f"(full universe, leaders={n_leaders}, resumed at {handle.offset}), "
+            f"stored {stored} detections"
+        )
+    except Exception as e:  # noqa: BLE001
+        err = f"{type(e).__name__}: {e}"
+        _plog.exception("[patterns] universe_scan failed: %s", e)
+        print(f"[patterns] universe_scan failed: {e}")
+    finally:
+        _usr.end_run(handle, status, scanned=scanned, stored=stored, error=err)
+    return {"ran": True, "status": status, "offset": handle.offset,
+            "scanned": scanned, "stored": stored}
+
+
+def _run_patterns_universe_scan(now=None):
     """APScheduler job (daily, 1:00 AM ET): full cap_universe daily-TF scan.
 
     Was HOURLY with a rotating 1/4 chunk until 2026-08-26. Daily-TF detections
@@ -575,48 +665,51 @@ def _run_patterns_universe_scan():
     before the 3:00 AM screener build (pattern_join — the only universe-wide
     reader) covers every consumer; leaders keep an hourly pass in
     _run_patterns_leaders_scan for intraday freshness.
+
+    Since 2026-10-19 every run is recorded in `pattern_scan_runs` with a
+    checkpoint, under a lease, so a deploy that kills it mid-loop is resumed by
+    `_run_patterns_universe_catchup` on the next boot (incident: the 10/19 run
+    died ~11 min in and ~80% of the universe kept Friday's rows).
+    Kill switch: PATTERNS_UNIVERSE_SCAN_ENABLED=0.
     """
-    _plog = logging.getLogger(__name__)
     try:
-        leader_tickers = _load_patterns_leader_universe(_plog)
-        leader_set = {t for t in leader_tickers if isinstance(t, str)}
-
-        # Resolve the cap_universe path
-        universe_path = os.path.join(
-            os.path.dirname(__file__), "data", "cap_universe.json"
-        )
-        if not os.path.exists(universe_path):
-            universe_path = os.path.join("api", "data", "cap_universe.json")
-        if not os.path.exists(universe_path):
-            _plog.warning(
-                "[patterns] universe_scan: cap_universe.json not found at %s",
-                universe_path,
-            )
-            print(f"[patterns] universe_scan: cap_universe.json not found at {universe_path}")
+        from api.services.pattern_engine import universe_scan_runs as _usr
+        if not _usr.scan_enabled():
+            print("[patterns] universe_scan: disabled (PATTERNS_UNIVERSE_SCAN_ENABLED=0)")
             return
-
-        with open(universe_path) as f:
-            data = json.load(f)
-        if isinstance(data, list):
-            cap_tickers = [t for t in data if isinstance(t, str)]
-        else:
-            cap_tickers = data.get("tickers", []) if isinstance(data, dict) else []
-
-        # Leaders first (tagged), then the rest of the universe.
-        ordered = list(leader_tickers) + [s for s in cap_tickers if s not in leader_set]
-        scanned, stored = _scan_patterns_daily(ordered, leader_set, _plog)
-
-        _plog.info(
-            "[patterns] universe_scan: scanned %d symbols (full universe, leaders=%d), stored %d",
-            scanned, len(leader_tickers), stored,
-        )
-        print(
-            f"[patterns] universe_scan: scanned {scanned} symbols "
-            f"(full universe, leaders={len(leader_tickers)}), stored {stored} detections"
-        )
-    except Exception as e:
-        _plog.exception("[patterns] universe_scan failed: %s", e)
+        slot = _usr.slot_for(now)
+    except Exception as e:  # noqa: BLE001
         print(f"[patterns] universe_scan failed: {e}")
+        return
+    _execute_patterns_universe_run("scheduled", slot,
+                                   now_ts=now.timestamp() if now else None)
+
+
+def _run_patterns_universe_catchup(now=None):
+    """APScheduler job: first fires ~6 min after boot, then every 15 min.
+
+    Asks `universe_scan_runs.plan_catch_up` whether the nightly universe run is
+    owed -- interrupted (resume it), or missing for the latest data-bearing slot
+    (run it) -- and does it under the same lease as the cron, so the two can
+    never overlap. A no-op when the scan or the catch-up is switched off
+    (PATTERNS_UNIVERSE_SCAN_ENABLED / PATTERNS_UNIVERSE_CATCHUP_ENABLED).
+    Never raises."""
+    try:
+        from api.services.pattern_engine import universe_scan_runs as _usr
+        if not _usr.catchup_enabled():
+            return {"ran": False, "reason": "disabled"}
+        now = now or datetime.now(_usr.ET)
+        plan = _usr.plan_catch_up(now, _usr.list_runs())
+        if plan.action == "none":
+            return {"ran": False, "reason": plan.reason}
+        print(f"[patterns] universe catch-up: {plan.action} slot {plan.slot} ({plan.reason})")
+        return _execute_patterns_universe_run(
+            "catchup", plan.slot,
+            resume_from=plan.resume_from if plan.action == "resume" else None,
+            now_ts=now.timestamp())
+    except Exception as e:  # noqa: BLE001
+        print(f"[patterns] universe catch-up error: {e}")
+        return {"ran": False, "reason": f"error: {e}"}
 
 
 def _run_patterns_prune():
@@ -8679,12 +8772,40 @@ async def lifespan(app: FastAPI):
         # before the 3:00 AM screener build (pattern_join, the only
         # universe-wide reader). Hourly full-universe re-scans were retired
         # 2026-08-26: daily-TF rows only change with a new daily bar.
+        #
+        # ⛔ 2026-10-19: a deploy at ~05:11Z killed this run ~11 min in and
+        # nothing noticed -- the job store is in memory, so the new pod never
+        # knew a run had been in flight. Three layers now, each for a
+        # different failure:
+        #   * coalesce + misfire_grace_time: a fire delayed by a busy/paused
+        #     scheduler still runs (apscheduler's job_defaults grace is 1 s).
+        #     Belt and braces only -- it cannot see a fire owned by a dead pod.
+        #   * pattern_scan_runs (universe_scan_runs.py): a durable run record
+        #     + checkpoint + lease; the cron and the catch-up share it, so
+        #     they can never both run.
+        #   * patterns_universe_catchup: ~6 min after boot, then every 15 min,
+        #     resumes an interrupted run or runs a missing one.
+        from datetime import timedelta as _usr_td
+        from api.services.pattern_engine import universe_scan_runs as _usr
         _scheduler.add_job(
             _run_patterns_universe_scan,
-            trigger=CronTrigger(hour=1, minute=0, timezone=_ET),
+            trigger=CronTrigger(hour=_usr.SLOT_HOUR_ET, minute=_usr.SLOT_MINUTE_ET,
+                                timezone=_ET),
             id="patterns_universe_scan",
             max_instances=1,
             replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=3600,
+        )
+        _scheduler.add_job(
+            _run_patterns_universe_catchup,
+            trigger=IntervalTrigger(minutes=_usr.CHECK_INTERVAL_MINUTES),
+            next_run_time=datetime.now(_ET) + _usr_td(seconds=_usr.BOOT_DELAY_SECONDS),
+            id="patterns_universe_catchup",
+            max_instances=1,
+            replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=600,
         )
         _scheduler.add_job(
             _run_patterns_prune,
