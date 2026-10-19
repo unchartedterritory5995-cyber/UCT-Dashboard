@@ -415,7 +415,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/notebook-visual-playbook/cards` | paid | member-workspace | setup, outcome, timeframe, range, regime |
 | GET | `/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after` | paid | member-workspace | {trade_id} |
 | GET | `/api/j2/notebook/home` | member | member-workspace |  |
-| GET | `/api/j2/notes` | member | member-workspace | folder_id, tag, ticker, q, embed_symbol, embed_widget, sort=updated, limit=100, offset=0, deleted=False, dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning=False |
+| GET | `/api/j2/notes` | member | member-workspace | folder_id, tag, ticker, q, embed_symbol, embed_widget, sort=updated, limit=100, offset=0, deleted=False, dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning=False, excludeSample=False |
 | GET | `/api/j2/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}` | member | member-workspace | {user_id_param}, {note_id}, {sub}, {filename} |
 | GET | `/api/j2/notes/backlinks` | member | member-workspace | symbol (required), limit=5 |
 | GET | `/api/j2/notes/by-folders` | member | member-workspace | ids (required), limit=200 |

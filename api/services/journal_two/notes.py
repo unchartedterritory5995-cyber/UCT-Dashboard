@@ -1658,6 +1658,7 @@ def _notes_filter_sql(
     shared: _RowidSets | None = None,
     tag_index: bool = False,
     fts_map: bool = False,
+    exclude_sample: bool = False,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -1687,9 +1688,16 @@ def _notes_filter_sql(
     to "any of these symbols" via `IN (...)`. An empty list means "no
     symbol in the member's mentioned vocabulary matched the requested
     sector/theme" — filters to zero rows (an honest empty result), never
-    silently ignored."""
+    silently ignored.
+
+    `exclude_sample` (OI-P3b-13): opt-in, leaves the sample notebook's notes out
+    by the one predicate (`sample_marker.not_sample_sql`). Off -- every caller
+    but the example picker -- the clause is not added at all, so the SQL is
+    byte-identical to before."""
     sql = " WHERE user_id = ? AND deleted_at IS " + ("NOT NULL" if deleted else "NULL")
     params: list[Any] = [user_id]
+    if exclude_sample:
+        sql += " AND " + sample_marker.not_sample_sql()
     # Wave 6 archive. `folder_id="__archived__"` is the sidebar's Archived entry
     # (a sentinel, exactly like `__unfiled__` below and the client's own
     # `__trash__`): archived notes only, from every folder. Every OTHER ordinary
@@ -1969,6 +1977,7 @@ def list_notes(
     property_filter: list[dict[str, Any]] | None = None,
     property_sort: dict[str, Any] | None = None,
     property_filter_strict: bool = True,
+    exclude_sample: bool = False,
     conn: sqlite3.Connection | None = None,
     _shared: _RowidSets | None = None,
     _quiet: bool = False,
@@ -2041,6 +2050,7 @@ def list_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             shared=_shared, tag_index=tag_index, fts_map=fts_map,
+            exclude_sample=exclude_sample,
         )
         # Wave 11 (lane 11B): a formula/rollup value is not stored, so its condition
         # cannot be a column test. It is computed IN MEMORY (note_computed, reads
@@ -2184,6 +2194,7 @@ def count_notes(
     symbol_in: list[str] | None = None,
     property_filter: list[dict[str, Any]] | None = None,
     property_filter_strict: bool = True,
+    exclude_sample: bool = False,
     conn: sqlite3.Connection | None = None,
     _shared: _RowidSets | None = None,
 ) -> int:
@@ -2204,6 +2215,7 @@ def count_notes(
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             shared=_shared, tag_index=bool((tag or q) and _tag_index_ready(conn)),
             fts_map=bool(q and _fts_map_ready(conn)),
+            exclude_sample=exclude_sample,
         )
         if property_filter:
             # Wave 11: the SAME computed clauses `list_notes` adds, from the same memo.
@@ -2239,6 +2251,7 @@ def count_notes(
 _COUNT_FILTER_KEYS = (
     "folder_id", "tag", "ticker", "q", "embed_symbol", "embed_widget", "deleted",
     "date_from", "date_to", "symbol_in", "property_filter", "property_filter_strict",
+    "exclude_sample",
 )
 
 
