@@ -58,6 +58,7 @@ const TODAY_LAYOUT = { ...PENDING_LAYOUT, id: 'layout_today', title: 'Calm open'
 const TODAY_PAYLOAD = { page: 'today', lists: { premarket: [{ id: 'notices', shown: true }],
   market: [{ id: 'regime', shown: true }, { id: 'quickActions', shown: false }] } }
 let extraPending = []
+let extraReported = []
 
 let calls
 let pendingRead
@@ -65,6 +66,7 @@ beforeEach(() => {
   calls = []
   pendingRead = { ...ITEM, id: PENDING_STYLE.id }
   extraPending = []
+  extraReported = []
   globalThis.fetch = vi.fn((input, init = {}) => {
     const method = (init.method || 'GET').toUpperCase()
     const path = String(input).split('?')[0]
@@ -72,7 +74,8 @@ beforeEach(() => {
     calls.push({ method, path, body })
     const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(payload) })
     if (path === '/api/j2/template-gallery/admin/queue') {
-      return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION, UNREADABLE, ...extraPending] })
+      return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION, UNREADABLE, ...extraPending],
+        reported: [...QUEUE.reported, ...extraReported] })
     }
     if (path === `/api/j2/template-gallery/${PENDING_LAYOUT.id}`) return ok({ template: { ...LAYOUT_ITEM, id: PENDING_LAYOUT.id } })
     if (path === `/api/j2/template-gallery/${LAYOUT_REVISION.id}`) return ok({ template: LAYOUT_REV_READ })
@@ -369,6 +372,54 @@ describe('the review queue for a page layout item (P4b Task 8)', () => {
     renderPanel()
     const row = await rowOf(PENDING_STYLE.id)
     await within(row).findByText(`Kind of note: ${kindName(ITEM.payload.kindId)}`)
+    expect(within(row).queryByText(/^Page: /)).not.toBeInTheDocument()
+  })
+})
+
+// P4b final A2: a REPORTED layout shows its details card in place of Preview (no layout has an outline). The recorded
+// queue holds no report, so the reported rows spread the queue rows above and add one open report each.
+const reportOf = (item) => ({ ...item, openReports: 1, reports: [{ id: `rep_${item.id}`, reason: 'spam', note: null, createdAt: QUEUE_STAMP }] })
+describe('the Reported section for a page layout item (P4b final A2)', () => {
+  const reportedRow = async (id) => {
+    await screen.findByRole('heading', { name: QUEUE.pending[0].title })
+    return document.querySelector(`[data-gallery-reported="${id}"]`)
+  }
+  const listItems = (row, name) => within(within(row).getByRole('list', { name })).getAllByRole('listitem').map((li) => li.textContent)
+
+  it('shows the layout details card (page, trading style, panels) and no Preview button', async () => {
+    extraReported = [reportOf(PENDING_LAYOUT)]
+    renderPanel()
+    const row = await reportedRow(PENDING_LAYOUT.id)
+    await within(row).findByRole('list', { name: 'Trade page panels' })
+    expect(within(row).getByText('Page: Trade page')).toBeInTheDocument()
+    expect(within(row).getByText(`Trading style: ${tradingStyleLabel(LAYOUT_ITEM.tradingStyle)}`)).toBeInTheDocument()
+    expect(listItems(row, 'Trade page panels')).toEqual(['The story: Shown', 'Chart: Hidden', 'Outcome: Shown'])
+    expect(within(row).queryByRole('button', { name: `Preview ${PENDING_LAYOUT.title}` })).not.toBeInTheDocument()
+  })
+
+  it('a reported layout with a held revision shows the LISTED version members see, not the revision', async () => {
+    extraReported = [reportOf(LAYOUT_REVISION)]
+    renderPanel()
+    const row = await reportedRow(LAYOUT_REVISION.id)
+    await within(row).findByRole('list', { name: 'Trade page panels' })
+    expect(listItems(row, 'Trade page panels')).toEqual(['The story: Shown', 'Chart: Hidden', 'Outcome: Shown'])
+    expect(within(row).queryByText(layoutRevisionLine(LAYOUT_REV.pendingRevision.version))).not.toBeInTheDocument()
+  })
+
+  it('T6b-R1: a reported layout whose payload is null says it cannot be used yet and shows no lists', async () => {
+    extraReported = [reportOf(NULL_LAYOUT)]
+    renderPanel()
+    const row = await reportedRow(NULL_LAYOUT.id)
+    expect(await within(row).findByText(LAYOUT_UNSUPPORTED_SENTENCE)).toBeInTheDocument()
+    expect(within(row).queryByRole('list')).not.toBeInTheDocument()
+    expect(within(row).queryByRole('button', { name: `Preview ${NULL_LAYOUT.title}` })).not.toBeInTheDocument()
+  })
+
+  it('control: a reported style still has its Preview and no layout details', async () => {
+    extraReported = [reportOf(PENDING_STYLE)]
+    renderPanel()
+    const row = await reportedRow(PENDING_STYLE.id)
+    expect(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` })).toBeInTheDocument()
     expect(within(row).queryByText(/^Page: /)).not.toBeInTheDocument()
   })
 })

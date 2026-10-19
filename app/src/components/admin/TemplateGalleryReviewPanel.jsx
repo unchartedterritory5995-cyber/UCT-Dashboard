@@ -24,7 +24,7 @@
 // style card uses (and pinned as the approve token the same way, P3a-T10-R7). A held revision shows the revision's
 // own lists, from `pendingRevision`. A layout whose payload is null (every panel unknown to this build, P4b-T6b-R1)
 // says "This layout can't be used yet." and its lists are never read. A layout row has no Preview: it has no outline,
-// and its details card IS the preview.
+// and its details card IS the preview, in the Reported section too (P4b final A2), where it shows the listed version.
 // The panel is reached through the gallery's lazy chunk (ruling X13), so none of this is first-open code.
 // Rendered inside the Notebook's community gallery for admins (TemplateGallery.jsx);
 // the server refuses every one of these calls to a non-admin regardless.
@@ -301,10 +301,15 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
                   aria-label={`Dismiss the report on ${item.title}`}>Dismiss</button>
               </div>
             ))}
-            <div className={styles.actions}>
-              <button type="button" className={styles.btn} onClick={() => openPreview(item)}
-                aria-label={`Preview ${item.title}`}>Preview</button>
-            </div>
+            {/* A reported layout has no outline: its details card is the preview (P4b final A2). A report is about
+                the LISTED version members see, so the card reads that one, never a held revision. */}
+            {item.itemType === 'page_layout' && <LayoutReviewDetails item={{ ...item, hasRevision: false }} onRead={markSeen} />}
+            {item.itemType !== 'page_layout' && (
+              <div className={styles.actions}>
+                <button type="button" className={styles.btn} onClick={() => openPreview(item)}
+                  aria-label={`Preview ${item.title}`}>Preview</button>
+              </div>
+            )}
           </div>
         ))}
       </section>
