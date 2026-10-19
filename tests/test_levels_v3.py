@@ -14,7 +14,11 @@ Rails:
   * the dated tier stamp: auto_structures serves v3 only under MEMBER_LEVELS_ROUND and falls back to C2 on a
     missing / wrong stamp, a malformed result or a crash (F2: the first fallback per process logs at WARNING,
     later ones at DEBUG, every one is counted);
-  * R1: the drawn cache is keyed on (sym, last bar ts, forming).
+  * R1 / F1: one cache slot per symbol, reused only for the same (last bar, forming, session) state, and never
+    iterated or deleted from (a threaded rail and an AST rail);
+  * the session gate: v3 only on a COMPLETED session's bar (barspack's authority, driven with a fixed clock):
+    mid-session -> C2, after the close -> v3, weekend -> v3, clock unknown -> C2;
+  * member prose: no `why` carries a lab token (pdl, pph, near_s, *_fallback, d10, ...).
 """
 from __future__ import annotations
 
@@ -24,12 +28,14 @@ import json
 import logging
 import random
 import re
+import sys
+import threading
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from api.services import auto_draw, auto_structures, levels_v2, levels_v3
+from api.services import auto_draw, auto_structures, barspack, levels_v2, levels_v3
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "levels_v3_parity.json"
 SRC = Path(levels_v3.__file__).read_text(encoding="utf-8")
@@ -187,7 +193,53 @@ def test_the_verbatim_blocks_hash_as_declared():
         levels_v3.DRAWER_BLOCK_SHA256
 
 
+# ------------------------------------------------------------------------------------------------ member prose
+
+_LAB_TOKENS = re.compile(r"\b(pdh|pdl|pph|ppl|d10h?|d10l|wkh|wkl|pwh|pwl|hi52|lo52|ath|vshelf|pivot|near_[sr])\b"
+                         r"|_fallback|\(.*\)")
+
+
+def _all_member_levels(parity):
+    for c in parity["cases"]:
+        yield from levels_v3.drawn_levels([tuple(r) for r in c["bars"]])["horizontals"]
+    for seed in range(12):
+        yield from levels_v3.drawn_levels(_synthetic(seed))["horizontals"]
+
+
+def test_no_member_why_carries_a_lab_token(parity):
+    hs = list(_all_member_levels(parity))
+    bad = [h["why"] for h in hs if not h["why"] or _LAB_TOKENS.search(h["why"])]
+    assert bad == []
+    whys = " ".join(h["why"] for h in hs)
+    for prose in ("nearest support", "touches", "ATR below price", "ATR above price"):
+        assert prose in whys          # control: real prose is there, the rail is not passing on blanks
+
+
+def test_the_lab_token_rail_can_fail():
+    for leaked in ("pivot, pph", "pdl (pdl)", "gap (near_s)", "prior-day high pdh_fallback", "d10h"):
+        assert _LAB_TOKENS.search(leaked), leaked
+
+
 # ------------------------------------------------------------------------------------------- the dated tier stamp
+
+#: every member series below ends on Friday 2026-10-16, a full NYSE session
+LAST = 20261016
+_REAL_DONE = barspack._last_complete_session_ymd
+MID_SESSION = datetime.datetime(2026, 10, 16, 11, 0)
+AFTER_CLOSE = datetime.datetime(2026, 10, 16, 17, 0)
+WEEKEND = datetime.datetime(2026, 10, 17, 12, 0)
+
+
+def _ending(rows, last=LAST):
+    """the series re-dated (weekdays) so its last bar is `last`; prices unchanged."""
+    d, days = datetime.datetime.strptime(str(last), "%Y%m%d").date(), []
+    while len(days) < len(rows):
+        if d.weekday() < 5:
+            days.append(int(d.strftime("%Y%m%d")))
+        d -= datetime.timedelta(days=1)
+    days.reverse()
+    return [(t,) + tuple(r[1:]) for t, r in zip(days, rows)]
+
 
 _ROWS = None
 
@@ -196,8 +248,19 @@ def _rows():
     global _ROWS
     if _ROWS is None:
         c = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"][0]
-        _ROWS = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in c["bars"]]
+        _ROWS = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+                 for r in _ending([tuple(x) for x in c["bars"]])]
     return _ROWS
+
+
+def _clock(monkeypatch, at):
+    """drive barspack's session authority -- read by BOTH last_bar_forming and the v3 gate -- with a fixed
+    wall clock; at=None is an unknown clock."""
+    if at is None:
+        monkeypatch.setattr(barspack, "_last_complete_session_ymd", lambda now=None: None)
+    else:
+        monkeypatch.setattr(barspack, "_last_complete_session_ymd",
+                            lambda now=None: _REAL_DONE(at.replace(tzinfo=barspack._ET)))
 
 
 @pytest.fixture
@@ -209,9 +272,9 @@ def fresh_fallback_state(monkeypatch):
     auto_structures._DRAWN_CACHE.clear()
 
 
-def _drawn(monkeypatch, v3=None, raise_=False, rows=None, forming=False, sym="ZZTEST"):
+def _drawn(monkeypatch, v3=None, raise_=False, rows=None, at=AFTER_CLOSE, sym="ZZTEST"):
     monkeypatch.setattr(auto_structures, "_daily_bars", lambda s: rows if rows is not None else _rows())
-    monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: forming)
+    _clock(monkeypatch, at)
     if raise_:
         def boom(*a, **k):
             raise RuntimeError("x")
@@ -223,14 +286,15 @@ def _drawn(monkeypatch, v3=None, raise_=False, rows=None, forming=False, sym="ZZ
     return out
 
 
-def _c2():
+def _c2(forming=False):
     rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _rows()]
-    return auto_draw.drawn_set(auto_draw.clean_bars(rows))["horizontals"]
+    return auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)["horizontals"]
 
 
 def test_the_stamped_v3_levels_replace_the_c2_levels(monkeypatch, fresh_fallback_state):
     out = _drawn(monkeypatch)
-    assert out["levels_tier"] == {"round": auto_structures.MEMBER_LEVELS_ROUND, "source": "levels_v3"}
+    assert out["levels_tier"] == {"round": auto_structures.MEMBER_LEVELS_ROUND, "source": "levels_v3",
+                                  "asof_t": LAST}
     assert out["horizontals"] and all(h["source"] == "levels_v3" for h in out["horizontals"])
     assert out["horizontals"] != _c2()
     assert out["trendlines"] is not None
@@ -246,22 +310,90 @@ def test_the_member_round_is_a_literal_equal_to_the_drawing_round():
     assert 'MEMBER_LEVELS_ROUND = "%s"' % levels_v3.LEVELS_V3_ROUND in as_src
 
 
+# --------------------------------------------------------------------------------------------- the session gate
+
+def _spy_v3(monkeypatch):
+    calls = []
+    real = levels_v3.drawn_levels
+
+    def spy(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+    monkeypatch.setattr(levels_v3, "drawn_levels", spy)
+    return calls
+
+
+def test_mid_session_serves_C2_and_never_draws_v3(monkeypatch, fresh_fallback_state):
+    calls = _spy_v3(monkeypatch)
+    out = _drawn(monkeypatch, at=MID_SESSION)
+    assert out["last_bar_forming"] is True
+    assert "levels_tier" not in out
+    assert out["horizontals"] == _c2(forming=True)
+    assert calls == []
+    assert auto_structures.LEVELS_FALLBACKS == {"crash": 0, "rejected": 0}     # a policy, not a fallback
+
+
+def test_after_the_close_serves_v3_as_of_that_session(monkeypatch, fresh_fallback_state):
+    out = _drawn(monkeypatch, at=AFTER_CLOSE)
+    assert out["levels_tier"]["source"] == "levels_v3" and out["levels_tier"]["asof_t"] == LAST
+
+
+def test_weekend_serves_v3_as_of_friday(monkeypatch, fresh_fallback_state):
+    out = _drawn(monkeypatch, at=WEEKEND)
+    assert out["levels_tier"]["source"] == "levels_v3" and out["levels_tier"]["asof_t"] == LAST
+
+
+def test_an_unknown_session_clock_serves_C2(monkeypatch, fresh_fallback_state):
+    calls = _spy_v3(monkeypatch)
+    out = _drawn(monkeypatch, at=None)
+    assert "levels_tier" not in out
+    assert out["horizontals"] == _c2(forming=False)
+    assert calls == []
+
+
+def test_a_clock_that_raises_serves_C2(monkeypatch, fresh_fallback_state):
+    def boom(now=None):
+        raise RuntimeError("no clock")
+    monkeypatch.setattr(auto_structures, "_daily_bars", lambda s: _rows())
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd", boom)
+    out = auto_structures.drawn_for("ZZCLK")
+    assert out is not None and "levels_tier" not in out
+
+
+def test_levels_session_state_reads_the_authority():
+    st = auto_structures.levels_session_state
+    et = barspack._ET
+    assert st(LAST, MID_SESSION.replace(tzinfo=et)) == "forming"
+    assert st(LAST, AFTER_CLOSE.replace(tzinfo=et)) == "complete"
+    assert st(LAST, WEEKEND.replace(tzinfo=et)) == "complete"
+    assert st(None, AFTER_CLOSE.replace(tzinfo=et)) == "unknown"
+    assert st("garbage", AFTER_CLOSE.replace(tzinfo=et)) == "unknown"
+
+
+def test_a_v3_drawing_at_another_session_is_rejected(monkeypatch, fresh_fallback_state):
+    good = levels_v3.drawn_levels([(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _rows()])
+    out = _drawn(monkeypatch, v3={**good, "asof_t": LAST - 1})
+    assert "levels_tier" not in out and auto_structures.LEVELS_FALLBACKS["rejected"] == 1
+
+
+# ------------------------------------------------------------------------------------------------ stamp fallbacks
+
 _H = {"source": "levels_v3", "label": "PDL", "price": 10.0, "t_from": 20240101}
 
 
 @pytest.mark.parametrize("bad", [
     None,
-    {"round": "2026-10-18", "horizontals": [_H]},                      # v2's stamp is not v3's
-    {"round": "2026-01-01-v3", "horizontals": [_H]},
-    {"horizontals": [_H]},
-    {"round": "2026-10-18-v3", "horizontals": []},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "price": float("nan")}]},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "source": "levels_v2"}]},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "t_from": "20240101"}]},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "label": "round"}]},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "label": "level"}]},
-    {"round": "2026-10-18-v3", "horizontals": [{**_H, "label": ""}]},
-    {"round": "2026-10-18-v3", "horizontals": [_H] * 5},
+    {"round": "2026-10-18", "asof_t": LAST, "horizontals": [_H]},          # v2's stamp is not v3's
+    {"round": "2026-01-01-v3", "asof_t": LAST, "horizontals": [_H]},
+    {"asof_t": LAST, "horizontals": [_H]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": []},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "price": float("nan")}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "source": "levels_v2"}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "t_from": "20240101"}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "label": "round"}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "label": "level"}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "label": ""}]},
+    {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [_H] * 5},
 ])
 def test_a_missing_wrong_or_malformed_stamp_keeps_the_c2_levels(monkeypatch, fresh_fallback_state, bad):
     out = _drawn(monkeypatch, v3=bad if bad is not None else {"round": None})
@@ -271,7 +403,7 @@ def test_a_missing_wrong_or_malformed_stamp_keeps_the_c2_levels(monkeypatch, fre
 
 
 def test_four_well_formed_levels_are_accepted(monkeypatch, fresh_fallback_state):
-    ok = {"round": "2026-10-18-v3", "horizontals": [{**_H, "price": 10.0 + k} for k in range(4)]}
+    ok = {"round": "2026-10-18-v3", "asof_t": LAST, "horizontals": [{**_H, "price": 10.0 + k} for k in range(4)]}
     out = _drawn(monkeypatch, v3=ok)
     assert out["levels_tier"]["source"] == "levels_v3" and len(out["horizontals"]) == 4
 
@@ -301,21 +433,36 @@ def test_F2_a_served_v3_drawing_logs_nothing(monkeypatch, fresh_fallback_state, 
     assert not [r for r in caplog.records if "[levels-v3]" in r.getMessage()]
 
 
-# ------------------------------------------------------------------------------------------------- R1: the cache
+def test_F2_counting_and_warn_once_hold_under_threads(monkeypatch, fresh_fallback_state, caplog):
+    caplog.set_level(logging.WARNING, logger=auto_structures._log.name)
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    try:
+        ts = [threading.Thread(target=lambda: [auto_structures._levels_fallback("crash", "T", "x")
+                                               for _ in range(500)]) for _ in range(8)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+    finally:
+        sys.setswitchinterval(old)
+    assert auto_structures.LEVELS_FALLBACKS["crash"] == 4000
+    assert len([r for r in caplog.records if "[levels-v3]" in r.getMessage()]) == 1
 
-def test_R1_the_cache_is_keyed_on_the_last_bar_and_the_forming_state(monkeypatch, fresh_fallback_state):
+
+# ---------------------------------------------------------------------------------------------- R1 / F1: the cache
+
+def test_R1_one_slot_per_symbol_keyed_on_last_bar_forming_and_session(monkeypatch, fresh_fallback_state):
     rows = list(_rows())
     calls = []
-    real = levels_v3.drawn_levels
+    real = auto_draw.drawn_set
 
     def counting(*a, **k):
         calls.append(1)
         return real(*a, **k)
 
-    monkeypatch.setattr(levels_v3, "drawn_levels", counting)
-    state = {"rows": rows[:-1], "forming": False}
+    monkeypatch.setattr(auto_draw, "drawn_set", counting)
+    state = {"rows": rows[:-1]}
     monkeypatch.setattr(auto_structures, "_daily_bars", lambda s: state["rows"])
-    monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: state["forming"])
+    _clock(monkeypatch, AFTER_CLOSE)
 
     first = auto_structures.drawn_for("ZZR1")
     again = auto_structures.drawn_for("zzr1")
@@ -325,9 +472,60 @@ def test_R1_the_cache_is_keyed_on_the_last_bar_and_the_forming_state(monkeypatch
     newer = auto_structures.drawn_for("ZZR1")
     assert len(calls) == 2 and newer is not first
 
-    state["forming"] = True                                          # same last bar, now forming
+    _clock(monkeypatch, MID_SESSION)                                 # same last bar, now forming
     auto_structures.drawn_for("ZZR1")
     assert len(calls) == 3
 
-    keys = [k for k in auto_structures._DRAWN_CACHE if isinstance(k, tuple) and k[0] == "ZZR1"]
-    assert keys == [("ZZR1", rows[-1]["t"], True)]                   # one entry per symbol
+    _clock(monkeypatch, None)                                        # clock lost: not the cached drawing
+    auto_structures.drawn_for("ZZR1")
+    assert len(calls) == 4
+
+    assert list(auto_structures._DRAWN_CACHE) == ["ZZR1"]            # ONE slot per symbol
+    assert auto_structures._DRAWN_CACHE["ZZR1"][1] == (LAST, False, "unknown")
+
+
+def test_F1_drawn_for_never_iterates_or_deletes_from_the_shared_cache():
+    import ast
+    import inspect
+    import textwrap
+    fn = ast.parse(textwrap.dedent(inspect.getsource(auto_structures.drawn_for)))
+    seen = 0
+    for node in ast.walk(fn):
+        if isinstance(node, (ast.For, ast.comprehension)):
+            assert "_DRAWN_CACHE" not in ast.unparse(node.iter)
+        if isinstance(node, ast.Delete):
+            assert "_DRAWN_CACHE" not in ast.unparse(node)
+        if isinstance(node, ast.Name) and node.id == "_DRAWN_CACHE":
+            seen += 1
+    assert seen >= 2          # control: the walk really sees the function's cache reads and writes
+
+
+def test_F1_concurrent_reads_never_raise(monkeypatch, fresh_fallback_state):
+    """many threads, many symbols, a cache already holding thousands of entries: the old sweep (iterate the
+    shared dict to delete the symbol's stale keys) raised 'dictionary changed size during iteration'."""
+    tiny = {"horizontals": [], "trendlines": [], "asof_t": LAST, "last_bar_forming": False, "omitted": []}
+    monkeypatch.setattr(auto_structures, "_daily_bars",
+                        lambda s: [{"t": LAST, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
+    monkeypatch.setattr(auto_draw, "drawn_set", lambda *a, **k: dict(tiny))
+    monkeypatch.setattr(auto_structures, "_levels_v3", lambda *a, **k: None)
+    _clock(monkeypatch, AFTER_CLOSE)
+    for k in range(20000):
+        auto_structures._DRAWN_CACHE["PRE%d" % k] = (0.0, None, None)
+    errors = []
+
+    def worker(n):
+        try:
+            for j in range(400):
+                auto_structures.drawn_for("S%d_%d" % (n, j))
+        except Exception as e:  # noqa: BLE001
+            errors.append(repr(e))
+
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    try:
+        ts = [threading.Thread(target=worker, args=(n,)) for n in range(8)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+    finally:
+        sys.setswitchinterval(old)
+    assert errors == []

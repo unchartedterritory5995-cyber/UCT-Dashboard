@@ -30,7 +30,7 @@ import types as _types
 import numpy as np
 
 from api.services import levels_v2 as D2
-from api.services.levels_v2 import K
+from api.services.levels_v2 import TOUCH_ATR, TOUCH_LOOKBACK, K
 
 #: The dated tier stamp of this drawing. auto_structures serves these levels in place of the C2 levels only while
 #: the stamp equals its own MEMBER_LEVELS_ROUND literal (fail closed to the C2 drawer otherwise).
@@ -168,6 +168,53 @@ def draw_levels(a, i):
 # ---- END VERBATIM lab/levels_v3/drawer_v3.py
 
 
+#: Member prose for each lab source token. The token itself never reaches a member: it is shown in the
+#: chart's hover text, where "pdl" or "pph" means nothing. Order = the order the reasons are written in.
+_SOURCE_PROSE = (
+    ('pdh', "prior-day high"), ('pdl', "prior-day low"),
+    ('pph', "high of the day before"), ('ppl', "low of the day before"),
+    ('d10h', "10-day high"), ('d10l', "10-day low"),
+    ('wkh', "this week's high"), ('wkl', "this week's low"),
+    ('pwh', "last week's high"), ('pwl', "last week's low"),
+    ('hi52', "52-week high"), ('lo52', "52-week low"),
+    ('ath', "highest high on the chart"),
+    ('gap', "gap edge"), ('vshelf', "volume shelf"), ('round', "round number"),
+)
+_TAG_PROSE = {'near_s': "nearest support", 'pdl_fallback': "nearest support",
+              'near_r': "nearest resistance", 'pdh_fallback': "nearest resistance"}
+
+
+def _touches(a, i, p, at):
+    """separate touches of p in the last TOUCH_LOOKBACK bars -- the drawer's own touch definition."""
+    t0 = max(0, i - TOUCH_LOOKBACK + 1)
+    tol = TOUCH_ATR * at
+    m = (np.abs(a[t0:i + 1, 2] - p) <= tol) | (np.abs(a[t0:i + 1, 3] - p) <= tol)
+    return int(D2._groups(m))
+
+
+def _why(h, a, i, close, at):
+    """short member prose for one level, in the C2 drawer's register ("prior-day low, 3 touches, 0.4 ATR
+    below price"); never a lab token."""
+    srcs = set(h['sources'])
+    parts = [txt for k, txt in _SOURCE_PROSE if k in srcs]
+    if 'pivot' in srcs:
+        lab = h['label']
+        kind = ("swing high" if lab in ('swing H', 'old high / flip')
+                else "swing low" if lab in ('swing L', 'old low / flip') else "swing point")
+        if lab in ('old high / flip', 'old low / flip'):
+            kind += ", flipped"
+        if kind != "swing point" or not parts:     # a named level already says what it is
+            parts.insert(0, kind)
+    if h['tag'] in _TAG_PROSE:
+        parts.insert(0, _TAG_PROSE[h['tag']])
+    n = _touches(a, i, h['price'], at)
+    if n >= 2:
+        parts.append("%d touches" % n)
+    d = (h['price'] - close) / at
+    parts.append("%.1f ATR %s price" % (abs(d), 'above' if d >= 0 else 'below'))
+    return ', '.join(dict.fromkeys(parts))
+
+
 def drawn_levels(bars, last_bar_forming=False):
     """The v3 horizontals for daily `bars` ((ts, o, h, l, c, v) tuples, oldest first, already cleaned), in the
     auto_draw horizontal shape {source, label, price, t_from, score, why}. While the last bar is a session still
@@ -182,10 +229,11 @@ def drawn_levels(bars, last_bar_forming=False):
     at = D2.atr(a, i)
     if not at or at <= 0:
         return None
+    close = float(a[i, 4])
     out = []
     for h in draw_levels(a, i):
         out.append({'source': 'levels_v3', 'label': h['label'], 'price': round(h['price'], 4),
                     't_from': int(a[h['j'], 0]),
                     'score': round(h['score'], 4) if h['score'] is not None else None,
-                    'why': ', '.join(h['sources']) + ('' if h['tag'] == 'v2' else ' (%s)' % h['tag'])})
+                    'why': _why(h, a, i, close, at)})
     return {'round': LEVELS_V3_ROUND, 'asof_t': int(a[i, 0]), 'horizontals': out}
