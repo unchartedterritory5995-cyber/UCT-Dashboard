@@ -15,6 +15,9 @@
 import { describe, it, expect } from 'vitest'
 import { COLUMN_DEFS, descFor } from './columnDefs'
 
+// ⛔ May only ever go UP — see 'holds the coverage ratchet' below.
+const RATCHET_FLOOR = 127
+
 // The columns whose DEFINITION is not guessable from the label, or where the
 // audit measured a member-visible trap. Every one of these must carry text.
 const MUST_DOCUMENT = [
@@ -46,6 +49,12 @@ const MUST_DOCUMENT = [
   // the same vocabulary on the weekly bar, resampled from daily
   'candle_weekly',
   'candle_monthly',
+  // 2026-10-18 screener column audit — the ranking family had NO text at all,
+  // and every one of these ranks a provider or a vintage a member would not
+  // guess from the label (measured against the prod snapshot).
+  'uct_composite', 'rs_rank', 'rs_return', 'accdis', 'blended_growth',
+  'sector_rs_pct', 'rating_eps', 'rating_growth', 'rating_value',
+  'rating_smr', 'sponsorship', 'inst_pct',
 ]
 
 describe('member-facing column descriptions', () => {
@@ -66,9 +75,31 @@ describe('member-facing column descriptions', () => {
     // ⛔ This number may only ever go UP. If a change drops it, the change
     // deleted a member-facing explanation — restore it rather than lowering
     // the floor. 32 at the start of 2026-08-24, 55 after the accuracy wave,
-    // 80 after Wave 7 shipped 25 fundamental fields WITH their text.
+    // 80 after Wave 7 shipped 25 fundamental fields WITH their text; +12 on
+    // 2026-10-18 when the ranking family and Inst% got theirs.
     const documented = Object.keys(COLUMN_DEFS).filter(k => descFor(k)).length
-    expect(documented).toBeGreaterThanOrEqual(80)
+    expect(documented).toBeGreaterThanOrEqual(RATCHET_FLOOR)
+  })
+
+  it('says EPS Gr and Rev Gr are QUARTERLY, because that is what they measure', () => {
+    // 🔴 Both said "trailing twelve months against the prior twelve". The
+    // values are yfinance earningsGrowth / revenueGrowth — the latest quarter
+    // against the year-ago quarter — and measured against FMP statements they
+    // match that on 30/34 and 35/44 sampled names, TTM on 4/34 and 10/44.
+    for (const key of ['eps_growth', 'rev_growth']) {
+      const d = descFor(key)
+      expect(d).toMatch(/same quarter a year earlier/)
+      expect(d).toMatch(/not trailing-twelve-month growth/)
+    }
+  })
+
+  it('names the different provider wherever a rating ranks one', () => {
+    // Measured on the prod snapshot: Val Rt vs the PEG column Spearman -0.33,
+    // Spons vs Inst% 0.86, SMR vs Op Mgn 0.67 — each ranks Yahoo's input.
+    expect(descFor('rating_value')).toMatch(/NOT the PEG column/)
+    expect(descFor('sponsorship')).toMatch(/not the Inst% column/)
+    expect(descFor('rating_smr')).toMatch(/not the Op Mgn and ROE columns/)
+    expect(descFor('inst_pct')).toMatch(/DIFFERENT provider/)
   })
 
   it('states the two definitions that disagree, on BOTH columns', () => {
