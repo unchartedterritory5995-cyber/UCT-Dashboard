@@ -363,6 +363,11 @@ class World:
         self.db_path = tmp.name
         self.tmpdir = tempfile.mkdtemp(prefix="notebook_contract_")
         self.p.setenv("AUTH_DB_PATH", tmp.name)
+        # The note and gallery image files, per run like the database. The census pins DATA_DIR once per
+        # PROCESS, so without this a second run in one process found the first run's example image directory
+        # already there, drew one more id setting it aside, and moved every id after it (P5 landing: the
+        # starter-pack builder, now after example_notes, was not byte-identical across two runs).
+        self.p.setenv("J2_ATTACHMENT_ROOT", os.path.join(self.tmpdir, "j2_attachments"))
         for flag in FLAGS:
             self.p.setenv(flag, "1")
         from api.services import auth_db
