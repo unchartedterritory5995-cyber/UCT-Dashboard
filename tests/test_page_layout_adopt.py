@@ -12,11 +12,10 @@ import pytest
 
 from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import template_gallery as gallery
-# P4b-R-X17: the shared fixtures, imported by name (never copied).
-from tests._style_library_helpers import api, conn  # noqa: F401
-# Task 4's layout fixtures, imported by name for the same reason: a copy here would be a second
-# authority over the switches and the preference write.
-from tests.test_page_layout_share import TRADE, _save_pref, _set, sharing_on, SWITCHES  # noqa: F401
+# P4b-R-X17: the shared fixtures, imported by name (never copied). The layout switches, the preference write
+# and TRADE are there too: a copy here would be a second authority over them, and importing them from
+# test_page_layout_share made this module run that one's import (P4b T5 final row 11).
+from tests._style_library_helpers import SWITCHES, TRADE, _save_pref, _set, api, conn, sharing_on  # noqa: F401
 
 
 def _listed_layout(conn) -> str:
@@ -381,7 +380,7 @@ def test_an_exception_in_adopt_layout_gives_the_day_back(api, conn, sharing_on, 
     from fastapi.testclient import TestClient
     client = TestClient(api.app, raise_server_exceptions=False)
     assert client.post(_url(gid), json={"version": 1}).status_code == 500
-    assert _charged(conn) in (None, 0)
+    assert _charged(conn) == 0              # charged, then given back: the row exists and reads zero
 
 
 # ── P4b-T6-R1: the preview is what adopt applies ───────────────────────────────────────────────────
