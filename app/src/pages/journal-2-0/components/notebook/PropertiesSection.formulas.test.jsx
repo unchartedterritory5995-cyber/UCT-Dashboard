@@ -167,6 +167,15 @@ describe('flag ON', () => {
     expect(screen.getByText(/ends too soon/)).toBeTruthy()
   })
 
+  it('E6: "Add a formula" is gone while the new-property form is open, so a Rollup in progress keeps its type', async () => {
+    const user = userEvent.setup()
+    renderSection()
+    await openNewPropertyForm(user)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Property type' }), 'rollup')
+    expect(screen.queryByRole('button', { name: 'Add a formula' })).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Property type' }).value).toBe('rollup')
+  })
+
   it('creates a rollup: average of R across the notes this note links to', async () => {
     defsResult = [...NUMBERS, R_DEF]
     const user = userEvent.setup()
