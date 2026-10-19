@@ -355,7 +355,11 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         # member's lists.
         body = spec.model_dump()
         uid = (user or {}).get("id")
-        out = scr_query.run_scan(body, user_id=uid, user=user)
+        # A row stored before snapshot_db._coerce refused non-finite floats can
+        # still carry an inf until the next build rewrites it; scrubbed here it
+        # is a blank cell, never a 500 for the whole page (json_finite).
+        from api.services.json_finite import scrub
+        out = scrub(scr_query.run_scan(body, user_id=uid, user=user))
         # TERM-047 (dark, COVERAGE_RECEIPTS_SCANS_ENABLED): the screen's own
         # four-count receipt. Computed only when armed (two COUNTs); a receipt
         # failure never costs the member their scan.
