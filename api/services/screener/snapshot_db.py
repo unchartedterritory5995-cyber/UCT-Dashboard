@@ -3,6 +3,7 @@
 Built nightly by ``snapshot_builder``; queried by ``query``. All numeric fields
 nullable so a ticker missing fundamentals still screens on technicals.
 """
+import math
 import json
 import os
 import sqlite3
@@ -537,10 +538,72 @@ def init_db() -> None:
 
 
 def _coerce(name, value):
-    """Normalize python bools to 0/1 for the INTEGER bool columns."""
+    """Normalize python bools to 0/1 for the INTEGER bool columns, and store a
+    non-finite float as NULL.
+
+    ⛔ AN inf OR NaN IS NO VALUE, AND HERE IS WHERE THAT IS ENFORCED FOR EVERY
+    COLUMN. SQLite stores `inf` as a REAL, so it would sort first, pass a `> N`
+    filter, and then fail JSON encoding: one stored inf made every scan page
+    that carried it answer 500 (KOPN's pe_fwd, 2026-10-18). Every nightly and
+    live row is written through this function, so a producer that lets one slip
+    costs a blank cell, never a broken page. The producers still refuse their
+    own (`fundamentals._round`, the enrich passthrough); this is the floor
+    beneath them, not a second authority over any value.
+    """
     if isinstance(value, bool):
         return 1 if value else 0
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     return value
+
+
+def rank_sector_rs(min_sample: int | None = None) -> dict:
+    """Recompute ``sector_rs_pct`` for every row from the ``rs_return`` stored
+    beside it: the 1-99 rank of that RS return among the rows of the same
+    sector. Returns a receipt.
+
+    ⭐ ONE SOURCE FOR BOTH RS COLUMNS. `rs_return` (and `rs_rank`) come from the
+    RS authority (`rs_ranking`, via `snapshot_builder.rs_fields`). Sector RS used
+    to rank a SECOND copy of that return kept in the ratings store, up to six
+    days older, against that store's sector pools: measured 2026-10-18 on
+    every prod row, a median 4 and p90 15 points off the within-sector rank of
+    the RS Ret shown beside it, 187 rows 20+ points off (ABTC 96 vs 42). Ranked
+    here, from the rows a member is looking at, Sector RS and RS Ret can never
+    disagree in order within a sector.
+
+    The scale is `ratings_db._rank` (1-99, ties at the midpoint) so the column
+    keeps the meaning the methodology states. A sector with fewer than
+    `ratings_db.SECTOR_MIN_SAMPLE` ranked rows, or a row with no sector or no
+    RS return, gets NULL: no rank, never a guessed one.
+    """
+    from collections import defaultdict
+    from api.services.research import ratings_db
+    floor = ratings_db.SECTOR_MIN_SAMPLE if min_sample is None else int(min_sample)
+    with _WRITE_LOCK, connect() as conn:
+        rows = conn.execute("SELECT ticker, sector, rs_return FROM screener_rows").fetchall()
+        pools = defaultdict(list)
+        for r in rows:
+            v = r["rs_return"]
+            if r["sector"] and isinstance(v, (int, float)) and math.isfinite(v):
+                pools[r["sector"]].append(float(v))
+        for vals in pools.values():
+            vals.sort()
+        ranked = 0
+        updates = []
+        for r in rows:
+            v = r["rs_return"]
+            pool = pools.get(r["sector"]) if r["sector"] else None
+            rank = None
+            if pool and len(pool) >= floor and isinstance(v, (int, float)) and math.isfinite(v):
+                rank = ratings_db._rank(pool, float(v))
+                ranked += 1
+            updates.append((rank, r["ticker"]))
+        conn.executemany("UPDATE screener_rows SET sector_rs_pct = ? WHERE ticker = ?", updates)
+        conn.commit()
+    return {"rows": len(rows), "ranked": ranked,
+            "sectors": sum(1 for v in pools.values() if len(v) >= floor),
+            "sectors_below_min": sum(1 for v in pools.values() if len(v) < floor),
+            "min_sample": floor}
 
 
 def upsert_rows(rows: list[dict]) -> int:
