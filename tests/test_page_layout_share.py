@@ -563,3 +563,33 @@ def test_a_refused_layout_publish_gives_the_daily_charge_back(api, conn, sharing
     r = api.post(LAYOUTS_URL, json=BODY)
     assert (r.status_code, r.json()["detail"]) == (400, pls.UNREADABLE_SENTENCE)
     assert charged() == before
+
+
+# ── P4b final, item 5: a sentence a layout's author or reviewer reads names a layout, never a template ──────
+
+def test_an_empty_layout_title_is_refused_as_a_layout(conn, sharing_on):
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    with pytest.raises(gallery.GalleryError) as e:
+        _publish(conn, title="   ")
+    assert str(e.value) == "A gallery layout needs a title."
+
+
+def test_reporting_your_own_layout_is_refused_as_a_layout(conn, sharing_on):
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    item = _publish(conn)
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.report("author", item["id"], reason="spam", conn=conn)
+    assert str(e.value) == "You can't report your own layout. Unpublish it instead."
+
+
+def test_a_stale_layout_approval_names_a_layout(conn, sharing_on):
+    _save_pref(conn, "author", {"version": 1, "trade": TRADE})
+    item = _publish(conn)
+    for token in ("", "2000-01-01T00:00:00+00:00"):          # no token, and a token the row has moved past
+        with pytest.raises(gallery.GalleryConflict) as e:
+            gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=token, conn=conn)
+        assert str(e.value) == gallery.LAYOUT_APPROVE_STALE_SENTENCE
+    assert gallery.LAYOUT_APPROVE_STALE_SENTENCE == ("This layout changed after you opened it. Nothing was listed. "
+                                                      "Look at it again, then approve.")
+    assert gallery.APPROVE_STALE_SENTENCE.startswith("This template changed")     # control: the template row's is unchanged

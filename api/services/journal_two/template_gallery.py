@@ -115,6 +115,9 @@ _PREVIEW_LINE_CHARS = 72
 #: What an admin reads when the template they are approving is not the one they looked at.
 APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
                           "Look at it again, then approve.")
+#: The same sentence for a page layout row: a layout is not a template (P4b final, item 5).
+LAYOUT_APPROVE_STALE_SENTENCE = ("This layout changed after you opened it. Nothing was listed. "
+                                 "Look at it again, then approve.")
 
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
@@ -402,14 +405,14 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
     return out
 
 
-def _clean_text(raw: Any, *, field: str, limit: int, required: bool) -> str:
+def _clean_text(raw: Any, *, field: str, limit: int, required: bool, noun: str = "template") -> str:
     if raw is None:
         raw = ""
     if not isinstance(raw, str):
         raise GalleryError(f"{field} must be text.")
     text = " ".join(public.scrub_gallery_text(raw).split())
     if required and not text:
-        raise GalleryError(f"A gallery template needs a {field}.")
+        raise GalleryError(f"A gallery {noun} needs a {field}.")
     if len(text) > limit:
         raise GalleryError(f"The {field} can be at most {limit} characters.")
     return text
@@ -1070,7 +1073,7 @@ def publish_layout(user_id: str, page: Any, *, title: Any, description: Any, cat
         return None
     if page not in LAYOUT_PAGES:        # the page first, before any field is cleaned (review Minor 2)
         raise GalleryError(pls.PAGE_SENTENCE)
-    clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
+    clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True, noun="layout")
     clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
     clean_cat = _clean_category(category)
     clean_ts = _clean_trading_style(trading_style)
@@ -1651,7 +1654,8 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
         if row is None or row["status"] != "approved" or row["hidden"] or _library_hides(row):
             return None
         if row["user_id"] == user_id:
-            raise GalleryError("You can't report your own template. Unpublish it instead.")
+            noun = "layout" if row["item_type"] == LAYOUT_ITEM else "template"
+            raise GalleryError(f"You can't report your own {noun}. Unpublish it instead.")
         try:
             conn.execute(
                 "INSERT INTO j2_template_gallery_reports (id, gallery_id, user_id, reason, note,"
@@ -1856,9 +1860,10 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         if row is None or _library_hides(row):
             return None
         now = _now()
+        stale = LAYOUT_APPROVE_STALE_SENTENCE if row["item_type"] == LAYOUT_ITEM else APPROVE_STALE_SENTENCE
         if action == "approve":
             if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
-                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+                raise GalleryConflict(stale)
             if row["pending_json"]:
                 # An approved style's HELD revision (R-P3-3): swap it in, in the same conditional
                 # statement as a first approval, and bump the version members see.
@@ -1889,7 +1894,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                     (admin_id, now, now, now, gallery_id, reviewed_updated_at))
             if cur.rowcount != 1:
                 conn.rollback()
-                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+                raise GalleryConflict(stale)
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")

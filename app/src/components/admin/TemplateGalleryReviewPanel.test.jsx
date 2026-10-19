@@ -395,6 +395,9 @@ describe('the Reported section for a page layout item (P4b final A2)', () => {
     expect(within(row).getByText(`Trading style: ${tradingStyleLabel(LAYOUT_ITEM.tradingStyle)}`)).toBeInTheDocument()
     expect(listItems(row, 'Trade page panels')).toEqual(['The story: Shown', 'Chart: Hidden', 'Outcome: Shown'])
     expect(within(row).queryByRole('button', { name: `Preview ${PENDING_LAYOUT.title}` })).not.toBeInTheDocument()
+    // item 5: the moderator hides a LAYOUT, never a template
+    expect(within(row).getByRole('button', { name: `Hide layout ${PENDING_LAYOUT.title}` })).toHaveTextContent(/^Hide layout$/)
+    expect(within(row).queryByText(/template/i)).not.toBeInTheDocument()
   })
 
   it('a reported layout with a held revision shows the LISTED version members see, not the revision', async () => {
@@ -420,6 +423,7 @@ describe('the Reported section for a page layout item (P4b final A2)', () => {
     renderPanel()
     const row = await reportedRow(PENDING_STYLE.id)
     expect(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: `Hide template ${PENDING_STYLE.title}` })).toHaveTextContent(/^Hide template$/)
     expect(within(row).queryByText(/^Page: /)).not.toBeInTheDocument()
   })
 })

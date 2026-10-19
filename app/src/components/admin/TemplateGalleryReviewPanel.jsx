@@ -41,6 +41,8 @@ import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import TemplatePreview from '../../pages/journal-2-0/components/notebook/TemplatePreview'
 import styles from '../../pages/journal-2-0/components/notebook/TemplateGallery.module.css'
 
+// A reported layout is hidden as a layout, never as a template (P4b final, item 5).
+const hideNoun = (item) => (item.itemType === 'page_layout' ? 'layout' : 'template')
 const reasonLabel = (key) => REPORT_REASONS.find((r) => r.key === key)?.label || key
 
 // ⛔ `version` is the server's `pendingRevision.version` (final review M-10): the panel never restates the server's
@@ -295,7 +297,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
                 <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? ` — ${r.note}` : ''}</p>
                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                   onClick={() => act(() => resolveGalleryReport(r.id, 'hide'), `Hid “${item.title}”.`)}
-                  aria-label={`Hide template ${item.title}`}>Hide template</button>
+                  aria-label={`Hide ${hideNoun(item)} ${item.title}`}>{`Hide ${hideNoun(item)}`}</button>
                 <button type="button" className={styles.btn} disabled={working}
                   onClick={() => act(() => resolveGalleryReport(r.id, 'dismiss'), 'Dismissed the report.')}
                   aria-label={`Dismiss the report on ${item.title}`}>Dismiss</button>
