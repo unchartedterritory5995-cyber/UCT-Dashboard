@@ -104,6 +104,29 @@ describe('board writes carry the revision this tab last saw — and only the ser
     expect(posts[1].base_version).toBe(20)
   })
 
+  it('an abort that fires DURING res.json() adopts no revision either: the revision is noted only after the body and the last abort check (P4b final A1)', async () => {
+    const { result } = await mount()
+    const ctl = new AbortController()
+    let bodyAsked = false
+    const realFetch = global.fetch
+    global.fetch = vi.fn(async (url, init) => {
+      if (init && init.method === 'POST') return realFetch(url, init)
+      return {
+        ok: true, status: 200,
+        headers: { get: (n) => (n.toLowerCase() === 'x-workspace-doc' ? 'document; v=20' : null) },
+        // the headers (v=20) are in hand; the caller gives up while the BODY is still being read
+        json: async () => { bodyAsked = true; ctl.abort(); return { charts_workspace_layout: '{"widgets":[9]}', chart_settings: '{}' } },
+      }
+    })
+    let out
+    await act(async () => { out = await refreshPreferences({ signal: ctl.signal }) })
+    expect(bodyAsked).toBe(true)                         // the abort really fired inside json(), not before it
+    expect(out).toBe(null)
+    global.fetch = realFetch
+    await act(async () => { await result.current.setPref('chart_settings', '{"x":1}') })
+    expect(posts[0].base_version).toBe(7)                // still the version the tab LOADED at, not 20
+  })
+
   it('a 409 is NOT a save: false, the workspace is told once, the key stops writing, other keys still save', async () => {
     const { result } = await mount()
     const seen = []
