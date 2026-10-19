@@ -411,6 +411,13 @@
   },
   {
    "method": "GET",
+   "path": "/api/r/breadth-bars/{ticker}",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*). Serves UCT breadth series only (404 for any stock), so it is no way around the paid /api/bars gate; the logged-out /r/chart page reads breadth through it (2026-10-18)."
+  },
+  {
+   "method": "GET",
    "path": "/api/r/breadth-monitor",
    "kind": "inline",
    "marker": "_check_token",
