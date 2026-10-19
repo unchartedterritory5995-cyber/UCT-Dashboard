@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import NewNoteMenu, { NewNoteCaret } from './NewNoteMenu'
 
 describe('NewNoteMenu', () => {
@@ -146,3 +147,80 @@ describe('the open menu keeps Left/Right/Home/End (both forms)', () => {
     },
   )
 })
+
+// Review follow-up R1: the menu button's keyboard pattern. ArrowDown / ArrowUp on the caret open the
+// menu on its first / last item, and a Tab that takes focus out of the open menu closes it.
+describe.each([["Home's form", (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />], ['the list form', (p) => <NewNoteCaret {...p} />]])(
+  'keyboard: open from the caret, close on Tab-out (%s)', (_n, mount) => {
+    const doors = () => ({ onFromOutline: vi.fn(), onFromStyle: vi.fn(), onToday: vi.fn() })
+    const page = (p) => render(<div>{mount(p)}<button type="button">after</button></div>)
+    const caretOf = () => screen.getByRole('button', { name: 'More ways to start a note' })
+    it('ArrowDown on the caret opens the menu on the first item', () => {
+      page(doors())
+      caretOf().focus()
+      expect(fireEvent.keyDown(caretOf(), { key: 'ArrowDown' })).toBe(false)   // false = default prevented
+      const items = screen.getAllByRole('menuitem')
+      expect(caretOf()).toHaveAttribute('aria-expanded', 'true')
+      expect(document.activeElement).toBe(items[0])
+    })
+    it('ArrowUp on the caret opens the menu on the last item', () => {
+      page(doors())
+      caretOf().focus()
+      fireEvent.keyDown(caretOf(), { key: 'ArrowUp' })
+      const items = screen.getAllByRole('menuitem')
+      expect(document.activeElement).toBe(items[items.length - 1])
+    })
+    it('ArrowDown after ArrowUp still starts at the first item (the request is not remembered)', () => {
+      page(doors())
+      fireEvent.keyDown(caretOf(), { key: 'ArrowUp' })
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+      fireEvent.keyDown(caretOf(), { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(screen.getAllByRole('menuitem')[0])
+    })
+    it('ArrowDown on the caret of an already-open menu moves into it; other keys do not open it', () => {
+      page(doors())
+      fireEvent.click(caretOf())
+      caretOf().focus()
+      fireEvent.keyDown(caretOf(), { key: 'ArrowUp' })
+      const items = screen.getAllByRole('menuitem')
+      expect(document.activeElement).toBe(items[items.length - 1])
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+      for (const key of ['ArrowLeft', 'ArrowRight', 'a']) fireEvent.keyDown(caretOf(), { key })
+      expect(screen.queryByRole('menu')).toBeNull()
+    })
+    it('Tab out of the open menu closes it and leaves focus where Tab sent it', async () => {
+      const user = userEvent.setup()
+      page(doors())
+      fireEvent.keyDown(caretOf(), { key: 'ArrowUp' })
+      expect(screen.getByRole('menu')).toBeTruthy()
+      await user.tab()
+      expect(screen.queryByRole('menu')).toBeNull()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'after' }))
+      expect(caretOf()).toHaveAttribute('aria-expanded', 'false')
+    })
+    it('focus moving between items, or back to the caret, keeps the menu open', async () => {
+      const user = userEvent.setup()
+      page(doors())
+      fireEvent.keyDown(caretOf(), { key: 'ArrowDown' })
+      await user.tab()   // first item -> second item? No: a menu's rows are tabbable buttons, so Tab walks them
+      expect(screen.getByRole('menu')).toBeTruthy()
+      const items = screen.getAllByRole('menuitem')
+      items[1].focus()
+      await user.tab({ shift: true })
+      await user.tab({ shift: true })
+      expect(document.activeElement).toBe(caretOf())
+      expect(screen.getByRole('menu')).toBeTruthy()
+    })
+    it('focus going to the tour card keeps the menu open; focus going anywhere else closes it', () => {
+      render(<div>{mount(doors())}<div data-tour-card="non-modal"><button type="button">Next</button></div><button type="button">elsewhere</button></div>)
+      fireEvent.click(caretOf())
+      const first = screen.getAllByRole('menuitem')[0]
+      fireEvent.focusOut(first, { relatedTarget: screen.getByRole('button', { name: 'Next' }) })
+      expect(screen.getByRole('menu')).toBeTruthy()
+      fireEvent.focusOut(first, { relatedTarget: null })   // the window lost focus: the pointer handler owns outside presses
+      expect(screen.getByRole('menu')).toBeTruthy()
+      fireEvent.focusOut(first, { relatedTarget: screen.getByRole('button', { name: 'elsewhere' }) })
+      expect(screen.queryByRole('menu')).toBeNull()
+    })
+  },
+)
