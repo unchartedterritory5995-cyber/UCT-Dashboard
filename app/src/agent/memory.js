@@ -35,9 +35,11 @@ export function createMemory({ now = () => Date.now() } = {}) {
   let last = null               // { ops: [{ action, args, target }], at, epoch }
   let corrections = []          // [{ said, at }]
   let seq = 0
+  let visit = null              // the host's layout-visit count when memory last looked (`seeBoard`)
 
   const fresh = (x) => !!x && now() - x.at <= MEMORY_TTL_MS
   const sameBoard = (x, epoch) => !!x && (x.epoch == null || epoch == null || x.epoch === epoch)
+  const dropBoard = () => { subjects = { chart: null, indicator: null }; last = null }
 
   return {
     /** Rows UCT showed, in display order. `symbols` must come from UCT (a table's ticker column). */
@@ -83,7 +85,14 @@ export function createMemory({ now = () => Date.now() } = {}) {
     recentCorrections() { return corrections.filter(c => fresh(c)) },
 
     /** The board's layout changed: refs on the old board mean nothing now. Results (tickers) stay. */
-    boardChanged() { subjects = { chart: null, indicator: null }; last = null },
+    boardChanged() { dropBoard() },
+    /** The host's layout-visit count (host `boardVisit`). If it moved since memory last looked, a layout
+     *  was opened in between (A → B → A included): the board's refs are dropped, as `boardChanged`. */
+    seeBoard(n) {
+      if (n == null) return
+      if (visit != null && n !== visit) dropBoard()
+      visit = n
+    },
     forgetIndicator() { subjects.indicator = null },
     clear() { sets = []; subjects = { chart: null, indicator: null }; last = null; corrections = [] },
 

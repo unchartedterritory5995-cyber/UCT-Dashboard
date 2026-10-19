@@ -107,3 +107,100 @@ describe('references — ordinals and refusals', () => {
     expect(subjectTarget(fast, 'make it weekly', { host: b, memory: mem }).ops[0].target).toBeUndefined()   // a click wins (deixis)
   })
 })
+
+// ⛔ ACCEPTANCE S6 (2026-10-18): "compare it to the top 3" overlaid the conversation's chart, not the one
+// the member had just clicked. A click outranks memory in subjectChart too (GATE-C.md §2).
+describe('references — a clicked chart outranks the conversation\'s chart (S6)', () => {
+  const twoCharts = () => makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'R', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'B' }], { A: 'SPY', B: 'CD' }).host
+  const memWith = (subject) => {
+    const m = createMemory()
+    m.noteResults({ source: 's', symbols: ['ABCL', 'BUUU', 'CD', 'CDNA'] })
+    if (subject) m.noteChange({ ops: [{ action: 'chart.setSymbol', args: {}, target: subject }], epoch: null })
+    return m
+  }
+
+  it('clicked chart + a different subject chart → the clicked chart, for "compare" and for "open"', () => {
+    const host = twoCharts()
+    host.charts.selected = () => 'L'
+    const cmp = resolveReference('compare it to the top 3', { host, memory: memWith('R') })
+    expect(cmp.ops[0]).toMatchObject({ action: 'chart.compare', target: 'L', args: { add: ['ABCL', 'BUUU', 'CD'] } })
+    expect(resolveReference('open the third one', { host, memory: memWith('R') }).ops[0]).toMatchObject({ args: { symbol: 'CD' }, target: 'L' })
+  })
+
+  it('"the top 3" skips what the TARGET chart already shows — the clicked one, not the subject', () => {
+    const host = twoCharts()
+    host.charts.selected = () => 'R'                                         // R shows CD
+    expect(resolveReference('compare it to the top 3', { host, memory: memWith('L') }).ops[0]).toMatchObject({ target: 'R', args: { add: ['ABCL', 'BUUU', 'CDNA'] } })
+  })
+
+  it('no click → the conversation\'s chart still answers "it"', () => {
+    const host = twoCharts()
+    expect(resolveReference('compare it to the top 3', { host, memory: memWith('R') }).ops[0].target).toBe('R')
+    expect(resolveReference('open the third one', { host, memory: memWith('R') }).ops[0].target).toBe('R')
+  })
+
+  it('no click, no subject, several charts → still asks (open: no target; compare: the model asks)', () => {
+    const host = twoCharts()
+    expect(resolveReference('open the third one', { host, memory: memWith(null) }).ops[0].target).toBeUndefined()
+    expect(resolveReference('compare it to the top 3', { host, memory: memWith(null) })).toBeNull()
+  })
+
+  it('a click on a chart that is no longer on the board is ignored; a subject on another board is too', () => {
+    const host = twoCharts()
+    host.charts.selected = () => 'GONE'
+    expect(resolveReference('compare it to the top 3', { host, memory: memWith('R') }).ops[0].target).toBe('R')
+    const m = createMemory()
+    m.noteResults({ source: 's', symbols: ['ABCL', 'BUUU', 'CD'] })
+    m.noteChange({ ops: [{ action: 'chart.setSymbol', args: {}, target: 'R' }], epoch: 'user:1' })
+    expect(resolveReference('compare it to the top 3', { host, memory: m, epoch: 'user:2' })).toBeNull()
+  })
+
+  it('one chart → that chart, whatever memory or a click says', () => {
+    const host = oneChart()
+    host.charts.selected = () => 'elsewhere'
+    expect(resolveReference('compare it to the top 3', { host, memory: memWith('R') }).ops[0].target).toBe('c1')
+  })
+})
+
+// ⛔ ACCEPTANCE S11 (2026-10-18): a layout switch must drop the board's refs (GATE-C.md §1) — including
+// A → B → A, where the layout identity (epoch) comes back unchanged. The host counts visits.
+describe('memory — a layout visit drops the board\'s refs (S11)', () => {
+  const seeded = () => {
+    const m = createMemory()
+    m.noteResults({ source: 's', symbols: ['AAA', 'BBB'] })
+    m.seeBoard(1)
+    m.noteChange({ ops: [{ action: 'chart.setTimeframe', args: {}, target: 'c1' }], epoch: 'user:1' })
+    m.noteIndicator({ chart: 'c1', instanceId: 'inst:ema:1', epoch: 'user:1' })
+    return m
+  }
+
+  it('the same visit keeps everything; a new visit drops chart, indicator and last change, never tickers', () => {
+    const m = seeded()
+    m.seeBoard(1)
+    expect(m.subject('chart', 'user:1').ref).toBe('c1')
+    expect(m.lastChange('user:1')).not.toBeNull()
+    m.seeBoard(3)                                                            // A → B → A: same epoch, new visit
+    expect(m.subject('chart', 'user:1')).toBeNull()
+    expect(m.subject('indicator', 'user:1')).toBeNull()
+    expect(m.lastChange('user:1')).toBeNull()
+    expect(m.latestResults().symbols).toEqual(['AAA', 'BBB'])
+    expect(m.forModel()).toEqual({ recent_results: [expect.objectContaining({ symbols_in_order: ['AAA', 'BBB'] })] })
+  })
+
+  it('the first look never drops; a host without visits (null) changes nothing', () => {
+    const m = createMemory()
+    m.noteChange({ ops: [{ action: 'chart.setTimeframe', args: {}, target: 'c1' }], epoch: null })
+    m.seeBoard(5)
+    expect(m.lastChange()).not.toBeNull()
+    m.seeBoard(null)
+    expect(m.lastChange()).not.toBeNull()
+  })
+
+  it('a change made on the new visit is kept (seen first, then noted)', () => {
+    const m = seeded()
+    m.seeBoard(2)
+    m.noteChange({ ops: [{ action: 'chart.setSymbol', args: {}, target: 'c2' }], epoch: 'user:1' })
+    m.seeBoard(2)
+    expect(m.subject('chart', 'user:1').ref).toBe('c2')
+  })
+})

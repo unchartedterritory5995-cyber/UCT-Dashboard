@@ -2967,6 +2967,10 @@ export default function ChartsWorkspace() {
   const layoutTrail = observeActive(layoutTrailRef.current, dockActiveTpl)
   // A chart selected on another layout is never "this chart" here (A → B → A included).
   if (selectedChartRef.current && selectedChartRef.current.layoutId !== dockActiveId) selectedChartRef.current = null
+  // Every opening of a layout is a new visit (A → B → A included): the Agent drops the chart refs its
+  // session memory holds for the board when this moves (agent/host.js `boardVisit`, GATE-C.md §1).
+  const boardVisitRef = useRef({ id: undefined, n: 0 })
+  if (boardVisitRef.current.id !== dockActiveId) boardVisitRef.current = { id: dockActiveId, n: boardVisitRef.current.n + 1 }
   {
     const active = dockActiveTpl
     const known = active?.id != null && dockEntries.some(e => e.id === active.id)
@@ -3024,6 +3028,7 @@ export default function ChartsWorkspace() {
       const s = selectedChartRef.current
       return s && s.layoutId === dockActiveIdRef.current ? s.widgetId : null
     },
+    boardVisit: () => boardVisitRef.current.n,
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
     widgetOps: {
       layout: () => layoutRef.current,
