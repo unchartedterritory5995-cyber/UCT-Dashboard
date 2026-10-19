@@ -376,6 +376,19 @@ export default function ChartRender() {
   // file, never traverse to one.
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
   if (fixedBars) installHermeticFetch()
+  // Candles + volume coloured by NET CHANGE (close vs previous close), not
+  // close-vs-open. Owner, 2026-10-18 Sunday Scans: "I hate open vs close colors
+  // instead of net change". ON by default for every /r/chart render (Substack
+  // letters, Discord /chart); `?net=0` opts out, `?net=1` forces it on.
+  // A parity capture (?fixedbars=) keeps close-vs-open unless it asks with
+  // ?net=1: its legacy-vs-engine diff may run against a build that predates
+  // this default, and (like the house look below) a hermetic capture must
+  // never pick up a view preference. The saved candleColorMode still applies:
+  // 'openclose' in the owner blob is a passthrough inside StockChart.
+  const netParam = sp.get('net')
+  const colorByNetChange = (netParam === '0' || netParam === 'false') ? false
+    : (netParam === '1' || netParam === 'true') ? true
+      : !fixedBars
 
   // ?stale=<sentence> — THE DATA'S VINTAGE, DECIDED AND WORDED BY THE BACKEND (C-07).
   //
@@ -1039,6 +1052,7 @@ export default function ChartRender() {
             // the same treatment the footer's wall-clock stamp already gets, and
             // NOT a tolerance: that case must still be 0 on every run.
             hidePriceLine={hidePriceLine}
+            colorByNetChange={colorByNetChange}
             darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
             // MAs never stretch the price scale (TC2000-style): a 200-day line far

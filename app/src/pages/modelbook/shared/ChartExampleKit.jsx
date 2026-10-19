@@ -95,8 +95,10 @@ export function buildExampleChartProps(ex, { view = 'setup', annotating = false,
   if (ex.target_price != null) lines.push({ price: ex.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target $${Number(ex.target_price).toFixed(2)}` })
   const priceLines = lines.length ? lines : NO_PRICE_LINES
 
-  // NOTE: colorByNetChange is deliberately NOT passed — it is a dead prop
-  // (zero hits in StockChart); cargo-culting it would just add noise.
+  // NOTE: colorByNetChange is not passed here, so model-book example charts
+  // colour candles close-vs-open. It is a LIVE StockChart prop (net-change
+  // candle + volume colouring; /r/chart, GridChartCell, ReviewFeedCard and
+  // ScreenerReviewOverlay pass it). Leaving it off is a choice, not dead code.
   return {
     sym: ex.symbol,
     tf: ex.timeframe || 'D',
