@@ -105,11 +105,9 @@ def test_the_digest_sees_a_one_field_change():
 def test_a_real_short_pole_flag_is_stamped_flagging_and_a_real_confirmed_one_is_not():
     t2 = _tier2_extras()
     assert t2["stale"] is True and t2["stale_reason"] == "short_pole" and "draw_round" not in t2
-    stamp = dict(t2["flagging"])
-    # geometry round 3 adds the flagging tier's drawn lanes (new upper lane) and its own round
-    assert stamp.pop("draw_geom_round") == display.BULL_FLAG_GEOM_ROUND
-    assert len(stamp.pop("draw_anchors")) == 4
-    assert stamp == {"tier": "flagging", "draw_round": display.BULL_FLAG_DRAW_ROUND, "draw_lanes": True}
+    # geometry round 3 is tier 1 only (amendment 1): the flagging stamp is exactly master's
+    assert t2["flagging"] == {"tier": "flagging", "draw_round": display.BULL_FLAG_DRAW_ROUND,
+                              "draw_lanes": True}
     t1, _ = _drawn(*_flag_after(TALL_LEG))
     assert t1["draw_round"] == display.BULL_FLAG_DRAW_ROUND and "flagging" not in t1
 

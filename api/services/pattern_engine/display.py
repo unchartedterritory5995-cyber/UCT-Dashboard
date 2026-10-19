@@ -2072,10 +2072,30 @@ def draw_geometry(detections: list, bars: list) -> list:
 
 
 #: bull_flag geometry round 3 (lab flag_geom_v3, 2026-10-18): today's drawing with ONE change, the upper
-#: lane rests on the flag's wicks from the pole top. Stamped as extras.draw_geom_round (inside
-#: extras.flagging for the "flagging" tier) beside the new lane. Display only: draw_round, the member
-#: gates, the lower lane, the entry and the pole are untouched.
+#: lane rests on the flag's wicks from the pole top. Tier 1 only (the tier that was judged); stamped as
+#: extras.draw_geom_round beside the new lane. Display only: draw_round, the member gates, the lower
+#: lane, the entry, the pole and every "flagging"-tier row are untouched.
 BULL_FLAG_GEOM_ROUND = 3
+
+#: Amendment 1 (lab flag_geom_v3/AMENDMENT.txt, post-hoc and conservative): when the pole top is a
+#: single-bar spike -- its high above every other high within 2 bars by more than this many ATR --
+#: round 3 is not applied and the row keeps today's (round-9) drawing. K chosen on DEV only.
+BULL_FLAG_V3_SPIKE_ATR = 0.5
+
+
+def pole_top_spike_atr(bars: list, d: dict):
+    """How far (in ATR14 of the bars up to the top) the v3 pole top's high stands above the next
+    highest high within 2 bars either side (clipped to the flag's last bar). None when unknown."""
+    fb = _flag_bars(_index(bars), d, len(bars))
+    if fb is None:
+        return None
+    b0, b1, last = fb
+    top = max(range(b0, b1 + 1), key=lambda j: (float(bars[j]["h"]), j))
+    nb = [float(bars[j]["h"]) for j in range(max(0, top - 2), min(last, top + 2) + 1) if j != top]
+    a = atr14(bars[:top + 1])
+    if not nb or a is None:
+        return None
+    return (float(bars[top]["h"]) - max(nb)) / a
 
 
 def flag_upper_lane_v3(bars: list, d: dict):
@@ -2109,11 +2129,11 @@ def _lab_line_at(p1, p2, x, space):
 
 
 def stamp_upper_lane_v3(d: dict, bars: list) -> None:
-    """Replace a DRAWN bull_flag's upper lane by `flag_upper_lane_v3`, in place.
-    Tier 1 (not stale, draw_round stamped, draw_lanes not False) -> extras.draw_anchors; the
-    "flagging" tier (stale, extras.flagging with draw_lanes True) -> extras.flagging.draw_anchors.
-    The lower lane is today's drawn one (draw_anchors when present -- for the flagging tier its
-    stamp's, else the row's, as PatternOverlay.flaggingView -- else geometry.anchors), copied
+    """Replace a DRAWN tier-1 bull_flag's upper lane by `flag_upper_lane_v3`, in place.
+    Tier 1 only (not stale, draw_round stamped, draw_lanes not False) -> extras.draw_anchors. The
+    "flagging" tier was not judged and is left as master draws it (amendment 1), as is a row whose
+    pole top is a single-bar spike (`pole_top_spike_atr` > BULL_FLAG_V3_SPIKE_ATR).
+    The lower lane is today's drawn one (draw_anchors when present, else geometry.anchors), copied
     unchanged in its own line space. Left as it is when the new upper is not strictly above the
     lower lane at both lower anchor bars. A log-space upper lane becomes price space
     (line_spaces[0]); [1] is untouched."""
@@ -2123,18 +2143,9 @@ def stamp_upper_lane_v3(d: dict, bars: list) -> None:
     ex = (g or {}).get("extras")
     if not isinstance(ex, dict):
         return
-    tier1 = (not ex.get("stale")) and "draw_round" in ex
-    stamp = ex.get("flagging") if isinstance(ex.get("flagging"), dict) else None
-    if tier1:
-        if ex.get("draw_lanes") is False:
-            return
-        da = ex.get("draw_anchors")
-    elif stamp is not None and ex.get("stale"):
-        if stamp.get("draw_lanes") is not True:
-            return
-        da = stamp.get("draw_anchors") or ex.get("draw_anchors")
-    else:
+    if ex.get("stale") or "draw_round" not in ex or ex.get("draw_lanes") is False:
         return
+    da = ex.get("draw_anchors")
     cur = da if isinstance(da, list) and da else (g.get("anchors") or [])
     spaces = (list(ex.get("line_spaces") or []) + ["price", "price"])[:2]
     pos = _index(bars)
@@ -2143,6 +2154,9 @@ def stamp_upper_lane_v3(d: dict, bars: list) -> None:
         return
     up = flag_upper_lane_v3(bars, d)
     if up is None:
+        return
+    sp_atr = pole_top_spike_atr(bars, d)
+    if sp_atr is not None and sp_atr > BULL_FLAG_V3_SPIKE_ATR:
         return
     xu0, xu1 = pos[up[0]["t"]], pos[up[1]["t"]]
     xa, xb = pos[cur[2]["t"]], pos[cur[3]["t"]]
@@ -2157,12 +2171,8 @@ def stamp_upper_lane_v3(d: dict, bars: list) -> None:
         sp = (sp + ["price", "price"])[:max(2, len(sp))]
         sp[0] = "price"
         ex["line_spaces"] = sp
-    if tier1:
-        ex["draw_anchors"] = lanes
-        ex["draw_geom_round"] = BULL_FLAG_GEOM_ROUND
-    else:
-        stamp["draw_anchors"] = lanes
-        stamp["draw_geom_round"] = BULL_FLAG_GEOM_ROUND
+    ex["draw_anchors"] = lanes
+    ex["draw_geom_round"] = BULL_FLAG_GEOM_ROUND
 
 
 #: The "flagging" tier (lab flag_vocab, 2026-10-18). The team says "flag", "flagging", "flag out"

@@ -1,9 +1,12 @@
 """bull_flag geometry round 3 (lab flag_geom_v3, 2026-10-18): today's drawing with ONE change, the UPPER lane.
 
 The upper lane runs from the pole top's high to the flag's last bar at the shallowest slope that keeps every
-flag high on or under it. Lower lane, entry, pole and which flags are drawn are unchanged, for both tiers.
+flag high on or under it. Lower lane, entry, pole and which flags are drawn are unchanged.
 Lab gates: two fresh blind tier-1 packets 2.40 (93% >= 2) and 2.37 (80% >= 2); the team-axis upper-lane hit
 rate over all team flag charts 0.415 vs 0.317 today (not an independent test); no lookahead.
+Amendment 1 (lab flag_geom_v3/AMENDMENT.txt, post-hoc and conservative -- it only narrows v3 back to the judged
+round-9 drawing): TIER 1 ONLY (the "flagging" tier was not judged and stays as master draws it), and no v3 when
+the pole top is a single-bar spike (its high above every other high within 2 bars by > 0.5 ATR, K set on DEV).
 
   1. parity       on the 30 judged cases (de-identified fixture), the port stamps exactly what the lab did
   2. golden       non-flag rows and undrawn flags are untouched; a drawn flag changes only its upper lane
@@ -47,10 +50,22 @@ def test_the_round_constant():
 
 # -- 1. parity with the lab on the judged cases ---------------------------------------------------------
 
-def test_the_fixture_is_the_30_judged_cases_and_each_was_restamped():
+def test_the_fixture_is_the_30_judged_cases_25_restamped_and_5_spike_reverts():
     assert len(CASES) == 30
-    assert all(c["expected"]["geometry"]["extras"]["draw_geom_round"] == 3 for c in CASES)
-    assert all(c["expected"] != c["today"] for c in CASES)          # not vacuous
+    kept = [c for c in CASES if not c["reverted"]]
+    rev = [c for c in CASES if c["reverted"]]
+    assert (len(kept), len(rev)) == (25, 5)
+    assert all(c["expected"]["geometry"]["extras"]["draw_geom_round"] == 3 for c in kept)
+    assert all(c["expected"] != c["today"] for c in kept)           # not vacuous
+    assert all(c["expected"] == c["today"] for c in rev)            # the fallback is today's drawing
+
+
+@pytest.mark.parametrize("k", range(30))
+def test_the_spike_measure_separates_the_reverted_cases(k):
+    c = CASES[k]
+    s = display.pole_top_spike_atr(c["bars"], c["today"])
+    assert s is not None
+    assert (s > display.BULL_FLAG_V3_SPIKE_ATR) == c["reverted"]
 
 
 @pytest.mark.parametrize("k", range(30))
@@ -131,19 +146,44 @@ def test_non_flag_rows_and_undrawn_flags_are_untouched():
         assert row == before
 
 
-def test_the_flagging_tier_gets_the_lane_inside_its_own_stamp():
+def test_the_flagging_tier_is_never_restamped():
+    """Amendment 1: only tier 1 was judged, so a drawn "flagging" row stays byte-identical to master."""
     c = CASES[0]
     row = copy.deepcopy(c["today"])
     ex = row["geometry"]["extras"]
     ex.update(stale=True, stale_reason="short_pole")
     ex.pop("draw_round")
     ex["flagging"] = {"tier": "flagging", "draw_round": 9, "draw_lanes": True}
-    top_level = {k: copy.deepcopy(v) for k, v in ex.items() if k != "flagging"}
+    before = copy.deepcopy(row)
     display.stamp_upper_lane_v3(row, c["bars"])
-    st = row["geometry"]["extras"]["flagging"]
-    assert st["draw_geom_round"] == 3 and st["draw_round"] == 9 and st["tier"] == "flagging"
-    assert st["draw_anchors"] == c["expected"]["geometry"]["extras"]["draw_anchors"]
-    assert {k: v for k, v in row["geometry"]["extras"].items() if k != "flagging"} == top_level
+    assert row == before
+    # control: the same bars and lanes as a tier-1 row ARE restamped
+    t1 = copy.deepcopy(c["today"])
+    display.stamp_upper_lane_v3(t1, c["bars"])
+    assert t1["geometry"]["extras"]["draw_geom_round"] == 3
+
+
+def test_a_single_bar_spike_pole_top_keeps_todays_drawing(monkeypatch):
+    c = CASES[0]
+    s = display.pole_top_spike_atr(c["bars"], c["today"])
+    assert s is not None and s <= display.BULL_FLAG_V3_SPIKE_ATR
+    for k_, stamped in ((s - 1e-9, False), (s, True), (s + 1e-9, True)):  # strict ">"
+        monkeypatch.setattr(display, "BULL_FLAG_V3_SPIKE_ATR", k_)
+        row = copy.deepcopy(c["today"])
+        display.stamp_upper_lane_v3(row, c["bars"])
+        assert ("draw_geom_round" in row["geometry"]["extras"]) is stamped
+        if not stamped:
+            assert row == c["today"]
+
+
+def test_the_spike_measure_on_a_synthetic_spike():
+    hs = [10.0, 11.0, 12.0, 13.0, 14.0, 20.0, 14.5, 14.2, 14.0, 13.8, 13.6]
+    bars = [{"t": k + 1, "o": h - 0.5, "h": h, "l": h - 1.0, "c": h - 0.5, "v": 0} for k, h in enumerate(hs)]
+    d = {"pattern_id": "bull_flag", "pivot_ts": [1, 6, 11]}
+    s = display.pole_top_spike_atr(bars, d)
+    trs = [1.0] + [max(bars[j]["h"], bars[j - 1]["c"]) - min(bars[j]["l"], bars[j - 1]["c"]) for j in range(1, 6)]
+    assert s == pytest.approx((20.0 - 14.5) / (sum(trs) / 6))
+    assert s > display.BULL_FLAG_V3_SPIKE_ATR
 
 
 def test_crossing_lanes_leave_the_row_as_it_is():

@@ -306,6 +306,7 @@
 29
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -560,6 +561,7 @@
 16
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -909,6 +911,7 @@
 28
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -1258,6 +1261,7 @@
 28
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -1559,6 +1563,7 @@
 22
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -1844,6 +1849,7 @@
 20
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -2193,6 +2199,7 @@
 28
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -2461,25 +2468,6 @@
 }
 ],
 "extras": {
-"draw_anchors": [
-{
-"price": 102.5718,
-"t": 18
-},
-{
-"price": 101.11848,
-"t": 24
-},
-{
-"price": 98.9108,
-"t": 19
-},
-{
-"price": 98.4812,
-"t": 24
-}
-],
-"draw_geom_round": 3,
 "draw_lanes": true,
 "draw_pole": [
 {
@@ -2510,6 +2498,7 @@
 24
 ]
 },
+"reverted": true,
 "today": {
 "geometry": {
 "anchors": [
@@ -2827,6 +2816,7 @@
 24
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -3160,6 +3150,7 @@
 26
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -3470,25 +3461,6 @@
 }
 ],
 "extras": {
-"draw_anchors": [
-{
-"price": 105.9477,
-"t": 17
-},
-{
-"price": 101.993,
-"t": 27
-},
-{
-"price": 100.6874,
-"t": 18
-},
-{
-"price": 98.7887,
-"t": 27
-}
-],
-"draw_geom_round": 3,
 "draw_lanes": true,
 "draw_pole": [
 {
@@ -3519,6 +3491,7 @@
 27
 ]
 },
+"reverted": true,
 "today": {
 "geometry": {
 "anchors": [
@@ -3805,11 +3778,11 @@
 "extras": {
 "draw_anchors": [
 {
-"price": 105.0117,
-"t": 17
+"price": 102.8024,
+"t": 18
 },
 {
-"price": 104.3124,
+"price": 101.8855,
 "t": 26
 },
 {
@@ -3821,7 +3794,6 @@
 "t": 26
 }
 ],
-"draw_geom_round": 3,
 "draw_lanes": true,
 "draw_pole": [
 {
@@ -3852,6 +3824,7 @@
 26
 ]
 },
+"reverted": true,
 "today": {
 "geometry": {
 "anchors": [
@@ -4155,6 +4128,7 @@
 20
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -4528,6 +4502,7 @@
 31
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -4821,6 +4796,7 @@
 21
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -5106,6 +5082,7 @@
 20
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -5431,6 +5408,7 @@
 25
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -5700,6 +5678,7 @@
 18
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -5921,6 +5900,7 @@
 12
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -6214,6 +6194,7 @@
 21
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -6611,6 +6592,7 @@
 34
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -6928,6 +6910,7 @@
 24
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -7173,6 +7156,7 @@
 15
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -7481,25 +7465,6 @@
 }
 ],
 "extras": {
-"draw_anchors": [
-{
-"price": 119.4584,
-"t": 17
-},
-{
-"price": 104.2553,
-"t": 29
-},
-{
-"price": 107.4667,
-"t": 18
-},
-{
-"price": 99.8976,
-"t": 29
-}
-],
-"draw_geom_round": 3,
 "draw_lanes": true,
 "draw_pole": [
 {
@@ -7530,6 +7495,7 @@
 29
 ]
 },
+"reverted": true,
 "today": {
 "geometry": {
 "anchors": [
@@ -7798,25 +7764,6 @@
 }
 ],
 "extras": {
-"draw_anchors": [
-{
-"price": 109.3991,
-"t": 18
-},
-{
-"price": 100.1541,
-"t": 24
-},
-{
-"price": 95.4435,
-"t": 19
-},
-{
-"price": 94.2329,
-"t": 24
-}
-],
-"draw_geom_round": 3,
 "draw_lanes": true,
 "draw_pole": [
 {
@@ -7847,6 +7794,7 @@
 24
 ]
 },
+"reverted": true,
 "today": {
 "geometry": {
 "anchors": [
@@ -8204,6 +8152,7 @@
 29
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -8569,6 +8518,7 @@
 30
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -8878,6 +8828,7 @@
 23
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -9131,6 +9082,7 @@
 16
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -9465,6 +9417,7 @@
 26
 ]
 },
+"reverted": false,
 "today": {
 "geometry": {
 "anchors": [
@@ -9519,5 +9472,5 @@
 }
 }
 ],
-"note": "De-identified bull_flag rows from the 30 blind-judged geometry-round-3 cases (lab flag_geom_v3): no tickers, no dates (t = bar number), no volume, prices rescaled to last close = 100. \"expected\" is the lab stamp on \"today\"."
+"note": "De-identified bull_flag rows from the 30 blind-judged geometry-round-3 cases (lab flag_geom_v3): no tickers, no dates (t = bar number), no volume, prices rescaled to last close = 100. \"expected\" is the lab stamp (amendment 1: tier 1 only, spike-wick fallback) on \"today\"; \"reverted\" marks the cases the fallback leaves as today."
 }
