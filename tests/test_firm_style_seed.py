@@ -519,6 +519,27 @@ def test_one_list_request_reads_the_switches_once(conn, monkeypatch):
     assert len(reads) == 1
 
 
+@pytest.mark.parametrize("section,item_type", [("all", None), ("picks", None), ("mine", None),
+                                               ("all", "outline"), ("all", "page_layout"), ("all", "style")])
+def test_every_list_request_reads_the_library_switch_once(conn, monkeypatch, section, item_type):
+    """P4b final I-M3. With P3b's example rule and P4b's layout rule merged in, a list still reads `library_enabled`
+    ONCE, in every section and for every type filter: the example and layout halves take this request's
+    `library_on` (`_example_switch_on`, `_layout_switches_on`) instead of re-reading the library switch. Every
+    other switch is on, so a stray second read could not hide behind a short-circuit."""
+    for name in ("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED"):
+        monkeypatch.setenv(name, "1")
+    monkeypatch.setenv(STARTER, "1")
+    reads = []
+
+    def counted() -> bool:
+        reads.append(1)
+        return True
+
+    monkeypatch.setattr(gallery, "library_enabled", counted)
+    gallery.list_gallery(ADMIN if section == "mine" else MEMBER, section=section, item_type=item_type, conn=conn)
+    assert len(reads) == 1
+
+
 def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
     """A firm row has no author, so neither read can reach one in a real database. This PROBE gives one firm
     style row an author the member follows, to prove both reads carry the rule rather than relying on that

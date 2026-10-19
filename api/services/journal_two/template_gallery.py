@@ -810,7 +810,7 @@ def list_gallery(
     # Ruling P3b-R12: an author's OWN Your submissions lists their example notes too, with the status and any
     # reviewer's note, while the switch is on (R-P3b-2's "never listed on its own" governs the library, where
     # other members browse). With the switch off an example reads as absent everywhere, here included.
-    if section != "mine" or not example_enabled():
+    if section != "mine" or not (library_on and _example_switch_on()):    # `example_enabled`, library read once
         where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
