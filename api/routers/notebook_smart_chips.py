@@ -5,7 +5,8 @@ RS, EMA, MA, GAP and PEG are words in prose (R-T2A-6). The browser parses a sent
 asks only "is this word a ticker here?". The text is never stored and never logged.
 
   POST /api/j2/smart-chips/tickers   {text}  ->  {"tickers": [{"symbol": "NVDA", "tier": "exact"}, ...]}
-                                     text is 1 to MAX_TEXT characters after strip; 422 otherwise.
+                                     text is at most MAX_TEXT characters, raw length (not stripped),
+                                     with at least one non-space; 422 otherwise.
                                      Sorted as buzz_extract.extract returns it.
 
 Gate NOTEBOOK_SMART_CHIPS_ENABLED (enablement), read per request; off -> the one 404, before the
