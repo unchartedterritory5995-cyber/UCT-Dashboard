@@ -124,6 +124,23 @@ def test_admin_routes_refuse_a_paid_member(paid_client):
     assert paid_client.get("/api/study/admin/review").status_code == 403
     assert paid_client.post("/api/study/admin/review/x", json={"action": "approve"}).status_code == 403
     assert paid_client.get("/api/study/admin/corrections/export").status_code == 403
+    assert paid_client.get("/api/study/admin/items/x/bars").status_code == 403
+
+
+def test_admin_item_bars_serves_a_draft_with_its_forward_strip(admin_client, paid_client, store):
+    """The review screen draws the stored bars, not a live fetch by ticker: a
+    DRAFT's bars are readable by the admin, the forward strip rides along, the
+    symbol is the item id, and the member route still refuses the same draft."""
+    _seed(store, approve=False)
+    r = admin_client.get("/api/study/admin/items/si_spot1/bars")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["symbol"] == "si_spot1" and body["tf"] == "D"
+    assert body["bars"] == VIS and body["forward"] == FWD
+    assert "sym" not in body
+    assert admin_client.get("/api/study/admin/items/si_recall1/bars").status_code == 404   # no bars_ref
+    assert admin_client.get("/api/study/admin/items/nope/bars").status_code == 404
+    assert paid_client.get("/api/study/items/si_spot1/bars").status_code == 404           # draft, member route
 
 
 def test_import_requires_the_push_secret(client, monkeypatch):

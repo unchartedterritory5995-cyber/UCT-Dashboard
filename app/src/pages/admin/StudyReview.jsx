@@ -13,6 +13,12 @@
  *
  * Backend (api/routers/study.py):
  *   GET  /api/study/admin/review?lane=&type=&limit=   drafts + counts + trust per type
+ *   GET  /api/study/admin/items/{id}/bars   the STORED bars (visible + forward) of any draft
+ *        ⛔ The chart draws these through `barsOverride`, never a live fetch by
+ *        ticker: the member sees the snapshot stored with the item, so the
+ *        reviewer must judge that same snapshot (a live fetch also fails for a
+ *        2022 window the provider no longer serves, which is how this shipped
+ *        as "No MSFT chart data" on 2026-10-19).
  *   POST /api/study/admin/review/{id}  {action, reason?, field?, after?}
  *        `fix` rewrites ONE field per call; an edit touching several fields
  *        posts one call per changed field, in order.
@@ -456,6 +462,15 @@ export default function StudyReview() {
   const askTrust = !!(trust && sel && trust.state === 'manual' && (trust.ask_to_switch || trust.ask) && !dismissed.has(sel.type))
 
   const frame = useMemo(() => chartFrameOf(sel), [sel])
+  // The stored snapshot (visible window + forward strip) for the selected
+  // chart item. `null` key = no request for text items.
+  const barsKey = sel && itemHasChartView(sel) ? `/api/study/admin/items/${encodeURIComponent(sel.id)}/bars` : null
+  const { data: storedBars, error: storedBarsError } = useSWR(barsKey, fetcher, { revalidateOnFocus: false })
+  const chartBars = useMemo(() => {
+    if (!storedBars || !Array.isArray(storedBars.bars) || !storedBars.bars.length) return null
+    return storedBars.bars.concat(Array.isArray(storedBars.forward) ? storedBars.forward : [])
+  }, [storedBars])
+  const chartBarsPending = !!barsKey && !storedBars && !storedBarsError
   const chartOpts = sel?.prompt_json?.chart
   const settingsOverride = useMemo(() => studySettingsOverride(chartOpts), [chartOpts])
   const markers = useMemo(() => {
@@ -580,7 +595,10 @@ export default function StudyReview() {
                 <div className={styles.chartWrap} data-testid="study-chart">
                   <StockChart
                     sym={sel.sym}
-                    tf={sel.prompt_json?.chart?.tf || sel.prompt_json?.tf || 'D'}
+                    tf={storedBars?.tf || sel.prompt_json?.chart?.tf || sel.prompt_json?.tf || 'D'}
+                    studyMode
+                    barsOverride={chartBars}
+                    barsOverridePending={chartBarsPending}
                     liveUpdates={false}
                     backgroundWarm={false}
                     frozen
@@ -601,6 +619,7 @@ export default function StudyReview() {
                 <p className={styles.strip}>
                   Member sees bars through {sel.asof}. The {frame?.forward} sessions after it are the forward
                   strip, printed on the same chart at reveal.
+                  {storedBarsError ? ' No stored bars for this item: the import left it unresolved.' : ''}
                 </p>
               </>
             )}

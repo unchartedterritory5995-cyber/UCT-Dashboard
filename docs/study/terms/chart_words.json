@@ -1,0 +1,226 @@
+[
+  {
+    "id": "st_chart_trending",
+    "term": "Trending (in an uptrend)",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["uptrend", "trending up", "full-bull stack"],
+    "definition": "A stock is trending when price sits above its 20-day moving average, the 20-day sits above the 50-day, and the 50-day sits above the 200-day, with the averages sloping up. The desk's screener labels this stack full-bull every night. On the chart it shows as higher highs and higher lows with pullbacks that hold the rising averages.",
+    "note": "The screener's test is the three-average stack. A trader reads the same thing from the swings: as long as each pullback bottoms above the last one, the trend is intact. It depends on the timeframe you are looking at: a stock can be in an uptrend on the weekly and pulling back on the daily at the same time, and the desk reads the longer frame first.",
+    "house_formula": "close > sma20 and sma20 > sma50 and sma50 > sma200 (api/services/screener/technicals.py, label full-bull)",
+    "sources": [
+      {"name": "Investopedia: Uptrend", "url": "https://www.investopedia.com/terms/u/uptrend.asp", "quote": "the price should be making higher swing highs and higher swing lows to confirm that an uptrend is present."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose (Substack / Desk transcripts)",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_downtrend",
+    "term": "In a downtrend",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["downtrend", "trending down", "full-bear stack"],
+    "definition": "The mirror of an uptrend: price sits below its 20-day average, the 20-day below the 50-day, and the 50-day below the 200-day, with the averages sloping down. Rallies fail at the falling averages and each bounce tops out below the last one.",
+    "note": "The desk does not buy breakouts inside a downtrend. A stock in a downtrend can still be a short setup or, later, a bottoming candidate; the word describes where it is, not what to do.",
+    "house_formula": "close < sma20 and sma20 < sma50 and sma50 < sma200 (the mirror branch of the same classifier)",
+    "sources": [
+      {"name": "Investopedia: Downtrend", "url": "https://www.investopedia.com/terms/d/downtrend.asp", "quote": "A downtrend is a gradual reduction in the price or value of a stock or any other asset over a period of time."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_pullback",
+    "term": "Pullback",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["dip", "pulling back", "shallow pullback", "deep pullback"],
+    "definition": "A short move against the trend: in an uptrend, a few days of selling that bring the stock back toward its moving averages before the trend resumes. The desk calls a pullback shallow when it gives back 5% or less from the recent high and deep when it gives back 20% or more. A pullback that holds a rising 20-day or 50-day average is where many of the desk's entries live.",
+    "note": "Shallow and deep are the screener's two thresholds (5% and 20%). In between is just a pullback. What makes a pullback buyable is not the depth alone but how it behaves: orderly, on lighter volume, holding the average, then turning back up. A pullback on heavy volume that slices through the 50-day is a different animal.",
+    "house_formula": "pullback_depth_pct <= 5 (shallow); pullback_depth_pct >= 20 (deep)",
+    "sources": [
+      {"name": "Investopedia: Pullback", "url": "https://www.investopedia.com/terms/p/pullback.asp", "quote": "A pullback is a temporary reversal in the upward price trend of a stock or other investment. It typically lasts only a few consecutive sessions and can provide an entry point for new investors when other technical indicators remain bullish."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_at_the_20ema",
+    "term": "At the 20 EMA",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["at the 20", "sitting on the 20-day", "pullback to the 20 EMA"],
+    "definition": "The stock is within 2% of its 20-day exponential moving average, above or below. The 20 EMA is the desk's short-term trend line: in a healthy uptrend the stock rides above it and touches it on pullbacks, so a leader sitting at the 20 is a leader at a decision point.",
+    "note": "The screener's band is plus or minus 2%. The 20-day exponential average weights recent closes more than a simple average does, so it hugs price more closely. Being at the 20 is only interesting when the average is rising and the stock is above its 50-day; at a falling 20 EMA the same touch is resistance, not support.",
+    "house_formula": "pct_vs_ema20 between -2 and 2 (preset band); pullback-to-the-20ema screen adds rs_rank >= 80, ema20_rising, above_50sma",
+    "sources": [
+      {"name": "Investopedia: Exponential Moving Average (EMA)", "url": "https://www.investopedia.com/terms/e/ema.asp", "quote": "The exponential moving average (EMA) is a technical chart indicator that tracks the price of an investment (like a stock or commodity) over time. The EMA is a type of weighted moving average (WMA) that gives more weighting or importance to recent price data."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_coiled",
+    "term": "Coiled (tight)",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["tight", "tightening", "tight consolidation", "coiling"],
+    "definition": "The last several closes are bunched together in a narrow band: the daily ranges have shrunk and the stock is going sideways in a small box. The desk's screener calls a stock tight when the spread of its last ten closes is under 2.5% of price. A coiled stock has stored energy; the next expansion in range is the move, up or down.",
+    "note": "Tightness is a measurement, not a direction. It matters most when it comes after a strong move (a flag) or near the top of a base, because the holders who wanted out have left and the ones who remain are not selling. Coiled on light volume is the classic look; coiled on heavy volume means a fight.",
+    "house_formula": "tight_consolidation: coefficient of variation of the last ten closes under 2.5% (api/services/screener/candles.py)",
+    "sources": [
+      {"name": "Investopedia: Consolidation", "url": "https://www.investopedia.com/terms/c/consolidation.asp", "quote": "Consolidation is a term used in technical analysis to describe the movement of an asset's price within a well-defined pattern or barrier of trading levels."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_higher_lows",
+    "term": "Higher lows",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["higher low", "rising lows", "string of higher lows"],
+    "definition": "Each pullback bottoms above the one before it. Buyers are stepping in earlier every time, which is the simplest proof an uptrend is alive. The desk's screener counts a run of three or more consecutive higher lows as the pattern.",
+    "note": "Draw a line under the lows and it slopes up; that line is the trend line the desk watches. The moment a pullback undercuts the previous low, the sequence is broken and the trend is in doubt. Higher lows into a flat high is a tightening wedge, often a breakout waiting to happen.",
+    "house_formula": "higher_lows_run >= 3",
+    "sources": [
+      {"name": "Investopedia: Uptrend", "url": "https://www.investopedia.com/terms/u/uptrend.asp", "quote": "the price should be making higher swing highs and higher swing lows to confirm that an uptrend is present."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_inside_day",
+    "term": "Inside day",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["inside bar", "inside candle"],
+    "definition": "A day whose entire range sits inside the previous day's range: a lower high and a higher low. Nothing was decided that day. After a strong move, an inside day is a pause; the break of the two-day high or low is the next decision.",
+    "note": "The desk reads an inside day after a big up day as a sign the stock is holding its gains quietly, which is what it wants to see before a continuation. Several inside days stacked up are a coil. The same bar after a big down day is just as meaningful in the other direction.",
+    "house_formula": "high < prior high and low > prior low",
+    "sources": [
+      {"name": "Investopedia: Inside Day", "url": "https://www.investopedia.com/terms/i/inside-day.asp", "quote": "An inside day is a two-day price pattern that occurs when a second day has a range that is completely inside the first day's price range. The high of the second day is lower than the first, and the low of the second is higher than the first."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_gapping",
+    "term": "Gapping up / gapping down",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["gap up", "gap down", "gapper", "opening gap"],
+    "definition": "The stock opens well away from where it closed, leaving empty space on the chart between the two days. The desk's screener calls it gapping when the open is 3% or more above (or below) the prior close. Gaps come from news that arrived while the market was shut: earnings, guidance, a deal, an upgrade.",
+    "note": "The gap itself is not the trade; what the stock does with the gap is. A gap up that holds its opening range and keeps going on heavy volume is a Power Earnings Gap; a gap up that fades back into the prior day's range is a failure. Gap support, where the bottom of the gap holds on the next pullback, is one of the desk's levels.",
+    "house_formula": "gap_pct >= 3 (gapping up); gap_pct <= -3 (gapping down)",
+    "sources": [
+      {"name": "Investopedia: Gap", "url": "https://www.investopedia.com/terms/g/gap.asp", "quote": "A gap is an area of a chart where the price of a stock moves sharply up or down with little or no trading in between."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_heavy_volume",
+    "term": "Heavy volume",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["big volume", "volume surge", "on volume", "high volume"],
+    "definition": "Far more shares changed hands than usual for that stock. The desk's screener calls it heavy when the day's volume is at least twice the stock's own average. Volume is the footprint of institutions: a breakout on heavy volume has real buyers behind it, a breakout on thin volume is a rumour.",
+    "note": "Heavy is always relative to the stock's own average, never an absolute number; two million shares is huge for one name and nothing for another. The direction matters as much as the amount: heavy volume on an up day is accumulation, heavy volume on a down day is distribution. The High Volume Close setup is built on this word.",
+    "house_formula": "vol_ratio >= 2 (volume against the symbol's own average)",
+    "sources": [
+      {"name": "Investopedia: Volume", "url": "https://www.investopedia.com/terms/v/volume.asp", "quote": "Volume is the amount of an asset or security that changes hands over some period of time, often over the course of a trading day."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_leader",
+    "term": "Leader",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["leading stock", "market leader", "high RS name", "RS rank 80+"],
+    "definition": "A stock that is outperforming most of the market. The desk measures it with a relative-strength rank: a leader is in the top 20% of all stocks by price performance, an RS rank of 80 or higher. Leaders make the big moves, hold up best in corrections, and are the names the desk buys on pullbacks.",
+    "note": "The rank compares a stock's return against every other stock over a set lookback, so 80 means it beat 80% of them. Leadership is about the stock's strength, not the company's size or fame. The rank changes; a leader that starts losing its rank while the market is fine is a leader rolling over.",
+    "house_formula": "rs_rank >= 80 (the firm's own RS-rank preset)",
+    "sources": [
+      {"name": "Investopedia: Relative Strength", "url": "https://www.investopedia.com/terms/r/relativestrength.asp", "quote": "Relative strength is an investment strategy used in momentum investing to identify securities that outperform the market or a chosen benchmark."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_rs_line",
+    "term": "RS line",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["relative strength line", "RS vs SPY"],
+    "definition": "A line drawn under the chart that divides the stock's price by an index, usually the S&P 500. When the line rises the stock is beating the market; when it falls the stock is lagging. The desk wants the RS line rising and, on the best setups, making a new high before the price does.",
+    "note": "It is not the RSI, which is an overbought/oversold oscillator, and it is not the RS rank, which is a percentile score. An RS line at new highs while the price is still inside its base is one of the strongest tells a breakout will work: the stock is already leading, it just has not broken out yet.",
+    "house_formula": "stock close / SPY close, plotted as a series",
+    "sources": [
+      {"name": "Investor's Business Daily: Relative Strength Line Is A Simple Yet Effective Stock Indicator", "url": "https://www.investors.com/how-to-invest/investors-corner/relative-strength-line-is-a-simple-yet-effective-stock-indicator/", "quote": "The relative strength line's job is nothing more difficult than to tell you how a stock is performing compared with the general market."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 2
+  },
+  {
+    "id": "st_chart_near_highs",
+    "term": "Near its highs",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["near 52-week highs", "at new highs", "new high"],
+    "definition": "The stock is trading within 5% of its highest price of the past year. A stock near its highs has no overhead supply: everyone who owns it is in profit, so there are few trapped holders waiting to sell into strength. At new highs means it printed a fresh 52-week high today.",
+    "note": "The desk buys strength, so near the highs is where it shops, in a market that allows it. The opposite, a stock far below its highs, carries overhead supply at every level it fell through. The 52-week high is the standard lookback; a stock near all-time highs is the same idea with no supply at all above it.",
+    "house_formula": "dist_52w_high_pct >= -5 (near its highs); new_52w_high (at new highs)",
+    "sources": [
+      {"name": "Investopedia: 52-Week High/Low", "url": "https://www.investopedia.com/terms/1/52weekhighlow.asp", "quote": "The 52-week high/low is the highest and lowest price at which a security, such as a stock, has traded during the time period that equates to one year."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 1
+  },
+  {
+    "id": "st_chart_ma_stack",
+    "term": "Moving-average stack",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["MA stack", "the averages lined up", "ribbon"],
+    "definition": "Several moving averages read together as one picture. In a healthy uptrend the shorter averages sit above the longer ones (10 above 20 above 50 above 200) and all slope up; the gaps between them show how strong the trend is. When the order is flipped the stock is in a downtrend, and when the averages are tangled together the stock has no trend.",
+    "note": "The desk reads the 10 and 20 EMA for the short-term trend, the 50 SMA for the intermediate trend, and the 200 SMA for the long-term trend, and it reads the Breadth page's SPY and QQQ stacks the same way for the market. A stock crossing down through a stack is not automatically a reversal; often it is a deeper pullback that resets and resumes.",
+    "house_formula": "the Breadth monitor's MA stack shading: above 50 with all four = strongest; below 200 with no bounce = weakest",
+    "sources": [
+      {"name": "Investopedia: Moving Average Ribbon", "url": "https://www.investopedia.com/terms/m/movingaverageribbon.asp", "quote": "Moving average ribbons are a series of moving averages (MA) of different lengths that are plotted on the same chart to create a ribbon-like indicator."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 2
+  },
+  {
+    "id": "st_chart_adr",
+    "term": "ADR% (average daily range)",
+    "category": "chart",
+    "unit_ids_json": ["V.02"],
+    "aliases_json": ["ADR", "daily range", "average range"],
+    "definition": "How much a stock moves on a normal day, as a percent of its price: the average of each day's high-to-low travel over the last 20 days. A stock with a 5% ADR moves about 5% on an ordinary day. The desk uses it two ways: to find stocks that can actually move (the scanner filters out anything under 4%) and to judge whether a stop is tighter than the stock's normal wiggle.",
+    "note": "ADR% is a trader's convention, not a textbook indicator; the textbook cousin is Wilder's ATR, which also counts overnight gaps and is quoted in dollars. A stop inside half a day's ADR is likely to be hit by noise. High ADR cuts both ways: the stocks that can give you 30% in a month can take 10% in a day.",
+    "house_formula": "mean of (high - low) / close over 20 days, as a percent; scanner hard gate adr_pct < 4 = LOW_ADR, filtered",
+    "sources": [
+      {"name": "Investopedia: Average True Range (ATR)", "url": "https://www.investopedia.com/terms/a/atr.asp", "quote": "The average true range (ATR) is a technical analysis indicator introduced by market technician J. Welles Wilder Jr. in his book New Concepts in Technical Trading Systems. It measures market volatility."}
+    ],
+    "example_quote": null,
+    "example_source": "pending: owner prose",
+    "difficulty": 2
+  }
+]
