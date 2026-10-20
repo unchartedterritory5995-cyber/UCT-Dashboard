@@ -490,9 +490,9 @@ function snapshotCommand(kind, params) {
     let pos = range ? range.from : editor.state.selection.from
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
     editor.on('transaction', track)
-    // A Task 16 kind fetches and builds through its own lazily loaded capture module; a lost chunk is a failed fetch.
+    // A Task 16 kind fetches and builds through its lazily loaded capture module; a lost chunk is a failed fetch.
     const res = kind.capture
-      ? await kind.capture().then((m) => m.slashCapture(params), () => ({ ok: false, reason: 'failed' }))
+      ? await kind.capture(params).catch(() => ({ ok: false, reason: 'failed' }))
       : await fetchWidgetPayload(kind.id, params)
     editor.off('transaction', track)
     if (editor.isDestroyed) return { ok: false, message: null }

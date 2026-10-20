@@ -45,19 +45,18 @@ export const WIDGET_KINDS = Object.freeze([
 
 /** Notebook widgets Task 16: existing /charts widget kinds the / menu inserts by fetch-and-freeze, through
  *  the SAME insert path as WIDGET_KINDS. Deliberately NOT in WIDGET_KINDS: they are not endpoint snapshots,
- *  so a stored one gets no refresh doors (isSnapshotKind) and renders exactly as before. `capture` loads
- *  the kind's capture module only when the command runs; `cmd` (a symbol) or `day` is its slash grammar. */
+ *  so a stored one gets no refresh doors (isSnapshotKind) and renders exactly as before. `cmd` (a symbol)
+ *  or `day` is its slash grammar. `capture(params)` loads ONE module, captures/slashCaptures.js, only when
+ *  a command runs (R41: one lazy import for every kind, so a new kind costs a row, not a chunk), and
+ *  answers `{ok, payload}` or `{ok: false, reason}`; a chunk that fails to load rejects. Every row is
+ *  wave 4 under More unless it says otherwise (the defaults are applied once, below: first-open bytes). */
+const slashCaptures = () => import('../../charts/widgets/captures/slashCaptures')
 export const CAPTURE_KINDS = Object.freeze([
-  { id: 'calendar', wave: 4, group: 'more', title: 'UCT Terminal day', day: 1,
-    description: "Today's earnings and economic events", keywords: ['calendar', 'economic'],
-    capture: () => import('../../charts/widgets/captures/calendarCapture') },
-  { id: 'news', wave: 4, group: 'more', title: 'News and catalysts', cmd: 'news',
-    description: 'Catalysts and headlines as they read now',
-    capture: () => import('../../charts/widgets/captures/newsCapture') },
-  { id: 'fundamentals', wave: 4, group: 'more', title: 'Fundamentals', cmd: 'fundamentals',
-    description: 'Reported EPS and sales, frozen as shown',
-    capture: () => import('../../charts/widgets/captures/fundamentalsCapture') },
-])
+  { id: 'calendar', title: 'UCT Terminal day', day: 1,
+    description: "Today's earnings and economic events", keywords: ['calendar', 'economic'] },
+  { id: 'news', title: 'News and catalysts', cmd: 'news', description: 'Catalysts and headlines as they read now' },
+  { id: 'fundamentals', title: 'Fundamentals', cmd: 'fundamentals', description: 'Reported EPS and sales as shown' },
+].map((k) => ({ wave: 4, group: 'more', ...k, capture: (p) => slashCaptures().then((m) => m[k.id](p)) })))
 
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
 
