@@ -6,7 +6,7 @@ that code BY PATH, runs it beside the dashboard code on the SAME real bars, and 
 answer. The lab and C:/data/bars.db live outside this repo, so the file SKIPS when either is absent (a
 lab that cannot import is "absent", never a pass). bars.db is opened mode=ro.
 
-  * lab path: env `UCT_LAB_ID_DRAW_V2`, default ~/Desktop/TSDR-Ledger-Backup/lab/id_draw_v2
+  * lab path: env `UCT_LAB_ID_DRAW_V2` ONLY (no default); the file skips when it is unset
 
 Levels:
   CONSTANTS every frozen lab constant equals the dashboard constant of the same meaning.
@@ -30,8 +30,7 @@ import pytest
 
 from api.services.pattern_engine import inside_day_draw as ID
 
-_LAB_DIR = os.environ.get("UCT_LAB_ID_DRAW_V2") or os.path.expanduser(
-    "~/Desktop/TSDR-Ledger-Backup/lab/id_draw_v2")
+_LAB_DIR = os.environ.get("UCT_LAB_ID_DRAW_V2") or ""
 _BARS_DB = "C:/data/bars.db"
 _SLICE = 600                 # auto_structures.STRUCTURE_BARS: what the route hands the drawing
 _HIST = 24                   # random histories swept session by session
@@ -39,6 +38,8 @@ _SESSIONS = 260              # trailing sessions per history
 
 
 def _lab():
+    if not _LAB_DIR:
+        pytest.skip("UCT_LAB_ID_DRAW_V2 unset")
     p = os.path.join(_LAB_DIR, "rule_id2.py")
     if not (os.path.exists(p) and os.path.exists(_BARS_DB)):
         pytest.skip("lab id_draw_v2 or bars.db absent")
