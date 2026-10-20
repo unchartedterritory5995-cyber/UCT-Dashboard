@@ -798,43 +798,72 @@ def _market_on_my_names(user_id: str, params: dict, now: datetime) -> dict:
 
 # -- tickerFlow (wave 3) -------------------------------------------------------------
 
-#: The one bounded fetch of the page-derived flow product (flow-worker, through the proxy).
+#: The one fetch of the page-derived flow product (flow-worker, through the proxy). A hard
+#: wall-clock budget: the call runs on a pool future and is abandoned when the budget runs out.
 TICKER_FLOW_TIMEOUT_S = 8.0
 TOP_PRINTS_MAX = 10
 _PRINT_KEYS = ("cp", "strike", "exp", "dte", "premium", "volume", "direction")
+
+
+def _window_label(rung: Any) -> str | None:
+    """The served rung as words: '1' -> 'Today', '5' -> 'Last 5 sessions', 'all' -> 'All sessions on record'."""
+    r = str(rung or "").strip().lower()
+    if r == "all":
+        return "All sessions on record"
+    try:
+        n = int(float(r))
+    except ValueError:
+        return None
+    return "Today" if n == 1 else f"Last {n} sessions"
+
+
+def _flow_read(sym: str) -> dict | None:
+    from api.services import flow_card_from_page
+    from api.services.discord_render import symbols
+    return flow_card_from_page.page_derived_payload(
+        sym, "1", symbols.flow_source(sym), timeout_s=TICKER_FLOW_TIMEOUT_S,
+        top_n=TOP_PRINTS_MAX, enrich=False)
+
+
+def _flow_bounded(sym: str) -> dict | None:
+    """`_flow_read` under ONE wall-clock budget, the `_implied_moves` shape: a straggler past the
+    budget is abandoned (the pool is released without waiting) and the answer is None."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        fut = pool.submit(_flow_read, sym)
+        return fut.result(timeout=TICKER_FLOW_TIMEOUT_S)
+    except _FutTimeout:
+        _log.info("ticker flow: page read for %s ran past %.1fs", sym, TICKER_FLOW_TIMEOUT_S)
+        return None
+    except Exception as e:  # noqa: BLE001 -- no flow read is an empty widget, never a failed one
+        _log.info("ticker flow: page read failed for %s: %s", sym, e)
+        return None
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
     sym = params.get("symbol")
     if not isinstance(sym, str) or not _SYMBOL_RE.match(sym):
         raise WidgetRequestError("symbol is required and must be an uppercase ticker")
-    data = None
-    try:
-        from api.services import flow_card_from_page
-        from api.services.discord_render import symbols
-        data = flow_card_from_page.page_derived_payload(
-            sym, "1", symbols.flow_source(sym), timeout_s=TICKER_FLOW_TIMEOUT_S,
-            top_n=TOP_PRINTS_MAX, enrich=False)
-    except Exception as e:  # noqa: BLE001 -- no flow read is an empty widget, never a failed one
-        _log.info("ticker flow: page read failed for %s: %s", sym, e)
-        data = None
-    window = (data or {}).get("window") or {}
-    contracts = list((data or {}).get("contracts") or []) if isinstance(data, dict) else []
-    # The reader widens an empty day to 5, 20, all sessions. That is not today's flow.
-    today = bool(contracts) and not window.get("widened_from")
+    data = _flow_bounded(sym)
+    data = data if isinstance(data, dict) else {}
+    contracts = list(data.get("contracts") or [])
+    net = data.get("net") if isinstance(data.get("net"), dict) else {}
+    # The reader climbs 1 -> 5 -> 20 -> all sessions when today is empty; the payload names the rung
+    # it actually served (`days_requested` on a served rung), and the widget says that window.
+    window = _window_label((data.get("window") or {}).get("days_requested")) if contracts else None
     out: dict[str, Any] = {
         "asOf": _iso_utc(now),
         "source": "market",
         "symbol": sym,
-        # The page product nets bull against bear per contract; it carries no call or put total
-        # and no put/call ratio, and those are never re-summed here, so they are unknown.
-        "callPremium": None,
-        "putPremium": None,
-        "ratio": None,
-        "topPrints": ([{k: c.get(k) for k in _PRINT_KEYS} for c in contracts[:TOP_PRINTS_MAX]]
-                      if today else []),
+        # The page's own net figures, as it computed them; never re-summed here.
+        "bullPremium": _num(net.get("bull")) if contracts else None,
+        "bearPremium": _num(net.get("bear")) if contracts else None,
+        "window": window,
+        "topPrints": [{k: c.get(k) for k in _PRINT_KEYS} for c in contracts[:TOP_PRINTS_MAX]],
     }
-    if not today:
+    if not contracts:
         out["empty"] = f"No options flow on record for {sym} today."
     return out
 

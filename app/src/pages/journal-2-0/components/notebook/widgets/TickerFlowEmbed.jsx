@@ -1,7 +1,7 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import SnapshotFrame, { useSnapshotFrame, numCell, NA, snapshotStyles as s } from './SnapshotFrame'
 
-const NO_TOTALS = 'The flow record does not total calls and puts'
+const NO_NET = 'The flow record for this name carries no net premium figure'
 const SIDE = { C: 'Call', P: 'Put' }
 const DIRECTION = { Bull: 'Bullish', Bear: 'Bearish', Mixed: 'Mixed', Unclear: 'Unclear' }
 
@@ -35,17 +35,19 @@ export default function TickerFlowEmbed({ attrs, height = 300, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="ticker-flow-embed">
-      <SnapshotFrame {...frame} title={`Options flow — ${sym}`} sourceLine="Today's options flow, as the Options Flow page reads it.">
-        <dl className={s.dl}>
-          <Row label="Calls premium">{numCell(p.callPremium, fmtPremium, NO_TOTALS)}</Row>
-          <Row label="Puts premium">{numCell(p.putPremium, fmtPremium, NO_TOTALS)}</Row>
-          <Row label="Put/call ratio">{numCell(p.ratio, (v) => v.toFixed(2), NO_TOTALS)}</Row>
-        </dl>
+      <SnapshotFrame {...frame} title={`Options flow — ${sym}`} sourceLine="Options flow as the Options Flow page reads it.">
+        {prints.length > 0 && (
+          <dl className={s.dl}>
+            <Row label="Window">{typeof p.window === 'string' && p.window ? p.window : <NA reason="The window was not recorded" />}</Row>
+            <Row label="Bullish premium">{numCell(p.bullPremium, fmtPremium, NO_NET)}</Row>
+            <Row label="Bearish premium">{numCell(p.bearPremium, fmtPremium, NO_NET)}</Row>
+          </dl>
+        )}
         {prints.length === 0 ? (
           <p className={s.empty}>{(typeof p.empty === 'string' && p.empty) || `No options flow on record for ${sym} today.`}</p>
         ) : (
           <div className={s.tableWrap}>
-            <table className={s.table} aria-label="Largest contracts today, as captured">
+            <table className={s.table} aria-label="Largest contracts, as captured">
               <thead>
                 <tr>
                   <th scope="col">Contract</th>

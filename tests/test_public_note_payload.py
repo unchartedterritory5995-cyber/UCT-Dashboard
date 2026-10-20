@@ -1117,7 +1117,7 @@ _WAVE3_PARAMS = {
                         "rows": [{"symbol": "NVDA", "ret5d": 4.2, "sector": "Technology",
                                   "sectorRet5d": 1.1, "vsSector": 3.1}]},
     "tickerFlow": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "symbol": "NVDA",
-                   "callPremium": None, "putPremium": None, "ratio": None,
+                   "bullPremium": 987654, "bearPremium": 12345, "window": "Today",
                    "topPrints": [{"cp": "C", "strike": 200.0, "exp": "11/20/2026", "premium": 987654}]},
 }
 

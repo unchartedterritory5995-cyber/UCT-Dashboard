@@ -433,10 +433,9 @@ const CAPTURE_FIXTURES = {
     rows: [{ symbol: 'NVDA', ret5d: 4.25, sector: 'Technology', sectorRet5d: 1.75, vsSector: 2.5 },
       { symbol: 'XOM', ret5d: null, sector: null, sectorRet5d: null, vsSector: null }],
   },
-  // The server sends callPremium/putPremium/ratio as null (the flow product has no call or put total);
-  // normalize drops a null number, so they are absent here and the embed shows n/a.
   tickerFlow: {
     asOf: '2026-10-20T14:05:00Z', source: 'market', symbol: 'nvda',
+    bullPremium: 987654, bearPremium: 123456, window: 'Last 5 sessions',
     topPrints: [{ cp: 'C', strike: 200, exp: '11/20/2026', dte: 31, premium: 250000, volume: 900, direction: 'Bull' }],
     share: false,
   },
@@ -478,7 +477,7 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
   })
 
   it('NEVER carries an account figure in the search line', () => {
-    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900']
+    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900', '987654', '123456']
     for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow']) {
       const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
       for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)

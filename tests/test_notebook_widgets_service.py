@@ -1018,13 +1018,15 @@ def test_market_on_my_names_capped_and_empty(monkeypatch):
 
 # -- wave 3: tickerFlow --------------------------------------------------------------
 
-def _flow_payload(contracts, widened=None):
-    window = {"days_requested": "1", "start": "10/20/2026", "end": "10/20/2026"}
+def _flow_payload(contracts, served="1", widened=None, net=True):
+    window = {"days_requested": served, "start": "10/20/2026", "end": "10/20/2026"}
     if widened:
         window["widened_from"] = widened
-    return {"ok": True, "symbol": "NVDA", "source": "stocks",
-            "net": {"bull": 900, "bear": 100, "unclassified": 0, "dir": "BULL"},
-            "window": window, "contract_count": len(contracts), "contracts": contracts}
+    out = {"ok": True, "symbol": "NVDA", "source": "stocks",
+           "window": window, "contract_count": len(contracts), "contracts": contracts}
+    if net:
+        out["net"] = {"bull": 900000, "bear": 125000, "unclassified": 0, "dir": "BULL"}
+    return out
 
 
 def _contract(i, cp="C"):
@@ -1033,13 +1035,15 @@ def _contract(i, cp="C"):
             "bull_premium": 100000 - i, "bear_premium": 0}
 
 
-def _patch_flow(monkeypatch, result, source="stocks"):
+def _patch_flow(monkeypatch, result, source="stocks", sleep_s=0.0):
     import api.services.flow_card_from_page as page
     import api.services.discord_render.symbols as symbols
     calls = []
 
     def fake(ticker, days, src, timeout_s=20.0, **kw):
         calls.append({"ticker": ticker, "days": days, "source": src, "timeout_s": timeout_s, **kw})
+        if sleep_s:
+            time.sleep(sleep_s)
         if isinstance(result, Exception):
             raise result
         return result
@@ -1060,25 +1064,53 @@ def test_ticker_flow_calls_the_page_reader_once_bounded(monkeypatch):
     first = out["topPrints"][0]
     assert first == {"cp": "C", "strike": 200.0, "exp": "11/20/2026", "dte": 31,
                      "premium": 100000, "volume": 500, "direction": "Bull"}
+    assert out["window"] == "Today"
     assert "empty" not in out
 
 
-def test_ticker_flow_figures_absent_from_the_payload_are_null(monkeypatch):
-    # The page reader nets bull against bear; it does not total calls and puts. Never re-derived here.
+def test_ticker_flow_net_figures_are_the_payloads_own(monkeypatch):
+    # The contracts would sum to 199,999; the payload's own net says 900,000 / 125,000 and wins.
     _patch_flow(monkeypatch, _flow_payload([_contract(0, "C"), _contract(1, "P")]))
     out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
-    assert out["callPremium"] is None and out["putPremium"] is None and out["ratio"] is None
+    assert out["bullPremium"] == 900000 and out["bearPremium"] == 125000
+    for gone in ("callPremium", "putPremium", "ratio"):
+        assert gone not in out
 
 
-@pytest.mark.parametrize("result", [None, TimeoutError("read timed out"), _flow_payload([]),
-                                    _flow_payload([_contract(0)], widened="1")])
-def test_ticker_flow_nothing_today_is_an_empty_payload(monkeypatch, result):
+def test_ticker_flow_net_absent_is_null(monkeypatch):
+    _patch_flow(monkeypatch, _flow_payload([_contract(0)], net=False))
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["bullPremium"] is None and out["bearPremium"] is None
+    assert len(out["topPrints"]) == 1
+
+
+@pytest.mark.parametrize("served,label", [("5", "Last 5 sessions"), ("20", "Last 20 sessions"),
+                                          ("all", "All sessions on record")])
+def test_ticker_flow_widened_window_is_named_not_called_empty(monkeypatch, served, label):
+    _patch_flow(monkeypatch, _flow_payload([_contract(0)], served=served, widened="1"))
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["window"] == label
+    assert "empty" not in out and len(out["topPrints"]) == 1
+    assert out["bullPremium"] == 900000
+
+
+@pytest.mark.parametrize("result", [None, TimeoutError("read timed out"), _flow_payload([])])
+def test_ticker_flow_nothing_on_any_rung_is_an_empty_payload(monkeypatch, result):
     _patch_flow(monkeypatch, result)
     out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
     assert out["empty"] == "No options flow on record for NVDA today."
-    assert out["callPremium"] is None and out["putPremium"] is None and out["ratio"] is None
+    assert out["bullPremium"] is None and out["bearPremium"] is None and out["window"] is None
     assert out["topPrints"] == []
     assert out["asOf"] and out["source"] == "market"
+
+
+def test_ticker_flow_a_reader_past_the_budget_is_abandoned(monkeypatch):
+    monkeypatch.setattr(nw, "TICKER_FLOW_TIMEOUT_S", 0.2)
+    _patch_flow(monkeypatch, _flow_payload([_contract(0)]), sleep_s=2.0)
+    t0 = time.monotonic()
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert time.monotonic() - t0 < 1.0
+    assert out["empty"] == "No options flow on record for NVDA today." and out["topPrints"] == []
 
 
 def test_ticker_flow_bad_symbol_raises(monkeypatch):

@@ -325,7 +325,8 @@ def test_wave3_kinds_build_and_stay_neutral_publicly(wave3):
     assert by["NVDA"]["sectorRet5d"] is not None and by["TSLA"]["sectorRet5d"] is None
     assert names["sectorBasis"] == "your names"
     assert flow["symbol"] == "NVDA" and flow["topPrints"][0]["premium"] == 250000
-    assert flow["callPremium"] is None and flow["ratio"] is None
+    assert flow["bullPremium"] == 2 and flow["bearPremium"] == 1 and flow["window"] == "Today"
+    assert "callPremium" not in flow and "ratio" not in flow
 
     for kind, payload in (("marketOnMyNames", names), ("tickerFlow", flow)):
         assert payload["asOf"] and payload["source"] == "market"

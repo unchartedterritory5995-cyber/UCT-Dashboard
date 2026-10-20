@@ -27,7 +27,7 @@ export const WIDGET_KINDS = Object.freeze([
     description: 'Price, levels, earnings date, your history',
     keywords: ['ticker', 'card', 'symbol', 'levels', 'history'], account: false },
   { id: 'tickerFlow', wave: 3, group: 'plan', title: 'Options flow on a ticker',
-    description: 'Calls and puts traded today on one name',
+    description: "Today's biggest options trades and bullish vs bearish premium",
     keywords: ['flow', 'options', 'calls', 'puts'], account: false },
   { id: 'myPnlStats', wave: 1, group: 'review', title: 'My P&L and stats',
     description: 'Net P&L, win rate and average R for a range',

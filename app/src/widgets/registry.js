@@ -969,9 +969,9 @@ const PANEL_MANIFESTS = {
   ], (p) => `[market on my names: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
   tickerFlow: snapshotManifest('Options flow on a ticker', [
     { key: 'symbol', type: 'symbol', required: true },
-    { key: 'callPremium', type: 'number' },
-    { key: 'putPremium', type: 'number' },
-    { key: 'ratio', type: 'number' },
+    { key: 'bullPremium', type: 'number' },               // the page's own net.bull, never re-summed
+    { key: 'bearPremium', type: 'number' },
+    { key: 'window', type: 'string' },                    // the served rung: Today, Last 5 sessions, ...
     { key: 'topPrints', type: 'json' },                   // [{cp, strike, exp, dte, premium, volume, direction}]
     { key: 'empty', type: 'string' },
   ], (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
