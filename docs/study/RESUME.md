@@ -125,6 +125,30 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   NEXT (owner's call): review on screen; then principles rebuild from his prose / playbook workshop.
   Small follow-up: the review header says "forward 20 sessions" for every chart item; candles.chart
   specs carry forward 10 (cosmetic, the strip itself is what the spec says).
+- **2026-10-20 night: REVIEW STARTED in question form (owner on mobile) + CANDLE LESSONS.**
+  Review flow: screenshot of the review screen (chart + zoom) sent with SendUserFile, question/key/
+  lesson in text, owner answers, verdict appended to docs/study/corrections/candles.chart.jsonl AND
+  applied on the screen (Approve / Reject + reason chip). Six chart items done: 5 approved, 1 rejected
+  (ZS Two Crows, bad chart: bars too small). OWNER RULINGS (all in that jsonl): ALL 66 catalog names
+  are taught (he hated "Advance Block" for a second, then: "we can and should do these all and a ton
+  of these examples"); every name gets a THOROUGH, cool and fun lesson; chart examples must be
+  LEGIBLE; many examples per name, better equivalents ADDED, approved ones STAY; he DELEGATED the
+  remaining chart-example verdicts to the session; style of the hammer lesson approved ("Yes looks
+  good"), headings kept, depth kept, desk part is mine to write ("You answer 1-2-3").
+  Built + merged: #442 (docs/study/terms/candle_lessons.json: 66 six-part lessons: shape / story /
+  where / confirm / cancel / desk; gen_candles.full_lesson; rail on voice + no digits) and #443
+  (find_candle_examples legible() 0.8x the 20-bar avg range, per_key 10, 131 candidates -> 600
+  examples / 130 syms / 63 names; candle_examples_kept.json = the 5 approved, unioned on every run;
+  CHART_WINDOW 40). candles.chart = 604 items.
+  ⚠ RAILWAY SKIPS docs/scripts/tests-only merges for web ("No changes to watched files": #441, #442
+  SKIPPED). To get a bank onto the pod after such a merge: Railway dashboard -> web -> the SKIPPED
+  deployment -> "Deploy commit" -> Deploy (this session may click it; the CLI redeploy is refused).
+  NEXT: deploy #443 that way, import --only candles.catalog --only candles.chart, then REJECT the
+  old illegible chart drafts on the pod that are no longer in the bank (DB ids minus bank ids, via
+  the admin review route from the logged-in tab), then continue: the session judges the 604 under
+  the rules and shows the owner samples; the owner reviews lessons in question form.
+  THEN (owner): redesign the Study landing page in Desk -> Courses: "cool and fun, not lame like
+  this". Plan + work stay LOCAL (RESUME.md, docs/study), no artifacts (owner rule).
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
