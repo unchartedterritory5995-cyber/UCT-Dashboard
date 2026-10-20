@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
-import { findTickerRanges, TICKER_CARD_EVENT } from './tickerChip'
+import { findTickerRanges, TICKER_CARD_EVENT, tickerChipKey } from './tickerChip'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 
 const para = (...content) => ({ type: 'paragraph', content })
@@ -99,5 +99,58 @@ describe('TickerChipExtension', () => {
     expect(got[0].symbol).toBe('NVDA')
     expect(got[0].rect).toBeTruthy()
     expect(typeof got[0].rect.bottom).toBe('number')
+    // The chip's document position rides along, inside the paragraph that holds it.
+    expect(Number.isInteger(got[0].pos)).toBe(true)
+    expect(editor.state.doc.resolve(got[0].pos).parent.textContent).toBe('Watching $NVDA up')
+  })
+
+  it('a code mark put on $NVDA removes the chip, and taking it off restores it', () => {
+    const { editor, el } = mount(docOf(para(text('Watching $NVDA up'))))
+    expect(chips(el)).toEqual([['NVDA', '$NVDA']])
+    editor.chain().setTextSelection({ from: 10, to: 15 }).setMark('code').run()
+    expect(chips(el)).toEqual([])
+    editor.chain().setTextSelection({ from: 10, to: 15 }).unsetMark('code').run()
+    expect(chips(el)).toEqual([['NVDA', '$NVDA']])
+    expect(editor.getText()).toBe('Watching $NVDA up')
+  })
+
+  it('a code mark that only partly covers the ticker still removes the chip', () => {
+    const { editor, el } = mount(docOf(para(text('Watching $NVDA up'))))
+    editor.chain().setTextSelection({ from: 12, to: 13 }).setMark('code').run()
+    expect(chips(el)).toEqual([])
+  })
+
+  it('turning the paragraph into a code block removes the chip, and back restores it', () => {
+    const { editor, el } = mount(docOf(para(text('Watching $NVDA up')), para(text('$AMD'))))
+    editor.chain().setTextSelection(3).setCodeBlock().run()
+    expect(editor.state.doc.firstChild.type.name).toBe('codeBlock')
+    expect(chips(el)).toEqual([['AMD', '$AMD']])
+    // The SET, not just the DOM: a code block's view may not paint inline decorations, so a chip mapped
+    // into it would be invisible here and still live (and clickable the moment the view painted it).
+    const inCode = () => tickerChipKey.getState(editor.state).find(0, editor.state.doc.firstChild.nodeSize)
+    expect(inCode()).toEqual([])
+    editor.commands.insertContentAt(2, 'x') // typing inside the code block keeps it clean
+    expect(inCode()).toEqual([])
+    editor.chain().setTextSelection(3).setParagraph().run()
+    expect(chips(el)).toEqual([['NVDA', '$NVDA'], ['AMD', '$AMD']])
+  })
+
+  it('deleting the ticker, or its $, removes the chip', () => {
+    const { editor, el } = mount(docOf(para(text('Watching $NVDA up and $AMD'))))
+    expect(chips(el)).toEqual([['NVDA', '$NVDA'], ['AMD', '$AMD']])
+    editor.commands.deleteRange({ from: 10, to: 11 }) // the $ of $NVDA
+    expect(chips(el)).toEqual([['AMD', '$AMD']])
+    const at = editor.getText().indexOf('$AMD') + 1
+    editor.commands.deleteRange({ from: at, to: at + 4 })
+    expect(chips(el)).toEqual([])
+  })
+
+  it('joining two paragraphs that each hold half a ticker makes one chip for the whole symbol', () => {
+    const { editor, el } = mount(docOf(para(text('buy $NV')), para(text('DA now'))))
+    expect(chips(el)).toEqual([['NV', '$NV']]) // $NV is a symbol on its own
+    const second = editor.state.doc.firstChild.nodeSize + 1
+    editor.chain().setTextSelection(second).joinBackward().run()
+    expect(editor.state.doc.childCount).toBe(1)
+    expect(chips(el)).toEqual([['NVDA', '$NVDA']])
   })
 })

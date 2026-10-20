@@ -31,11 +31,21 @@ function stubFetch(impl) {
   fetchSpy = vi.fn(impl)
   vi.stubGlobal('fetch', fetchSpy)
 }
-const open = (symbol = 'NVDA') => act(() => {
+const open = (symbol = 'NVDA', pos) => act(() => {
   editor.view.dom.dispatchEvent(new CustomEvent(TICKER_CARD_EVENT, {
-    bubbles: true, detail: { symbol, rect: { left: 10, top: 10, bottom: 30, right: 60, width: 50, height: 20 } },
+    bubbles: true, detail: { symbol, pos, rect: { left: 10, top: 10, bottom: 30, right: 60, width: 50, height: 20 } },
   }))
 })
+// The document position of the first `$SYM` in the doc, and one inside the word (where a click leaves the caret).
+function posOf(sym) {
+  let at = null
+  editor.state.doc.descendants((n, p) => {
+    if (at == null && n.isText && n.text.includes(`$${sym}`)) at = p + n.text.indexOf(`$${sym}`)
+  })
+  return at
+}
+const caretInside = (sym) => { editor.commands.setTextSelection(posOf(sym) + 3) } // between $NV and DA
+const topTypes = () => editor.getJSON().content.map((n) => n.type)
 const embeds = () => (editor.getJSON().content || []).filter((n) => n.type === 'widgetEmbed')
 
 describe('TickerCardPopover', () => {
@@ -109,6 +119,79 @@ describe('TickerCardPopover', () => {
     await waitFor(() => {
       open()
       expect(screen.getByText('Insert chart')).toBeInTheDocument()
+    })
+  })
+
+  describe('inserting from a chip whose press left the caret inside $NVDA', () => {
+    const load = () => stubFetch(async () => ({ ok: true, status: 200, json: async () => PAYLOAD }))
+
+    it('Insert card goes after the paragraph, the sentence intact, the caret after the card', async () => {
+      load()
+      editor.commands.setContent('<p>Watching $NVDA up 4% today</p><p>next line</p>')
+      caretInside('NVDA')
+      render(<TickerCardPopover editor={editor} />)
+      open('NVDA', posOf('NVDA'))
+      await screen.findByText('Your history')
+      fireEvent.click(screen.getByText('Insert card'))
+      const doc = editor.getJSON().content
+      expect(doc.map((n) => n.type)).toEqual(['paragraph', 'widgetEmbed', 'paragraph'])
+      expect(editor.state.doc.child(0).textContent).toBe('Watching $NVDA up 4% today')
+      expect(doc[1].attrs.widgetId).toBe('tickerCard')
+      expect(editor.state.doc.child(2).textContent).toBe('next line')
+      // The caret is after the card (in the next line), never on the card itself.
+      const sel = editor.state.selection
+      expect(sel.empty).toBe(true)
+      expect(sel.from).toBeGreaterThan(editor.state.doc.child(0).nodeSize + editor.state.doc.child(1).nodeSize)
+    })
+
+    it('Insert chart goes after the paragraph too, and the paragraph keeps its text', async () => {
+      load()
+      editor.commands.setContent('<p>Watching $NVDA up 4% today</p>')
+      caretInside('NVDA')
+      render(<TickerCardPopover editor={editor} />)
+      open('NVDA', posOf('NVDA'))
+      fireEvent.click(await screen.findByText('Insert chart'))
+      const doc = editor.getJSON().content
+      expect(doc[0].type).toBe('paragraph')
+      expect(editor.state.doc.child(0).textContent).toBe('Watching $NVDA up 4% today')
+      expect(doc[1].type).toBe('widgetEmbed')
+      expect(doc[1].attrs.widgetId).toBe('chart')
+      // The embed was last, so a paragraph is minted for the caret after it.
+      expect(doc.length).toBe(3)
+      expect(editor.state.selection.$from.parent.type.name).toBe('paragraph')
+      expect(editor.state.selection.from).toBeGreaterThan(editor.state.doc.child(0).nodeSize + 1)
+    })
+
+    it('a chip in a list item puts the card after the whole list, the item text intact', async () => {
+      load()
+      editor.commands.setContent('<ul><li><p>Buy $NVDA now</p></li><li><p>second</p></li></ul><p>after</p>')
+      caretInside('NVDA')
+      render(<TickerCardPopover editor={editor} />)
+      open('NVDA', posOf('NVDA'))
+      await screen.findByText('Your history')
+      fireEvent.click(screen.getByText('Insert card'))
+      expect(topTypes()).toEqual(['bulletList', 'widgetEmbed', 'paragraph'])
+      expect(editor.state.doc.child(0).textContent).toBe('Buy $NVDA nowsecond')
+      expect(editor.state.doc.child(0).childCount).toBe(2)
+      expect(editor.state.doc.child(2).textContent).toBe('after')
+    })
+
+    it('a REAL chip press carries its position: the card lands after its paragraph', async () => {
+      load()
+      editor.commands.setContent('<p>first</p><p>Watching $NVDA up</p><p>last</p>')
+      render(<TickerCardPopover editor={editor} />)
+      const chip = await waitFor(() => {
+        const c = editor.view.dom.querySelector('.tickerChip')
+        expect(c).toBeTruthy()
+        return c
+      })
+      caretInside('NVDA')
+      act(() => { chip.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+      await screen.findByText('Your history')
+      fireEvent.click(screen.getByText('Insert card'))
+      expect(topTypes()).toEqual(['paragraph', 'paragraph', 'widgetEmbed', 'paragraph'])
+      expect(editor.state.doc.child(1).textContent).toBe('Watching $NVDA up')
+      expect(editor.state.doc.child(3).textContent).toBe('last')
     })
   })
 })

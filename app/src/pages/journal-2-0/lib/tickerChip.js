@@ -11,7 +11,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { widgetsWaveOn } from './notebookWidgetsFlags'
 
 export const TICKER_CARD_EVENT = 'uct:ticker-card'
-const key = new PluginKey('tickerChip')
+export const tickerChipKey = new PluginKey('tickerChip')
+const key = tickerChipKey
 
 /** Every `$SYM` in `text`. A sentence's closing period is not part of the symbol. */
 export function findTickerRanges(text) {
@@ -29,9 +30,10 @@ function scan(doc, from, to) {
   const spans = []
   const code = doc.type.schema.marks.code
   doc.nodesBetween(from, to, (node, pos) => {
+    // A code block's span is recorded too, so chips mapped into one (paragraph to code block) are dropped.
+    if (node.type.spec.code || node.isTextblock) spans.push([pos, pos + node.nodeSize])
     if (node.type.spec.code) return false
     if (!node.isTextblock) return true
-    spans.push([pos, pos + node.nodeSize])
     for (const r of findTickerRanges(node.textBetween(0, node.content.size, undefined, '￼'))) {
       const a = pos + 1 + r.from
       const b = pos + 1 + r.to
@@ -59,16 +61,20 @@ export const TickerChipExtension = Extension.create({
           if (!set) return widgetsWaveOn(1) ? full(state.doc) : null
           if (!tr.docChanged) return set
           let next = set.map(tr.mapping, tr.doc)
-          // Re-scan only the textblocks the steps touched.
+          // Re-scan only the textblocks the steps touched. A mark step (code on or off) has an EMPTY map, so
+          // its own from/to is the range.
           const size = tr.doc.content.size
-          tr.mapping.maps.forEach((map, i) => map.forEach((_a, _b, s, e) => {
+          tr.steps.forEach((step, i) => {
+            const touched = []
+            step.getMap().forEach((_a, _b, s, e) => touched.push([s, e]))
+            if (!touched.length && step.from != null) touched.push([step.from, step.to])
             const rest = tr.mapping.slice(i + 1)
-            const from = Math.max(0, rest.map(s, -1) - 1)
-            const to = Math.min(size, rest.map(e, 1) + 1)
-            const { decos, spans } = scan(tr.doc, from, to)
-            for (const [a, b] of spans) next = next.remove(next.find(a, b))
-            next = next.add(tr.doc, decos)
-          }))
+            for (const [s, e] of touched) {
+              const { decos, spans } = scan(tr.doc, Math.max(0, rest.map(s, -1) - 1), Math.min(size, rest.map(e, 1) + 1))
+              for (const [a, b] of spans) next = next.remove(next.find(a, b))
+              next = next.add(tr.doc, decos)
+            }
+          })
           return next
         },
       },
@@ -78,8 +84,10 @@ export const TickerChipExtension = Extension.create({
           click(view, event) {
             const el = event.target?.closest?.('.tickerChip')
             if (!el || !view.dom.contains(el) || !view.editable) return false
+            let pos = null
+            try { pos = view.posAtDOM(el, 0) } catch { pos = null }
             view.dom.dispatchEvent(new CustomEvent(TICKER_CARD_EVENT, {
-              bubbles: true, detail: { symbol: el.getAttribute('data-symbol'), rect: el.getBoundingClientRect() },
+              bubbles: true, detail: { symbol: el.getAttribute('data-symbol'), rect: el.getBoundingClientRect(), pos },
             }))
             return false
           },
