@@ -39,7 +39,7 @@ def segments() -> dict:
 
 def test_every_segment_validates_and_is_non_empty(segments):
     assert set(segments) >= {"recall.glossary", "recall.principles", "recall.bible", "recall.concepts",
-                             "recall.playbooks", "size.house_rule", "spot.fixtures", "family.fixtures",
+                             "recall.playbooks", "size.house_rule", "spot.fixtures", "family.fixtures", "candles.chart",
                              "regime.bottoms", "candles.catalog", "walk.method", "vocab.chart"}
     for name, items in segments.items():
         assert items, name
@@ -174,6 +174,28 @@ def test_size_segment_covers_every_case_family(segments):
     assert gen_size.ladder_max(2) == (0.0, 20) and gen_size.CAP_TABLE["ORANGE"]["B"] == 0
 
 
+def test_size_rulings_2026_10_19_wide_stop_over_cap_tight_batch_and_plural(segments):
+    """docs/study/corrections/size.house_rule.jsonl: the three segment rulings."""
+    items = segments["size.house_rule"]
+    forward = [i for i in items if "#3-forward" in i["source_ref"]]
+    tight = [i for i in forward if "forward-tight" in i["source_ref"]]
+    assert len(tight) >= 12
+    assert all(i["reveal_json"]["facts"]["stop_pct"] <= 8 for i in tight)
+    assert sum(1 for i in tight if i["reveal_json"]["facts"]["stop_pct"] <= 6) >= len(tight) * 0.75
+    # the original forward items keep their ids: the owner's verdicts still land
+    ids = {i["id"] for i in items}
+    assert {"si_a811f438b0f5", "si_50d28d98a52a", "si_7417247555f3"} <= ids
+    for it in forward:
+        f = it["reveal_json"]["facts"]
+        wide = "far wider than the desk would ever use" in it["lesson_text"]
+        assert wide == (f["stop_pct"] > gen_size.WIDE_STOP_PCT), it["id"]
+        trim = "trim it down toward 20-25%" in it["lesson_text"]
+        assert trim == (f["position_pct"] > gen_size.DESK_MAX_PCT), it["id"]
+    for it in items:
+        assert not re.search(r"(?<![0-9.])1 shares\b", it["lesson_text"]), it["id"]
+    assert gen_size.shares_word(1) == "1 share" and gen_size.shares_word(66) == "66 shares"
+
+
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 def test_fixtures_use_only_unmodified_positives_and_negatives(segments):
@@ -230,13 +252,47 @@ def test_wire_items_carry_the_tier_scale_and_wait_sixty_days():
 # ── candles ───────────────────────────────────────────────────────────────────
 
 def test_candle_items_never_key_on_direction(segments):
-    items = segments["candles.catalog"]
-    assert len(gen_candles.catalog()) == 66 and len(items) >= 66 * 2
+    items = segments["candles.catalog"] + segments["candles.chart"]
+    assert len(gen_candles.catalog()) == 66 and len(segments["candles.catalog"]) >= 66 * 2
     for it in items:
         a = str(it["answer_json"]["answer"]).lower()
         assert a not in ("bullish", "bearish", "neutral", "reversal", "continuation", "indecision"), it["id"]
         assert it["reveal_json"]["direction_is_not_a_fact"]
         assert it["prompt_json"]["subject"]
+
+
+def test_candle_description_questions_never_name_the_answer(segments):
+    """Owner 2026-10-19 ("Fix + draw the candle"): the quoted description in a
+    name question never contains the name; the cut sentence stays in the lesson."""
+    for it in segments["candles.catalog"]:
+        quote = it["prompt_json"].get("quote")
+        if not quote:
+            continue
+        label = it["answer_json"]["answer"]
+        assert label.lower() not in quote.lower(), it["id"]
+        assert it["lesson_text"], it["id"]
+    hammer = next(p for p in gen_candles.catalog() if p.key == "hammer")
+    cut = gen_candles.strip_name(hammer.desc, hammer)
+    assert "hammer" not in cut.lower() and cut and len(cut) < len(hammer.desc)
+
+
+def test_candle_chart_items_show_a_real_bar_found_by_the_catalog(segments):
+    """Owner 2026-10-19 ("include images"): every example in
+    docs/study/terms/candle_examples.json is a chart item cut at the named bar."""
+    charts = segments["candles.chart"]
+    examples = gen_candles.load_examples()
+    assert examples and len(charts) == len([e for e in examples if e["key"] in {p.key for p in gen_candles.catalog()}])
+    assert len({it["answer_json"]["answer"] for it in charts}) >= 55       # most of the 66 names have a chart
+    assert len({it["sym"] for it in charts}) >= 12                            # not four stocks
+    for it in charts:
+        spec = it["bars"]
+        assert spec == {"sym": it["sym"], "tf": "D", "asof": it["asof"], "window": gen_candles.CHART_WINDOW,
+                        "forward": gen_candles.CHART_FORWARD}
+        assert it["prompt_json"]["chart"]["highlight_last_bars"] == it["reveal_json"]["bars"]
+        assert "quote" not in it["prompt_json"]                              # the description is in the reveal
+        assert it["reveal_json"]["quote"] and it["reveal_json"]["example"]["found_by"].endswith("find_candle_examples.py")
+        assert it["sym"] not in json.dumps(it["prompt_json"])
+        assert len(it["prompt_json"]["choices"]) == 4 and it["answer_json"]["answer"] in it["prompt_json"]["choices"]
 
 
 # ── walk-throughs (§13.9 #1): the brief is taught, never quizzed ─────────────
@@ -334,8 +390,12 @@ def test_committed_bank_matches_the_generators(segments):
         path = bank / f"{name}.json"
         assert path.exists(), name
         on_disk = json.loads(path.read_text(encoding="utf-8"))
-        assert [i["id"] for i in on_disk] == [i["id"] for i in items], name
-        assert on_disk == json.loads(json.dumps(items, sort_keys=True)), name
+        # the bank on disk is a fresh run PLUS the owner's verdicts (write_segment
+        # applies docs/study/corrections before writing), so compare against that
+        from scripts.study import corrections
+        expected = corrections.apply(json.loads(json.dumps(items, sort_keys=True)))
+        assert [i["id"] for i in on_disk] == [i["id"] for i in expected], name
+        assert on_disk == json.loads(json.dumps(expected, sort_keys=True)), name
 
 
 def test_corrections_overlay_rejects_fixes_and_approves_by_item_id():
@@ -388,6 +448,19 @@ def test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors(segm
         rules = {dedash(r) for r in p["rules"]}
         assert all(c in rules for c in wrong), it["id"]           # never another setup's mistake
         assert it["prompt_json"]["note"].startswith("The other three")
+
+
+def test_corrections_overlay_applies_a_prompt_field_fix():
+    """The owner's candle fix (2026-10-19) is on `prompt.quote`; the overlay
+    reaches prompt_json keys the same way it reaches reveal.<key>."""
+    from scripts.study import corrections
+    it = {"id": "si_q", "prompt_json": {"q": "Which name?", "quote": "A hammer after a decline."},
+          "answer_json": {"answer": "Hammer"}, "reveal_json": {}, "review_status": "draft",
+          "lesson_text": "l", "lesson_origin": "template"}
+    out = corrections.apply([it], [{"item_id": "si_q", "verdict": "fix", "field": "prompt.quote",
+                                    "after": "A long lower wick after a decline."}])
+    assert out[0]["prompt_json"]["quote"] == "A long lower wick after a decline."
+    assert out[0]["prompt_json"]["q"] == "Which name?"
 
 
 def test_run_all_lists_every_generator():

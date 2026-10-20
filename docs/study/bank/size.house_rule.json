@@ -20,6 +20,7 @@
   "reveal_json": {
    "facts": {
     "account": 50000,
+    "desk_max_pct": 20,
     "dollars": 4092.85,
     "entry": 177.95,
     "formula_pct": 8.3,
@@ -30,12 +31,22 @@
     "shares": 23,
     "skip": false,
     "stop": 172.61,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "Approve (answered 23 shares)"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-1",
@@ -50,7 +61,7 @@
   "difficulty": 2,
   "id": "si_50d28d98a52a",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 15% away. Risk $3750 divided by $56.41 a share is 66 shares, $24818.64 in the stock, 9.9% of the account.",
+  "lesson_text": "Stop first. The stop is 15% away, far wider than the desk would ever use, but the math is the same. Risk $3750 divided by $56.41 a share is 66 shares, $24818.64 in the stock, 9.9% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 250000,
@@ -63,6 +74,7 @@
   "reveal_json": {
    "facts": {
     "account": 250000,
+    "desk_max_pct": 20,
     "dollars": 24818.64,
     "entry": 376.04,
     "formula_pct": 10.0,
@@ -73,7 +85,12 @@
     "shares": 66,
     "skip": false,
     "stop": 319.63,
-    "stop_pct": 15.0
+    "stop_pct": 15.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -93,7 +110,7 @@
   "difficulty": 2,
   "id": "si_9d442ebbc314",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 15.01% away. Risk $1125 divided by $11.2 a share is 100 shares, $7464 in the stock, 10% of the account.",
+  "lesson_text": "Stop first. The stop is 15.01% away, far wider than the desk would ever use, but the math is the same. Risk $1125 divided by $11.2 a share is 100 shares, $7464 in the stock, 10% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -106,6 +123,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 7464.0,
     "entry": 74.64,
     "formula_pct": 10.0,
@@ -116,12 +134,22 @@
     "shares": 100,
     "skip": false,
     "stop": 63.44,
-    "stop_pct": 15.01
+    "stop_pct": 15.01,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "Yes math checks out perfectly"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-3",
@@ -136,7 +164,7 @@
   "difficulty": 2,
   "id": "si_7417247555f3",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 4% away. Risk $1500 divided by $9.1 a share is 164 shares, $37319.84 in the stock, 37.3% of the account.",
+  "lesson_text": "Stop first. The stop is 4% away. Risk $1500 divided by $9.1 a share is 164 shares, $37319.84 in the stock, 37.3% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
   "module": "M5",
   "prompt_json": {
    "account": 100000,
@@ -149,6 +177,7 @@
   "reveal_json": {
    "facts": {
     "account": 100000,
+    "desk_max_pct": 20,
     "dollars": 37319.84,
     "entry": 227.56,
     "formula_pct": 37.5,
@@ -159,7 +188,12 @@
     "shares": 164,
     "skip": false,
     "stop": 218.46,
-    "stop_pct": 4.0
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -179,7 +213,7 @@
   "difficulty": 2,
   "id": "si_718773c087f6",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away. Risk $50 divided by $12.58 a share is 3 shares, $314.58 in the stock, 3.1% of the account.",
+  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $50 divided by $12.58 a share is 3 shares, $314.58 in the stock, 3.1% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -192,6 +226,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 314.58,
     "entry": 104.86,
     "formula_pct": 4.2,
@@ -202,12 +237,22 @@
     "shares": 3,
     "skip": false,
     "stop": 92.28,
-    "stop_pct": 12.0
+    "stop_pct": 12.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "good but quite the wide stop again which is fine"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-5",
@@ -222,7 +267,7 @@
   "difficulty": 2,
   "id": "si_111811fac905",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 8% away. Risk $200 divided by $27.24 a share is 7 shares, $2383.57 in the stock, 23.8% of the account.",
+  "lesson_text": "Stop first. The stop is 8% away. Risk $200 divided by $27.24 a share is 7 shares, $2383.57 in the stock, 23.8% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -235,6 +280,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 2383.57,
     "entry": 340.51,
     "formula_pct": 25.0,
@@ -245,12 +291,22 @@
     "shares": 7,
     "skip": false,
     "stop": 313.27,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "again, a wide stop i think we would benefit from some quick math on tighter stops"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-6",
@@ -265,7 +321,7 @@
   "difficulty": 2,
   "id": "si_4f7a0c7a1af7",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 8% away. Risk $25 divided by $17.94 a share is 1 shares, $224.25 in the stock, 2.2% of the account.",
+  "lesson_text": "Stop first. The stop is 8% away. Risk $25 divided by $17.94 a share is 1 share, $224.25 in the stock, 2.2% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -278,6 +334,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 224.25,
     "entry": 224.25,
     "formula_pct": 3.1,
@@ -288,12 +345,22 @@
     "shares": 1,
     "skip": false,
     "stop": 206.31,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "Approve"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-7",
@@ -308,7 +375,7 @@
   "difficulty": 2,
   "id": "si_c049b16f2ba8",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away. Risk $750 divided by $24.71 a share is 30 shares, $6178.2 in the stock, 8.2% of the account.",
+  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $750 divided by $24.71 a share is 30 shares, $6178.2 in the stock, 8.2% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -321,6 +388,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 6178.2,
     "entry": 205.94,
     "formula_pct": 8.3,
@@ -331,12 +399,22 @@
     "shares": 30,
     "skip": false,
     "stop": 181.23,
-    "stop_pct": 12.0
+    "stop_pct": 12.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
   },
-  "review_status": "draft",
+  "review_status": "approved",
+  "reviewed": {
+   "by": "owner",
+   "ts": "2026-10-19",
+   "words": "Approve"
+  },
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-8",
@@ -364,6 +442,7 @@
   "reveal_json": {
    "facts": {
     "account": 100000,
+    "desk_max_pct": 20,
     "dollars": 6203.1,
     "entry": 100.05,
     "formula_pct": 6.2,
@@ -374,7 +453,12 @@
     "shares": 62,
     "skip": false,
     "stop": 92.05,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -407,6 +491,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 7377.02,
     "entry": 320.74,
     "formula_pct": 10.0,
@@ -417,7 +502,12 @@
     "shares": 23,
     "skip": false,
     "stop": 288.67,
-    "stop_pct": 10.0
+    "stop_pct": 10.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -450,6 +540,7 @@
   "reveal_json": {
    "facts": {
     "account": 50000,
+    "desk_max_pct": 20,
     "dollars": 9386.52,
     "entry": 32.82,
     "formula_pct": 18.8,
@@ -460,7 +551,12 @@
     "shares": 286,
     "skip": false,
     "stop": 31.51,
-    "stop_pct": 3.99
+    "stop_pct": 3.99,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -480,7 +576,7 @@
   "difficulty": 2,
   "id": "si_d0c4fcd38430",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2% away. Risk $750 divided by $7.76 a share is 96 shares, $37264.32 in the stock, 49.7% of the account.",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $750 divided by $7.76 a share is 96 shares, $37264.32 in the stock, 49.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -493,6 +589,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 37264.32,
     "entry": 388.17,
     "formula_pct": 50.0,
@@ -503,7 +600,12 @@
     "shares": 96,
     "skip": false,
     "stop": 380.41,
-    "stop_pct": 2.0
+    "stop_pct": 2.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -523,7 +625,7 @@
   "difficulty": 2,
   "id": "si_b60168235fb2",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 4% away. Risk $1000 divided by $4.85 a share is 206 shares, $24965.14 in the stock, 49.9% of the account.",
+  "lesson_text": "Stop first. The stop is 4% away. Risk $1000 divided by $4.85 a share is 206 shares, $24965.14 in the stock, 49.9% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
   "module": "M5",
   "prompt_json": {
    "account": 50000,
@@ -536,6 +638,7 @@
   "reveal_json": {
    "facts": {
     "account": 50000,
+    "desk_max_pct": 20,
     "dollars": 24965.14,
     "entry": 121.19,
     "formula_pct": 50.0,
@@ -546,7 +649,12 @@
     "shares": 206,
     "skip": false,
     "stop": 116.34,
-    "stop_pct": 4.0
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -566,7 +674,7 @@
   "difficulty": 2,
   "id": "si_b76345801661",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away. Risk $500 divided by $36.9 a share is 13 shares, $3997.76 in the stock, 8% of the account.",
+  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $500 divided by $36.9 a share is 13 shares, $3997.76 in the stock, 8% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 50000,
@@ -579,6 +687,7 @@
   "reveal_json": {
    "facts": {
     "account": 50000,
+    "desk_max_pct": 20,
     "dollars": 3997.76,
     "entry": 307.52,
     "formula_pct": 8.3,
@@ -589,7 +698,12 @@
     "shares": 13,
     "skip": false,
     "stop": 270.62,
-    "stop_pct": 12.0
+    "stop_pct": 12.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -609,7 +723,7 @@
   "difficulty": 2,
   "id": "si_b0a7844cbd8b",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2% away. Risk $40 divided by $5.54 a share is 7 shares, $1940.54 in the stock, 24.3% of the account.",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $40 divided by $5.54 a share is 7 shares, $1940.54 in the stock, 24.3% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
   "module": "M5",
   "prompt_json": {
    "account": 8000,
@@ -622,6 +736,7 @@
   "reveal_json": {
    "facts": {
     "account": 8000,
+    "desk_max_pct": 20,
     "dollars": 1940.54,
     "entry": 277.22,
     "formula_pct": 25.0,
@@ -632,7 +747,12 @@
     "shares": 7,
     "skip": false,
     "stop": 271.68,
-    "stop_pct": 2.0
+    "stop_pct": 2.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -665,6 +785,7 @@
   "reveal_json": {
    "facts": {
     "account": 50000,
+    "desk_max_pct": 20,
     "dollars": 6162.8,
     "entry": 308.14,
     "formula_pct": 12.5,
@@ -675,7 +796,12 @@
     "shares": 20,
     "skip": false,
     "stop": 283.49,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -695,7 +821,7 @@
   "difficulty": 2,
   "id": "si_8f5d0d2b5033",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away. Risk $75 divided by $5.03 a share is 14 shares, $587.02 in the stock, 5.9% of the account.",
+  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $75 divided by $5.03 a share is 14 shares, $587.02 in the stock, 5.9% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -708,6 +834,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 587.02,
     "entry": 41.93,
     "formula_pct": 6.2,
@@ -718,7 +845,12 @@
     "shares": 14,
     "skip": false,
     "stop": 36.9,
-    "stop_pct": 12.0
+    "stop_pct": 12.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -738,7 +870,7 @@
   "difficulty": 2,
   "id": "si_d90f379c5a7a",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away. Risk $25 divided by $9.89 a share is 2 shares, $164.8 in the stock, 1.6% of the account.",
+  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $25 divided by $9.89 a share is 2 shares, $164.8 in the stock, 1.6% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -751,6 +883,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 164.8,
     "entry": 82.4,
     "formula_pct": 2.1,
@@ -761,7 +894,12 @@
     "shares": 2,
     "skip": false,
     "stop": 72.51,
-    "stop_pct": 12.0
+    "stop_pct": 12.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -781,7 +919,7 @@
   "difficulty": 2,
   "id": "si_8a029aac484b",
   "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 15% away. Risk $25 divided by $23.05 a share is 1 shares, $153.64 in the stock, 1.5% of the account.",
+  "lesson_text": "Stop first. The stop is 15% away, far wider than the desk would ever use, but the math is the same. Risk $25 divided by $23.05 a share is 1 share, $153.64 in the stock, 1.5% of the account.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -794,6 +932,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 153.64,
     "entry": 153.64,
     "formula_pct": 1.7,
@@ -804,7 +943,12 @@
     "shares": 1,
     "skip": false,
     "stop": 130.59,
-    "stop_pct": 15.0
+    "stop_pct": 15.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": true
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -837,6 +981,7 @@
   "reveal_json": {
    "facts": {
     "account": 8000,
+    "desk_max_pct": 20,
     "dollars": 367.26,
     "entry": 183.63,
     "formula_pct": 5.0,
@@ -847,7 +992,12 @@
     "shares": 2,
     "skip": false,
     "stop": 165.27,
-    "stop_pct": 10.0
+    "stop_pct": 10.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "rule": "Position % = risk % / stop distance %; shares round down",
    "source": "docs/study/sizing_rule.md"
@@ -1329,6 +1479,7 @@
     "capped_dollars": 1815.1,
     "capped_risk_pct": 0.68,
     "capped_shares": 5,
+    "desk_max_pct": 20,
     "dollars": 5082.28,
     "entry": 363.02,
     "formula_pct": 66.7,
@@ -1340,7 +1491,12 @@
     "shares": 14,
     "skip": false,
     "stop": 352.13,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1401,6 +1557,7 @@
     "capped_dollars": 2858.4,
     "capped_risk_pct": 0.34,
     "capped_shares": 20,
+    "desk_max_pct": 20,
     "dollars": 16578.72,
     "entry": 142.92,
     "formula_pct": 66.7,
@@ -1412,7 +1569,12 @@
     "shares": 116,
     "skip": false,
     "stop": 138.63,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1473,6 +1635,7 @@
     "capped_dollars": 37395.15,
     "capped_risk_pct": 0.45,
     "capped_shares": 195,
+    "desk_max_pct": 20,
     "dollars": 166648.13,
     "entry": 191.77,
     "formula_pct": 66.7,
@@ -1484,7 +1647,12 @@
     "shares": 869,
     "skip": false,
     "stop": 186.02,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1503,7 +1671,7 @@
   "difficulty": 3,
   "id": "si_92516dd2a564",
   "lesson_origin": "template",
-  "lesson_text": "The formula says 25%. The cap for ORANGE A is 5%. Cap it: 1 shares, $219.4. A tight stop never licenses a monster position.",
+  "lesson_text": "The formula says 25%. The cap for ORANGE A is 5%. Cap it: 1 share, $219.4. A tight stop never licenses a monster position.",
   "module": "M13",
   "prompt_json": {
    "account": 8000,
@@ -1545,6 +1713,7 @@
     "capped_dollars": 219.4,
     "capped_risk_pct": 0.11,
     "capped_shares": 1,
+    "desk_max_pct": 20,
     "dollars": 1974.6,
     "entry": 219.4,
     "formula_pct": 25.0,
@@ -1556,7 +1725,12 @@
     "shares": 9,
     "skip": false,
     "stop": 210.62,
-    "stop_pct": 4.0
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1617,6 +1791,7 @@
     "capped_dollars": 2473.24,
     "capped_risk_pct": 0.74,
     "capped_shares": 11,
+    "desk_max_pct": 20,
     "dollars": 6520.36,
     "entry": 224.84,
     "formula_pct": 66.7,
@@ -1628,7 +1803,12 @@
     "shares": 29,
     "skip": false,
     "stop": 218.09,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1689,6 +1869,7 @@
     "capped_dollars": 243.7,
     "capped_risk_pct": 0.19,
     "capped_shares": 10,
+    "desk_max_pct": 20,
     "dollars": 2510.11,
     "entry": 24.37,
     "formula_pct": 50.3,
@@ -1700,7 +1881,12 @@
     "shares": 103,
     "skip": false,
     "stop": 23.4,
-    "stop_pct": 3.98
+    "stop_pct": 3.98,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1758,6 +1944,7 @@
     "band": "ORANGE",
     "cap_pct": 0,
     "capped_shares": 0,
+    "desk_max_pct": 20,
     "dollars": 83248.5,
     "entry": 120.65,
     "formula_pct": 33.3,
@@ -1769,7 +1956,12 @@
     "shares": 690,
     "skip": false,
     "stop": 117.03,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1830,6 +2022,7 @@
     "capped_dollars": 1401.48,
     "capped_risk_pct": 0.56,
     "capped_shares": 9,
+    "desk_max_pct": 20,
     "dollars": 2491.52,
     "entry": 155.72,
     "formula_pct": 25.0,
@@ -1841,7 +2034,12 @@
     "shares": 16,
     "skip": false,
     "stop": 149.49,
-    "stop_pct": 4.0
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1902,6 +2100,7 @@
     "capped_dollars": 2976.12,
     "capped_risk_pct": 0.48,
     "capped_shares": 36,
+    "desk_max_pct": 20,
     "dollars": 12483.17,
     "entry": 82.67,
     "formula_pct": 50.0,
@@ -1913,7 +2112,12 @@
     "shares": 151,
     "skip": false,
     "stop": 79.36,
-    "stop_pct": 4.0
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -1974,6 +2178,7 @@
     "capped_dollars": 14908.8,
     "capped_risk_pct": 0.6,
     "capped_shares": 80,
+    "desk_max_pct": 20,
     "dollars": 37458.36,
     "entry": 186.36,
     "formula_pct": 50.0,
@@ -1985,7 +2190,12 @@
     "shares": 201,
     "skip": false,
     "stop": 180.77,
-    "stop_pct": 3.0
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#4"
   },
@@ -2265,6 +2475,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 9307.8,
     "entry": 103.42,
     "formula_pct": 12.5,
@@ -2277,7 +2488,12 @@
     "shares": 90,
     "skip": false,
     "stop": 95.15,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2311,6 +2527,7 @@
   "reveal_json": {
    "facts": {
     "account": 75000,
+    "desk_max_pct": 20,
     "dollars": 14065.12,
     "entry": 103.42,
     "formula_pct": 18.8,
@@ -2323,7 +2540,12 @@
     "shares": 136,
     "skip": false,
     "stop": 95.15,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2357,6 +2579,7 @@
   "reveal_json": {
    "facts": {
     "account": 25000,
+    "desk_max_pct": 20,
     "dollars": 3028.32,
     "entry": 336.48,
     "formula_pct": 12.5,
@@ -2369,7 +2592,12 @@
     "shares": 9,
     "skip": false,
     "stop": 309.56,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2403,6 +2631,7 @@
   "reveal_json": {
    "facts": {
     "account": 25000,
+    "desk_max_pct": 20,
     "dollars": 1345.92,
     "entry": 336.48,
     "formula_pct": 6.2,
@@ -2415,7 +2644,12 @@
     "shares": 4,
     "skip": false,
     "stop": 309.56,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2449,6 +2683,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 1156.75,
     "entry": 165.25,
     "formula_pct": 12.5,
@@ -2461,7 +2696,12 @@
     "shares": 7,
     "skip": false,
     "stop": 152.03,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2495,6 +2735,7 @@
   "reveal_json": {
    "facts": {
     "account": 10000,
+    "desk_max_pct": 20,
     "dollars": 495.75,
     "entry": 165.25,
     "formula_pct": 6.2,
@@ -2507,7 +2748,12 @@
     "shares": 3,
     "skip": false,
     "stop": 152.03,
-    "stop_pct": 8.0
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2541,6 +2787,7 @@
   "reveal_json": {
    "facts": {
     "account": 25000,
+    "desk_max_pct": 20,
     "dollars": 4088.94,
     "entry": 177.78,
     "formula_pct": 16.7,
@@ -2553,7 +2800,12 @@
     "shares": 23,
     "skip": false,
     "stop": 167.11,
-    "stop_pct": 6.0
+    "stop_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -2587,6 +2839,7 @@
   "reveal_json": {
    "facts": {
     "account": 25000,
+    "desk_max_pct": 20,
     "dollars": 1955.58,
     "entry": 177.78,
     "formula_pct": 8.3,
@@ -2599,7 +2852,12 @@
     "shares": 11,
     "skip": false,
     "stop": 167.11,
-    "stop_pct": 6.0
+    "stop_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "source": "docs/study/sizing_rule.md#1"
   },
@@ -3070,6 +3328,7 @@
     "cap_pct": 10,
     "capped_dollars": 2276.01,
     "capped_shares": 9,
+    "desk_max_pct": 20,
     "dollars": 18713.86,
     "drawdown_pct": 6,
     "entry": 252.89,
@@ -3085,7 +3344,12 @@
     "stop": 247.83,
     "stop_pct": 2.0,
     "table_cap_pct": 25,
-    "threshold_pct": 6.0
+    "threshold_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "owner_confirm_pending": true,
    "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
@@ -3126,6 +3390,7 @@
     "cap_pct": 8,
     "capped_dollars": 394.2,
     "capped_shares": 30,
+    "desk_max_pct": 20,
     "dollars": 2522.88,
     "drawdown_pct": 9,
     "entry": 13.14,
@@ -3141,7 +3406,12 @@
     "stop": 12.75,
     "stop_pct": 2.97,
     "table_cap_pct": 25,
-    "threshold_pct": 8.0
+    "threshold_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "owner_confirm_pending": true,
    "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
@@ -3182,6 +3452,7 @@
     "cap_pct": 5,
     "capped_dollars": 3506.36,
     "capped_shares": 13,
+    "desk_max_pct": 20,
     "dollars": 37491.08,
     "drawdown_pct": 12,
     "entry": 269.72,
@@ -3197,7 +3468,12 @@
     "stop": 264.33,
     "stop_pct": 2.0,
     "table_cap_pct": 25,
-    "threshold_pct": 10.0
+    "threshold_pct": 10.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "owner_confirm_pending": true,
    "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
@@ -3238,6 +3514,7 @@
     "cap_pct": 10,
     "capped_dollars": 9987.52,
     "capped_shares": 236,
+    "desk_max_pct": 20,
     "dollars": 74652.48,
     "drawdown_pct": 7,
     "entry": 42.32,
@@ -3253,7 +3530,12 @@
     "stop": 41.47,
     "stop_pct": 2.01,
     "table_cap_pct": 25,
-    "threshold_pct": 6.0
+    "threshold_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
    },
    "owner_confirm_pending": true,
    "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
@@ -3263,6 +3545,790 @@
   "skill_id": "size.drawdown",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#4-ladder-size-4",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 2821.23,
+   "shares": 9
+  },
+  "difficulty": 2,
+  "id": "si_47fdf43a3b0d",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 6% away. Risk $187.5 divided by $18.81 a share is 9 shares, $2821.23 in the stock, 11.3% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 25000,
+   "entry": 313.47,
+   "format": "size",
+   "q": "Account $25000. Risk 0.75%. Entry $313.47. Stop $294.66. How many shares?",
+   "risk_pct": 0.75,
+   "stop": 294.66
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 25000,
+    "desk_max_pct": 20,
+    "dollars": 2821.23,
+    "entry": 313.47,
+    "formula_pct": 12.5,
+    "per_share": 18.81,
+    "position_pct": 11.3,
+    "risk_dollars": 187.5,
+    "risk_pct": 0.75,
+    "shares": 9,
+    "skip": false,
+    "stop": 294.66,
+    "stop_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-1",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 1053.09,
+   "shares": 3
+  },
+  "difficulty": 2,
+  "id": "si_f5eee0504e45",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 3.5% away. Risk $40 divided by $12.29 a share is 3 shares, $1053.09 in the stock, 13.2% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 8000,
+   "entry": 351.03,
+   "format": "size",
+   "q": "Account $8000. Risk 0.5%. Entry $351.03. Stop $338.74. How many shares?",
+   "risk_pct": 0.5,
+   "stop": 338.74
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 8000,
+    "desk_max_pct": 20,
+    "dollars": 1053.09,
+    "entry": 351.03,
+    "formula_pct": 14.3,
+    "per_share": 12.29,
+    "position_pct": 13.2,
+    "risk_dollars": 40.0,
+    "risk_pct": 0.5,
+    "shares": 3,
+    "skip": false,
+    "stop": 338.74,
+    "stop_pct": 3.5,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-2",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 29857.36,
+   "shares": 76
+  },
+  "difficulty": 2,
+  "id": "si_303c63739664",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 2.5% away. Risk $750 divided by $9.82 a share is 76 shares, $29857.36 in the stock, 59.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 50000,
+   "entry": 392.86,
+   "format": "size",
+   "q": "Account $50000. Risk 1.5%. Entry $392.86. Stop $383.04. How many shares?",
+   "risk_pct": 1.5,
+   "stop": 383.04
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 50000,
+    "desk_max_pct": 20,
+    "dollars": 29857.36,
+    "entry": 392.86,
+    "formula_pct": 60.0,
+    "per_share": 9.82,
+    "position_pct": 59.7,
+    "risk_dollars": 750.0,
+    "risk_pct": 1.5,
+    "shares": 76,
+    "skip": false,
+    "stop": 383.04,
+    "stop_pct": 2.5,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-3",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 693.02,
+   "shares": 2
+  },
+  "difficulty": 2,
+  "id": "si_5fc8baf75dcb",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 2.5% away. Risk $25 divided by $8.66 a share is 2 shares, $693.02 in the stock, 13.9% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 5000,
+   "entry": 346.51,
+   "format": "size",
+   "q": "Account $5000. Risk 0.5%. Entry $346.51. Stop $337.85. How many shares?",
+   "risk_pct": 0.5,
+   "stop": 337.85
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 5000,
+    "desk_max_pct": 20,
+    "dollars": 693.02,
+    "entry": 346.51,
+    "formula_pct": 20.0,
+    "per_share": 8.66,
+    "position_pct": 13.9,
+    "risk_dollars": 25.0,
+    "risk_pct": 0.5,
+    "shares": 2,
+    "skip": false,
+    "stop": 337.85,
+    "stop_pct": 2.5,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-4",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 475.02,
+   "shares": 2
+  },
+  "difficulty": 2,
+  "id": "si_c5d8b72698c1",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 3% away. Risk $20 divided by $7.13 a share is 2 shares, $475.02 in the stock, 5.9% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 8000,
+   "entry": 237.51,
+   "format": "size",
+   "q": "Account $8000. Risk 0.25%. Entry $237.51. Stop $230.38. How many shares?",
+   "risk_pct": 0.25,
+   "stop": 230.38
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 8000,
+    "desk_max_pct": 20,
+    "dollars": 475.02,
+    "entry": 237.51,
+    "formula_pct": 8.3,
+    "per_share": 7.13,
+    "position_pct": 5.9,
+    "risk_dollars": 20.0,
+    "risk_pct": 0.25,
+    "shares": 2,
+    "skip": false,
+    "stop": 230.38,
+    "stop_pct": 3.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-5",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 18679.68,
+   "shares": 92
+  },
+  "difficulty": 2,
+  "id": "si_aaa9600701b7",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $375 divided by $4.06 a share is 92 shares, $18679.68 in the stock, 74.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 25000,
+   "entry": 203.04,
+   "format": "size",
+   "q": "Account $25000. Risk 1.5%. Entry $203.04. Stop $198.98. How many shares?",
+   "risk_pct": 1.5,
+   "stop": 198.98
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 25000,
+    "desk_max_pct": 20,
+    "dollars": 18679.68,
+    "entry": 203.04,
+    "formula_pct": 75.0,
+    "per_share": 4.06,
+    "position_pct": 74.7,
+    "risk_dollars": 375.0,
+    "risk_pct": 1.5,
+    "shares": 92,
+    "skip": false,
+    "stop": 198.98,
+    "stop_pct": 2.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-6",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 7576.43,
+   "shares": 23
+  },
+  "difficulty": 2,
+  "id": "si_64c7c21fadcb",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 8% away. Risk $625 divided by $26.35 a share is 23 shares, $7576.43 in the stock, 3% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 250000,
+   "entry": 329.41,
+   "format": "size",
+   "q": "Account $250000. Risk 0.25%. Entry $329.41. Stop $303.06. How many shares?",
+   "risk_pct": 0.25,
+   "stop": 303.06
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 250000,
+    "desk_max_pct": 20,
+    "dollars": 7576.43,
+    "entry": 329.41,
+    "formula_pct": 3.1,
+    "per_share": 26.35,
+    "position_pct": 3.0,
+    "risk_dollars": 625.0,
+    "risk_pct": 0.25,
+    "shares": 23,
+    "skip": false,
+    "stop": 303.06,
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-7",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 7978.3,
+   "shares": 110
+  },
+  "difficulty": 2,
+  "id": "si_05ea5ee88915",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $160 divided by $1.45 a share is 110 shares, $7978.3 in the stock, 99.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 8000,
+   "entry": 72.53,
+   "format": "size",
+   "q": "Account $8000. Risk 2%. Entry $72.53. Stop $71.08. How many shares?",
+   "risk_pct": 2.0,
+   "stop": 71.08
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 8000,
+    "desk_max_pct": 20,
+    "dollars": 7978.3,
+    "entry": 72.53,
+    "formula_pct": 100.0,
+    "per_share": 1.45,
+    "position_pct": 99.7,
+    "risk_dollars": 160.0,
+    "risk_pct": 2.0,
+    "shares": 110,
+    "skip": false,
+    "stop": 71.08,
+    "stop_pct": 2.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-8",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 1649.75,
+   "shares": 5
+  },
+  "difficulty": 2,
+  "id": "si_7a707a85f1c3",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 4% away. Risk $75 divided by $13.2 a share is 5 shares, $1649.75 in the stock, 33% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 5000,
+   "entry": 329.95,
+   "format": "size",
+   "q": "Account $5000. Risk 1.5%. Entry $329.95. Stop $316.75. How many shares?",
+   "risk_pct": 1.5,
+   "stop": 316.75
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 5000,
+    "desk_max_pct": 20,
+    "dollars": 1649.75,
+    "entry": 329.95,
+    "formula_pct": 37.5,
+    "per_share": 13.2,
+    "position_pct": 33.0,
+    "risk_dollars": 75.0,
+    "risk_pct": 1.5,
+    "shares": 5,
+    "skip": false,
+    "stop": 316.75,
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-9",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 3996.48,
+   "shares": 92
+  },
+  "difficulty": 2,
+  "id": "si_162bd1cdc4ba",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 1.5% away. Risk $60 divided by $0.65 a share is 92 shares, $3996.48 in the stock, 50% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 8000,
+   "entry": 43.44,
+   "format": "size",
+   "q": "Account $8000. Risk 0.75%. Entry $43.44. Stop $42.79. How many shares?",
+   "risk_pct": 0.75,
+   "stop": 42.79
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 8000,
+    "desk_max_pct": 20,
+    "dollars": 3996.48,
+    "entry": 43.44,
+    "formula_pct": 50.0,
+    "per_share": 0.65,
+    "position_pct": 50.0,
+    "risk_dollars": 60.0,
+    "risk_pct": 0.75,
+    "shares": 92,
+    "skip": false,
+    "stop": 42.79,
+    "stop_pct": 1.5,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-10",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 1862.88,
+   "shares": 6
+  },
+  "difficulty": 2,
+  "id": "si_4612795ed656",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 8% away. Risk $160 divided by $24.84 a share is 6 shares, $1862.88 in the stock, 23.3% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 8000,
+   "entry": 310.48,
+   "format": "size",
+   "q": "Account $8000. Risk 2%. Entry $310.48. Stop $285.64. How many shares?",
+   "risk_pct": 2.0,
+   "stop": 285.64
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 8000,
+    "desk_max_pct": 20,
+    "dollars": 1862.88,
+    "entry": 310.48,
+    "formula_pct": 25.0,
+    "per_share": 24.84,
+    "position_pct": 23.3,
+    "risk_dollars": 160.0,
+    "risk_pct": 2.0,
+    "shares": 6,
+    "skip": false,
+    "stop": 285.64,
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-11",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 6145.6,
+   "shares": 32
+  },
+  "difficulty": 2,
+  "id": "si_fee1babd47be",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 8% away. Risk $500 divided by $15.36 a share is 32 shares, $6145.6 in the stock, 24.6% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 25000,
+   "entry": 192.05,
+   "format": "size",
+   "q": "Account $25000. Risk 2%. Entry $192.05. Stop $176.69. How many shares?",
+   "risk_pct": 2.0,
+   "stop": 176.69
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 25000,
+    "desk_max_pct": 20,
+    "dollars": 6145.6,
+    "entry": 192.05,
+    "formula_pct": 25.0,
+    "per_share": 15.36,
+    "position_pct": 24.6,
+    "risk_dollars": 500.0,
+    "risk_pct": 2.0,
+    "shares": 32,
+    "skip": false,
+    "stop": 176.69,
+    "stop_pct": 8.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-12",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 24998.05,
+   "shares": 301
+  },
+  "difficulty": 2,
+  "id": "si_06bdc596f418",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 6% away. Risk $1500 divided by $4.98 a share is 301 shares, $24998.05 in the stock, 25% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 100000,
+   "entry": 83.05,
+   "format": "size",
+   "q": "Account $100000. Risk 1.5%. Entry $83.05. Stop $78.07. How many shares?",
+   "risk_pct": 1.5,
+   "stop": 78.07
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 100000,
+    "desk_max_pct": 20,
+    "dollars": 24998.05,
+    "entry": 83.05,
+    "formula_pct": 25.0,
+    "per_share": 4.98,
+    "position_pct": 25.0,
+    "risk_dollars": 1500.0,
+    "risk_pct": 1.5,
+    "shares": 301,
+    "skip": false,
+    "stop": 78.07,
+    "stop_pct": 6.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-13",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 8246.28,
+   "shares": 28
+  },
+  "difficulty": 2,
+  "id": "si_4e16188de05d",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 1.5% away. Risk $125 divided by $4.42 a share is 28 shares, $8246.28 in the stock, 33% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 25000,
+   "entry": 294.51,
+   "format": "size",
+   "q": "Account $25000. Risk 0.5%. Entry $294.51. Stop $290.09. How many shares?",
+   "risk_pct": 0.5,
+   "stop": 290.09
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 25000,
+    "desk_max_pct": 20,
+    "dollars": 8246.28,
+    "entry": 294.51,
+    "formula_pct": 33.3,
+    "per_share": 4.42,
+    "position_pct": 33.0,
+    "risk_dollars": 125.0,
+    "risk_pct": 0.5,
+    "shares": 28,
+    "skip": false,
+    "stop": 290.09,
+    "stop_pct": 1.5,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-14",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 2993.96,
+   "shares": 58
+  },
+  "difficulty": 2,
+  "id": "si_68f685772e22",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 5% away. Risk $150 divided by $2.58 a share is 58 shares, $2993.96 in the stock, 29.9% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 10000,
+   "entry": 51.62,
+   "format": "size",
+   "q": "Account $10000. Risk 1.5%. Entry $51.62. Stop $49.04. How many shares?",
+   "risk_pct": 1.5,
+   "stop": 49.04
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 10000,
+    "desk_max_pct": 20,
+    "dollars": 2993.96,
+    "entry": 51.62,
+    "formula_pct": 30.0,
+    "per_share": 2.58,
+    "position_pct": 29.9,
+    "risk_dollars": 150.0,
+    "risk_pct": 1.5,
+    "shares": 58,
+    "skip": false,
+    "stop": 49.04,
+    "stop_pct": 5.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-15",
+  "type": "size",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "dollars": 1433.28,
+   "shares": 4
+  },
+  "difficulty": 2,
+  "id": "si_651fe72ed8d6",
+  "lesson_origin": "template",
+  "lesson_text": "Stop first. The stop is 4% away. Risk $62.5 divided by $14.33 a share is 4 shares, $1433.28 in the stock, 5.7% of the account.",
+  "module": "M5",
+  "prompt_json": {
+   "account": 25000,
+   "entry": 358.32,
+   "format": "size",
+   "q": "Account $25000. Risk 0.25%. Entry $358.32. Stop $343.99. How many shares?",
+   "risk_pct": 0.25,
+   "stop": 343.99
+  },
+  "reveal_json": {
+   "facts": {
+    "account": 25000,
+    "desk_max_pct": 20,
+    "dollars": 1433.28,
+    "entry": 358.32,
+    "formula_pct": 6.2,
+    "per_share": 14.33,
+    "position_pct": 5.7,
+    "risk_dollars": 62.5,
+    "risk_pct": 0.25,
+    "shares": 4,
+    "skip": false,
+    "stop": 343.99,
+    "stop_pct": 4.0,
+    "trim_to_pct": [
+     20,
+     25
+    ],
+    "wide_stop": false
+   },
+   "rule": "Position % = risk % / stop distance %; shares round down",
+   "source": "docs/study/sizing_rule.md"
+  },
+  "review_status": "draft",
+  "skill_id": "size.formula",
+  "source_kind": "toolkit",
+  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-16",
   "type": "size",
   "version": 1
  }
