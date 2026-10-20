@@ -50,7 +50,7 @@ def test_unknown_kind_raises():
 
 def test_kind_without_a_builder_yet_raises():
     with pytest.raises(nw.WidgetRequestError):
-        nw.build("tickerCard", "u1", {}, now=NOW)
+        nw.build("myRulesCheck", "u1", {}, now=NOW)
 
 
 def test_kind_tables_are_complete():
@@ -231,3 +231,305 @@ def test_cap_payload_adds_builder_truncated_to_trimmed_rows():
 def test_non_dict_params_raises():
     with pytest.raises(nw.WidgetRequestError):
         nw.build("myNamesReporting", "u1", ["x"], now=NOW)
+
+
+# -- Task 3: account kinds + ticker card ---------------------------------------------
+
+def _analytics(trade_count=3, days=None, win_rate=0.5, expectancy=0.4, curve=None):
+    days = days if days is not None else [{"date": "2026-10-19", "pnl": 100.0},
+                                           {"date": "2026-10-20", "pnl": -40.5}]
+    return {
+        "tradeCount": trade_count,
+        "equity": {"curve": curve if curve is not None else []},
+        "performance": {"byDay": days},
+        "edgeScore": {"components": {"winRate": win_rate}},
+        "risk": {"expectancyR": expectancy},
+    }
+
+
+def _patch_pnl(monkeypatch, analytics, trades):
+    import api.services.journal_two.analytics as an
+    import api.services.journal_two.trades as tr
+    seen = {}
+
+    def fake_an(user_id, **kw):
+        seen["analytics"] = kw
+        return analytics
+
+    def fake_tr(user_id, **kw):
+        seen["trades"] = kw
+        return list(trades), len(trades)
+
+    monkeypatch.setattr(an, "get_analytics", fake_an)
+    monkeypatch.setattr(tr, "list_trades_for_user", fake_tr)
+    return seen
+
+
+def test_pnl_empty_range_says_so(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(trade_count=0, days=[]), [])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert out["empty"] == "No closed trades in this range yet."
+    assert out["netPnl"] is None and out["winRate"] is None and out["avgR"] is None
+    assert out["tradeCount"] == 0 and out["equity"] == []
+
+
+def test_pnl_default_range_is_monday_of_et_week_to_today(monkeypatch):
+    seen = _patch_pnl(monkeypatch, _analytics(), [{"source": "manual"}])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)  # Tue 2026-10-20
+    assert out["range"] == {"from": "2026-10-19", "to": "2026-10-20"}
+    spec = seen["analytics"]["spec"]
+    assert (spec.date_from, spec.date_to) == ("2026-10-19", "2026-10-20")
+    tspec = seen["trades"]["spec"]
+    assert (tspec.date_from, tspec.date_to) == ("2026-10-19", "2026-10-20")
+
+
+def test_pnl_params_range_and_bad_day(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(), [{"source": "manual"}])
+    out = nw.build("myPnlStats", "u1", {"from": "2026-10-01", "to": "2026-10-10"}, now=NOW)
+    assert out["range"] == {"from": "2026-10-01", "to": "2026-10-10"}
+    with pytest.raises(nw.WidgetRequestError):
+        nw.build("myPnlStats", "u1", {"from": "yesterday"}, now=NOW)
+
+
+def test_pnl_figures_come_from_the_analytics_sections(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(win_rate=0.6667, expectancy=0.412), [{"source": "manual"}] * 3)
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert out["netPnl"] == 59.5
+    assert out["winRate"] == 0.6667 and out["avgR"] == 0.412 and out["tradeCount"] == 3
+
+
+def test_pnl_unknown_figure_is_null_not_zero(monkeypatch):
+    a = _analytics()
+    a["risk"] = {"expectancyR": None}
+    a["edgeScore"] = {"components": None}
+    _patch_pnl(monkeypatch, a, [{"source": "manual"}])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert out["winRate"] is None and out["avgR"] is None and out["netPnl"] == 59.5
+
+
+def test_pnl_equity_downsampled_to_60(monkeypatch):
+    curve = [{"date": f"d{i:03d}", "equity": 1000.0 + i, "drawdown": 0.0} for i in range(250)]
+    _patch_pnl(monkeypatch, _analytics(curve=curve), [{"source": "manual"}])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert len(out["equity"]) <= 60
+    assert out["equity"][0] == ["d000", 1000.0]
+    assert out["equity"][-1] == ["d249", 1249.0]
+
+
+def test_pnl_short_equity_is_kept_whole(monkeypatch):
+    curve = [{"date": "a", "equity": 1.0}, {"date": "b", "equity": 2.0}]
+    _patch_pnl(monkeypatch, _analytics(curve=curve), [{"source": "manual"}])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert out["equity"] == [["a", 1.0], ["b", 2.0]]
+
+
+def test_pnl_source_mixed_when_broker_and_manual(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(), [{"source": "broker"}, {"source": None}])
+    assert nw.build("myPnlStats", "u1", {}, now=NOW)["source"] == "mixed"
+
+
+def test_pnl_source_broker_and_manual(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(), [{"source": "broker"}, {"source": "broker"}])
+    assert nw.build("myPnlStats", "u1", {}, now=NOW)["source"] == "broker"
+    _patch_pnl(monkeypatch, _analytics(), [{"source": None}, {"source": "csv"}])
+    assert nw.build("myPnlStats", "u1", {}, now=NOW)["source"] == "manual"
+
+
+def _pos(sym="NVDA", side="Long", shares=10, entry=100.0, stop=95.0, pid="p1", source=None):
+    return {"id": pid, "symbol": sym, "side": side, "shares": shares,
+            "entryPrice": entry, "stopPrice": stop, "source": source}
+
+
+def _heat_row(sym="NVDA", side="Long", entry=100.0, stop=95.0, shares=10):
+    placeholder = stop == entry
+    return {"symbol": sym, "side": side,
+            "dist_to_stop_pct": round(abs(entry - stop) / entry * 100, 2),
+            "risk_pct": None if placeholder else 0.2,
+            "stop_price": None if placeholder else stop,
+            "risk_dollars": None if placeholder else round(shares * abs(entry - stop), 2),
+            "placeholder_stop": placeholder}
+
+
+def _patch_positions(monkeypatch, positions, heat_rows, account=50000.0, default=False):
+    import api.services.journal_two.positions as ps
+    import api.services.portfolio_heat as ph
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: positions)
+    monkeypatch.setattr(ph, "portfolio_heat", lambda user_id, *a, **k: {
+        "ok": True, "per_position": heat_rows, "account_size_is_default": default})
+    monkeypatch.setattr(nw, "_account_size", lambda user_id: account)
+
+
+def test_positions_none_open_says_so(monkeypatch):
+    _patch_positions(monkeypatch, [], [])
+    _patch_prices(monkeypatch, {})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert out["empty"] == "No open positions." and out["rows"] == []
+
+
+def test_positions_placeholder_stop_is_no_stop(monkeypatch):
+    _patch_positions(monkeypatch, [_pos(entry=100.0, stop=100.0)],
+                     [_heat_row(entry=100.0, stop=100.0)])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    row = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"][0]
+    assert row["noStop"] is True
+    assert row["distToStopPct"] is None and row["stopPrice"] is None
+
+
+def test_positions_real_stop_row(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    row = out["rows"][0]
+    assert row["positionId"] == "p1" and row["noStop"] is False
+    assert row["stopPrice"] == 95.0 and row["distToStopPct"] == 5.0
+    assert row["openPnl"] == 100.0 and row["sizePct"] == 2.2
+    assert out["accountSize"] == 50000.0
+
+
+def test_positions_size_pct_null_without_account_size(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=None, default=True)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert out["accountSize"] is None and out["rows"][0]["sizePct"] is None
+
+
+def test_positions_default_account_size_is_not_shown_as_real(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=25000.0, default=True)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert out["accountSize"] is None and out["rows"][0]["sizePct"] is None
+
+
+def test_positions_price_missing_is_null(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()])
+    _patch_prices(monkeypatch, {})
+    row = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"][0]
+    assert row["openPnl"] is None and row["sizePct"] is None
+
+
+def test_positions_open_pnl_short_sign(monkeypatch):
+    _patch_positions(monkeypatch, [_pos(side="Short", entry=100.0, stop=105.0)],
+                     [_heat_row(side="Short", entry=100.0, stop=105.0)])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 90.0}})
+    row = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"][0]
+    assert row["openPnl"] == 100.0
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    row = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"][0]
+    assert row["openPnl"] == -100.0
+
+
+def test_positions_join_is_symbol_plus_side(monkeypatch):
+    positions = [_pos(sym="AMD", side="Long", stop=95.0, pid="a"),
+                 _pos(sym="AMD", side="Short", entry=100.0, stop=100.0, pid="b")]
+    heat = [_heat_row(sym="AMD", side="Long"),
+            _heat_row(sym="AMD", side="Short", entry=100.0, stop=100.0)]
+    _patch_positions(monkeypatch, positions, heat)
+    _patch_prices(monkeypatch, {"AMD": {"price": 100.0}})
+    rows = {r["positionId"]: r for r in nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"]}
+    assert rows["a"]["noStop"] is False and rows["a"]["stopPrice"] == 95.0
+    assert rows["b"]["noStop"] is True and rows["b"]["stopPrice"] is None
+
+
+def test_positions_unjoined_row_is_unknown_never_a_fake_distance(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    row = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"][0]
+    assert row["noStop"] is None and row["distToStopPct"] is None and row["stopPrice"] is None
+
+
+def test_positions_source(monkeypatch):
+    _patch_positions(monkeypatch, [_pos(source="broker", pid="a"), _pos(sym="AMD", pid="b")],
+                     [_heat_row(), _heat_row(sym="AMD")])
+    _patch_prices(monkeypatch, {})
+    assert nw.build("myPositionsRisk", "u1", {}, now=NOW)["source"] == "mixed"
+
+
+def test_ticker_card_bad_symbol_raises():
+    for bad in ("nvda!", "", None, "1ABC", "TOOLONGSYMBOLX"):
+        with pytest.raises(nw.WidgetRequestError):
+            nw.build("tickerCard", "u1", {"symbol": bad}, now=NOW)
+    with pytest.raises(nw.WidgetRequestError):
+        nw.build("tickerCard", "u1", {}, now=NOW)
+
+
+def _patch_card(monkeypatch, closes=(), window=None, move=None, trades=None, analytics=None):
+    import api.services.bars_sqlite as bs
+    import api.services.journal_two.earnings_prep as ep
+    import api.services.earnings_enrichment as ee
+    bars_seen = []
+
+    def fake_bars(ticker, tf, max_bars):
+        bars_seen.append((ticker, tf, max_bars))
+        return [(20260000 + i, 1, 1, 1, c, 1) for i, c in enumerate(closes)]
+
+    monkeypatch.setattr(bs, "get_bars", fake_bars)
+    monkeypatch.setattr(ep, "_window", lambda today: (window or {}, {"NVDA": "amc"}, False, "x"))
+    monkeypatch.setattr(ee, "get_implied_move",
+                        lambda sym, d=None, t=None: {"pct": move} if move is not None else None)
+    _patch_pnl(monkeypatch, analytics or _analytics(), trades or [])
+    return bars_seen
+
+
+def test_ticker_card_history_none_without_trades(monkeypatch):
+    _patch_card(monkeypatch, analytics=_analytics(trade_count=0, days=[]))
+    _patch_prices(monkeypatch, {"NVDA": {"price": 120.0, "change_pct": 1.2}})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["history"] is None
+    assert out["source"] == "mixed" and out["symbol"] == "NVDA"
+    assert out["price"] == 120.0 and out["changePct"] == 1.2
+
+
+def test_ticker_card_history_from_the_members_trades(monkeypatch):
+    _patch_card(monkeypatch, analytics=_analytics(trade_count=4, win_rate=0.75))
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["history"] == {"trades": 4, "winRate": 0.75, "netPnl": 59.5}
+
+
+def test_ticker_card_moving_averages(monkeypatch):
+    closes = list(range(1, 61))  # 60 bars, 1..60
+    seen = _patch_card(monkeypatch, closes=closes)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["ma10"] == sum(range(51, 61)) / 10
+    assert out["ma50"] == sum(range(11, 61)) / 50
+    assert seen == [("NVDA", "D", 50)]
+
+
+def test_ticker_card_short_history_has_no_ma50(monkeypatch):
+    _patch_card(monkeypatch, closes=[10.0] * 20)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["ma10"] == 10.0 and out["ma50"] is None
+    _patch_card(monkeypatch, closes=[10.0] * 5)
+    assert nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)["ma10"] is None
+
+
+def test_ticker_card_bars_error_is_null(monkeypatch):
+    import api.services.bars_sqlite as bs
+    _patch_card(monkeypatch)
+
+    def boom(*a, **k):
+        raise RuntimeError("no db")
+
+    monkeypatch.setattr(bs, "get_bars", boom)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["ma10"] is None and out["ma50"] is None
+
+
+def test_ticker_card_earnings_day_and_implied_move(monkeypatch):
+    _patch_card(monkeypatch, window={"NVDA": "2026-10-21"}, move=6.4)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["earningsDay"] == "2026-10-21" and out["impliedMovePct"] == 6.4
+    _patch_card(monkeypatch, window={})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["earningsDay"] is None and out["impliedMovePct"] is None
+
+
+def test_ticker_card_price_missing_is_null(monkeypatch):
+    _patch_card(monkeypatch)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "BRK.B"}, now=NOW)
+    assert out["price"] is None and out["changePct"] is None
