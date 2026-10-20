@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Widgets Mockup</title>
+<style>
+  :root {
+    --bg: #101012; --bg-surface: #17181b; --bg-elevated: #1d1f23; --bg-hover: #24262b;
+    --border: #2a2c31; --border-accent: #383b41;
+    --text: #f0efea; --text-muted: #a9a49a; --text-heading: #ffffff;
+    --accent: #dcbb5e; --accent-dim: #dcbb5e18;
+    --gain: #2faf68; --gain-bg: #2faf6815; --loss: #df4646; --loss-bg: #df464615;
+    --info: #5ea8f7; --info-bg: #5ea8f712; --warn: #e0a03a; --warn-bg: #e0a03a14;
+    --font: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; color: var(--text-heading); margin: 0 0 4px; }
+  .lede { color: var(--text-muted); margin: 0 0 28px; max-width: 760px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-accent); color: var(--text-muted); }
+  .tag.gold { color: var(--accent); border-color: #dcbb5e55; background: var(--accent-dim); }
+  section.screen { margin: 40px 0; }
+  .screen-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .screen-h h2 { font-size: 16px; margin: 0; color: var(--text-heading); }
+  .screen-h .n { color: var(--accent); font-weight: 600; }
+  .note-ex { color: var(--text-muted); font-size: 13px; margin: 0 0 12px; max-width: 820px; }
+
+  /* the fake notebook page */
+  .page { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px clamp(16px, 4vw, 48px); }
+  .page h3 { font-size: 24px; margin: 0 0 2px; color: var(--text-heading); }
+  .page .meta { color: var(--text-muted); font-size: 12px; margin-bottom: 18px; }
+  .page p { margin: 10px 0; }
+  .page .typing { border-left: 2px solid var(--accent); padding-left: 8px; color: var(--text-muted); }
+
+  /* widget frame */
+  .w { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px; margin: 14px 0; overflow: hidden; }
+  .w-h { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .w-h b { color: var(--text-heading); font-weight: 600; }
+  .w-h .sp { flex: 1; }
+  .asof { font-size: 11px; color: var(--text-muted); }
+  .btn { font: inherit; font-size: 11px; color: var(--accent); background: transparent; border: 1px solid #dcbb5e55; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+  .btn:hover { background: var(--accent-dim); }
+  .lock { font-size: 11px; color: var(--text-muted); }
+  .w-b { padding: 10px 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; }
+  td { padding: 6px; border-top: 1px solid var(--border); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--gain); } .dn { color: var(--loss); } .mut { color: var(--text-muted); }
+  .tk { font-weight: 600; color: var(--text-heading); }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--bg-hover); color: var(--text-muted); }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); }
+  .chip.info { background: var(--info-bg); color: var(--info); }
+  .chip.up { background: var(--gain-bg); color: var(--gain); }
+  .chip.dn { background: var(--loss-bg); color: var(--loss); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat .k { font-size: 11px; color: var(--text-muted); }
+  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .src { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+  .spark { width: 100%; height: 54px; display: block; }
+
+  /* ticker card (inline) */
+  .tcard { display: inline-flex; align-items: center; gap: 6px; vertical-align: baseline; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0 6px; font-size: 13px; }
+  .tcard b { color: var(--text-heading); }
+  .pop { position: relative; display: inline-block; }
+  .popcard { margin-top: 8px; width: min(360px, 100%); background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 12px; font-size: 13px; }
+  .popcard .row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .popcard .row span:first-child { color: var(--text-muted); }
+
+  /* slash menu */
+  .menuwrap { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 760px) { .menuwrap { grid-template-columns: 1fr; } }
+  .menu { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 6px; }
+  .menu input { width: 100%; font: inherit; background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
+  .grp { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; padding: 8px 8px 3px; }
+  .item { display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  .item:hover, .item.sel { background: var(--bg-hover); }
+  .item .ic { width: 22px; height: 22px; border-radius: 5px; background: var(--bg-surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 11px; color: var(--accent); flex: none; }
+  .item .d { font-size: 11px; color: var(--text-muted); }
+  .item .new { font-size: 10px; color: var(--accent); margin-left: 4px; }
+
+  /* shared view */
+  .neutral { border: 1px dashed var(--border-accent); border-radius: 10px; padding: 14px; color: var(--text-muted); font-size: 13px; text-align: center; margin: 14px 0; }
+
+  .callout { background: var(--info-bg); border: 1px solid #5ea8f730; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 12px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  ul.calls { margin: 6px 0 0; padding-left: 18px; color: var(--text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Notebook widgets: mockups</h1>
+  <p class="lede">Static mockups to react to. All numbers are made up. Nothing here is built yet. Anything marked <span class="tag gold">Claude's call</span> is my guess, so tell me what's wrong.</p>
+  <div class="legend">
+    <span><span class="chip">Snapshot</span> frozen when inserted, with a "see it now" button</span>
+    <span><span class="lock">🔒 Only you</span> never shows in shared or published notes</span>
+  </div>
+
+  <!-- 1 -->
+  <section class="screen">
+    <div class="screen-h"><span class="n">1</span><h2>Adding a widget from inside a note</h2><span class="tag gold">Claude's call</span></div>
+    <p class="note-ex">Today you can only type a chart or market context from inside a note; everything else arrives through "Send to Journal". The fix: type <b>/</b> and every widget is there, grouped by when you'd use it. Typing a ticker like <b>$NVDA</b> fills it in for that name.</p>
+    <div class="menuwrap">
+      <div class="menu" role="listbox" aria-label="Insert menu mockup">
+        <input value="/" aria-label="search" readonly>
+        <div class="grp">Before the open</div>
+        <div class="item sel"><span class="ic">◎</span><div>My watchlist today<span class="new">new</span><div class="d">Your names: gap, volume, news count</div></div></div>
+        <div class="item"><span class="ic">E</span><div>My names reporting<span class="new">new</span><div class="d">Earnings this week with expected move</div></div></div>
+        <div class="item"><span class="ic">M</span><div>Market on my names<span class="new">new</span><div class="d">Which of your names lead or lag their sector</div></div></div>
+        <div class="grp">Planning a trade</div>
+        <div class="item"><span class="ic">$</span><div>Ticker card<span class="new">new</span><div class="d">Price, levels, earnings date, flow, your history</div></div></div>
+        <div class="item"><span class="ic">▤</span><div>Chart<div class="d">Live chart (already exists)</div></div></div>
+        <div class="grp">Reviewing</div>
+        <div class="item"><span class="ic">P</span><div>My P&amp;L and stats<span class="new">new</span><div class="d">From your linked broker</div></div></div>
+        <div class="item"><span class="ic">!</span><div>My open positions and risk<span class="new">new</span><div class="d">Size, distance to stop</div></div></div>
+        <div class="item"><span class="ic">✓</span><div>My rules check<span class="new">new</span><div class="d">Which rules you kept this week</div></div></div>
+        <div class="item"><span class="ic">↻</span><div>My recurring mistakes<span class="new">new</span><div class="d">What your mistakes cost, trend</div></div></div>
+      </div>
+      <div class="page" style="padding:20px">
+        <div class="mut" style="font-size:12px;margin-bottom:8px">Picking a widget drops it at the cursor, already filled in:</div>
+        <p class="typing">Tuesday prep. Want to watch semis into NVDA earnings /</p>
+        <div class="callout">One step: type <b>/</b>, pick, done. No settings screen. You can change the ticker or date range afterwards from the widget's header.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="screen">
+    <div class="screen-h"><span class="n">2</span><h2>A morning prep note</h2><span class="tag gold">Claude's call</span></div>
+    <p class="note-ex">Your own names first, not a market score. Each widget is a snapshot from when you added it, so the note still reads correctly next month. "See it now" updates it in place.</p>
+    <div class="page">
+      <h3>Tue Oct 20: prep</h3>
+      <div class="meta">Morning prep style · 9:14 AM</div>
+      <p>Semis held up yesterday. Watching whether <span class="tcard"><b>$NVDA</b> <span class="up">+1.8%</span></span> leads into earnings Thursday.</p>
+
+      <div class="w">
+        <div class="w-h"><b>My watchlist today</b><span class="chip">Snapshot</span><span class="sp"></span><span class="asof">as of 9:14 AM</span><button class="btn">See it now</button></div>
+        <div class="w-b">
+          <table>
+            <tr><th>Name</th><th class="num">Pre-mkt</th><th class="num">Rel. vol</th><th>Today</th></tr>
+            <tr><td class="tk">NVDA</td><td class="num up">+1.8%</td><td class="num">1.6x</td><td><span class="chip info">Earnings Thu</span></td></tr>
+            <tr><td class="tk">AVGO</td><td class="num up">+0.9%</td><td class="num">1.1x</td><td><span class="chip">2 news</span></td></tr>
+            <tr><td class="tk">CELH</td><td class="num dn">-4.2%</td><td class="num">3.4x</td><td><span class="chip dn">Gap down</span></td></tr>
+            <tr><td class="tk">ANET</td><td class="num mut">0.0%</td><td class="num">0.8x</td><td><span class="chip">Near 52w high</span></td></tr>
+          </table>
+          <div class="src">From your watchlist "Core" · prices delayed pre-market</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="w" style="margin:0">
+          <div class="w-h"><b>My names reporting</b><span class="chip">Snapshot</span><span class="sp"></span><button class="btn">See it now</button></div>
+          <div class="w-b">
+            <table>
+              <tr><th>Name</th><th>When</th><th class="num">Exp. move</th></tr>
+              <tr><td class="tk">NVDA</td><td>Thu after close</td><td class="num">±7.1%</td></tr>
+              <tr><td class="tk">ANET</td><td>Mon after close</td><td class="num">±9.4%</td></tr>
+            </table>
+            <div class="src">Only names on your watchlists or in your positions</div>
+          </div>
+        </div>
+        <div class="w" style="margin:0">
+          <div class="w-h"><b>Market on my names</b><span class="chip">Snapshot</span><span class="sp"></span><button class="btn">See it now</button></div>
+          <div class="w-b">
+            <table>
+              <tr><th>Name</th><th>vs its sector, 5 days</th></tr>
+              <tr><td class="tk">NVDA</td><td><span class="chip up">Leading semis +3.2%</span></td></tr>
+              <tr><td class="tk">CELH</td><td><span class="chip dn">Lagging staples -6.0%</span></td></tr>
+              <tr><td class="tk">ANET</td><td><span class="chip">In line</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:16px">Plan: no new CELH until it reclaims the gap.</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="screen">
+    <div class="screen-h"><span class="n">3</span><h2>The ticker card</h2><span class="tag gold">Claude's call</span></div>
+    <p class="note-ex">Type <b>$NVDA</b> in any sentence and it becomes a small chip. Hover or tap it for the card. Your own history with the name is the part no other site can show.</p>
+    <div class="page">
+      <p>Thinking about adding <span class="tcard"><b>$NVDA</b> <span class="up">+1.8%</span></span> on a pullback to the 10-day.</p>
+      <div class="popcard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:var(--text-heading)">NVDA</b><span class="asof">as of 9:14 AM</span></div>
+        <div class="row"><span>Last</span><span>$187.40 <span class="up">+1.8%</span></span></div>
+        <div class="row"><span>10-day / 50-day</span><span>$181.20 / $172.90</span></div>
+        <div class="row"><span>Earnings</span><span>Thu after close · ±7.1%</span></div>
+        <div class="row"><span>Options flow today</span><span>Calls 2.1x puts</span></div>
+        <div style="border-top:1px solid var(--border);margin:8px 0 6px"></div>
+        <div class="row"><span>🔒 You, last 6 months</span><span>5 trades · 3 wins · +1.4R avg</span></div>
+        <div class="row"><span>🔒 Your last note on it</span><span style="color:var(--accent)">Sep 30 review</span></div>
+        <div style="display:flex;gap:6px;margin-top:10px"><button class="btn">Insert chart</button><button class="btn">Insert full card</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="screen">
+    <div class="screen-h"><span class="n">4</span><h2>A weekly review note</h2><span class="tag gold">Claude's call</span></div>
+    <p class="note-ex">Account widgets read your linked broker first and manual logs second, and they always say where the number came from. Stops don't come from the broker, so a missing stop is flagged rather than guessed.</p>
+    <div class="page">
+      <h3>Week of Oct 13: review</h3>
+      <div class="meta">Weekly review style</div>
+
+      <div class="w">
+        <div class="w-h"><b>My P&amp;L and stats</b><span class="lock">🔒 Only you</span><span class="sp"></span><span class="asof">Oct 13 to 17</span><button class="btn">See it now</button></div>
+        <div class="w-b">
+          <div class="stats">
+            <div class="stat"><div class="k">Closed P&amp;L</div><div class="v up">+$2,840</div></div>
+            <div class="stat"><div class="k">Win rate</div><div class="v">58%</div></div>
+            <div class="stat"><div class="k">Avg R</div><div class="v">+0.6R</div></div>
+            <div class="stat"><div class="k">Trades</div><div class="v">12</div></div>
+          </div>
+          <svg class="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="equity line"><polyline fill="none" stroke="#2faf68" stroke-width="2" points="0,44 40,40 80,46 120,30 160,34 200,22 240,26 300,12"/></svg>
+          <div class="src">Source: Schwab via linked broker · fills through Fri close</div>
+        </div>
+      </div>
+
+      <div class="w">
+        <div class="w-h"><b>My open positions and risk</b><span class="lock">🔒 Only you</span><span class="sp"></span><span class="asof">as of Fri close</span><button class="btn">See it now</button></div>
+        <div class="w-b">
+          <table>
+            <tr><th>Name</th><th class="num">Size</th><th class="num">Open P&amp;L</th><th>Stop</th></tr>
+            <tr><td class="tk">NVDA</td><td class="num">8% of acct</td><td class="num up">+$610</td><td>$178.00 <span class="mut">(-5.0%)</span></td></tr>
+            <tr><td class="tk">AVGO</td><td class="num">6% of acct</td><td class="num dn">-$120</td><td><span class="chip warn">No stop set</span> <button class="btn">Add</button></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="w" style="margin:0">
+          <div class="w-h"><b>My rules check</b><span class="lock">🔒 Only you</span></div>
+          <div class="w-b">
+            <table>
+              <tr><th>Rule</th><th class="num">Kept</th></tr>
+              <tr><td>Stop in before entry</td><td class="num up">11 / 12</td></tr>
+              <tr><td>No size-up after a loss</td><td class="num dn">2 / 4</td></tr>
+              <tr><td>Max 3 new names a day</td><td class="num up">5 / 5</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="w" style="margin:0">
+          <div class="w-h"><b>My recurring mistakes</b><span class="lock">🔒 Only you</span></div>
+          <div class="w-b">
+            <table>
+              <tr><th>Mistake</th><th class="num">Cost, 30d</th><th>Trend</th></tr>
+              <tr><td>Chased extended entry</td><td class="num dn">-$1,420</td><td><span class="chip dn">more often</span></td></tr>
+              <tr><td>Sold winner early</td><td class="num dn">-$760</td><td><span class="chip up">less often</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="screen">
+    <div class="screen-h"><span class="n">5</span><h2>The same review note, shared with your group</h2><span class="tag gold">Claude's call</span></div>
+    <p class="note-ex">Your words and market widgets go out as written. Account widgets never leave your account; the reader sees a plain placeholder instead. The code for this already exists for today's private widgets.</p>
+    <div class="page">
+      <h3>Week of Oct 13: review</h3>
+      <div class="meta">Shared by you · read-only</div>
+      <div class="neutral">Private account widget: only the author can see this</div>
+      <div class="neutral">Private account widget: only the author can see this</div>
+      <p>Biggest lesson: I keep chasing extended entries. Next week: entries only within 3% of the 10-day.</p>
+    </div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2>What I'd build first, and what I'm leaving out</h2><span class="tag gold">Claude's call</span></div>
+    <ul class="calls">
+      <li><b>Wave 1:</b> the "/" menu with every widget, the ticker card, My watchlist today, My names reporting, My P&amp;L and stats, My open positions and risk.</li>
+      <li><b>Wave 2:</b> My rules check and My recurring mistakes. These need two small new server reads (rules kept over time, mistakes over time).</li>
+      <li><b>Wave 3:</b> Market on my names, options flow on a ticker, and starter styles that come with widgets already placed.</li>
+      <li><b>Left out:</b> exposure scores, the econ calendar (it's off), the morning wire and trader ledger (paid-only).</li>
+      <li><b>Without a linked broker:</b> account widgets read manual and CSV trades, and say so.</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>
