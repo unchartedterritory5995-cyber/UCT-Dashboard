@@ -304,6 +304,10 @@ def test_candle_chart_items_show_a_real_bar_found_by_the_catalog(segments):
     charts = segments["candles.chart"]
     examples = gen_candles.load_examples()
     assert examples and len(charts) == len([e for e in examples if e["key"] in {p.key for p in gen_candles.catalog()}])
+    # an example the owner approved survives every re-run of the finder (candle_examples_kept.json)
+    kept = json.loads(gen_candles.KEPT_PATH.read_text(encoding="utf-8"))["examples"]
+    ids = {it["id"] for it in charts}
+    assert kept and all(k["item_id"] in ids for k in kept), [k["item_id"] for k in kept if k["item_id"] not in ids]
     assert len({it["answer_json"]["answer"] for it in charts}) >= 55       # most of the 66 names have a chart
     assert len({it["sym"] for it in charts}) >= 12                            # not four stocks
     for it in charts:

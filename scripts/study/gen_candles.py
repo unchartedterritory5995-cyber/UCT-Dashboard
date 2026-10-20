@@ -37,7 +37,7 @@ from scripts.study._common import dedash, make_item, quote_lesson, rotate_pick, 
 SOURCE = "api/services/screener/candle_catalog.py"
 EXAMPLES_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "study" / "terms" / "candle_examples.json"
 CHART_SEGMENT = "candles.chart"
-CHART_WINDOW = 60          # the finder's window: the named bar is the LAST one on the chart
+CHART_WINDOW = 40          # owner 2026-10-20: tighter than the finder's 60 so each candle reads at a glance
 CHART_FORWARD = 10
 TREND_WORDS = {"down": "a decline", "up": "an advance"}
 TREND_CHOICES = ["a decline", "an advance", "either"]
@@ -64,10 +64,23 @@ def strip_name(desc: str, p) -> str:
     return " ".join(kept) if kept else desc
 
 
+KEPT_PATH = EXAMPLES_PATH.with_name("candle_examples_kept.json")
+
+
 def load_examples() -> list[dict]:
-    if not EXAMPLES_PATH.exists():
-        return []
-    return list(json.loads(EXAMPLES_PATH.read_text(encoding="utf-8")).get("examples") or [])
+    """The finder's examples PLUS the owner-approved ones (candle_examples_kept.json),
+    which stay through every re-run of the finder (owner 2026-10-20). Order:
+    kept first, then the finder's, deduplicated on (key, sym, asof)."""
+    found = list(json.loads(EXAMPLES_PATH.read_text(encoding="utf-8")).get("examples") or []) if EXAMPLES_PATH.exists() else []
+    kept = list(json.loads(KEPT_PATH.read_text(encoding="utf-8")).get("examples") or []) if KEPT_PATH.exists() else []
+    out, seen = [], set()
+    for ex in kept + found:
+        k = (ex["key"], ex["sym"], ex["asof"])
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(ex)
+    return out
 
 
 LESSONS_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "study" / "terms" / "candle_lessons.json"

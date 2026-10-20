@@ -1,29 +1,53 @@
 {
  "generated": "2026-10-20",
- "candidates": 61,
+ "candidates": 131,
  "window": 60,
  "examples": [
   {
    "key": "abandoned-baby-bearish",
-   "sym": "IWM",
-   "asof": "2026-01-23",
-   "ts": 20260123,
+   "sym": "BABA",
+   "asof": "2025-08-14",
+   "ts": 20250814,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "abandoned-baby-bearish",
-   "sym": "AVGO",
-   "asof": "2025-01-27",
-   "ts": 20250127,
+   "sym": "SLV",
+   "asof": "2025-12-31",
+   "ts": 20251231,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "advance-block",
-   "sym": "AVGO",
-   "asof": "2026-04-14",
-   "ts": 20260414,
+   "sym": "TEAM",
+   "asof": "2026-08-31",
+   "ts": 20260831,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "ARKK",
+   "asof": "2025-10-01",
+   "ts": 20251001,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "AMZN",
+   "asof": "2024-10-22",
+   "ts": 20241022,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "NFLX",
+   "asof": "2026-03-04",
+   "ts": 20260304,
    "bars": 3,
    "trend": "up"
   },
@@ -45,377 +69,969 @@
   },
   {
    "key": "advance-block",
-   "sym": "NOW",
-   "asof": "2026-03-04",
-   "ts": 20260304,
+   "sym": "PANW",
+   "asof": "2026-05-11",
+   "ts": 20260511,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "PANW",
+   "asof": "2024-10-11",
+   "ts": 20241011,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "RKLB",
+   "asof": "2026-05-12",
+   "ts": 20260512,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "advance-block",
+   "sym": "SOFI",
+   "asof": "2024-10-10",
+   "ts": 20241010,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "bearish-belt-hold",
-   "sym": "MSTR",
-   "asof": "2026-09-29",
-   "ts": 20260929,
+   "sym": "HON",
+   "asof": "2025-10-24",
+   "ts": 20251024,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "bearish-belt-hold",
-   "sym": "HIMS",
-   "asof": "2025-09-16",
-   "ts": 20250916,
+   "sym": "HON",
+   "asof": "2025-07-18",
+   "ts": 20250718,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "bearish-belt-hold",
-   "sym": "SOFI",
-   "asof": "2024-05-15",
-   "ts": 20240515,
+   "sym": "UPS",
+   "asof": "2025-11-03",
+   "ts": 20251103,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "bearish-belt-hold",
-   "sym": "CELH",
-   "asof": "2025-04-23",
-   "ts": 20250423,
+   "sym": "FDX",
+   "asof": "2025-05-13",
+   "ts": 20250513,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "UAL",
+   "asof": "2025-07-11",
+   "ts": 20250711,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "UAL",
+   "asof": "2025-01-22",
+   "ts": 20250122,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "CCL",
+   "asof": "2026-01-30",
+   "ts": 20260130,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "MAR",
+   "asof": "2026-04-07",
+   "ts": 20260407,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "DASH",
+   "asof": "2025-12-10",
+   "ts": 20251210,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-belt-hold",
+   "sym": "DASH",
+   "asof": "2025-07-29",
+   "ts": 20250729,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "bearish-engulfing",
-   "sym": "DUOL",
-   "asof": "2026-07-16",
-   "ts": 20260716,
+   "sym": "NET",
+   "asof": "2026-09-25",
+   "ts": 20260925,
    "bars": 2,
    "trend": "up"
   },
   {
    "key": "bearish-engulfing",
-   "sym": "AXON",
-   "asof": "2026-01-08",
-   "ts": 20260108,
-   "bars": 2,
-   "trend": "neutral"
-  },
-  {
-   "key": "bearish-engulfing",
-   "sym": "TTD",
-   "asof": "2026-09-04",
-   "ts": 20260904,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "bearish-engulfing",
-   "sym": "DDOG",
+   "sym": "NET",
    "asof": "2026-07-10",
    "ts": 20260710,
    "bars": 2,
    "trend": "up"
   },
   {
-   "key": "bearish-harami",
-   "sym": "NVDA",
-   "asof": "2026-07-13",
-   "ts": 20260713,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "bearish-harami",
-   "sym": "AMZN",
-   "asof": "2026-04-27",
-   "ts": 20260427,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "bearish-harami",
-   "sym": "GOOGL",
-   "asof": "2026-05-14",
-   "ts": 20260514,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "bearish-harami",
-   "sym": "META",
-   "asof": "2026-10-14",
-   "ts": 20261014,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "black-candle",
-   "sym": "CRWD",
-   "asof": "2026-10-19",
-   "ts": 20261019,
-   "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "black-candle",
-   "sym": "PLTR",
-   "asof": "2026-09-25",
-   "ts": 20260925,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "black-candle",
-   "sym": "SMCI",
-   "asof": "2026-10-19",
-   "ts": 20261019,
-   "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "black-candle",
-   "sym": "ARM",
-   "asof": "2026-10-16",
-   "ts": 20261016,
-   "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "black-marubozu",
+   "key": "bearish-engulfing",
    "sym": "ZS",
-   "asof": "2026-03-24",
-   "ts": 20260324,
-   "bars": 1,
-   "trend": "neutral"
+   "asof": "2026-07-10",
+   "ts": 20260710,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "black-marubozu",
+   "key": "bearish-engulfing",
+   "sym": "ZS",
+   "asof": "2025-07-08",
+   "ts": 20250708,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-engulfing",
    "sym": "MDB",
-   "asof": "2026-04-09",
-   "ts": 20260409,
-   "bars": 1,
-   "trend": "neutral"
+   "asof": "2026-07-10",
+   "ts": 20260710,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "black-marubozu",
+   "key": "bearish-engulfing",
+   "sym": "MDB",
+   "asof": "2026-04-21",
+   "ts": 20260421,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-engulfing",
    "sym": "LLY",
-   "asof": "2026-01-23",
-   "ts": 20260123,
-   "bars": 1,
-   "trend": "neutral"
+   "asof": "2026-06-12",
+   "ts": 20260612,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "black-marubozu",
+   "key": "bearish-engulfing",
+   "sym": "LLY",
+   "asof": "2026-04-10",
+   "ts": 20260410,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-engulfing",
    "sym": "NVO",
-   "asof": "2026-08-20",
-   "ts": 20260820,
-   "bars": 1,
-   "trend": "neutral"
+   "asof": "2024-06-28",
+   "ts": 20240628,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "bullish-belt-hold",
-   "sym": "ONON",
-   "asof": "2025-12-29",
-   "ts": 20251229,
-   "bars": 1,
-   "trend": "down"
+   "key": "bearish-engulfing",
+   "sym": "COST",
+   "asof": "2026-09-30",
+   "ts": 20260930,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "bullish-belt-hold",
-   "sym": "CAVA",
-   "asof": "2026-05-14",
-   "ts": 20260514,
-   "bars": 1,
-   "trend": "down"
+   "key": "bearish-harami",
+   "sym": "LMT",
+   "asof": "2026-10-19",
+   "ts": 20261019,
+   "bars": 2,
+   "trend": "up"
   },
   {
-   "key": "bullish-belt-hold",
-   "sym": "ROKU",
+   "key": "bearish-harami",
+   "sym": "LMT",
+   "asof": "2026-07-06",
+   "ts": 20260706,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "RTX",
+   "asof": "2025-12-16",
+   "ts": 20251216,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "RTX",
+   "asof": "2025-10-01",
+   "ts": 20251001,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "GE",
+   "asof": "2026-02-25",
+   "ts": 20260225,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "GE",
+   "asof": "2025-10-28",
+   "ts": 20251028,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "HON",
+   "asof": "2026-09-24",
+   "ts": 20260924,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "HON",
+   "asof": "2026-06-01",
+   "ts": 20260601,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "UPS",
+   "asof": "2025-03-10",
+   "ts": 20250310,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "bearish-harami",
+   "sym": "FDX",
+   "asof": "2026-08-14",
+   "ts": 20260814,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "black-candle",
+   "sym": "CLSK",
    "asof": "2026-10-07",
    "ts": 20261007,
    "bars": 1,
    "trend": "down"
   },
   {
-   "key": "bullish-belt-hold",
-   "sym": "DIS",
-   "asof": "2026-03-30",
-   "ts": 20260330,
+   "key": "black-candle",
+   "sym": "CLSK",
+   "asof": "2026-07-27",
+   "ts": 20260727,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "black-candle",
+   "sym": "GLD",
+   "asof": "2026-10-13",
+   "ts": 20261013,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "black-candle",
+   "sym": "GLD",
+   "asof": "2026-08-26",
+   "ts": 20260826,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-candle",
+   "sym": "SLV",
+   "asof": "2026-10-16",
+   "ts": 20261016,
    "bars": 1,
    "trend": "down"
   },
   {
-   "key": "bullish-engulfing",
-   "sym": "INTC",
-   "asof": "2026-10-13",
-   "ts": 20261013,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-engulfing",
-   "sym": "PYPL",
-   "asof": "2026-09-10",
-   "ts": 20260910,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-engulfing",
-   "sym": "SQ",
-   "asof": "2024-09-11",
-   "ts": 20240911,
-   "bars": 2,
-   "trend": "neutral"
-  },
-  {
-   "key": "bullish-engulfing",
-   "sym": "RIVN",
-   "asof": "2026-09-24",
-   "ts": 20260924,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-harami",
-   "sym": "MSTR",
-   "asof": "2026-06-04",
-   "ts": 20260604,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-harami",
-   "sym": "RKLB",
-   "asof": "2026-10-19",
-   "ts": 20261019,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-harami",
-   "sym": "IONQ",
-   "asof": "2026-07-14",
-   "ts": 20260714,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "bullish-harami",
-   "sym": "HIMS",
-   "asof": "2026-10-19",
-   "ts": 20261019,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "dark-cloud-cover",
-   "sym": "AAPL",
-   "asof": "2026-02-26",
-   "ts": 20260226,
-   "bars": 2,
+   "key": "black-candle",
+   "sym": "SLV",
+   "asof": "2026-09-01",
+   "ts": 20260901,
+   "bars": 1,
    "trend": "up"
   },
   {
-   "key": "dark-cloud-cover",
+   "key": "black-candle",
+   "sym": "TLT",
+   "asof": "2026-10-19",
+   "ts": 20261019,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-candle",
+   "sym": "TLT",
+   "asof": "2026-08-14",
+   "ts": 20260814,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "black-candle",
+   "sym": "XLF",
+   "asof": "2026-09-14",
+   "ts": 20260914,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "black-candle",
+   "sym": "XLF",
+   "asof": "2026-07-10",
+   "ts": 20260710,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "ARKK",
+   "asof": "2026-08-24",
+   "ts": 20260824,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "ARKK",
+   "asof": "2025-11-06",
+   "ts": 20251106,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "DIA",
+   "asof": "2026-09-30",
+   "ts": 20260930,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "DIA",
+   "asof": "2024-05-23",
+   "ts": 20240523,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "AAPL",
+   "asof": "2026-09-29",
+   "ts": 20260929,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "AAPL",
+   "asof": "2026-02-13",
+   "ts": 20260213,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "MSFT",
+   "asof": "2026-03-24",
+   "ts": 20260324,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "black-marubozu",
    "sym": "MSFT",
    "asof": "2025-09-16",
    "ts": 20250916,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "dark-cloud-cover",
-   "sym": "NVDA",
-   "asof": "2025-07-31",
-   "ts": 20250731,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "dark-cloud-cover",
-   "sym": "AMZN",
-   "asof": "2025-06-03",
-   "ts": 20250603,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "doji",
-   "sym": "PTON",
-   "asof": "2026-07-31",
-   "ts": 20260731,
    "bars": 1,
    "trend": "up"
   },
   {
-   "key": "doji",
-   "sym": "ZM",
+   "key": "black-marubozu",
+   "sym": "NVDA",
+   "asof": "2026-10-09",
+   "ts": 20261009,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "black-marubozu",
+   "sym": "NVDA",
+   "asof": "2026-02-26",
+   "ts": 20260226,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "MARA",
+   "asof": "2025-08-18",
+   "ts": 20250818,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "RIOT",
+   "asof": "2026-03-23",
+   "ts": 20260323,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "RIOT",
+   "asof": "2025-10-23",
+   "ts": 20251023,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "GLD",
+   "asof": "2026-05-27",
+   "ts": 20260527,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "XLF",
    "asof": "2026-10-08",
    "ts": 20261008,
    "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "XLK",
+   "asof": "2024-04-03",
+   "ts": 20240403,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "SMH",
+   "asof": "2026-07-08",
+   "ts": 20260708,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "SMH",
+   "asof": "2025-11-24",
+   "ts": 20251124,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "ARKK",
+   "asof": "2024-04-23",
+   "ts": 20240423,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-belt-hold",
+   "sym": "DIA",
+   "asof": "2026-01-21",
+   "ts": 20260121,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "PTON",
+   "asof": "2026-02-02",
+   "ts": 20260202,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "PTON",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "ZM",
+   "asof": "2026-05-20",
+   "ts": 20260520,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "ZM",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "SPY",
+   "asof": "2025-04-11",
+   "ts": 20250411,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "QQQ",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "IWM",
+   "asof": "2026-02-02",
+   "ts": 20260202,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "IWM",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "JPM",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-engulfing",
+   "sym": "GS",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "INTU",
+   "asof": "2026-02-18",
+   "ts": 20260218,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "INTU",
+   "asof": "2026-01-05",
+   "ts": 20260105,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "AFRM",
+   "asof": "2026-06-08",
+   "ts": 20260608,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "AFRM",
+   "asof": "2026-02-09",
+   "ts": 20260209,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "UPST",
+   "asof": "2025-11-21",
+   "ts": 20251121,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "UPST",
+   "asof": "2024-07-25",
+   "ts": 20240725,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "MARA",
+   "asof": "2026-07-06",
+   "ts": 20260706,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "MARA",
+   "asof": "2026-03-31",
+   "ts": 20260331,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "RIOT",
+   "asof": "2026-03-31",
+   "ts": 20260331,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "bullish-harami",
+   "sym": "CLSK",
+   "asof": "2025-04-09",
+   "ts": 20250409,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "COIN",
+   "asof": "2024-12-05",
+   "ts": 20241205,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "HOOD",
+   "asof": "2025-09-10",
+   "ts": 20250910,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "HOOD",
+   "asof": "2025-05-01",
+   "ts": 20250501,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "SHOP",
+   "asof": "2026-07-15",
+   "ts": 20260715,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "NOW",
+   "asof": "2026-10-16",
+   "ts": 20261016,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "NOW",
+   "asof": "2025-01-24",
+   "ts": 20250124,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "ANET",
+   "asof": "2025-10-30",
+   "ts": 20251030,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "ANET",
+   "asof": "2025-08-05",
+   "ts": 20250805,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "VRT",
+   "asof": "2024-04-04",
+   "ts": 20240404,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "dark-cloud-cover",
+   "sym": "APP",
+   "asof": "2025-05-29",
+   "ts": 20250529,
+   "bars": 2,
    "trend": "up"
   },
   {
    "key": "doji",
-   "sym": "SPY",
-   "asof": "2026-10-01",
-   "ts": 20261001,
+   "sym": "ELF",
+   "asof": "2026-05-22",
+   "ts": 20260522,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "doji",
+   "sym": "ELF",
+   "asof": "2026-02-04",
+   "ts": 20260204,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "doji",
+   "sym": "DUOL",
+   "asof": "2026-06-09",
+   "ts": 20260609,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "doji",
+   "sym": "DUOL",
+   "asof": "2026-01-05",
+   "ts": 20260105,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "doji",
-   "sym": "QQQ",
-   "asof": "2026-05-12",
-   "ts": 20260512,
+   "sym": "AXON",
+   "asof": "2026-09-24",
+   "ts": 20260924,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "doji",
+   "sym": "AXON",
+   "asof": "2026-06-18",
+   "ts": 20260618,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "doji",
+   "sym": "TTD",
+   "asof": "2026-03-06",
+   "ts": 20260306,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "doji",
+   "sym": "TTD",
+   "asof": "2026-01-14",
+   "ts": 20260114,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "doji",
+   "sym": "DDOG",
+   "asof": "2026-10-06",
+   "ts": 20261006,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "doji",
+   "sym": "DDOG",
+   "asof": "2026-07-07",
+   "ts": 20260707,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "downside-tasuki-gap",
-   "sym": "ELF",
-   "asof": "2026-03-25",
-   "ts": 20260325,
+   "sym": "TSM",
+   "asof": "2024-07-22",
+   "ts": 20240722,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "downside-tasuki-gap",
-   "sym": "DUOL",
-   "asof": "2026-09-29",
-   "ts": 20260929,
+   "sym": "BABA",
+   "asof": "2024-11-18",
+   "ts": 20241118,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "downside-tasuki-gap",
-   "sym": "AXON",
-   "asof": "2026-02-06",
-   "ts": 20260206,
+   "sym": "PDD",
+   "asof": "2024-06-28",
+   "ts": 20240628,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "downside-tasuki-gap",
-   "sym": "TTD",
-   "asof": "2026-01-21",
-   "ts": 20260121,
+   "sym": "F",
+   "asof": "2026-05-05",
+   "ts": 20260505,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "UPS",
+   "asof": "2024-06-05",
+   "ts": 20240605,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "FDX",
+   "asof": "2025-02-04",
+   "ts": 20250204,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "DAL",
+   "asof": "2025-03-05",
+   "ts": 20250305,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "UAL",
+   "asof": "2025-03-05",
+   "ts": 20250305,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "MAR",
+   "asof": "2026-05-05",
+   "ts": 20260505,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "downside-tasuki-gap",
+   "sym": "MAR",
+   "asof": "2025-08-04",
+   "ts": 20250804,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "dragonfly-doji",
-   "sym": "DDOG",
-   "asof": "2025-08-20",
-   "ts": 20250820,
+   "sym": "SMH",
+   "asof": "2024-07-01",
+   "ts": 20240701,
    "bars": 1,
-   "trend": "down"
+   "trend": "neutral"
+  },
+  {
+   "key": "dragonfly-doji",
+   "sym": "META",
+   "asof": "2026-09-17",
+   "ts": 20260917,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "dragonfly-doji",
+   "sym": "NOW",
+   "asof": "2024-08-02",
+   "ts": 20240802,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "dragonfly-doji",
+   "sym": "ANET",
+   "asof": "2024-10-04",
+   "ts": 20241004,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "dragonfly-doji",
+   "sym": "APP",
+   "asof": "2025-10-13",
+   "ts": 20251013,
+   "bars": 1,
+   "trend": "neutral"
   },
   {
    "key": "dragonfly-doji",
    "sym": "SNOW",
    "asof": "2025-10-31",
    "ts": 20251031,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "dragonfly-doji",
+   "sym": "SNOW",
+   "asof": "2024-07-10",
+   "ts": 20240710,
    "bars": 1,
    "trend": "up"
   },
@@ -436,26 +1052,18 @@
    "trend": "down"
   },
   {
-   "key": "evening-doji-star",
-   "sym": "ZM",
-   "asof": "2025-09-19",
-   "ts": 20250919,
-   "bars": 3,
-   "trend": "up"
+   "key": "dragonfly-doji",
+   "sym": "ONON",
+   "asof": "2024-06-21",
+   "ts": 20240621,
+   "bars": 1,
+   "trend": "neutral"
   },
   {
    "key": "evening-doji-star",
    "sym": "AAPL",
    "asof": "2026-09-23",
    "ts": 20260923,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
-   "key": "evening-doji-star",
-   "sym": "NVDA",
-   "asof": "2025-10-10",
-   "ts": 20251010,
    "bars": 3,
    "trend": "up"
   },
@@ -468,68 +1076,236 @@
    "trend": "up"
   },
   {
-   "key": "evening-star",
-   "sym": "HOOD",
-   "asof": "2025-01-27",
-   "ts": 20250127,
+   "key": "evening-doji-star",
+   "sym": "CRWD",
+   "asof": "2024-09-03",
+   "ts": 20240903,
    "bars": 3,
    "trend": "up"
   },
   {
-   "key": "evening-star",
+   "key": "evening-doji-star",
+   "sym": "PLTR",
+   "asof": "2026-06-02",
+   "ts": 20260602,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
+   "sym": "PLTR",
+   "asof": "2025-10-03",
+   "ts": 20251003,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
    "sym": "SHOP",
-   "asof": "2024-09-25",
-   "ts": 20240925,
+   "asof": "2024-10-15",
+   "ts": 20241015,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
+   "sym": "NOW",
+   "asof": "2025-07-01",
+   "ts": 20250701,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
+   "sym": "RKLB",
+   "asof": "2025-06-10",
+   "ts": 20250610,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
+   "sym": "IONQ",
+   "asof": "2024-07-17",
+   "ts": 20240717,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-doji-star",
+   "sym": "HIMS",
+   "asof": "2025-08-01",
+   "ts": 20250801,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "evening-star",
-   "sym": "ANET",
-   "asof": "2025-09-12",
-   "ts": 20250912,
+   "sym": "ZM",
+   "asof": "2024-08-28",
+   "ts": 20240828,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "evening-star",
-   "sym": "VRT",
-   "asof": "2026-01-30",
-   "ts": 20260130,
+   "sym": "QQQ",
+   "asof": "2026-09-28",
+   "ts": 20260928,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "JPM",
+   "asof": "2026-06-18",
+   "ts": 20260618,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "XOM",
+   "asof": "2026-05-20",
+   "ts": 20260520,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "XOM",
+   "asof": "2026-02-20",
+   "ts": 20260220,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "JNJ",
+   "asof": "2024-09-05",
+   "ts": 20240905,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "PG",
+   "asof": "2025-03-11",
+   "ts": 20250311,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "MU",
+   "asof": "2024-12-18",
+   "ts": 20241218,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "AMAT",
+   "asof": "2026-07-01",
+   "ts": 20260701,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "evening-star",
+   "sym": "KLAC",
+   "asof": "2026-06-16",
+   "ts": 20260616,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "falling-three-methods",
-   "sym": "CMG",
-   "asof": "2025-11-06",
-   "ts": 20251106,
+   "sym": "PTON",
+   "asof": "2026-02-11",
+   "ts": 20260211,
    "bars": 5,
    "trend": "down"
   },
   {
    "key": "falling-three-methods",
-   "sym": "BA",
-   "asof": "2026-03-26",
-   "ts": 20260326,
+   "sym": "GM",
+   "asof": "2026-09-24",
+   "ts": 20260924,
    "bars": 5,
    "trend": "down"
   },
   {
    "key": "falling-three-methods",
-   "sym": "DIS",
-   "asof": "2025-04-16",
-   "ts": 20250416,
+   "sym": "DAL",
+   "asof": "2025-02-27",
+   "ts": 20250227,
    "bars": 5,
    "trend": "down"
   },
   {
    "key": "falling-three-methods",
-   "sym": "NKE",
-   "asof": "2025-04-16",
-   "ts": 20250416,
+   "sym": "ADSK",
+   "asof": "2025-10-16",
+   "ts": 20251016,
    "bars": 5,
    "trend": "down"
+  },
+  {
+   "key": "falling-three-methods",
+   "sym": "XLF",
+   "asof": "2026-09-22",
+   "ts": 20260922,
+   "bars": 5,
+   "trend": "down"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "WDAY",
+   "asof": "2025-06-10",
+   "ts": 20250610,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "AMD",
+   "asof": "2026-01-15",
+   "ts": 20260115,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "UBER",
+   "asof": "2024-08-07",
+   "ts": 20240807,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "APP",
+   "asof": "2024-11-14",
+   "ts": 20241114,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "RKLB",
+   "asof": "2024-05-13",
+   "ts": 20240513,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "gravestone-doji",
+   "sym": "IONQ",
+   "asof": "2024-12-10",
+   "ts": 20241210,
+   "bars": 1,
+   "trend": "up"
   },
   {
    "key": "gravestone-doji",
@@ -542,18 +1318,10 @@
   {
    "key": "gravestone-doji",
    "sym": "MDB",
-   "asof": "2026-03-26",
-   "ts": 20260326,
+   "asof": "2025-01-31",
+   "ts": 20250131,
    "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "gravestone-doji",
-   "sym": "CAVA",
-   "asof": "2025-10-17",
-   "ts": 20251017,
-   "bars": 1,
-   "trend": "neutral"
+   "trend": "up"
   },
   {
    "key": "gravestone-doji",
@@ -564,56 +1332,144 @@
    "trend": "up"
   },
   {
+   "key": "gravestone-doji",
+   "sym": "RIVN",
+   "asof": "2025-09-11",
+   "ts": 20250911,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
    "key": "hammer",
-   "sym": "RKLB",
-   "asof": "2026-10-15",
-   "ts": 20261015,
+   "sym": "PINS",
+   "asof": "2024-11-21",
+   "ts": 20241121,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "hammer",
-   "sym": "IONQ",
-   "asof": "2026-06-18",
-   "ts": 20260618,
+   "sym": "TWLO",
+   "asof": "2025-11-21",
+   "ts": 20251121,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "hammer",
-   "sym": "HIMS",
-   "asof": "2025-12-26",
-   "ts": 20251226,
+   "sym": "TWLO",
+   "asof": "2025-02-18",
+   "ts": 20250218,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "hammer",
-   "sym": "SOFI",
-   "asof": "2026-07-31",
-   "ts": 20260731,
+   "sym": "OKTA",
+   "asof": "2025-02-25",
+   "ts": 20250225,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "TEAM",
+   "asof": "2026-06-12",
+   "ts": 20260612,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "TEAM",
+   "asof": "2025-02-24",
+   "ts": 20250224,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "WDAY",
+   "asof": "2026-06-12",
+   "ts": 20260612,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "WDAY",
+   "asof": "2025-08-12",
+   "ts": 20250812,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "ADSK",
+   "asof": "2026-05-13",
+   "ts": 20260513,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "hammer",
+   "sym": "ADSK",
+   "asof": "2026-03-20",
+   "ts": 20260320,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "hanging-man",
-   "sym": "PTON",
-   "asof": "2025-09-29",
-   "ts": 20250929,
+   "sym": "CAVA",
+   "asof": "2026-03-11",
+   "ts": 20260311,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "hanging-man",
-   "sym": "ZM",
-   "asof": "2026-07-30",
-   "ts": 20260730,
+   "sym": "CAVA",
+   "asof": "2025-12-10",
+   "ts": 20251210,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "hanging-man",
-   "sym": "SPY",
+   "sym": "SPOT",
+   "asof": "2025-08-12",
+   "ts": 20250812,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "hanging-man",
+   "sym": "SPOT",
+   "asof": "2025-02-20",
+   "ts": 20250220,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "hanging-man",
+   "sym": "ROKU",
+   "asof": "2026-05-28",
+   "ts": 20260528,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "hanging-man",
+   "sym": "ROKU",
+   "asof": "2026-04-10",
+   "ts": 20260410,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "hanging-man",
+   "sym": "BA",
    "asof": "2026-05-12",
    "ts": 20260512,
    "bars": 1,
@@ -621,222 +1477,78 @@
   },
   {
    "key": "hanging-man",
-   "sym": "QQQ",
-   "asof": "2026-10-09",
-   "ts": 20261009,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "harami-cross",
-   "sym": "META",
-   "asof": "2026-03-30",
-   "ts": 20260330,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "harami-cross",
-   "sym": "TSLA",
-   "asof": "2026-03-16",
-   "ts": 20260316,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "harami-cross",
-   "sym": "NFLX",
-   "asof": "2026-09-29",
-   "ts": 20260929,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "harami-cross",
-   "sym": "AMD",
-   "asof": "2025-02-28",
-   "ts": 20250228,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "high-wave",
-   "sym": "CMG",
-   "asof": "2024-08-13",
-   "ts": 20240813,
-   "bars": 1,
-   "trend": "neutral"
-  },
-  {
-   "key": "high-wave",
-   "sym": "DECK",
-   "asof": "2026-02-20",
-   "ts": 20260220,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "high-wave",
-   "sym": "ONON",
-   "asof": "2026-09-23",
-   "ts": 20260923,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "high-wave",
-   "sym": "CAVA",
-   "asof": "2025-11-05",
-   "ts": 20251105,
-   "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "hikkake-bear",
-   "sym": "RKLB",
-   "asof": "2026-08-17",
-   "ts": 20260817,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bear",
-   "sym": "IONQ",
-   "asof": "2026-09-23",
-   "ts": 20260923,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bear",
-   "sym": "HIMS",
-   "asof": "2026-10-06",
-   "ts": 20261006,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bear",
-   "sym": "SOFI",
-   "asof": "2026-07-21",
-   "ts": 20260721,
-   "bars": 3,
-   "trend": "down"
-  },
-  {
-   "key": "hikkake-bear-confirmed",
-   "sym": "ONON",
-   "asof": "2026-09-30",
-   "ts": 20260930,
-   "bars": 6,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bear-confirmed",
-   "sym": "CAVA",
-   "asof": "2026-08-26",
-   "ts": 20260826,
-   "bars": 6,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bear-confirmed",
-   "sym": "SPOT",
-   "asof": "2026-09-30",
-   "ts": 20260930,
-   "bars": 6,
-   "trend": "down"
-  },
-  {
-   "key": "hikkake-bear-confirmed",
-   "sym": "ROKU",
-   "asof": "2026-06-03",
-   "ts": 20260603,
-   "bars": 6,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bull",
-   "sym": "CAVA",
-   "asof": "2026-10-12",
-   "ts": 20261012,
-   "bars": 3,
-   "trend": "neutral"
-  },
-  {
-   "key": "hikkake-bull",
-   "sym": "SPOT",
-   "asof": "2026-08-12",
-   "ts": 20260812,
-   "bars": 3,
-   "trend": "neutral"
-  },
-  {
-   "key": "hikkake-bull",
-   "sym": "ROKU",
-   "asof": "2026-09-16",
-   "ts": 20260916,
-   "bars": 3,
-   "trend": "neutral"
-  },
-  {
-   "key": "hikkake-bull",
    "sym": "BA",
-   "asof": "2026-10-06",
-   "ts": 20261006,
-   "bars": 3,
-   "trend": "neutral"
-  },
-  {
-   "key": "hikkake-bull-confirmed",
-   "sym": "GOOGL",
-   "asof": "2026-04-24",
-   "ts": 20260424,
-   "bars": 6,
+   "asof": "2025-12-04",
+   "ts": 20251204,
+   "bars": 1,
    "trend": "up"
   },
   {
-   "key": "hikkake-bull-confirmed",
-   "sym": "META",
-   "asof": "2025-05-29",
-   "ts": 20250529,
-   "bars": 6,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bull-confirmed",
-   "sym": "TSLA",
-   "asof": "2026-09-08",
-   "ts": 20260908,
-   "bars": 6,
-   "trend": "up"
-  },
-  {
-   "key": "hikkake-bull-confirmed",
-   "sym": "NFLX",
-   "asof": "2026-10-15",
-   "ts": 20261015,
-   "bars": 6,
-   "trend": "neutral"
-  },
-  {
-   "key": "homing-pigeon",
-   "sym": "BA",
-   "asof": "2026-08-25",
-   "ts": 20260825,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "homing-pigeon",
+   "key": "hanging-man",
    "sym": "DIS",
-   "asof": "2026-07-13",
-   "ts": 20260713,
+   "asof": "2024-11-19",
+   "ts": 20241119,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "hanging-man",
+   "sym": "DIS",
+   "asof": "2024-09-24",
+   "ts": 20240924,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "SPOT",
+   "asof": "2026-02-06",
+   "ts": 20260206,
    "bars": 2,
    "trend": "down"
   },
   {
-   "key": "homing-pigeon",
+   "key": "harami-cross",
+   "sym": "SPOT",
+   "asof": "2024-12-19",
+   "ts": 20241219,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "ROKU",
+   "asof": "2025-08-25",
+   "ts": 20250825,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "BA",
+   "asof": "2025-01-24",
+   "ts": 20250124,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "DIS",
+   "asof": "2025-10-13",
+   "ts": 20251013,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "DIS",
+   "asof": "2025-03-12",
+   "ts": 20250312,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "harami-cross",
    "sym": "NKE",
    "asof": "2025-09-26",
    "ts": 20250926,
@@ -844,18 +1556,546 @@
    "trend": "down"
   },
   {
+   "key": "harami-cross",
+   "sym": "NKE",
+   "asof": "2025-07-03",
+   "ts": 20250703,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "PYPL",
+   "asof": "2026-07-17",
+   "ts": 20260717,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "harami-cross",
+   "sym": "PYPL",
+   "asof": "2025-02-24",
+   "ts": 20250224,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "high-wave",
+   "sym": "PINS",
+   "asof": "2026-06-05",
+   "ts": 20260605,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "high-wave",
+   "sym": "PINS",
+   "asof": "2024-09-11",
+   "ts": 20240911,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "high-wave",
+   "sym": "TWLO",
+   "asof": "2026-08-07",
+   "ts": 20260807,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "high-wave",
+   "sym": "TWLO",
+   "asof": "2025-04-04",
+   "ts": 20250404,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "high-wave",
+   "sym": "OKTA",
+   "asof": "2026-05-26",
+   "ts": 20260526,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "high-wave",
+   "sym": "OKTA",
+   "asof": "2025-07-29",
+   "ts": 20250729,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "high-wave",
+   "sym": "TEAM",
+   "asof": "2025-06-02",
+   "ts": 20250602,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "high-wave",
+   "sym": "TEAM",
+   "asof": "2024-07-02",
+   "ts": 20240702,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "high-wave",
+   "sym": "WDAY",
+   "asof": "2026-05-01",
+   "ts": 20260501,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "high-wave",
+   "sym": "ADSK",
+   "asof": "2025-08-29",
+   "ts": 20250829,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "GOOGL",
+   "asof": "2026-09-22",
+   "ts": 20260922,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "GOOGL",
+   "asof": "2026-02-02",
+   "ts": 20260202,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "META",
+   "asof": "2026-08-28",
+   "ts": 20260828,
+   "bars": 3,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "META",
+   "asof": "2026-07-07",
+   "ts": 20260707,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "TSLA",
+   "asof": "2026-10-20",
+   "ts": 20261020,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "TSLA",
+   "asof": "2026-05-13",
+   "ts": 20260513,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "NFLX",
+   "asof": "2026-07-07",
+   "ts": 20260707,
+   "bars": 3,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "NFLX",
+   "asof": "2026-01-23",
+   "ts": 20260123,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "AMD",
+   "asof": "2026-06-11",
+   "ts": 20260611,
+   "bars": 3,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bear",
+   "sym": "AMD",
+   "asof": "2026-04-22",
+   "ts": 20260422,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "AMAT",
+   "asof": "2026-07-02",
+   "ts": 20260702,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "LRCX",
+   "asof": "2026-07-02",
+   "ts": 20260702,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "LRCX",
+   "asof": "2024-12-06",
+   "ts": 20241206,
+   "bars": 6,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "ASML",
+   "asof": "2026-06-16",
+   "ts": 20260616,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "ASML",
+   "asof": "2025-10-09",
+   "ts": 20251009,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "TSM",
+   "asof": "2025-01-28",
+   "ts": 20250128,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "BABA",
+   "asof": "2024-08-26",
+   "ts": 20240826,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "BABA",
+   "asof": "2024-05-09",
+   "ts": 20240509,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "PDD",
+   "asof": "2024-08-27",
+   "ts": 20240827,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bear-confirmed",
+   "sym": "NIO",
+   "asof": "2024-09-12",
+   "ts": 20240912,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "IONQ",
+   "asof": "2026-10-19",
+   "ts": 20261019,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "IONQ",
+   "asof": "2026-08-18",
+   "ts": 20260818,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "HIMS",
+   "asof": "2026-08-26",
+   "ts": 20260826,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "HIMS",
+   "asof": "2026-03-13",
+   "ts": 20260313,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "SOFI",
+   "asof": "2026-07-07",
+   "ts": 20260707,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "SOFI",
+   "asof": "2026-03-19",
+   "ts": 20260319,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "CELH",
+   "asof": "2026-06-22",
+   "ts": 20260622,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "CELH",
+   "asof": "2025-12-03",
+   "ts": 20251203,
+   "bars": 3,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "ELF",
+   "asof": "2026-07-06",
+   "ts": 20260706,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull",
+   "sym": "ELF",
+   "asof": "2026-05-05",
+   "ts": 20260505,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "RCL",
+   "asof": "2026-02-06",
+   "ts": 20260206,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "RCL",
+   "asof": "2025-02-28",
+   "ts": 20250228,
+   "bars": 6,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "MAR",
+   "asof": "2025-06-23",
+   "ts": 20250623,
+   "bars": 6,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "ABNB",
+   "asof": "2025-08-14",
+   "ts": 20250814,
+   "bars": 6,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "DASH",
+   "asof": "2024-04-26",
+   "ts": 20240426,
+   "bars": 6,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "SNAP",
+   "asof": "2024-11-07",
+   "ts": 20241107,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "SNAP",
+   "asof": "2024-04-29",
+   "ts": 20240429,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "PINS",
+   "asof": "2025-08-15",
+   "ts": 20250815,
+   "bars": 6,
+   "trend": "neutral"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "TEAM",
+   "asof": "2025-04-15",
+   "ts": 20250415,
+   "bars": 6,
+   "trend": "down"
+  },
+  {
+   "key": "hikkake-bull-confirmed",
+   "sym": "TEAM",
+   "asof": "2025-02-04",
+   "ts": 20250204,
+   "bars": 6,
+   "trend": "up"
+  },
+  {
    "key": "homing-pigeon",
-   "sym": "INTC",
-   "asof": "2026-08-31",
-   "ts": 20260831,
+   "sym": "PANW",
+   "asof": "2026-01-05",
+   "ts": 20260105,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "ANET",
+   "asof": "2026-05-08",
+   "ts": 20260508,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "ANET",
+   "asof": "2026-02-24",
+   "ts": 20260224,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "VRT",
+   "asof": "2026-07-30",
+   "ts": 20260730,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "VRT",
+   "asof": "2025-11-21",
+   "ts": 20251121,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "APP",
+   "asof": "2026-02-02",
+   "ts": 20260202,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "MSTR",
+   "asof": "2025-10-31",
+   "ts": 20251031,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "RKLB",
+   "asof": "2024-04-03",
+   "ts": 20240403,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "IONQ",
+   "asof": "2025-11-21",
+   "ts": 20251121,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "homing-pigeon",
+   "sym": "HIMS",
+   "asof": "2026-10-19",
+   "ts": 20261019,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "identical-three-crows",
-   "sym": "ARM",
-   "asof": "2026-01-29",
-   "ts": 20260129,
+   "sym": "AXON",
+   "asof": "2025-08-12",
+   "ts": 20250812,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "identical-three-crows",
+   "sym": "NKE",
+   "asof": "2025-10-07",
+   "ts": 20251007,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "identical-three-crows",
+   "sym": "PEP",
+   "asof": "2026-02-17",
+   "ts": 20260217,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "identical-three-crows",
+   "sym": "LYFT",
+   "asof": "2025-10-07",
+   "ts": 20251007,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "identical-three-crows",
+   "sym": "PINS",
+   "asof": "2025-12-15",
+   "ts": 20251215,
    "bars": 3,
    "trend": "up"
   },
@@ -868,83 +2108,179 @@
    "trend": "up"
   },
   {
-   "key": "identical-three-crows",
-   "sym": "SOFI",
-   "asof": "2025-07-28",
-   "ts": 20250728,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
-   "key": "identical-three-crows",
-   "sym": "AXON",
-   "asof": "2025-08-12",
-   "ts": 20250812,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
    "key": "inverted-hammer",
-   "sym": "PANW",
-   "asof": "2026-03-30",
-   "ts": 20260330,
+   "sym": "CCL",
+   "asof": "2026-07-01",
+   "ts": 20260701,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "inverted-hammer",
-   "sym": "ANET",
-   "asof": "2024-07-29",
-   "ts": 20240729,
+   "sym": "CCL",
+   "asof": "2025-11-12",
+   "ts": 20251112,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "inverted-hammer",
-   "sym": "VRT",
-   "asof": "2026-07-20",
-   "ts": 20260720,
+   "sym": "RCL",
+   "asof": "2026-09-08",
+   "ts": 20260908,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "inverted-hammer",
-   "sym": "APP",
-   "asof": "2026-08-20",
-   "ts": 20260820,
+   "sym": "RCL",
+   "asof": "2026-07-13",
+   "ts": 20260713,
    "bars": 1,
    "trend": "down"
   },
   {
-   "key": "inverted-umbrella",
-   "sym": "RIVN",
-   "asof": "2026-09-11",
-   "ts": 20260911,
+   "key": "inverted-hammer",
+   "sym": "MAR",
+   "asof": "2026-09-10",
+   "ts": 20260910,
    "bars": 1,
-   "trend": "neutral"
+   "trend": "down"
   },
   {
-   "key": "inverted-umbrella",
-   "sym": "LCID",
+   "key": "inverted-hammer",
+   "sym": "MAR",
+   "asof": "2026-05-01",
+   "ts": 20260501,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "inverted-hammer",
+   "sym": "ABNB",
    "asof": "2026-05-26",
    "ts": 20260526,
    "bars": 1,
-   "trend": "neutral"
+   "trend": "down"
+  },
+  {
+   "key": "inverted-hammer",
+   "sym": "ABNB",
+   "asof": "2025-10-06",
+   "ts": 20251006,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "inverted-hammer",
+   "sym": "DASH",
+   "asof": "2026-01-22",
+   "ts": 20260122,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "inverted-hammer",
+   "sym": "DASH",
+   "asof": "2025-11-13",
+   "ts": 20251113,
+   "bars": 1,
+   "trend": "down"
   },
   {
    "key": "inverted-umbrella",
-   "sym": "PTON",
-   "asof": "2026-06-16",
-   "ts": 20260616,
+   "sym": "QQQ",
+   "asof": "2024-05-01",
+   "ts": 20240501,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "inverted-umbrella",
-   "sym": "ZM",
-   "asof": "2025-09-22",
-   "ts": 20250922,
+   "sym": "IWM",
+   "asof": "2026-07-16",
+   "ts": 20260716,
    "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "IWM",
+   "asof": "2026-03-26",
+   "ts": 20260326,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "JPM",
+   "asof": "2025-10-15",
+   "ts": 20251015,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "JPM",
+   "asof": "2024-11-01",
+   "ts": 20241101,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "V",
+   "asof": "2026-05-29",
+   "ts": 20260529,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "MA",
+   "asof": "2025-02-27",
+   "ts": 20250227,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "XOM",
+   "asof": "2026-08-26",
+   "ts": 20260826,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "XOM",
+   "asof": "2026-06-08",
+   "ts": 20260608,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "inverted-umbrella",
+   "sym": "CVX",
+   "asof": "2025-09-23",
+   "ts": 20250923,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "kicking-bearish",
+   "sym": "UAL",
+   "asof": "2025-04-03",
+   "ts": 20250403,
+   "bars": 2,
+   "trend": "neutral"
+  },
+  {
+   "key": "kicking-bearish",
+   "sym": "CCL",
+   "asof": "2025-04-03",
+   "ts": 20250403,
+   "bars": 2,
    "trend": "neutral"
   },
   {
@@ -957,15 +2293,71 @@
   },
   {
    "key": "last-engulfing-bottom",
-   "sym": "PLTR",
-   "asof": "2025-09-05",
-   "ts": 20250905,
+   "sym": "NKE",
+   "asof": "2026-05-14",
+   "ts": 20260514,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "last-engulfing-bottom",
-   "sym": "SMCI",
+   "sym": "NKE",
+   "asof": "2025-04-08",
+   "ts": 20250408,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "INTC",
+   "asof": "2025-11-20",
+   "ts": 20251120,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "INTC",
+   "asof": "2025-04-08",
+   "ts": 20250408,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "PYPL",
+   "asof": "2026-02-11",
+   "ts": 20260211,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "SQ",
+   "asof": "2024-08-01",
+   "ts": 20240801,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "SQ",
+   "asof": "2024-01-10",
+   "ts": 20240110,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "RIVN",
+   "asof": "2026-10-16",
+   "ts": 20261016,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "last-engulfing-bottom",
+   "sym": "RIVN",
    "asof": "2025-03-03",
    "ts": 20250303,
    "bars": 2,
@@ -973,119 +2365,319 @@
   },
   {
    "key": "last-engulfing-bottom",
-   "sym": "ARM",
-   "asof": "2026-08-21",
-   "ts": 20260821,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "last-engulfing-bottom",
-   "sym": "COIN",
-   "asof": "2026-06-24",
-   "ts": 20260624,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "last-engulfing-top",
    "sym": "LCID",
-   "asof": "2025-09-17",
-   "ts": 20250917,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "last-engulfing-top",
-   "sym": "PTON",
-   "asof": "2026-08-04",
-   "ts": 20260804,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "last-engulfing-top",
-   "sym": "ZM",
-   "asof": "2026-10-15",
-   "ts": 20261015,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "last-engulfing-top",
-   "sym": "SPY",
-   "asof": "2026-05-28",
-   "ts": 20260528,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "long-black",
-   "sym": "CRWD",
    "asof": "2026-10-16",
    "ts": 20261016,
-   "bars": 1,
+   "bars": 2,
    "trend": "down"
   },
   {
+   "key": "last-engulfing-top",
+   "sym": "CLSK",
+   "asof": "2026-04-13",
+   "ts": 20260413,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "CLSK",
+   "asof": "2025-10-14",
+   "ts": 20251014,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "GLD",
+   "asof": "2026-08-10",
+   "ts": 20260810,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "GLD",
+   "asof": "2025-01-14",
+   "ts": 20250114,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "SLV",
+   "asof": "2026-01-27",
+   "ts": 20260127,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "SLV",
+   "asof": "2024-10-03",
+   "ts": 20241003,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "TLT",
+   "asof": "2025-11-26",
+   "ts": 20251126,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "TLT",
+   "asof": "2025-06-24",
+   "ts": 20250624,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "XLF",
+   "asof": "2026-04-13",
+   "ts": 20260413,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "last-engulfing-top",
+   "sym": "XLF",
+   "asof": "2025-12-10",
+   "ts": 20251210,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
    "key": "long-black",
-   "sym": "PLTR",
-   "asof": "2026-10-16",
-   "ts": 20261016,
+   "sym": "PG",
+   "asof": "2026-09-24",
+   "ts": 20260924,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "long-black",
-   "sym": "SMCI",
-   "asof": "2026-10-16",
-   "ts": 20261016,
+   "sym": "PG",
+   "asof": "2026-07-28",
+   "ts": 20260728,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "long-black",
+   "sym": "KO",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-black",
+   "sym": "KO",
+   "asof": "2026-09-01",
+   "ts": 20260901,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "long-black",
-   "sym": "ARM",
+   "sym": "PEP",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-black",
+   "sym": "PEP",
+   "asof": "2026-09-01",
+   "ts": 20260901,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-black",
+   "sym": "HD",
+   "asof": "2026-09-23",
+   "ts": 20260923,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-black",
+   "sym": "HD",
+   "asof": "2026-07-20",
+   "ts": 20260720,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-black",
+   "sym": "LOW",
+   "asof": "2026-10-02",
+   "ts": 20261002,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-black",
+   "sym": "LOW",
+   "asof": "2026-08-18",
+   "ts": 20260818,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "MARA",
+   "asof": "2026-05-07",
+   "ts": 20260507,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "MARA",
+   "asof": "2026-03-11",
+   "ts": 20260311,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "RIOT",
+   "asof": "2026-06-03",
+   "ts": 20260603,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "RIOT",
+   "asof": "2026-02-03",
+   "ts": 20260203,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "CLSK",
+   "asof": "2026-09-16",
+   "ts": 20260916,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "CLSK",
+   "asof": "2026-06-03",
+   "ts": 20260603,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "GLD",
+   "asof": "2026-09-03",
+   "ts": 20260903,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "GLD",
+   "asof": "2026-07-15",
+   "ts": 20260715,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "SLV",
+   "asof": "2026-08-05",
+   "ts": 20260805,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-legged-doji",
+   "sym": "SLV",
+   "asof": "2025-12-30",
+   "ts": 20251230,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "MAR",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "MAR",
+   "asof": "2026-07-24",
+   "ts": 20260724,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "long-white",
+   "sym": "ABNB",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "ABNB",
+   "asof": "2026-08-11",
+   "ts": 20260811,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "DASH",
    "asof": "2026-10-09",
    "ts": 20261009,
    "bars": 1,
-   "trend": "down"
-  },
-  {
-   "key": "long-legged-doji",
-   "sym": "NET",
-   "asof": "2026-09-29",
-   "ts": 20260929,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "long-legged-doji",
-   "sym": "ZS",
-   "asof": "2026-09-30",
-   "ts": 20260930,
-   "bars": 1,
    "trend": "neutral"
   },
   {
-   "key": "long-legged-doji",
-   "sym": "MDB",
-   "asof": "2026-10-07",
-   "ts": 20261007,
-   "bars": 1,
-   "trend": "neutral"
-  },
-  {
-   "key": "long-legged-doji",
-   "sym": "LLY",
-   "asof": "2026-09-29",
-   "ts": 20260929,
+   "key": "long-white",
+   "sym": "DASH",
+   "asof": "2026-08-25",
+   "ts": 20260825,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "long-white",
-   "sym": "SPOT",
+   "sym": "LYFT",
+   "asof": "2026-10-13",
+   "ts": 20261013,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "LYFT",
+   "asof": "2026-08-19",
+   "ts": 20260819,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "long-white",
+   "sym": "SNAP",
    "asof": "2026-10-15",
    "ts": 20261015,
    "bars": 1,
@@ -1093,74 +2685,90 @@
   },
   {
    "key": "long-white",
+   "sym": "SNAP",
+   "asof": "2026-09-02",
+   "ts": 20260902,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "matching-low",
    "sym": "ROKU",
-   "asof": "2026-10-15",
-   "ts": 20261015,
-   "bars": 1,
-   "trend": "neutral"
-  },
-  {
-   "key": "long-white",
-   "sym": "BA",
-   "asof": "2026-10-01",
-   "ts": 20261001,
-   "bars": 1,
+   "asof": "2026-02-06",
+   "ts": 20260206,
+   "bars": 2,
    "trend": "down"
   },
   {
-   "key": "long-white",
+   "key": "matching-low",
    "sym": "DIS",
-   "asof": "2026-10-08",
-   "ts": 20261008,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "matching-low",
-   "sym": "TSLA",
-   "asof": "2026-06-25",
-   "ts": 20260625,
+   "asof": "2026-07-07",
+   "ts": 20260707,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "matching-low",
-   "sym": "NFLX",
-   "asof": "2026-06-23",
-   "ts": 20260623,
+   "sym": "DIS",
+   "asof": "2025-08-11",
+   "ts": 20250811,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "matching-low",
-   "sym": "AMD",
-   "asof": "2026-02-11",
-   "ts": 20260211,
+   "sym": "NKE",
+   "asof": "2025-09-26",
+   "ts": 20250926,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "matching-low",
-   "sym": "AVGO",
-   "asof": "2026-09-16",
-   "ts": 20260916,
+   "sym": "NKE",
+   "asof": "2025-01-07",
+   "ts": 20250107,
    "bars": 2,
    "trend": "down"
   },
   {
-   "key": "morning-doji-star",
-   "sym": "AVGO",
-   "asof": "2025-08-22",
-   "ts": 20250822,
-   "bars": 3,
+   "key": "matching-low",
+   "sym": "SQ",
+   "asof": "2024-09-10",
+   "ts": 20240910,
+   "bars": 2,
    "trend": "down"
   },
   {
-   "key": "morning-doji-star",
-   "sym": "SMCI",
-   "asof": "2026-01-15",
-   "ts": 20260115,
-   "bars": 3,
+   "key": "matching-low",
+   "sym": "SQ",
+   "asof": "2024-01-11",
+   "ts": 20240111,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "matching-low",
+   "sym": "LCID",
+   "asof": "2026-04-08",
+   "ts": 20260408,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "matching-low",
+   "sym": "PTON",
+   "asof": "2026-01-21",
+   "ts": 20260121,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "matching-low",
+   "sym": "SPY",
+   "asof": "2026-06-24",
+   "ts": 20260624,
+   "bars": 2,
    "trend": "down"
   },
   {
@@ -1173,31 +2781,143 @@
   },
   {
    "key": "morning-doji-star",
-   "sym": "MSTR",
-   "asof": "2026-04-06",
-   "ts": 20260406,
+   "sym": "DDOG",
+   "asof": "2026-08-13",
+   "ts": 20260813,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "JPM",
+   "asof": "2025-11-19",
+   "ts": 20251119,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "V",
+   "asof": "2026-09-24",
+   "ts": 20260924,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "UNH",
+   "asof": "2024-05-31",
+   "ts": 20240531,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "JNJ",
+   "asof": "2025-10-30",
+   "ts": 20251030,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "GM",
+   "asof": "2024-09-12",
+   "ts": 20240912,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "LMT",
+   "asof": "2024-12-20",
+   "ts": 20241220,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "RCL",
+   "asof": "2025-12-10",
+   "ts": 20251210,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-doji-star",
+   "sym": "PINS",
+   "asof": "2025-03-12",
+   "ts": 20250312,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "morning-star",
-   "sym": "DUOL",
-   "asof": "2026-07-01",
-   "ts": 20260701,
+   "sym": "KO",
+   "asof": "2025-06-23",
+   "ts": 20250623,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "morning-star",
-   "sym": "AXON",
-   "asof": "2026-09-03",
-   "ts": 20260903,
+   "sym": "MCD",
+   "asof": "2026-03-25",
+   "ts": 20260325,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "morning-star",
-   "sym": "NET",
+   "sym": "MCD",
+   "asof": "2024-07-10",
+   "ts": 20240710,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "ORCL",
+   "asof": "2025-02-26",
+   "ts": 20250226,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "TXN",
+   "asof": "2026-06-11",
+   "ts": 20260611,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "LRCX",
+   "asof": "2025-08-22",
+   "ts": 20250822,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "GM",
+   "asof": "2026-05-20",
+   "ts": 20260520,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "DE",
+   "asof": "2024-05-02",
+   "ts": 20240502,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "morning-star",
+   "sym": "LYFT",
    "asof": "2026-02-06",
    "ts": 20260206,
    "bars": 3,
@@ -1205,81 +2925,201 @@
   },
   {
    "key": "morning-star",
-   "sym": "ZS",
-   "asof": "2025-08-27",
-   "ts": 20250827,
+   "sym": "SNAP",
+   "asof": "2025-06-24",
+   "ts": 20250624,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "on-neck",
-   "sym": "SMCI",
-   "asof": "2025-08-14",
-   "ts": 20250814,
+   "sym": "ELF",
+   "asof": "2025-03-04",
+   "ts": 20250304,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "on-neck",
-   "sym": "ARM",
-   "asof": "2026-08-03",
-   "ts": 20260803,
+   "sym": "DDOG",
+   "asof": "2024-06-07",
+   "ts": 20240607,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "on-neck",
-   "sym": "COIN",
-   "asof": "2026-04-02",
-   "ts": 20260402,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "on-neck",
-   "sym": "HOOD",
-   "asof": "2025-12-29",
-   "ts": 20251229,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "piercing-line",
    "sym": "MDB",
-   "asof": "2026-08-26",
-   "ts": 20260826,
+   "asof": "2024-12-16",
+   "ts": 20241216,
    "bars": 2,
    "trend": "down"
   },
   {
-   "key": "piercing-line",
-   "sym": "LLY",
-   "asof": "2026-07-21",
-   "ts": 20260721,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "piercing-line",
+   "key": "on-neck",
    "sym": "NVO",
-   "asof": "2026-10-05",
-   "ts": 20261005,
+   "asof": "2024-04-16",
+   "ts": 20240416,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "COST",
+   "asof": "2024-12-20",
+   "ts": 20241220,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "CAVA",
+   "asof": "2026-09-28",
+   "ts": 20260928,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "INTC",
+   "asof": "2025-11-14",
+   "ts": 20251114,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "INTC",
+   "asof": "2025-02-03",
+   "ts": 20250203,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "LCID",
+   "asof": "2026-05-06",
+   "ts": 20260506,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "on-neck",
+   "sym": "LCID",
+   "asof": "2025-02-28",
+   "ts": 20250228,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "piercing-line",
-   "sym": "COST",
-   "asof": "2026-06-08",
-   "ts": 20260608,
+   "sym": "AMD",
+   "asof": "2025-03-04",
+   "ts": 20250304,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "AVGO",
+   "asof": "2026-03-19",
+   "ts": 20260319,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "CRWD",
+   "asof": "2026-03-26",
+   "ts": 20260326,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "PLTR",
+   "asof": "2025-04-07",
+   "ts": 20250407,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "SMCI",
+   "asof": "2026-03-23",
+   "ts": 20260323,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "SMCI",
+   "asof": "2024-04-25",
+   "ts": 20240425,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "ARM",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "ARM",
+   "asof": "2026-03-09",
+   "ts": 20260309,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "COIN",
+   "asof": "2026-06-26",
+   "ts": 20260626,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "piercing-line",
+   "sym": "COIN",
+   "asof": "2025-11-07",
+   "ts": 20251107,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "rising-three-methods",
-   "sym": "APP",
-   "asof": "2025-05-19",
-   "ts": 20250519,
+   "sym": "ADBE",
+   "asof": "2025-12-11",
+   "ts": 20251211,
+   "bars": 5,
+   "trend": "up"
+  },
+  {
+   "key": "rising-three-methods",
+   "sym": "DE",
+   "asof": "2026-01-14",
+   "ts": 20260114,
+   "bars": 5,
+   "trend": "up"
+  },
+  {
+   "key": "rising-three-methods",
+   "sym": "RCL",
+   "asof": "2024-05-24",
+   "ts": 20240524,
+   "bars": 5,
+   "trend": "up"
+  },
+  {
+   "key": "rising-three-methods",
+   "sym": "ARM",
+   "asof": "2024-06-03",
+   "ts": 20240603,
    "bars": 5,
    "trend": "up"
   },
@@ -1301,151 +3141,375 @@
   },
   {
    "key": "rising-three-methods",
-   "sym": "SNOW",
-   "asof": "2025-06-18",
-   "ts": 20250618,
+   "sym": "RIVN",
+   "asof": "2025-12-18",
+   "ts": 20251218,
+   "bars": 5,
+   "trend": "up"
+  },
+  {
+   "key": "rising-three-methods",
+   "sym": "V",
+   "asof": "2026-08-04",
+   "ts": 20260804,
    "bars": 5,
    "trend": "up"
   },
   {
    "key": "separating-lines",
-   "sym": "NFLX",
-   "asof": "2025-06-04",
-   "ts": 20250604,
-   "bars": 2,
-   "trend": "up"
-  },
-  {
-   "key": "separating-lines",
-   "sym": "AMD",
-   "asof": "2025-09-09",
-   "ts": 20250909,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "separating-lines",
-   "sym": "AVGO",
-   "asof": "2026-10-16",
-   "ts": 20261016,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "separating-lines",
-   "sym": "CRWD",
-   "asof": "2026-03-24",
-   "ts": 20260324,
+   "sym": "MU",
+   "asof": "2026-06-11",
+   "ts": 20260611,
    "bars": 2,
    "trend": "neutral"
   },
   {
-   "key": "shooting-star",
-   "sym": "ANET",
-   "asof": "2024-05-20",
-   "ts": 20240520,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "MU",
+   "asof": "2025-11-11",
+   "ts": 20251111,
+   "bars": 2,
    "trend": "up"
   },
   {
-   "key": "shooting-star",
-   "sym": "VRT",
-   "asof": "2026-08-13",
-   "ts": 20260813,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "LRCX",
+   "asof": "2026-04-27",
+   "ts": 20260427,
+   "bars": 2,
    "trend": "up"
   },
   {
-   "key": "shooting-star",
-   "sym": "APP",
-   "asof": "2025-10-30",
-   "ts": 20251030,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "LRCX",
+   "asof": "2025-07-22",
+   "ts": 20250722,
+   "bars": 2,
    "trend": "up"
   },
   {
-   "key": "shooting-star",
-   "sym": "MSTR",
-   "asof": "2026-09-22",
-   "ts": 20260922,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "KLAC",
+   "asof": "2025-12-12",
+   "ts": 20251212,
+   "bars": 2,
    "trend": "up"
   },
   {
-   "key": "short-black",
-   "sym": "SHOP",
-   "asof": "2026-09-17",
-   "ts": 20260917,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "ASML",
+   "asof": "2026-07-01",
+   "ts": 20260701,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "separating-lines",
+   "sym": "TSM",
+   "asof": "2026-06-11",
+   "ts": 20260611,
+   "bars": 2,
    "trend": "down"
   },
   {
-   "key": "short-black",
-   "sym": "UBER",
-   "asof": "2026-09-18",
-   "ts": 20260918,
-   "bars": 1,
+   "key": "separating-lines",
+   "sym": "TSM",
+   "asof": "2025-08-22",
+   "ts": 20250822,
+   "bars": 2,
    "trend": "down"
   },
   {
-   "key": "short-black",
-   "sym": "NOW",
+   "key": "separating-lines",
+   "sym": "BABA",
+   "asof": "2026-06-17",
+   "ts": 20260617,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "separating-lines",
+   "sym": "BABA",
+   "asof": "2026-01-16",
+   "ts": 20260116,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "PYPL",
+   "asof": "2026-07-29",
+   "ts": 20260729,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "PYPL",
+   "asof": "2024-06-04",
+   "ts": 20240604,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "SQ",
+   "asof": "2023-12-20",
+   "ts": 20231220,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "SQ",
+   "asof": "2022-10-26",
+   "ts": 20221026,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "RIVN",
    "asof": "2026-04-17",
    "ts": 20260417,
    "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "RIVN",
+   "asof": "2025-12-10",
+   "ts": 20251210,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "LCID",
+   "asof": "2026-07-20",
+   "ts": 20260720,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "LCID",
+   "asof": "2025-09-23",
+   "ts": 20250923,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "PTON",
+   "asof": "2025-10-03",
+   "ts": 20251003,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "shooting-star",
+   "sym": "PTON",
+   "asof": "2025-02-10",
+   "ts": 20250210,
+   "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "short-black",
-   "sym": "PANW",
-   "asof": "2026-09-09",
-   "ts": 20260909,
+   "sym": "UNH",
+   "asof": "2026-01-26",
+   "ts": 20260126,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "JNJ",
+   "asof": "2026-01-30",
+   "ts": 20260130,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "PG",
+   "asof": "2024-06-20",
+   "ts": 20240620,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "KO",
+   "asof": "2026-01-26",
+   "ts": 20260126,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "PEP",
+   "asof": "2025-04-23",
+   "ts": 20250423,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "short-black",
+   "sym": "HD",
+   "asof": "2025-01-30",
+   "ts": 20250130,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "HD",
+   "asof": "2024-04-09",
+   "ts": 20240409,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "short-black",
+   "sym": "LOW",
+   "asof": "2024-11-22",
+   "ts": 20241122,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "short-black",
+   "sym": "SBUX",
+   "asof": "2025-12-16",
+   "ts": 20251216,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-black",
+   "sym": "SBUX",
+   "asof": "2024-09-05",
+   "ts": 20240905,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "short-white",
-   "sym": "PYPL",
-   "asof": "2026-09-11",
-   "ts": 20260911,
+   "sym": "RCL",
+   "asof": "2026-10-02",
+   "ts": 20261002,
    "bars": 1,
-   "trend": "down"
+   "trend": "up"
   },
   {
    "key": "short-white",
-   "sym": "SQ",
-   "asof": "2024-12-26",
-   "ts": 20241226,
+   "sym": "RCL",
+   "asof": "2026-01-23",
+   "ts": 20260123,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "short-white",
-   "sym": "RIVN",
-   "asof": "2026-09-03",
-   "ts": 20260903,
+   "sym": "ABNB",
+   "asof": "2026-07-15",
+   "ts": 20260715,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-white",
+   "sym": "TWLO",
+   "asof": "2025-10-20",
+   "ts": 20251020,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "short-white",
-   "sym": "LCID",
-   "asof": "2026-09-04",
-   "ts": 20260904,
+   "sym": "OKTA",
+   "asof": "2026-10-01",
+   "ts": 20261001,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-white",
+   "sym": "WDAY",
+   "asof": "2026-09-02",
+   "ts": 20260902,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-white",
+   "sym": "WDAY",
+   "asof": "2026-02-26",
+   "ts": 20260226,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "short-white",
+   "sym": "ADSK",
+   "asof": "2024-06-14",
+   "ts": 20240614,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-white",
+   "sym": "INTU",
+   "asof": "2025-12-18",
+   "ts": 20251218,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "short-white",
+   "sym": "INTU",
+   "asof": "2024-06-04",
+   "ts": 20240604,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "spinning-top",
-   "sym": "SNOW",
-   "asof": "2026-10-19",
-   "ts": 20261019,
+   "sym": "SBUX",
+   "asof": "2026-10-13",
+   "ts": 20261013,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "spinning-top",
-   "sym": "NET",
+   "sym": "SBUX",
+   "asof": "2026-08-20",
+   "ts": 20260820,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "spinning-top",
+   "sym": "ORCL",
+   "asof": "2026-08-19",
+   "ts": 20260819,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "spinning-top",
+   "sym": "ORCL",
+   "asof": "2026-07-07",
+   "ts": 20260707,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "spinning-top",
+   "sym": "CRM",
    "asof": "2026-10-13",
    "ts": 20261013,
    "bars": 1,
@@ -1453,119 +3517,327 @@
   },
   {
    "key": "spinning-top",
-   "sym": "ZS",
-   "asof": "2026-10-06",
-   "ts": 20261006,
+   "sym": "CRM",
+   "asof": "2026-08-24",
+   "ts": 20260824,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "spinning-top",
-   "sym": "MDB",
-   "asof": "2026-10-02",
-   "ts": 20261002,
+   "sym": "ADBE",
+   "asof": "2026-08-07",
+   "ts": 20260807,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "spinning-top",
+   "sym": "ADBE",
+   "asof": "2026-06-22",
+   "ts": 20260622,
    "bars": 1,
    "trend": "down"
   },
   {
+   "key": "spinning-top",
+   "sym": "CSCO",
+   "asof": "2026-09-17",
+   "ts": 20260917,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "spinning-top",
+   "sym": "CSCO",
+   "asof": "2026-07-31",
+   "ts": 20260731,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
    "key": "stick-sandwich",
-   "sym": "DDOG",
-   "asof": "2026-04-08",
-   "ts": 20260408,
+   "sym": "DIA",
+   "asof": "2025-03-03",
+   "ts": 20250303,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "stick-sandwich",
-   "sym": "SNOW",
-   "asof": "2026-06-24",
-   "ts": 20260624,
+   "sym": "META",
+   "asof": "2025-02-27",
+   "ts": 20250227,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "stick-sandwich",
-   "sym": "NET",
-   "asof": "2025-12-01",
-   "ts": 20251201,
+   "sym": "NFLX",
+   "asof": "2025-11-25",
+   "ts": 20251125,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "stick-sandwich",
-   "sym": "ZS",
-   "asof": "2025-12-09",
-   "ts": 20251209,
+   "sym": "CRWD",
+   "asof": "2025-02-27",
+   "ts": 20250227,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "COIN",
+   "asof": "2026-10-16",
+   "ts": 20261016,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "SHOP",
+   "asof": "2025-04-08",
+   "ts": 20250408,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "UBER",
+   "asof": "2024-04-08",
+   "ts": 20240408,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "NOW",
+   "asof": "2025-02-27",
+   "ts": 20250227,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "APP",
+   "asof": "2026-01-06",
+   "ts": 20260106,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "stick-sandwich",
+   "sym": "RKLB",
+   "asof": "2026-03-26",
+   "ts": 20260326,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-black-crows",
-   "sym": "SPOT",
-   "asof": "2026-03-12",
-   "ts": 20260312,
+   "sym": "DIA",
+   "asof": "2024-12-09",
+   "ts": 20241209,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-black-crows",
-   "sym": "ROKU",
-   "asof": "2025-03-28",
-   "ts": 20250328,
+   "sym": "NVDA",
+   "asof": "2025-11-06",
+   "ts": 20251106,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-black-crows",
-   "sym": "DIS",
-   "asof": "2024-10-25",
-   "ts": 20241025,
+   "sym": "META",
+   "asof": "2024-12-19",
+   "ts": 20241219,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-black-crows",
-   "sym": "NKE",
-   "asof": "2025-10-06",
-   "ts": 20251006,
+   "sym": "HIMS",
+   "asof": "2024-07-19",
+   "ts": 20240719,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "DUOL",
+   "asof": "2025-08-12",
+   "ts": 20250812,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "TTD",
+   "asof": "2026-09-18",
+   "ts": 20260918,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "MDB",
+   "asof": "2025-06-11",
+   "ts": 20250611,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "COST",
+   "asof": "2024-09-18",
+   "ts": 20240918,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "DECK",
+   "asof": "2026-06-17",
+   "ts": 20260617,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-black-crows",
+   "sym": "CAVA",
+   "asof": "2026-02-12",
+   "ts": 20260212,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-inside-down",
-   "sym": "LCID",
-   "asof": "2026-07-02",
-   "ts": 20260702,
+   "sym": "MSFT",
+   "asof": "2025-01-30",
+   "ts": 20250130,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-inside-down",
-   "sym": "PTON",
-   "asof": "2026-08-06",
-   "ts": 20260806,
+   "sym": "AMZN",
+   "asof": "2024-12-18",
+   "ts": 20241218,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-inside-down",
-   "sym": "ZM",
-   "asof": "2024-10-14",
-   "ts": 20241014,
+   "sym": "GOOGL",
+   "asof": "2024-04-15",
+   "ts": 20240415,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-inside-down",
-   "sym": "SPY",
-   "asof": "2025-09-24",
-   "ts": 20250924,
+   "sym": "META",
+   "asof": "2026-09-28",
+   "ts": 20260928,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "META",
+   "asof": "2026-07-17",
+   "ts": 20260717,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "TSLA",
+   "asof": "2025-04-04",
+   "ts": 20250404,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "TSLA",
+   "asof": "2024-05-23",
+   "ts": 20240523,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "NFLX",
+   "asof": "2024-05-31",
+   "ts": 20240531,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "AVGO",
+   "asof": "2025-12-12",
+   "ts": 20251212,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-inside-down",
+   "sym": "AVGO",
+   "asof": "2024-12-18",
+   "ts": 20241218,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "three-inside-up",
-   "sym": "SOFI",
+   "sym": "NKE",
+   "asof": "2026-08-19",
+   "ts": 20260819,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "PYPL",
+   "asof": "2026-02-09",
+   "ts": 20260209,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "PYPL",
+   "asof": "2025-06-23",
+   "ts": 20250623,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "SQ",
+   "asof": "2023-11-01",
+   "ts": 20231101,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "SQ",
+   "asof": "2023-05-04",
+   "ts": 20230504,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "LCID",
    "asof": "2025-12-19",
    "ts": 20251219,
    "bars": 3,
@@ -1573,27 +3845,91 @@
   },
   {
    "key": "three-inside-up",
-   "sym": "CELH",
-   "asof": "2026-09-22",
-   "ts": 20260922,
+   "sym": "LCID",
+   "asof": "2025-05-09",
+   "ts": 20250509,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-inside-up",
-   "sym": "ELF",
-   "asof": "2025-10-28",
-   "ts": 20251028,
+   "sym": "PTON",
+   "asof": "2025-10-14",
+   "ts": 20251014,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-inside-up",
-   "sym": "DUOL",
-   "asof": "2025-07-31",
-   "ts": 20250731,
+   "sym": "ZM",
+   "asof": "2025-08-13",
+   "ts": 20250813,
    "bars": 3,
    "trend": "down"
+  },
+  {
+   "key": "three-inside-up",
+   "sym": "ZM",
+   "asof": "2024-07-12",
+   "ts": 20240712,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "SMH",
+   "asof": "2025-01-27",
+   "ts": 20250127,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "SMH",
+   "asof": "2024-06-21",
+   "ts": 20240621,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "ARKK",
+   "asof": "2025-07-22",
+   "ts": 20250722,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "DIA",
+   "asof": "2026-06-08",
+   "ts": 20260608,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "DIA",
+   "asof": "2024-08-02",
+   "ts": 20240802,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "AAPL",
+   "asof": "2026-09-08",
+   "ts": 20260908,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "three-outside-down",
+   "sym": "AAPL",
+   "asof": "2026-02-13",
+   "ts": 20260213,
+   "bars": 3,
+   "trend": "up"
   },
   {
    "key": "three-outside-down",
@@ -1606,8 +3942,8 @@
   {
    "key": "three-outside-down",
    "sym": "NVDA",
-   "asof": "2026-01-09",
-   "ts": 20260109,
+   "asof": "2025-01-08",
+   "ts": 20250108,
    "bars": 3,
    "trend": "up"
   },
@@ -1620,32 +3956,40 @@
    "trend": "up"
   },
   {
-   "key": "three-outside-down",
-   "sym": "GOOGL",
-   "asof": "2026-08-06",
-   "ts": 20260806,
-   "bars": 3,
-   "trend": "up"
-  },
-  {
    "key": "three-outside-up",
-   "sym": "SNOW",
-   "asof": "2026-09-17",
-   "ts": 20260917,
+   "sym": "BA",
+   "asof": "2024-06-27",
+   "ts": 20240627,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-outside-up",
-   "sym": "NET",
-   "asof": "2026-09-09",
-   "ts": 20260909,
+   "sym": "NKE",
+   "asof": "2026-05-21",
+   "ts": 20260521,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-outside-up",
-   "sym": "ZS",
+   "sym": "NKE",
+   "asof": "2024-11-22",
+   "ts": 20241122,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-up",
+   "sym": "INTC",
+   "asof": "2026-03-10",
+   "ts": 20260310,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-up",
+   "sym": "SQ",
    "asof": "2024-09-12",
    "ts": 20240912,
    "bars": 3,
@@ -1653,55 +3997,191 @@
   },
   {
    "key": "three-outside-up",
-   "sym": "LLY",
-   "asof": "2026-03-09",
-   "ts": 20260309,
-   "bars": 3,
-   "trend": "down"
-  },
-  {
-   "key": "three-white-soldiers",
-   "sym": "ELF",
-   "asof": "2025-04-22",
-   "ts": 20250422,
-   "bars": 3,
-   "trend": "down"
-  },
-  {
-   "key": "three-white-soldiers",
-   "sym": "ONON",
+   "sym": "RIVN",
    "asof": "2026-05-14",
    "ts": 20260514,
    "bars": 3,
    "trend": "down"
   },
   {
-   "key": "three-white-soldiers",
-   "sym": "INTC",
-   "asof": "2026-09-03",
-   "ts": 20260903,
+   "key": "three-outside-up",
+   "sym": "LCID",
+   "asof": "2026-06-12",
+   "ts": 20260612,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-up",
+   "sym": "PTON",
+   "asof": "2026-01-06",
+   "ts": 20260106,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-up",
+   "sym": "ZM",
+   "asof": "2024-06-21",
+   "ts": 20240621,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-outside-up",
+   "sym": "IWM",
+   "asof": "2024-11-05",
+   "ts": 20241105,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "three-white-soldiers",
-   "sym": "PYPL",
+   "sym": "CSCO",
+   "asof": "2024-12-24",
+   "ts": 20241224,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "CAT",
+   "asof": "2025-03-07",
+   "ts": 20250307,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "DE",
+   "asof": "2024-11-18",
+   "ts": 20241118,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "HON",
+   "asof": "2025-03-07",
+   "ts": 20250307,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "DASH",
+   "asof": "2026-05-18",
+   "ts": 20260518,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "LYFT",
+   "asof": "2026-05-22",
+   "ts": 20260522,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "LYFT",
    "asof": "2025-04-02",
    "ts": 20250402,
    "bars": 3,
    "trend": "down"
   },
   {
+   "key": "three-white-soldiers",
+   "sym": "SNAP",
+   "asof": "2026-02-20",
+   "ts": 20260220,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "XLF",
+   "asof": "2024-06-18",
+   "ts": 20240618,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "three-white-soldiers",
+   "sym": "XLE",
+   "asof": "2026-10-05",
+   "ts": 20261005,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
    "key": "thrusting",
-   "sym": "RKLB",
-   "asof": "2026-07-23",
-   "ts": 20260723,
+   "sym": "AMAT",
+   "asof": "2025-03-31",
+   "ts": 20250331,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "thrusting",
-   "sym": "IONQ",
+   "sym": "AMAT",
+   "asof": "2024-08-05",
+   "ts": 20240805,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "LRCX",
+   "asof": "2025-03-31",
+   "ts": 20250331,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "LRCX",
+   "asof": "2024-08-05",
+   "ts": 20240805,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "KLAC",
+   "asof": "2024-08-05",
+   "ts": 20240805,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "ASML",
+   "asof": "2026-10-15",
+   "ts": 20261015,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "ASML",
+   "asof": "2026-08-03",
+   "ts": 20260803,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "TSM",
+   "asof": "2026-10-13",
+   "ts": 20261013,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "thrusting",
+   "sym": "TSM",
    "asof": "2025-11-14",
    "ts": 20251114,
    "bars": 2,
@@ -1709,17 +4189,9 @@
   },
   {
    "key": "thrusting",
-   "sym": "HIMS",
-   "asof": "2026-09-02",
-   "ts": 20260902,
-   "bars": 2,
-   "trend": "down"
-  },
-  {
-   "key": "thrusting",
-   "sym": "SOFI",
-   "asof": "2026-10-13",
-   "ts": 20261013,
+   "sym": "BABA",
+   "asof": "2025-06-23",
+   "ts": 20250623,
    "bars": 2,
    "trend": "down"
   },
@@ -1741,39 +4213,71 @@
   },
   {
    "key": "tri-star",
-   "sym": "NVO",
-   "asof": "2026-03-24",
-   "ts": 20260324,
+   "sym": "PEP",
+   "asof": "2026-03-12",
+   "ts": 20260312,
    "bars": 3,
    "trend": "down"
   },
   {
    "key": "tri-star",
-   "sym": "ONON",
-   "asof": "2025-05-22",
-   "ts": 20250522,
+   "sym": "UAL",
+   "asof": "2024-09-13",
+   "ts": 20240913,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "tri-star",
+   "sym": "LYFT",
+   "asof": "2025-02-27",
+   "ts": 20250227,
+   "bars": 3,
+   "trend": "down"
+  },
+  {
+   "key": "tri-star",
+   "sym": "XLE",
+   "asof": "2025-06-17",
+   "ts": 20250617,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "tweezer-bottom",
-   "sym": "SHOP",
-   "asof": "2026-09-14",
-   "ts": 20260914,
+   "sym": "NVO",
+   "asof": "2026-10-08",
+   "ts": 20261008,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "tweezer-bottom",
-   "sym": "UBER",
-   "asof": "2026-09-21",
-   "ts": 20260921,
+   "sym": "NVO",
+   "asof": "2026-08-14",
+   "ts": 20260814,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "tweezer-bottom",
-   "sym": "NOW",
+   "sym": "COST",
+   "asof": "2026-09-04",
+   "ts": 20260904,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "COST",
+   "asof": "2026-06-29",
+   "ts": 20260629,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "CMG",
    "asof": "2026-09-11",
    "ts": 20260911,
    "bars": 2,
@@ -1781,57 +4285,129 @@
   },
   {
    "key": "tweezer-bottom",
-   "sym": "PANW",
-   "asof": "2026-07-24",
-   "ts": 20260724,
+   "sym": "CMG",
+   "asof": "2026-03-26",
+   "ts": 20260326,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "DECK",
+   "asof": "2026-01-29",
+   "ts": 20260129,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "DECK",
+   "asof": "2025-02-05",
+   "ts": 20250205,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "ONON",
+   "asof": "2025-11-10",
+   "ts": 20251110,
+   "bars": 2,
+   "trend": "down"
+  },
+  {
+   "key": "tweezer-bottom",
+   "sym": "ONON",
+   "asof": "2025-04-01",
+   "ts": 20250401,
    "bars": 2,
    "trend": "down"
   },
   {
    "key": "tweezer-top",
-   "sym": "IWM",
-   "asof": "2026-08-14",
-   "ts": 20260814,
+   "sym": "PINS",
+   "asof": "2026-10-14",
+   "ts": 20261014,
    "bars": 2,
    "trend": "up"
   },
   {
    "key": "tweezer-top",
-   "sym": "AAPL",
-   "asof": "2026-10-16",
-   "ts": 20261016,
+   "sym": "PINS",
+   "asof": "2026-07-31",
+   "ts": 20260731,
    "bars": 2,
    "trend": "up"
   },
   {
    "key": "tweezer-top",
-   "sym": "MSFT",
-   "asof": "2026-10-02",
-   "ts": 20261002,
+   "sym": "TWLO",
+   "asof": "2026-10-05",
+   "ts": 20261005,
    "bars": 2,
    "trend": "up"
   },
   {
    "key": "tweezer-top",
-   "sym": "NVDA",
-   "asof": "2026-10-01",
-   "ts": 20261001,
+   "sym": "TWLO",
+   "asof": "2026-08-12",
+   "ts": 20260812,
    "bars": 2,
    "trend": "up"
   },
   {
-   "key": "two-crows",
-   "sym": "NET",
-   "asof": "2025-09-12",
-   "ts": 20250912,
-   "bars": 3,
+   "key": "tweezer-top",
+   "sym": "OKTA",
+   "asof": "2026-01-15",
+   "ts": 20260115,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "tweezer-top",
+   "sym": "OKTA",
+   "asof": "2025-03-06",
+   "ts": 20250306,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "tweezer-top",
+   "sym": "TEAM",
+   "asof": "2026-08-12",
+   "ts": 20260812,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "tweezer-top",
+   "sym": "TEAM",
+   "asof": "2026-06-04",
+   "ts": 20260604,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "tweezer-top",
+   "sym": "WDAY",
+   "asof": "2026-07-31",
+   "ts": 20260731,
+   "bars": 2,
+   "trend": "up"
+  },
+  {
+   "key": "tweezer-top",
+   "sym": "WDAY",
+   "asof": "2026-05-04",
+   "ts": 20260504,
+   "bars": 2,
    "trend": "up"
   },
   {
    "key": "two-crows",
    "sym": "ZS",
-   "asof": "2025-05-28",
-   "ts": 20250528,
+   "asof": "2024-11-14",
+   "ts": 20241114,
    "bars": 3,
    "trend": "up"
   },
@@ -1845,6 +4421,14 @@
   },
   {
    "key": "two-crows",
+   "sym": "MDB",
+   "asof": "2025-11-04",
+   "ts": 20251104,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
    "sym": "LLY",
    "asof": "2024-07-16",
    "ts": 20240716,
@@ -1852,132 +4436,372 @@
    "trend": "up"
   },
   {
+   "key": "two-crows",
+   "sym": "NVO",
+   "asof": "2026-04-17",
+   "ts": 20260417,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
+   "sym": "NVO",
+   "asof": "2026-01-07",
+   "ts": 20260107,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
+   "sym": "WMT",
+   "asof": "2026-02-05",
+   "ts": 20260205,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
+   "sym": "CMG",
+   "asof": "2024-04-30",
+   "ts": 20240430,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
+   "sym": "ONON",
+   "asof": "2024-11-12",
+   "ts": 20241112,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "two-crows",
+   "sym": "CAVA",
+   "asof": "2026-01-12",
+   "ts": 20260112,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
    "key": "umbrella",
-   "sym": "QQQ",
-   "asof": "2025-08-20",
-   "ts": 20250820,
+   "sym": "CVX",
+   "asof": "2026-10-05",
+   "ts": 20261005,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "umbrella",
-   "sym": "IWM",
-   "asof": "2026-08-25",
-   "ts": 20260825,
+   "sym": "CVX",
+   "asof": "2025-11-10",
+   "ts": 20251110,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "umbrella",
-   "sym": "AAPL",
-   "asof": "2026-04-07",
-   "ts": 20260407,
+   "sym": "UNH",
+   "asof": "2026-06-23",
+   "ts": 20260623,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "umbrella",
-   "sym": "MSFT",
-   "asof": "2026-04-09",
-   "ts": 20260409,
+   "sym": "JNJ",
+   "asof": "2026-06-16",
+   "ts": 20260616,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "umbrella",
+   "sym": "JNJ",
+   "asof": "2026-01-02",
+   "ts": 20260102,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "umbrella",
+   "sym": "PG",
+   "asof": "2026-08-05",
+   "ts": 20260805,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "umbrella",
+   "sym": "PG",
+   "asof": "2025-04-23",
+   "ts": 20250423,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "umbrella",
+   "sym": "KO",
+   "asof": "2025-03-06",
+   "ts": 20250306,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "umbrella",
+   "sym": "PEP",
+   "asof": "2024-04-09",
+   "ts": 20240409,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "umbrella",
+   "sym": "HD",
+   "asof": "2026-07-08",
+   "ts": 20260708,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "upside-tasuki-gap",
-   "sym": "MSFT",
-   "asof": "2026-08-11",
-   "ts": 20260811,
+   "sym": "AMD",
+   "asof": "2026-07-01",
+   "ts": 20260701,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "upside-tasuki-gap",
-   "sym": "NVDA",
-   "asof": "2025-07-25",
-   "ts": 20250725,
+   "sym": "AMD",
+   "asof": "2026-05-07",
+   "ts": 20260507,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "upside-tasuki-gap",
-   "sym": "AMZN",
-   "asof": "2024-11-08",
-   "ts": 20241108,
+   "sym": "AVGO",
+   "asof": "2026-04-23",
+   "ts": 20260423,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "upside-tasuki-gap",
-   "sym": "GOOGL",
-   "asof": "2025-09-22",
-   "ts": 20250922,
+   "sym": "AVGO",
+   "asof": "2024-12-17",
+   "ts": 20241217,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "CRWD",
+   "asof": "2024-09-23",
+   "ts": 20240923,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "PLTR",
+   "asof": "2026-03-05",
+   "ts": 20260305,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "SMCI",
+   "asof": "2026-09-28",
+   "ts": 20260928,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "SMCI",
+   "asof": "2026-06-03",
+   "ts": 20260603,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "ARM",
+   "asof": "2026-04-27",
+   "ts": 20260427,
+   "bars": 3,
+   "trend": "up"
+  },
+  {
+   "key": "upside-tasuki-gap",
+   "sym": "ARM",
+   "asof": "2025-01-23",
+   "ts": 20250123,
    "bars": 3,
    "trend": "up"
   },
   {
    "key": "white-candle",
-   "sym": "SPOT",
-   "asof": "2026-10-08",
-   "ts": 20261008,
+   "sym": "HIMS",
+   "asof": "2026-10-05",
+   "ts": 20261005,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "white-candle",
-   "sym": "ROKU",
-   "asof": "2026-10-19",
-   "ts": 20261019,
-   "bars": 1,
-   "trend": "up"
-  },
-  {
-   "key": "white-candle",
-   "sym": "BA",
-   "asof": "2026-10-19",
-   "ts": 20261019,
+   "sym": "HIMS",
+   "asof": "2026-08-20",
+   "ts": 20260820,
    "bars": 1,
    "trend": "neutral"
   },
   {
    "key": "white-candle",
-   "sym": "DIS",
+   "sym": "SOFI",
    "asof": "2026-10-20",
    "ts": 20261020,
    "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "white-candle",
+   "sym": "SOFI",
+   "asof": "2026-09-03",
+   "ts": 20260903,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "white-candle",
+   "sym": "CELH",
+   "asof": "2026-10-08",
+   "ts": 20261008,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "white-candle",
+   "sym": "CELH",
+   "asof": "2026-08-24",
+   "ts": 20260824,
+   "bars": 1,
    "trend": "up"
   },
   {
-   "key": "white-marubozu",
-   "sym": "PLTR",
-   "asof": "2026-08-07",
-   "ts": 20260807,
+   "key": "white-candle",
+   "sym": "ELF",
+   "asof": "2026-10-07",
+   "ts": 20261007,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-candle",
+   "sym": "ELF",
+   "asof": "2026-08-21",
+   "ts": 20260821,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-candle",
+   "sym": "DUOL",
+   "asof": "2026-10-14",
+   "ts": 20261014,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "white-candle",
+   "sym": "DUOL",
+   "asof": "2026-08-18",
+   "ts": 20260818,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "white-marubozu",
-   "sym": "SMCI",
-   "asof": "2026-07-21",
-   "ts": 20260721,
+   "sym": "SNOW",
+   "asof": "2026-10-09",
+   "ts": 20261009,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "SNOW",
+   "asof": "2026-04-13",
+   "ts": 20260413,
    "bars": 1,
    "trend": "down"
   },
   {
    "key": "white-marubozu",
-   "sym": "ARM",
-   "asof": "2026-09-21",
-   "ts": 20260921,
+   "sym": "NET",
+   "asof": "2026-08-27",
+   "ts": 20260827,
+   "bars": 1,
+   "trend": "down"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "NET",
+   "asof": "2026-06-01",
+   "ts": 20260601,
    "bars": 1,
    "trend": "up"
   },
   {
    "key": "white-marubozu",
-   "sym": "COIN",
+   "sym": "ZS",
+   "asof": "2026-08-06",
+   "ts": 20260806,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "ZS",
+   "asof": "2026-05-20",
+   "ts": 20260520,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "MDB",
+   "asof": "2026-08-13",
+   "ts": 20260813,
+   "bars": 1,
+   "trend": "up"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "MDB",
    "asof": "2026-06-26",
    "ts": 20260626,
    "bars": 1,
    "trend": "down"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "LLY",
+   "asof": "2026-10-09",
+   "ts": 20261009,
+   "bars": 1,
+   "trend": "neutral"
+  },
+  {
+   "key": "white-marubozu",
+   "sym": "LLY",
+   "asof": "2026-08-10",
+   "ts": 20260810,
+   "bars": 1,
+   "trend": "up"
   }
  ]
 }

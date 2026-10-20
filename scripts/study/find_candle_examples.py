@@ -56,6 +56,39 @@ Bar = dict
 WINDOW = 60          # bars handed to single_candle: >= MIN_HISTORY + the trend anchor's 40
 WARMUP = WINDOW      # never name a bar without a full window behind it
 
+# Owner 2026-10-20: "a ton of examples for each" and "equivalent examples that
+# might be a bit better". More places to look (the first list plus the large
+# liquid names a member sees on any screen), more kept per name, and only
+# LEGIBLE occurrences: every bar of the pattern must be at least this fraction
+# of the stock's recent average range, so the member can read the shape at a
+# glance on a daily chart.
+MORE_CANDIDATES = [
+    "JPM", "GS", "V", "MA", "XOM", "CVX", "UNH", "JNJ", "PG", "KO", "PEP", "HD", "LOW", "MCD", "SBUX",
+    "ORCL", "CRM", "ADBE", "CSCO", "QCOM", "TXN", "MU", "AMAT", "LRCX", "KLAC", "ASML", "TSM",
+    "BABA", "PDD", "NIO", "F", "GM", "CAT", "DE", "LMT", "RTX", "GE", "HON", "UPS", "FDX",
+    "DAL", "UAL", "CCL", "RCL", "MAR", "ABNB", "DASH", "LYFT", "SNAP", "PINS", "TWLO", "OKTA",
+    "TEAM", "WDAY", "ADSK", "INTU", "AFRM", "UPST", "MARA", "RIOT", "CLSK",
+    "GLD", "SLV", "TLT", "XLF", "XLE", "XLK", "SMH", "ARKK", "DIA",
+]
+ALL_CANDIDATES = CANDIDATES + [s for s in MORE_CANDIDATES if s not in CANDIDATES]
+LEGIBLE_RANGE_FRAC = 0.8     # each pattern bar's range vs the 20-bar average range before the pattern
+LEGIBLE_LOOKBACK = 20
+
+
+def legible(bars: list[Bar], i: int, nbars: int, *, frac: float = LEGIBLE_RANGE_FRAC) -> bool:
+    """True when every bar of the `nbars`-bar pattern ending at `i` has a range
+    of at least `frac` x the average range of the LEGIBLE_LOOKBACK bars before
+    the pattern. A pattern made of tiny bars is correct by geometry and useless
+    as a teaching example (owner ruling 2026-10-20)."""
+    first = i - nbars + 1
+    if first - LEGIBLE_LOOKBACK < 0:
+        return False
+    hist = bars[first - LEGIBLE_LOOKBACK:first]
+    avg = sum(b["h"] - b["l"] for b in hist) / len(hist)
+    if avg <= 0:
+        return False
+    return all((bars[j]["h"] - bars[j]["l"]) >= frac * avg for j in range(first, i + 1))
+
 
 def names_at(bars: list[Bar], i: int, window: int = WINDOW) -> tuple[list[str], str | None]:
     """The catalog keys the screener would publish for bar `i`, and the trend
@@ -85,13 +118,14 @@ def hits(bars_by_sym: dict[str, list[Bar]], *, window: int = WINDOW) -> dict[str
     return out
 
 
-def scan(bars_by_sym: dict[str, list[Bar]], *, per_key: int = 4, per_sym: int = 1,
-         min_gap_bars: int = 30, window: int = WINDOW, keys: set | None = None) -> list[dict]:
+def scan(bars_by_sym: dict[str, list[Bar]], *, per_key: int = 10, per_sym: int = 2,
+         min_gap_bars: int = 30, window: int = WINDOW, keys: set | None = None,
+         require_legible: bool = True) -> list[dict]:
     """Up to `per_key` examples per catalog key, at most `per_sym` of one key
-    per symbol, each at least `min_gap_bars` apart, dates newest first.
-    Deterministic, and SPREAD: each key starts its walk at a different
-    candidate (rotated by the key), so the first four names on the list do not
-    supply every chart the owner sees."""
+    per symbol, each at least `min_gap_bars` apart, dates newest first, and
+    (by default) only LEGIBLE occurrences. Deterministic, and SPREAD: each key
+    starts its walk at a different candidate (rotated by the key), so the
+    first names on the list do not supply every chart the owner sees."""
     want = {p.key for p in cat.ALL_PATTERNS} if keys is None else set(keys)
     by_sym = hits(bars_by_sym, window=window)
     syms = list(by_sym)
@@ -99,6 +133,7 @@ def scan(bars_by_sym: dict[str, list[Bar]], *, per_key: int = 4, per_sym: int = 
     for n, key in enumerate(sorted(want)):
         found: list[dict] = []
         start = sum(ord(ch) for ch in key) % max(len(syms), 1)
+        nbars = cat.BY_KEY[key].bars
         for sym in syms[start:] + syms[:start]:
             taken = 0
             last_i = None
@@ -110,6 +145,8 @@ def scan(bars_by_sym: dict[str, list[Bar]], *, per_key: int = 4, per_sym: int = 
                 if last_i is not None and last_i - i < min_gap_bars:
                     continue
                 bars = bars_by_sym[sym]
+                if require_legible and not legible(bars, i, nbars):
+                    continue
                 found.append({"key": key, "sym": sym, "asof": key_to_iso(bars[i]["t"]), "ts": bars[i]["t"],
                               "bars": cat.BY_KEY[key].bars, "trend": trend})
                 taken += 1
@@ -137,7 +174,7 @@ def _synthetic(n: int = 120) -> list[Bar]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Find real-chart examples for every candle name.")
     ap.add_argument("--self-test", action="store_true", help="run the scan on synthetic bars; no database")
-    ap.add_argument("--per-key", type=int, default=4)
+    ap.add_argument("--per-key", type=int, default=10)
     ap.add_argument("--bars", type=int, default=700, help="daily bars of history per candidate")
     ap.add_argument("--only", action="append", default=[], help="catalog key (repeatable)")
     args = ap.parse_args(argv)
@@ -148,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     from api.services import bars_sqlite  # noqa: E402  (pod only)
     today = int(date.today().strftime("%Y%m%d"))
     bars_by_sym = {}
-    for sym in CANDIDATES:
+    for sym in ALL_CANDIDATES:
         rows = bars_sqlite.get_bars_before(sym, "D", args.bars, today)
         if len(rows) >= 300:
             bars_by_sym[sym] = rows_to_bars(rows)
