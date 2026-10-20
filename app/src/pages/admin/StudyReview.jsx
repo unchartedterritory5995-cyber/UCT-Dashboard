@@ -43,6 +43,7 @@ export const REVIEW_URL = '/api/study/admin/review'
 export const TRUST_URL = '/api/study/admin/trust'
 export const EXPORT_URL = '/api/study/admin/corrections/export'
 export const QUEUE_LIMIT = 150
+export const QUEUE_LIMIT_SKILL = 500
 export const LANES = ['manual', 'deterministic', 'fast', 'second_look']
 export const REJECT_REASONS = [
   'wrong label', 'bad chart', 'wrong number', 'voice', 'duplicate', 'split/adjustment', 'hindsight-obvious',
@@ -241,7 +242,9 @@ export default function StudyReview() {
   // hundreds of older ones (vocab.chart behind 374 recall drafts) never reaches
   // the limit. The skill filter is how the reviewer gets straight to it.
   const [skill, setSkill] = useState('')
-  const key = reviewKey(lane, type, QUEUE_LIMIT, skill)
+  // one skill is a bounded set the owner works through in order, so the whole
+  // skill is served (the route caps at 500); the unscoped queue stays at 150
+  const key = reviewKey(lane, type, skill ? QUEUE_LIMIT_SKILL : QUEUE_LIMIT, skill)
   const { data, error, mutate } = useSWR(key, fetcher, { revalidateOnFocus: false })
   const drafts = data?.drafts || NO_ITEMS
   const counts = data?.counts || NO_OBJ

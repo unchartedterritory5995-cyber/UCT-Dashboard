@@ -412,6 +412,12 @@ def assign_review_lane(item: dict) -> str:
         return "manual"                  # teaching copy: the owner reads every one
     if t == "size":
         return "deterministic"
+    if item.get("sym") or item.get("bars") or item.get("bars_ref") or item.get("bars_embed"):
+        # an item that shows a CHART is judged by looking at the chart (owner
+        # 2026-10-19: he must SEE it), whatever its key's provenance: the
+        # candle chart items carry a verbatim catalog quote and are not
+        # deterministic for that
+        return "manual"
     if t == "recall" and r.get("quote") and str(item.get("source_kind") or "") in VERBATIM_SOURCE_KINDS:
         return "deterministic"
     outcome = str(r.get("outcome") or "").lower()

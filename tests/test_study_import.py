@@ -174,6 +174,11 @@ def test_lane_deterministic_for_size_and_verbatim_recall():
     assert si.assign_review_lane({"type": "recall", "source_kind": "glossary",
                                   "reveal_json": {"quote": "The firm's six-station cycle"}}) == "deterministic"
     assert si.assign_review_lane({"type": "recall", "source_kind": "glossary", "reveal_json": {}}) == "manual"
+    # a chart item is reviewed by LOOKING at the chart, never auto-approved on a verbatim key
+    assert si.assign_review_lane({"type": "recall", "source_kind": "candles", "sym": "NVDA", "bars_ref": "sb_x",
+                                  "reveal_json": {"quote": "A long lower wick after a decline."}}) == "manual"
+    assert si.assign_review_lane({"type": "recall", "source_kind": "candles",
+                                  "reveal_json": {"quote": "A long lower wick after a decline."}}) == "deterministic"
 
 
 def test_lane_fast_for_agreeing_signals_second_look_for_disagreement_or_expired():
