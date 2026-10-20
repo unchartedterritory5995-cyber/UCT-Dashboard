@@ -1,9 +1,10 @@
 // Notebook widgets client lib (Task 7): the kinds, the one fetch, the node builder, the refresh merge.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { WIDGET_KINDS, widgetEmbedNode } from './notebookWidgets'
 import {
-  WIDGET_KINDS, fetchWidgetPayload, widgetEmbedNode, refreshParams, requestParamsOf,
+  fetchWidgetPayload, refreshParams, requestParamsOf,
   OFFLINE_SENTENCE, REFRESH_FAILED_SENTENCE, refreshFailureText,
-} from './notebookWidgets'
+} from './notebookWidgetsFetch'
 import { resolveEmbedRender } from './widgetEmbedCore'
 
 const setOnline = (value) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value })

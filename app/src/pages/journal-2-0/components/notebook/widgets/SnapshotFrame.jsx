@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
 import { etDateTime, isoDayText } from '../captureStamp'
+import { widgetKind } from '../../../lib/notebookWidgets'
 import {
-  fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText, widgetKind,
-} from '../../../lib/notebookWidgets'
+  fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText,
+} from '../../../lib/notebookWidgetsFetch'
 import styles from './SnapshotFrame.module.css'
 
 /**

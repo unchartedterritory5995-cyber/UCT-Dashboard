@@ -28,7 +28,7 @@ import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
-import { WIDGET_KINDS, CAPTURE_KINDS, fetchWidgetPayload, widgetEmbedNode } from '../../lib/notebookWidgets'
+import { WIDGET_KINDS, CAPTURE_KINDS, widgetEmbedNode } from '../../lib/notebookWidgets'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import styles from './SlashMenu.module.css'
 
@@ -491,9 +491,12 @@ function snapshotCommand(kind, params) {
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
     editor.on('transaction', track)
     // A Task 16 kind fetches and builds through its lazily loaded capture module; a lost chunk is a failed fetch.
+    // A snapshot kind's fetch is lazy too (Task 16D: first-open bytes); a chunk that cannot load answers as
+    // fetchWidgetPayload itself would for a request that cannot be made: offline when the browser says so.
     const res = kind.capture
       ? await kind.capture(params).catch(() => ({ ok: false, reason: 'failed' }))
-      : await fetchWidgetPayload(kind.id, params)
+      : await import('../../lib/notebookWidgetsFetch').then((m) => m.fetchWidgetPayload(kind.id, params),
+        () => ({ ok: false, reason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed' }))
     editor.off('transaction', track)
     if (editor.isDestroyed) return { ok: false, message: null }
     if (!res.ok) {
