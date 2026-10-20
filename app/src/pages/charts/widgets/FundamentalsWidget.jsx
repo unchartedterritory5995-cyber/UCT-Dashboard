@@ -6,11 +6,14 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import {
+  buildFundamentalsCapture, fundamentalsCaptureSettings, effectiveFundamentalsView, companyFromSnapshot,
+} from './captures/fundamentalsCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
-import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
+import { tagAppTheme } from '../../../components/chart/chartThemes'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
@@ -157,7 +160,9 @@ export default function FundamentalsWidget({
   // Uncustomized (no saved pref) → the DEFAULTS FOR THE CURRENT APP THEME (light →
   // white canvas + dark text), so the ⚙ swatches and the surface follow the theme.
   const fwSettings = useMemo(
-    () => mergeFundamentalsSettings(frozen?.settings ?? resolveGlobalPrefSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null), placedTheme, fundamentalsDefaultsForTheme)),
+    () => (frozen?.settings != null
+      ? mergeFundamentalsSettings(frozen.settings)
+      : fundamentalsCaptureSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null), placedTheme)),
     [prefs, frozen, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -179,7 +184,7 @@ export default function FundamentalsWidget({
   // Company name for the header — from the shared snapshot (already fetched for
   // this ticker elsewhere, so SWR dedupes: no extra request).
   const { data: snap } = useFundamentalSnapshot(frozen ? null : sym)
-  const company = frozen?.company || (snap?.name && snap.name !== sym ? snap.name : null)
+  const company = frozen?.company || companyFromSnapshot(sym, snap)
   const [journalMsg, setJournalMsg] = useJournalToast()
   // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
   const [captureMenu, setCaptureMenu] = useState(null)
@@ -205,9 +210,7 @@ export default function FundamentalsWidget({
   // are always available; the earnings-table views fall back to whichever section
   // actually has data.
   const isPanelView = view === 'analyst' || view === 'ownership'
-  const effectiveView = isPanelView ? view
-    : view === 'annual' ? (hasAnnual ? 'annual' : 'quarterly')
-    : (hasQ ? 'quarterly' : 'annual')
+  const effectiveView = effectiveFundamentalsView(view, data)
 
   // Earnings-table views need the earnings fetch; the panel views do not.
   if (!isPanelView) {
@@ -285,11 +288,10 @@ export default function FundamentalsWidget({
         {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (() => {
           // Freeze exactly what the widget shows right now — shared by the
           // one-click default send AND the destination-picker.
-          const buildFundamentalsCapture = () => ({
-            symbol: sym, view: effectiveView, company,
-            settings: fwSettings,
-            data: { annual: data?.annual || [], quarterly: data?.quarterly || [] },
-          })
+          // ONE builder with the Notebook's /fundamentals insert (captures/fundamentalsCapture.js).
+          const fundamentalsCapture = () => buildFundamentalsCapture(
+            { symbol: sym, data, company }, { view: effectiveView, settings: fwSettings },
+          )
           return (
             <>
               <button
@@ -297,7 +299,7 @@ export default function FundamentalsWidget({
                 className={styles.gearBtn}
                 onClick={async () => {
                   setJournalMsg('sending…')
-                  setJournalMsg(await sendCaptureToJournal('fundamentals', buildFundamentalsCapture(), { label: `${sym} fundamentals` }))
+                  setJournalMsg(await sendCaptureToJournal('fundamentals', fundamentalsCapture(), { label: `${sym} fundamentals` }))
                 }}
                 title="Send these financials to Journal"
                 aria-label="Send these financials to Journal"
@@ -305,7 +307,7 @@ export default function FundamentalsWidget({
               <button
                 type="button"
                 className={styles.gearBtn}
-                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildFundamentalsCapture() })}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: fundamentalsCapture() })}
                 title="Send to Journal — choose where"
                 aria-label="Send to Journal — choose where"
               ><UIcon name="chevronDown" size={13} /></button>
