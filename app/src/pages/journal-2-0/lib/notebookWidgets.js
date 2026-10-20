@@ -60,6 +60,9 @@ export const CAPTURE_KINDS = Object.freeze([
   { id: 'indexes', title: 'Index levels', held: 1, description: 'SPY, QQQ, DIA, IWM, BTC and VIX now', keywords: ['indexes'] },
   { id: 'marketcontext', title: 'Market context', held: 1, description: 'Phase, exposure and breadth from the wire' },
   { id: 'alerts', title: 'My price alerts', description: 'Your alerts and where price sits' },
+  { id: 'scanner', title: 'Scan results', held: 1, description: 'Your first scan in the list, as it reads now', keywords: ['scanner'] },
+  { id: 'watchlist', title: 'Watchlist snapshot', description: 'Your first list with names, frozen with prices' },
+  { id: 'themes', title: 'Theme rankings', description: "Today's top 40 themes, top theme first", keywords: ['themes'] },
 ].map((k) => ({ wave: 4, group: 'more', ...k, capture: (p) => slashCaptures().then((m) => m[k.id](p)) })))
 
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
@@ -75,6 +78,7 @@ export function widgetEmbedNode(kind, payload) {
   const p = payload && typeof payload === 'object' ? payload : {}
   return {
     type: 'widgetEmbed',
-    attrs: buildWidgetEmbedAttrs(kind, p, { capturedAt: p.asOf, mode: 'snapshot' }),
+    // A capture kind's own `asOf` is display copy ("1:26 PM ET"), never the capture instant.
+    attrs: buildWidgetEmbedAttrs(kind, p, { capturedAt: BY_ID.has(kind) && p.asOf, mode: 'snapshot' }),
   }
 }

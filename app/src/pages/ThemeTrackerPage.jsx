@@ -26,6 +26,7 @@ import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { avgReturn, groupReturn, sortThemes, buildThemesCapture } from './charts/widgets/captures/themesCapture'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
@@ -108,22 +109,8 @@ function nextPresetName(sets) {
   return `${base} ${Date.now()}`
 }
 
-function avgReturn(holdings, periodKey) {
-  // Owner rows only (§4b): engine-overlay members never move the theme number,
-  // even on this fallback path (server outage / missing group_return).
-  const vals = holdings
-    .filter(h => h.source !== 'engine')
-    .map(h => h.returns?.[periodKey])
-    .filter(v => v != null)
-  if (vals.length === 0) return null
-  return vals.reduce((a, b) => a + b, 0) / vals.length
-}
-
-function groupReturn(theme, periodKey) {
-  return (theme.group_return?.[periodKey] != null)
-    ? theme.group_return[periodKey]
-    : avgReturn(theme.holdings, periodKey)
-}
+// avgReturn / groupReturn (the theme's number) live in charts/widgets/captures/themesCapture.js, beside the
+// ranking and the builder the Notebook's /themes insert shares with this page's Send to Journal.
 
 // Live return for a holding at `periodKey`: (livePrice − periodRef) / periodRef.
 // Uses the streamed price + the per-period reference close the backend sends in
@@ -1001,14 +988,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     }
   }
 
-  const sortedThemes = useMemo(() => {
-    if (!data?.themes) return []
-    return [...data.themes].sort((a, b) => {
-      const av = groupReturn(a, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
-      const bv = groupReturn(b, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
-      return sortDir === 'desc' ? bv - av : av - bv
-    })
-  }, [data, activeKey, sortDir])
+  const sortedThemes = useMemo(() => sortThemes(data?.themes, activeKey, sortDir), [data, activeKey, sortDir])
 
   // The debounced query drives the expensive filter. The instant typed value
   // lives inside <ThemeSearchBox> (memoized) so a keystroke never re-renders
@@ -1077,30 +1057,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Freeze exactly what the page shows right now — shared by the one-click
   // default send AND the destination-picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildThemesCapture = useCallback(() => {
-    const rows = filteredThemes.slice(0, 40).map((t) => {
-      const pct = groupReturn(t, activeKey)
-      const top = [...(t.holdings || [])]
-        .sort((a, b) => (b.returns?.[activeKey] ?? -Infinity) - (a.returns?.[activeKey] ?? -Infinity))
-        .slice(0, 3).map((h) => h.sym).join(' · ')
-      return {
-        sym: t.ticker,
-        note: t.name,
-        ...(Number.isFinite(pct) ? { chgPct: pct } : {}),
-        ...(top ? { extraValue: top } : {}),
-      }
-    })
-    return {
-      period: activeKey, sortDir,
-      ...(openTheme ? { openTheme } : {}),
-      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-      rows,
-    }
-  }, [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch])
+  const doorCapture = useCallback(
+    () => buildThemesCapture(filteredThemes, { period: activeKey, sortDir, openTheme, search: debouncedSearch }),
+    [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch],
+  )
   const sendThemesToJournal = useCallback(async () => {
     setJournalMsg('sending…')
-    setJournalMsg(await sendCaptureToJournal('themes', buildThemesCapture(), { label: themesCaptureLabel }))
-  }, [buildThemesCapture, themesCaptureLabel, setJournalMsg])
+    setJournalMsg(await sendCaptureToJournal('themes', doorCapture(), { label: themesCaptureLabel }))
+  }, [doorCapture, themesCaptureLabel, setJournalMsg])
 
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {
@@ -1331,7 +1295,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               ><UIcon name="journal" size={14} /></button>
               <button
                 className={styles.settingsBtn}
-                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildThemesCapture() })}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: doorCapture() })}
                 title="Send to Journal — choose where"
                 aria-label="Send to Journal — choose where"
               ><UIcon name="chevronDown" size={14} /></button>
