@@ -294,7 +294,9 @@ describe('StudyReview card', () => {
     expect(within(sel).getByRole('option', { name: 'vocab.method (1)' })).toBeInTheDocument()
     expect(within(sel).getByRole('option', { name: 'setup.vcp (2)' })).toBeInTheDocument()
     fireEvent.change(sel, { target: { value: 'vocab.method' } })
-    expect(KEYS).toContain('/api/study/admin/review?skill=vocab.method&limit=150')
+    // a skill is served whole (up to the route's 500), so a segment imported behind 374
+    // older drafts of the same type still reaches the reviewer
+    expect(KEYS).toContain('/api/study/admin/review?skill=vocab.method&limit=500')
     expect(reviewKey('', 'recall', 150, 'vocab.chart')).toBe('/api/study/admin/review?type=recall&skill=vocab.chart&limit=150')
   })
 
