@@ -105,7 +105,7 @@
   <!-- 1 -->
   <section class="screen">
     <div class="screen-h"><span class="n">1</span><h2>Adding a widget from inside a note</h2><span class="tag gold">Claude's call</span></div>
-    <p class="note-ex">Today you can only type a chart or market context from inside a note; everything else arrives through "Send to Journal". The fix: type <b>/</b> and every widget is there, grouped by when you'd use it. Typing a ticker like <b>$NVDA</b> fills it in for that name.</p>
+    <p class="note-ex">Today you can only type a chart or market context from inside a note. The fix: type <b>/</b> and the new widgets are there, grouped by when you'd use it. Typing a ticker like <b>$NVDA</b> fills it in for that name.</p>
     <div class="menuwrap">
       <div class="menu" role="listbox" aria-label="Insert menu mockup">
         <input value="/" aria-label="search" readonly>
@@ -229,7 +229,7 @@
           <table>
             <tr><th>Name</th><th class="num">Size</th><th class="num">Open P&amp;L</th><th>Stop</th></tr>
             <tr><td class="tk">NVDA</td><td class="num">8% of acct</td><td class="num up">+$610</td><td>$178.00 <span class="mut">(-5.0%)</span></td></tr>
-            <tr><td class="tk">AVGO</td><td class="num">6% of acct</td><td class="num dn">-$120</td><td><span class="chip warn">No stop set</span> <button class="btn">Add</button></td></tr>
+            <tr><td class="tk">AVGO</td><td class="num">6% of acct</td><td class="num dn">-$120</td><td><span class="chip warn">No stop set</span> <button class="btn">Set it in Journal</button></td></tr>
           </table>
         </div>
       </div>
@@ -276,9 +276,10 @@
   <section class="screen">
     <div class="screen-h"><h2>What I'd build first, and what I'm leaving out</h2><span class="tag gold">Claude's call</span></div>
     <ul class="calls">
-      <li><b>Wave 1:</b> the "/" menu with every widget, the ticker card, My watchlist today, My names reporting, My P&amp;L and stats, My open positions and risk.</li>
+      <li><b>Wave 1:</b> the "/" menu with the new widgets, the ticker card, My watchlist today, My names reporting, My P&amp;L and stats, My open positions and risk.</li>
       <li><b>Wave 2:</b> My rules check and My recurring mistakes. These need two small new server reads (rules kept over time, mistakes over time).</li>
       <li><b>Wave 3:</b> Market on my names, options flow on a ticker, and starter styles that come with widgets already placed.</li>
+      <li><b>Later:</b> putting the existing widgets (calendar, watchlist, themes...) in the "/" menu too. Each needs its own fill-on-insert step, so it waits.</li>
       <li><b>Left out:</b> exposure scores, the econ calendar (it's off), the morning wire and trader ledger (paid-only).</li>
       <li><b>Without a linked broker:</b> account widgets read manual and CSV trades, and say so.</li>
     </ul>
