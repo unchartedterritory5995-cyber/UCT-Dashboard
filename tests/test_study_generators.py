@@ -276,6 +276,28 @@ def test_candle_description_questions_never_name_the_answer(segments):
     assert "hammer" not in cut.lower() and cut and len(cut) < len(hammer.desc)
 
 
+def test_every_candle_name_has_a_full_six_part_lesson_and_every_item_carries_it(segments):
+    """Owner 2026-10-20: 'a thorough explanation will be important on these'.
+    docs/study/terms/candle_lessons.json has all six parts for all 66 names, in
+    the importer's voice, with no digits (grounding), and every candle item's
+    lesson_text is exactly those parts joined, with the parts in the reveal."""
+    lessons = gen_candles.load_lessons()
+    keys = {p.key for p in gen_candles.catalog()}
+    assert set(lessons) == keys
+    for key, parts in lessons.items():
+        for part in gen_candles.LESSON_PARTS:
+            text = parts[part]
+            assert text.strip() and not re.search(r"\d", text), (key, part)
+            assert si.voice_check(text, lesson=True) == [], (key, part)
+    by_key = {p.key: p for p in gen_candles.catalog()}
+    for it in segments["candles.catalog"] + segments["candles.chart"]:
+        p = by_key[it["reveal_json"]["key"]]
+        expected, parts = gen_candles.full_lesson(p, lessons)
+        assert parts and it["lesson_text"] == expected, it["id"]
+        assert it["reveal_json"]["lesson_parts"] == parts and it["lesson_origin"] == "source", it["id"]
+    assert len(set(it["lesson_text"] for it in segments["candles.chart"])) >= 60     # one lesson per name, not one for all
+
+
 def test_candle_chart_items_show_a_real_bar_found_by_the_catalog(segments):
     """Owner 2026-10-19 ("include images"): every example in
     docs/study/terms/candle_examples.json is a chart item cut at the named bar."""
