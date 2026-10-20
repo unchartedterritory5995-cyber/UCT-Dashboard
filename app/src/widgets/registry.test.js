@@ -50,6 +50,8 @@ const IDS = [
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
   'screener', 'cot', 'modelbook',
+  // Notebook widgets (Task 6): five capture-only snapshot kinds, frozen by a fetch at insert.
+  'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
@@ -59,10 +61,12 @@ const IDS = [
   'moodCheckIn',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
+// Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
+const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = [...G040_KINDS, ...BLOCK_IDS]
+const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
@@ -80,6 +84,8 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
+      tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -97,6 +103,8 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
+      tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -114,6 +122,8 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
+      myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
+      tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -147,6 +157,11 @@ describe('widget registry — metadata pins', () => {
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
       cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
       modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
+      myWatchlistToday: { w: 6, h: 8, minW: 3, minH: 4 },
+      myNamesReporting: { w: 6, h: 8, minW: 3, minH: 4 },
+      tickerCard: { w: 6, h: 8, minW: 3, minH: 4 },
+      myPnlStats: { w: 6, h: 8, minW: 3, minH: 4 },
+      myPositionsRisk: { w: 6, h: 8, minW: 3, minH: 4 },
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -365,7 +380,96 @@ const CAPTURE_FIXTURES = {
     setupDate: '2023-05-25', title: 'NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25',
     annotation: 'the gap that started it',
   },
+  // Notebook widgets (Task 6): each fixture carries the server's frozen payload keys
+  // (api/services/journal_two/notebook_widgets.py), account figures included, so the
+  // plain-text pins below can prove none of them reaches the search line.
+  myWatchlistToday: {
+    asOf: '2026-10-20T14:05:00Z', source: 'market', listLabel: 'Watchlist', share: false,
+    rows: [{ symbol: 'NVDA', price: 224.1, changePct: 3.0, earningsDay: '2026-10-28' },
+      { symbol: 'AMD', price: null, changePct: null, earningsDay: null }],
+  },
+  myNamesReporting: {
+    asOf: '2026-10-20T14:05:00Z', source: 'market', partial: false, share: false,
+    rows: [{ symbol: 'TSLA', day: '2026-10-21', timing: 'amc', daysAway: 1, sources: ['watchlist'], impliedMovePct: 6.2 }],
+  },
+  tickerCard: {
+    asOf: '2026-10-20T14:05:00Z', source: 'mixed', symbol: 'nvda', price: 224.1, changePct: 3.0,
+    ma10: 220.5, ma50: 205.2, earningsDay: '2026-10-28', impliedMovePct: 7.1,
+    history: { trades: 4, winRate: 75, netPnl: 12345.67 }, share: false,
+  },
+  myPnlStats: {
+    asOf: '2026-10-20T14:05:00Z', source: 'broker', range: { from: '2026-10-19', to: '2026-10-20' },
+    netPnl: 9876.54, winRate: 61.5, avgR: 1.2, tradeCount: 8, equity: [['2026-10-19', 100000], ['2026-10-20', 109876.54]],
+    share: false,
+  },
+  myPositionsRisk: {
+    asOf: '2026-10-20T14:05:00Z', source: 'broker', accountSize: 250000,
+    rows: [{ positionId: 7, symbol: 'NVDA', side: 'long', sizePct: 8.5, openPnl: 4321.09, stopPrice: 210, distToStopPct: 6.3, noStop: false }],
+    share: false,
+  },
 }
+
+/** Notebook widgets (Task 6): the exact search lines, and a guard that no account figure leaks. */
+const NOTEBOOK_WIDGET_LINES = {
+  myWatchlistToday: '[my watchlist today: 2 names · as of 2026-10-20]',
+  myNamesReporting: '[my names reporting: 1 name · as of 2026-10-20]',
+  tickerCard: '[ticker card: NVDA · as of 2026-10-20]',
+  myPnlStats: '[my P&L and stats: 2026-10-19 to 2026-10-20]',
+  myPositionsRisk: '[my open positions and risk: 1 position · as of 2026-10-20]',
+}
+
+describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
+  it('registers the five kinds capture-only, in no menu, never live, themed', () => {
+    for (const id of NOTEBOOK_WIDGET_KINDS) {
+      const w = WIDGET_REGISTRY[id]
+      expect(w, `${id} is not registered`).toBeDefined()
+      expect(w.captureOnly, `${id}.captureOnly`).toBe(true)
+      expect(w.block, `${id} is a widget embed, not a block`).toBeUndefined()
+      expect(Object.values(w.menus).every((on) => on === false), `${id} menus`).toBe(true)
+      expect(w.liveCapable, `${id}.liveCapable`).toBe(false)
+      expect(w.themeFollow, `${id}.themeFollow`).toBe(true)
+      expect(isTraderBlock(id), `${id} must not be a trader block`).toBe(false)
+      expect(w.paramsSchema.some((f) => f.key === 'share' && f.type === 'boolean'), `${id} share`).toBe(true)
+      expect(w.paramsSchema.some((f) => f.key === 'asOf' && f.type === 'string'), `${id} asOf`).toBe(true)
+    }
+  })
+
+  it('the plain-text line is the exact copy for the fixture payload', () => {
+    for (const id of NOTEBOOK_WIDGET_KINDS) {
+      expect(paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(NOTEBOOK_WIDGET_LINES[id])
+    }
+  })
+
+  it('NEVER carries an account figure in the search line', () => {
+    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75']
+    for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard']) {
+      const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
+      for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)
+    }
+  })
+
+  it('degrades to a labelled line on an empty capture, never a bare bracket', () => {
+    for (const id of NOTEBOOK_WIDGET_KINDS) {
+      const line = paramsPlainText(id, {})
+      expect(line, id).toMatch(/^\[[a-zA-Z &]+:.*\]$/)
+    }
+  })
+
+  it('is reconstructable only when the payload carries its own asOf', () => {
+    for (const id of NOTEBOOK_WIDGET_KINDS) {
+      expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(true)
+      expect(isReconstructable(id, {}), `${id} without asOf`).toBe(false)
+      expect(isReconstructable(id, { asOf: 5 }), `${id} numeric asOf`).toBe(false)
+    }
+  })
+
+  it('round-trips the payload keys the server freezes, share included', () => {
+    for (const id of NOTEBOOK_WIDGET_KINDS) {
+      const norm = normalizeParams(id, CAPTURE_FIXTURES[id])
+      for (const k of Object.keys(CAPTURE_FIXTURES[id])) expect(norm, `${id}.${k} dropped`).toHaveProperty(k)
+    }
+  })
+})
 
 describe('widget registry — params layer', () => {
   it('every widget type declares a paramsSchema, plainText, reconstructable, and liveCapable', () => {
@@ -510,7 +614,7 @@ describe('widget registry — params layer', () => {
     expect(isReconstructable('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot))).toBe(true)
     expect(isReconstructable('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook))).toBe(true)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook', ...NOTEBOOK_WIDGET_KINDS].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.
@@ -602,8 +706,13 @@ describe('widget registry — journal embed bindings', () => {
     // NEVER an embed binding and never counted as a live re-render, whatever its manifest says.
     const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
     for (const id of blocks) expect(bound.has(id), `${id} is a block and must not be bound in EMBED_COMPONENTS`).toBe(false)
+    // ⛔ PENDING TASK 7: the five snapshot kinds are reconstructable and are bound in
+    // EMBED_COMPONENTS by Task 7 (their embed bodies). Until then they are named here, and
+    // ONLY here, so the rail keeps meaning something for every other id. Task 7 deletes this
+    // list; the line below then demands the bindings.
+    const AWAITING_EMBED_BINDING = NOTEBOOK_WIDGET_KINDS
     const renders = WIDGET_IDS.filter(
-      id => WIDGET_REGISTRY[id].block !== true && isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
+      id => WIDGET_REGISTRY[id].block !== true && !AWAITING_EMBED_BINDING.includes(id) && isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
     )
     // Fails BY NAME in both directions: a registry entry that promises a live
     // re-render with no renderer, and a renderer for a type that can never

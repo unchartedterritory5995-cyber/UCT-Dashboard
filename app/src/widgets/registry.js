@@ -285,6 +285,40 @@ export function registerPanel(id, manifest) {
   return { ...manifest, menus: { ...manifest.menus, terminal: manifest.menus.terminal === true } }
 }
 
+/** The `YYYY-MM-DD` of a payload's own `asOf` (ISO UTC), as ` · as of <day>`; '' when it has none. */
+function _asOfDay(p) {
+  const day = typeof p?.asOf === 'string' ? p.asOf.slice(0, 10) : ''
+  return _isIsoDay(day) ? ` · as of ${day}` : ''
+}
+/** `N name(s)` from a frozen rows array; a missing array reads as zero, never as a blank. */
+function _countOf(rows, noun) {
+  const n = Array.isArray(rows) ? rows.length : 0
+  return `${n} ${noun}${n === 1 ? '' : 's'}`
+}
+
+/** A Notebook snapshot widget's manifest (Task 6): one shape, so each entry costs its payload keys
+ *  and its search line only. Capture-only, in no menu, never live; `reconstructable` is true when the
+ *  frozen payload carries its own `asOf`, because the embed host re-renders from params alone. */
+function snapshotManifest(label, payloadSchema, plainText) {
+  return {
+    labels: { header: label, menu: label, tab: label },
+    defaults: { w: 6, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'asOf', type: 'string', required: true },    // ISO UTC, stamped by the server
+      { key: 'source', type: 'string' },                   // broker | manual | mixed | market
+      ...payloadSchema,
+      { key: 'share', type: 'boolean', default: false },   // the member's publish switch (an editor transaction)
+    ],
+    plainText,
+    reconstructable: (p) => typeof p?.asOf === 'string',
+    liveCapable: false,
+  }
+}
+
 /** A trader block's manifest (Notebook P2): one shape, so each entry costs its params and words only.
  *  ⛔ Rendered by blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), never the embed host: not reconstructable,
  *  never live, so resolveEmbedRender's archive and live paths can never pick a block up. */
@@ -870,6 +904,48 @@ const PANEL_MANIFESTS = {
     reconstructable: (p) => Number.isInteger(p?.year) && typeof p?.symbol === 'string' && p.symbol !== '',
     liveCapable: false,
   },
+  // ── Notebook widgets (Task 6): five SNAPSHOT kinds. ⛔ CAPTURE-ONLY and not blocks: each is
+  // fetched once by its own slash item (GET /api/j2/notebook-widgets/{kind}), frozen into the
+  // note's params, and rendered by the journal embed host from those params. Never a workspace
+  // widget, never in a menu, never live. The keys mirror the server payloads in
+  // api/services/journal_two/notebook_widgets.py; `share` is the member's own publish switch.
+  // ⛔ plainText feeds search and AI context, so it names the kind, a COUNT and a DAY and nothing
+  // else: no price, no P&L, no account size, no row.
+  myWatchlistToday: snapshotManifest('My watchlist today', [
+    { key: 'listLabel', type: 'string' },
+    { key: 'rows', type: 'json', required: true },        // [{symbol, price, changePct, earningsDay}]
+    { key: 'truncated', type: 'number' },
+  ], (p) => `[my watchlist today: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  myNamesReporting: snapshotManifest('My names reporting', [
+    { key: 'rows', type: 'json', required: true },        // [{symbol, day, timing, daysAway, sources, impliedMovePct}]
+    { key: 'partial', type: 'boolean' },
+    { key: 'truncated', type: 'number' },
+  ], (p) => `[my names reporting: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerCard: snapshotManifest('Ticker card', [
+    { key: 'symbol', type: 'symbol', required: true },
+    { key: 'price', type: 'number' },
+    { key: 'changePct', type: 'number' },
+    { key: 'ma10', type: 'number' },
+    { key: 'ma50', type: 'number' },
+    { key: 'earningsDay', type: 'string' },
+    { key: 'impliedMovePct', type: 'number' },
+    { key: 'history', type: 'json' },                      // {trades, winRate, netPnl} or null
+  ], (p) => `[ticker card: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  myPnlStats: snapshotManifest('My P&L and stats', [
+    { key: 'range', type: 'json', required: true },       // {from, to}
+    { key: 'netPnl', type: 'number' },
+    { key: 'winRate', type: 'number' },
+    { key: 'avgR', type: 'number' },
+    { key: 'tradeCount', type: 'number' },
+    { key: 'equity', type: 'json' },                      // [[day, value], ...]
+    { key: 'empty', type: 'string' },
+  ], (p) => `[my P&L and stats: ${p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range'}]`),
+  myPositionsRisk: snapshotManifest('My open positions and risk', [
+    { key: 'accountSize', type: 'number' },
+    { key: 'rows', type: 'json', required: true },        // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
+    { key: 'truncated', type: 'number' },
+    { key: 'empty', type: 'string' },
+  ], (p) => `[my open positions and risk: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

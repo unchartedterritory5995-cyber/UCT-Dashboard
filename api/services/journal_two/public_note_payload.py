@@ -283,6 +283,13 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeReview"): "private",
     # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
     ("widgetEmbed", "moodCheckIn"): "private",
+    # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
+    # account kinds to "member-optin"; until then they are the neutral private line.
+    ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
+    ("widgetEmbed", "myNamesReporting"): "mixed",    # earnings windows over the member's names
+    ("widgetEmbed", "tickerCard"): "mixed",          # one ticker's prices, earnings and the member's history
+    ("widgetEmbed", "myPnlStats"): "private",        # the member's own P&L and stats
+    ("widgetEmbed", "myPositionsRisk"): "private",   # the member's own open positions and risk
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",
