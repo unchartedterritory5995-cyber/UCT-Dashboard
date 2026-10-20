@@ -47,6 +47,7 @@ const ARCHIVE_MAX_RETRIES = 5
 // throws and the embed falls back to its archived image.
 // ⚠️ A registry entry flipped reconstructable WITHOUT a binding here degrades
 // to its archive (never crashes) — flip both together.
+const snapshotEmbeds = () => import('./widgets/snapshotEmbeds')
 const EMBED_COMPONENTS = {
   chart: lazyLeaf(() => import('./ChartEmbed')),
   calendar: lazyLeaf(() => import('./CalendarEmbed')),
@@ -65,17 +66,18 @@ const EMBED_COMPONENTS = {
   screener: lazyLeaf(() => import('./ScreenerEmbed')),
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
-  // Notebook widgets (Task 7): the five snapshot kinds, each rendered from its frozen params.
-  // Each embed imports its own SnapshotFrame, so none of it reaches a note's first open.
-  myWatchlistToday: lazyLeaf(() => import('./widgets/MyWatchlistTodayEmbed')),
-  myNamesReporting: lazyLeaf(() => import('./widgets/MyNamesReportingEmbed')),
-  tickerCard: lazyLeaf(() => import('./widgets/TickerCardEmbed')),
-  myPnlStats: lazyLeaf(() => import('./widgets/MyPnlStatsEmbed')),
-  myPositionsRisk: lazyLeaf(() => import('./widgets/MyPositionsRiskEmbed')),
-  myRulesCheck: lazyLeaf(() => import('./widgets/MyRulesCheckEmbed')),
-  myMistakes: lazyLeaf(() => import('./widgets/MyMistakesEmbed')),
-  marketOnMyNames: lazyLeaf(() => import('./widgets/MarketOnMyNamesEmbed')),
-  tickerFlow: lazyLeaf(() => import('./widgets/TickerFlowEmbed')),
+  // Notebook widgets (Task 7): the snapshot kinds, each rendered from its frozen params. ONE lazy
+  // import serves them all (Task 16D, as R41 did for the captures): a kind costs a row, not a chunk
+  // and its preload list, on the first open. Keyed by widget id in widgets/snapshotEmbeds.js.
+  myWatchlistToday: lazyLeaf(snapshotEmbeds, undefined, 'myWatchlistToday'),
+  myNamesReporting: lazyLeaf(snapshotEmbeds, undefined, 'myNamesReporting'),
+  tickerCard: lazyLeaf(snapshotEmbeds, undefined, 'tickerCard'),
+  myPnlStats: lazyLeaf(snapshotEmbeds, undefined, 'myPnlStats'),
+  myPositionsRisk: lazyLeaf(snapshotEmbeds, undefined, 'myPositionsRisk'),
+  myRulesCheck: lazyLeaf(snapshotEmbeds, undefined, 'myRulesCheck'),
+  myMistakes: lazyLeaf(snapshotEmbeds, undefined, 'myMistakes'),
+  marketOnMyNames: lazyLeaf(snapshotEmbeds, undefined, 'marketOnMyNames'),
+  tickerFlow: lazyLeaf(snapshotEmbeds, undefined, 'tickerFlow'),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state
