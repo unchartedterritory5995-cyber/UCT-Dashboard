@@ -336,6 +336,20 @@ def admin_review(lane: Optional[str] = None, type: Optional[str] = None, limit: 
             "trust": {t: study_store.trust_state(t) for t in types}}
 
 
+@router.get("/admin/items/{item_id}/bars", dependencies=_ARMED)
+def admin_item_bars(item_id: str, _admin: dict = Depends(require_admin)):
+    """The reviewer's chart: the member's visible window PLUS the forward strip,
+    for an item in ANY review state. The member route (`/items/{id}/bars`)
+    serves approved items only and never the forward bars; the review screen
+    needs both, because the owner judges a draft by what the member will see
+    AND by what happened next. `symbol` is the item id (§6.1), as everywhere."""
+    vis = study_store.get_visible_bars(item_id, approved_only=False)
+    if not vis:
+        raise HTTPException(status_code=404, detail="No chart for this item")
+    vis["forward"] = study_store.get_forward_bars(item_id)
+    return vis
+
+
 @router.post("/admin/review/{item_id}", dependencies=_ARMED)
 def admin_review_item(item_id: str, body: ReviewIn, admin: dict = Depends(require_admin)):
     try:

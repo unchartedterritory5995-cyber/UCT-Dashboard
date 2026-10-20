@@ -6,9 +6,11 @@ import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, pr
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
 vi.mock('../../components/StockChart', () => ({
-  default: ({ sym, entryDate, exitDate, markers, priceLines }) => (
+  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode }) => (
     <div data-testid="stock-chart">
       <span>chart:{sym}</span>
+      <span>bars:{Array.isArray(barsOverride) ? barsOverride.length : (barsOverridePending ? 'pending' : 'none')}</span>
+      <span>study:{studyMode ? '1' : '0'}</span>
       <span>frame:{entryDate || '-'}..{exitDate || '-'}</span>
       <span>markers:{(markers || []).map((m) => m.text).join('|')}</span>
       <span>lines:{(priceLines || []).length}</span>
@@ -29,9 +31,27 @@ vi.mock('swr', () => ({
       return { data: { drafts: DRAFTS, counts: COUNTS, trust: TRUST }, error: undefined, mutate: vi.fn() }
     }
     if (key && key.includes('/patterns/admin/review')) return { data: { verdicts: [] }, mutate: vi.fn() }
+    if (key && /^\/api\/study\/admin\/items\/[^/]+\/bars$/.test(key)) {
+      return { data: STORED_BARS, error: undefined, mutate: vi.fn() }
+    }
     return { data: undefined, mutate: vi.fn() }
   },
 }))
+
+// What the admin bars route returns for a chart item: the member's visible
+// window plus the forward strip, symbol = the item id (never the ticker).
+const STORED_BARS = {
+  symbol: 'si_a', tf: 'D',
+  bars: [
+    { t: 20250529, o: 100, h: 101, l: 99, c: 100.5, v: 1000 },
+    { t: 20250530, o: 100.5, h: 102, l: 100, c: 101.5, v: 1100 },
+    { t: 20250602, o: 101.5, h: 103, l: 101, c: 102.5, v: 1200 },
+  ],
+  forward: [
+    { t: 20250603, o: 102.5, h: 104, l: 102, c: 103.5, v: 1300 },
+    { t: 20250604, o: 103.5, h: 105, l: 103, c: 104.5, v: 1400 },
+  ],
+}
 
 const SPOT_A = {
   id: 'si_a', version: 1, type: 'spot', skill_id: 'setup.vcp', difficulty: 2,
@@ -95,6 +115,11 @@ describe('StudyReview card', () => {
     expect(screen.getByTestId('study-dates')).toHaveTextContent('forward 20 sessions')
     const chart = screen.getByTestId('stock-chart')
     expect(chart).toHaveTextContent('chart:NVDA')
+    // The STORED snapshot drives the chart (3 visible + 2 forward), in study
+    // mode, from the admin bars route; never a live fetch by ticker.
+    expect(chart).toHaveTextContent('bars:5')
+    expect(chart).toHaveTextContent('study:1')
+    expect(KEYS).toContain('/api/study/admin/items/si_a/bars')
     expect(chart).toHaveTextContent('frame:2024-11-27..2025-07-07')
     expect(chart).toHaveTextContent('markers:member sees to here')
     expect(chart).toHaveTextContent('lines:3')
