@@ -113,3 +113,27 @@ Branch `feat/agent-nl1-rebased`, worktree `C:\UCT\nl1-rebase`, on master `7d0ee0
 Production impact with both switches off (the default): none. The legacy path sees two changes, neither changes its result: `seeBoard` is called earlier in the same `send()` (idempotent), and `/api/agent/config` carries one more field.
 
 Still owed before NL-1 can be turned on: the owner's limit decision (NL-1 cannot run under 60); then the real-model evaluation (T1–T3, then the sealed sets) under a separately authorized, capped eval budget; then both switches.
+
+---
+
+## Iteration 5: hybrid action selection (2026-10-20)
+
+The owner approved this on 2026-10-20: make NL-1 operational under the unchanged 60-action limit.
+
+- Branch `feat/agent-nl1-hybrid-selection`, worktree `C:\UCT\nl1-hybrid`, on master `4456917011`. Local only.
+- Design and numbers: [NL1-SELECTION.md](NL1-SELECTION.md).
+
+| Step | Result |
+|---|---|
+| **Selection** | `nl1/selection.js` builds each request from: <br>• the core (charts, indicators, screener, agent; ≤ 45 actions, only available ones); <br>• pinned groups (proposal, last change, pending question); <br>• the word router as soft expansion. <br>Whole groups are packed under 55 (limit 60); the rest are named |
+| **Reroute** | One bounded reroute when the model asks for groups: ≤ 3, all or nothing, inside the 2-call ceiling. It takes priority over the repair, a rerouted plan is never repaired, and there is no third call |
+| **No substitution** | A prompt rule for routed requests, plus a deterministic guard: an `apply` is only proposed when the member's words pointed at a group the request could not carry |
+| **Server** | NL-1 honours routing, with three cache blocks: core + rules + glossary, reference, the rest. Legacy and unrouted prompts are byte-identical to master (48 combinations checked) |
+| **Eval** | Capture records the selection and a reroute table. The runner replays the reroute under production's call ceiling. Scoring reports first-call coverage, reroute rate, substitutions, escalations and tokens. Gates unchanged |
+| **Coverage (dev / exposed)** | First call: corpus 97.5%, dev-nl1 100%, heldout-v1 98.8%. 100% with one reroute; 0 unreachable. Optimistic, because these sets shaped the router |
+| **Prompt** | System + schema ~13–17k tokens per request, vs ~19–26k for the whole catalog (−33%). The cached block is identical on every request |
+
+Still owed, in order:
+1. the owner's approval for T1 and the paid evaluation (the selector is frozen at this iteration's commit);
+2. the sealed scoring;
+3. activation.

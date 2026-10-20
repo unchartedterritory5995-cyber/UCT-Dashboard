@@ -3,7 +3,8 @@
 //   AGENT_EVAL_OUT=<file> [AGENT_EVAL_MODE=nl1|legacy|both] [AGENT_EVAL_SETS=corpus.json,sealed-v3.json]
 //   npx vitest run src/agent/agentNl1EvalCapture.test.js
 //
-// Writes one item per turn: { key, set, split, caseId, turn, mode, body, history, refMap }. The file holds
+// Writes one item per turn: { key, set, split, caseId, turn, mode, body, history, refMap } — NL-1 items also
+// { catalog, selection, reroutes } — and one entry per distinct NL-1 catalog ({ catalog, manifest, ... }). The file holds
 // sealed cases' words: it is input for tools/agent_eval_run.py, never something to read through.
 import { it, vi } from 'vitest'
 import fs from 'node:fs'
@@ -38,15 +39,17 @@ it.skipIf(!OUT)('captures the eval requests', async () => {
   const modes = env.AGENT_EVAL_MODE === 'both' ? ['legacy', 'nl1'] : [env.AGENT_EVAL_MODE || 'nl1']
   const only = env.AGENT_EVAL_SETS ? new Set(env.AGENT_EVAL_SETS.split(',')) : null
   const items = []
+  const catalogs = new Map()             // NL-1: each distinct full catalog once (the reroute replay assembles from it)
   for (const s of SETS.filter(x => !only || only.has(x.file))) {
     const data = JSON.parse(fs.readFileSync(path.join(DIR, s.file), 'utf8'))
     for (const c of data.cases) {
       for (const mode of modes) {
-        for (const t of captureCase(spec, c, mode, { isProtectedLayout: (e) => isProtected(e) })) items.push({ ...t, set: s.file, split: s.split })
+        for (const t of captureCase(spec, c, mode, { isProtectedLayout: (e) => isProtected(e), catalogs })) items.push({ ...t, set: s.file, split: s.split })
       }
     }
   }
-  fs.writeFileSync(OUT, JSON.stringify(items))
+  // catalog entries ({ catalog, manifest, core, groupOf, groups }) carry no `mode`: never replayed or scored as turns
+  fs.writeFileSync(OUT, JSON.stringify([...items, ...catalogs.values()]))
   const by = {}
   for (const i of items) by[`${i.set} ${i.mode}`] = (by[`${i.set} ${i.mode}`] || 0) + 1
   console.log(`\ncaptured ${items.length} requests → ${OUT}\n${Object.entries(by).map(([k, v]) => `  ${k}: ${v}`).join('\n')}\n`)

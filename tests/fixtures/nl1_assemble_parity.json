@@ -1,0 +1,871 @@
+{
+ "about": "nl1/selection.js assembleNl1 on manifest.golden.json — tools/agent_eval_run.py assemble_nl1 must produce the same (tests/test_agent_eval_run.py). Regenerate: UPDATE_NL1_PARITY=1 npx vitest run src/agent/agentNl1Selection.test.js",
+ "core": [
+  "charts",
+  "indicators",
+  "screener",
+  "agent"
+ ],
+ "groupOf": {
+  "chart.setType": "charts",
+  "chart.setTimeframe": "charts",
+  "chart.setSymbol": "charts",
+  "chart.setSession": "charts",
+  "chart.setScale": "charts",
+  "chart.applyTheme": "charts",
+  "chart.setBackground": "charts",
+  "chart.setCandleColors": "charts",
+  "volume.setState": "charts",
+  "chart.setSetting": "charts",
+  "chart.applyTemplate": "charts",
+  "chart.resetDefaults": "charts",
+  "chart.goToDate": "charts",
+  "chart.compare": "charts",
+  "chart.addCustomTimeframe": "charts",
+  "widget.add": "workspace",
+  "widget.addCharts": "workspace",
+  "layout.current": "layouts",
+  "layout.list": "layouts",
+  "layout.open": "layouts",
+  "layout.saveAs": "layouts",
+  "layout.saveCurrent": "layouts",
+  "layout.rename": "layouts",
+  "layout.create": "layouts",
+  "layout.delete": "layouts",
+  "layout.duplicate": "layouts",
+  "watchlist.list": "lists",
+  "watchlist.show": "lists",
+  "watchlist.add": "lists",
+  "watchlist.remove": "lists",
+  "watchlist.clear": "lists",
+  "watchlist.delete": "lists",
+  "watchlist.create": "lists",
+  "watchlist.rename": "lists",
+  "screener.run": "screener",
+  "screener.runSaved": "screener",
+  "screener.state": "screener",
+  "screener.listSaved": "screener",
+  "alert.list": "alerts",
+  "alert.create": "alerts",
+  "alert.delete": "alerts",
+  "stock.profile": "data",
+  "stock.earnings": "data",
+  "stock.compare": "data",
+  "breadth.show": "breadth",
+  "breadth.history": "breadth",
+  "settings.show": "settings",
+  "settings.setAppTheme": "settings",
+  "settings.setDefaultTimeframe": "settings",
+  "settings.setAlertSound": "settings",
+  "app.open": "settings",
+  "news.latest": "data",
+  "news.catalysts": "data",
+  "settings.setWatchlistDigest": "settings",
+  "screener.saveAs": "screener",
+  "screener.duplicateSaved": "screener",
+  "screener.renameSaved": "screener",
+  "screener.deleteSaved": "screener",
+  "widget.remove": "workspace",
+  "widget.move": "workspace",
+  "widget.arrange": "workspace",
+  "widget.setLink": "workspace",
+  "widget.showList": "workspace",
+  "watchlist.open": "lists",
+  "widget.showScan": "workspace",
+  "chart.applyThemeAll": "charts",
+  "widget.resize": "workspace",
+  "widget.selectTab": "workspace",
+  "widget.renameTab": "workspace",
+  "widget.closeTab": "workspace",
+  "chart.addTab": "charts",
+  "chart.selectTab": "charts",
+  "chart.closeTab": "charts",
+  "chart.renameTab": "charts",
+  "chart.linkTab": "charts",
+  "drawing.list": "drawings",
+  "drawing.addLevel": "drawings",
+  "drawing.style": "drawings",
+  "drawing.remove": "drawings",
+  "indicator.list": "indicators",
+  "indicator.openCreate": "indicators",
+  "indicator.add": "indicators",
+  "indicator.remove": "indicators",
+  "indicator.update": "indicators",
+  "indicator.show": "indicators",
+  "indicator.hide": "indicators",
+  "indicator.draft": "indicators",
+  "indicator.previewDraft": "indicators",
+  "indicator.saveDraft": "indicators",
+  "indicator.undoDraft": "indicators",
+  "agent.capabilities": "agent"
+ },
+ "groups": [
+  {
+   "id": "charts",
+   "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+  },
+  {
+   "id": "workspace",
+   "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+  },
+  {
+   "id": "layouts",
+   "title": "Saved layouts (open, save, create, copy, rename, delete)"
+  },
+  {
+   "id": "indicators",
+   "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+  },
+  {
+   "id": "drawings",
+   "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+  },
+  {
+   "id": "lists",
+   "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+  },
+  {
+   "id": "screener",
+   "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+  },
+  {
+   "id": "alerts",
+   "title": "Price alerts (list, create, delete)"
+  },
+  {
+   "id": "data",
+   "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+  },
+  {
+   "id": "breadth",
+   "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+  },
+  {
+   "id": "settings",
+   "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+  },
+  {
+   "id": "agent",
+   "title": "Questions about what UCT Agent can do"
+  }
+ ],
+ "cases": [
+  {
+   "selected": [
+    "charts",
+    "indicators",
+    "screener",
+    "agent"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "chart.applyThemeAll",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities"
+   ],
+   "routing": {
+    "version": 1,
+    "groups": [
+     {
+      "id": "charts",
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "workspace",
+      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "layouts",
+      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "indicators",
+      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "drawings",
+      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+     },
+     {
+      "id": "lists",
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+     },
+     {
+      "id": "screener",
+      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+     },
+     {
+      "id": "alerts",
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "data",
+      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+     },
+     {
+      "id": "breadth",
+      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+     },
+     {
+      "id": "settings",
+      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "agent",
+      "title": "Questions about what UCT Agent can do"
+     }
+    ],
+    "selected": [
+     "charts",
+     "indicators",
+     "screener",
+     "agent"
+    ],
+    "stable": 41
+   }
+  },
+  {
+   "selected": [
+    "charts",
+    "indicators",
+    "screener",
+    "agent",
+    "layouts"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "chart.applyThemeAll",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities",
+    "layout.current",
+    "layout.list",
+    "layout.open",
+    "layout.saveAs",
+    "layout.saveCurrent",
+    "layout.rename",
+    "layout.create",
+    "layout.delete",
+    "layout.duplicate"
+   ],
+   "routing": {
+    "version": 1,
+    "groups": [
+     {
+      "id": "charts",
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "workspace",
+      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "layouts",
+      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "indicators",
+      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "drawings",
+      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+     },
+     {
+      "id": "lists",
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+     },
+     {
+      "id": "screener",
+      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+     },
+     {
+      "id": "alerts",
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "data",
+      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+     },
+     {
+      "id": "breadth",
+      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+     },
+     {
+      "id": "settings",
+      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "agent",
+      "title": "Questions about what UCT Agent can do"
+     }
+    ],
+    "selected": [
+     "charts",
+     "layouts",
+     "indicators",
+     "screener",
+     "agent"
+    ],
+    "stable": 41
+   }
+  },
+  {
+   "selected": [
+    "charts",
+    "indicators",
+    "screener",
+    "agent",
+    "lists",
+    "alerts"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "chart.applyThemeAll",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities",
+    "watchlist.list",
+    "watchlist.show",
+    "watchlist.add",
+    "watchlist.remove",
+    "watchlist.clear",
+    "watchlist.delete",
+    "watchlist.create",
+    "watchlist.rename",
+    "alert.list",
+    "alert.create",
+    "alert.delete",
+    "watchlist.open"
+   ],
+   "routing": {
+    "version": 1,
+    "groups": [
+     {
+      "id": "charts",
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "workspace",
+      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "layouts",
+      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "indicators",
+      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "drawings",
+      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+     },
+     {
+      "id": "lists",
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+     },
+     {
+      "id": "screener",
+      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+     },
+     {
+      "id": "alerts",
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "data",
+      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+     },
+     {
+      "id": "breadth",
+      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+     },
+     {
+      "id": "settings",
+      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "agent",
+      "title": "Questions about what UCT Agent can do"
+     }
+    ],
+    "selected": [
+     "charts",
+     "indicators",
+     "lists",
+     "screener",
+     "alerts",
+     "agent"
+    ],
+    "stable": 41
+   }
+  },
+  {
+   "selected": [
+    "charts",
+    "indicators",
+    "screener",
+    "agent",
+    "workspace",
+    "drawings"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "chart.applyThemeAll",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities",
+    "widget.add",
+    "widget.addCharts",
+    "widget.remove",
+    "widget.move",
+    "widget.arrange",
+    "widget.setLink",
+    "widget.showList",
+    "widget.showScan",
+    "widget.resize",
+    "widget.selectTab",
+    "widget.renameTab",
+    "widget.closeTab",
+    "drawing.list",
+    "drawing.addLevel",
+    "drawing.style",
+    "drawing.remove"
+   ],
+   "routing": {
+    "version": 1,
+    "groups": [
+     {
+      "id": "charts",
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "workspace",
+      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "layouts",
+      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "indicators",
+      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "drawings",
+      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+     },
+     {
+      "id": "lists",
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+     },
+     {
+      "id": "screener",
+      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+     },
+     {
+      "id": "alerts",
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "data",
+      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+     },
+     {
+      "id": "breadth",
+      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+     },
+     {
+      "id": "settings",
+      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "agent",
+      "title": "Questions about what UCT Agent can do"
+     }
+    ],
+    "selected": [
+     "charts",
+     "workspace",
+     "indicators",
+     "drawings",
+     "screener",
+     "agent"
+    ],
+    "stable": 41
+   }
+  },
+  {
+   "selected": [
+    "agent",
+    "charts",
+    "data"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "chart.applyThemeAll",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities",
+    "stock.profile",
+    "stock.earnings",
+    "stock.compare",
+    "news.latest",
+    "news.catalysts"
+   ],
+   "routing": {
+    "version": 1,
+    "groups": [
+     {
+      "id": "charts",
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "workspace",
+      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "layouts",
+      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "indicators",
+      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "drawings",
+      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+     },
+     {
+      "id": "lists",
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+     },
+     {
+      "id": "screener",
+      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+     },
+     {
+      "id": "alerts",
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "data",
+      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+     },
+     {
+      "id": "breadth",
+      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+     },
+     {
+      "id": "settings",
+      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "agent",
+      "title": "Questions about what UCT Agent can do"
+     }
+    ],
+    "selected": [
+     "charts",
+     "indicators",
+     "screener",
+     "data",
+     "agent"
+    ],
+    "stable": 41
+   }
+  },
+  {
+   "selected": [
+    "charts",
+    "workspace",
+    "layouts",
+    "indicators",
+    "drawings",
+    "lists",
+    "screener",
+    "alerts",
+    "data",
+    "breadth",
+    "settings",
+    "agent"
+   ],
+   "names": [
+    "chart.setType",
+    "chart.setTimeframe",
+    "chart.setSymbol",
+    "chart.setSession",
+    "chart.setScale",
+    "chart.applyTheme",
+    "chart.setBackground",
+    "chart.setCandleColors",
+    "volume.setState",
+    "chart.setSetting",
+    "chart.applyTemplate",
+    "chart.resetDefaults",
+    "chart.goToDate",
+    "chart.compare",
+    "chart.addCustomTimeframe",
+    "widget.add",
+    "widget.addCharts",
+    "layout.current",
+    "layout.list",
+    "layout.open",
+    "layout.saveAs",
+    "layout.saveCurrent",
+    "layout.rename",
+    "layout.create",
+    "layout.delete",
+    "layout.duplicate",
+    "watchlist.list",
+    "watchlist.show",
+    "watchlist.add",
+    "watchlist.remove",
+    "watchlist.clear",
+    "watchlist.delete",
+    "watchlist.create",
+    "watchlist.rename",
+    "screener.run",
+    "screener.runSaved",
+    "screener.state",
+    "screener.listSaved",
+    "alert.list",
+    "alert.create",
+    "alert.delete",
+    "stock.profile",
+    "stock.earnings",
+    "stock.compare",
+    "breadth.show",
+    "breadth.history",
+    "settings.show",
+    "settings.setAppTheme",
+    "settings.setDefaultTimeframe",
+    "settings.setAlertSound",
+    "app.open",
+    "news.latest",
+    "news.catalysts",
+    "settings.setWatchlistDigest",
+    "screener.saveAs",
+    "screener.duplicateSaved",
+    "screener.renameSaved",
+    "screener.deleteSaved",
+    "widget.remove",
+    "widget.move",
+    "widget.arrange",
+    "widget.setLink",
+    "widget.showList",
+    "watchlist.open",
+    "widget.showScan",
+    "chart.applyThemeAll",
+    "widget.resize",
+    "widget.selectTab",
+    "widget.renameTab",
+    "widget.closeTab",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
+    "drawing.list",
+    "drawing.addLevel",
+    "drawing.style",
+    "drawing.remove",
+    "indicator.list",
+    "indicator.openCreate",
+    "indicator.add",
+    "indicator.remove",
+    "indicator.update",
+    "indicator.show",
+    "indicator.hide",
+    "indicator.draft",
+    "indicator.previewDraft",
+    "indicator.saveDraft",
+    "indicator.undoDraft",
+    "agent.capabilities"
+   ],
+   "routing": null
+  }
+ ]
+}
