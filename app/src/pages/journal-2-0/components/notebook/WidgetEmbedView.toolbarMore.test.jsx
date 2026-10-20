@@ -129,3 +129,65 @@ describe('the chart toolbar folds the rarely-used actions under More', () => {
     expect(screen.getByRole('menuitem', { name: 'Freeze' })).toBeTruthy()
   })
 })
+
+describe('the More menu reads as a menu (E1, E3) and answers the keyboard (E2)', () => {
+  it('a separator sits directly before the danger Remove embed row', async () => {
+    await renderChartEmbed()
+    fireEvent.click(screen.getByRole('button', { name: 'More chart actions' }))
+    const menu = await screen.findByRole('menu')
+    const remove = within(menu).getByRole('menuitem', { name: 'Remove embed' })
+    expect(remove.previousElementSibling?.getAttribute('role')).toBe('separator')
+    // and only the one separator: the safe rows are not split up
+    expect(within(menu).getAllByRole('separator')).toHaveLength(1)
+  })
+
+  it('the rows whose name does not say what they do carry their old explanation', async () => {
+    await renderChartEmbed()
+    fireEvent.click(screen.getByRole('button', { name: 'More chart actions' }))
+    const sync = await screen.findByRole('menuitem', { name: 'Sync' })
+    expect(sync.getAttribute('title')).toMatch(/current Charts-page settings and drawings/)
+    expect(sync.getAttribute('aria-description')).toBe(sync.getAttribute('title'))
+    expect(screen.getByRole('menuitem', { name: 'Aftermath' }).getAttribute('title')).toMatch(/view-only, nothing saved/)
+    // the live cap is stated where the member turns a chart live
+    expect(screen.getByRole('menuitem', { name: 'Live' }).getAttribute('title')).toMatch(/per note/)
+  })
+
+  it('a press on the open More dragged off before release does not swallow the next keyboard activation', async () => {
+    await renderChartEmbed()
+    const more = screen.getByRole('button', { name: 'More chart actions' })
+    fireEvent.click(more)
+    await screen.findByRole('menu')
+    // press on the open button: the popover closes on that press (its outside-press rule)
+    fireEvent.mouseDown(more)
+    expect(screen.queryByRole('menu')).toBeNull()
+    // ...the pointer leaves and is released elsewhere, so no click follows the press
+    fireEvent.pointerUp(document.body)
+    fireEvent.mouseUp(document.body)
+    // a keyboard Enter/Space on a button arrives as a click with no press before it
+    fireEvent.click(more)
+    expect(await screen.findByRole('menu')).toBeTruthy()
+  })
+
+  it('control: a whole press and release on the open More still closes it and keeps it closed', async () => {
+    await renderChartEmbed()
+    const more = screen.getByRole('button', { name: 'More chart actions' })
+    fireEvent.click(more)
+    await screen.findByRole('menu')
+    fireEvent.mouseDown(more)
+    fireEvent.pointerUp(more)
+    fireEvent.mouseUp(more)
+    fireEvent.click(more)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('leaving the button (blur) also drops the stale press', async () => {
+    await renderChartEmbed()
+    const more = screen.getByRole('button', { name: 'More chart actions' })
+    fireEvent.click(more)
+    await screen.findByRole('menu')
+    fireEvent.mouseDown(more)
+    fireEvent.blur(more)
+    fireEvent.click(more)
+    expect(await screen.findByRole('menu')).toBeTruthy()
+  })
+})

@@ -10,24 +10,26 @@ import pytest
 
 from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import template_gallery as gallery
-# P4b-R-X17: the shared fixtures and the one insert helper, imported by name (never copied).
-from tests._style_library_helpers import _row, api, conn  # noqa: F401
+# P4b-R-X17: the shared fixtures and the one insert helper, imported by name (never copied). The layout
+# switches, the preference write and TRADE live there too, so test_page_layout_adopt never imports this module.
+from tests._style_library_helpers import (  # noqa: F401
+    SWITCHES, TRADE, _row, _save_pref, _set, api, conn, sharing_on)
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE_LAYOUTS_JS = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "pageLayouts.js"
-
-SWITCHES = ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED")
-
-
-def _set(monkeypatch, on: dict[str, bool]) -> None:
-    for name in SWITCHES:
-        monkeypatch.setenv(name, "1" if on.get(name) else "0")
-
 
 @pytest.mark.parametrize("combo", list(itertools.product((False, True), repeat=3)))
 def test_layout_sharing_needs_all_three_switches(monkeypatch, combo):
     _set(monkeypatch, dict(zip(SWITCHES, combo)))
     assert gallery.layout_sharing_enabled() is all(combo)
+
+
+def test_an_unset_sharing_switch_is_off(monkeypatch):
+    """Production's state: the sharing switch is not set at all (`_set` always writes "0" or "1")."""
+    _set(monkeypatch, {n: True for n in SWITCHES})
+    assert gallery.layout_sharing_enabled() is True                       # control: all three on reads on
+    monkeypatch.delenv("NOTEBOOK_LAYOUT_SHARING_ENABLED")
+    assert gallery.layout_sharing_enabled() is False
 
 
 def test_layout_sharing_is_read_per_call(monkeypatch):
@@ -113,6 +115,7 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
     outline = _row(conn, item_type="outline", title="O")
     layout = _layout(conn, source_page="trade", title="L")
     pending = _layout(conn, status="pending", source_page="today", title="P")
+    pending_outline = _row(conn, item_type="outline", status="pending", title="PO")
     titles = [t["title"] for t in gallery.list_gallery("v", conn=conn)]
     assert "L" not in titles
     assert "O" in titles                                                  # non-vacuity: the list was read
@@ -123,6 +126,7 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
     assert gallery.get_item("v", outline, conn=conn) is not None
     queue = gallery.admin_queue(conn=conn)["pending"]
     assert all(r["id"] != pending for r in queue)                        # a PENDING layout row
+    assert pending_outline in [r["id"] for r in queue]                    # non-vacuity: the queue was read
     handle = gallery.author_handle("u1", conn)
     # P4b-R-X3: with the library off the author page is None (the library's own gate); otherwise it is read
     # and carries the outline but never a layout.
@@ -143,9 +147,18 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
 
 def test_layout_rows_list_when_all_three_are_on(conn, monkeypatch):
     _set(monkeypatch, {n: True for n in SWITCHES})
-    _layout(conn, source_page="trade", title="L")
+    layout = _layout(conn, source_page="trade", title="L")
+    pending = _layout(conn, status="pending", source_page="today", title="P")
     rows = gallery.list_gallery("v", item_type="page_layout", conn=conn)
     assert [(r["title"], r["itemType"], r["layoutPage"]) for r in rows] == [("L", "page_layout", "trade")]
+    # The positive control for every reader the switch-off test covers: each one serves a layout when all
+    # three are on, so a reader that hard-codes the layout type out goes red here.
+    assert pending in [r["id"] for r in gallery.admin_queue(conn=conn)["pending"]]
+    page = gallery.author_page("v", gallery.author_handle("u1", conn), conn=conn)
+    assert layout in [i["id"] for i in page["items"]]
+    conn.execute("INSERT INTO j2_gallery_follows (follower_id, author_id, created_at) VALUES ('v', 'u1', 'x')")
+    conn.commit()
+    assert layout in [i["id"] for i in gallery.feed("v", conn=conn)]
 
 
 def test_one_rule_decides_type_visibility(monkeypatch):
@@ -167,22 +180,6 @@ def test_the_client_item_types_include_page_layout():
 
 
 # ── Task 4: publishing a layout, and held revisions ─────────────────────────────────────────────────
-
-def _save_pref(conn, user_id, blob):
-    # V3 / P4b-R-X1: written through the REAL upsert (`auth_service.set_user_preference`, the statement
-    # `POST /api/auth/preferences` runs) into `user_preferences(pref_key, pref_value)`. `conn` is the test's
-    # connection to the same auth.db; `publish_layout` reads the row back through it.
-    from api.services import auth_service
-    auth_service.set_user_preference(user_id, pls.LAYOUT_PREF, blob if isinstance(blob, str) else json.dumps(blob))
-
-
-@pytest.fixture
-def sharing_on(monkeypatch):
-    _set(monkeypatch, {n: True for n in SWITCHES})
-
-
-TRADE = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}, {"id": "outcome", "shown": True}]
-
 
 def _publish(conn, page="trade", user_id="author", title="Prop trade page"):
     return gallery.publish_layout(user_id, page, title=title, description="", category="journal",

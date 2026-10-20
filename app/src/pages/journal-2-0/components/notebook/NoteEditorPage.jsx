@@ -2442,7 +2442,13 @@ export default function NoteEditorPage({
   const creatingPlanRef = useRef(false)
   const createLinkedPlan = useCallback(async (symbol) => {
     const ed = editorRef.current
-    if (!journalStylesEnabled() || !ed || ed.isDestroyed || creatingPlanRef.current) return
+    if (!journalStylesEnabled() || !ed || ed.isDestroyed) return
+    // The slash command has already deleted the typed "/plan NVDA", so a second press while one is in flight
+    // must say why nothing happened (E4).
+    if (creatingPlanRef.current) {
+      setUploadToast({ message: 'A trade plan is already being made.', tone: 'error' })
+      return
+    }
     if (lockedRef.current || !ed.isEditable) {
       setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
       return

@@ -735,7 +735,8 @@
      Format 78, four at 44, six 7 px gaps), so the mic ended near x=398 behind a clip edge near
      x=366. Format is now the "Aa" glyph alone (the word is visually hidden in the JSX, the
      accessible name stays "Format"), and Undo / Redo / Format are pinned to exactly the finger
-     floor: 7 x 44 + 6 x 7 = 322 px (`min-width` is the touch block's `.toolBtn` floor, already 44
+     floor: 7 x 44 + 6 x 2 = 320 px, the row's 2 px gap (measured 38 -> 358 at 390 px,
+     docs/notebook/evidence/phone-toolbar-20261011T095257Z/rects.json) (`min-width` is the touch block's `.toolBtn` floor, already 44
      at this width, so it is not restated: tapFloor.test.js reads a phone-only `min-width:
      var(--tap-min)` as a finger target the tablet tier lacks). ⛔ `.toolbarRow .x` (0,2,0) on purpose: the unconditional
      `.toolbarRow .toolBtn { padding: 3px 8px }` far above outranks a bare `.x` here. */
@@ -766,7 +767,7 @@
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
-  /* ...and the CLOSED formatting toolbar is ONE row (seven controls, 322 px, so it fits a 390 px
+  /* ...and the CLOSED formatting toolbar is ONE row (seven controls, 320 px, so it fits a 390 px
      phone with nothing to scroll; the sideways scroll stays as the safety net for narrower
      screens). It never widens the page (the row is the scroller, not the page). An OPEN Format
      wraps instead (`.toolbarRow[data-format-open]` above wins on specificity). Undo / Redo

@@ -3,7 +3,8 @@
 // /api/voice/insights answers {insights: [...]}.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { toNotices } from './notices'
 import fx from './__fixtures__/notices.json'
 // The follow-up row is CAPTURED too, but lives in its own fixture so the literal counts the box's other
@@ -11,6 +12,9 @@ import fx from './__fixtures__/notices.json'
 import fu from './__fixtures__/notices.followup.json'
 // P3a: the community library's two rows, CAPTURED the same way (see its _provenance).
 import lib from './__fixtures__/notices.library.json'
+
+// The repo root from this file's own location, so the run does not depend on the cwd it started in.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..')
 
 const ALERTS = [...fx.alertsBody, ...fu.alertsBody]
 
@@ -41,6 +45,19 @@ describe('toNotices', () => {
     const fill = toNotices(fx.alertsBody, { insights: [] }).find((n) => n.kind === 'fill')
     expect(fill.href).toBe('/journal?j2tab=positions')
   })
+  it('a reminder or fill row whose link is not a same-site path falls back to its default', () => {
+    const defaults = { reminder: '/journal/notebook?view=tasks', fill: '/journal?j2tab=positions' }
+    for (const kind of ['reminder', 'fill']) {
+      const row = { ...fx.alertsBody.find((r) => toNotices([r], { insights: [] })[0]?.kind === kind) }
+      for (const url of ['https://evil.example', '//evil', '//evil.example/journal', 'javascript:alert(1)', 7, '', null, undefined]) {
+        row.data = { ...row.data, research_url: url }
+        expect(toNotices([row], { insights: [] })[0].href, `${kind}: ${String(url)}`).toBe(defaults[kind])
+      }
+      // The control: a same-site path the row carries is still followed.
+      row.data = { ...row.data, research_url: '/journal/notebook?note=abc' }
+      expect(toNotices([row], { insights: [] })[0].href).toBe('/journal/notebook?note=abc')
+    }
+  })
   it('a follow-up says what the bell said and opens the card', () => {
     const f = toNotices(ALERTS, { insights: [] }).find((n) => n.kind === 'followup')
     expect(f.title).toBe('ORCL reported: write your follow-up')
@@ -65,12 +82,12 @@ describe('toNotices', () => {
     expect(n.href).toBe(row.data.research_url)
   })
   it('the captured follow-up is the raw capture, not a retyped row', () => {
-    const raw = JSON.parse(readFileSync(resolve(globalThis.process.cwd(), '..', 'docs', 'notebook', 'evidence', 't2b-notice-capture', 'alerts-body.json'), 'utf8'))
+    const raw = JSON.parse(readFileSync(resolve(REPO_ROOT, 'docs', 'notebook', 'evidence', 't2b-notice-capture', 'alerts-body.json'), 'utf8'))
     expect(raw).toHaveLength(1)
     expect(fu.alertsBody).toEqual(raw)
   })
   it('the captured follow-up link opens the card the server builds (derived from the source, not restated)', () => {
-    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'earnings_followup.py'), 'utf8')
+    const src = readFileSync(resolve(REPO_ROOT, 'api', 'services', 'journal_two', 'earnings_followup.py'), 'utf8')
     const m = src.match(/^NOTEBOOK_PATH = "(.+)"$/m)
     expect(m).not.toBeNull()
     const row = fu.alertsBody[0]
@@ -99,12 +116,12 @@ describe('toNotices', () => {
     }
   })
   it('the captured library rows are the raw capture, not retyped rows', () => {
-    const raw = JSON.parse(readFileSync(resolve(globalThis.process.cwd(), '..', 'docs', 'notebook', 'evidence', 'p3a-library-notice-capture', 'alerts-body.json'), 'utf8'))
+    const raw = JSON.parse(readFileSync(resolve(REPO_ROOT, 'docs', 'notebook', 'evidence', 'p3a-library-notice-capture', 'alerts-body.json'), 'utf8'))
     expect(raw).toHaveLength(2)
     expect(lib.alertsBody).toEqual(raw)
   })
   it('the library type and link are the server\'s (derived from the source, not restated)', () => {
-    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
+    const src = readFileSync(resolve(REPO_ROOT, 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
     const type = src.match(/^LIBRARY_NOTICE_SOURCE = "(.+)"$/m)
     const path = src.match(/^LIBRARY_UPDATE_PATH = "(.+)"$/m)
     expect(type).not.toBeNull()
@@ -141,7 +158,7 @@ describe('toNotices', () => {
   })
 
   it('the captured fill row says what the server says today (derived from the source, not restated)', () => {
-    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'entry_context.py'), 'utf8')
+    const src = readFileSync(resolve(REPO_ROOT, 'api', 'services', 'journal_two', 'entry_context.py'), 'utf8')
     const m = src.match(/^BELL_MESSAGE = "(.+)"$/m)
     expect(m).not.toBeNull()
     const fill = fx.alertsBody.find((r) => r.type === 'notebook_entry_context_new_fill')

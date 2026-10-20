@@ -35,7 +35,7 @@ from tests._style_library_helpers import api, conn, lib_on  # noqa: F401  (fixtu
 from tests.test_example_notes import URL, _as, ex_on, ocr  # noqa: F401  (fixtures + helpers)
 from tests.test_example_note_images import _approve, _note_with_files, _publish, att  # noqa: F401
 from tests.test_example_notes import _shared_style, _src
-from tests.test_page_layout_share import TRADE, _save_pref, sharing_on  # noqa: F401  (fixture + helpers)
+from tests._style_library_helpers import TRADE, _save_pref, sharing_on  # noqa: F401  (fixture + helpers)
 from tests.test_page_layout_adopt import _listed_layout
 
 SOURCE = Path(gallery.__file__)

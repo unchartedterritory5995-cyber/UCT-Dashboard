@@ -12,6 +12,8 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
   const [open, setOpen] = useState(false)
   const caretRef = useRef(null)
   const menuRef = useRef(null)
+  // Which item an ArrowDown / ArrowUp on the caret asked for; read once, when the menu opens.
+  const wantLast = useRef(false)
   // ⛔ Tour anchors are LITERAL attributes in JSX (tourAnchors.test.js reads them by AST and
   // refuses an expression), so the voice item's anchor is written on its own element below,
   // not carried through this list as data. ("From a style" has no anchor: no tour points at it, and a
@@ -25,7 +27,9 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
 
   useEffect(() => {
     if (!open) return undefined
-    menuRef.current?.querySelector('[role="menuitem"]')?.focus()
+    const rows = menuRef.current?.querySelectorAll('[role="menuitem"]') || []
+    rows[wantLast.current ? rows.length - 1 : 0]?.focus()
+    wantLast.current = false
     const away = (e) => {
       // The voice-notes tour keeps this menu open while its card (portalled to <body>, marked
       // `data-tour-card` by GenericTourEngine) describes the voice item: a press on the card's
@@ -38,6 +42,25 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
   }, [open])
 
   const close = () => { setOpen(false); caretRef.current?.focus() }
+  // ArrowDown / ArrowUp on the caret open the menu on its first / last item (the menu button pattern);
+  // on an already-open menu they just move focus into it.
+  const onCaretKey = (e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const last = e.key === 'ArrowUp'
+    if (!open) { wantLast.current = last; setOpen(true); return }
+    const rows = menuRef.current?.querySelectorAll('[role="menuitem"]') || []
+    rows[last ? rows.length - 1 : 0]?.focus()
+  }
+  // Tab (or a click) that takes focus out of the open menu closes it, so it is not left hanging open
+  // over the page. Focus staying inside the menu, going back to the caret, or going to the tour card
+  // (which keeps the menu open on purpose, see `away`) leaves it open; a null target (the window lost
+  // focus) does too, since the pointer handler owns outside presses.
+  const onMenuBlur = (e) => {
+    const to = e.relatedTarget
+    if (!to || menuRef.current?.contains(to) || caretRef.current?.contains(to) || to.closest?.('[data-tour-card]')) return
+    setOpen(false)
+  }
   const onMenuKey = (e) => {
     const list = [...menuRef.current.querySelectorAll('[role="menuitem"]')]
     const i = list.indexOf(document.activeElement)
@@ -63,11 +86,11 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
     <>
       <button ref={caretRef} type="button" className={caretClass}
         aria-haspopup="menu" aria-expanded={open} aria-label="More ways to start a note"
-        onClick={() => setOpen((o) => !o)}>
+        onClick={() => setOpen((o) => !o)} onKeyDown={onCaretKey}>
         <UIcon name="chevronDown" size={12} gold={false} />
       </button>
       {open && (
-        <div ref={menuRef} className={styles.menu} role="menu" aria-label="Start a note" onKeyDown={onMenuKey}>
+        <div ref={menuRef} className={styles.menu} role="menu" aria-label="Start a note" onKeyDown={onMenuKey} onBlur={onMenuBlur}>
           {items.map((it) => (it.key === 'voice' ? (
             <button key={it.key} type="button" role="menuitem" className={styles.item}
               data-tour="new-note-voice" onClick={run(it.run)}>

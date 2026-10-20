@@ -534,8 +534,10 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
             {/* P0.14: a formula was five steps deep (Add property, + New property, the type
                 select, scroll to Formula, then the editor). This is the first choice, and it
                 opens the SAME new-property flow with the type already set, so the editor and
-                its starter formulas are showing straight away. Flag off: not rendered. */}
-            {formulasOn && (
+                its starter formulas are showing straight away. Flag off: not rendered.
+                E6: not while the new-property form is open either, where a press would switch
+                the type a member is setting up (a Rollup, say) to Formula under them. */}
+            {formulasOn && !newPropOpen && (
               <button
                 type="button"
                 className={styles.pickerItem}

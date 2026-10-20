@@ -168,3 +168,24 @@ test('an item with an href is a real link row: a menuitem anchor that still clos
   fireEvent.click(link)
   expect(onClose).toHaveBeenCalledTimes(1)
 })
+
+// E3: an optional `hint` explains a row whose label is too short to say what it does.
+test('a hint becomes the row title and aria-description; no hint, no attributes (desktop)', () => {
+  render(
+    <ContextPopover open onClose={() => {}} anchor={{ x: 0, y: 0 }}
+      items={[
+        { label: 'Sync', hint: 'Pull your current Charts-page settings' },
+        { label: 'Docs', href: '/docs', hint: 'Open the guide' },
+        { label: 'Freeze' },
+      ]} />,
+  )
+  const sync = screen.getByRole('menuitem', { name: 'Sync' })
+  expect(sync.getAttribute('title')).toBe('Pull your current Charts-page settings')
+  expect(sync.getAttribute('aria-description')).toBe('Pull your current Charts-page settings')
+  expect(screen.getByRole('menuitem', { name: 'Docs' }).getAttribute('title')).toBe('Open the guide')
+  // the hint is a description, never the name
+  expect(sync.textContent).toBe('Sync')
+  const freeze = screen.getByRole('menuitem', { name: 'Freeze' })
+  expect(freeze.hasAttribute('title')).toBe(false)
+  expect(freeze.hasAttribute('aria-description')).toBe(false)
+})

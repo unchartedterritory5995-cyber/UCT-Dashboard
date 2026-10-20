@@ -2864,7 +2864,8 @@ export default function NotebookTab() {
             </div>
           )}
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
-              mount below must never steal focus from a page load. */}
+              mount above (the picker at the empty-notebook branch) must never steal focus from a
+              page load. */}
           <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
         </Sheet>
 

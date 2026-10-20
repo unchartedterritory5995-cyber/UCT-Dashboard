@@ -174,6 +174,8 @@ describe('2. the picker', () => {
     const asked = new URLSearchParams(got('/api/j2/notes')[0].search)
     expect(asked.get('sort')).toBe('created')
     expect(JSON.parse(asked.get('propertyFilter'))).toEqual([{ propertyId: NOTE_KIND_PROPERTY, op: 'eq', value: KIND }])
+    // OI-P3b-13: the sample notebook's notes are left out server-side (publishing one is refused)
+    expect(asked.get('excludeSample')).toBe('1')
   })
 
   it('the search box narrows the list by title', async () => {

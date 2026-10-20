@@ -333,7 +333,10 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 
 /* A phone's toolbar is ONE row (timeframe, Draw, Plan, Replay, More): it scrolls sideways
    inside the block instead of wrapping to a second line over the chart. The scrollbar is
-   hidden; the row is short enough that the first three doors are always in view. */
+   hidden. What was measured: the P0 T15 walk, at 390 px, found Plan in view without a
+   scroll. Nothing else was measured, so do not read this as "the first three doors are always
+   in view" at every phone width. ⚠️ `overflow-x: auto` also clips a focus ring that reaches
+   past the row's edge, so the first and last controls' rings can be cut off. */
 @media (max-width: 640px) {
   .toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .toolbar::-webkit-scrollbar { display: none; }

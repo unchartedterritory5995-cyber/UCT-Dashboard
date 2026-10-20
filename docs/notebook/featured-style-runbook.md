@@ -18,9 +18,9 @@ Open **Preview** before you choose. Note its exact title and author.
 
 ## 3. Mark it a UCT pick
 
-On that style's card, press **Feature**. As an admin you see two extra buttons on every card, after Preview, Adopt, Helpful and Report: **Feature** (or **Unfeature** on a card that is already a pick) and **Hide**. Members never see them.
+On that style's card, press **Feature**. As an admin you see two extra buttons on each card in **Browse** (under **UCT picks** and **Community**), after Preview, Adopt, Helpful and Report: **Feature** (or **Unfeature** on a card that is already a pick) and **Hide**. They do not appear on the cards in **Following** or on an author's page, so feature from Browse. Members never see them.
 
-The gallery answers "“{title}” is now a UCT pick." and reloads its lists, so the style moves up under **UCT picks**. If the sentence does not appear, nothing changed: the card shows the server's reason instead (for example "Approve a template before featuring it.").
+The gallery answers "“{title}” is now a UCT pick." and reloads its lists, so the style moves up under **UCT picks**. Both that sentence and any refusal appear in the gallery's message bar, above the lists, not on the card. If the sentence does not appear, nothing changed: the message bar shows the server's reason instead (for example "Approve a template before featuring it.").
 
 ## 4. Post the two lines
 
