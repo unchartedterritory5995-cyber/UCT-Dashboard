@@ -1924,6 +1924,42 @@
       "where": ["web"],
       "note": "ARMED on web 2026-10-19 11:36 CT (=1), owner's --set (web auto-redeployed, deploy d02e4db4 created 16:36:22Z, SUCCESS, /api/health uptime reset to 51 s). The in-process read over railway ssh was classifier-DENIED (not routed around); the smoke account's /api/auth/me read notebook_starter_packs_enabled true instead. Smoke checks: 0 own styles and notebook_starter_pack unset before; New note > From a style showed ONE How do you trade? region with Swing/Day/Prop/Options/Earnings and Not now; POST starter-packs/swing 200 installed 3 (Swing trade plan, Weekend prep, Swing trade review), all 3 listed, all 3 deleted 200, 0 own styles after, preference still unset (installed through the route, not the card, so the account keeps no answer); Learn menu lists journal-styles + style-library tours; both capability lines show; UCT picks lists 15 firm style rows (21 firm rows with the 6 firm outlines). A stray empty note created by a check's Start a note press was trashed through DELETE /api/j2/notes/{id}. P5. Gates the How do you trade? offer, the starter-pack install endpoint and the fifteen firm style rows in the community gallery. The offer and the install also need NOTEBOOK_JOURNAL_STYLES_ENABLED. The firm style rows are listed in every gallery read (the list, UCT picks, one item, the update list, the review queue) only while BOTH this and NOTEBOOK_STYLE_LIBRARY_ENABLED are on (ruling P5-AUD-1; one rule, template_gallery._hidden_styles), so arming the library alone never shows them. Arm: railway variables --service web --set NOTEBOOK_STARTER_PACKS_ENABLED=1 (the owner's). Rollback: 0 hides the install and every firm style row (UCT picks included) on the next request, and the offer on the member's next reload (an open tab keeps its latched offer, whose install then answers 404), with no redeploy; nothing is deleted, and copies a member already installed stay the member's own."
     },
+    "NOTEBOOK_WIDGETS_W1_ENABLED": {
+      "member_facing": { "label": "Account and Positions widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 1: the Account and Positions widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w1_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W1_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
+    "NOTEBOOK_WIDGETS_W2_ENABLED": {
+      "member_facing": { "label": "Journal and plan widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 2: the Journal and plan widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w2_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W2_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
+    "NOTEBOOK_WIDGETS_W3_ENABLED": {
+      "member_facing": { "label": "Market widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 3: the market widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w3_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W3_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
+    "NOTEBOOK_WIDGETS_W4_ENABLED": {
+      "member_facing": { "label": "Research widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 4: the research widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w4_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W4_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
+    "NOTEBOOK_WIDGETS_W5_ENABLED": {
+      "member_facing": { "label": "Setup and review widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 5: the setup and review widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w5_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W5_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
+    "NOTEBOOK_WIDGETS_W6_ENABLED": {
+      "member_facing": { "label": "Share and sync widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 6: the share and sync widgets, shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w6_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W6_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

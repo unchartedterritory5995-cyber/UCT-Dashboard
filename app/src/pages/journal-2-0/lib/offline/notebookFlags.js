@@ -81,6 +81,12 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_style_library_enabled: false, // P3a: the community style library (share, adopt, helpful, follow) — absent ⇒ OFF
   journal_tier3_enabled: false, // P2 Tier 3: mood check-in, By check-in view, winners checklist, trading year — absent ⇒ OFF
   notebook_starter_packs_enabled: false, // P5: the How do you trade? offer and starter-pack install (the server lists firm style rows only with this AND the library on) — absent ⇒ OFF
+  notebook_widgets_w1_enabled: false, // notebook widgets, wave 1 — absent ⇒ OFF
+  notebook_widgets_w2_enabled: false, // notebook widgets, wave 2 — absent ⇒ OFF
+  notebook_widgets_w3_enabled: false, // notebook widgets, wave 3 — absent ⇒ OFF
+  notebook_widgets_w4_enabled: false, // notebook widgets, wave 4 — absent ⇒ OFF
+  notebook_widgets_w5_enabled: false, // notebook widgets, wave 5 — absent ⇒ OFF
+  notebook_widgets_w6_enabled: false, // notebook widgets, wave 6 — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

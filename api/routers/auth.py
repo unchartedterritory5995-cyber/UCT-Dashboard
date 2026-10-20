@@ -279,6 +279,14 @@ NOTEBOOK_FLAGS = {
     # NOTEBOOK_STYLE_LIBRARY_ENABLED is on too (P5-AUD-1, template_gallery._hidden_styles). Payload key
     # `notebook_starter_packs_enabled`.
     "NOTEBOOK_STARTER_PACKS_ENABLED": False,  # enablement — unset means OFF (starter packs, P5)
+    # Notebook widgets (plan docs/superpowers/plans/2026-10-20-notebook-widgets.md): one gate per wave. A flag gates
+    # menu entries and server reads only; a stored widget always renders. Payload keys `notebook_widgets_w<n>_enabled`.
+    "NOTEBOOK_WIDGETS_W1_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 1)
+    "NOTEBOOK_WIDGETS_W2_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 2)
+    "NOTEBOOK_WIDGETS_W3_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 3)
+    "NOTEBOOK_WIDGETS_W4_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 4)
+    "NOTEBOOK_WIDGETS_W5_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 5)
+    "NOTEBOOK_WIDGETS_W6_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 6)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
