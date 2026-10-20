@@ -4,6 +4,16 @@ Approved for development by the owner on 2026-10-20. NL-1 stays **dark**: both s
 
 The **60-action per-request limit is unchanged**, and so are the 2-call ceiling and the spend caps.
 
+> **Release status, 2026-10-20.** The owner chose to **skip T1 and every paid real-model evaluation for now** and released the selector **dark** through a normal PR. Every number below comes from free, local simulation on the dev and exposed sets. **None of it measures how a real model interprets requests.** Still unverified until a paid evaluation is authorized:
+> - interpretation accuracy, unsafe-plan rate and substitution rate on a real model;
+> - the real reroute rate, token use, cache behaviour and latency;
+> - the sealed-set scores (`heldout-v2`, `sealed-v3`), which have never been opened.
+>
+> **Before activation:**
+> 1. a separate eval workspace and key with a provider-side spend limit;
+> 2. T1, then the full evaluation, with the gates in [NL1-EVAL.md](NL1-EVAL.md) passed on the sealed sets;
+> 3. the owner's activation decision.
+
 ## Why
 
 NL-1's whole catalog is 91 actions on an admin's charts board. That is over the 60-action per-request limit, so as merged in PR #427 an NL-1 request was refused before any model call.
@@ -85,7 +95,7 @@ The first-call numbers are therefore optimistic. Coverage measures what the mode
 | of which the variable part (other actions + groups note + schema) | ~2.0k–2.6k tokens (max ~5.1k) | n/a |
 | Actions per first call | median 47, max 55 | 91 (refused under 60) |
 
-**Unmeasured until T1:**
+**Unmeasured until a paid evaluation (T1 skipped by the owner on 2026-10-20):**
 - real tokens, cache hits and latency;
 - whether the per-request output schema (its action enum varies with the selection) affects prompt caching;
 - the reroute rate on the real model.

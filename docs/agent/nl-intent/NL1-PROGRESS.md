@@ -137,3 +137,5 @@ Still owed, in order:
 1. the owner's approval for T1 and the paid evaluation (the selector is frozen at this iteration's commit);
 2. the sealed scoring;
 3. activation.
+
+**2026-10-20, owner decision:** T1 and all paid evaluations are skipped for now. The selector was rebased onto master `57f9d08822` and released **dark** through a normal PR. Both switches stay OFF. The coverage figures above are simulated and do not prove real-model interpretation accuracy. Items 1–3 above are still owed before activation.
