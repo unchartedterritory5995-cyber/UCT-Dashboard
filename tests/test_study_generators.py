@@ -17,7 +17,7 @@ import pytest
 
 from api.services import study_import as si
 from api.services.study_scoring import RISK_CEILING_PCT, size_from_stop
-from scripts.study import (_common, gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size, gen_walkthroughs,
+from scripts.study import (_common, gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size, gen_terms, gen_walkthroughs,
                            run_all)
 from scripts.study._common import EM_DASH, dedash
 
@@ -28,7 +28,7 @@ ID_RE = re.compile(r"^si_[0-9a-f]{12}$")
 @pytest.fixture(scope="module")
 def segments() -> dict:
     out: dict = {}
-    for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs):
+    for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
         out.update(mod.generate())
     js = gen_regime.BOTTOMS.read_text(encoding="utf-8")
     out["regime.bottoms"] = gen_regime.bottom_items(gen_regime.read_bottoms(js), gen_regime.read_signposts(js))
@@ -40,7 +40,7 @@ def segments() -> dict:
 def test_every_segment_validates_and_is_non_empty(segments):
     assert set(segments) >= {"recall.glossary", "recall.principles", "recall.bible", "recall.concepts",
                              "recall.playbooks", "size.house_rule", "spot.fixtures", "family.fixtures",
-                             "regime.bottoms", "candles.catalog", "walk.method"}
+                             "regime.bottoms", "candles.catalog", "walk.method", "vocab.chart"}
     for name, items in segments.items():
         assert items, name
         assert _common.validate(items) == [], name
@@ -391,4 +391,4 @@ def test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors(segm
 
 
 def test_run_all_lists_every_generator():
-    assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs}
+    assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms}
