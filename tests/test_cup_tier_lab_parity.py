@@ -6,7 +6,8 @@ whose answers passed. This file imports that code BY PATH, runs it beside the da
 and requires the same answer. The lab and C:/data/bars.db live outside this repo, so the file SKIPS when either is
 absent (a lab that cannot import is "absent", never a pass). bars.db is opened mode=ro.
 
-  * lab path: env `UCT_LAB_ROOT`, default ~/Desktop/TSDR-Ledger-Backup/lab
+  * lab path: env `UCT_LAB_CUP_TIER` ONLY (no default; the lab ROOT holding cup_tier_v2/, cup_draw_v3/,
+    cup_draw_v4/ and blind_keys_team/); the file skips when it is unset
 
 Levels:
   CONSTANTS  every frozen lab constant (gates, envelope, template, threshold, drawing) equals the dashboard's.
@@ -33,13 +34,15 @@ import api.services.pattern_engine.types  # noqa: F401  (real modules first: the
 from api.services import auto_structures
 from api.services.pattern_engine import cup_tier as P
 
-_LAB = os.environ.get("UCT_LAB_ROOT") or os.path.expanduser("~/Desktop/TSDR-Ledger-Backup/lab")
+_LAB = os.environ.get("UCT_LAB_CUP_TIER") or ""
 _BARS_DB = "C:/data/bars.db"
 _SLICE = 600                 # auto_structures.STRUCTURE_BARS: what the route hands the stamp
 _KEY_PREFIXES = ("r_cuptier_", "r_cuptier2_", "r_cupdraw3_", "r_cupdraw4_")
 
 
 def _load_lab():
+    if not _LAB:
+        pytest.skip("UCT_LAB_CUP_TIER unset")
     need = [os.path.join(_LAB, "cup_tier_v2", "ct2_tier.py"), os.path.join(_LAB, "cup_draw_v4", "cd4_draw.py"),
             _BARS_DB]
     if not all(os.path.exists(p) for p in need):

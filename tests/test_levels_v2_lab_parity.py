@@ -19,13 +19,15 @@ import pytest
 
 from api.services import levels_v2
 
-LAB = Path(os.environ.get("UCT_LAB_DIR", r"C:\Users\Patrick\Desktop\TSDR-Ledger-Backup\lab"))
+#: The lab root, from env UCT_LAB_DIR ONLY (no default): unset => every test here skips.
+_LAB_ENV = os.environ.get("UCT_LAB_DIR") or ""
+LAB = Path(_LAB_ENV) if _LAB_ENV else Path("__uct_lab_dir_unset__")
 LV2 = LAB / "levels_v2"
 CHARTS = LAB / "drawn_vs_team" / "out" / "charts.pkl"
 BARS_DB = Path(os.environ.get("UCT_LAB_BARS_DB", r"C:\data\bars.db"))
 
-pytestmark = pytest.mark.skipif(not (LV2.is_dir() and CHARTS.is_file() and BARS_DB.is_file()),
-                                reason="lab/levels_v2 or bars.db not present")
+pytestmark = pytest.mark.skipif(not (_LAB_ENV and LV2.is_dir() and CHARTS.is_file() and BARS_DB.is_file()),
+                                reason="UCT_LAB_DIR unset, or lab/levels_v2 or bars.db not present")
 
 
 def _lab_block(path, start, end=None):

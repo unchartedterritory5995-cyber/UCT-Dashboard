@@ -4,8 +4,8 @@ Reads a local directory (never committed — this repo is public) and POSTs it i
 POST /api/internal/wisdom/archive/batch. DRY-RUN BY DEFAULT: without --send nothing leaves
 the machine; the script validates every item exactly as the server would and prints counts.
 
-    python tools/wisdom/archive_import.py --src "C:\\path\\to\\TSDR-Ledger-Backup"
-    python tools/wisdom/archive_import.py --src "C:\\path\\to\\TSDR-Ledger-Backup" \\
+    python tools/wisdom/archive_import.py --src "C:\\path\\to\\ledger-backup"
+    python tools/wisdom/archive_import.py --src "C:\\path\\to\\ledger-backup" \\
         --url https://uctintelligence.com --send
 
 Layout read under --src:
@@ -372,7 +372,7 @@ def post_batch(url: str, secret: str, kind: str, items: list) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--src", required=True, help="local TSDR-Ledger-Backup directory")
+    ap.add_argument("--src", required=True, help="local ledger backup directory")
     ap.add_argument("--url", default="https://uctintelligence.com", help="dashboard base URL")
     ap.add_argument("--send", action="store_true", help="actually POST (default: dry run)")
     ap.add_argument("--only", choices=service.KINDS + ("images",),

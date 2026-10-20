@@ -363,7 +363,7 @@ def _team_display() -> dict:
 
 def edge_call(st: dict, edge_z: float, min_n: int) -> Optional[tuple]:
     """The ledger's rule for one trader's cut, the same one the brain's trader playbooks apply
-    (TSDR-Ledger lab/trader_playbooks/build.py `verdict`, in SCORECARD's order): at n >= min_n, a
+    (the local lab's trader_playbooks/build.py `verdict`, in SCORECARD's order): at n >= min_n, a
     |z| >= edge_z on edge20 (20-session return vs the same stock on a random day) decides first, else
     the same test on edgeR. Returns ('edge' | 'negative', 'edge20' | 'edgeR', z) or None.
 

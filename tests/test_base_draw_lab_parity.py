@@ -6,7 +6,7 @@ PATH, runs it beside the dashboard code on the SAME real bars, and requires the 
 and C:/data/bars.db live outside this repo, so the file SKIPS when either is absent (a lab that
 cannot import is "absent", never a pass). bars.db is opened mode=ro.
 
-  * lab path: env `UCT_LAB_BASE_DRAW`, default ~/Desktop/TSDR-Ledger-Backup/lab/base_draw
+  * lab path: env `UCT_LAB_BASE_DRAW` ONLY (no default); the file skips when it is unset
 
 Levels:
   CONSTANTS every frozen lab PARAM equals the dashboard constant of the same name.
@@ -30,8 +30,7 @@ import pytest
 
 from api.services.pattern_engine import base_draw as BD
 
-_LAB_DIR = os.environ.get("UCT_LAB_BASE_DRAW") or os.path.expanduser(
-    "~/Desktop/TSDR-Ledger-Backup/lab/base_draw")
+_LAB_DIR = os.environ.get("UCT_LAB_BASE_DRAW") or ""
 _BARS_DB = "C:/data/bars.db"
 _SLICE = 600                 # auto_structures.STRUCTURE_BARS: what the route hands the drawing
 _HIST = 24                   # random histories swept session by session
@@ -39,6 +38,8 @@ _SESSIONS = 260              # trailing sessions per history
 
 
 def _lab():
+    if not _LAB_DIR:
+        pytest.skip("UCT_LAB_BASE_DRAW unset")
     p = os.path.join(_LAB_DIR, "rule_bd.py")
     if not (os.path.exists(p) and os.path.exists(_BARS_DB)):
         pytest.skip("lab base_draw or bars.db absent")

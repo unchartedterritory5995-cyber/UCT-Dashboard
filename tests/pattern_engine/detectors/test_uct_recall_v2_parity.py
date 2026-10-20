@@ -6,8 +6,8 @@ lab code itself (imported by path) beside the dashboard code over the same bars
 and asserts identical fire / no-fire, the same variant, and for EP the same
 facts. The lab lives outside this repo, so the file SKIPS when it is absent.
 
-  * lab path: env `UCT_LAB_RECALL_V2`, default
-    ~/Desktop/TSDR-Ledger-Backup/lab/detectors/recall_v2.py
+  * lab path: env `UCT_LAB_RECALL_V2` ONLY (no default; the path of the lab's recall_v2.py);
+    the lab half skips when it is unset
   * real bars: the lab's own read-only loader (bars.db, `mode=ro`), when the
     database exists; the real-data half skips otherwise.
 
@@ -34,8 +34,7 @@ from api.services.pattern_engine.detectors.uct import uct_undercut_reclaim as UR
 from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from tests.pattern_engine.detectors import _recall_v2_synth as SY
 
-_LAB = os.environ.get("UCT_LAB_RECALL_V2") or os.path.expanduser(
-    "~/Desktop/TSDR-Ledger-Backup/lab/detectors/recall_v2.py")
+_LAB = os.environ.get("UCT_LAB_RECALL_V2") or ""
 _BARS_DB = "C:/data/bars.db"   # the lab loader's own hard-coded read-only path
 _REAL_N = 200
 

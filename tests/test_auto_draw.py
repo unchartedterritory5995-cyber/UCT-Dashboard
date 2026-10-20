@@ -3,7 +3,7 @@
 Rails:
   * PARITY: the port reproduces the lab drawer exactly (same horizontals, trendlines, scores and
     reasons) on synthetic bars and, when the box has it, on real daily bars. The lab file is read
-    from AUTO_DRAW_LAB_DIR (default: the lab folder on the owner's box); absent => those tests skip.
+    from AUTO_DRAW_LAB_DIR ONLY (no default); unset or absent => those tests skip.
   * the embedded coefficients ARE the lab model's (no transcription drift);
   * drawn_set: prior-day and 10-day high/low always in the default set, nearest-first, capped;
   * the `drawn` block rides GET /api/patterns/{sym} only for an ADMIN while AUTO_STRUCTURES_ENABLED.
@@ -26,13 +26,14 @@ from api.services import auto_draw, auto_structures
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, authorize
 
-LAB_DIR = os.environ.get("AUTO_DRAW_LAB_DIR",
-                         r"C:\Users\Patrick\Desktop\TSDR-Ledger-Backup\lab\auto_draw")
+LAB_DIR = os.environ.get("AUTO_DRAW_LAB_DIR") or ""
 BARS_DB = os.environ.get("AUTO_DRAW_PARITY_BARS_DB", r"C:\data\bars.db")
 PARITY_TICKERS = ("AAPL", "NVDA", "MSFT", "TSLA", "SMCI", "PLTR", "CELH", "AMD")
 
 
 def _lab():
+    if not LAB_DIR:
+        pytest.skip("AUTO_DRAW_LAB_DIR unset")
     path = os.path.join(LAB_DIR, "drawer.py")
     if not os.path.exists(path):
         pytest.skip(f"lab drawer not present at {path}")
@@ -83,6 +84,8 @@ def _mismatches(lab, bars, asofs, k=5):
 # ── parity ──────────────────────────────────────────────────────────────────
 
 def test_embedded_coefficients_are_the_lab_models():
+    if not LAB_DIR:
+        pytest.skip("AUTO_DRAW_LAB_DIR unset")
     path = os.path.join(LAB_DIR, "out", "drawer_model.json")
     if not os.path.exists(path):
         pytest.skip(f"lab model not present at {path}")

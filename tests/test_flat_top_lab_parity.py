@@ -6,7 +6,7 @@ code whose drawings passed the two pre-registered blind packets (A 2.60 [2.30, 2
 real bars, and requires the same answer. The lab and C:/data/bars.db live outside this repo, so the
 file SKIPS when either is absent (a lab that cannot import is "absent", never a pass).
 
-  * lab path: env `UCT_LAB_FLATTOP_V2`, default ~/Desktop/TSDR-Ledger-Backup/lab/flattop_draw_v2
+  * lab path: env `UCT_LAB_FLATTOP_V2` ONLY (no default); the file skips when it is unset
   * bars: the lab's own loader (common_ftd.Bars, bars.db opened mode=ro), converted to dashboard
     bars by the lab's recall_v2.to_dict_bars.
 
@@ -35,8 +35,7 @@ from api.services.pattern_engine import display
 from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
 from api.services.pattern_engine.primitives.context import build_context
 
-_LAB_DIR = os.environ.get("UCT_LAB_FLATTOP_V2") or os.path.expanduser(
-    "~/Desktop/TSDR-Ledger-Backup/lab/flattop_draw_v2")
+_LAB_DIR = os.environ.get("UCT_LAB_FLATTOP_V2") or ""
 _BARS_DB = "C:/data/bars.db"     # the lab loader's own hard-coded read-only path
 #: The window the daily scan hands the detector (registry min_bars), and so annotate.
 _SLICE = FT.MIN_BARS
@@ -59,6 +58,8 @@ def _import(name, path):
 
 @pytest.fixture(scope="module")
 def lab():
+    if not _LAB_DIR:
+        pytest.skip("UCT_LAB_FLATTOP_V2 unset")
     path = os.path.join(_LAB_DIR, "common_v2.py")
     if not os.path.isfile(path):
         pytest.skip(f"lab flattop_draw_v2 not present at {_LAB_DIR}")

@@ -22,7 +22,9 @@ import pytest
 
 from api.services import auto_draw, levels_v3
 
-LAB = Path(os.environ.get("UCT_LAB_DIR", r"C:\Users\Patrick\Desktop\TSDR-Ledger-Backup\lab"))
+#: The lab root, from env UCT_LAB_DIR ONLY (no default): unset => every test here skips.
+_LAB_ENV = os.environ.get("UCT_LAB_DIR") or ""
+LAB = Path(_LAB_ENV) if _LAB_ENV else Path("__uct_lab_dir_unset__")
 LV2 = LAB / "levels_v2"
 LV3 = LAB / "levels_v3"
 STRICT = LAB / "drawn_vs_team" / "out" / "charts.pkl"
@@ -32,9 +34,9 @@ KEY_CONFIRM = LAB / "levels_v3_confirm" / "out" / "key.json"
 BARS_DB = Path(os.environ.get("UCT_LAB_BARS_DB", r"C:\data\bars.db"))
 
 pytestmark = pytest.mark.skipif(
-    not (LV3.is_dir() and STRICT.is_file() and RECOVERED.is_file() and KEY_J.is_file() and KEY_CONFIRM.is_file()
+    not (_LAB_ENV and LV3.is_dir() and STRICT.is_file() and RECOVERED.is_file() and KEY_J.is_file() and KEY_CONFIRM.is_file()
          and BARS_DB.is_file()),
-    reason="lab/levels_v3, its keys or bars.db not present")
+    reason="UCT_LAB_DIR unset, or lab/levels_v3, its keys or bars.db not present")
 
 
 def _lab_block(path, start, end=None):
