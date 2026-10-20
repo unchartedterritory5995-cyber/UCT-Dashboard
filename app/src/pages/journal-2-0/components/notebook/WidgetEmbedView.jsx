@@ -5,7 +5,7 @@ import {
   retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
   EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
-import { widgetMeta, isTraderBlock } from '../../../../widgets/registry'
+import { widgetMeta, isTraderBlock, paramsPlainText } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { peekDrawings } from '../../../../components/chart/drawingsStore'
 import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
@@ -19,6 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
+import { isSnapshotKind } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -64,6 +65,13 @@ const EMBED_COMPONENTS = {
   screener: lazyLeaf(() => import('./ScreenerEmbed')),
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
+  // Notebook widgets (Task 7): the five snapshot kinds, each rendered from its frozen params.
+  // Each embed imports its own SnapshotFrame, so none of it reaches a note's first open.
+  myWatchlistToday: lazyLeaf(() => import('./widgets/MyWatchlistTodayEmbed')),
+  myNamesReporting: lazyLeaf(() => import('./widgets/MyNamesReportingEmbed')),
+  tickerCard: lazyLeaf(() => import('./widgets/TickerCardEmbed')),
+  myPnlStats: lazyLeaf(() => import('./widgets/MyPnlStatsEmbed')),
+  myPositionsRisk: lazyLeaf(() => import('./widgets/MyPositionsRiskEmbed')),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state
@@ -253,6 +261,23 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     if (rearm && landed) setArchiveEpoch((n) => n + 1)
     return landed
   }, [setEmbedParams])
+
+  // Notebook widgets (Task 7): See it now and the share switch hand back a WHOLE params object (a
+  // refresh replaces the payload, so a key the new payload no longer carries must go, which a merge
+  // would keep). ONE updateAttributes: the params, the searchText derived from them, and
+  // `fallback: null` because the archived image shows the old numbers (or the old privacy chip). A
+  // refresh that moves `asOf` moves `capturedAt` with it in the same write. No request of its own.
+  const updateSnapshotParams = useCallback((next) => {
+    if (!embedEditable || typeof updateAttributes !== 'function') return false
+    if (!next || typeof next !== 'object' || Array.isArray(next)) return false
+    const cur = attrsRef.current
+    const write = { params: next, searchText: paramsPlainText(cur.widgetId, next), fallback: null }
+    if (typeof next.asOf === 'string' && next.asOf && next.asOf !== cur.params?.asOf) write.capturedAt = next.asOf
+    archivedOnceRef.current = false
+    updateAttributes(write)
+    setArchiveEpoch((n) => n + 1)
+    return true
+  }, [embedEditable, updateAttributes])
 
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
@@ -759,6 +784,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
+            {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

@@ -706,13 +706,8 @@ describe('widget registry — journal embed bindings', () => {
     // NEVER an embed binding and never counted as a live re-render, whatever its manifest says.
     const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
     for (const id of blocks) expect(bound.has(id), `${id} is a block and must not be bound in EMBED_COMPONENTS`).toBe(false)
-    // ⛔ PENDING TASK 7: the five snapshot kinds are reconstructable and are bound in
-    // EMBED_COMPONENTS by Task 7 (their embed bodies). Until then they are named here, and
-    // ONLY here, so the rail keeps meaning something for every other id. Task 7 deletes this
-    // list; the line below then demands the bindings.
-    const AWAITING_EMBED_BINDING = NOTEBOOK_WIDGET_KINDS
     const renders = WIDGET_IDS.filter(
-      id => WIDGET_REGISTRY[id].block !== true && !AWAITING_EMBED_BINDING.includes(id) && isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
+      id => WIDGET_REGISTRY[id].block !== true && isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
     )
     // Fails BY NAME in both directions: a registry entry that promises a live
     // re-render with no renderer, and a renderer for a type that can never
@@ -724,6 +719,8 @@ describe('widget registry — journal embed bindings', () => {
     expect(bound.has('marketcontext')).toBe(true)
     // …and the three G-040 capture-only kinds, whose ONLY host is this one.
     for (const id of G040_KINDS) expect(bound.has(id), `${id} has no journal renderer`).toBe(true)
+    // …and the five Notebook snapshot widgets (Task 7), whose ONLY host is this one too.
+    for (const id of NOTEBOOK_WIDGET_KINDS) expect(bound.has(id), `${id} has no journal renderer`).toBe(true)
   })
 
   // ⛔ R-RC-3: the path is built the way journalEmbedIds() builds its own (ROOT + a repo-relative
