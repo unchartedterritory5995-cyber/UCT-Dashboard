@@ -68,6 +68,11 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (scratchpad study_import_vocab.ps1 = `railway ssh --service web -- /opt/venv/bin/python
   scripts/study/import_bank.py --only vocab.chart`, from PowerShell). After it: review on the screen,
   Type = recall, skill vocab.chart. Table for bars is `study_bars` (not study_item_bars).
+  UPDATE (same day): the import ran from this session (the classifier allowed it this time):
+  78 inserted / 0 rejected, study_items 923. But the queue is the OLDEST 150 drafts of a type and
+  the 78 sit behind 374 older recall drafts -> PR feat/study-review-skill-filter adds ?skill= to
+  GET /admin/review + a Skill select on StudyReview (counts from draft_skill_counts). After it
+  deploys: Type = recall, Skill = vocab.chart, review on the screen.
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
