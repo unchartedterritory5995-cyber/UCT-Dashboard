@@ -24,3 +24,13 @@ Rebuild of a plan lost in a box crash on 2026-10-19. Not a design yet.
 - Owner: "also maybe some account stuff, group stuff, market context things like that"
 - Owner: "less exposure score and more individualized stuff" -> direction: center widgets on the MEMBER's own data (their names, trades, stats, rules); market context reframed as how the market touches *their* names. Sharing rule for account widgets: Claude's default = never in anything published (not yet confirmed).
 - Owner: "ideally they would have their broker linked to the journal which makes it way easier" -> trading widgets should read broker-linked data first, manual logs second.
+
+## Recon 2: broker linking (master b24c2ec68a)
+- One member provider: **SnapTrade** (aggregator; the broker is picked in SnapTrade's portal). Paid plans only (pro/premium/lifetime). Scheduler behind `BROKER_SYNC_ENABLED`. Link at Settings > Brokerage Connections or Journal > Accounts. CSV import covers Schwab/IBKR/E*Trade/TradeZella/TraderSync/TraderVue. Manual entry also works.
+- Fills -> FIFO reconstruction -> the same `j2_trades`/`j2_positions` (`source='broker'`, stable `trade_ref`). Freshness: webhook, a 5-min orders poll in RTH, a daily sync, a nightly reconcile, and a manual sync (180 s cooldown).
+- Closed P&L/R come from broker fills. Open marks intraday come from live vendor prices (the broker's are the previous close); after the close the broker marks win. The headline anchors on broker equity.
+- **Stops do NOT come from the broker** (`stop_price = entry_price` placeholder). Risk is only as good as stops entered by hand.
+- Reusable: `GET /api/j2/analytics` (equity, bySetup win rate / avg R / expectancy, costOfMistakes.byMistake, rolling win rate, exit quality), `/accounts/{id}/setup-stats`, `/discipline/*`, `/broker/equity-curve`, `/broker/performance`, `/api/portfolio/heat`, `/broker/trust`. Components: BrokerAccountHero, BrokerEquityCurve, AnalyticsTab sections.
+- Notes already link to trades: the `tradeReview` block (tradeRef), `j2_trade_adherence`, `j2_trade_plan_links`.
+- Privacy is already built: member-data embeds are classed "private" in `public_note_payload.py` and render neutral when shared. **New account widgets must get a "private" row.**
+- Missing: broker stops/open orders, an adherence-over-time endpoint, a mistakes-trend endpoint for J2, one server P&L read that names its source.
