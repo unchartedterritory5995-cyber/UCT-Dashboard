@@ -26,10 +26,11 @@ import StickyActionBar from '../../components/mobile/StickyActionBar'
 import StockChart from '../../components/StockChart'
 import { SkeletonBlock, SkeletonLine } from '../../components/Skeleton'
 import UIcon from '../../components/ui/UIcon'
-import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
 import useStudySession from './useStudySession'
+import useHouseChart from './useHouseChart'
+import { studySettingsOverride } from './studyChartLook'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
@@ -43,27 +44,9 @@ export const CHART_SKIP_MS = 6000
 export const CHART_HEIGHT = 240
 export const SET_SIZE = 10
 
-/** Every marker, news and desk feed off; MAs and volume off unless the item asks (D6). */
-export function studySettingsOverride(chartOpts) {
-  const o = chartOpts || {}
-  return {
-    markers: { ...CHART_DEFAULTS.markers, earnings: false, splits: false, dividends: false, news: false, ipo: false, desk: false },
-    showPatterns: false,
-    darkPool: { ...(CHART_DEFAULTS.darkPool || {}), enabled: false },
-    signature: { darkPoolLevels: false, gexWalls: false, flowSignals: false },
-    comparisonSymbols: [],
-    compareHideBase: false,
-    countdown: false,
-    prevDayLevels: {
-      high: { ...(CHART_DEFAULTS.prevDayLevels?.high || {}), enabled: false },
-      low: { ...(CHART_DEFAULTS.prevDayLevels?.low || {}), enabled: false },
-      close: { ...(CHART_DEFAULTS.prevDayLevels?.close || {}), enabled: false },
-    },
-    showMaLabels: false,
-    overlays: Array.isArray(o.overlays) ? o.overlays : [],
-    volume: { ...CHART_DEFAULTS.volume, visible: !!o.volume, separatePane: false },
-  }
-}
+// The chart look lives in ./studyChartLook (the house look + the study gates);
+// re-exported so older importers keep working.
+export { studySettingsOverride }
 
 function ProgressStrip({ index, total, results, items }) {
   const n = Math.max(total, 1)
@@ -140,7 +123,8 @@ export default function DrillPlayer({
   const chartVisible = needsChart && chartItemId === item?.id && chartMounted
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
   const chartOpts = chartItem?.prompt_json?.chart
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts), [chartOpts])
+  const houseSettings = useHouseChart(fetcher)
+  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings), [chartOpts, houseSettings])
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 

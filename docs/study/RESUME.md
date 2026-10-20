@@ -73,6 +73,19 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   the 78 sit behind 374 older recall drafts -> PR feat/study-review-skill-filter adds ?skill= to
   GET /admin/review + a Skill select on StudyReview (counts from draft_skill_counts). After it
   deploys: Type = recall, Skill = vocab.chart, review on the screen.
+- **2026-10-20 (afternoon) OWNER RULING on the first chart-word item: "this is not what our charts
+  look like."** The Study chart drew the schema defaults with volume hidden. Our charts = the
+  HOUSE look: the owner's saved chart_settings blob (bright #1ae51a/#c41f2d candles, #0f0f0f
+  canvas, EMA 9/20 + SMA 50/200, volume on) + the exported-image treatment every member knows
+  from Discord /chart (hollow candles, slim 12% volume pane, volume in the candle colours; owner
+  2026-10-02). Shipped as branch feat/study-house-chart-look: api/services/house_chart.py (ONE
+  owner-blob resolver, used by /r/chart-settings AND the new GET /api/study/house-chart),
+  app/src/components/chart/houseLook.js (applyHouseLook, shared by ChartRender + Study),
+  app/src/pages/study/studyChartLook.js (studySettingsOverride(chartOpts, houseSettings): house
+  look + study gates; item opt-outs `volume:false`, `overlays:false`, or its own `overlays:[..]`),
+  useHouseChart hook (DrillPlayer) + SWR (StudyReview). Spec D6 "volume and MAs off unless the
+  item is about them" is SUPERSEDED by this ruling. Tests: studyChartLook 5, renderlook 7,
+  DrillPlayer 9, StudyReview 21, pytest study router 60 (+ house-chart route test).
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
