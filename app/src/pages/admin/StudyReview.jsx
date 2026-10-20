@@ -12,7 +12,7 @@
  * reject (one-tap reason chips) · N next / P previous · Enter confirms.
  *
  * Backend (api/routers/study.py):
- *   GET  /api/study/admin/review?lane=&type=&limit=   drafts + counts + trust per type
+ *   GET  /api/study/admin/review?lane=&type=&skill=&limit=   drafts + counts + skills + trust per type
  *   GET  /api/study/admin/items/{id}/bars   the STORED bars (visible + forward) of any draft
  *        ⛔ The chart draws these through `barsOverride`, never a live fetch by
  *        ticker: the member sees the snapshot stored with the item, so the
@@ -61,10 +61,11 @@ const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
   return r.json()
 })
 
-export function reviewKey(lane, type, limit = QUEUE_LIMIT) {
+export function reviewKey(lane, type, limit = QUEUE_LIMIT, skill = '') {
   const p = new URLSearchParams()
   if (lane) p.set('lane', lane)
   if (type) p.set('type', type)
+  if (skill) p.set('skill', skill)
   p.set('limit', String(limit))
   return `${REVIEW_URL}?${p.toString()}`
 }
@@ -236,10 +237,15 @@ function Chips({ checks }) {
 export default function StudyReview() {
   const [lane, setLane] = useState('')
   const [type, setType] = useState('')
-  const key = reviewKey(lane, type)
+  // The queue is the OLDEST drafts of a lane/type, so a segment imported after
+  // hundreds of older ones (vocab.chart behind 374 recall drafts) never reaches
+  // the limit. The skill filter is how the reviewer gets straight to it.
+  const [skill, setSkill] = useState('')
+  const key = reviewKey(lane, type, QUEUE_LIMIT, skill)
   const { data, error, mutate } = useSWR(key, fetcher, { revalidateOnFocus: false })
   const drafts = data?.drafts || NO_ITEMS
   const counts = data?.counts || NO_OBJ
+  const skills = data?.skills || NO_OBJ
 
   const [localStatus, setLocalStatus] = useState({})
   const [localTrust, setLocalTrust] = useState({})
@@ -535,6 +541,16 @@ export default function StudyReview() {
               onChange={(e) => { setType(e.target.value); setSelId(null) }}>
               <option value="">All types ({countFor(lane, '')})</option>
               {typesSeen.map((t) => <option key={t} value={t}>{t} ({countFor(lane, t)})</option>)}
+            </select>
+          </label>
+          <label className={`${styles.filter} ${styles.filterWide}`}>
+            <span>Skill</span>
+            <select aria-label="Skill" className={styles.select} value={skill}
+              onChange={(e) => { setSkill(e.target.value); setSelId(null) }}>
+              <option value="">All skills</option>
+              {Object.keys(skills).sort().map((sk) => (
+                <option key={sk} value={sk}>{sk || '(none)'} ({Number(skills[sk]) || 0})</option>
+              ))}
             </select>
           </label>
         </div>

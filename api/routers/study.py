@@ -11,7 +11,7 @@ T11/T17, §13.7 D6/D7/D18, §8).
   POST /api/study/attempts/{id}/step      next n forward bars — only after an attempt exists
   GET/PUT /api/study/profile
   GET  /api/study/leaderboard             weekly XP, opt-outs excluded
-  GET  /api/study/admin/review            drafts by lane (admin)
+  GET  /api/study/admin/review            drafts by lane / type / skill (admin)
   POST /api/study/admin/review/{id}       approve | fix | reject (admin)
   POST /api/study/import                  bank upsert (PUSH_SECRET); bars via get_bars_before ONLY
   GET  /api/study/admin/corrections/export
@@ -328,11 +328,11 @@ def get_leaderboard(week: Optional[str] = None, user: dict = Depends(require_pai
 # ── Admin review (graduated trust, §13.9 #3) ─────────────────────────────────
 
 @router.get("/admin/review", dependencies=_ARMED)
-def admin_review(lane: Optional[str] = None, type: Optional[str] = None, limit: int = 150,
-                 _admin: dict = Depends(require_admin)):
-    drafts = study_store.list_drafts(lane=lane, item_type=type, limit=max(1, min(500, limit)))
+def admin_review(lane: Optional[str] = None, type: Optional[str] = None, skill: Optional[str] = None,
+                 limit: int = 150, _admin: dict = Depends(require_admin)):
+    drafts = study_store.list_drafts(lane=lane, item_type=type, skill=skill, limit=max(1, min(500, limit)))
     types = sorted({d["type"] for d in drafts})
-    return {"drafts": drafts, "counts": study_store.draft_counts(),
+    return {"drafts": drafts, "counts": study_store.draft_counts(), "skills": study_store.draft_skill_counts(),
             "trust": {t: study_store.trust_state(t) for t in types}}
 
 

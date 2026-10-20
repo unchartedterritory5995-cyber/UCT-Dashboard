@@ -24,13 +24,14 @@ vi.mock('../../utils/chartCapture', () => ({ captureChartPng: () => 'data:image/
 let DRAFTS
 let TRUST
 let COUNTS
+let SKILLS
 let KEYS
 
 vi.mock('swr', () => ({
   default: (key) => {
     KEYS.push(key)
     if (key && key.startsWith('/api/study/admin/review')) {
-      return { data: { drafts: DRAFTS, counts: COUNTS, trust: TRUST }, error: undefined, mutate: vi.fn() }
+      return { data: { drafts: DRAFTS, counts: COUNTS, skills: SKILLS, trust: TRUST }, error: undefined, mutate: vi.fn() }
     }
     if (key && key.includes('/patterns/admin/review')) return { data: { verdicts: [] }, mutate: vi.fn() }
     if (key && /^\/api\/study\/admin\/items\/[^/]+\/bars$/.test(key)) {
@@ -96,6 +97,7 @@ beforeEach(() => {
     recall: { item_type: 'recall', clean_count: 20, state: 'manual', ask_to_switch: true, ask_at: 20 },
   }
   COUNTS = { fast: { spot: 2 }, manual: { recall: 1 } }
+  SKILLS = { 'setup.vcp': 2, 'vocab.method': 1 }
   globalThis.fetch = vi.fn((url) => {
     if (String(url).startsWith(TRUST_URL)) return jsonResponse({ item_type: 'recall', state: 'sampled', clean_count: 20, sample_rate: 0.1 })
     return jsonResponse({ item: {}, trust: { item_type: 'spot', clean_count: 4, state: 'manual', ask_to_switch: false } })
@@ -284,6 +286,16 @@ describe('StudyReview card', () => {
     fireEvent.change(screen.getByLabelText('Item type'), { target: { value: 'spot' } })
     expect(KEYS).toContain('/api/study/admin/review?lane=fast&type=spot&limit=150')
     expect(reviewKey('second_look', 'tap')).toBe('/api/study/admin/review?lane=second_look&type=tap&limit=150')
+  })
+
+  it('the skill filter lists every skill with its draft count and narrows the fetch', () => {
+    renderWithProviders(<StudyReview />)
+    const sel = screen.getByLabelText('Skill')
+    expect(within(sel).getByRole('option', { name: 'vocab.method (1)' })).toBeInTheDocument()
+    expect(within(sel).getByRole('option', { name: 'setup.vcp (2)' })).toBeInTheDocument()
+    fireEvent.change(sel, { target: { value: 'vocab.method' } })
+    expect(KEYS).toContain('/api/study/admin/review?skill=vocab.method&limit=150')
+    expect(reviewKey('', 'recall', 150, 'vocab.chart')).toBe('/api/study/admin/review?type=recall&skill=vocab.chart&limit=150')
   })
 
   it('shows lane and type counts and the corrections export link', () => {

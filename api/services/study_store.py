@@ -581,9 +581,11 @@ def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[d
 
 
 def list_drafts(*, lane: Optional[str] = None, item_type: Optional[str] = None,
-                limit: int = 150) -> list[dict]:
-    """ADMIN: draft items, oldest first, optionally by lane / type. Full rows
-    (the review card needs the key and the ticker)."""
+                skill: Optional[str] = None, limit: int = 150) -> list[dict]:
+    """ADMIN: draft items, oldest first, optionally by lane / type / skill. Full
+    rows (the review card needs the key and the ticker). The skill filter is
+    how a NEW segment (e.g. vocab.chart, imported after 400 older recall drafts)
+    reaches the reviewer inside the queue limit."""
     q = "SELECT * FROM study_items WHERE review_status=?"
     args: list = [STATUS_DRAFT]
     if lane:
@@ -592,6 +594,9 @@ def list_drafts(*, lane: Optional[str] = None, item_type: Optional[str] = None,
     if item_type:
         q += " AND type=?"
         args.append(item_type)
+    if skill:
+        q += " AND skill_id=?"
+        args.append(skill)
     q += " ORDER BY created_at, id LIMIT ?"
     args.append(int(limit))
     with contextlib.closing(_connect()) as c:
@@ -608,6 +613,14 @@ def draft_counts() -> dict:
                 "WHERE review_status=? GROUP BY review_lane, type", (STATUS_DRAFT,)):
             out.setdefault(r["review_lane"], {})[r["type"]] = int(r["n"])
     return out
+
+
+def draft_skill_counts() -> dict:
+    """{skill_id: n} of drafts waiting — the review screen's Skill select."""
+    with contextlib.closing(_connect()) as c:
+        return {r["skill_id"] or "": int(r["n"]) for r in c.execute(
+            "SELECT skill_id, COUNT(*) AS n FROM study_items WHERE review_status=? "
+            "GROUP BY skill_id ORDER BY skill_id", (STATUS_DRAFT,))}
 
 
 # ── Terms (§4.8b) ─────────────────────────────────────────────────────────────

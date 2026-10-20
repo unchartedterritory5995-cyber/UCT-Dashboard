@@ -27,6 +27,7 @@
 
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .filter { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted, #cfcac0); }
+.filterWide { grid-column: 1 / -1; }
 .select {
   min-height: var(--tap-min, 44px); padding: 0 10px; border-radius: var(--radius-md, 6px); width: 100%;
   background: var(--bg-elevated, #1d1f23); color: var(--text-bright, #f8f7f3);
