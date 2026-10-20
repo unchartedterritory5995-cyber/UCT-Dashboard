@@ -1,0 +1,22 @@
+{
+  "suite": "pytest",
+  "collected": 4476,
+  "passed": 4436,
+  "failed": 20,
+  "errored": 0,
+  "skipped": 20,
+  "wall_s": 530.55,
+  "failed_files": [
+    "tests/test_document_ocr.py",
+    "tests/test_entitlements_manifest.py",
+    "tests/test_feature_status.py",
+    "tests/test_flat_top_golden.py",
+    "tests/test_flow_aggregate.py",
+    "tests/test_flow_classification.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_flow_rth_guard.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "20 failed, 4436 passed, 20 skipped, 14726 warnings in 530.55s (0:08:50)",
+  "ok": true
+}
