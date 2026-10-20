@@ -371,8 +371,12 @@ def _account_size(user_id: str) -> float | None:
 
 def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import portfolio_heat
+    from api.services.journal_two import accounts as j2_accounts
     from api.services.journal_two import positions as j2_positions
     open_positions = list(j2_positions.list_open_positions(user_id) or [])
+    # Read BEFORE heat: `portfolio_heat` migrates a Default j2_accounts row (at the default size) for a
+    # member who has none, so after it runs "a row exists" no longer means "the member set a size".
+    stored_size = _account_size(user_id)
     heat = portfolio_heat.portfolio_heat(user_id) or {}
     shown, cut = open_positions[:ROW_CAP], max(0, len(open_positions) - ROW_CAP)
 
@@ -388,7 +392,16 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
         bucket = heat_rows.get(key) or []
         joined.append(bucket.pop(0) if bucket else None)
 
-    account = None if heat.get("account_size_is_default") else _account_size(user_id)
+    # A size is the member's own only when it was read and differs from the migration default
+    # (`accounts._DEFAULT_ACCOUNT_SIZE`). Nothing in j2_accounts records a member edit, so a member who
+    # types exactly the default is indistinguishable from the migrated row and reads as "default".
+    # Correct on the second call too: the migrated row holds the constant, so it still reads "default".
+    is_default = (
+        stored_size is None
+        or stored_size == j2_accounts._DEFAULT_ACCOUNT_SIZE
+        or bool(heat.get("account_size_is_default"))
+    )
+    account = j2_accounts._DEFAULT_ACCOUNT_SIZE if is_default else stored_size
     prices: dict = {}
     if shown:
         try:
@@ -431,6 +444,7 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
         "asOf": _iso_utc(now),
         "source": _origin([p.get("source") for p in open_positions]),
         "accountSize": account,
+        "accountSizeSource": "default" if is_default else "member",
         "rows": rows,
     }
     if cut:

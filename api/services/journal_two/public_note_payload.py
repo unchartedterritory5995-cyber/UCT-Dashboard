@@ -486,7 +486,7 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
     # builders' own honesty flags. NEVER `positionId`: `_market_data` also strips it from every row.
     "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
-    "myPositionsRisk": ("asOf", "source", "accountSize", "rows", "empty", "share", "truncated", "partial"),
+    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
 }
 
 #: Row keys that never leave, whatever a builder one day adds.

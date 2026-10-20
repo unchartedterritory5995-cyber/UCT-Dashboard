@@ -21,6 +21,7 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
   const sizeReason = hasAccount ? 'No price available right now' : 'No account size set in Journal'
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const sourceLine = [accountSourceLine(p.source), extra].filter(Boolean).join(' · ') || null
+  const usesDefault = p.accountSizeSource === 'default' && hasAccount
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-positions-risk-embed">
@@ -72,6 +73,11 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
               </tbody>
             </table>
           </div>
+        )}
+        {rows.length > 0 && usesDefault && (
+          <p className={s.empty} data-testid="default-account-note">
+            {`Size % uses the default ${fmtPrice(p.accountSize)} account size. Set yours in Journal settings.`}
+          </p>
         )}
       </SnapshotFrame>
     </div>

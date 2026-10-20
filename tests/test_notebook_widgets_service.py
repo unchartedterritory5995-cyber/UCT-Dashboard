@@ -383,21 +383,46 @@ def test_positions_real_stop_row(monkeypatch):
     assert row["positionId"] == "p1" and row["noStop"] is False
     assert row["stopPrice"] == 95.0 and row["distToStopPct"] == 5.0
     assert row["openPnl"] == 100.0 and row["sizePct"] == 2.2
-    assert out["accountSize"] == 50000.0
+    assert out["accountSize"] == 50000.0 and out["accountSizeSource"] == "member"
 
 
-def test_positions_size_pct_null_without_account_size(monkeypatch):
+def test_positions_no_account_row_is_labelled_default_and_still_sized(monkeypatch):
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=None, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] is None and out["rows"][0]["sizePct"] is None
+    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
+    assert out["rows"][0]["sizePct"] == 1.1
 
 
-def test_positions_default_account_size_is_not_shown_as_real(monkeypatch):
+def test_positions_heat_default_flag_is_labelled_default(monkeypatch):
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=25000.0, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] is None and out["rows"][0]["sizePct"] is None
+    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
+
+
+def test_positions_default_label_survives_the_migrated_row_on_the_second_call(monkeypatch, tmp_path):
+    # Real DB, real migration. portfolio_heat's first call inserts the Default row; a second build must
+    # still read "default" (a bare "a row exists" signal would call it the member's own).
+    _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    _patch_prices(monkeypatch, {})
+    first = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
+    accounts.get_or_migrate_default_account("u-new")  # the row heat's migration leaves behind
+    assert nw._account_size("u-new") == 100000.0     # control: a row exists now
+    second = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
+    assert first["accountSizeSource"] == second["accountSizeSource"] == "default"
+    assert second["accountSize"] == 100000.0
+    # and a size the member really set is theirs
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_accounts SET account_size = 73000 WHERE user_id = 'u-new'")
+        conn.commit()
+    finally:
+        conn.close()
+    third = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
+    assert third["accountSize"] == 73000.0 and third["accountSizeSource"] == "member"
 
 
 def test_positions_price_missing_is_null(monkeypatch):

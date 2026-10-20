@@ -63,3 +63,15 @@ describe('MyPositionsRiskEmbed', () => {
     expect(screen.getByText('No open positions.')).toBeInTheDocument()
   })
 })
+
+describe('MyPositionsRiskEmbed default account size', () => {
+  it('says the size percent uses the default account size, with the size as a money cell', () => {
+    render(<MyPositionsRiskEmbed attrs={attrsOf({ ...PAYLOAD, accountSizeSource: 'default' })} />)
+    expect(screen.getByText('Size % uses the default $100,000.00 account size. Set yours in Journal settings.')).toBeInTheDocument()
+  })
+
+  it('shows no default note for a member-set size', () => {
+    render(<MyPositionsRiskEmbed attrs={attrsOf({ ...PAYLOAD, accountSizeSource: 'member' })} />)
+    expect(screen.queryByTestId('default-account-note')).toBeNull()
+  })
+})

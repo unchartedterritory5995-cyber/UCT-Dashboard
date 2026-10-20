@@ -161,6 +161,8 @@ def test_each_wave1_kind_builds_and_reduces(env):
     assert len(rows) == 1 and rows[0]["positionId"] == ids["position_id"]
     assert rows[0]["noStop"] is True and rows[0]["distToStopPct"] is None
     assert [r["symbol"] for r in payloads["myWatchlistToday"]["rows"]] == ["AAPL", "TSLA"]
+    assert payloads["myPositionsRisk"]["accountSizeSource"] == "default"
+    assert payloads["myPositionsRisk"]["accountSize"] == 100000.0
 
     for kind in WAVE1:
         payload = payloads[kind]
@@ -191,6 +193,7 @@ def test_each_wave1_kind_builds_and_reduces(env):
     assert pnl["tradeCount"] == 2 and pnl["netPnl"] == payloads["myPnlStats"]["netPnl"]
     risk = _embeds(_reduce(_embed("myPositionsRisk", payloads["myPositionsRisk"], share=True)))[0]["attrs"]["params"]
     assert risk["rows"][0]["symbol"] == "NVDA" and "positionId" not in risk["rows"][0]
+    assert risk["accountSizeSource"] == "default"
 
 
 def test_new_member_no_data(env):
@@ -204,7 +207,7 @@ def test_new_member_no_data(env):
             assert payload["equity"] == []
         if kind == "myPositionsRisk":
             assert payload["rows"] == [] and payload["empty"] == "No open positions."
-            assert payload["accountSize"] is None
+            assert payload["accountSizeSource"] == "default" and payload["accountSize"] == 100000.0
         if kind == "myWatchlistToday":
             assert payload["rows"] == []
         if kind == "tickerCard":

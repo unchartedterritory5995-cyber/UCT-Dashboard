@@ -942,6 +942,7 @@ const PANEL_MANIFESTS = {
   ], (p) => `[my P&L and stats: ${p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range'}]`),
   myPositionsRisk: snapshotManifest('My open positions and risk', [
     { key: 'accountSize', type: 'number' },
+    { key: 'accountSizeSource', type: 'enum', options: ['member', 'default'] },
     { key: 'rows', type: 'json', required: true },        // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
     { key: 'truncated', type: 'number' },
     { key: 'empty', type: 'string' },
