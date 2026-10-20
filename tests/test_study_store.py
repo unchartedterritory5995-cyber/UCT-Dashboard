@@ -418,6 +418,11 @@ def test_drafts_listing_by_lane_and_counts(store):
     store.approve("si_3", "owner")
     assert [d["id"] for d in store.list_drafts(lane="deterministic")] == ["si_1"]
     assert store.draft_counts() == {"deterministic": {"size": 1}, "manual": {"recall": 1}}
+    # skill filter: a new segment reaches the reviewer inside the queue limit
+    store.upsert_items([_item("si_4", skill_id="vocab.chart")])
+    assert [d["id"] for d in store.list_drafts(skill="vocab.chart")] == ["si_4"]
+    assert store.list_drafts(skill="nope") == []
+    assert store.draft_skill_counts()["vocab.chart"] == 1
 
 
 # ── sessions / reminders ──────────────────────────────────────────────────────

@@ -298,6 +298,11 @@ def test_admin_review_lists_drafts_by_lane_and_acts(admin_client, store):
     assert body["drafts"][0]["sym"] in ("NVDA", "AAPL")        # the review card needs the ticker
     assert body["counts"]["manual"]["spot"] == 2
     assert body["trust"]["spot"]["clean_count"] == 0
+    assert sum(body["skills"].values()) == sum(n for by in body["counts"].values() for n in by.values())
+    skill = body["drafts"][0]["skill_id"]
+    by_skill = admin_client.get(f"/api/study/admin/review?skill={skill}").json()["drafts"]
+    assert by_skill and all(d["skill_id"] == skill for d in by_skill)
+    assert admin_client.get("/api/study/admin/review?skill=nope").json()["drafts"] == []
     a = admin_client.post("/api/study/admin/review/si_spot1", json={"action": "approve"}).json()
     assert a["item"]["review_status"] == "approved" and a["trust"]["clean_count"] == 1
     f = admin_client.post("/api/study/admin/review/si_spot2",
