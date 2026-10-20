@@ -59,6 +59,15 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   then review chart words on the review screen (Type = recall, skill vocab.chart). Owner rule 2026-10-19:
   review happens where he can SEE the chart (the review screen / a browser), not as text in chat.
   The study-import worktree's app/node_modules is a JUNCTION to the main checkout (remove with `cmd /c rmdir`).
+- **2026-10-20 (day): #435 merged (4456917011, deploy SUCCESS, health 200).** It carries the vocab.chart
+  bank + a SECOND review-screen fix (ef0b7011ff): the stored bars arrive with int dates (YYYYMMDD) and the
+  chart matched nothing; StudyReview now runs normalizeBars + appendForwardBars exactly like the member
+  drill. VERIFIED in Chrome: the MSFT spot item draws on the firm's renderer with the forward strip
+  (screenshot sent to owner). Pod: docs/study/bank/vocab.chart.json present, dry-run = 78 items; the
+  study_items table had 845 rows, vocab.chart 0 -> the owner still has to run the import
+  (scratchpad study_import_vocab.ps1 = `railway ssh --service web -- /opt/venv/bin/python
+  scripts/study/import_bank.py --only vocab.chart`, from PowerShell). After it: review on the screen,
+  Type = recall, skill vocab.chart. Table for bars is `study_bars` (not study_item_bars).
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
