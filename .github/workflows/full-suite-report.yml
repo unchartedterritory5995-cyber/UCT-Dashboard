@@ -74,10 +74,19 @@ on:
   # ⚠️ `concurrency` below is `cancel-in-progress: false`, deliberately. Adding `master` here
   # means a master push queues a run; that is one run per merge commit, and the sittings
   # merge one unit at a time, so they do not fan out.
-  push:
-    branches: [feat/s7-price-level, master, replay-preview]
-  pull_request:
-    branches: [master]
+  #
+  # ⛔⛔ 2026-10-19 — NIGHTLY ONLY, OWNER RULING. The repo is going PRIVATE, and private
+  # repos pay for Actions minutes. Measured over the ~27 h before this change: ~72 runs/day
+  # at ~168 billed minutes each = ~12,000 min/day, ~85% of the repo's whole Actions usage,
+  # for a job that is REPORT-ONLY and gates nothing (header, and `promotion-gate: no`).
+  # One run a night keeps the record (the master baseline is "the previous VALID master
+  # run", which a scheduled run on master still is) at ~1/70th of the cost. A run on demand
+  # is still one click: Actions -> "full suite (report-only)" -> Run workflow.
+  # The push/pull_request triggers above are what this replaced; restore them only with a
+  # budget that covers ~12,000 minutes a day.
+  schedule:
+    # 07:30 UTC = 03:30 ET - outside market hours, after joystick-device's 07:00 run.
+    - cron: '30 7 * * *'
   workflow_dispatch:
 
 # ⛔ Never cancel a previous run: the whole value of this job is a complete record of
