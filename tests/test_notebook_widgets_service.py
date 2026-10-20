@@ -558,6 +558,7 @@ def test_ticker_card_history_read_is_symbol_scoped_and_cached(monkeypatch):
     second = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
     assert len(calls) == 1
     assert calls[0]["spec"].symbol == "NVDA"
+    assert calls[0]["spec"].symbol_exact is True
     assert first["history"] == second["history"] == {"trades": 2, "winRate": 0.5, "netPnl": 59.5}
     nw.build("tickerCard", "u1", {"symbol": "AMD"}, now=NOW)
     nw.build("tickerCard", "u2", {"symbol": "NVDA"}, now=NOW)

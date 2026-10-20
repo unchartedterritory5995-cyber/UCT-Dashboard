@@ -14,6 +14,8 @@ class FilterSpec(BaseModel):
     date_from: str | None = None
     date_to: str | None = None
     symbol: str | None = None
+    # False (default) = the Journal search box's PREFIX match; True = the whole ticker.
+    symbol_exact: bool = False
     sides: list[str] = []
     setups: list[str] = []
     tags: list[str] = []
@@ -58,7 +60,8 @@ def trades_where(spec: FilterSpec) -> tuple[str, list]:
         frag.append(f"AND {_DAY} <= ?")
         params.append(spec.date_to)
     if spec.symbol:
-        frag.append("AND UPPER(symbol) LIKE ? || '%'")
+        frag.append("AND UPPER(symbol) = ?" if spec.symbol_exact
+                    else "AND UPPER(symbol) LIKE ? || '%'")
         params.append(spec.symbol.strip().upper())
     if spec.sides:
         frag.append(f"AND side IN ({','.join('?' * len(spec.sides))})")

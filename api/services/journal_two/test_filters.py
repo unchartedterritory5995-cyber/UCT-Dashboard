@@ -69,6 +69,24 @@ def test_symbol_prefix_and_sides_and_setups():
     assert _ids(conn, FilterSpec(setups=["VCP"])) == ["t1", "t3"]
 
 
+def test_symbol_exact_excludes_longer_tickers_and_default_stays_prefix():
+    conn = _conn_with_trades()
+    _insert(conn, "t4", "A", "Long", "VCP", "2026-04-22")
+    _insert(conn, "t5", "AAPL", "Long", "VCP", "2026-04-22")
+    conn.commit()
+    assert _ids(conn, FilterSpec(symbol="A", symbol_exact=True)) == ["t4"]
+    assert _ids(conn, FilterSpec(symbol="nvda", symbol_exact=True)) == ["t1"]
+    assert _ids(conn, FilterSpec(symbol="A")) == ["t4", "t5"]
+    assert _ids(conn, FilterSpec(symbol="NV")) == ["t1", "t3"]
+
+
+def test_symbol_exact_applies_to_the_option_strategy_scope_too():
+    from api.services.journal_two.calendar import _strategy_scope_where
+    assert "LIKE" in _strategy_scope_where(FilterSpec(symbol="A"))[0]
+    sql, params = _strategy_scope_where(FilterSpec(symbol="a", symbol_exact=True))
+    assert "LIKE" not in sql and "= ?" in sql and params == ["A"]
+
+
 def test_empty_spec_matches_all():
     conn = _conn_with_trades()
     assert _ids(conn, FilterSpec()) == ["t1", "t2", "t3"]

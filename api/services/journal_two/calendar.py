@@ -63,7 +63,8 @@ def _strategy_scope_where(
     strategy rows. Date facets never apply on the calendar."""
     if spec is None or not spec.symbol:
         return "", []
-    return f"AND UPPER({col}) LIKE ? || '%'", [spec.symbol.strip().upper()]
+    op = "= ?" if spec.symbol_exact else "LIKE ? || '%'"
+    return f"AND UPPER({col}) {op}", [spec.symbol.strip().upper()]
 
 
 # ── Date utilities ───────────────────────────────────────────────────────────

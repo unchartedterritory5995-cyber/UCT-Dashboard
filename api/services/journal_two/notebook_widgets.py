@@ -457,7 +457,7 @@ def _symbol_history_figures(user_id: str, sym: str) -> dict:
         return hit
     from api.services.journal_two import analytics
     from api.services.journal_two.filters import FilterSpec
-    fig = _pnl_figures(analytics.get_analytics(user_id, spec=FilterSpec(symbol=sym)))
+    fig = _pnl_figures(analytics.get_analytics(user_id, spec=FilterSpec(symbol=sym, symbol_exact=True)))
     _HISTORY_CACHE.set(key, fig, HISTORY_TTL_S)
     return fig
 
