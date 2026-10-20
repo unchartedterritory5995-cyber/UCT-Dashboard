@@ -60,27 +60,31 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
-.switch {
+.shareRow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font: inherit;
   font-size: 12px;
   color: var(--text-dim);
-  background: transparent;
-  border: 0;
   padding: 2px 0;
   cursor: pointer;
 }
-.track {
+/* The shared Switch button IS the track; its knob is .thumb. */
+.switch {
   position: relative;
   display: inline-block;
   width: 26px;
   height: 14px;
+  padding: 0;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-accent);
   background: var(--bg-hover);
+  cursor: inherit;
   flex: none;
+}
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .thumb {
   position: absolute;
@@ -93,9 +97,6 @@
   transition: left var(--duration-fast) var(--ease-out);
 }
 .switchOn {
-  color: var(--text-bright);
-}
-.switchOn .track {
   border-color: var(--accent);
 }
 .switchOn .thumb {
@@ -234,7 +235,7 @@
 /* Touch tier (phone AND tablet): the two controls are finger targets. */
 @media (max-width: 1024px) {
   .btn,
-  .switch {
+  .shareRow {
     min-height: var(--tap-min);
   }
   .btn {

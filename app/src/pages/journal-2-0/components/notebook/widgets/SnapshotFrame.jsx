@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
+import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
 import { etDateTime, isoDayText } from '../captureStamp'
 import { widgetKind } from '../../../lib/notebookWidgets'
@@ -72,16 +73,17 @@ export default function SnapshotFrame({
         <span className={styles.asOf}>{stamp ? `as of ${stamp}` : 'as of an unrecorded time'}</span>
         <span className={styles.spacer} />
         {editable && account && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={share ? 'true' : 'false'}
-            className={`${styles.switch} ${share ? styles.switchOn : ''}`}
-            onClick={() => onShareChange?.(!share)}
-          >
-            <span className={styles.track} aria-hidden="true"><span className={styles.thumb} /></span>
+          <label className={styles.shareRow}>
+            <Switch
+              checked={share}
+              disabled={!editable}
+              onClick={() => onShareChange?.(!share)}
+              className={styles.switch}
+              checkedClassName={styles.switchOn}
+              knobClassName={styles.thumb}
+            />
             <span>Show on shared pages</span>
-          </button>
+          </label>
         )}
         {editable && (
           <button type="button" className={styles.btn} onClick={refresh} disabled={busy} aria-busy={busy || undefined}>

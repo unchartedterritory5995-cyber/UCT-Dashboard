@@ -7,6 +7,7 @@ import { Editor } from '@tiptap/core'
 import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems,
   snapshotWidgetItems, SlashList } from './SlashMenu'
 import { render, screen } from '@testing-library/react'
+import { CAPTURE_FLAG_KEY } from '../../../../widgets/captureRelease'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 // jsdom has no Range layout; an editor focus() scrolls the caret into view on the next frame.
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -729,5 +730,16 @@ describe('snapshot widget items (Task 8)', () => {
     await item.command({ editor: ed, range: slashRange(ed) })
     expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myWatchlistToday', expect.anything())
     expect(embeds(ed).map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
+  })
+
+  it('/market and /marketcontext both reach Market context once W4 is on and the capture switch releases it', () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: true })
+    localStorage.setItem(CAPTURE_FLAG_KEY, '1')
+    try {
+      expect(snapshotWidgetItems('market').map((i) => i.title)).toEqual(['Market context'])
+      expect(snapshotWidgetItems('marketcontext').map((i) => i.title)).toEqual(['Market context'])
+      // Control: a word that is neither the title nor the keyword offers nothing.
+      expect(snapshotWidgetItems('marketcontextx')).toEqual([])
+    } finally { localStorage.removeItem(CAPTURE_FLAG_KEY) }
   })
 })
