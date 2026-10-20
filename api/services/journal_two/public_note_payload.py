@@ -487,7 +487,7 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     # builders' own honesty flags. NEVER `positionId`: `_market_data` also strips it from every row.
     "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
     "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
-    "myRulesCheck": ("asOf", "source", "range", "rules", "empty", "share", "truncated"),
+    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated"),
     "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated"),
 }
 

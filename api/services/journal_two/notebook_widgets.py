@@ -600,6 +600,7 @@ def _my_rules_check(user_id: str, params: dict, now: datetime) -> dict:
     adh = adherence_store.list_adherence_for_user(user_id) or {}
     tally: dict[str, list[int]] = {}      # label -> [kept, total]
     checked_trades = []
+    head_kept = head_total = 0
     for t in rows:
         t = t or {}
         rec = adherence_of_trade(adh.get, t.get("tradeRef"), t.get("positionId"))
@@ -607,17 +608,26 @@ def _my_rules_check(user_id: str, params: dict, now: datetime) -> dict:
             continue
         checked_trades.append(t)
         ticked = {str(i) for i in (rec.get("checkedRuleIds") or [])}
-        # What was on this trade's list: its setup's checklist, and the before-entry journal rules
-        # that applied to its account. The record keeps the ticks and a count, not the unticked ids,
-        # so the list is rebuilt from the rules as they stand; a tick is always counted as on the list.
-        on_list = set(ticked)
+        # The headline is the Journal's own record: its ticks and its stored count, summed.
+        head_kept += len(ticked)
+        head_total += int(rec.get("totalRules") or 0)
+        # Per rule. The record keeps ticks and a count, not the unticked ids, so the list is rebuilt
+        # from rules that EXISTED when the ticks were stored (journal rules carry createdAt; a rule
+        # made later is not counted). Setup checklist rules carry no createdAt, so an unticked one
+        # counts only when the rebuilt list's size equals the stored count (the checklist is then
+        # proven the one in force); otherwise only ticked rules count, which can never overstate.
+        when = str(rec.get("updatedAt") or t.get("exitDate") or t.get("entryDate") or "")[:10]
+        candidates: set[str] = set()
         setup_name = rec.get("setup") or t.get("setup")
         for it in (setup_rules.get(t.get("accountId")) or {}).get(setup_name) or []:
-            if isinstance(it, dict) and it.get("id"):
-                on_list.add(str(it["id"]))
+            if isinstance(it, dict) and it.get("id") and names.get(str(it["id"])):
+                candidates.add(str(it["id"]))
         for r in active_journal:
-            if r.get("beforeEntry") and r.get("accountId") in (None, t.get("accountId")):
-                on_list.add(_JOURNAL_RULE_PREFIX + str(r["id"]))
+            made = str(r.get("createdAt") or "")[:10]
+            if r.get("beforeEntry") and r.get("accountId") in (None, t.get("accountId"))                     and not (when and made and made > when):
+                candidates.add(_JOURNAL_RULE_PREFIX + str(r["id"]))
+        proven = len(candidates | ticked) == int(rec.get("totalRules") or 0)
+        on_list = (candidates | ticked) if proven else ticked
         for rid in on_list:
             label = names.get(rid)
             if label is None:
@@ -633,14 +643,14 @@ def _my_rules_check(user_id: str, params: dict, now: datetime) -> dict:
         "asOf": _iso_utc(now),
         "source": _origin([(t or {}).get("source") for t in (checked_trades or rows)]),
         "range": {"from": day_from, "to": day_to},
+        "kept": head_kept if checked_trades else None,
+        "total": head_total if checked_trades else None,
         "rules": out_rules[:ROW_CAP],
     }
     if cut:
         out["truncated"] = cut
-    if not has_rules:
-        out["empty"] = RULES_NONE_SENTENCE
-    elif not out_rules:
-        out["empty"] = RULES_UNCHECKED_SENTENCE
+    if not out_rules:
+        out["empty"] = RULES_UNCHECKED_SENTENCE if has_rules else RULES_NONE_SENTENCE
     return out
 
 

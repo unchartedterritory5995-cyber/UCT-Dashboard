@@ -818,3 +818,82 @@ def test_mistakes_read_is_member_scoped_and_cached(monkeypatch):
     assert len(calls) == 2 and first["rows"] == second["rows"]      # two windows, read once
     nw.build("myMistakes", "u2", {}, now=NOW)
     assert len(calls) == 4
+
+
+def test_rules_headline_is_the_sum_of_the_stored_counts(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"},
+                                   {"id": "r-stop", "label": "Stop set before entry"}]}}
+    adh = {}
+    adh.update(_adh("id:t1", ["r-vol", "r-stop"], 2))
+    adh.update(_adh("id:t2", ["r-vol"], 2))
+    _patch_rules(monkeypatch, [_trade(1), _trade(2), _trade(3)], adh, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert (out["kept"], out["total"]) == (3, 4)
+    assert sum(r["kept"] for r in out["rules"]) == out["kept"]
+    assert sum(r["total"] for r in out["rules"]) == out["total"]
+    assert all(r["total"] <= 2 for r in out["rules"])           # never more than the checked trades
+
+
+def test_rules_headline_is_null_when_nothing_was_checked(monkeypatch):
+    _patch_rules(monkeypatch, [_trade(1)], {}, {"a1": {"Flag": [{"id": "r", "label": "L"}]}})
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["kept"] is None and out["total"] is None
+
+
+def test_rules_a_rule_created_after_the_trade_does_not_count(monkeypatch):
+    journal = [{"id": "late", "label": "Journal every trade", "status": "active", "beforeEntry": True,
+                "accountId": None, "createdAt": "2026-10-20T09:00:00+00:00"}]
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    rec = {"tradeRef": "id:t1", "setup": "Flag", "checkedRuleIds": ["r-vol"], "totalRules": 1,
+           "adherencePct": 1.0, "updatedAt": "2026-10-19T15:00:00+00:00"}
+    _patch_rules(monkeypatch, [_trade(1)], {"id:t1": rec}, setup_rules, journal)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["rules"] == [{"rule": "Volume dried up", "kept": 1, "total": 1}]
+    assert (out["kept"], out["total"]) == (1, 1)
+    # control: the same rule created BEFORE the record is on the list (stored count 2 proves it)
+    journal[0]["createdAt"] = "2026-10-18T09:00:00+00:00"
+    rec["totalRules"] = 2
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert {"rule": "Journal every trade", "kept": 0, "total": 1} in out["rules"]
+
+
+def test_rules_unticked_setup_rule_needs_the_stored_count_to_prove_the_list(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"},
+                                   {"id": "r-stop", "label": "Stop set before entry"}]}}
+    # stored count 5 does not match today's 2-rule checklist: only the tick counts, never an overstated total
+    adh = _adh("id:t1", ["r-vol"], 5)
+    _patch_rules(monkeypatch, [_trade(1)], adh, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["rules"] == [{"rule": "Volume dried up", "kept": 1, "total": 1}]
+
+
+def test_rules_empty_only_when_there_are_no_output_rules(monkeypatch):
+    journal = [{"id": "gone", "label": "Old rule", "status": "dismissed", "beforeEntry": True, "accountId": None}]
+    _patch_rules(monkeypatch, [_trade(1)], _adh("id:t1", ["rule:gone"], 1), {}, journal)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["rules"] == [{"rule": "Old rule", "kept": 1, "total": 1}]
+    assert "empty" not in out
+
+
+def test_rules_a_tick_on_a_deleted_rule_is_dropped_and_no_id_leaks(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    adh = _adh("id:t1", ["r-vol", "r-deleted-9f3", "rule:deleted-77c"], 3)
+    _patch_rules(monkeypatch, [_trade(1)], adh, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    blob = json.dumps(out)
+    assert out["rules"] == [{"rule": "Volume dried up", "kept": 1, "total": 1}]
+    assert "r-deleted-9f3" not in blob and "deleted-77c" not in blob and "r-vol" not in blob
+
+
+def test_member_rules_real_read_never_writes(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    tables = ("j2_accounts", "j2_positions", "j2_journal_rules")
+    before = tuple(_count(auth_db, t) for t in tables)
+    assert nw._member_rules("nobody") == {"setup": {}, "journal": []}        # no account: still no row made
+    assert tuple(_count(auth_db, t) for t in tables) == before
+    accounts.get_or_migrate_default_account("u9")                            # control: this helper DOES write
+    assert _count(auth_db, "j2_accounts") == before[0] + 1
+    after = tuple(_count(auth_db, t) for t in tables)
+    out = nw._member_rules("u9")
+    assert set(out) == {"setup", "journal"} and tuple(_count(auth_db, t) for t in tables) == after

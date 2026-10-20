@@ -1106,5 +1106,5 @@ def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(
 
 
 def test_wave2_param_keys_are_the_ones_the_builders_emit():
-    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "rules", "empty", "share", "truncated")
+    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated")
     assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated")
