@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 3521,
+  "passed": 3288,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 230,
+  "wall_s": 73.17,
+  "failed_files": [
+    "tests/pattern_engine/primitives/test_bases.py",
+    "tests/pattern_engine/test_pattern_db_shared_root_guard.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3288 passed, 230 skipped, 9 xfailed, 2 warnings in 73.17s (0:01:13)",
+  "ok": true
+}
