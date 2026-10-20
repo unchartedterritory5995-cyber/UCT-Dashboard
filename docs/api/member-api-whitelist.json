@@ -2315,7 +2315,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "folder_id, tag, ticker, q, embed_symbol, embed_widget, sort=updated, limit=100, offset=0, deleted=False, dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning=False",
+      "params": "folder_id, tag, ticker, q, embed_symbol, embed_widget, sort=updated, limit=100, offset=0, deleted=False, dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning=False, excludeSample=False",
       "path": "/api/j2/notes",
       "rate_limit_family": "member-workspace",
       "tier": "member"

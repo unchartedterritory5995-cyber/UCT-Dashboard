@@ -1176,6 +1176,26 @@ function formatVolumeAxis(v) {
   return String(Math.round(n))
 }
 
+// A priceFormat for the price series has to go on EVERY series sharing its price scale.
+// lightweight-charts draws a scale's ticks and value labels with the formatter of the
+// series on it that was added FIRST (lowest z-order), not the main one. The MA overlays
+// are usually added before the price series (it is rebuilt on a chart-type change), so
+// a format on the price series alone never reached the axis: measured on the real page,
+// the line formatted 825000 as "825,000" while the axis kept the first MA's "825000.00".
+// Series on the same scale plot the same units, so they share the format.
+function applyPriceFormatToScale(series, priceFormat) {
+  if (!series || !priceFormat) return
+  series.applyOptions({ priceFormat })
+  // An unset priceScaleId binds to the right scale (the price series leaves it unset; the
+  // MAs name 'right' explicitly), so compare with that default filled in.
+  const scaleOf = (s) => s.options?.()?.priceScaleId ?? 'right'
+  const scaleId = scaleOf(series)
+  for (const s of (series.getPane?.()?.getSeries?.() || [])) {
+    if (s === series) continue
+    try { if (scaleOf(s) === scaleId) s.applyOptions({ priceFormat }) } catch { /* */ }
+  }
+}
+
 // Format dollar notional for dark pool bars: "$120.5M", "$1.2B", "$45K"
 // TERM-066: B two decimals, M one, K none — the ladder this grammar already had.
 const DP_NOTIONAL_TIERS = Object.freeze([
@@ -2387,7 +2407,8 @@ export default function StockChart({
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
   watermarkIndustry = null,  // Model Book: curated historical industry (paired with watermarkSector).
   className = '',
-  showDrawingTools = true,
+  showDrawingTools: showDrawingToolsProp = true,
+  studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -2628,12 +2649,18 @@ export default function StockChart({
   const resolvedTf = _econId ? economicPrimaryTf(tf || prefs.default_chart_tf) : (tf || prefs.default_chart_tf || 'D')
   const econPrimary = useEconomicPrimary(_econId ? sym : null, resolvedTf)
   const barsOverride = _econId ? econPrimary.bars : barsOverrideProp
+  // Study mode (T1): one switch, read by every sym-keyed side fetch below.
+  const _study = !!studyMode
+  const showDrawingTools = _study ? false : showDrawingToolsProp
   const barsOverridePending = _econId ? (!econPrimary.bars && econPrimary.pending) : barsOverridePendingProp
   const liveUpdates = liveUpdatesProp && !_econId
   const backgroundWarm = backgroundWarmProp && !_econId
   const deepWarm = deepWarmProp && !_econId
   const disablePatterns = disablePatternsProp || _econId
   const priceFormat = (_econId && econPrimary.priceFormat) ? econPrimary.priceFormat : priceFormatProp
+  // Read by the series-creation block, whose callback does not list priceFormat as a dependency.
+  const priceFormatRef = useRef(priceFormat)
+  priceFormatRef.current = priceFormat
   const sessionView = _econId ? null : sessionViewProp
   // The row each host time sits on (D rows are 'YYYY-MM-DD'; W/M bucket keys too).
   const _econRowIndex = useMemo(() => {
@@ -3249,7 +3276,7 @@ export default function StockChart({
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym && !_econId ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
+    markersEnabled && sym && !_econId && !_study ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
     instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -3260,7 +3287,7 @@ export default function StockChart({
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
   const { data: newsData } = useSWR(
-    showNews && sym && !_econId ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
+    showNews && sym && !_econId && !_study ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes
@@ -3306,7 +3333,7 @@ export default function StockChart({
   // error here must never take the other marker categories down with it.
   const deskEnabled = !!cs.markers?.desk
   const { data: deskData } = useSWR(
-    deskEnabled && sym && !_econId ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
+    deskEnabled && sym && !_econId && !_study ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
@@ -3663,7 +3690,7 @@ export default function StockChart({
   const divBadgeAttachedRef = useRef(false)
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
-  const tickerMeta = useTickerMeta(_econId ? null : sym)
+  const tickerMeta = useTickerMeta(_econId || _study ? null : sym)
   // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
   //
   // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
@@ -3688,7 +3715,7 @@ export default function StockChart({
   const symbolMeta = useMemo(() => (
     sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
   ), [sym, tickerMeta])
-  const ipoInfo = useTickerIpo(_econId ? null : sym)       // { list_date } — official first-listing day
+  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -6330,7 +6357,7 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(_study ? null : sym)
   addDrawingRef.current = addDrawing
   clearAllRef.current = clearAll
   drawingCountRef.current = drawings.length
@@ -11524,8 +11551,8 @@ export default function StockChart({
         } : {}
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
-        const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold })
+        applyPriceFormatToScale(priceSeries, priceFormatRef.current)
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -13198,6 +13225,8 @@ export default function StockChart({
         // ref's declaration.
         // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
         indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
+        // The price axis's format, for engine series that share the candles' axis (see binder).
+        mainPriceFormat: priceFormatRef.current,
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
@@ -14183,6 +14212,16 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // A priceFormat can arrive AFTER the price series exists: ChartRender decides a breadth
+  // count's whole-number format only once its bars land, and the chart was already built on
+  // the pending render. The series-creation block applies priceFormat once, at creation, so
+  // a late one never reached the axis ("825000.00" under a header reading "810,197").
+  // Placed after the effect above so a series created in this same commit exists by now.
+  useEffect(() => {
+    if (!priceFormat) return
+    try { applyPriceFormatToScale(candleSeriesRef.current, priceFormat) } catch { /* older LWC */ }
+  }, [priceFormat])
 
   // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
   // PASSIVE, so it runs AFTER the frame is composited. On a symbol change that
@@ -18829,10 +18868,10 @@ export default function StockChart({
           })}
         </div>
       )}
-      {showSkeleton && <ChartSkeleton label={`Loading ${sym}…`} />}
+      {showSkeleton && <ChartSkeleton label={_study ? 'Loading chart…' : `Loading ${sym}…`} />}
       {showFatalError && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
-          <span>Failed to load chart for {sym}</span>
+          <span>{_study ? 'Failed to load the chart' : `Failed to load chart for ${sym}`}</span>
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}

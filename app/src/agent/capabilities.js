@@ -116,7 +116,9 @@ export function registerTargetKind(kind) {
 /** provider = { key, kind?, build(host, refFor, { message }) -> JSON-able context section,
  *               compact?(section) -> a smaller section that still says what was left out }
  *  `message` is the member's request, so a provider may send its detail only when relevant
- *  (it must still leave enough for the model to DISCOVER it is relevant). */
+ *  (it must still leave enough for the model to DISCOVER it is relevant).
+ *  `nl1` (NL-1, flag off by default): the model interprets the request, so a provider never gates
+ *  its detail on the member's WORDS — it sends it, and the context budget compacts it. */
 export function registerContextProvider(p) {
   if (!p || !p.key || typeof p.build !== 'function') throw new Error('context provider needs key + build()')
   PROVIDERS.set(p.key, p)
@@ -204,7 +206,7 @@ export function buildContext(host, ctx = {}) {
   }
   const sections = { surface: ctx.surface || null }
   for (const p of PROVIDERS.values()) {
-    try { sections[p.key] = p.build(host, refFor, { message: ctx.message || '' }) } catch { /* a broken provider drops out, never breaks the turn */ }
+    try { sections[p.key] = p.build(host, refFor, { message: ctx.message || '', nl1: ctx.nl1 === true }) } catch { /* a broken provider drops out, never breaks the turn */ }
   }
   // ⛔ AN EXPLICIT BUDGET, NEVER A SILENT CUT. Over it, providers that can compact themselves do
   // so, one at a time in registration order, and the compacted section says what it left out

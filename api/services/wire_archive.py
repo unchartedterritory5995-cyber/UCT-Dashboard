@@ -81,11 +81,84 @@ def record(payload: dict, *, overwrite: bool = True) -> bool:
         "date": ymd,
         "rundown_html": html,
         "archived_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "market_call": market_call_projection(payload),
     }
     tmp = dest.with_name(dest.name + ".tmp")
     tmp.write_text(json.dumps(entry), encoding="utf-8")
     os.replace(tmp, dest)
     return True
+
+
+TIER_SCALE_ID = "wire-5word-v1"
+"""The scale the archived call word belongs to. The engine publishes one of
+Aggressive / Constructive / Neutral / Caution / Defensive in
+`game_plan.exposure_tier` (see `quote_of_the_day.REGIME_TAGS`). The course and
+the sizing table use a DIFFERENT scale (GREEN / YELLOW / ORANGE / RED), and the
+0-150 score changed shape on 2026-03-22 -- so a consumer that teaches "what the
+firm called that day" must carry the scale id beside the word, never the word
+alone. Bump this id if the engine's vocabulary ever changes."""
+
+
+def market_call_projection(payload: dict) -> dict:
+    """The firm's call for the day, as the push payload stated it.
+
+    Study (the Desk's interactive education) keys its "call the market" drills
+    on what the firm ACTUALLY said that morning. Before this projection the
+    archive held only `rundown_html`; the call word lived in `wire_data.json`,
+    which the next push overwrites, and in the owner-PC snapshots the pod
+    cannot read. So the push now records the two fields it already carried:
+
+    * `exposure_tier` -- `game_plan.exposure_tier`, the raw word, stripped;
+      None when absent. NEVER normalised here (a word the engine did not say
+      is not recorded), and NEVER guessed from the html.
+    * `exposure_score` -- `exposure.score`, the 0-150 number; None when absent
+      or not a number.
+
+    A missing field is None, not an error: the archive's job is to keep the
+    rundown, and a payload without a game plan still has one."""
+    tier = None
+    score = None
+    if isinstance(payload, dict):
+        gp = payload.get("game_plan")
+        if isinstance(gp, dict):
+            raw = gp.get("exposure_tier")
+            if isinstance(raw, str) and raw.strip():
+                tier = raw.strip()
+        ex = payload.get("exposure")
+        if isinstance(ex, dict):
+            val = ex.get("score")
+            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                score = float(val)
+    return {"exposure_tier": tier, "exposure_score": score,
+            "tier_scale_id": TIER_SCALE_ID}
+
+
+def market_call(ymd) -> dict | None:
+    """The recorded call for exactly `ymd` (`{exposure_tier, exposure_score,
+    tier_scale_id}`), or None when the day is not held. An entry archived
+    before this projection existed answers with both values None -- an honest
+    "not recorded", never a backfilled guess."""
+    entry = read(ymd)
+    if entry is None:
+        return None
+    mc = entry.get("market_call")
+    if isinstance(mc, dict):
+        return {"exposure_tier": mc.get("exposure_tier"),
+                "exposure_score": mc.get("exposure_score"),
+                "tier_scale_id": mc.get("tier_scale_id") or TIER_SCALE_ID}
+    return {"exposure_tier": None, "exposure_score": None,
+            "tier_scale_id": TIER_SCALE_ID}
+
+
+def market_calls() -> list[dict]:
+    """Every held date with its recorded call, oldest first. Days archived
+    without a call carry None values so a consumer can see the gap."""
+    out = []
+    for ymd in held_dates():
+        mc = market_call(ymd)
+        if mc is not None:
+            out.append({"date": ymd, **mc})
+    return out
 
 
 def read(ymd) -> dict | None:

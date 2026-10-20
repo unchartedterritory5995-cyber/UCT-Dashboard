@@ -1,0 +1,1703 @@
+[
+ {
+  "answer_json": {
+   "answer": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission."
+  },
+  "difficulty": 1,
+  "id": "si_f2a5dbcf1885",
+  "lesson_origin": "source",
+  "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+   ],
+   "q": "At the desk, what does \"UCT Exposure Rating\" mean?",
+   "subject": "UCT Exposure Rating"
+  },
+  "reveal_json": {
+   "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "UCT Exposure Rating"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#UCT Exposure Rating",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "UCT Exposure Rating"
+  },
+  "difficulty": 2,
+  "id": "si_7fafef315901",
+  "lesson_origin": "source",
+  "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "RS line",
+    "R / R-multiple",
+    "Expectancy",
+    "UCT Exposure Rating"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+   "subject": "UCT Exposure Rating"
+  },
+  "reveal_json": {
+   "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "UCT Exposure Rating"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#UCT Exposure Rating",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+  },
+  "difficulty": 1,
+  "id": "si_6602cc3e3003",
+  "lesson_origin": "source",
+  "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "The firm's weekend scan publication, the weekly deep pass over the universe.",
+    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+   ],
+   "q": "At the desk, what does \"Distribution day\" mean?",
+   "subject": "Distribution day"
+  },
+  "reveal_json": {
+   "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Distribution day"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Distribution day",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Distribution day"
+  },
+  "difficulty": 2,
+  "id": "si_244773c72a0d",
+  "lesson_origin": "source",
+  "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "2B Reversal / Oops",
+    "Go Signal",
+    "Distribution day",
+    "Slingshot"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+   "subject": "Distribution day"
+  },
+  "reveal_json": {
+   "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Distribution day"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Distribution day",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."
+  },
+  "difficulty": 1,
+  "id": "si_65124ebfdbb4",
+  "lesson_origin": "source",
+  "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+   ],
+   "q": "At the desk, what does \"Follow-through day\" mean?",
+   "subject": "Follow-through day"
+  },
+  "reveal_json": {
+   "quote": "The confirmation of a new uptrend — day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Follow-through day"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Follow-through day",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Follow-through day"
+  },
+  "difficulty": 2,
+  "id": "si_21096a735a4a",
+  "lesson_origin": "source",
+  "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Morning Wire",
+    "Follow-through day",
+    "Wedge Pop / Wedge Drop",
+    "Kicker candle"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+   "subject": "Follow-through day"
+  },
+  "reveal_json": {
+   "quote": "The confirmation of a new uptrend — day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Follow-through day"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Follow-through day",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."
+  },
+  "difficulty": 1,
+  "id": "si_4d2ef9399e05",
+  "lesson_origin": "source",
+  "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "The trap that closes above the prior day's high, flipping the short-term control."
+   ],
+   "q": "At the desk, what does \"Stage 2\" mean?",
+   "subject": "Stage 2"
+  },
+  "reveal_json": {
+   "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Stage 2"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Stage 2",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Stage 2"
+  },
+  "difficulty": 2,
+  "id": "si_d3bb1b229169",
+  "lesson_origin": "source",
+  "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Sunday Scans",
+    "UCT 20",
+    "Stage 2",
+    "Morning Wire"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+   "subject": "Stage 2"
+  },
+  "reveal_json": {
+   "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Stage 2"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Stage 2",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
+  },
+  "difficulty": 1,
+  "id": "si_947ebd54d6e0",
+  "lesson_origin": "source",
+  "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A shakeout below a key line followed by retaking it with authority.",
+    "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+    "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
+   ],
+   "q": "At the desk, what does \"ADR%\" mean?",
+   "subject": "ADR%"
+  },
+  "reveal_json": {
+   "quote": "Average daily range as a percentage — the firm's volatility floor for candidates is 4%.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "ADR%"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#ADR%",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "ADR%"
+  },
+  "difficulty": 2,
+  "id": "si_b5c21fae463d",
+  "lesson_origin": "source",
+  "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "ADR%",
+    "Follow-through day",
+    "Stage 2",
+    "RS line"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+   "subject": "ADR%"
+  },
+  "reveal_json": {
+   "quote": "Average daily range as a percentage — the firm's volatility floor for candidates is 4%.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "ADR%"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#ADR%",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."
+  },
+  "difficulty": 1,
+  "id": "si_23a0fe67d039",
+  "lesson_origin": "source",
+  "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."
+   ],
+   "q": "At the desk, what does \"RS line\" mean?",
+   "subject": "RS line"
+  },
+  "reveal_json": {
+   "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "RS line"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#RS line",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "RS line"
+  },
+  "difficulty": 2,
+  "id": "si_8bb1f221d693",
+  "lesson_origin": "source",
+  "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Distribution day",
+    "Follow-through day",
+    "RS line",
+    "UCT Exposure Rating"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+   "subject": "RS line"
+  },
+  "reveal_json": {
+   "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "RS line"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#RS line",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable."
+  },
+  "difficulty": 1,
+  "id": "si_2324677f72fa",
+  "lesson_origin": "source",
+  "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."
+   ],
+   "q": "At the desk, what does \"R / R-multiple\" mean?",
+   "subject": "R / R-multiple"
+  },
+  "reveal_json": {
+   "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "R / R-multiple"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#R / R-multiple",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "R / R-multiple"
+  },
+  "difficulty": 2,
+  "id": "si_c9b186f6c102",
+  "lesson_origin": "source",
+  "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "RS line",
+    "Expectancy",
+    "Account Risk %",
+    "R / R-multiple"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+   "subject": "R / R-multiple"
+  },
+  "reveal_json": {
+   "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "R / R-multiple"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#R / R-multiple",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+  },
+  "difficulty": 1,
+  "id": "si_a3375fc56d73",
+  "lesson_origin": "source",
+  "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
+   ],
+   "q": "At the desk, what does \"Expectancy\" mean?",
+   "subject": "Expectancy"
+  },
+  "reveal_json": {
+   "quote": "(win% × average win in R) − (loss% × average loss in R) — the equation that decides whether a system pays, independent of win rate.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Expectancy"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Expectancy",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Expectancy"
+  },
+  "difficulty": 2,
+  "id": "si_24ea7cb316e2",
+  "lesson_origin": "source",
+  "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Sunday Scans",
+    "UCT 20",
+    "Expectancy",
+    "Morning Wire"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+   "subject": "Expectancy"
+  },
+  "reveal_json": {
+   "quote": "(win% × average win in R) − (loss% × average loss in R) — the equation that decides whether a system pays, independent of win rate.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Expectancy"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Expectancy",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%."
+  },
+  "difficulty": 1,
+  "id": "si_1718caca9bbc",
+  "lesson_origin": "source",
+  "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "The firm's weekend scan publication, the weekly deep pass over the universe.",
+    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+    "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
+   ],
+   "q": "At the desk, what does \"Account Risk %\" mean?",
+   "subject": "Account Risk %"
+  },
+  "reveal_json": {
+   "quote": "The share of the account risked on one trade — Position Size % × Stop Distance % — hard-capped at 2%, preferably under 1%.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Account Risk %"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Account Risk %",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Account Risk %"
+  },
+  "difficulty": 2,
+  "id": "si_e854e60154f5",
+  "lesson_origin": "source",
+  "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Follow-through day",
+    "Account Risk %",
+    "UCT Exposure Rating",
+    "Distribution day"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+   "subject": "Account Risk %"
+  },
+  "reveal_json": {
+   "quote": "The share of the account risked on one trade — Position Size % × Stop Distance % — hard-capped at 2%, preferably under 1%.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Account Risk %"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Account Risk %",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+  },
+  "difficulty": 1,
+  "id": "si_4946598b9aae",
+  "lesson_origin": "source",
+  "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "The firm's weekend scan publication, the weekly deep pass over the universe."
+   ],
+   "q": "At the desk, what does \"Portfolio heat\" mean?",
+   "subject": "Portfolio heat"
+  },
+  "reveal_json": {
+   "quote": "Total open risk across all positions — Σ (entry − stop) × shares ÷ equity — capped at 10% for the whole book.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Portfolio heat"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Portfolio heat",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Portfolio heat"
+  },
+  "difficulty": 2,
+  "id": "si_641197627e0f",
+  "lesson_origin": "source",
+  "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Portfolio heat",
+    "High Volume Edge (HVC)",
+    "U&R (Undercut & Rally)",
+    "Remount"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+   "subject": "Portfolio heat"
+  },
+  "reveal_json": {
+   "quote": "Total open risk across all positions — Σ (entry − stop) × shares ÷ equity — capped at 10% for the whole book.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Portfolio heat"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Portfolio heat",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."
+  },
+  "difficulty": 1,
+  "id": "si_2f65cfa44fab",
+  "lesson_origin": "source",
+  "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."
+   ],
+   "q": "At the desk, what does \"Episodic Pivot (EP)\" mean?",
+   "subject": "Episodic Pivot (EP)"
+  },
+  "reveal_json": {
+   "quote": "Day one of a new trend — a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Episodic Pivot (EP)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Episodic Pivot (EP)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Episodic Pivot (EP)"
+  },
+  "difficulty": 2,
+  "id": "si_c0457731fc62",
+  "lesson_origin": "source",
+  "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "R / R-multiple",
+    "Expectancy",
+    "Episodic Pivot (EP)",
+    "RS line"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+   "subject": "Episodic Pivot (EP)"
+  },
+  "reveal_json": {
+   "quote": "Day one of a new trend — a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Episodic Pivot (EP)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Episodic Pivot (EP)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."
+  },
+  "difficulty": 1,
+  "id": "si_2b0b868c69b1",
+  "lesson_origin": "source",
+  "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+   ],
+   "q": "At the desk, what does \"Power Earnings Gap (PEG)\" mean?",
+   "subject": "Power Earnings Gap (PEG)"
+  },
+  "reveal_json": {
+   "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Power Earnings Gap (PEG)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Power Earnings Gap (PEG)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Power Earnings Gap (PEG)"
+  },
+  "difficulty": 2,
+  "id": "si_dc73d76ac779",
+  "lesson_origin": "source",
+  "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "UCT 20",
+    "Power Earnings Gap (PEG)",
+    "Morning Wire",
+    "Sunday Scans"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+   "subject": "Power Earnings Gap (PEG)"
+  },
+  "reveal_json": {
+   "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Power Earnings Gap (PEG)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Power Earnings Gap (PEG)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The prior up-gap zone that price must defend on a pullback, the level the tape remembers."
+  },
+  "difficulty": 1,
+  "id": "si_83a511c154da",
+  "lesson_origin": "source",
+  "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+   ],
+   "q": "At the desk, what does \"Gap support\" mean?",
+   "subject": "Gap support"
+  },
+  "reveal_json": {
+   "quote": "The prior up-gap zone that price must defend on a pullback — the level the tape remembers.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Gap support"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Gap support",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Gap support"
+  },
+  "difficulty": 2,
+  "id": "si_ec9b47c1d208",
+  "lesson_origin": "source",
+  "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "RS line",
+    "Gap support",
+    "Stage 2",
+    "ADR%"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+   "subject": "Gap support"
+  },
+  "reveal_json": {
+   "quote": "The prior up-gap zone that price must defend on a pullback — the level the tape remembers.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Gap support"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Gap support",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."
+  },
+  "difficulty": 1,
+  "id": "si_6a58afbc1174",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+    "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."
+   ],
+   "q": "At the desk, what does \"High Volume Edge (HVC)\" mean?",
+   "subject": "High Volume Edge (HVC)"
+  },
+  "reveal_json": {
+   "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "High Volume Edge (HVC)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#High Volume Edge (HVC)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "High Volume Edge (HVC)"
+  },
+  "difficulty": 2,
+  "id": "si_d33bf1b956a3",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "High Volume Edge (HVC)",
+    "Kicker candle",
+    "Morning Wire",
+    "Sunday Scans"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+   "subject": "High Volume Edge (HVC)"
+  },
+  "reveal_json": {
+   "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "High Volume Edge (HVC)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#High Volume Edge (HVC)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
+  },
+  "difficulty": 1,
+  "id": "si_26085f1e9fda",
+  "lesson_origin": "source",
+  "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+   ],
+   "q": "At the desk, what does \"U&R (Undercut & Rally)\" mean?",
+   "subject": "U&R (Undercut & Rally)"
+  },
+  "reveal_json": {
+   "quote": "The shakeout you buy — price undercuts a prior low, traps sellers, and reclaims it.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "U&R (Undercut & Rally)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#U&R (Undercut & Rally)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "U&R (Undercut & Rally)"
+  },
+  "difficulty": 2,
+  "id": "si_360bb1e5e0ec",
+  "lesson_origin": "source",
+  "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Portfolio heat",
+    "U&R (Undercut & Rally)",
+    "Expectancy",
+    "Account Risk %"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+   "subject": "U&R (Undercut & Rally)"
+  },
+  "reveal_json": {
+   "quote": "The shakeout you buy — price undercuts a prior low, traps sellers, and reclaims it.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "U&R (Undercut & Rally)"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#U&R (Undercut & Rally)",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A shakeout below a key line followed by retaking it with authority."
+  },
+  "difficulty": 1,
+  "id": "si_c3e3a9da02fa",
+  "lesson_origin": "source",
+  "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+    "A shakeout below a key line followed by retaking it with authority."
+   ],
+   "q": "At the desk, what does \"Remount\" mean?",
+   "subject": "Remount"
+  },
+  "reveal_json": {
+   "quote": "A shakeout below a key line followed by retaking it with authority.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Remount"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Remount",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Remount"
+  },
+  "difficulty": 2,
+  "id": "si_1bf278156193",
+  "lesson_origin": "source",
+  "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "R / R-multiple",
+    "Expectancy",
+    "Remount",
+    "RS line"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "A shakeout below a key line followed by retaking it with authority.",
+   "subject": "Remount"
+  },
+  "reveal_json": {
+   "quote": "A shakeout below a key line followed by retaking it with authority.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Remount"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Remount",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low."
+  },
+  "difficulty": 1,
+  "id": "si_6b22331a0410",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+    "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+   ],
+   "q": "At the desk, what does \"Slingshot\" mean?",
+   "subject": "Slingshot"
+  },
+  "reveal_json": {
+   "quote": "Recapturing the 4-EMA of the highs — buying momentum resuming rather than the low.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Slingshot"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Slingshot",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Slingshot"
+  },
+  "difficulty": 2,
+  "id": "si_20859c2e7bf4",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Launchpad",
+    "Slingshot",
+    "2B Reversal / Oops",
+    "Go Signal"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+   "subject": "Slingshot"
+  },
+  "reveal_json": {
+   "quote": "Recapturing the 4-EMA of the highs — buying momentum resuming rather than the low.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Slingshot"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Slingshot",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
+  },
+  "difficulty": 1,
+  "id": "si_37a28a376722",
+  "lesson_origin": "source",
+  "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
+   ],
+   "q": "At the desk, what does \"2B Reversal / Oops\" mean?",
+   "subject": "2B Reversal / Oops"
+  },
+  "reveal_json": {
+   "quote": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "2B Reversal / Oops"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#2B Reversal / Oops",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "2B Reversal / Oops"
+  },
+  "difficulty": 2,
+  "id": "si_b09c26135b0d",
+  "lesson_origin": "source",
+  "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "ADR%",
+    "RS line",
+    "R / R-multiple",
+    "2B Reversal / Oops"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+   "subject": "2B Reversal / Oops"
+  },
+  "reveal_json": {
+   "quote": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "2B Reversal / Oops"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#2B Reversal / Oops",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+  },
+  "difficulty": 1,
+  "id": "si_98dfe5951957",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+   ],
+   "q": "At the desk, what does \"Go Signal\" mean?",
+   "subject": "Go Signal"
+  },
+  "reveal_json": {
+   "quote": "A catalyst gap that digests into the 9 EMA and then engulfs — the resumption trigger.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Go Signal"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Go Signal",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Go Signal"
+  },
+  "difficulty": 2,
+  "id": "si_eff45912f4a1",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "R / R-multiple",
+    "Expectancy",
+    "Account Risk %",
+    "Go Signal"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+   "subject": "Go Signal"
+  },
+  "reveal_json": {
+   "quote": "A catalyst gap that digests into the 9 EMA and then engulfs — the resumption trigger.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Go Signal"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Go Signal",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching."
+  },
+  "difficulty": 1,
+  "id": "si_c0389d04c5e6",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+   ],
+   "q": "At the desk, what does \"Launchpad\" mean?",
+   "subject": "Launchpad"
+  },
+  "reveal_json": {
+   "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Launchpad"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Launchpad",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Launchpad"
+  },
+  "difficulty": 2,
+  "id": "si_ea1c65d0a404",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Morning Wire",
+    "Sunday Scans",
+    "UCT 20",
+    "Launchpad"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+   "subject": "Launchpad"
+  },
+  "reveal_json": {
+   "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Launchpad"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Launchpad",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open."
+  },
+  "difficulty": 1,
+  "id": "si_7b05a3f0b4d2",
+  "lesson_origin": "source",
+  "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+   ],
+   "q": "At the desk, what does \"Wedge Pop / Wedge Drop\" mean?",
+   "subject": "Wedge Pop / Wedge Drop"
+  },
+  "reveal_json": {
+   "quote": "One descending-coil skeleton with two resolutions — the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Wedge Pop / Wedge Drop"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Wedge Pop / Wedge Drop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Wedge Pop / Wedge Drop"
+  },
+  "difficulty": 2,
+  "id": "si_8a53969674e8",
+  "lesson_origin": "source",
+  "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Episodic Pivot (EP)",
+    "Power Earnings Gap (PEG)",
+    "Wedge Pop / Wedge Drop",
+    "Portfolio heat"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+   "subject": "Wedge Pop / Wedge Drop"
+  },
+  "reveal_json": {
+   "quote": "One descending-coil skeleton with two resolutions — the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Wedge Pop / Wedge Drop"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Wedge Pop / Wedge Drop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The trap that closes above the prior day's high, flipping the short-term control."
+  },
+  "difficulty": 1,
+  "id": "si_a37372af6124",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+    "The trap that closes above the prior day's high, flipping the short-term control.",
+    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."
+   ],
+   "q": "At the desk, what does \"Kicker candle\" mean?",
+   "subject": "Kicker candle"
+  },
+  "reveal_json": {
+   "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Kicker candle"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Kicker candle",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Kicker candle"
+  },
+  "difficulty": 2,
+  "id": "si_80d74ccc0837",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Go Signal",
+    "Launchpad",
+    "Wedge Pop / Wedge Drop",
+    "Kicker candle"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
+   "subject": "Kicker candle"
+  },
+  "reveal_json": {
+   "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Kicker candle"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Kicker candle",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+  },
+  "difficulty": 1,
+  "id": "si_ac0108051fce",
+  "lesson_origin": "source",
+  "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+   ],
+   "q": "At the desk, what does \"Morning Wire\" mean?",
+   "subject": "Morning Wire"
+  },
+  "reveal_json": {
+   "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Morning Wire"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Morning Wire",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Morning Wire"
+  },
+  "difficulty": 2,
+  "id": "si_2b522e72492f",
+  "lesson_origin": "source",
+  "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Morning Wire",
+    "Launchpad",
+    "Wedge Pop / Wedge Drop",
+    "Kicker candle"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+   "subject": "Morning Wire"
+  },
+  "reveal_json": {
+   "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Morning Wire"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Morning Wire",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The firm's weekend scan publication, the weekly deep pass over the universe."
+  },
+  "difficulty": 1,
+  "id": "si_2a2dd26742b5",
+  "lesson_origin": "source",
+  "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "The firm's weekend scan publication, the weekly deep pass over the universe.",
+    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+   ],
+   "q": "At the desk, what does \"Sunday Scans\" mean?",
+   "subject": "Sunday Scans"
+  },
+  "reveal_json": {
+   "quote": "The firm's weekend scan publication — the weekly deep pass over the universe.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Sunday Scans"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Sunday Scans",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sunday Scans"
+  },
+  "difficulty": 2,
+  "id": "si_a37a533b6310",
+  "lesson_origin": "source",
+  "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Gap support",
+    "Sunday Scans",
+    "Episodic Pivot (EP)",
+    "Power Earnings Gap (PEG)"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The firm's weekend scan publication, the weekly deep pass over the universe.",
+   "subject": "Sunday Scans"
+  },
+  "reveal_json": {
+   "quote": "The firm's weekend scan publication — the weekly deep pass over the universe.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Sunday Scans"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Sunday Scans",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run."
+  },
+  "difficulty": 1,
+  "id": "si_25f05f89df8a",
+  "lesson_origin": "source",
+  "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+   ],
+   "q": "At the desk, what does \"UCT 20\" mean?",
+   "subject": "UCT 20"
+  },
+  "reveal_json": {
+   "quote": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "UCT 20"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#UCT 20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "UCT 20"
+  },
+  "difficulty": 2,
+  "id": "si_230f76e548bd",
+  "lesson_origin": "source",
+  "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Portfolio heat",
+    "UCT 20",
+    "Expectancy",
+    "Account Risk %"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+   "subject": "UCT 20"
+  },
+  "reveal_json": {
+   "quote": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "UCT 20"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#UCT 20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
+  },
+  "difficulty": 1,
+  "id": "si_1cf86a2d3d0e",
+  "lesson_origin": "source",
+  "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "The firm's weekend scan publication, the weekly deep pass over the universe.",
+    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+    "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
+   ],
+   "q": "At the desk, what does \"Compass\" mean?",
+   "subject": "Compass"
+  },
+  "reveal_json": {
+   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Compass"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Compass",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Compass"
+  },
+  "difficulty": 2,
+  "id": "si_ba47fef1fbf5",
+  "lesson_origin": "source",
+  "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Launchpad",
+    "Wedge Pop / Wedge Drop",
+    "Kicker candle",
+    "Compass"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
+   "subject": "Compass"
+  },
+  "reveal_json": {
+   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Compass"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Compass",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples."
+  },
+  "difficulty": 1,
+  "id": "si_cadbcaa31d48",
+  "lesson_origin": "source",
+  "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+    "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."
+   ],
+   "q": "At the desk, what does \"Model Book\" mean?",
+   "subject": "Model Book"
+  },
+  "reveal_json": {
+   "quote": "The in-product library of history's best stocks by year with setups labeled — the source for the Winners Gallery and historical examples.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Model Book"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Model Book",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Model Book"
+  },
+  "difficulty": 2,
+  "id": "si_bf95efd92868",
+  "lesson_origin": "source",
+  "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "UCT Exposure Rating",
+    "Distribution day",
+    "Follow-through day",
+    "Model Book"
+   ],
+   "q": "Which term does the desk use for this?",
+   "quote": "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+   "subject": "Model Book"
+  },
+  "reveal_json": {
+   "quote": "The in-product library of history's best stocks by year with setups labeled — the source for the Winners Gallery and historical examples.",
+   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "term": "Model Book"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.method",
+  "source_kind": "glossary",
+  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Model Book",
+  "type": "recall",
+  "version": 1
+ }
+]

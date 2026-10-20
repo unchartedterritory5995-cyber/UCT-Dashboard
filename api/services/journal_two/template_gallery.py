@@ -343,11 +343,16 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
                  " ON j2_template_gallery(user_id, source_page)"
                  " WHERE user_id IS NOT NULL AND source_page IS NOT NULL")
     conn.commit()
+    # P5 final-review row 27: each seed has its own `try`, so a failed outline seed never skips the starter-pack
+    # styles, and the log line names the seed that failed.
     try:
         seed_firm_templates(conn)
+    except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
+        print(f"[template-gallery] firm seed skipped (firm templates): {type(e).__name__}: {e}")
+    try:
         seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
-        print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
+        print(f"[template-gallery] firm seed skipped (firm styles): {type(e).__name__}: {e}")
     try:
         fill_missing_previews(conn)
     except Exception as e:  # noqa: BLE001 -- a preview is a courtesy, never a failed boot
@@ -1258,6 +1263,27 @@ def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_colum
     payload_json = json.dumps(payload)
     body_json = json.dumps(body)
     preview_json = json.dumps(preview)
+    # OI-P4b-3 (row 6): two first publishes at once (a double-click) both find no row, and the slower INSERT meets
+    # the unique source index. That loser goes round ONCE more and takes the update path onto the twin's row,
+    # instead of answering 500. The failed INSERT is rolled back only when it opened the transaction itself; a
+    # caller's open transaction is never rolled back here (SQLite already backed the one statement out).
+    for retried in (False, True):
+        gid = _held_or_replaced_once(
+            conn, user_id=user_id, key_column=key_column, key=key, item_type=item_type, title=title,
+            description=description, category=category, trading_style=trading_style, body_json=body_json,
+            preview=preview, preview_json=preview_json, payload=payload, payload_json=payload_json, now=now,
+            retried=retried)
+        if gid is not None:
+            return gid
+    raise AssertionError("unreachable: the retry either returns an id or raises")
+
+
+def _held_or_replaced_once(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any, item_type: str,
+                           title: str, description: str, category: str, trading_style: str | None, body_json: str,
+                           preview: list, preview_json: str, payload: dict, payload_json: str, now: str,
+                           retried: bool) -> str | None:
+    """One pass of `_write_held_or_replaced`: the item id, or None when the INSERT lost to a twin (go round again).
+    On the second pass a lost INSERT raises: the twin's row was not there to update, so it is some other refusal."""
     existing = conn.execute(
         f"SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND {key_column} = ? AND item_type = ?",
         (user_id, key, item_type)).fetchone()
@@ -1279,13 +1305,21 @@ def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_colum
              preview_json, existing["id"]))
         return existing["id"]
     gid = uuid.uuid4().hex
-    conn.execute(
-        f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
-        " category, body_json, status, created_at, updated_at, preview_json, item_type,"
-        " payload_json, version, trading_style)"
-        " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
-        (gid, user_id, key, title, description, category, body_json, now, now,
-         preview_json, item_type, payload_json, trading_style))
+    opened = not conn.in_transaction             # the INSERT's implicit BEGIN is ours to roll back, nothing else
+    try:
+        conn.execute(
+            f"INSERT INTO j2_template_gallery (id, user_id, {key_column}, kind, title, description,"
+            " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+            " payload_json, version, trading_style)"
+            " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 1, ?)",
+            (gid, user_id, key, title, description, category, body_json, now, now,
+             preview_json, item_type, payload_json, trading_style))
+    except sqlite3.IntegrityError:
+        if retried:
+            raise
+        if opened and conn.in_transaction:
+            conn.rollback()
+        return None
     return gid
 
 
@@ -1602,7 +1636,8 @@ def _reduce_example(body: Any, *, user_id: str, note_id: str, images_on: Any, br
     for node in _image_nodes(reduced):
         src = node["attrs"].get("src")
         tail = src[len(prefix):] if isinstance(src, str) and src.startswith(prefix) else ""
-        if not tail.isdigit() or int(tail) >= len(called):
+        # OI-P3b-10: ASCII digits only -- `str.isdigit` admits "²", which `int` refuses (a 500), as review M-1 found
+        if not (tail.isascii() and tail.isdigit()) or int(tail) >= len(called):
             continue                     # the reducer only keeps an image it rewrote; anything else is left as is
         original = called[int(tail)]
         if original not in kept:
@@ -1743,7 +1778,7 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         prefix = EXAMPLE_IMAGE_PATH.format(item_id=_PREVIEW_ITEM_ID)
         for node in _image_nodes(body):
             tail = str(node["attrs"].get("src") or "")[len(prefix):]
-            if tail.isdigit() and int(tail) < len(kept):
+            if tail.isascii() and tail.isdigit() and int(tail) < len(kept):    # OI-P3b-10: ASCII digits only
                 node["attrs"] = {**node["attrs"], "src": kept[int(tail)]}
         images = []
         for src in offered:
@@ -1889,14 +1924,19 @@ def _example_sources(kept: list[str], user_id: str, note_id: str) -> list[tuple[
         raise GalleryError(EXAMPLE_IMAGE_COUNT_SENTENCE)
     from api.services.journal_two import notes as notes_service
     from api.services.journal_two.notes_export import _ATTACHMENT_URL_RE
-    out: list[tuple[Path, str]] = []
+    matched = []
     for src in kept:
         m = _ATTACHMENT_URL_RE.match(src) if isinstance(src, str) else None
         if not m or m.group(1) != user_id or m.group(2) != note_id:
             raise GalleryServerError(EXAMPLE_COPY_SENTENCE)     # the reducer keeps only this note's own; fail closed
-        ext = EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower())
-        if ext is None:
-            raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+        matched.append(m)
+    # OI-P3b-9 (review M-3): the TYPE of every image first, then files and sizes. Checked image by image, a missing
+    # first image answered the 500 copy sentence before a later GIF's 400 -- the one the member can act on.
+    exts = [EXAMPLE_IMAGE_EXTENSIONS.get(Path(m.group(4)).suffix.lower()) for m in matched]
+    if None in exts:
+        raise GalleryError(EXAMPLE_IMAGE_TYPE_SENTENCE)
+    out: list[tuple[Path, str]] = []
+    for m, ext in zip(matched, exts):
         path = notes_service.serve_note_image_path(m.group(1), m.group(2), m.group(3), m.group(4))
         if path is None:
             raise GalleryServerError(EXAMPLE_COPY_SENTENCE)
@@ -2122,6 +2162,11 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         # P3b-T3-R6: the style is linkable AGAIN, under the lock, just before the write -- one withdrawn, hidden
         # or rejected while the note was being reduced is the same sentence, and nothing is written.
         style = _linkable_style(conn, user_id, style["id"])
+        # OI-P3b-5: and its kind is read AGAIN from that row -- a style resubmitted as another kind in the gap would
+        # otherwise store the stale `noteKind`. A note no longer of the style's kind is the same sentence as above.
+        kind = _safe_listed(_listed_payload(style))["kindId"]
+        if note["kind"] != kind:
+            raise GalleryError(EXAMPLE_KIND_SENTENCE)
         existing = conn.execute(
             "SELECT id, status, version FROM j2_template_gallery WHERE user_id = ? AND source_note_id = ?"
             " AND item_type = ?"
@@ -2166,11 +2211,14 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         # ⛔ P3b-T4-R6(b): the directories are put back WHILE THE WRITE LOCK IS STILL HELD, and only then is the
         # transaction rolled back (which releases it). The other order lets a waiting publish take the lock and own
         # the destination before this undo renames it away (review I-1).
-        moves.undo()                                 # the old copies back where they were (a no-op once finished)
-        if stage is not None:
-            _remove_dir(stage)                       # the staged copies, renamed back by undo (or never moved)
-        if conn.in_transaction:
-            conn.rollback()                          # only ever this function's own transaction (M-8)
+        # OI-P3b-12: an undo that raises must not skip the rollback, or the connection stays inside BEGIN IMMEDIATE.
+        try:
+            moves.undo()                             # the old copies back where they were (a no-op once finished)
+            if stage is not None:
+                _remove_dir(stage)                   # the staged copies, renamed back by undo (or never moved)
+        finally:
+            if conn.in_transaction:
+                conn.rollback()                      # only ever this function's own transaction (M-8)
         raise
     finally:
         if owned:
@@ -2969,9 +3017,11 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         # Only a failure that touched the copies rolls back here (the listing must not stand without them); every
         # other refusal keeps today's behaviour, so a caller's own transaction is never rolled back for a 400.
         if isinstance(e, GalleryServerError) or moves.active:
-            moves.undo()                                # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
-            if conn.in_transaction:
-                conn.rollback()
+            try:
+                moves.undo()                            # P3b-T4-R6(b): under the lock, BEFORE the rollback releases it
+            finally:
+                if conn.in_transaction:
+                    conn.rollback()                     # OI-P3b-12: even when the undo itself raises
         raise
     finally:
         if owned:

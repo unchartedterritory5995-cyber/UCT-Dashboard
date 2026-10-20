@@ -480,7 +480,7 @@ export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeou
   return { ok: false, reason: 'not-synced' }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -497,6 +497,9 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, wi
       // must never be applied to another, and an undo never reaches across a switch.
       epoch,
     } : {}),
+    // How many times a layout has been opened in this tab (A → B → A counts twice). Session memory's
+    // board refs are dropped whenever it moves (GATE-C.md §1); `epoch` above stays the layout's identity.
+    ...(typeof boardVisit === 'function' ? { boardVisit } : {}),
     ...(widgetOps && epoch ? { boardInSync: buildBoardSync({ readServer, localLayout: () => widgetOps.layout(), localEpoch: epoch }) } : {}),
     ...(widgetOps ? { widgetInSync: buildWidgetSync({ readLayout, localLayout: () => widgetOps.layout() }) } : {}),
     // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the

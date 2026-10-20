@@ -11,6 +11,20 @@
 //                               without voice access, which simply means no resurfaced notes here
 // The SWR keys carry the signed-in identity, as AlertBell's do: no member id, no fetch, and a
 // different member never inherits the previous one's rows from a shared cache entry.
+//
+// The alerts key, ['/api/alerts?limit=20', userId], is AlertBell's key (AlertBell.jsx), and sharing
+// that ONE cache entry is deliberate: where the bell is also mounted (the phone's top bar) the two
+// read the same rows and one request answers both, and a re-read after a row is marked read in either shows in both. What
+// differs is the read itself, and when both are mounted it is not this file's to choose:
+//   * fetcher: whichever hook starts a request supplies the fetcher that runs it (SWR dedupes the
+//     in-flight request, so the other hook's fetcher is not called). This box's fetcher THROWS on a
+//     failed read; AlertBell's turns a non-2xx into an empty list. A failed poll started by the bell
+//     therefore reads here as "no rows" rather than as an error, and one started by this box keeps the
+//     last good rows.
+//   * poll: each hook keeps its own timer (this box 120 s, the bell 60 s), so with both mounted the
+//     shared entry refreshes about every 60 s; this box alone refreshes every 120 s.
+// Do not "tidy" the two keys apart: separate entries would make the same rows readable and
+// dismissable twice.
 import { useContext } from 'react'
 import useSWR from 'swr'
 import { Link } from 'react-router-dom'

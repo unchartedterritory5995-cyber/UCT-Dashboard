@@ -79,6 +79,34 @@ function playMajor(ctx) {
   tone(ctx, 1047, 'sine', 0.45, 0.35, 0.1) // C6
 }
 
+// ── Study tones (spec §13.7 D11) ──
+// A two-note DESCENDING tone for a wrong answer: the alert picker above never
+// needed one (alerts only ever announce), so it lives here beside `playDing`
+// (correct), `playTriplePop` (combo x5 / x10) and `playChime` (the end card).
+// Not added to ALERT_SOUNDS: that list is the member's alert-sound picker.
+function playDescend(ctx) {
+  tone(ctx, 660, 'sine', 0, 0.16, 0.12)
+  tone(ctx, 494, 'sine', 0.16, 0.24, 0.11)
+}
+
+export const STUDY_TONES = {
+  correct: playDing,
+  wrong: playDescend,
+  combo: playTriplePop,
+  end: playChime,
+}
+
+/** Play one Study tone by kind ('correct' | 'wrong' | 'combo' | 'end'). Silent where audio is unavailable. */
+export function playStudyTone(kind) {
+  try {
+    const ctx = getCtx()
+    const fn = STUDY_TONES[kind] || playDing
+    fn(ctx)
+  } catch {
+    // Audio not available
+  }
+}
+
 export const ALERT_SOUNDS = [
   { key: 'chime',      label: 'Chime',       play: playChime },
   { key: 'bell',       label: 'Bell',        play: playBell },

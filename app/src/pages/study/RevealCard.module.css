@@ -1,0 +1,118 @@
+/* RevealCard (spec §13.7 D9): a bottom panel that grows upward from the sticky
+   bar, never a modal. Verdict words in gold / muted ink; never green or red. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  max-height: 45vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+.verdictIcon { display: inline-flex; width: 20px; height: 20px; }
+.verdictCorrect .verdictWord { color: var(--ut-gold); }
+.verdictWrong .verdictWord { color: var(--text-muted); }
+.verdictWrong .verdictIcon { color: var(--text-muted); }
+.verdictKey {
+  flex-basis: 100%;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 400;
+}
+
+.meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+.sym { color: var(--text-bright); font-weight: 600; letter-spacing: var(--ls-wide); }
+.dot { color: var(--text-muted); }
+
+.lesson {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
+.why { margin: 0; }
+.whySummary {
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  color: var(--ut-gold);
+  font-size: var(--text-md);
+  cursor: pointer;
+  list-style: none;
+}
+.whySummary::-webkit-details-marker { display: none; }
+.whySummary::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-sm);
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.why[open] .whySummary::before { transform: rotate(45deg); }
+.whyBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0 0 var(--space-sm);
+}
+.whyLine {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+.whyLabel {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.lessonLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  color: var(--ut-gold);
+  font-size: var(--text-md);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.continue {
+  min-height: 52px;
+  min-width: var(--tap-min);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.continue:hover { background: var(--ut-gold-bright); }
+.continue:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }

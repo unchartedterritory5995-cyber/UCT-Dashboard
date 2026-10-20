@@ -187,6 +187,11 @@ LIVE_ROOT_READERS = {
 #: in-process run. Named, with the reason; the ordering check still applies to it in full, and
 #: the test below fails on a stale entry. Landing 12-15: the first entry.
 ENV_WRITES_AFTER_THE_CENSUS = {
+    "notebook_daily_prep_probe.py": (
+        "after `import conftest` has pinned every data path and armed the tripwire, `pin_sandbox` "
+        "re-aims each census pin (and DATA_DIR) at the probe's own temp sandbox and sets the two "
+        "levels gates (NOTEBOOK_SETUPS_BOARD_ENABLED, NOTEBOOK_CHART_PLAN_ENABLED) as production arms "
+        "them; it then refuses to run if any resolved path is inside the shared root"),
     "notebook_contract_fixtures.py": (
         "after `import conftest` has pinned every data path to the sandbox, its one patch helper "
         "(`_Patches.setenv`, with an undo list) points AUTH_DB_PATH at a fresh temporary database "

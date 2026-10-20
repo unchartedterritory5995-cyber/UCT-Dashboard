@@ -37,6 +37,13 @@ def fetch_bars(ticker: str, tf: str, n: int) -> list[dict] | None:
     parameter is passed explicitly because the function's Query(...) defaults
     only resolve over HTTP. Only a 200 with a non-empty `bars` list counts."""
     from api.routers import bars as bars_router
+    # A Discord breadth name (UCTNQA50, UCTNAMO) is read as the site's own symbol
+    # (NASDAQ:A50, NASDAQ:MCO); every other ticker passes through unchanged.
+    try:
+        from api.services import discord_breadth_names as dbn
+        ticker = dbn.site_symbol(ticker) or ticker
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] breadth name lookup failed %s: %s", ticker, e)
     # serve_bars = the LOCAL serve core (get_bars is now an async route with a proxy
     # path; in-process callers must hit the core directly, not the proxy).
     resp = bars_router.serve_bars(ticker, tf, n, "", "", 0)
@@ -84,31 +91,21 @@ BREADTH_CHOICES_SIDE = 5
 
 
 def breadth_choices(q: str) -> list[dict]:
-    """Breadth symbols for the /chart autocomplete.
+    """Breadth-family series for the /chart autocomplete (`discord_breadth_names`:
+    the 45 UCT symbols, the US/NYSE/Nasdaq library, McClellan, sentiment and
+    volatility — every one a "UCT…" name; COT has its own `/cot`).
 
-    Typing "UCT…" (or "breadth") is asking for the breadth catalogue, so it may fill
-    the list; the bare "UCT"/"BREADTH" takes the groups in turn (MA, momentum,
-    highs/lows, regime) so no group is cut off by the 25-choice cap. Every other
-    query matches symbol or name and keeps to BREADTH_CHOICES_SIDE."""
-    from api.services import breadth_symbols as bs
+    Typing "UCT…" (or "breadth") is asking for the catalogue, so it may fill the
+    list; the bare "UCT"/"BREADTH" takes the groups in turn so no group is cut off
+    by the 25-choice cap. Every other query ("nasdaq 50", "mcclellan") matches name
+    or title and keeps to BREADTH_CHOICES_SIDE."""
+    from api.services import discord_breadth_names as dbn
     needle = (q or "").strip().upper().lstrip("$")
     if not needle:
         return []
-    rows = list(getattr(bs, "_ROWS", None) or [])
-    if not rows:     # the catalogue is the authority; a bare SYMBOLS dict still answers
-        rows = [(s, (m or {}).get("metric"), (m or {}).get("name") or "", (m or {}).get("group"))
-                for s, m in (bs.SYMBOLS or {}).items()]
     catalogue_ask = needle.startswith("UCT") or needle == "BREADTH"
-    if needle in ("UCT", "BREADTH"):
-        groups: dict = {}
-        for row in rows:
-            groups.setdefault(row[3], []).append(row)
-        cols = list(groups.values())
-        picked = [col[i] for i in range(max(len(c) for c in cols)) for col in cols if i < len(col)]
-    else:
-        picked = [r for r in rows if r[0].startswith(needle) or needle in str(r[2]).upper()]
     cap = BREADTH_CHOICES_MAX if catalogue_ask else BREADTH_CHOICES_SIDE
-    return [{"name": (f"{s} - {nm}" if nm else s)[:100], "value": s} for s, _m, nm, _g in picked[:cap]]
+    return [{"name": f"{e.name} - {e.title}"[:100], "value": e.name} for e in dbn.choices(needle, cap)]
 
 
 def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
@@ -262,6 +259,40 @@ def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None
         edit(app_id, token, content=text)
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-lesson] could not deliver the reply: %s", e)
+
+
+def run_cot_job(app_id: str, token: str, symbol: str, lookback: str, *,
+                render_fn=None, edit_fn=None) -> None:
+    """The far side of a `/cot` defer: render the site's COT Data page for one market
+    and PATCH it onto the reply. A failed render says so in words rather than leaving
+    a spinner. Never raises."""
+    from api.services import cot_image
+    from api.services.render_gate import MEMBER
+    render = render_fn or cot_image.render_cot_png
+    edit = edit_fn or di.edit_original
+    names, _ = di._cot_names()
+    title = f"**{symbol}** · {names.get(symbol, symbol)} · COT positioning ({lookback})"
+    png = None
+    # ONE retry. Measured live 2026-10-19: the first /cot ES after a deploy came back
+    # undrawn and the same request a minute later drew in 2.9 s. A market's first price
+    # read after a restart is cold (10-27 s), so a second attempt usually lands warm.
+    for attempt in (1, 2):
+        try:
+            # ⛔ MEMBER: a member typed /cot and is watching the deferred reply.
+            png = render(symbol, lookback, cls=MEMBER)
+        except Exception as e:  # noqa: BLE001 — a background job must never raise
+            log.warning("[cot] render attempt %d failed for %s: %s", attempt, symbol, e)
+            png = None
+        if png:
+            break
+    try:
+        if png:
+            edit(app_id, token, content=title, png=png, filename=f"cot-{symbol.lower()}.png")
+        else:
+            edit(app_id, token, content=f"{title}\nThe COT chart could not be drawn right now. "
+                                         "Try again in a minute, or open Breadth → COT Data on the site.")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[cot] could not deliver the reply for %s: %s", symbol, e)
 
 
 def _flow_fmt_m(v) -> str:
@@ -475,6 +506,21 @@ def _served_window(data: dict) -> str | None:
     return raw if raw in di.FLOW_WINDOWS else None
 
 
+def weekly_first(req):
+    """A freshly typed chart of a weekly series (AAII, NAAIM) opens on the weekly
+    chart: held on a daily chart its header reads "+0 (+0.00%)" six days in seven, and
+    the weekly header is the change since the last report. Only the typed command calls
+    this; the D / W buttons under a chart still mean what they say."""
+    try:
+        from api.services import discord_breadth_names as dbn
+        entry = dbn.lookup(req.ticker)
+        if entry is not None and entry.weekly and req.tf != "W":
+            return dataclasses.replace(req, tf="W")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] weekly default failed %s: %s", getattr(req, "ticker", "?"), e)
+    return req
+
+
 def breadth_adjust(req, prefs: dict):
     """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
     series built from the breadth monitor (the bars authority collapses an
@@ -483,11 +529,14 @@ def breadth_adjust(req, prefs: dict):
     pre/post treatment (volume, RVOL, gap and ADR are meaningless for a
     percentage). Anything else passes through untouched."""
     try:
-        from api.services import breadth_symbols as bs
-        if not bs.is_breadth_symbol(req.ticker):
+        # Every breadth-family series (`discord_breadth_names`), not only the 45 UCT
+        # symbols: before this, NAMO went down the stock path and drew the candle
+        # stand-in with Gap / $Vol stats.
+        from api.services import discord_breadth_names as dbn
+        entry = dbn.lookup(req.ticker)
+        if entry is None:
             return req, prefs
-        meta = bs.SYMBOLS.get(req.ticker.upper()) or {}
-        name = meta.get("name") or ""
+        name = entry.title or ""
         req = dataclasses.replace(req, tf="W" if req.tf == "W" else "D", daily_only=True,
                                   display=f"{req.ticker} · {name}" if name else req.ticker,
                                   breadth_name=name or req.ticker)
@@ -659,6 +708,9 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
             return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
+        if name == di.COT_COMMAND:
+            _f, fval = di.focused_option(interaction)
+            return _autocomplete(di.cot_market_choices(fval))
         if name == di.FLOW_COMMAND:
             fname, fval = di.focused_option(interaction)
             if fname == "days":                     # suggest day-window presets
@@ -686,7 +738,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             wait = di.user_rate_check(uid)
             if wait:
                 return _ephemeral(di.throttle_message(wait))
-        items = [breadth_adjust(req, dict(prefs)) for req in reqs]
+        items = [breadth_adjust(weekly_first(req), dict(prefs)) for req in reqs]
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
         token = str(interaction.get("token") or "")
         if not app_id or not token:
@@ -766,6 +818,30 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # first. That is the cost of the ack never being able to miss, and it is stated
         # here rather than discovered.
         return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+    if itype == 2 and name == di.COT_COMMAND:
+        # /cot <market> [lookback] — the site's COT Data page as a PUBLIC image, in the
+        # same channel and on the same per-member render budget as /chart and /flow.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="COT charts"))
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        typed = str(opts.get("market") or "").strip()
+        symbol = di.resolve_cot_market(typed)
+        if not symbol:
+            return _ephemeral(f"`{typed[:40]}` is not a COT market I know. Start typing in `/cot` "
+                              "for the list, e.g. `/cot ES`, `/cot GC`, `/cot gold`.")
+        from api.services.cot_image import normalize_lookback
+        lookback = normalize_lookback(opts.get("lookback"))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_cot_job, app_id, token, symbol, lookback)
+        return {"type": 5}
     if itype == 2 and name == di.FLOW_COMMAND:
         # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
         # (owner decision). Refused elsewhere with a pointer to that channel.
@@ -878,7 +954,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
                 req = di.parse_component(interaction)          # a button under a chart
             else:
                 kind = "chart"
-                reqs = di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))
+                reqs = [weekly_first(q) for q in di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))]
                 if len(reqs) > 1:               # /chart NVDA AMD AVGO — one door, one message
                     for _ in reqs:
                         wait = di.user_rate_check(uid)

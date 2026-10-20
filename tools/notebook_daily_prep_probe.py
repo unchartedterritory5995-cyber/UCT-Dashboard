@@ -51,6 +51,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# The census and the tripwire, at MODULE level and before any api.* import: those paths are captured
+# at module import, so an import inside a function would run only when that function does
+# (tests/test_notebook_bridges_pin_the_root.py reads this ordering).
+import conftest  # noqa: E402,F401 -- redirect + tripwire at import (not a deployed service)
 
 PREP_WIDGETS = ("prepWire", "prepEarnings", "prepMovers", "prepLevels")
 CONTEXT_FIELDS = ("regime", "spy", "qqq", "vix")
@@ -261,9 +268,8 @@ def self_check() -> int:
 
 def pin_sandbox(sandbox: str) -> dict:
     """Census pins aimed at `sandbox`, applied BEFORE any api import (paths are captured at module
-    import). Returns {env: path}. Importing conftest also arms the shared-root tripwire."""
-    sys.path.insert(0, str(ROOT))
-    import conftest  # noqa: F401 -- redirect + tripwire at import (not a deployed service)
+    import). Returns {env: path}. The module-level `import conftest` has already armed the shared-root
+    tripwire."""
     _, pins, unpinnable = conftest.shared_data_root_census()
     applied = {}
     for env, literal in pins.items():

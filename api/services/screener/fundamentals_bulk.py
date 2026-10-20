@@ -369,6 +369,12 @@ class _Spec(NamedTuple):
                     gross profit disagreeing, not a very profitable company.
                     ⭐ Strictly above — a company with no cost of revenue
                     genuinely reads exactly 100.0 and there are 100+ of them.
+    `quotient_of`   a field this value divides INTO to recover the denominator
+                    it was itself divided by. Only `peg` uses it: PEG = P/E /
+                    growth, so growth = P/E / PEG. A recovered |growth| under
+                    `_ZERO_DENOMINATOR` is float residue of a growth of exactly
+                    ZERO -- the same "undefined" an uncorroborated 0 is -- not a
+                    very small growth rate. See `value_for`.
     """
     field: str
     scale: float
@@ -377,6 +383,15 @@ class _Spec(NamedTuple):
     same_sign_as: str = ""
     impossible_above: float | None = None
     requires_positive: tuple = ()
+    quotient_of: str = ""
+
+
+#: Below this |denominator| a quotient's divisor is float residue of a zero.
+#: Measured 2026-10-19: all 14 production rows with |PEG| > 1000 recover a
+#: growth of exactly +/-1.11e-14 or +/-2.22e-14 % (100x machine epsilon, or
+#: half), i.e. FMP divided by (EPS - EPS)/EPS on flat earnings. The smallest
+#: REAL |growth| in the same pull is CVCO's 0.043% -- four orders clear.
+_ZERO_DENOMINATOR = 1e-6
 
 
 #: Hoisted out of `RATIO_SPECS` so `lt_debt_to_capital` can name it as the
@@ -428,7 +443,8 @@ RATIO_SPECS = {
     # `netIncomePerShareTTM == 0`. PEG = P/E ÷ growth, so a PEG of exactly 0
     # requires a P/E of exactly 0 — the same dead numerator `pe_ttm` refuses.
     "peg":            _Spec("priceToEarningsGrowthRatioTTM", 1.0, (),
-                            requires_positive=("priceToEarningsRatioTTM",)),
+                            requires_positive=("priceToEarningsRatioTTM",),
+                            quotient_of="priceToEarningsRatioTTM"),
     # 238 of 240 zeros are corroborated by two further debt quotients reading
     # zero — a genuinely debt-free balance sheet, not a missing denominator.
     "debt_to_equity": _DEBT_TO_EQUITY,
@@ -655,6 +671,14 @@ def value_for(spec: _Spec, raw_row: dict):
             # branch: 0 rows — `priceToEarningsRatioTTM` and
             # `priceToEarningsGrowthRatioTTM` are present on exactly the same
             # 3,653 rows.
+            return None
+    if spec.quotient_of and val != 0:
+        num = _num(raw_row.get(spec.quotient_of))
+        if num is not None and abs(num / val) < _ZERO_DENOMINATOR:
+            # 🔴 A DIVISION BY A ROUNDED ZERO. GLOB read +6.9e14 and HBAN
+            # -5.1e14 -- members saw "-505661516984907.94" in the PEG column.
+            # Undefined, exactly as an uncorroborated 0 is; NOT a plausibility
+            # bound (CURI's real 842.6 publishes).
             return None
     if val == 0:
         # An uncorroborated zero is the provider saying "undefined", not "zero".

@@ -33,7 +33,10 @@ name: wisdom rails
 # for itself — `rail_applies_to_branch` no-ops the diff rail off a program branch, and the
 # source rails scan a fixed, small scope.
 on:
+  # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
+  # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
+    branches: [master, feat/wisdom-loop, 'wisdom/**']
   pull_request:
 
 jobs:

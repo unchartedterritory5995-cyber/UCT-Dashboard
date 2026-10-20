@@ -246,6 +246,31 @@ describe('the preview sheet', () => {
     expect(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('OI-P3b-15: the confirm takes focus when it opens, and Cancel or Share it hands focus back to the switch', async () => {
+    previewAnswer = (body) => {
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      return { ...p, images: p.images.map((i) => ({ ...i, ocr: 'ready', warnings: [{ kind: 'money', match: '$1,240' }] })) }
+    }
+    open()
+    const dialog = await sheet()
+    const sw = await within(dialog).findByRole('switch', { name: SHARE_IMAGE_LABEL })
+    sw.focus()
+    fireEvent.click(sw)
+    let ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
+    await waitFor(() => expect(document.activeElement).toBe(within(ask).getByRole('button', { name: 'Cancel' })))
+    fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(within(dialog).queryByRole('group', { name: CONFIRM_SENTENCE })).toBeNull()
+    expect(document.activeElement).toBe(sw)
+    fireEvent.click(sw)                                                            // ask again, and this time share
+    ask = within(dialog).getByRole('group', { name: CONFIRM_SENTENCE })
+    await waitFor(() => expect(document.activeElement).toBe(within(ask).getByRole('button', { name: 'Cancel' })))
+    fireEvent.click(within(ask).getByRole('button', { name: 'Share it' }))
+    expect(document.activeElement).toBe(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL }))
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(2))
+    await waitFor(() => expect(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL })).toHaveAttribute('aria-checked', 'true'))
+    expect(document.activeElement).toBe(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL }))
+  })
+
   it('an image read with nothing to warn about switches on with no second question', async () => {
     previewAnswer = (body) => {
       const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
@@ -447,6 +472,32 @@ describe('the preview sheet', () => {
     fireEvent.click(submit)
     await waitFor(() => expect(posted(PUBLISH_PATH)).toHaveLength(1))
     expect(posted(PUBLISH_PATH)[0].body.imagesOn).toEqual([])
+  })
+
+  it('OI-P3b-20: a failed preview offers Try again, which re-runs the last preview asked for and recovers', async () => {
+    let failing = true
+    previewAnswer = (body) => {
+      if (failing && (body?.imagesOn || []).length) return [500, {}]
+      const p = (body?.imagesOn || []).length ? PREVIEW : withoutImages(PREVIEW)
+      return { ...p, images: p.images.map((i) => ({ ...i, ocr: 'no_text', warnings: [] })) }
+    }
+    open()
+    const dialog = await sheet()
+    const submit = within(dialog).getByRole('button', { name: 'Submit for review' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).toBeNull()   // nothing failed yet
+    fireEvent.click(within(dialog).getByRole('switch', { name: SHARE_IMAGE_LABEL }))
+    expect(await within(dialog).findByText("Couldn't show what this example would look like. Nothing was sent.")).toBeInTheDocument()
+    const again = within(dialog).getByRole('button', { name: 'Try again' })
+    expect(submit).toBeDisabled()
+    failing = false
+    fireEvent.click(again)
+    await waitFor(() => expect(posted(PREVIEW_PATH)).toHaveLength(3))
+    expect(posted(PREVIEW_PATH)[2].body.imagesOn).toEqual([IMAGE.src])               // the last one asked for
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    expect(within(dialog).queryByText("Couldn't show what this example would look like. Nothing was sent.")).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(dialog.querySelector('[data-template-preview-body] img')).not.toBeNull()
   })
 
   it('review M-1: an older answer that lands after a newer one never overwrites it', async () => {

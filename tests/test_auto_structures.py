@@ -172,7 +172,7 @@ def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
     """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds,
     then the owner's TEAM DRAWING SET (2026-10-17): the trusted tier IS what the team draws."""
     team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
-            "uct_flat_top_breakout", "bc:base"}
+            "uct_flat_top_breakout", "bc:base", "draw:inside-day"}
     assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
     for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"
@@ -213,7 +213,9 @@ def test_display_policy_names_only_registered_detectors():
     known = set(list_pattern_ids())
     named = (registry.DISPLAY_TRUSTED | registry.DISPLAY_HIDDEN | registry.DISPLAY_LEVELS_LAYER
              | registry.DISPLAY_INTRADAY_ONLY | registry.DISPLAY_DRAW_ENTRY)
-    unknown = sorted(p for p in named if not p.startswith("bc:") and p not in known)
+    # base-box keys (bc:*) and the drawing rows built beside a drawing (draw:inside-day) are not detectors
+    drawing_rows = {auto_structures.INSIDE_DAY_DRAW_ID}
+    unknown = sorted(p for p in named if not p.startswith("bc:") and p not in known and p not in drawing_rows)
     assert not unknown, unknown
 
 

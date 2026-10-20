@@ -376,6 +376,7 @@ BUZZ_COMMAND = "buzz"
 FLOW_COMMAND = "flow"
 LESSON_COMMAND = "lesson"
 LESSON_OPTION = "about"
+COT_COMMAND = "cot"
 
 
 def cmd_channel_ids() -> tuple:
@@ -762,6 +763,12 @@ def chart_help_text() -> str:
         "\u2022 **Market breadth** charts too: type `UCT` in `/chart` for the list - `UCTA50` (% above the 50-day), "
         "`UCTNH` / `UCTNL` (new highs / lows), `UCTAD` (A/D line), `UCTS2` (Stage 2 count) and more. "
         "Daily or Weekly; most of them update their latest point through the session.",
+        "• The same breadth for **US / NYSE / Nasdaq** stocks: `UCTUSA50`, `UCTNYA50`, `UCTNQA50`, "
+        "`UCTUSNETHL` (net new highs - lows). **McClellan**: `UCTNYMO` `UCTNYSI` `UCTNAMO` `UCTNASI`. "
+        "Also sentiment (`UCTNAAIM`) and volatility (`UCTVIX9D`). "
+        "Type `UCT` plus a word (`nasdaq`, `mcclellan`, `cot`) to search.",
+        "• **COT positioning** has its own command: `/cot ES` (or `/cot gold`) draws the site's "
+        "COT Data page - every trader group, open interest and the positioning read.",
         "",
         "**Your defaults**",
         "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
@@ -1108,6 +1115,60 @@ def build_buzz_command() -> dict:
     }
 
 
+def _cot_names() -> tuple[dict, dict]:
+    """(SYMBOL_NAMES, SYMBOL_GROUPS) from cot_service, the one authority for the
+    market list. Imported lazily: it opens nothing until a /cot is typed."""
+    from api.services import cot_service
+    return cot_service.SYMBOL_NAMES, cot_service.SYMBOL_GROUPS
+
+
+def cot_market_choices(q: str, limit: int = 25) -> list[dict]:
+    """Autocomplete for `/cot market`: symbol prefix first, then a word in the
+    name. Empty = the "most watched" group, so the list is never blank."""
+    names, groups = _cot_names()
+    q = (q or "").strip().upper().lstrip("$")
+    if not q:
+        pool = next(iter(groups.values()), list(names))
+    else:
+        pool = [s for s in names if s.startswith(q)]
+        pool += [s for s in names if s not in pool and q in names.get(s, "").upper()]
+    return [{"name": f"{s} · {names.get(s, s)}"[:100], "value": s} for s in pool[:limit]]
+
+
+def resolve_cot_market(text) -> str | None:
+    """A typed market as its COT symbol: the symbol itself (`es`), or a name that
+    picks out one market (`gold`, `s&p 500`). None when it names none or several."""
+    names, _ = _cot_names()
+    t = str(text or "").strip().upper().lstrip("$")
+    if not t:
+        return None
+    if t in names:
+        return t
+    exact = [s for s, n in names.items() if n.upper() == t]
+    if len(exact) == 1:
+        return exact[0]
+    hits = ([s for s, n in names.items() if n.upper().startswith(t)]
+            or [s for s, n in names.items() if t in n.upper()])
+    return hits[0] if len(hits) == 1 else None
+
+
+COT_LOOKBACK_CHOICES = ("1Y", "2Y", "3Y", "5Y")
+
+
+def build_cot_command() -> dict:
+    """`/cot` - the site's COT Data page (charts + positioning panel) as an image."""
+    return {
+        "name": COT_COMMAND, "type": 1,
+        "description": "COT positioning for a futures market - the site's COT Data page",
+        "options": [
+            {"name": "market", "type": 3, "required": True, "autocomplete": True,
+             "description": "Market, e.g. ES, NQ, GC, CL, or a name like gold"},
+            {"name": "lookback", "type": 3, "required": False, "description": "How much history (default 1Y)",
+             "choices": [{"name": c, "value": c} for c in COT_LOOKBACK_CHOICES]},
+        ],
+    }
+
+
 # The ONLY servers this app serves. A public bot (or a stale guild install
 # made before the app was locked down) can still deliver interactions from
 # anywhere; every command handler refuses anything outside this set. Override
@@ -1187,7 +1248,7 @@ def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
             build_settings_command(), build_buzz_command(), build_flow_command(),
-            build_lesson_command()]
+            build_lesson_command(), build_cot_command()]
     if activity:
         cmds.append(build_launch_command())
     if renderhealth:

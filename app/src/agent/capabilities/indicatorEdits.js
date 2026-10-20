@@ -499,7 +499,8 @@ export function registerIndicatorEditCapabilities() {
   registerContextProvider({
     key: 'indicatorCatalog',
     // what can be added — only when the request is about adding something
-    build: (host, refFor, { message }) => (/\b(add|put|apply|insert|load|plot)\b/i.test(message || '') ? addableRows() : undefined),
+    // NL-1 (`nl1`, flag off by default): always — the model reads the request, so no keyword decides what it can choose from
+    build: (host, refFor, { message, nl1 = false }) => (nl1 || /\b(add|put|apply|insert|load|plot)\b/i.test(message || '') ? addableRows() : undefined),
     compact: (sec) => (sec || []).map(r => r.defId),
   })
 

@@ -221,6 +221,7 @@ from api.routers import theme_engine as theme_engine_router
 from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
+from api.routers import study as study_router  # Study (drills); STUDY_ENABLED read per request
 from api.routers import fundamentals as fundamentals_router
 from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
@@ -3887,6 +3888,14 @@ async def lifespan(app: FastAPI):
         print("[startup] education.db initialized")
     except Exception as e:
         print(f"[startup] education init failed (non-fatal): {e}")
+
+    # Study (drills) store — beside education (spec §13.2 T17). Schema only; no jobs yet.
+    try:
+        from api.services import study_store
+        study_store.init_db()
+        print("[startup] study.db initialized")
+    except Exception as e:
+        print(f"[startup] study init failed (non-fatal): {e}")
 
     try:
         from api.services import desk_session_jobs as _dsj_boot
@@ -7590,6 +7599,33 @@ async def lifespan(app: FastAPI):
                 id="desk_session_audit", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
+        # -- Study (drills): reminders, weekly close, nightly detection drafts --
+        # Spec 2026-10-17 study design §7.1 "Jobs on web", T8/T9. Registered
+        # unconditionally; every job reads STUDY_ENABLED PER CALL (it is a kill
+        # switch on a shipped product, read at run time, never captured here).
+        # ⛔ NO 06:30 fan-out job (T9): Today's Study is created lazily on
+        # GET /today. The weekly close has an explicit catch-up on boot because
+        # APScheduler's in-memory store loses a Sunday 23:59 slot outright.
+        # The detections pass runs AFTER 02:00 ET (T8: after the 01:00 universe
+        # scan and the 00:40 prune) and reads patterns.db by indexed columns only.
+        try:
+            from api.services import study_jobs as _study_jobs
+            _scheduler.add_job(_study_jobs.job_reminders,
+                trigger=CronTrigger(minute="*/15", timezone=_ET),
+                id="study_reminders", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_study_jobs.job_weekly_close,
+                trigger=CronTrigger(day_of_week="sun", hour=23, minute=59, timezone=_ET),
+                id="study_weekly_close", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_study_jobs.job_gen_detections,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=2, minute=30, timezone=_ET),
+                id="study_gen_detections", max_instances=1, replace_existing=True)
+            threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
+                             name="study-weekly-close-catchup").start()
+            print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
+                  "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
+        except Exception as e:
+            print(f"[scheduler] study job registration error: {e}")
+
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v5 2026-07-02 (user-defined hunt anchors): the expensive
         # Hunter fires when traders actually check the board.
@@ -10168,6 +10204,7 @@ app.include_router(theme_engine_router.router)  # Theme Membership Engine admin 
 app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
+app.include_router(study_router.router)   # /api/study/* (require_paid local; STUDY_ENABLED per request)
 app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 from api.routers import econ as econ_router  # noqa: E402 -- beside its mount: keeps the line-keyed bars census stable

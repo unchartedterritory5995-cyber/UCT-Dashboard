@@ -418,6 +418,34 @@
   },
   {
    "method": "GET",
+   "path": "/api/r/cot-symbols",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE by _check_token, module api.routers.render_panels; effectively public (GATE-7 names /r/*). The COT market list with display names, for the logged-out /r/cot page behind Discord /cot (owner request 2026-10-19)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/cot/{symbol}",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE by _check_token, module api.routers.render_panels; effectively public (GATE-7 names /r/*). Weekly CFTC rows for one COT market (404 for anything else), for the logged-out /r/cot page behind Discord /cot (owner request 2026-10-19)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/cot/{symbol}/price",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE by _check_token, module api.routers.render_panels; effectively public (GATE-7 names /r/*). The price-proxy ETF is resolved server-side from the COT market, so a caller cannot name a ticker; no general way around the /api/bars gate. For the /r/cot page behind Discord /cot (2026-10-19)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/cot/{symbol}/narrative",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE by _check_token, module api.routers.render_panels; effectively public (GATE-7 names /r/*). Returns an already-stored weekly COT read and never calls the model, so it cannot spend the LLM budget. For the /r/cot page behind Discord /cot (2026-10-19)."
+  },
+  {
+   "method": "GET",
    "path": "/api/r/breadth-monitor",
    "kind": "inline",
    "marker": "_check_token",

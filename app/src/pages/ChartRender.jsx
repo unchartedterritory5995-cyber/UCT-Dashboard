@@ -88,6 +88,17 @@ const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '
 // served from the web pod's own cache, so the depth costs no provider call.
 export const BREADTH_FETCH_BARS = 5000
 
+// A breadth COUNT (new highs, the A/D line, the Stage 2 count) is a whole number, and
+// "810197.00 -806.00" read it as a price. Decided from the series itself - every close
+// whole - so a percentage or a ratio (31.4, 0.48) keeps its two decimals.
+export function isWholeSeries(bars) {
+  if (!Array.isArray(bars) || !bars.length) return false
+  return bars.every((b) => { const c = Number(b?.c); return Number.isFinite(c) && Math.abs(c - Math.round(c)) < 1e-9 })
+}
+export const fmtWhole = (v) => Math.round(Number(v)).toLocaleString('en-US')
+// Module-level so the chart is handed the same object every render.
+const WHOLE_PRICE_FORMAT = Object.freeze({ type: 'custom', formatter: fmtWhole, minMove: 1 })
+
 // Height of the optional `?stats=` strip; the caller adds it to `?h=`.
 export const STATS_STRIP_H = 28
 
@@ -365,6 +376,19 @@ export default function ChartRender() {
   // file, never traverse to one.
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
   if (fixedBars) installHermeticFetch()
+  // Candles + volume coloured by NET CHANGE (close vs previous close), not
+  // close-vs-open. Owner, 2026-10-18 Sunday Scans: "I hate open vs close colors
+  // instead of net change". ON by default for every /r/chart render (Substack
+  // letters, Discord /chart); `?net=0` opts out, `?net=1` forces it on.
+  // A parity capture (?fixedbars=) keeps close-vs-open unless it asks with
+  // ?net=1: its legacy-vs-engine diff may run against a build that predates
+  // this default, and (like the house look below) a hermetic capture must
+  // never pick up a view preference. The saved candleColorMode still applies:
+  // 'openclose' in the owner blob is a passthrough inside StockChart.
+  const netParam = sp.get('net')
+  const colorByNetChange = (netParam === '0' || netParam === 'false') ? false
+    : (netParam === '1' || netParam === 'true') ? true
+      : !fixedBars
 
   // ?stale=<sentence> — THE DATA'S VINTAGE, DECIDED AND WORDED BY THE BACKEND (C-07).
   //
@@ -551,6 +575,7 @@ export default function ChartRender() {
       .catch(() => { if (alive) { setBreadthBars(null); setBreadthSettled(true) } })
     return () => { alive = false }
   }, [breadthFetch, sym, tf, token])
+  const wholeSeries = useMemo(() => breadthFetch && isWholeSeries(breadthBars), [breadthFetch, breadthBars])
 
   const [fixtureBars, setFixtureBars] = useState(null)
   const [fixtureSettled, setFixtureSettled] = useState(!fixedBars)
@@ -640,8 +665,11 @@ export default function ChartRender() {
       setMeta({
         company: want.company,
         price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
+        // ⛔ No percent off a reading at or below zero: the McClellan oscillator going
+        // -37.21 -> -29.98 is +7.23 points and printed "(-19.43%)", a fall, for a rise.
+        // An oscillator, a net count or a COT net position shows the points alone.
         chg: want.chg != null ? want.chg
-          : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+          : (Number.isFinite(c) && Number.isFinite(pc) && pc > 0 ? ((c - pc) / pc) * 100 : null),
         // A breadth reading moves in POINTS: UCTA50 33.2 -> 31.4 is "-1.80", and the
         // percent of a percent (-5.42%) alone misleads, so the header leads with this.
         pts: Number.isFinite(c) && Number.isFinite(pc) ? c - pc : null,
@@ -977,8 +1005,8 @@ export default function ChartRender() {
           <span style={{ marginLeft: 12 }}>{tf}</span>
           {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
           {/* A breadth reading is a percentage or a count, never dollars. */}
-          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{meta.price.toFixed(2)}</span>}
-          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{meta.pts.toFixed(2)}</span>}
+          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>{breadthParam ? '' : '$'}{wholeSeries ? fmtWhole(meta.price) : meta.price.toFixed(2)}</span>}
+          {meta.pts != null && <span style={{ marginLeft: 8, color: meta.pts >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts >= 0 ? '+' : ''}{wholeSeries ? fmtWhole(meta.pts) : meta.pts.toFixed(2)}</span>}
           {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.pts != null ? '(' : ''}{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%{meta.pts != null ? ')' : ''}</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
@@ -1024,6 +1052,7 @@ export default function ChartRender() {
             // the same treatment the footer's wall-clock stamp already gets, and
             // NOT a tolerance: that case must still be 0 on every run.
             hidePriceLine={hidePriceLine}
+            colorByNetChange={colorByNetChange}
             darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
             // MAs never stretch the price scale (TC2000-style): a 200-day line far
@@ -1033,6 +1062,7 @@ export default function ChartRender() {
             // divider, last-price tag and all (UCTFG 17.90, 2026-10-16). A small gap
             // keeps it in view; stock charts keep the tight fit they always had.
             {...(breadthParam ? { priceScaleBottomMargin: 0.08 } : {})}
+            {...(wholeSeries ? { priceFormat: WHOLE_PRICE_FORMAT } : {})}
             alwaysShowLegend
             liveUpdates={false}
           />

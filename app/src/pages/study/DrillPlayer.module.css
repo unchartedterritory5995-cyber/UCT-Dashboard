@@ -1,0 +1,247 @@
+/* DrillPlayer (spec §13.7 D5/D6/D7/D9): a fullscreen Sheet with a 44px top bar,
+   a scrolling question area, and a bottom block (reveal panel + sticky bar).
+   `--tap-min` at base; breakpoints 640/1024 only. */
+
+.panel { background: var(--bg); }
+
+/* The Sheet body is a flex column that does not scroll: the middle region does. */
+.sheetBody.sheetBody {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.top {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 44px;
+  padding: 0 var(--space-sm) 0 var(--space-xs);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.close:hover { color: var(--text-bright); }
+.close:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: -2px; }
+
+.progress {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.seg, .segDone, .segCurrent {
+  flex: 1 1 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-accent);
+}
+.segDone { background: var(--ut-gold); }
+.segCurrent { background: var(--ut-gold-glow); box-shadow: inset 0 0 0 1px var(--ut-gold); }
+
+.combo {
+  flex: 0 0 auto;
+  min-width: 36px;
+  padding: 2px 8px;
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-pill);
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  animation: comboIn var(--duration-fast) var(--ease-out);
+}
+.comboGhost { flex: 0 0 auto; width: 36px; }
+@keyframes comboIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .combo { animation: none; } }
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-lg);
+  position: relative;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.question {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-bright);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.framing {
+  margin: 0 0 var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
+/* The ONE chart. Hidden items keep it mounted and out of flow (T4). */
+.chartBox {
+  position: relative;
+  width: 100%;
+  min-height: 240px;
+  margin: 0 0 var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.chartHidden {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  margin: 0;
+}
+.chartSkeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-surface);
+}
+.chartSkeleton > :first-child { position: absolute; inset: 0; }
+.chartSlow {
+  position: relative;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.body { margin: 0 0 var(--space-lg); }
+
+.failed {
+  margin: 0 0 var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
+.bottom {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.bar.bar {
+  position: static;
+  margin: 0;
+}
+
+.primary {
+  min-height: 52px;
+  min-width: var(--tap-min);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+.primary:hover { background: var(--ut-gold-bright); }
+.primary:disabled { opacity: 0.45; cursor: default; }
+.primary:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+
+.ghost {
+  position: relative;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+.ghost:hover { background: var(--bg-hover); }
+.ghost:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+
+.confirmBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.55);
+}
+.confirm {
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-lg);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-xl);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-modal);
+}
+.confirmText {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-bright);
+  font-size: var(--text-lg);
+  line-height: var(--lh-snug);
+}
+.confirmActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+.confirmActions > * { flex: 1 1 0; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 1025px) {
+  .scroll { padding: var(--space-xl); }
+  .question, .framing, .chartBox, .body, .failed { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .chartHidden { margin-left: auto; margin-right: auto; }
+}

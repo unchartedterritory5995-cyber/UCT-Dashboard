@@ -158,3 +158,56 @@ describe('Gate C conversations — references from session memory, through the r
     save()
   }, 60000)
 })
+
+describe('Gate C stabilization — acceptance S6 and S11 (2026-10-18), through the real panel', () => {
+  const two = () => board([{ id: 'L', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'R', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'B' }], { A: 'SPY', B: 'QQQ' })
+  const cmp = (b, id) => (chart(b, id).cs.comparisonSymbols || []).map(x => x.sym)
+
+  it('S6: after the chat changed RIGHT, a click on LEFT wins — compare lands there (receipt + exact Undo), then open', async () => {
+    const b = two()
+    const { say, transcript, save } = mount(b, 'conversation-10-click-outranks-memory')
+    await say('find strong semis')
+    await waitFor(() => expect(transcript()).toContain('5 matches'))
+    await say('open the second one')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    fireEvent.click(screen.getAllByRole('button').find(x => /Chart R/.test(x.textContent)))
+    await waitFor(() => expect(chart(b, 'R').symbol).toBe('AVGO'))     // R is now the conversation's chart
+    b.host.charts.selected = () => 'L'                                   // …then the member clicks LEFT
+    await say('compare it to the top 3')
+    await waitFor(() => expect(cmp(b, 'L')).toEqual(['NVDA', 'AVGO', 'AMD']))
+    expect(cmp(b, 'R')).toEqual([])                                      // the conversation's chart is untouched
+    expect(transcript()).toContain('Comparing SPY with NVDA, AVGO, AMD')  // the receipt names the clicked chart
+    await say('undo')
+    await waitFor(() => expect(cmp(b, 'L')).toEqual([]))
+    expect(chart(b, 'L').symbol).toBe('SPY')
+    expect(chart(b, 'R').symbol).toBe('AVGO')                            // Undo took back only the comparison
+    await say('open the third one')
+    await waitFor(() => expect(chart(b, 'L').symbol).toBe('AMD'))
+    expect(chart(b, 'R').symbol).toBe('AVGO')
+    expect(b.state.addCalls || []).toHaveLength(0)                       // no new widget
+    expect(turns).toHaveLength(0)
+    save()
+  }, 60000)
+
+  it('S11: switching away and back (same layout, new visit) drops the last change; within one visit it repeats', async () => {
+    const b = two()
+    let visit = 1
+    b.host.boardVisit = () => visit
+    const { say, transcript, save } = mount(b, 'conversation-11-layout-visit')
+    await say('make the left chart weekly')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('W'))
+    visit = 3                                                            // A → B → A
+    await say('do the same on the right one')
+    await waitFor(() => expect(transcript()).toContain("I don't have a recent change to repeat"))
+    expect(chart(b, 'R').tf).toBe('D')                                   // nothing repeated from the old visit
+    await say('make the left chart monthly')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('M'))
+    await say('do the same on the right one')                            // same visit: the reference holds
+    await waitFor(() => expect(chart(b, 'R').tf).toBe('M'))
+    await say('undo')
+    await waitFor(() => expect(chart(b, 'R').tf).toBe('D'))
+    expect(chart(b, 'L').tf).toBe('M')
+    expect(turns).toHaveLength(0)
+    save()
+  }, 60000)
+})

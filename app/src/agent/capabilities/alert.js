@@ -237,10 +237,10 @@ export function registerAlertCapabilities() {
   registerContextProvider({
     key: 'alerts',
     compact: (list) => (list || []).slice(0, 8),
-    build: (host, refFor, { message = '' } = {}) => {
+    build: (host, refFor, { message = '', nl1 = false } = {}) => {
       const all = rows()
       if (!all.length) return undefined
-      if (all.length > ALWAYS_SHOW_UP_TO && !ALERT_WORDS.test(message)) return undefined
+      if (all.length > ALWAYS_SHOW_UP_TO && !nl1 && !ALERT_WORDS.test(message)) return undefined   // NL-1: never gated on words
       const ordered = [...all.filter(a => a.active), ...all.filter(a => !a.active)]
       return ordered.slice(0, SHOW_IN_CONTEXT).map(a => ({
         ref: refFor('alert', a.id), symbol: a.sym, when: `${when(a.direction)} ${money(a.price)}`,

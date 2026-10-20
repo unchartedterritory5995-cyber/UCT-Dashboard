@@ -138,8 +138,20 @@ describe('/plan in an ordinary note', () => {
     await firePlan(ed, 'NVDA')
     await firePlan(ed, 'AMD')
     expect(createPlanNoteMock).toHaveBeenCalledTimes(1)
+    // E4: the slash command already deleted the typed "/plan AMD", so the second press is not silent.
+    expect(await screen.findByText('A trade plan is already being made.')).toBeTruthy()
     await act(async () => { release({ id: 'p9', title: 'NVDA trade plan' }) })
     await waitFor(() => expect(linkIds(ed)).toEqual(['p9']))
+  })
+
+  it('E4: a create that answers with no id inserts nothing and says nothing was saved', async () => {
+    flagOn()
+    createPlanNoteMock.mockResolvedValue({ title: 'NVDA trade plan' })
+    const ed = await renderEditor()
+    await firePlan(ed, 'NVDA')
+    expect(await screen.findByText("Couldn't create the trade plan. Nothing was saved.")).toBeTruthy()
+    expect(createPlanNoteMock).toHaveBeenCalledTimes(1)
+    expect(linkIds(ed)).toEqual([])
   })
 })
 

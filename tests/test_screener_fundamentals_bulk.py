@@ -885,3 +885,19 @@ def test_run_build_counts_a_ticker_the_bulk_pass_had_no_row_for(tmp_path, monkey
     assert stats["populated"]["pe_ttm"] == 1
     assert "pe_ttm" not in stats["empty_columns"]
     assert "beta" in stats["empty_columns"]
+
+
+def test_a_peg_divided_by_a_rounded_zero_growth_is_refused():
+    """HBAN-shaped row from production 2026-10-19: P/E 11.23 against a PEG of
+    -5.0566e14 recovers a growth of -2.22e-14 % -- float residue of flat EPS,
+    not a growth rate. Refused as undefined. Real extremes still publish:
+    CURI 842.6 and the negative ABCB -6.01 are both answers."""
+    spec = fb.RATIO_SPECS["peg"]
+    assert fb.value_for(spec, {"priceToEarningsGrowthRatioTTM": "-505661516984907.94",
+                               "priceToEarningsRatioTTM": "11.23"}) is None
+    assert fb.value_for(spec, {"priceToEarningsGrowthRatioTTM": "6.9e14",
+                               "priceToEarningsRatioTTM": "15.3"}) is None
+    assert fb.value_for(spec, {"priceToEarningsGrowthRatioTTM": "842.6",
+                               "priceToEarningsRatioTTM": "36.2"}) == pytest.approx(842.6)
+    assert fb.value_for(spec, {"priceToEarningsGrowthRatioTTM": "-6.007",
+                               "priceToEarningsRatioTTM": "11.4"}) == pytest.approx(-6.007)

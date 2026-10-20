@@ -1,0 +1,17 @@
+{
+  "about": "NL-1 eval only: USD per million tokens. Prices verified against Anthropic's published pricing page; ACCOUNT availability is verified by the runner at the start of every --run (a free models lookup on the eval key), never assumed.",
+  "verified": true,
+  "verified_on": "2026-10-16",
+  "source": "https://platform.claude.com/docs/en/about-claude/pricing (fetched 2026-10-16); thinking billing: https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
+  "account_availability": "checked live at run start (client.models.retrieve) — not yet checked: no API call has been authorized",
+  "thinking_billing": "Thinking (reasoning) tokens are billed as OUTPUT tokens and count toward max_tokens, which is the hard ceiling on total output. Reported in usage.output_tokens_details.thinking_tokens. Adaptive thinking may skip thinking at low effort.",
+  "models": {
+    "claude-haiku-4-5": { "input": 1.0, "cache_write_5m": 1.25, "cache_write_1h": 2.0, "cache_read": 0.10, "output": 5.0,
+      "cache_minimum_tokens": 4096, "thinking": "none in our requests (no thinking parameter is sent)" },
+    "claude-haiku-5-5": { "input": 0.10, "cache_write_5m": 0.125, "cache_write_1h": 0.20, "cache_read": 0.01, "output": 0.50,
+      "over_100k": { "input": 0.50, "cache_write_5m": 0.625, "cache_write_1h": 1.0, "cache_read": 0.05, "output": 2.50 },
+      "cache_minimum_tokens": 512, "thinking": "adaptive, on by default, effort default medium" },
+    "claude-sonnet-5-5": { "input": 2.0, "cache_write_5m": 2.50, "cache_write_1h": 4.0, "cache_read": 0.10, "output": 10.0,
+      "cache_minimum_tokens": 512, "thinking": "adaptive, effort default high", "note": "cache hits are 0.05x input ($0.10), not 0.1x" }
+  }
+}

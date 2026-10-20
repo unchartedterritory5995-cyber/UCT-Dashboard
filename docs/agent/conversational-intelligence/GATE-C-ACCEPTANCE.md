@@ -74,3 +74,27 @@
 - Every Undo restores exactly, or refuses.
 - Model calls only on the steps marked (model): 4 paid calls in total, about $0.03–0.06.
 - `GET /api/agent/budget` (admin) shows them settled, with their tokens.
+
+## Production acceptance record (2026-10-18, admin session, `f4d3f727a5`)
+
+**Run:** a private layout with two unlinked charts, side by side.
+
+**Result:**
+- 16 PASS, 3 manual steps done.
+- 3 FAIL: S6, S11, S22.
+- 2 NOT TESTED: S20 and S21. The account has no Swing Board layout, Swing watchlist or Momentum watchlist; both still changed nothing.
+- Cross-tab approval binding: PASS. A board changed in another tab made "Apply" refuse, and nothing changed.
+- Model calls: 9 settled, $0.10 on the Agent ledger.
+
+**Fixed in `fix/agent-gate-c-stabilization`:**
+- **S6:** "compare it to the top 3" and "open the third one" used the conversation's chart over the chart the member had clicked. `references.js` `subjectChart` now checks the click first, as `subjectTarget` and §2 of GATE-C.md require.
+- **S11:** chart refs and the last change came back after A → B → A, because memory was keyed to the layout identity and `memory.boardChanged()` was never called. Owner decision 2026-10-18: drop them, as specified. The workspace now counts layout visits (`host.boardVisit`), and memory drops the board's refs when the count moves. The board epoch is unchanged, so proposals, Undo and cross-tab sync behave as before.
+
+**Recorded, not fixed (follow-ups; no feature work in this patch):**
+- **S18:** "add the 50" on a chart that already shows a default SMA 50 adds a second identical SMA 50 without a word. Candidate: say it is already there, or ask.
+- **S22:** "pull up amzon" refuses correctly but gives no "Did you mean AMZN?" suggestion.
+- **S21:** "remove momentum" with no Momentum item answered "That indicator isn't on Right chart (CD) any more." That reply refers to a stale indicator subject the member never mentioned. Nothing was removed.
+- **S16:** the stale-Undo refusal repeats its ending: "… Nothing was undone.). Nothing was undone."
+- **Doc ordering:** as written, S19's "make it a 12" refers to the SMA 50 that S18 just added, not the SMA 10 deleted in S19. Retested by deleting the newest line: "SMA 12 isn't on that chart any more, so there's nothing to change."
+- **Spend ledgers:** this is by design. Agent spend is not written to the shared $15 ledger (owner, Gate A option 1, `budget.py`). The Agent only reads it as a stop, so `site.spent_usd` stays $0 while the Agent spends against its own $5 cap.
+- **Pre-existing, not Gate C:** on unlinked charts, a timeframe change (manual or Agent) is lost when switching layouts and back. Symbols are kept.

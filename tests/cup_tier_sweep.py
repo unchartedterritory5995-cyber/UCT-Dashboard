@@ -21,6 +21,9 @@ SW = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(SW)
 
 STAMP_KEY = "cup_tier"
+#: A LATER drawing's own row (lab id_draw_v2), built after this golden was written: never digested or counted
+#: here; tests/test_inside_day_draw_golden.py rails it.
+INSIDE_DAY_ID = "draw:inside-day"
 SYM = "SYN"
 
 
@@ -48,7 +51,7 @@ def run(auto_structures, strip: bool = True):
             snap = json.loads(json.dumps(bars))
             auto_structures._daily_bars = lambda sym, _b=snap: json.loads(json.dumps(_b))
             auto_structures._CACHE.clear()
-            rows = auto_structures.structures_for(SYM)
+            rows = [r for r in auto_structures.structures_for(SYM) if r.get("pattern_id") != INSIDE_DAY_ID]
             counts["scans"] += 1
             for r in rows:
                 counts["rows"] += 1

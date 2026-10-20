@@ -44,7 +44,8 @@ def test_the_golden_is_from_code_without_the_drawing_and_matches_this_sweep():
 def test_the_sweep_is_not_vacuous(swept):
     c = swept["counts"]
     assert c["scans"] == len(GOLDEN["digests"]) == 168
-    assert c["rows"] - c["base_rows"] == GOLDEN["counts"]["rows"] > 100
+    # the inside-day drawing (a later row, never in this digest) is subtracted like the base drawing
+    assert c["rows"] - c["base_rows"] - c["inside_day_rows"] == GOLDEN["counts"]["rows"] > 100
     assert c["base_rows"] > 0                          # the drawing is made on some scans
 
 

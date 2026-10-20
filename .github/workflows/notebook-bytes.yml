@@ -42,7 +42,10 @@
 name: notebook bytes
 
 on:
+  # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
+  # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
+    branches: [master]
     paths:
       - 'app/src/**'
       - 'app/vite.config.js'
@@ -80,6 +83,10 @@ jobs:
 
       - name: Build (writes dist/.vite/manifest.json)
         working-directory: app
+        # 2026-10-19: the build died with "JavaScript heap out of memory" (exit 134) once the repo went
+        # private and its runners got less RAM, which shrank Node's default heap. Pin it explicitly.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
 
       - uses: actions/setup-python@v5

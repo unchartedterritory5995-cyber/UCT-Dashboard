@@ -32,20 +32,22 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
   if (serverStream.at && Date.now() - serverStream.at < CONFIG_TTL_MS) return Promise.resolve(serverStream.on)
   serverStream.inflight = fetch('/api/agent/config', { credentials: 'include', cache: 'no-store' })
     .then(r => (r.ok ? r.json() : null))
-    .then((c) => { serverStream.on = !!(c && c.stream === true); serverStream.at = Date.now(); return serverStream.on })
+    .then((c) => { serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true); serverStream.at = Date.now(); return serverStream.on })
     .catch(() => serverStream.on)
     .finally(() => { serverStream.inflight = null })
   return serverStream.inflight
 }
 export const serverStreams = () => serverStream.on && streamingEnabled()
-export const _resetAgentConfig = () => { serverStream = { on: false, inflight: null, at: 0 } }
+// NL-1: whether THIS server serves it (UCT_AGENT_NL1). False until the config has answered yes, and on any error.
+export const serverServesNl1 = () => serverStream.nl1 === true
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, inflight: null, at: 0 } }
 const FAILED = "UCT Agent couldn't complete that request. No changes were made."
 export async function agentTurnStream(body, onEvent = () => {}) {
   if (!streamingEnabled()) return agentTurn(body)

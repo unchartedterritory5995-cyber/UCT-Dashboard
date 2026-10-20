@@ -101,7 +101,12 @@ def member_rows(rows) -> list:
     by one round (MEMBER_BASE_ROUND), so a member gets one only while it carries that round's
     stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed. On the member path
     the route also applies `member_base_precedence`, so a bc:base never sits beside an incumbent
-    base drawing's breakout line."""
+    base drawing's breakout line.
+
+    An inside-day drawing (draw:inside-day, lab id_draw_v2) passed its blind check as drawn by one
+    round (MEMBER_INSIDE_DAY_ROUND), so a member gets one only while it carries that round's stamp
+    beside a well-formed `draw_inside_day` (`_confirmed_inside_day`). Fail closed. On the member
+    path the route also applies `member_inside_day_precedence`."""
     allowed = member_ids()
     kept = [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
@@ -111,6 +116,7 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
+            and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
                  or _pivot_only(r))]
     return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
@@ -285,6 +291,46 @@ def _confirmed_base(row) -> bool:
         return False
     try:
         return int(bd["start_t"]) < int(bd["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+#: The inside-day drawing's row id. A row of this id is built ONLY beside a drawing
+#: (`inside_day_draw_row`); the inside-day DETECTORS (uct_inside_day, uct_inside_day_id4) stay
+#: admin-only and are not this id.
+INSIDE_DAY_DRAW_ID = "draw:inside-day"
+#: The inside-day drawing round the blind check confirmed for members (lab id_draw_v2, 2026-10-19:
+#: packets A2 2.56 [2.36, 2.74] and B2 2.44 [2.28, 2.60]). A literal ON PURPOSE, not
+#: inside_day_draw.ID_DRAW_ROUND: when the drawing code moves to a new round, members stop getting
+#: the inside day until that round is confirmed and this is changed by hand.
+MEMBER_INSIDE_DAY_ROUND = 3
+#: The drawn labels the judges saw.
+MEMBER_INSIDE_DAY_LABELS = ("trigger", "stop")
+
+
+def _confirmed_inside_day(row) -> bool:
+    """True when an inside-day drawing row is drawn by the confirmed round: not stale,
+    `extras.draw_round` equals MEMBER_INSIDE_DAY_ROUND, and `draw_inside_day` is well formed -- a
+    finite trigger above a finite stop, both inside a finite mother range, a finite positive ATR,
+    the judged labels, and the mother bar no later than the inside day no later than the as-of bar.
+    Anything else is False."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == MEMBER_INSIDE_DAY_ROUND):
+        return False
+    d = ex.get("draw_inside_day")
+    if not isinstance(d, dict) or (d.get("label"), d.get("stop_label")) != MEMBER_INSIDE_DAY_LABELS:
+        return False
+    vals = [d.get(k) for k in ("trigger", "stop", "mother_high", "mother_low", "atr")]
+    if not all(_finite(v) for v in vals):
+        return False
+    trig, stop, mh, ml, at = (float(v) for v in vals)
+    if not (trig > stop and mh >= trig and stop >= ml and at > 0):
+        return False
+    try:
+        return int(d["start_t"]) < int(d["inside_t"]) <= int(d["end_t"])
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -541,6 +587,89 @@ def base_draw_row(sym: str, bars: list):
         }
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
+
+
+def inside_day_draw_row(sym: str, bars: list):
+    """The inside-day drawing row for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
+    first), or None when no inside day is drawn there. A forming session (last_bar_forming) is
+    dropped first: the lab judged drawings at finished sessions. Display only. Never raises."""
+    try:
+        from api.services.pattern_engine import inside_day_draw
+        b = list(bars or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return None
+        d = inside_day_draw.inside_day_drawing(b, len(b) - 1)
+        if d is None:
+            return None
+        sym = (sym or "").upper()
+        return {
+            "id": f"{INSIDE_DAY_DRAW_ID}:{sym}:{d['inside_t']}:{d['end_t']}",
+            "sym": sym,
+            "tf": "D",
+            "pattern_id": INSIDE_DAY_DRAW_ID,
+            "pattern_name": "Inside day",
+            "category": "uct",
+            "direction": "bullish",
+            "start_t": d["start_t"],
+            "end_t": d["end_t"],
+            "geometry": {
+                "shape": "inside_day_draw",
+                "anchors": [{"t": d["start_t"], "price": d["mother_high"]},
+                            {"t": d["inside_t"], "price": d["mother_low"]}],
+                "extras": {"draw_inside_day": d, "draw_round": inside_day_draw.ID_DRAW_ROUND},
+            },
+            "levels": {"entry": d["trigger"], "stop": d["stop"]},
+            "confidence": None,
+            "status": "forming",
+            **display_policy(INSIDE_DAY_DRAW_ID),
+        }
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return None
+
+
+#: Member-served drawings whose own breakout / entry line can sit where the inside day's trigger
+#: is. Where one does, a member gets the incumbent (already shipped) and NOT the inside-day drawing,
+#: so a chart never shows two different breakout lines a hair apart.
+INSIDE_DAY_INCUMBENT_IDS = BASE_INCUMBENT_IDS | frozenset({BASE_DRAW_ID, "bull_flag"})
+#: An incumbent breakout / entry level within this many ATR(14) of the trigger is the same line.
+INSIDE_DAY_PRECEDENCE_ATR = 1.0
+
+
+def member_inside_day_precedence(detections, structures, tf="D") -> list:
+    """`structures` without the inside-day drawing where a member should not get it.
+
+    Applied on the MEMBER path only, after member_rows, the freshness filter and the base
+    precedence. The drawing is dropped (1) on any timeframe but daily -- it was judged on a daily
+    chart and its bars are daily sessions -- and (2) when an incumbent row (INSIDE_DAY_INCUMBENT_IDS,
+    among `detections` or `structures`) carries a breakout / entry level within
+    INSIDE_DAY_PRECEDENCE_ATR ATR of the trigger. Span overlap is NOT a cover: the inside-day box is
+    the last two or three sessions and sits inside nearly every base. Fails closed: a drawing
+    without a finite trigger and ATR is dropped. Order is kept; never raises."""
+    try:
+        sts = list(structures or [])
+        ids = [s for s in sts if (s or {}).get("pattern_id") == INSIDE_DAY_DRAW_ID]
+        if not ids:
+            return sts
+        if (tf or "D").upper() != "D":
+            return [s for s in sts if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
+        inc = [r for r in list(detections or []) + sts
+               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS]
+        drop = set()
+        for s in ids:
+            d = ((s.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
+            at, trig = d.get("atr"), d.get("trigger")
+            if not (_finite(at) and float(at) > 0 and _finite(trig)):
+                drop.add(id(s))
+                continue
+            for r in inc:
+                if any(abs(v - float(trig)) <= INSIDE_DAY_PRECEDENCE_ATR * float(at) for v in _row_levels(r)):
+                    drop.add(id(s))
+                    break
+        return [s for s in sts if id(s) not in drop]
+    except Exception:  # noqa: BLE001 -- fail closed: no inside-day drawing rather than a duplicate line
+        return [s for s in (structures or []) if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
@@ -833,6 +962,10 @@ def structures_for(sym: str) -> list:
             bd = base_draw_row(sym, bars)
             if bd is not None:
                 out.append(bd)
+            # the inside-day drawing (lab id_draw_v2): its own row, after the base drawing
+            idd = inside_day_draw_row(sym, bars)
+            if idd is not None:
+                out.append(idd)
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []

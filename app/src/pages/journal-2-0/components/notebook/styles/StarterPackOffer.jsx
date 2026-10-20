@@ -112,8 +112,11 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   if (!starterPacksEnabled()) return null
 
   // setPrefMerged resolves {ok: true} only when the server took the write (usePreferences postPref).
+  // ⛔ P5 M-3: `unsaved` is NOT cleared here. A pack whose install throws writes nothing, so an earlier answer
+  // that did not land is still unsaved, and the next Not now must write it again; it is replaced only below,
+  // once the install succeeded and its own answer was written.
   const choose = async (pack) => {
-    setBusy(true); setFailed(false); setUnsaved(null); setLines(null)
+    setBusy(true); setFailed(false); setLines(null)
     let out
     try {
       out = await installStarterPack(pack)

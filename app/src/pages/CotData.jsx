@@ -149,7 +149,12 @@ function initialCotSymbol() {
   } catch { return 'ES' }
 }
 
-export default function CotData() {
+// `render` (Discord /cot, via CotRender.jsx): { symbol, weeks, token, height, onState }.
+// The same page, minus everything a screenshot cannot use: no picker, lookback or
+// resize handles, no chart animation, every read through the token-gated /api/r/cot
+// doors (the site's /api/cot/* reads are paid and the renderer is logged out), and
+// `onState('ready' | 'error')` once the charts AND the written read have settled.
+export default function CotData({ render = null } = {}) {
   const pal = useCotPalette()
   const SERIES_COLORS = pal.series
   const HOVER_COLORS = pal.hover
@@ -157,21 +162,24 @@ export default function CotData() {
   const AXIS_TEXT = pal.axis
   const GRID_FAINT = pal.grid
   const ZERO_LINE = pal.zero
-  const [symbol,       setSymbol]       = useState(initialCotSymbol)
-  const [weeks,        setWeeks]        = useState(52)
+  const [symbol,       setSymbol]       = useState(() => render?.symbol || initialCotSymbol())
+  const [weeks,        setWeeks]        = useState(render?.weeks || 52)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [search,       setSearch]       = useState('')
   const [data,         setData]         = useState(null)   // full FETCH_WEEKS history for `symbol`
   const [bars,         setBars]         = useState(null)   // weekly bars of the price proxy, or null
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
-  const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default
+  const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default (render mode sizes itself below)
+  const [narrStatus,   setNarrStatus]   = useState('idle') // the rail's written read, for render readiness
   const [resizing,     setResizing]     = useState(null)   // 'right' | 'bottom' | 'corner' | null
   const dropdownRef    = useRef(null)
   const chartWrapRef   = useRef(null)
   const railWrapRef    = useRef(null)
   const resizeStateRef = useRef(null)
   const isTouch        = useIsTouch()
+  const tokenQs        = render ? `token=${encodeURIComponent(render.token || '')}` : ''
+  const ANIM           = render ? { animation: false } : {}
 
   // Packet N CP1: firing GET /api/cot/status on mount is what actually
   // triggers cot_service's per-visit self-heal (`_maybe_auto_refresh_if_stale`)
@@ -179,7 +187,7 @@ export default function CotData() {
   // to have never fired because nothing called this endpoint. Fire-and-forget
   // is enough for the self-heal; `last_updated`/`record_count` also back a
   // small freshness line near the picker.
-  const { data: cotStatus } = useSWR('/api/cot/status', jsonFetcher, { revalidateOnFocus: false })
+  const { data: cotStatus } = useSWR(render ? null : '/api/cot/status', jsonFetcher, { revalidateOnFocus: false })
 
   // The backend's own SYMBOL_GROUPS/SYMBOL_NAMES (GET /api/cot/symbols) --
   // previously hand-copied here and already drifted (backend has an
@@ -188,7 +196,8 @@ export default function CotData() {
   // reference below already uses, so `SYMBOL_NAMES[x]`/`SYMBOL_GROUPS` picks
   // up the live values with zero other changes, and falls back cleanly
   // (never a blank picker) while loading or on a fetch failure.
-  const { data: cotSymbols } = useSWR('/api/cot/symbols', jsonFetcher, { revalidateOnFocus: false })
+  const { data: cotSymbols } = useSWR(render ? `/api/r/cot-symbols?${tokenQs}` : '/api/cot/symbols',
+    jsonFetcher, { revalidateOnFocus: false })
   const SYMBOL_GROUPS = useMemo(() => {
     if (!cotSymbols?.groups) return FALLBACK_SYMBOL_GROUPS
     const out = {}
@@ -233,6 +242,7 @@ export default function CotData() {
 
   // Load saved chart size on mount
   useEffect(() => {
+    if (render) return
     try {
       const saved = localStorage.getItem(CHART_SIZE_KEY)
       if (saved) {
@@ -244,7 +254,7 @@ export default function CotData() {
 
   // Persist chart size on change
   useEffect(() => {
-    if (!chartSize) return
+    if (!chartSize || render) return
     try { localStorage.setItem(CHART_SIZE_KEY, JSON.stringify(chartSize)) } catch { /* ignore */ }
   }, [chartSize])
 
@@ -331,7 +341,7 @@ export default function CotData() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/cot/${symbol}?weeks=${FETCH_WEEKS}`)
+    fetch(render ? `/api/r/cot/${symbol}?weeks=${FETCH_WEEKS}&${tokenQs}` : `/api/cot/${symbol}?weeks=${FETCH_WEEKS}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -348,11 +358,14 @@ export default function CotData() {
     let cancelled = false
     setBars(null)
     if (!proxy) return undefined
-    fetch(`/api/bars/${proxy.ticker}?tf=W&bars=${PRICE_BARS}`)
+    // The render page reads the proxy through its own door: `/api/bars` is bars-gated
+    // logged out for most proxies. The door resolves the ETF itself from the market.
+    fetch(render ? `/api/r/cot/${symbol}/price?${tokenQs}` : `/api/bars/${proxy.ticker}?tf=W&bars=${PRICE_BARS}`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!cancelled) setBars(Array.isArray(d?.bars) ? d.bars : []) })
       .catch(() => { if (!cancelled) setBars([]) })
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proxy])
 
   // The visible window: the last `weeks` reports of the fetched history.
@@ -384,7 +397,23 @@ export default function CotData() {
 
   // ── Chart config ─────────────────────────────────────────────────────────────
   const labels  = view ? view.map(d => fmtDate(d.date)) : []
-  const hasData = view && view.length > 0
+  // A render waits for the price series before drawing anything: the written read's
+  // facts include the price, so drawing first would fetch the read twice.
+  const priceDone = !proxy || bars !== null
+  const hasData = view && view.length > 0 && (!render || priceDone)
+
+  // Render readiness: charts drawn and the written read settled (stored or not).
+  // The short delay lets a just-changed read flip back to 'loading' before we call it.
+  const renderState = !render ? null
+    : (!loading && (error || (data && data.length === 0))) ? 'error'
+    : (hasData && (narrStatus === 'ok' || narrStatus === 'unavailable')) ? 'ready'
+    : null
+  useEffect(() => {
+    if (!render || !renderState) return undefined
+    const t = setTimeout(() => render.onState?.(renderState), 400)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderState])
 
   // Latest report + week-over-week deltas for the pane headers
   const latest = hasData ? view[view.length - 1] : null
@@ -475,12 +504,15 @@ export default function CotData() {
     }
   }
 
-  // New symbol/lookback: resync readouts to the fresh latest report
+  // New symbol/lookback: resync readouts to the fresh latest report. Also when the
+  // price series lands or the panes first mount: the price readout's week-over-week
+  // delta is written here, and the price can arrive after the COT rows (measured on
+  // the /cot render 2026-10-19, where the "▼ 2.0% wk" chip was missing).
   useEffect(() => {
     lastHoverRef.current = undefined
     applyHover(null, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [view, priceView, hasData])
 
   // Every pane's tooltip lists ALL series for the hovered week — the hovered
   // pane's own series first (highlighted), the rest beneath. It is ONE HTML
@@ -588,6 +620,7 @@ export default function CotData() {
         }],
       },
       chartOptions: {
+        ...ANIM,
         responsive:          true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -649,6 +682,7 @@ export default function CotData() {
   } : null
 
   const priceOptions = {
+    ...ANIM,
     responsive:          true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
@@ -689,6 +723,7 @@ export default function CotData() {
   } : null
 
   const oiOptions = {
+    ...ANIM,
     responsive:          true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
@@ -727,6 +762,7 @@ export default function CotData() {
     <div className={styles.page}>
 
       {/* Top bar */}
+      {!render && (
       <div className={styles.topBar}>
 
         {/* Market dropdown */}
@@ -844,6 +880,7 @@ export default function CotData() {
         )}
 
       </div>
+      )}
 
       {/* Chart + positioning rail */}
       <div className={styles.body}>
@@ -851,7 +888,11 @@ export default function CotData() {
       <div
         ref={chartWrapRef}
         className={styles.chartWrap}
-        style={chartSize ? {
+        style={render ? {
+          // The image: at least render.height tall, and stretched to the positioning
+          // panel when the panel runs longer, so no empty strip sits under the charts.
+          height: 'auto', minHeight: `${render.height || 860}px`, alignSelf: 'stretch',
+        } : chartSize ? {
           width:  chartSize.width  ? `${chartSize.width}px`  : undefined,
           height: chartSize.height ? `${chartSize.height}px` : undefined,
         } : undefined}
@@ -994,6 +1035,7 @@ export default function CotData() {
         )}
 
         {/* Resize handles */}
+        {!render && (<>
         <div
           className={styles.resizeHandleRight}
           onMouseDown={e => startResize('right', e)}
@@ -1019,6 +1061,7 @@ export default function CotData() {
           onMouseDown={e => startResize('corner', e)}
           title="Drag to adjust chart width and height"
         />
+        </>)}
       </div>
 
       {/* The rail tracks the hovered week; it reads from the FULL history so
@@ -1033,6 +1076,8 @@ export default function CotData() {
             bars={bars}
             priceAligned={priceAligned}
             proxy={proxy}
+            renderToken={render ? (render.token || '') : null}
+            onNarrativeStatus={setNarrStatus}
           />
         </div>
       )}

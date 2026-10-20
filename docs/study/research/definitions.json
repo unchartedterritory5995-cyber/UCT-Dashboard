@@ -1,0 +1,2091 @@
+[
+ {
+  "term": "20 EMA Pullback",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Pullback to a rising moving average (IBD's 21-day line; Investopedia pullback)",
+  "sources": [
+   {
+    "name": "Investopedia: Pullback",
+    "url": "https://www.investopedia.com/terms/p/pullback.asp",
+    "quote": "A pullback is a temporary reversal in the upward price trend of a stock or other investment. It typically lasts only a few consecutive sessions and can provide an entry point for new investors when other technical indicators remain bullish.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Uptrend",
+    "url": "https://www.investopedia.com/terms/u/uptrend.asp",
+    "quote": "Even as the price rises, it will oscillate up and down. The moves lower are called pullbacks. If a trader or investor believes the price will continue higher after the pullback, they can buy during the pullback and profit from the ensuing price rise.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Throwbacks",
+    "url": "https://thepatternsite.com/throwbacks.html",
+    "quote": "A high volume (above the 30-day average) breakout throws back 70% of the time, on average.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A short dip inside an uptrend that comes back to a rising average and holds. Investopedia says pullbacks last a few sessions and are buy spots when other signals stay bullish. The buy is the turn back up off the average; the stop sits under the pullback low. Bulkowski measures that a high-volume breakout returns to its breakout level 70 percent of the time, so a return is normal.",
+  "conventions": {
+   "entry": "Investopedia: buy during the pullback when the uptrend is expected to continue; limit or stop-entry orders are used.",
+   "stop": "Under the pullback low (Investopedia implies a stop outside the dip; no fixed distance stated).",
+   "target": "None stated; the prior high or a new swing high is the usual reference."
+  },
+  "mistakes": [
+   "Buying a 'pullback' that is really a trend change: Investopedia says a failure to make higher highs and lows means the uptrend is in doubt."
+  ],
+  "conflicts": "Bulkowski uses 'pullback' for the return after a downward breakout and 'throwback' for the return after an upward breakout; the house term follows the Investopedia sense. IBD uses a 21-day line, not 20."
+ },
+ {
+  "term": "2B Reversal",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "2B (Victor Sperandeo, Methods of a Wall Street Master, 1993); swing failure",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: 2B Pattern",
+    "url": "https://thepatternsite.com/2B.html",
+    "quote": "The 2B bottom is a failure of price to rise far. If you wait for the second bottom to announce itself as a bottom, you'd be buying near the peak, setting yourself up for a loss.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: 2B Pattern",
+    "url": "https://thepatternsite.com/2B.html",
+    "quote": "seeing a second peak form within 5% above the first peak allows you to exit the stock and avoid an above average decline 42% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Price pushes past a prior high or low, cannot hold there, and comes back through it; the failed push is the signal. Bulkowski treats it less as a pattern than as a swing trader's exit rule and finds that a second peak within 5 percent of the first lets you sidestep an above-average decline 42 percent of the time. The bottom version is the mirror.",
+  "conventions": {
+   "entry": "Sperandeo (secondary): enter when price comes back through the prior extreme after the failed push.",
+   "stop": "Sperandeo (secondary): beyond the new extreme.",
+   "target": "Sperandeo (secondary): the prior swing point. Bulkowski gives no target."
+  },
+  "mistakes": [
+   "Waiting for the second bottom to 'announce itself': Bulkowski says you then buy near the peak."
+  ],
+  "conflicts": "Sperandeo's own text was not fetched; the Stocks & Commodities article on the 2B returned HTTP 403. Entry and stop above are from secondary write-ups."
+ },
+ {
+  "term": "2B reversal",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "2B (Sperandeo)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: 2B Pattern",
+    "url": "https://thepatternsite.com/2B.html",
+    "quote": "The 2B bottom is a failure of price to rise far. If you wait for the second bottom to announce itself as a bottom, you'd be buying near the peak, setting yourself up for a loss.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A push past a prior extreme that fails and comes back through it. Bulkowski treats it as a swing trader's exit rule as much as a pattern. See the setup entry '2B Reversal'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": null
+ },
+ {
+  "term": "30-Minute Pivot",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Opening range breakout with a 30-minute range",
+  "sources": [
+   {
+    "name": "Investopedia: Opening Range",
+    "url": "https://www.investopedia.com/terms/o/opening-range.asp",
+    "quote": "The opening range refers to a security's high and low prices during the first 15 minutes of trading. Traders use it to gauge market sentiment and identify intraday trends based on price movements above or below these levels.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name for buying a break of the high set in the first half hour. Investopedia defines the opening range on the first 15 minutes; the 30-minute window is a common variant. The mechanics are the same as the ORB entry: the range high is the trigger, the range low is the risk.",
+  "conventions": {
+   "entry": "Investopedia (ORB): above the range high.",
+   "stop": "Investopedia (ORB): beneath the range low.",
+   "target": "Investopedia (ORB): a multiple of risk."
+  },
+  "mistakes": [
+   "Trading the 30-minute high with no volume behind it."
+  ],
+  "conflicts": "No external source names a '30-minute pivot'."
+ },
+ {
+  "term": "ADR% (average daily range)",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Average true range (Wilder) is the standard volatility measure; ADR% is a trader convention popularised by Qullamaggie",
+  "sources": [
+   {
+    "name": "Investopedia: Average True Range (ATR)",
+    "url": "https://www.investopedia.com/terms/a/atr.asp",
+    "quote": "The average true range (ATR) is a technical analysis indicator introduced by market technician J. Welles Wilder Jr. in his book \"New Concepts in Technical Trading Systems.\" It measures market volatility by decomposing the entire range of an asset price for that period.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "ADR% is the average of each day's high-to-low travel as a percent of price, usually over 20 days. A 5 percent ADR stock moves about 5 percent on a normal day. It is used to screen for movers and to size stops in units of a normal day. The textbook cousin is Wilder's average true range, which also counts gaps.",
+  "conventions": {
+   "entry": null,
+   "stop": "Trader convention (secondary): keep the stop at or inside one ADR.",
+   "target": null
+  },
+  "mistakes": [
+   "Mixing up ADR% with ATR; ATR includes gaps and is quoted in price, not percent."
+  ],
+  "conflicts": "No policy source defines ADR%; the formula and thresholds are from indicator descriptions."
+ },
+ {
+  "term": "Advance Block",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Advance Block",
+    "url": "https://thepatternsite.com/AdvanceBlock.html",
+    "quote": "As I mentioned in the introduction, the advance block is supposed to act as a bearish reversal, but doesn't. In fact, it acts as a bullish continuation pattern 64% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish reversal (the textbook reading). Bulkowski's measured behaviour: bullish continuation 64 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish reversal; Bulkowski measures bullish continuation 64 percent of the time."
+ },
+ {
+  "term": "Breadth Washout (signpost 3)",
+  "kind": "bottom",
+  "house_name": true,
+  "nearest_standard": "New lows peak; percent above 200-day collapses (no policy source fetched)",
+  "sources": [],
+  "summary": "Our text: new 52-week lows crescendo and the percent of stocks above the 200-day falls to single digits. No policy source page on breadth washouts was fetched. IBD's follow-through day is the breadth-agnostic confirmation the sources do describe.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No source fetched."
+ },
+ {
+  "term": "Bull Flag",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Flag (bullish continuation)",
+  "sources": [
+   {
+    "name": "Investopedia: Flag Pattern",
+    "url": "https://www.investopedia.com/terms/f/flag.asp",
+    "quote": "In technical analysis, a flag is a price pattern that moves against the main trend in a shorter time frame, having the appearance of a flag on a flagpole.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Flags",
+    "url": "https://thepatternsite.com/flags.html",
+    "quote": "Flags are short, less than 3 weeks long. Patterns longer than that are rectangles or channels.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Pennant",
+    "url": "https://www.investopedia.com/terms/p/pennant.asp",
+    "quote": "Pennants can sometimes fail due to early market entry, lack of volume, or external market events that disrupt expected trends.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A flag is a short pause that drifts against a sharp move, so it looks like a flag on a pole. The pole is a steep run of a few days; the flag is a small, slightly downward channel with volume drying up. The trade is the break out of the flag in the direction of the pole. Bulkowski says anything over three weeks is a rectangle or channel, not a flag.",
+  "conventions": {
+   "entry": "Break above the flag's upper line (Investopedia); Bulkowski notes the best performance when an upward pole leads to a flag that tilts downward.",
+   "stop": "Below the low of the flag (Investopedia: attention to the stop-loss point; the page gives no fixed distance).",
+   "target": "Bulkowski measure rule: pole height (swing start to swing end) added to the bottom of the flag, scaled by his 46 percent 'meeting target' rate."
+  },
+  "mistakes": [
+   "Early entry before the breakout and lack of volume (Investopedia pennant page).",
+   "Treating a consolidation longer than three weeks as a flag (Bulkowski)."
+  ],
+  "conflicts": "StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools)."
+ },
+ {
+  "term": "Capitulation (signpost 1)",
+  "kind": "bottom",
+  "house_name": false,
+  "nearest_standard": "Capitulation (Investopedia)",
+  "sources": [
+   {
+    "name": "Investopedia: Capitulation",
+    "url": "https://www.investopedia.com/terms/c/capitulation.asp",
+    "quote": "Traders look for unusually high trading volume accompanying sharp price declines to signal capitulation. They try to anticipate the surest sign of a capitulation: the rebound in price that follows once the panic selling has run its course.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Capitulation",
+    "url": "https://www.investopedia.com/terms/c/capitulation.asp",
+    "quote": "Bear markets can feature repeat high-volume plunges in price and premature calls of capitulation. The truth is that the condition can be diagnosed conclusively only in hindsight if the price rebounds.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our text: climactic, high-volume selling, the market running out of sellers rather than finding buyers. Investopedia matches: traders look for unusually heavy volume with sharp declines and treat the rebound as the surest sign. It adds a caution our text lacks: bear markets throw repeat plunges and premature calls, and capitulation is confirmed only in hindsight.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Our description is consistent; add the hindsight caveat."
+ },
+ {
+  "term": "Cup & Handle",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Cup with handle (William O'Neil; Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Cup and Handle",
+    "url": "https://www.investopedia.com/terms/c/cupandhandle.asp",
+    "quote": "A cup and handle is a technical indicator where the price movement of a security resembles a “cup” followed by a downward trending price pattern. This drop, or “handle” is meant to signal a buying opportunity to go long on a security.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Cup with Handle",
+    "url": "https://thepatternsite.com/cup.html",
+    "quote": "The handle low (point C) is a good place to put a stop. Raise the stop as price rises.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investor's Business Daily: Everything You Need To Know About Handles",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/everything-you-need-to-know-about-handles-how-to-spot-a-good-one/",
+    "quote": "A handle defines the proper entry. The highest price in the handle plus 10 cents",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A rounded, U-shaped dip and recovery (the cup) followed by a smaller dip near the old high (the handle). The handle shakes out weak holders before the move. IBD's buy point is the handle high plus 10 cents. Investopedia projects the cup depth above the breakout for a target. Bulkowski puts the stop at the handle low and raises it as price rises.",
+  "conventions": {
+   "entry": "IBD: handle high plus 10 cents. Investopedia: stop-buy slightly above the handle's upper trend line, or a close above it. Bulkowski: a close above the handle's down-sloping trendline is an early entry; otherwise a close above the right cup rim.",
+   "stop": "Bulkowski: the handle low, raised as price rises. Investopedia: below the handle or the cup depending on risk tolerance.",
+   "target": "Investopedia: cup depth (bottom of cup to breakout level) added to the breakout. Bulkowski: same height scaled by his percentage-meeting-target figure."
+  },
+  "mistakes": [
+   "Deciding late because the pattern takes one month to a year to form (Investopedia).",
+   "Accepting a V-shaped cup; Bulkowski wants a U with variations allowed."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts. StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools)."
+ },
+ {
+  "term": "Cup and handle",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Cup with handle (O'Neil; Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Cup and Handle",
+    "url": "https://www.investopedia.com/terms/c/cupandhandle.asp",
+    "quote": "A profit target is determined by measuring the distance between the bottom of the cup and the pattern’s breakout level and extending that distance upward from the breakout.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A U-shaped recovery with a small dip near the old high; buy the handle high, target the cup depth above the breakout. See the setup entry 'Cup & Handle'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": null
+ },
+ {
+  "term": "Deliberation",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Deliberation",
+    "url": "https://thepatternsite.com/Deliberation.html",
+    "quote": "The deliberation candlestick is supposed to act as a bearish reversal, but testing shows that it acts as a bullish continuation pattern 77% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish reversal (the textbook reading). Bulkowski's measured behaviour: bullish continuation 77 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish reversal; Bulkowski measures bullish continuation 77 percent of the time."
+ },
+ {
+  "term": "Distribution day",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Distribution day (IBD / William O'Neil)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily via Nasdaq.com: How Do You Spot A Major Stock Market Top?",
+    "url": "https://www.nasdaq.com/articles/how-do-you-spot-major-stock-market-top-heres-easy-way-2017-12-21",
+    "quote": "A distribution day is defined as the loss of at least 0.2% (without rounding up) by a major index - the Nasdaq, the NYSE composite or the S&P 500 - as volume ticks higher than the prior session's total.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Distribution Day",
+    "url": "https://thepatternsite.com/DistributionDay.html",
+    "quote": "Look for a day when an index sells off in heavier volume than in the previous session. That's known as a distribution day...",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Distribution Day",
+    "url": "https://thepatternsite.com/DistributionDay.html",
+    "quote": "Comparing the volume column and the results, we see that volume is irrelevant to performance.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "IBD's label for a down day on a major index of at least 0.2 percent with volume above the prior session. A cluster of them, usually four to six in a few weeks, is IBD's warning that institutions are selling and the uptrend is under pressure. Bulkowski tested the idea and reports that the volume part adds nothing: price trend alone drove his results.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Counting a 0.19 percent loss; IBD does not round up.",
+   "Keeping a day in the count after 25 sessions (IBD, via the Nasdaq-syndicated article)."
+  ],
+  "conflicts": "The IBD definition is taken from the search-result excerpt of the Nasdaq-syndicated IBD article; the page fetch itself timed out. Bulkowski's study finds volume irrelevant to the signal."
+ },
+ {
+  "term": "EMA Crossback",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Moving Average Undercut & Rally (MAU&R, Gil Morales / Chris Kacher)",
+  "sources": [
+   {
+    "name": "Virtue of Selfish Investing (Morales & Kacher) FAQ: Moving Average Undercut & Rally",
+    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+    "quote": "When a leading stock breaks below its moving average, a move back above the moving average can provide a long entry point as the stock moves back up through the line. Thus the term, \"Moving Average Undercut & Rally.\"",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Virtue of Selfish Investing (Morales & Kacher) FAQ: Moving Average Undercut & Rally",
+    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+    "quote": "Once the buy signal is triggered, one then uses the moving average as a selling guide, and can adjust their stop to 1-2% below the line depending on risk-preference.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Moving Average (MA)",
+    "url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "quote": "An exponential moving average (EMA) is a weighted average that gives greater importance to the price of a stock in more recent days, making it an indicator that is more responsive to new information.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name for a stock that loses a short average and then climbs back through it. The closest external concept is Morales and Kacher's Moving Average Undercut & Rally: a leading stock breaks below its moving average, then a move back above the line is the long entry, with the line as the selling guide and a stop 1 to 2 percent under it.",
+  "conventions": {
+   "entry": "VoSI: the move back above the moving average.",
+   "stop": "VoSI: 1 to 2 percent below the moving average, depending on risk preference.",
+   "target": "None stated."
+  },
+  "mistakes": [
+   "Treating any cross as a signal; VoSI frames it for leading stocks only."
+  ],
+  "conflicts": "No standard source names 'EMA Crossback'. The 9/20 pair is a house convention."
+ },
+ {
+  "term": "Episodic Pivot",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Episodic Pivot (Pradeep Bonde, Stockbee); post-earnings-announcement drift",
+  "sources": [
+   {
+    "name": "Stockbee (Pradeep Bonde): Episodic Pivots and \"Idea Pickle\"",
+    "url": "https://stockbee.blogspot.com/2007/02/episodic-pivots-and-idea-pickle.html",
+    "quote": "Studying episodic pivots on daily basis can be profitable strategy. It is not a purely mechanical strategy. The starting point of the idea was my study to find what leads a stock to move rapidly in short time period. Or what triggers a 100% plus move in a stock in a year.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Stockbee (Pradeep Bonde): What are Episodic Pivots and how to find them",
+    "url": "https://stockbee.blogspot.com/2010/02/what-are-episodic-pivots-and-how-to.html",
+    "quote": "So when a company announces earnings and it is \"surprisingly\" good or bad it leads to a rally lasting 2 to 3 months. Earnings EP are easiest to understand and act on. The market reaction tells you whether this earnings was \"surprise\" and \"significant\".",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Good Earnings Surprise",
+    "url": "https://thepatternsite.com/earnsgood.html",
+    "quote": "Trade with the trend. Buy an upward breakout only if the market and industry are trending higher.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Bonde's name for a neglected stock that gets a game-changing catalyst, usually earnings, and gaps up on huge volume, often the biggest volume in its history. He expects the rally to last two to three months. The move itself is the signal; the trader checks what caused it and how the chart looked before. Bulkowski's good-earnings-surprise page adds: buy only with the market and industry trending higher.",
+  "conventions": {
+   "entry": "Bonde: an outsized move on very high volume the day of the catalyst (his scan: up 8 percent or more on 300 percent of average volume).",
+   "stop": "Not stated in Bonde's posts (a reader on the 2010 post notes no stop is defined).",
+   "target": "None stated; Bonde expects a two- to three-month rally."
+  },
+  "mistakes": [
+   "Taking a catalyst with low follow-through odds (Bonde lists media mentions and upgrades as low probability).",
+   "Buying against the market and industry trend (Bulkowski)."
+  ],
+  "conflicts": "Stockbee is the originator's blog, outside the strict source list but the only primary text. Bonde's stop rule is not published."
+ },
+ {
+  "term": "Failed H&S / Rounded Top",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Busted head-and-shoulders top / busted rounding top (Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Head and Shoulders",
+    "url": "https://www.investopedia.com/terms/h/head-shoulders.asp",
+    "quote": "Entry and exit points for trading this pattern typically revolve around the neckline, with profit targets based on the pattern's height from breakout points.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Rounding Top",
+    "url": "https://thepatternsite.com/roundingtop.html",
+    "quote": "A close above the highest high signals an upward breakout. Downward breakouts are a close below the lower of the two rims (the lowest low in the pattern).",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Busted Head-and-Shoulders Tops",
+    "url": "https://thepatternsite.com/BustHST.html",
+    "quote": "Busted head-and-shoulders tops are head-and-shoulders tops in which price breaks out downward and drops no more than 10%, turns around, and then closes above the top of the head-and-shoulders.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "The long side of a bearish pattern that does not work. Investopedia's head and shoulders is three peaks with the middle highest; the trade keys off the neckline. Bulkowski's busted head-and-shoulders top breaks down through the neckline, drops no more than 10 percent, turns, and closes above the top of the pattern; single busts gain 67 percent on average in his data. For a rounding top, a close above the highest high is the breakout.",
+  "conventions": {
+   "entry": "Bulkowski: a close above the top of the pattern after the failed breakdown.",
+   "stop": "Not stated for the busted case; Investopedia warns the pattern can carry large stop distances.",
+   "target": "Investopedia: the pattern's height from the breakout point. Bulkowski: busted tops average a 35 percent gain, 67 percent for single busts."
+  },
+  "mistakes": [
+   "Shorting the breakdown without confirmation; Bulkowski wants a close through the neckline before any trade.",
+   "Buying after the second or third bust; Bulkowski's average gain falls once a pattern busts more than once."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Flat base",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Flat base (IBD)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: The Basics Of A Flat Base",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/when-to-buy-the-basics-of-a-flat-base-a-super-growth-stock-pattern/",
+    "quote": "A third key chart pattern shows that a stock can choose to take neither path before its big move north in price. Rather than go on an uptrend or downtrend, the stock moves sideways",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A sideways rest of several weeks that corrects little; the buy point is the base high plus 10 cents. See the setup entry 'Flat Base Breakout'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Flat Base Breakout",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Flat base (IBD / William O'Neil)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: The Basics Of A Flat Base",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/when-to-buy-the-basics-of-a-flat-base-a-super-growth-stock-pattern/",
+    "quote": "A third key chart pattern shows that a stock can choose to take neither path before its big move north in price. Rather than go on an uptrend or downtrend, the stock moves sideways",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Flat Base",
+    "url": "https://thepatternsite.com/FlatBase.html",
+    "quote": "Measure rule for upward breakouts: Use 85% of the height of the flat base, projected upward from the top of the pattern.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "Breakouts on low relative volume are more prone to failure, so the price is less likely to trend in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "IBD's flat base is a sideways rest, usually the second base after a prior breakout, where the stock drifts in a tight range instead of trending. The buy point is the top of the base. Bulkowski's flat base page describes a longer horizontal structure and gives an 85 percent measure rule. Both agree a breakout on light volume is the weak kind.",
+  "conventions": {
+   "entry": "IBD: the base's high plus 10 cents (the IBD page is cut at the paywall; the 15 percent depth, five-week minimum and 40 percent above-average volume figures appear only in secondary summaries of IBD material).",
+   "stop": "Bulkowski: place a stop closer than the bottom of the pattern to narrow the loss. IBD's 7 to 8 percent sell rule was not fetched.",
+   "target": "Bulkowski: 85 percent of the base height added to the top of the base, treated as a minimum."
+  },
+  "mistakes": [
+   "Buying a breakout on low relative volume (Investopedia: more prone to failure).",
+   "Bulkowski measures from a close above the top; buying inside the base is not a breakout."
+  ],
+  "conflicts": "Bulkowski's 'flat base' is a bottom structure that forms after a decline, not IBD's second-stage rest. investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts. StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools)."
+ },
+ {
+  "term": "Follow-through day",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Follow-through day (IBD / William O'Neil)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: How To Identify Stock Market Bottoms",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/how-to-identify-stock-market-bottoms-use-this-key-signal/",
+    "quote": "While it's impossible to know when the stock market is going to bottom, investors can use a chart signal known as a follow-through to begin buying stocks. Here's what to look for: Following a prolonged market downtrend, look for the first up day from an index low. That's the start of a rally attempt.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investor's Business Daily: What Is A Follow-Through Day?",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/what-is-a-follow-through-day/",
+    "quote": "The start of a major stock market uptrend is difficult to identify if you are relying on headlines and news.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "IBD's confirmation that a market low may hold. After a long decline, the first up day off the low starts a rally attempt; a follow-through day comes a few days later when a major index rises sharply on volume heavier than the day before. IBD uses it as the green light to start buying leaders, and says it can fail.",
+  "conventions": {
+   "entry": "IBD: begin buying breakouts in leading stocks after the follow-through day.",
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Buying before the follow-through on the first bounce day.",
+   "Ignoring that a follow-through can fail; IBD then returns to a correction stance."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts. The percent gain threshold and the 'day four or later' rule are IBD conventions not visible on the fetched page."
+ },
+ {
+  "term": "Gap Support",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Gap as support; stop below the gap (Bulkowski); gap fill (Investopedia)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Gaps",
+    "url": "https://thepatternsite.com/gaps.html",
+    "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location. Place a stop a few cents below the gap (upward breakouts) or above the gap (downward breakouts).",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Gap",
+    "url": "https://www.investopedia.com/terms/g/gap.asp",
+    "quote": "Common gaps generally get filled relatively quickly (usually within a couple of days) when compared to other types of gaps. Common gaps are also known as “area gaps” or “trading gaps” and tend to be accompanied by normal average trading volume.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name for buying a stock that holds the top of an earlier gap. Bulkowski says gaps are places of weak support or resistance but are usable for a stop: a few cents below the gap. Investopedia warns that common gaps fill within a couple of days, so only a gap tied to a real catalyst or breakout deserves the trust.",
+  "conventions": {
+   "entry": "No external convention; the hold of the gap's upper edge is the house trigger.",
+   "stop": "Bulkowski: a few cents below the gap.",
+   "target": "Bulkowski gaps page: measure from the swing low to the gap centre and project the same distance."
+  },
+  "mistakes": [
+   "Leaning on a common gap, which usually fills quickly (Investopedia)."
+  ],
+  "conflicts": "No standard source names 'gap support' as a setup."
+ },
+ {
+  "term": "Gap support",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Gap as support (Bulkowski gaps page)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Gaps",
+    "url": "https://thepatternsite.com/gaps.html",
+    "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location. Place a stop a few cents below the gap (upward breakouts) or above the gap (downward breakouts).",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "The top edge of an earlier up-gap used as a floor. Bulkowski says gaps give weak support but work as a stop location a few cents below the gap. See the setup entry for the fuller treatment.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "House term; see the setup entry."
+ },
+ {
+  "term": "Go Signal",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": null,
+  "sources": [],
+  "summary": "A house name for the firm's intraday confirmation that a planned entry is live. No external source defines it, and no standard pattern maps to it; it is a procedural trigger rather than a chart pattern. It stays defined only by the house's own lesson text.",
+  "conventions": {
+   "entry": "House only.",
+   "stop": "House only.",
+   "target": "House only."
+  },
+  "mistakes": [],
+  "conflicts": "No external concept to cite."
+ },
+ {
+  "term": "Hammer",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Hammer",
+    "url": "https://thepatternsite.com/Hammer.html",
+    "quote": "The hammer is another candle pattern that many traders rely on. It is supposed to act as a bullish reversal and testing reveals that it does 60% of the time",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bullish reversal 60 percent of the time (agrees). The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bullish reversal 60 percent of the time (agrees)."
+ },
+ {
+  "term": "Hanging Man",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Hanging Man",
+    "url": "https://thepatternsite.com/HangingMan.html",
+    "quote": "The hanging man is probably one of the better known candlestick patterns, but it does not work as many expect. Candle theory says it acts as a bearish reversal of the prevailing price trend,",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish reversal (the textbook reading). Bulkowski's measured behaviour: bullish continuation 59 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish reversal; Bulkowski measures bullish continuation 59 percent of the time."
+ },
+ {
+  "term": "Harami Cross",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Harami Cross",
+    "url": "https://thepatternsite.com/HaramiCrossBull.html",
+    "quote": "As with many candle patterns that I tested, theory disagrees with reality. The bullish harami cross is no exception. It is supposed to act as a bullish reversal of the downward price trend,",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it neutral reversal (ours); bullish for the bull form (the textbook reading). Bulkowski's measured behaviour: theory disagrees with reality for the bull form (percentage cut at a page line break). The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias neutral reversal (ours); bullish for the bull form; Bulkowski measures theory disagrees with reality for the bull form (percentage cut at a page line break)."
+ },
+ {
+  "term": "High Tight Flag",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "High and tight flag (Bulkowski; IBD)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: High and Tight Flag",
+    "url": "https://thepatternsite.com/htf.html",
+    "quote": "Price must rise at least 90% (shoot for a double) in 2 months or less.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: High and Tight Flag",
+    "url": "https://thepatternsite.com/htf.html",
+    "quote": "New research says high and tight flags fail too often when using a flag trendline break. Instead, place a buy stop above the highest high in the chart pattern.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investor's Business Daily: Tesla Stock Rally And The High Tight Flag",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/breakout-stocks-tesla-stock-rally-high-tight-flag-base/",
+    "quote": "Many stocks surged in just a few weeks, and a select few used those fast rallies to form an unusual but powerful chart pattern.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A stock about doubles in two months or less, then rests in a small, tight flag. Bulkowski calls it one of the best performers (15 percent break-even failure rate, 39 percent average rise in his data) but says buy only a close above the pattern's highest high, including the pole; a flag trendline break fails too often. Trade tight flags, not loose ones.",
+  "conventions": {
+   "entry": "Bulkowski: buy stop above the highest high in the pattern (including the flagpole); only buy when price closes above it.",
+   "stop": "Bulkowski: for steep trends use a volatility stop and a trendline under price; sell on a close below it.",
+   "target": "Bulkowski measure rule: half the height of the price swing (from its start to the top) added to the bottom of the flag."
+  },
+  "mistakes": [
+   "Buying a flag trendline break instead of the new high (Bulkowski: fails too often).",
+   "Buying before confirmation; price may go flat for months.",
+   "Trading loose flags."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "High Tight Flag",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "High and tight flag (Bulkowski; IBD)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: High and Tight Flag",
+    "url": "https://thepatternsite.com/htf.html",
+    "quote": "Price must rise at least 90% (shoot for a double) in 2 months or less.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A near-double in two months or less followed by a small tight flag; buy a close above the pattern's highest high. See the setup entry.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": null
+ },
+ {
+  "term": "High Volume Close / Edge",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "No standard name; IBD heavy-volume institutional activity",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Stock Market Buy Signals, Sell Signals",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/stock-market-buy-signals-sell-signals/",
+    "quote": "Real-time data lets you see which stocks are moving in unusually heavy volume. And large increases in trading volume are usually the work of institutional investors, buying or selling",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "The close of an unusually heavy-volume day treated as a key level. IBD reads big volume increases as institutions at work. See the setup entry 'High Volume Edge'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "House term; see the setup entry."
+ },
+ {
+  "term": "High Volume Edge",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "No standard name; nearest ideas are IBD's heavy-volume institutional buying and Investopedia's breakout volume",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Stock Market Buy Signals, Sell Signals",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/stock-market-buy-signals-sell-signals/",
+    "quote": "Real-time data lets you see which stocks are moving in unusually heavy volume. And large increases in trading volume are usually the work of institutional investors, buying or selling",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "Breakouts with relatively high volume show conviction and interest, and therefore the price is more likely to continue moving in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name (also HVC, high volume close) for the close of an unusually heavy-volume day used as a level. IBD says large volume increases are usually institutions buying or selling. Investopedia says breakouts with high relative volume show conviction and are more likely to keep going. The level idea itself has no textbook definition.",
+  "conventions": {
+   "entry": "No external convention; community descriptions buy above the heavy-volume day's close.",
+   "stop": "No external convention; community descriptions use the heavy-volume day's low.",
+   "target": "No external convention."
+  },
+  "mistakes": [
+   "Treating heavy volume as bullish by itself; IBD says it can be buying or selling."
+  ],
+  "conflicts": "Searches found only indicator vendors for 'HVC'. investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Higher low",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Higher swing lows in an uptrend",
+  "sources": [
+   {
+    "name": "Investopedia: Uptrend",
+    "url": "https://www.investopedia.com/terms/u/uptrend.asp",
+    "quote": "While these tools may be helpful in visually seeing the uptrend, ultimately the price should be making higher swing highs and higher swing lows to confirm that an uptrend is present.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A pullback that bottoms above the previous pullback's bottom. Investopedia says an uptrend is confirmed only while price keeps making higher swing highs and higher swing lows; when it stops, the trend is in doubt, the market may be ranging, or a downtrend may have started. Selling when the sequence breaks is one of its ways to dodge large losses.",
+  "conventions": {
+   "entry": "Investopedia: buy the pullback or the push to a new swing high.",
+   "stop": "Under the most recent higher low (implied by the trend definition).",
+   "target": null
+  },
+  "mistakes": [
+   "Calling a lower low a 'higher low' because it is close."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Homing Pigeon",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Homing Pigeon",
+    "url": "https://thepatternsite.com/HomingPigeon.html",
+    "quote": "The homing pigeon is supposed to act as a bullish reversal, but testing found that it performs as a bearish continuation 56% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bearish continuation 56 percent, near random. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bearish continuation 56 percent, near random."
+ },
+ {
+  "term": "Inside day",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Inside day",
+  "sources": [
+   {
+    "name": "Investopedia: Inside Day",
+    "url": "https://www.investopedia.com/terms/i/inside_day.asp",
+    "quote": "An inside day is a two-day price pattern that occurs when a second day has a range that is completely inside the first day's price range. The high of the second day is lower than the first, and the low of the second is higher than the first.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Inside Days",
+    "url": "https://thepatternsite.com/InsideDays.html",
+    "quote": "If price closes above the pattern's high, buy at the open the next day.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Inside Days",
+    "url": "https://thepatternsite.com/InsideDays.html",
+    "quote": "For example, in a bull market after an upward breakout, 32% of inside days fail to see price rise at least 5%. That's huge.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A day whose whole range sits inside the prior day's range: lower high, higher low. Investopedia trades it as a continuation, buying a move above the two-day high with the stop under the two-day low and no built-in target. Bulkowski buys the next open after a close above the high, and warns that 32 percent of bull-market upward breakouts fail to gain even 5 percent.",
+  "conventions": {
+   "entry": "Investopedia: above the high of the two-bar pattern. Bulkowski: at the open after a close above the pattern high.",
+   "stop": "Investopedia: just below the low of the two-day pattern. Bulkowski: 7 percent below the buy price in his test.",
+   "target": "Investopedia: none built in; use a trailing stop or risk multiple. Bulkowski: pattern height added to the top."
+  },
+  "mistakes": [
+   "Trading it against the market trend (Bulkowski: contra-trend trades perform worse)."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Inverted Hammer",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Inverted Hammer",
+    "url": "https://thepatternsite.com/HammerInv.html",
+    "quote": "but it really acts as a bearish continuation 65% of the time. The overall performance ranks it 6 out of 103 candles, meaning the trend after the candle often results in a good sized move.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bearish continuation 65 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bearish continuation 65 percent of the time."
+ },
+ {
+  "term": "IPO Base",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "IPO base (IBD)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Strong IPO Bases",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/strong-ipo-bases-tend-to-feature-numerous-high-closes-by-the-stock/",
+    "quote": "These Investor's Corner stories included a special eight-week holding rule for new IPO stocks that clear their first bases and hit new highs; how to capitalize on long moves following an IPO base breakout",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "A breakout refers to when the price of an asset moves above a resistance area, or moves below a support area. Breakouts indicate the potential for the price to start trending in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A new issue's first base, built within weeks of its listing. IBD treats it as a special case: a younger, shorter and often shallower base than a normal one, with its own eight-week holding rule once the stock clears it and makes new highs. The buy point is the top of that first base, bought on heavy volume like any other breakout.",
+  "conventions": {
+   "entry": "IBD: top of the first base plus 10 cents (the base's length and depth allowances appear only in secondary summaries: under five weeks and usually under 20 percent deep).",
+   "stop": "Not stated on the fetched page.",
+   "target": "Not stated on the fetched page; IBD's eight-week hold rule applies after the breakout."
+  },
+  "mistakes": [
+   "Treating an IPO base like a seasoned base: it has no prior uptrend to lean on, so secondary summaries call it riskier."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts. No Investopedia or Bulkowski page defines an IPO base."
+ },
+ {
+  "term": "IPO base",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "IPO base (IBD)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Strong IPO Bases",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/strong-ipo-bases-tend-to-feature-numerous-high-closes-by-the-stock/",
+    "quote": "These Investor's Corner stories included a special eight-week holding rule for new IPO stocks that clear their first bases and hit new highs; how to capitalize on long moves following an IPO base breakout",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A new issue's first base, shorter and younger than a normal one, with IBD's eight-week hold rule after the breakout. See the setup entry.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Kicker Candle",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Kicker / kicking candlestick",
+  "sources": [
+   {
+    "name": "Investopedia: Kicker Pattern",
+    "url": "https://www.investopedia.com/terms/k/kickerpattern.asp",
+    "quote": "The kicker pattern is considered one of the most reliable reversal patterns and usually indicates a dramatic change in a company's fundamentals. The kicker pattern is a reversal pattern, and it differs from a gap pattern, which tends to show a gap up or down and stay in that trend.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Kicking, Bullish",
+    "url": "https://thepatternsite.com/KickingBull.html",
+    "quote": "The bullish kicking candle acts as a bullish reversal of the existing price trend 53% of the time. That is almost random, so do not try to guess the breakout direction from this candle",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Two candles in opposite colours with a gap between their bodies: the second opens at or beyond the first's open and runs the other way. Investopedia calls it one of the most reliable reversals, usually tied to a sudden change in the company's facts. Bulkowski's tests disagree: the bullish kicking acts as a reversal only 53 percent of the time and is very rare.",
+  "conventions": {
+   "entry": "Investopedia: the second candle must open at or beyond the first candle's open; a gap in the new direction raises the odds.",
+   "stop": "Not stated by either source.",
+   "target": "Not stated by either source."
+  },
+  "mistakes": [
+   "Confusing a kicker with a plain gap; Investopedia says a gap pattern tends to continue in the gap's direction while the kicker reverses."
+  ],
+  "conflicts": "Investopedia calls it highly reliable; Bulkowski measures it as near random (53 percent) and rare (100th of 103 candles)."
+ },
+ {
+  "term": "Kicker candle",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Kicker / kicking candlestick",
+  "sources": [
+   {
+    "name": "Investopedia: Kicker Pattern",
+    "url": "https://www.investopedia.com/terms/k/kickerpattern.asp",
+    "quote": "The kicker pattern is considered one of the most reliable reversal patterns and usually indicates a dramatic change in a company's fundamentals. The kicker pattern is a reversal pattern, and it differs from a gap pattern, which tends to show a gap up or down and stay in that trend.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Two opposite-colour candles with a gap between the bodies, read as a sharp reversal after new information. Investopedia rates it highly; Bulkowski measures it near random. See the setup entry 'Kicker Candle'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Investopedia and Bulkowski disagree on reliability."
+ },
+ {
+  "term": "Kicking (Bull)",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Kicking (Bull)",
+    "url": "https://thepatternsite.com/KickingBull.html",
+    "quote": "The bullish kicking candle acts as a bullish reversal of the existing price trend 53% of the time. That is almost random, so do not try to guess the breakout direction from this candle",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bullish reversal 53 percent, near random; very rare. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bullish reversal 53 percent, near random; very rare."
+ },
+ {
+  "term": "Launchpad",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Moving averages converging under price (a TraderLion 'launchpad' write-up by Ross Haber exists but returned HTTP 403)",
+  "sources": [
+   {
+    "name": "Investopedia: Moving Average Ribbon",
+    "url": "https://www.investopedia.com/terms/m/movingaverageribbon.asp",
+    "quote": "Moving average ribbons are a series of moving averages (MA) of different lengths that are plotted on the same chart to create a ribbon-like indicator.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Moving Average Ribbon",
+    "url": "https://www.investopedia.com/terms/m/movingaverageribbon.asp",
+    "quote": "When support is broken, and the price has moved through all the ribbons, this would usually be considered a trend reversal, especially if the MAs have crosses each other as well, but such moves don't always result in a price reversal.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name. The closest external idea is a moving-average ribbon that has tightened: the short and long averages bunch up under price as a trend pauses, then fan out again when it resumes. Investopedia describes reading trend strength from the distance between the averages. No textbook names 'launchpad' as a pattern.",
+  "conventions": {
+   "entry": "No external convention. Investopedia reads the ribbon's distance for trend strength and its edges as support.",
+   "stop": "No external convention.",
+   "target": "No external convention."
+  },
+  "mistakes": [
+   "Reading a break through all the averages as a reversal every time; Investopedia says such moves don't always reverse the trend."
+  ],
+  "conflicts": "No standard external definition. traderlion.com (the only named source) blocks automated fetches with Cloudflare."
+ },
+ {
+  "term": "Leadership Emerges (signpost 6)",
+  "kind": "bottom",
+  "house_name": false,
+  "nearest_standard": "New leaders break out of bases around the follow-through (IBD)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: How To Identify Stock Market Bottoms",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/how-to-identify-stock-market-bottoms-use-this-key-signal/",
+    "quote": "While it's impossible to know when the stock market is going to bottom, investors can use a chart signal known as a follow-through to begin buying stocks. Here's what to look for: Following a prolonged market downtrend, look for the first up day from an index low. That's the start of a rally attempt.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our text: the next cycle's leaders build the right side of bases and break out into the follow-through, and what leads off the bottom tends to lead the advance. IBD's method agrees in spirit: the follow-through is the signal to begin buying leaders. The fetched page stops before any leadership discussion, so the claim is consistent but not quoted.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Matching Low",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Matching Low",
+    "url": "https://thepatternsite.com/MatchingLow.html",
+    "quote": "Testing reveals that the pattern pushes through this support and acts as a bearish continuation 61% of",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bearish continuation 61 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bearish continuation 61 percent of the time."
+ },
+ {
+  "term": "Moving-average stack",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Moving average ribbon; moving averages in bullish order",
+  "sources": [
+   {
+    "name": "Investopedia: Moving Average Ribbon",
+    "url": "https://www.investopedia.com/terms/m/movingaverageribbon.asp",
+    "quote": "Moving average ribbons are a series of moving averages (MA) of different lengths that are plotted on the same chart to create a ribbon-like indicator.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Moving Average (MA)",
+    "url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "quote": "An exponential moving average (EMA) is a weighted average that gives greater importance to the price of a stock in more recent days, making it an indicator that is more responsive to new information.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Moving Average (MA)",
+    "url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "quote": "For example, if the price is consistently above the 200-day MA, that's considered a signal for long-term strength, indicating you'd want to buy or hold.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Several averages plotted together, read as one. In a healthy uptrend the shorter averages sit above the longer ones and all slope up; the space between them shows trend strength. Investopedia's moving average ribbon is the formal name. The EMA reacts faster than the SMA, and price staying above the 200-day is read as long-term strength.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Treating any dip through the ribbon as a reversal; Investopedia says it is often just a deeper pullback."
+  ],
+  "conflicts": "'Stack' is trader slang; the standard term is ribbon."
+ },
+ {
+  "term": "News Failure",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Bad news without a new low (nearest: capitulation, Investopedia)",
+  "sources": [
+   {
+    "name": "Investopedia: Capitulation",
+    "url": "https://www.investopedia.com/terms/c/capitulation.asp",
+    "quote": "Bear markets can feature repeat high-volume plunges in price and premature calls of capitulation. The truth is that the condition can be diagnosed conclusively only in hindsight if the price rebounds.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "House name for the moment bad news arrives and price refuses to make a new low, read as sellers being spent. Investopedia's capitulation page is the nearest idea and adds the caution that the condition can be confirmed only in hindsight once price rebounds.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No standard definition; used as a bottom signpost in the Model Book."
+ },
+ {
+  "term": "News Failure (signpost 4)",
+  "kind": "bottom",
+  "house_name": true,
+  "nearest_standard": "Bad news, no new low (nearest: capitulation, Investopedia)",
+  "sources": [
+   {
+    "name": "Investopedia: Capitulation",
+    "url": "https://www.investopedia.com/terms/c/capitulation.asp",
+    "quote": "Bear markets can feature repeat high-volume plunges in price and premature calls of capitulation. The truth is that the condition can be diagnosed conclusively only in hindsight if the price rebounds.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our text: terrible news lands and price refuses to make a new low, which shows sellers are gone. No source names this as a signpost. Investopedia's capitulation caveat applies: the read is confirmed only once price rebounds.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "House concept; no external definition."
+ },
+ {
+  "term": "News/Earnings Gapper",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Gap types (Investopedia); earnings flag and good earnings surprise (Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Gap",
+    "url": "https://www.investopedia.com/terms/g/gap.asp",
+    "quote": "A stock gap is a discontinuity in a security’s price chart that occurs when the price jumps higher or lower from the previous day’s close without trading in between.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Gaps",
+    "url": "https://thepatternsite.com/gaps.html",
+    "quote": "Happens at the end of a trend on high volume. The gap is usually not followed by new highs or lows, and the gap may be unusually tall.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Earnings Flag",
+    "url": "https://thepatternsite.com/earnflag.html",
+    "quote": "The earnings flag is an event pattern that occurs after a company announces earnings. Price makes a large upward move, consolidates, and then resumes the uptrend.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A stock that opens far from its last close on news. Investopedia's gap types sort it: a breakaway gap starts a trend, a continuation gap runs it, and an exhaustion gap ends it on high volume and is not followed by new highs. Bulkowski's earnings flag is the pause after a big earnings jump before the run continues. Telling the types apart is the whole job.",
+  "conventions": {
+   "entry": "Bulkowski earnings flag: buy when price pierces the flag or pennant trendline after the announcement.",
+   "stop": "Bulkowski: a few cents below the gap.",
+   "target": "Bulkowski earnings flag: height from the pattern high to the announcement-day low, added to the flag low."
+  },
+  "mistakes": [
+   "Chasing an exhaustion gap at the end of a trend (Bulkowski: no new highs follow).",
+   "Misreading the gap type (Investopedia)."
+  ],
+  "conflicts": "No standard source uses the house name; 'gap-and-go' is trader slang."
+ },
+ {
+  "term": "Oops Reversal",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Oops! pattern (Larry Williams): open outside the prior day's range, then trade back inside it",
+  "sources": [
+   {
+    "name": "Investopedia: Gap",
+    "url": "https://www.investopedia.com/terms/g/gap.asp",
+    "quote": "Common gaps generally get filled relatively quickly (usually within a couple of days) when compared to other types of gaps. Common gaps are also known as “area gaps” or “trading gaps” and tend to be accompanied by normal average trading volume.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Larry Williams's name for a gap that fails at the open: the stock opens below yesterday's low (or above its high), then trades back inside yesterday's range. The classic order is a buy stop at yesterday's low once the market opens under it. Investopedia's gap page gives the nearest standard idea: common gaps tend to fill within a couple of days.",
+  "conventions": {
+   "entry": "Williams (secondary): buy stop at the prior day's low after an open below it; sell stop at the prior day's high after an open above it.",
+   "stop": "Williams (secondary): the low of the gap day.",
+   "target": "None standard."
+  },
+  "mistakes": [
+   "Reading every gap as an Oops; secondary sources say the gap must be large enough to matter, which is a judgment call."
+  ],
+  "conflicts": "No policy source defines the Oops pattern; the Stocks & Commodities article (technical.traders.com) returned HTTP 403. Entry and stop are from secondary write-ups."
+ },
+ {
+  "term": "ORB (Opening Range Break)",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Opening range breakout",
+  "sources": [
+   {
+    "name": "Investopedia: Opening Range",
+    "url": "https://www.investopedia.com/terms/o/opening-range.asp",
+    "quote": "The opening range refers to a security's high and low prices during the first 15 minutes of trading. Traders use it to gauge market sentiment and identify intraday trends based on price movements above or below these levels.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Opening Range",
+    "url": "https://www.investopedia.com/terms/o/opening-range.asp",
+    "quote": "Stop-loss orders could sit below the breakout candle or beneath the opening range low, depending on preferred risk tolerance. Traders may decide to take profits using a multiple of risk. For example, if using a 30-cent stop, traders might set a 60-cent profit target.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "Breakouts with relatively high volume show conviction and interest, and therefore the price is more likely to continue moving in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "The high and low of the first minutes of the session (Investopedia uses 15) become the range; a move above or below it is the trade. Stops sit under the breakout candle or the range low, and profit is often taken at a multiple of the risk. Investopedia notes the day's high or low prints in the opening minutes more often than chance would suggest.",
+  "conventions": {
+   "entry": "Investopedia: a move above the opening range high (long) or below its low (short).",
+   "stop": "Investopedia: below the breakout candle or beneath the opening range low.",
+   "target": "Investopedia: a multiple of the risk (for example twice the stop distance) or a trailing stop such as a close below a moving average."
+  },
+  "mistakes": [
+   "Taking a break on light volume (Investopedia breakout page: low-volume breakouts fail more often)."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Parabolic Long",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Blow-off top / climax run (Investopedia); vertical run up (Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Blow-Off Top",
+    "url": "https://www.investopedia.com/terms/b/blowofftop.asp",
+    "quote": "A blow-off top is a chart pattern showing a sudden rise in price and volume, followed by a sharp decline in price also with high volume.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Vertical Run Up",
+    "url": "https://thepatternsite.com/VerticalRunUp.html",
+    "quote": "Just 21% of vertical runs suffer a trend change (a drop of at least 20%). Thus, position traders should hold onto their stocks, but situations vary.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Blow-Off Top",
+    "url": "https://www.investopedia.com/terms/b/blowofftop.asp",
+    "quote": "A blow-off top has several key traits, yet it is only in hindsight that we know if it created an actual top in price. Sometimes the price will rise rapidly, then pause or pull back slightly, and then keep rising.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Riding a near-vertical run and leaving before the blow-off. Investopedia's blow-off top is a steep rise on heavy volume followed by a steep drop on heavy volume, known only in hindsight. Bulkowski finds just 21 percent of vertical runs suffer a 20 percent trend change, so holders usually keep their shares, but a full retrace is the most common retrace when one comes.",
+  "conventions": {
+   "entry": "None standard; the house trade is already long into the run.",
+   "stop": "None standard; the house give-back rule is internal.",
+   "target": "None standard; Investopedia says the top is known only in hindsight."
+  },
+  "mistakes": [
+   "Calling the top early: a steep rise can pause and keep going (Investopedia)."
+  ],
+  "conflicts": "IBD's 'climax top' rules (largest daily gain, exhaustion gap, 25 to 50 percent run in two to three weeks) were not fetched."
+ },
+ {
+  "term": "Parabolic Short",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Blow-off top (Investopedia); vertical run up retrace (Bulkowski)",
+  "sources": [
+   {
+    "name": "Investopedia: Blow-Off Top",
+    "url": "https://www.investopedia.com/terms/b/blowofftop.asp",
+    "quote": "A blow-off top is a chart pattern showing a sudden rise in price and volume, followed by a sharp decline in price also with high volume.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Vertical Run Up",
+    "url": "https://thepatternsite.com/VerticalRunUp.html",
+    "quote": "A full 22% will retrace the complete AB move. A frequency distribution shows that a full retrace is the most frequent retrace amount.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Shorting the break after a vertical run. Investopedia's blow-off top needs both legs: the steep rise on volume and the steep drop on volume. Bulkowski measures that 22 percent of vertical runs give back the whole move and that a full retrace is the most frequent outcome when a retrace comes, though most runs do not turn into a 20 percent trend change.",
+  "conventions": {
+   "entry": "None standard; a buy-stop above the high is the usual risk marker.",
+   "stop": "Above the run's high (house; sources give no level).",
+   "target": "Bulkowski: a full retrace of the run is the most frequent retrace amount."
+  },
+  "mistakes": [
+   "Shorting while the run is still making highs; the top is confirmed only after the drop (Investopedia)."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Pivot (buy point)",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Pivot / buy point (IBD, O'Neil)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Everything You Need To Know About Handles",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/everything-you-need-to-know-about-handles-how-to-spot-a-good-one/",
+    "quote": "A handle defines the proper entry. The highest price in the handle plus 10 cents",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "A breakout refers to when the price of an asset moves above a resistance area, or moves below a support area. Breakouts indicate the potential for the price to start trending in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "IBD's exact price where a base is cleared: the pattern's resistance (the handle high in a cup with handle, the base high in a flat base) plus 10 cents. The 5 percent zone above it is the buy range; beyond it the stock is extended. Investopedia's breakout is the same event in general terms, with volume showing whether it is likely to hold.",
+  "conventions": {
+   "entry": "IBD: the pivot plus 10 cents, within 5 percent above it (the 5 percent zone comes from secondary summaries of IBD).",
+   "stop": "IBD's 7 to 8 percent sell rule (secondary summaries).",
+   "target": null
+  },
+  "mistakes": [
+   "Chasing more than 5 percent past the pivot; a normal pullback then trips the sell rule."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Portfolio heat",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Heat (Ed Seykota and Dave Druz, Stocks & Commodities, 1993)",
+  "sources": [
+   {
+    "name": "Seykota & Druz, Technical Analysis of Stocks & Commodities (March 1993): Determining Optimal Risk",
+    "url": "https://store.traders.com/-v11-c03-determi-pdf.html",
+    "quote": "In portfolio management, we call the distributed bet size the heat of the portfolio.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Seykota & Druz, Technical Analysis of Stocks & Commodities (March 1993): Determining Optimal Risk",
+    "url": "https://store.traders.com/-v11-c03-determi-pdf.html",
+    "quote": "Setting the heat level is far and away more important than fiddling with trade timing parameters.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Position Sizing",
+    "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+    "quote": "As a rule of thumb, most retail investors risk no more than 2% of their investment capital on any one trade; fund managers usually risk less than this amount.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "The total you would lose if every open position hit its stop at once, as a percent of equity. Seykota and Druz call the distributed bet size the heat of the portfolio: five positions each risking 2 percent is 10 percent heat, and so is two positions at 5 percent. They say setting the heat level matters far more than tuning entries. Investopedia's 2 percent per trade is the common per-position cap.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Adding positions until the sum of open risk is larger than one bad day can absorb; gaps can push losses past the planned heat."
+  ],
+  "conflicts": "Only the article's abstract page on store.traders.com was fetched, not the full text."
+ },
+ {
+  "term": "Power Earnings Gap",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Breakaway gap on earnings (IBD; Investopedia); Bulkowski's good earnings surprise",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: The Breakaway Gap",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/breakaway-gap-how-to-buy-strength-manage-risk/",
+    "quote": "The market opens the next day and the stock opens powerfully higher, but well above the buy point. You've just witnessed the breakaway gap, which might seem like a missed opportunity.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Breakaway Gap",
+    "url": "https://www.investopedia.com/terms/b/breakawaygap.asp",
+    "quote": "A breakaway gap is a term used in technical analysis which identifies a strong price movement through support or resistance. A gap is the difference between the open price and prior close price, where no trading activity takes place. The price breaks away from the support or resistance via a gap, as opposed to an intraday breakout.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Good Earnings Surprise",
+    "url": "https://thepatternsite.com/earnsgood.html",
+    "quote": "Select patterns with heavy announcement day volume, above the 30-day average.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house-adopted name for a big earnings gap on heavy volume that opens well above any buy point and keeps going. IBD calls this a breakaway gap and treats it as a buyable show of strength rather than a missed trade. Investopedia defines the breakaway gap as a strong move through support or resistance with no trading in between. Bulkowski wants announcement-day volume above the 30-day average.",
+  "conventions": {
+   "entry": "IBD (secondary summaries): the high of the first five minutes after the gap, not more than 5 percent above it. Bulkowski: buy the upward breakout with the market and industry trending higher.",
+   "stop": "Bulkowski gaps page: a few cents below the gap.",
+   "target": "Bulkowski good-earnings page: measure from the announcement-day low."
+  },
+  "mistakes": [
+   "Reading a common gap as a breakaway gap (Investopedia: misreading the gap type is the costly mistake).",
+   "Buying an earnings gap with no base beneath it (IBD, via secondary summaries)."
+  ],
+  "conflicts": "The 'PEG' thresholds (10 percent gain, 200 percent volume, 20 percent EPS surprise) appear only in community indicator descriptions. investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Progressive exposure",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Progressive exposure (Mark Minervini); IBD's exposure levels ladder",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Stock Market Exposure Levels",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/stock-market-exposure-levels-market-pulse-investors-nasdaq-sp500/",
+    "quote": "Still, the Nasdaq composite stormed above its 50-day moving average with conviction, prompting an increase in recommended stock market exposure to 60%-80% from Investor's Business Daily.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Minervini's rule for scaling in: start with small pilot trades, add size only as those trades work and the account proves the market is paying, and cut back when they stop working. IBD runs a similar ladder in its Market Pulse, raising recommended exposure (for example to 60 to 80 percent) when the index clears a key line with conviction.",
+  "conventions": {
+   "entry": "Minervini (secondary): pilot buys, then larger buys once the first ones show a profit.",
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Going to full size in a market that has not yet rewarded the pilot trades."
+  ],
+  "conflicts": "No Minervini text fetched; minervini.com pages had no definition. The IBD ladder is the nearest fetched analogue. investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "R-multiple / expectancy",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "R-multiples and expectancy (Van K. Tharp)",
+  "sources": [
+   {
+    "name": "Van Tharp Institute: Tharp Think Trading Concepts",
+    "url": "https://vantharp.com/tharp-think-trading-concepts/",
+    "quote": "In fact, the exit point you have when you enter into a position is the whole basis for determining your risk, R, and the R-multiples (i.e., risk/reward ratios) of your profits and losses.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Van Tharp Institute: Tharp Think Trading Concepts",
+    "url": "https://vantharp.com/tharp-think-trading-concepts/",
+    "quote": "A trading system can be characterized as a distribution of the R-multiples it generates. Expectancy is simply the mean, or average, R-multiple generated.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Risk/Reward Ratio",
+    "url": "https://www.investopedia.com/terms/r/riskrewardratio.asp",
+    "quote": "The risk/reward ratio measures the difference between a trade entry point to a stop-loss and a sell or take-profit order. Comparing these two provides the ratio of profit to loss, or reward to risk.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "R is the money at risk from entry to the planned exit. Every result is then measured in units of R: a trade that makes twice its risk is plus 2R; a trade stopped out is minus 1R. Tharp treats a system as the distribution of its R-multiples, and expectancy is the average R per trade. Investopedia's risk/reward ratio is the same idea stated before the trade.",
+  "conventions": {
+   "entry": null,
+   "stop": "Tharp: the planned exit set at entry defines R.",
+   "target": null
+  },
+  "mistakes": [
+   "Comparing dollar results across different position sizes instead of R."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Red to Green",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Intraday reversal of an opening gap down (nearest: gap fill, Investopedia)",
+  "sources": [
+   {
+    "name": "Investopedia: Gap",
+    "url": "https://www.investopedia.com/terms/g/gap.asp",
+    "quote": "Common gaps generally get filled relatively quickly (usually within a couple of days) when compared to other types of gaps. Common gaps are also known as “area gaps” or “trading gaps” and tend to be accompanied by normal average trading volume.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "House and day-trading slang for a stock that opens below the prior close and then trades back above it the same day. It is an entry trigger in the method, not a setup. The nearest textbook idea is Investopedia's observation that common gaps fill quickly.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No standard definition; the method teaches it as a trigger (SET.06)."
+ },
+ {
+  "term": "Relative strength",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Relative strength (momentum investing)",
+  "sources": [
+   {
+    "name": "Investopedia: Relative Strength",
+    "url": "https://www.investopedia.com/terms/r/relativestrength.asp",
+    "quote": "Relative strength is an investment strategy used in momentum investing to identify securities that outperform the market or a chosen benchmark.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "CMT Association: Presentation on Relative Strength by Katie Stockton, CMT",
+    "url": "https://cmtassociation.org/?p=75135",
+    "quote": "she demonstrated the diversity of relative strength analysis, which can be used in a number of ways, to evaluate breakouts & reversals and to identify shifts in market leadership.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Relative Strength",
+    "url": "https://www.investopedia.com/terms/r/relativestrength.asp",
+    "quote": "Value investing aims to buy low and sell high, while relative strength investing aims to buy high and sell higher. As such, relative strength investors assume that the trends currently displayed by the market will continue for long enough to allow them to realize a positive return.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "How a stock performs against a benchmark or other stocks. Investopedia frames it as momentum investing: buy what is already outperforming and expect the trend to continue. The CMT presentation uses it to judge breakouts and reversals and to spot shifts in leadership. The risk is the mirror image: a sudden trend reversal turns the outperformer into the laggard.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Assuming leadership persists after the trend has broken (Investopedia)."
+  ],
+  "conflicts": null
+ },
+ {
+  "term": "Remount",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Moving Average Undercut & Rally (MAU&R, Morales / Kacher); reclaim of a key moving average",
+  "sources": [
+   {
+    "name": "Virtue of Selfish Investing (Morales & Kacher) FAQ: Moving Average Undercut & Rally",
+    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+    "quote": "When a leading stock breaks below its moving average, a move back above the moving average can provide a long entry point as the stock moves back up through the line. Thus the term, \"Moving Average Undercut & Rally.\"",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Moving Average (MA)",
+    "url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "quote": "For example, if the price is consistently above the 200-day MA, that's considered a signal for long-term strength, indicating you'd want to buy or hold.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name for a stock that falls through a key average and then climbs back on top of it. Morales and Kacher's Moving Average Undercut & Rally is the same event: the undercut fakes out sellers and shorts, the rally back above the line is the entry, and the line becomes the selling guide. Investopedia reads price holding above a long average as strength.",
+  "conventions": {
+   "entry": "VoSI: the move back above the moving average.",
+   "stop": "VoSI: 1 to 2 percent below the line.",
+   "target": "None stated."
+  },
+  "mistakes": [
+   "Buying a feeble drift back that never clears the line with conviction (house lesson; not stated by the sources)."
+  ],
+  "conflicts": "No standard source uses the word 'remount'."
+ },
+ {
+  "term": "RS line (relative strength line)",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Relative strength line (IBD); relative strength (CMT, Investopedia)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: Relative Strength Line Is A Simple Yet Effective Stock Indicator",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/relative-strength-line-is-a-simple-yet-effective-stock-indicator/",
+    "quote": "The relative strength line's job is nothing more difficult than to tell you how a stock is performing compared with the general market.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "CMT Association: Presentation on Relative Strength by Katie Stockton, CMT",
+    "url": "https://cmtassociation.org/?p=75135",
+    "quote": "she demonstrated the diversity of relative strength analysis, which can be used in a number of ways, to evaluate breakouts & reversals and to identify shifts in market leadership.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Relative Strength",
+    "url": "https://www.investopedia.com/terms/r/relativestrength.asp",
+    "quote": "Relative strength is an investment strategy used in momentum investing to identify securities that outperform the market or a chosen benchmark.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A line that divides the stock's price by an index such as the S&P 500. Rising means the stock is beating the market; falling means lagging. IBD says its job is simply to show how a stock performs versus the general market. The CMT presentation uses relative strength to judge breakouts and spot leadership shifts. It is not the RSI oscillator.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [
+   "Confusing the RS line with the RSI indicator.",
+   "Confusing the RS line (a chart) with IBD's RS Rating (a percentile score)."
+  ],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts."
+ },
+ {
+  "term": "Separating Lines",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Separating Lines",
+    "url": "https://thepatternsite.com/SeparateLinesBull.html",
+    "quote": "The bullish separating lines candlestick pattern acts as a bullish continuation of the upward price trend already underway.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it neutral continuation (ours) (the textbook reading). Bulkowski's measured behaviour: bullish continuation for the bull form (agrees in direction). The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias neutral continuation (ours); Bulkowski measures bullish continuation for the bull form (agrees in direction)."
+ },
+ {
+  "term": "Shooting Star",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Shooting Star",
+    "url": "https://thepatternsite.com/ShootingStar.html",
+    "quote": "star candle acts as a bearish reversal 59% of the time. I consider that \"near random\" performance.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish reversal (the textbook reading). Bulkowski's measured behaviour: bearish reversal 59 percent, near random. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish reversal; Bulkowski measures bearish reversal 59 percent, near random."
+ },
+ {
+  "term": "Slingshot",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": null,
+  "sources": [
+   {
+    "name": "Investopedia: Pullback",
+    "url": "https://www.investopedia.com/terms/p/pullback.asp",
+    "quote": "A pullback is a temporary reversal in the upward price trend of a stock or other investment. It typically lasts only a few consecutive sessions and can provide an entry point for new investors when other technical indicators remain bullish.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A house name for an anticipation entry into a stock that has dipped under its short averages and is snapping back. No textbook or policy source defines a 'slingshot' setup; searches found only indicator vendors using the word for unrelated rules. The nearest standard idea is Investopedia's pullback inside an uptrend.",
+  "conventions": {
+   "entry": "No external convention.",
+   "stop": "No external convention.",
+   "target": "No external convention."
+  },
+  "mistakes": [
+   "Buying the dip before the turn; Investopedia frames a pullback buy as conditional on other signals staying bullish."
+  ],
+  "conflicts": "No standard external definition."
+ },
+ {
+  "term": "Stage 2 (Weinstein)",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Stage 2 advancing phase (Stan Weinstein, Secrets for Profiting in Bull and Bear Markets, 1988)",
+  "sources": [
+   {
+    "name": "Investopedia: Moving Average (MA)",
+    "url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "quote": "For example, if the price is consistently above the 200-day MA, that's considered a signal for long-term strength, indicating you'd want to buy or hold.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investopedia: Uptrend",
+    "url": "https://www.investopedia.com/terms/u/uptrend.asp",
+    "quote": "While these tools may be helpful in visually seeing the uptrend, ultimately the price should be making higher swing highs and higher swing lows to confirm that an uptrend is present.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Weinstein's four stages are basing, advancing, topping and declining. Stage 2 is the advance: price has broken out of its base and holds above a rising 30-week moving average, making higher highs and higher lows. He says to buy only in Stage 2. No site on the source policy defines the stages; the nearest standard ideas are Investopedia's uptrend and its reading of price above a long average.",
+  "conventions": {
+   "entry": "Weinstein (secondary): the breakout from the Stage 1 base, ideally on volume about twice the recent average.",
+   "stop": "Weinstein (secondary): under the base or the 30-week average.",
+   "target": null
+  },
+  "mistakes": [
+   "Buying in Stage 1 or 3, which Weinstein calls playing against the house (secondary)."
+  ],
+  "conflicts": "No reliable source fetched defines Weinstein's stages; StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools). Specifics are from secondary summaries."
+ },
+ {
+  "term": "Stick Sandwich",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Stick Sandwich",
+    "url": "https://thepatternsite.com/StickSandwich.html",
+    "quote": "The stick sandwich is supposed to be a bullish reversal, as I mentioned, but testing shows it acts as a bearish continuation 62% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bearish continuation 62 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bearish continuation 62 percent of the time."
+ },
+ {
+  "term": "The Follow-Through Day (signpost 5)",
+  "kind": "bottom",
+  "house_name": false,
+  "nearest_standard": "Follow-through day (IBD)",
+  "sources": [
+   {
+    "name": "Investor's Business Daily: How To Identify Stock Market Bottoms",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/how-to-identify-stock-market-bottoms-use-this-key-signal/",
+    "quote": "While it's impossible to know when the stock market is going to bottom, investors can use a chart signal known as a follow-through to begin buying stocks. Here's what to look for: Following a prolonged market downtrend, look for the first up day from an index low. That's the start of a rally attempt.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Investor's Business Daily: What Is A Follow-Through Day?",
+    "url": "https://www.investors.com/how-to-invest/investors-corner/what-is-a-follow-through-day/",
+    "quote": "The start of a major stock market uptrend is difficult to identify if you are relying on headlines and news.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our text: after a low, count the rally attempt; a major index up sharply on heavier volume several days in is the green light, and it can fail. IBD matches: the first up day off the low starts the rally attempt, and the follow-through signals the start of a new uptrend. Our line 'no bottom of consequence has ever happened without one' is O'Neil's claim; the fetched IBD page does not state it.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "investors.com serves only the lead paragraph to a non-subscriber, so the IBD quote stops where the paywall starts. The 'never without one' claim is not on the fetched page."
+ },
+ {
+  "term": "Thrusting Line",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Thrusting Line",
+    "url": "https://thepatternsite.com/Thrusting.html",
+    "quote": "The thrusting candle is supposed to act as a bearish continuation candle, but actually performs as a bullish reversal 57% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish continuation (the textbook reading). Bulkowski's measured behaviour: bullish reversal 57 percent, near random. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish continuation; Bulkowski measures bullish reversal 57 percent, near random."
+ },
+ {
+  "term": "Tri-Star",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Tri-Star",
+    "url": "https://thepatternsite.com/TriStarBull.html",
+    "quote": "The bullish tri-star candlestick acts as a bullish reversal in theory and also in reality, but only 60% of the time. That is close to random, 50%.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it neutral reversal (ours); bullish for the bull form (the textbook reading). Bulkowski's measured behaviour: bullish reversal 60 percent for the bull form. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias neutral reversal (ours); bullish for the bull form; Bulkowski measures bullish reversal 60 percent for the bull form."
+ },
+ {
+  "term": "Tweezer Bottom",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Tweezer Bottom",
+    "url": "https://thepatternsite.com/TweezersBottom.html",
+    "quote": "The tweezers bottom candle is supposed to act as a bullish reversal, but testing shows that it acts as a bearish continuation pattern 52% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bullish reversal (the textbook reading). Bulkowski's measured behaviour: bearish continuation 52 percent, near random. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bullish reversal; Bulkowski measures bearish continuation 52 percent, near random."
+ },
+ {
+  "term": "Tweezer Top",
+  "kind": "candle",
+  "house_name": false,
+  "nearest_standard": "Candlestick pattern (Nison / Morris names)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Tweezer Top",
+    "url": "https://thepatternsite.com/TweezersTop.html",
+    "quote": "is supposed to be a bearish reversal because it illustrates overhead resistance, but my tests show that tweezers tops actually act as bullish continuations 56% of the time.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Our catalog labels it bearish reversal (the textbook reading). Bulkowski's measured behaviour: bullish continuation 56 percent of the time. The catalog keeps the classical bias on purpose; this entry only records the disagreement.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "Classical bias bearish reversal; Bulkowski measures bullish continuation 56 percent of the time."
+ },
+ {
+  "term": "U&R (Undercut & Rally)",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Undercut & Rally (Gil Morales / Chris Kacher, Virtue of Selfish Investing)",
+  "sources": [
+   {
+    "name": "Virtue of Selfish Investing (Morales & Kacher) FAQ: Moving Average Undercut & Rally",
+    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+    "quote": "The mechanics of this trade are similar to a regular Undercut & Rally (U&R) move where a stock undercuts a prior low in the pattern, usually along the lows of a potential new base, and then rallies back above that low, triggering a buy signal based on the U&R.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: 2B Pattern",
+    "url": "https://thepatternsite.com/2B.html",
+    "quote": "The 2B bottom is a failure of price to rise far. If you wait for the second bottom to announce itself as a bottom, you'd be buying near the peak, setting yourself up for a loss.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Morales and Kacher's name: a stock dips under a prior low in its pattern, usually along the lows of a new base, then rallies back above that low, and the move back above is the buy signal. Bulkowski's 2B bottom is the classical cousin: a failure of the break below to go anywhere. The shakeout clears sellers; the reclaim is the trigger.",
+  "conventions": {
+   "entry": "VoSI: the rally back above the undercut low.",
+   "stop": "VoSI (for the moving-average version): 1 to 2 percent under the reclaimed line; for a price low, the undercut low is the selling guide.",
+   "target": "None stated."
+  },
+  "mistakes": [
+   "Buying the undercut itself rather than the reclaim."
+  ],
+  "conflicts": "The VoSI FAQ defines U&R inside its MAU&R answer; the dedicated 'Undercut & Rally' FAQ category is empty."
+ },
+ {
+  "term": "Undercut & Rally",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Undercut & Rally (Morales / Kacher)",
+  "sources": [
+   {
+    "name": "Virtue of Selfish Investing (Morales & Kacher) FAQ: Moving Average Undercut & Rally",
+    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+    "quote": "The mechanics of this trade are similar to a regular Undercut & Rally (U&R) move where a stock undercuts a prior low in the pattern, usually along the lows of a potential new base, and then rallies back above that low, triggering a buy signal based on the U&R.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "A dip under a prior low followed by a rally back above it; the reclaim is the buy signal. Morales and Kacher's own FAQ defines it. See the setup entry 'U&R (Undercut & Rally)'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": null
+ },
+ {
+  "term": "VCP",
+  "kind": "setup",
+  "house_name": false,
+  "nearest_standard": "Volatility Contraction Pattern (Mark Minervini, Trade Like a Stock Market Wizard, 2013)",
+  "sources": [
+   {
+    "name": "Investopedia: Breakout",
+    "url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "quote": "Breakouts on low relative volume are more prone to failure, so the price is less likely to trend in the breakout direction.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Minervini's name for a base whose pullbacks get smaller from left to right (for example 20 percent, then 10, then 5) while volume dries up, until price sits tight under a pivot. The buy is the pivot on rising volume; the stop sits under the last contraction. No site on the source policy defines it; minervini.com pages fetched had no definition text.",
+  "conventions": {
+   "entry": "Secondary summaries of Minervini: buy the pivot (high of the final contraction) as volume expands.",
+   "stop": "Secondary summaries of Minervini: under the low of the final contraction.",
+   "target": "None stated; Minervini manages by selling into strength and on a stop."
+  },
+  "mistakes": [
+   "Buying a breakout without the volume dry-up, or while the stock fails Minervini's Trend Template (secondary summaries)."
+  ],
+  "conflicts": "No reliable policy source fetched. minervini.com home and blog pages contained no VCP text; Investopedia has no VCP page; StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools). The numbers above are from secondary summaries and must be checked against the book."
+ },
+ {
+  "term": "VCP (Minervini)",
+  "kind": "glossary",
+  "house_name": false,
+  "nearest_standard": "Volatility Contraction Pattern (Minervini)",
+  "sources": [],
+  "summary": "A base whose pullbacks shrink from left to right while volume dries up, ending in a tight pivot. See the setup entry 'VCP'; no policy source defines it.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No reliable source fetched."
+ },
+ {
+  "term": "Volatility Peak (signpost 2)",
+  "kind": "bottom",
+  "house_name": true,
+  "nearest_standard": "VIX spike and roll-over (no policy source fetched)",
+  "sources": [],
+  "summary": "Our text: the VIX blows out, then the turn in volatility matters more than the level. No Investopedia, IBD or Bulkowski page on a VIX peak as a bottom signal was fetched, so the description is unverified against the policy sources. It is a widely used read, but it stays a house claim here.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No source fetched."
+ },
+ {
+  "term": "Wedge Drop",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Rising wedge breakdown (classical); 'Wedge Drop' is Oliver Kell's term (TraderLion page returned HTTP 403)",
+  "sources": [
+   {
+    "name": "Investopedia: Wedge",
+    "url": "https://www.investopedia.com/terms/w/wedge.asp",
+    "quote": "As wedge patterns converge, the gap between the entry price and stop loss is smaller than at the start. This allows a stop loss to be placed close by, potentially yielding higher returns if the trade succeeds.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Rising Wedge",
+    "url": "https://thepatternsite.com/risewedge.html",
+    "quote": "Price should touch (at a minor high or minor low) each trendline at least five times to outline a good pattern. That's 3 touches of one trendline and 2 of the opposite.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Kell's wedge drop is the first move back below the moving averages after a strong rally, read as the end of that uptrend. The classical cousin is the rising wedge: converging up-sloping lines with volume fading, then a break below the lower line. Bulkowski uses the lowest valley in the pattern as the target after a downward break.",
+  "conventions": {
+   "entry": "Classical: a close below the lower wedge line.",
+   "stop": "Investopedia: close, above the last high inside the wedge.",
+   "target": "Bulkowski: the lowest valley in the pattern, or the pattern height subtracted from the breakout price."
+  },
+  "mistakes": [
+   "Shorting a pattern with too few touches or under three weeks (Bulkowski)."
+  ],
+  "conflicts": "Kell's version keys off moving averages, not wedge trendlines; the TraderLion write-up could not be fetched. StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools)."
+ },
+ {
+  "term": "Wedge Pop",
+  "kind": "setup",
+  "house_name": true,
+  "nearest_standard": "Falling wedge breakout (classical); 'Wedge Pop' is Oliver Kell's term (TraderLion page returned HTTP 403)",
+  "sources": [
+   {
+    "name": "Investopedia: Wedge",
+    "url": "https://www.investopedia.com/terms/w/wedge.asp",
+    "quote": "A wedge pattern signals bullish or bearish reversals and has three features: converging trend lines, declining volume, and a breakout from one trend line. The two forms of the wedge pattern are a rising wedge (which signals a bearish reversal) and a falling wedge (which signals a bullish reversal).",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Falling Wedge",
+    "url": "https://thepatternsite.com/fallwedge.html",
+    "quote": "The falling wedge is a poor performer as far as bullish chart patterns go. The break even failure rate is high and the average rise is low.",
+    "accessed": "2026-10-17"
+   },
+   {
+    "name": "Bulkowski, ThePatternSite: Falling Wedge",
+    "url": "https://thepatternsite.com/fallwedge.html",
+    "quote": "Price should touch each trendline at least five times to outline a good pattern. That's 3 touches of one trendline and 2 of the opposite.",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Kell's wedge pop is the first move back up through the moving averages after a stock has been stretched to the downside. The classical cousin is the falling wedge: two converging down-sloping lines, shrinking volume, then a break up through the upper line. Bulkowski rates the falling wedge a poor performer, with a high break-even failure rate and a low average rise.",
+  "conventions": {
+   "entry": "Classical: a close above the upper wedge line, better with heavy breakout volume (Bulkowski).",
+   "stop": "Investopedia: the converging lines let a stop sit close, under the last low.",
+   "target": "Bulkowski: the highest peak in the pattern, or the pattern height added to the breakout price."
+  },
+  "mistakes": [
+   "Calling a short pattern a wedge: Bulkowski wants three weeks minimum and five trendline touches.",
+   "Expecting a big run; the falling wedge's average rise is low in Bulkowski's data."
+  ],
+  "conflicts": "Kell's version keys off moving averages, not wedge trendlines; the TraderLion write-up could not be fetched. StockCharts ChartSchool could not be reached from this machine (TLS handshake failure in both fetch tools)."
+ },
+ {
+  "term": "Wedge pop / wedge drop",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Falling wedge / rising wedge (classical); Oliver Kell's terms",
+  "sources": [
+   {
+    "name": "Investopedia: Wedge",
+    "url": "https://www.investopedia.com/terms/w/wedge.asp",
+    "quote": "A wedge pattern signals bullish or bearish reversals and has three features: converging trend lines, declining volume, and a breakout from one trend line. The two forms of the wedge pattern are a rising wedge (which signals a bearish reversal) and a falling wedge (which signals a bullish reversal).",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "Kell's names for the first move back up through the moving averages after a downside stretch (pop) and the first move back below them after a rally (drop). The classical cousins are the falling and rising wedges Investopedia describes. See the two setup entries.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "The brief attributes these to Qullamaggie; searches attribute them to Oliver Kell. TraderLion's write-ups returned HTTP 403."
+ },
+ {
+  "term": "Wick Play",
+  "kind": "glossary",
+  "house_name": true,
+  "nearest_standard": "Long lower shadow / hammer (Bulkowski)",
+  "sources": [
+   {
+    "name": "Bulkowski, ThePatternSite: Hammer",
+    "url": "https://thepatternsite.com/Hammer.html",
+    "quote": "The hammer is another candle pattern that many traders rely on. It is supposed to act as a bullish reversal and testing reveals that it does 60% of the time",
+    "accessed": "2026-10-17"
+   }
+  ],
+  "summary": "House slang for buying off a long lower wick that shows a rejected low. The textbook cousin is the hammer, which Bulkowski finds acts as a bullish reversal 60 percent of the time. No external source names a 'wick play'.",
+  "conventions": {
+   "entry": null,
+   "stop": null,
+   "target": null
+  },
+  "mistakes": [],
+  "conflicts": "No standard definition."
+ }
+]
