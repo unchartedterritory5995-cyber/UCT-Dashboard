@@ -323,8 +323,8 @@ def test_daily_prep_v2_and_review_v2_hold_their_packs(db_path, monkeypatch):
     _green(monkeypatch)
     monkeypatch.setattr(tb, "prep_part", lambda uid, part, **k: {"part": part, "missing": None})
     dp, pr = js.BUILTIN_STYLES["daily_prep"], js.BUILTIN_STYLES["post_trade_review"]
-    # Task 15: v3 adds the two morning snapshot slots after the pack (their own rails are below).
-    assert dp["version"] == 3 and [b["block"] for b in dp["blocks"]][:6] == DAILY_PREP_V2
+    # Task 15: the two morning snapshot slots follow the pack in `blocks`, with NO version bump (fix round 1).
+    assert dp["version"] == 2 and [b["block"] for b in dp["blocks"]][:6] == DAILY_PREP_V2
     assert pr["version"] == 2 and [b["block"] for b in pr["blocks"]] == ["chart", "tradeReview"]
     for s in (dp, pr):
         assert all(b["enabled"] for b in s["blocks"])
@@ -338,7 +338,7 @@ def test_daily_prep_v2_and_review_v2_hold_their_packs(db_path, monkeypatch):
     # Waves off (unset here): the slots vanish, so the pack sits right under its heading as in v2.
     assert _text(content[content.index(_by_id(out["bodyJson"], "prepEarnings")) - 1]) == "Names on my list"
     assert _text(content[content.index(_by_id(out["bodyJson"], "myRules")) - 1]) == "My plan"
-    assert out["styleVersion"] == 3
+    assert out["styleVersion"] == 2
     out = js.compose("u1", js.get_style("u1", "builtin:post_trade_review"), ticker="NVDA", conn=None)
     assert [n["attrs"]["widgetId"] for n in _embeds(out["bodyJson"])] == ["tradeReview", "chart"]
     assert not any("{{block:" in _text(n) for n in out["bodyJson"]["content"])
@@ -356,7 +356,7 @@ def test_a_v1_daily_prep_note_gets_the_pack_EMPTY_and_keeps_every_word(db_path, 
     n = notes.create_note("u1", {"title": "old prep", "bodyJson": v1}, style_stamp=("builtin:daily_prep", 1, "daily_prep"))
     before = n["bodyJson"]["content"]
     plan = js.plan_style_update("u1", n["id"])
-    assert (plan["fromVersion"], plan["toVersion"], plan["mode"]) == (1, 3, "update")
+    assert (plan["fromVersion"], plan["toVersion"], plan["mode"]) == (1, 2, "update")
     assert sorted(a["block"] for a in plan["add"]) == sorted(DAILY_PREP_V2)   # slots are create-only
     monkeypatch.setattr(tb, "prep_part", lambda *a, **k: pytest.fail("an update must not read a prep part"))
     monkeypatch.setattr(tb, "market_context_params", lambda *a, **k: pytest.fail("an update must not capture"))
@@ -370,7 +370,7 @@ def test_a_v1_daily_prep_note_gets_the_pack_EMPTY_and_keeps_every_word(db_path, 
         assert "snapshot" not in _by_id(body, wid)["attrs"]["params"], wid
     assert _by_id(body, "marketcontext")["attrs"]["capturedAt"] is None
     assert [x for x in body["content"] if x in before] == before
-    assert (note["styleId"], note["styleVersion"]) == ("builtin:daily_prep", 3)
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:daily_prep", 2)
     assert js.plan_style_update("u1", n["id"])["upToDate"] is True
 
 
@@ -561,16 +561,16 @@ def test_failed_slot_leaves_sentence(db_path, monkeypatch):
 
 
 def test_slots_are_create_only_update_layout_never_fills_an_older_note(db_path, monkeypatch):
-    """IR-S11: never today's data in an older note. A v1 Weekly review note is offered no widget (the
-    banner shows only when a block would be added), and the dry run reads nothing."""
+    """IR-S11: never today's data in an older note. A Weekly review note made before Task 15 is offered no
+    widget and reads up to date (no version bump, fix round 1), and the dry run reads nothing."""
     from api.services.journal_two import journal_styles as js, notebook_widgets as nw, notes
     _waves(monkeypatch, 1, 2)
     monkeypatch.setattr(nw, "build", lambda *a, **k: pytest.fail("update layout must not build a widget"))
     v1 = {"type": "doc", "content": [js._h("The numbers"), js._p("Up 2R.")]}
     n = notes.create_note("u1", {"title": "wk", "bodyJson": v1}, style_stamp=("builtin:weekly_review", 1, "weekly_review"))
     plan = js.plan_style_update("u1", n["id"])
-    assert (plan["fromVersion"], plan["toVersion"]) == (1, 2)
-    assert plan["add"] == [] and plan["missingBlocks"] is False
+    assert (plan["fromVersion"], plan["toVersion"]) == (1, 1)
+    assert plan["add"] == [] and plan["missingBlocks"] is False and plan["upToDate"] is True
     note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
     assert note["bodyJson"]["content"] == n["bodyJson"]["content"]
 
@@ -589,10 +589,11 @@ def test_an_empty_note_switched_to_the_style_is_a_create_and_fills(db_path, monk
     assert [c[0] for c in calls] == ["myPnlStats", "myPositionsRisk"]                   # built once, by the write
 
 
-def test_the_starter_styles_hold_their_slots_at_the_bumped_versions():
+def test_the_starter_styles_hold_their_slots_with_no_version_bump():
+    """Fix round 1: slots are create-only, so a version bump would buy nothing and re-arm the banner."""
     from api.services.journal_two import journal_styles as js
     wr, dp = js.BUILTIN_STYLES["weekly_review"], js.BUILTIN_STYLES["daily_prep"]
-    assert wr["version"] == 2 and dp["version"] == 3
+    assert wr["version"] == 1 and dp["version"] == 2
     assert [b["block"] for b in wr["blocks"]] == WEEKLY_SLOTS
     assert [b["block"] for b in dp["blocks"]] == DAILY_PREP_V2 + PREP_SLOTS
     for s, slots in ((wr, WEEKLY_SLOTS), (dp, PREP_SLOTS)):
@@ -643,3 +644,100 @@ def test_gallery_template_has_no_payload(conn, lib_on, monkeypatch):
     body = prev["bodyJson"]
     assert [n for n in _slot_embeds(body) if n["attrs"]["widgetId"] == "myPnlStats"] == []
     assert "My P&L and stats fills in with your own data when you make a note." in [_text(n) for n in body["content"]]
+
+
+# ── Task 15 fix round 1: slots are built LAST, under their own SLOT_BUDGET_S ─────────────────────────────
+
+def test_slots_never_spend_the_prep_packs_read_budget(db_path, monkeypatch):
+    """Review I-1: a slow prep read plus slots that take time. The slots sit between marketcontext and
+    prepEarnings in the outline; built there, they would push prepEarnings/Movers/Levels past the create
+    budget. Built LAST, the pack is captured with no budget reason, and the slots still fill in place."""
+    import time as _t
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw, trader_blocks as tb
+    _waves(monkeypatch, 1)
+    _green(monkeypatch)
+    monkeypatch.setattr(tb, "PREP_CREATE_BUDGET_S", 0.7)
+    real_breadth = tb._breadth
+    monkeypatch.setattr(tb, "_breadth", lambda *a, **k: (_t.sleep(0.3), real_breadth(*a, **k))[1])   # the slow prep read
+    monkeypatch.setattr(tb, "prep_part", lambda uid, part, memo=None, **k: (
+        tb._spend(memo) if memo is not None else None, {"part": part, "missing": None})[1])
+
+    def slow_build(kind, user_id, params, *, now=None):
+        _t.sleep(0.3)                                                   # 2 x 0.3 s: past what the pack has left
+        return {"kind": kind, "asOf": "2026-10-11T14:30:00Z", "source": "market", "rows": []}
+    monkeypatch.setattr(nw, "build", slow_build)
+    out = js.compose("u1", js.get_style("u1", "builtin:daily_prep"), ticker=None, conn=None)
+    body = out["bodyJson"]
+    for wid in ("prepEarnings", "prepMovers", "prepLevels"):
+        assert "snapshot" in _by_id(body, wid)["attrs"]["params"], wid   # captured, not budget-stopped
+    mc = _by_id(body, "marketcontext")["attrs"]
+    assert mc["params"].get("reason") != "budget" and mc["capturedAt"], mc
+    assert [n["attrs"]["widgetId"] for n in _embeds(body)] == [
+        "prepWire", "marketcontext", *PREP_SLOTS, "prepEarnings", "prepMovers", "prepLevels", "myRules"]
+    assert not any("__uctSlot" in n for n in body["content"])                # no marker survives
+
+
+def test_a_slow_build_degrades_every_slot_to_its_sentence_inside_the_slot_budget(db_path, monkeypatch):
+    """Review I-2: every build hangs. The create returns under 3 s + SLOT_BUDGET_S + 1 s and each slot is
+    its "couldn't load" sentence (never an empty embed)."""
+    import threading
+    import time as _t
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    _waves(monkeypatch, 1, 2)
+    release = threading.Event()
+    started = []
+
+    def hang(kind, user_id, params, *, now=None):
+        started.append(kind)
+        release.wait(30)
+        return {"asOf": "x", "source": "broker"}
+    monkeypatch.setattr(nw, "build", hang)
+    try:
+        t0 = _t.monotonic()
+        n, skipped = js.create_styled_note("u1", {"kindId": "weekly_review", "title": "Week"})
+        took = _t.monotonic() - t0
+    finally:
+        release.set()
+    assert took < 3.0 + js.SLOT_BUDGET_S + 1.0, took
+    assert sorted(started) == sorted(WEEKLY_SLOTS)                        # non-vacuity: every slot was asked
+    lines = [_text(x) for x in n["bodyJson"]["content"]]
+    for title in ("My P&L and stats", "My open positions and risk", "My rules check", "My recurring mistakes"):
+        assert f"{title} couldn't load. Type / to add it again." in lines, title
+    assert _slot_embeds(n["bodyJson"]) == []
+    assert {s["block"] for s in skipped} == set(WEEKLY_SLOTS)
+
+
+def test_a_v2_daily_prep_note_missing_a_pack_block_reads_as_it_did_before(db_path, monkeypatch):
+    """Review I-3: no version bump, so a v2 note the member deleted prepMovers from is still version-current
+    (StyleUpdateBanner shows only on `!versionCurrent && missingBlocks`): no banner, and the sheet offers
+    exactly the deleted block, as before Task 15."""
+    from api.services.journal_two import journal_styles as js, notes, trader_blocks as tb
+    _waves(monkeypatch, 1, 2)
+    _green(monkeypatch)
+    monkeypatch.setattr(tb, "prep_part", lambda uid, part, **k: {"part": part, "missing": None})
+    body = js.compose("u1", js.get_style("u1", "builtin:daily_prep"), ticker=None, conn=None)["bodyJson"]
+    body["content"] = [x for x in body["content"]
+                       if not (x.get("type") == "widgetEmbed" and x["attrs"]["widgetId"] in ("prepMovers", *PREP_SLOTS))]
+    n = notes.create_note("u1", {"title": "prep", "bodyJson": body}, style_stamp=("builtin:daily_prep", 2, "daily_prep"))
+    plan = js.plan_style_update("u1", n["id"])
+    assert (plan["fromVersion"], plan["toVersion"], plan["versionCurrent"]) == (2, 2, True)
+    assert [a["block"] for a in plan["add"]] == ["prepMovers"] and plan["missingBlocks"] is True
+    assert not (not plan["versionCurrent"] and plan["missingBlocks"])        # the banner's rule: no banner
+
+
+def test_save_as_style_on_a_note_holding_a_snapshot_widget(db_path):
+    """Review minor 1: the slot becomes a bare style block and its payload never reaches the outline."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js, notes
+    secret = {"kind": "myMistakes", "asOf": "2026-10-11T14:30:00Z", "source": "broker",
+              "rows": [{"mistake": "SECRET-CHASE", "cost30d": -1234.5}]}
+    body = {"type": "doc", "content": [js._h("The numbers"), {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "myMistakes", "embedId": "e1", "mode": "snapshot", "params": secret,
+        "capturedAt": secret["asOf"], "annotations": [], "caption": None,
+        "layout": {"width": "full", "height": None}, "fallback": None}}]}
+    n = notes.create_note("u1", {"title": "wk", "bodyJson": body})
+    style = js.create_style_from_note("u1", n["id"], "From my week", "weekly_review")
+    full = js.get_style("u1", style["id"], full=True)
+    assert full["blocks"] == [{"block": "myMistakes", "enabled": True, "settings": {}}]
+    stored = _json.dumps(full.get("outlineBodyJson"))
+    assert "SECRET-CHASE" not in stored and "{{block:myMistakes}}" in stored

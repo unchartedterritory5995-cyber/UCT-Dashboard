@@ -15,15 +15,20 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import re
 import sqlite3
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import sample_marker
 from api.services.notebook_flags import flag_on
+
+_log = logging.getLogger(__name__)
 
 FLAG = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
 
@@ -83,10 +88,17 @@ BLOCK_KINDS: tuple[dict, ...] = (
 #: block id is a widget id. ⛔ NOT in BLOCK_KINDS (the catalog the style editor's "Add a block" offers,
 #: shared with journalBlocks.js): a kind's release wave gates its menu entry, so the editor never offers
 #: one; a style gains a slot from a built-in outline or from "Save as style" on a note that holds one.
-#: No settings: a slot asks build() for the kind's defaults (this week, the member's own lists).
+#: A built-in slot has no settings, so build() uses the kind's defaults (this week, the member's own lists).
+#: A slot id has no catalog row, so `_clean_blocks` keeps any settings a style holds verbatim, and
+#: `_build_widget_slot` passes them through to build() as params (it reads only the applier's own account).
 SNAPSHOT_SLOT_KINDS: tuple[str, ...] = (
     "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(SNAPSHOT_SLOT_KINDS)
+#: Task 15 fix round 1: ONE wall-clock budget for every slot a create builds. Slots are built LAST, after
+#: every other block and the prefill, so trader_blocks' create read budget is spent on the prep pack alone;
+#: a slot not finished inside this budget becomes its "couldn't load" sentence.
+SLOT_BUDGET_S = 4.0
+_SLOT_MARK = "__uctSlot"            # a deferred slot's in-body marker key, never stored
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
 
 
@@ -161,10 +173,10 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("Size and risk"), _ph("positionSizing"), _p("How much am I risking, and is it within my rules?"))},
     # v2 (Notebook P2b, Task 12): the prep pack, the stamp and My rules. A v1 note gains them only
     # through "Update layout", which ADDS them uncaptured (IR-S11, R-RC-1).
-    # v3 (Notebook widgets Task 15): My watchlist today and My names reporting, the morning's two snapshot
-    # widgets, at the top of "Names on my list". Create-only (a v2 note is offered nothing new: update
-    # layout never fills an older note with today's data), and only while wave 1 is on.
-    "daily_prep": {"name": "Daily prep", "version": 3, "properties": {},
+    # Notebook widgets Task 15: My watchlist today and My names reporting, the morning's two snapshot widgets,
+    # at the top of "Names on my list". ⛔ NO version bump (fix round 1): slots are create-only, so Update
+    # layout never offers them and a bump would only re-arm the update banner on a v2 note missing a block.
+    "daily_prep": {"name": "Daily prep", "version": 2, "properties": {},
                    "blocks": [_blk("prepWire"), _blk("marketcontext"), _blk("prepEarnings"), _blk("prepMovers"),
                               _blk("prepLevels"), _blk("myRules"),
                               _slot("myWatchlistToday"), _slot("myNamesReporting")],
@@ -196,10 +208,10 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("What happened"), _ph("tradeReview"), _p("Entry, exit and result:"), _ph("chart"),
         _h("Did I follow my plan?"), _p("Where did I follow it, and where did I not?"),
         _h("What I'd do differently"), _p())},
-    # v2 (Notebook widgets Task 15): the week's four account widgets. The numbers and open risk under "The
+    # Notebook widgets Task 15 (no version bump, as Daily prep above): the week's four account widgets. The numbers and open risk under "The
     # numbers"; rules kept and the recurring mistakes under "One thing to change", where they feed the
     # answer. Create-only, and each only while its kind's wave is on (1 for the first two, 2 for the rest).
-    "weekly_review": {"name": "Weekly review", "version": 2, "properties": {},
+    "weekly_review": {"name": "Weekly review", "version": 1, "properties": {},
                       "blocks": [_slot("myPnlStats"), _slot("myPositionsRisk"), _slot("myRulesCheck"),
                                  _slot("myMistakes")],
                       "outline": _doc(
@@ -806,13 +818,37 @@ def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]
         payload = _nw.build(kind, ctx["user_id"], dict(settings) if isinstance(settings, dict) else {},
                             now=ctx["now"])
     except Exception as e:  # noqa: BLE001 -- a slot that cannot load is a sentence, never a failed note
-        print(f"[journal-styles] widget slot {kind} not built: {type(e).__name__}: {e}")
+        _log.warning("widget slot %s not built: %s", kind, type(e).__name__)
         return None, f"widget-failed:{kind}"
     return {"type": "widgetEmbed", "attrs": {
         "v": 1, "widgetId": kind, "embedId": uuid.uuid4().hex, "mode": "snapshot",
         "params": payload, "capturedAt": payload.get("asOf") if isinstance(payload, dict) else None,
         "annotations": [], "caption": None, "layout": {"width": "full", "height": None}, "fallback": None,
     }}, None
+
+
+def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | None, str | None]]:
+    """Task 15 fix round 1: every slot as a future in one small pool under ONE total SLOT_BUDGET_S (the
+    `_implied_moves` shape in notebook_widgets). A slot not finished when the budget runs out answers its
+    "widget-failed:<kind>" reason. Nothing blocks past the budget: unstarted futures are cancelled and the
+    pool is released without waiting for a straggler."""
+    out: list[tuple[dict | None, str | None]] = []
+    pool = ThreadPoolExecutor(max_workers=max(1, len(blocks)))
+    deadline = time.monotonic() + SLOT_BUDGET_S
+    try:
+        futs = [pool.submit(_build_widget_slot, b, ctx) for b in blocks]
+        for b, fut in zip(blocks, futs):
+            try:
+                out.append(fut.result(timeout=max(0.0, deadline - time.monotonic())))
+            except _FutTimeout:
+                _log.warning("widget slot %s not built: over the %.1fs slot budget", b["block"], SLOT_BUDGET_S)
+                out.append((None, f"widget-failed:{b['block']}"))
+            except Exception as e:  # noqa: BLE001 -- _build_widget_slot catches its own; belt for the pool
+                _log.warning("widget slot %s not built: %s", b["block"], type(e).__name__)
+                out.append((None, f"widget-failed:{b['block']}"))
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    return out
 
 
 #: block id -> builder. ⛔ Every id in KNOWN_BLOCKS has a builder (railed); P2 adds both together.
@@ -918,9 +954,17 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             if {"block": bid, "reason": reason} not in skipped:
                 skipped.append({"block": bid, "reason": reason})
 
+        deferred: list[tuple[dict, dict]] = []              # (marker node, block): slots, built last
+
         def build(b: dict) -> list[dict]:
             if _switched_off(b["block"]) or _slot_wave_off(b["block"]):
                 return []                                   # M1: hidden, as the insert menu hides it
+            if b["block"] in SNAPSHOT_SLOT_KINDS:
+                # Keeps the slot's PLACE. Matched below by its key, not by identity, so a prefill that copies the
+                # doc cannot strand one; every marker is replaced before the body is returned.
+                marker = {"type": "paragraph", _SLOT_MARK: len(deferred)}
+                deferred.append((marker, b))
+                return [marker]
             builder = BLOCK_BUILDERS.get(b["block"])
             if builder is None:
                 note_skip(b["block"], "unknown-block")
@@ -973,6 +1017,29 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         if mode == "create" and after_build is not None:
             # Tier 2 part A (/plan): one more step on the SAME body, inside the same read budget.
             doc = after_build(doc, ctx)
+        if deferred:
+            # Task 15 fix round 1: the slots, LAST (after the prep pack and the prefill spent their budget),
+            # each a bounded future under ONE shared SLOT_BUDGET_S. Late or failed -> the sentence.
+            built_slots = _build_slots_bounded([b for _, b in deferred], ctx)
+            by_index = {i: (b, built_slots[i]) for i, (_, b) in enumerate(deferred)}
+
+            def place(content: list) -> list:
+                out = []
+                for n in content:
+                    hit = by_index.get(n.get(_SLOT_MARK)) if isinstance(n, dict) and _SLOT_MARK in n else None
+                    if hit is None:
+                        out.append(n)
+                        continue
+                    b, (node, reason) = hit
+                    if node is not None:
+                        out.append(node)
+                    else:
+                        note_skip(b["block"], reason)
+                        if reason in SKIP_SENTENCES:
+                            out.append(_p(SKIP_SENTENCES[reason]))
+                return out
+
+            doc["content"] = place(doc["content"]) or [{"type": "paragraph"}]
         props = _valid_defaults(user_id, style.get("properties") or {}, conn)
         props[_nk().NOTE_KIND_PROPERTY] = style["kindId"]
         if mode == "create":
