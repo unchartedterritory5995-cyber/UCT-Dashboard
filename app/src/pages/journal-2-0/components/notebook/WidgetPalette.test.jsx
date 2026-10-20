@@ -281,6 +281,27 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     expect(text.indexOf('Reviewing')).toBeLessThan(text.indexOf('My rules check'))
   })
 
+  it('wave 3 on lists Market on my names under Before the open and the flow item under Planning a trade', () => {
+    latchNotebookFlags({ notebook_widgets_w3_enabled: true })
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    const text = screen.getByRole('dialog', { name: 'Insert widget' }).textContent
+    expect(text).toContain('Market on my names')
+    expect(text).toContain('Options flow on a ticker')
+    expect(text.indexOf('Before the open')).toBeLessThan(text.indexOf('Market on my names'))
+    expect(text.indexOf('Planning a trade')).toBeLessThan(text.indexOf('Options flow on a ticker'))
+  })
+
+  it('wave 3 off lists neither wave-3 kind', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true })
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    const text = screen.getByRole('dialog', { name: 'Insert widget' }).textContent
+    expect(text).not.toContain('Market on my names')
+    expect(text).not.toContain('Options flow on a ticker')
+    expect(text).toContain('My watchlist today')
+  })
+
   it('a click fetches the snapshot and inserts the frozen widget, then says so', async () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     global.fetch.mockResolvedValue(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))

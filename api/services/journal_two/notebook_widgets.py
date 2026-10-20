@@ -729,6 +729,116 @@ def _my_mistakes(user_id: str, params: dict, now: datetime) -> dict:
     return out
 
 
+# -- marketOnMyNames (wave 3) --------------------------------------------------------
+
+#: Daily bars a 5-day return needs: today's close and the close five sessions before it.
+RET5D_BARS = 6
+NAMES_EMPTY_SENTENCE = "No names in your positions, watchlist or flagged list."
+#: How a row's sector figure was made. The theme taxonomy names a sector but carries no sector
+#: return, so the figure is the mean 5-day return of the member's own names in that sector.
+SECTOR_BASIS = "your names"
+
+
+def _ret5d(sym: str) -> float | None:
+    """The 5-day return in percent from the LOCAL daily bars cache (no network), or None when
+    there are fewer than six bars or the read fails."""
+    try:
+        from api.services import bars_sqlite
+        closes = [_num(b[4]) for b in bars_sqlite.get_bars(sym, "D", RET5D_BARS)]
+    except Exception as e:  # noqa: BLE001 -- one name's bars are a null cell, not a dead widget
+        _log.info("market on my names: bars read failed for %s: %s", sym, e)
+        return None
+    if len(closes) < RET5D_BARS or closes[-1] is None or not closes[-RET5D_BARS]:
+        return None
+    return round((closes[-1] / closes[-RET5D_BARS] - 1.0) * 100.0, 2)
+
+
+def _sector_of(sym: str) -> str | None:
+    """The sector of the name's primary theme in the theme taxonomy (owner memberships first, the
+    resolver the chart watermark uses), or None. A cached DB read; never an RS compute."""
+    try:
+        from api.services import groups
+        row = groups.resolve_primary_theme(sym)
+    except Exception as e:  # noqa: BLE001
+        _log.info("market on my names: theme read failed for %s: %s", sym, e)
+        return None
+    name = (row or {}).get("sector_name")
+    return str(name) if name else None
+
+
+def _market_on_my_names(user_id: str, params: dict, now: datetime) -> dict:
+    from api.services.journal_two import earnings_prep
+    names = sorted((earnings_prep._member_sets(user_id) or {}).keys())
+    shown, cut = names[:ROW_CAP], max(0, len(names) - ROW_CAP)
+    rows = [{"symbol": sym, "ret5d": _ret5d(sym), "sector": _sector_of(sym)} for sym in shown]
+
+    # The sector figure is the mean of the member's names in that sector that HAVE a return. One
+    # name alone is compared with nothing, so it gets no sector figure (null, never a 0 vs itself).
+    by_sector: dict[str, list[float]] = {}
+    for r in rows:
+        if r["sector"] and r["ret5d"] is not None:
+            by_sector.setdefault(r["sector"], []).append(r["ret5d"])
+    for r in rows:
+        vals = by_sector.get(r["sector"] or "") or []
+        r["sectorRet5d"] = round(sum(vals) / len(vals), 2) if len(vals) >= 2 else None
+        r["vsSector"] = (round(r["ret5d"] - r["sectorRet5d"], 2)
+                         if r["ret5d"] is not None and r["sectorRet5d"] is not None else None)
+    out: dict[str, Any] = {
+        "asOf": _iso_utc(now),
+        "source": "market",
+        "sectorBasis": SECTOR_BASIS,
+        "rows": rows,
+    }
+    if cut:
+        out["truncated"] = cut
+    if not names:
+        out["empty"] = NAMES_EMPTY_SENTENCE
+    return out
+
+
+# -- tickerFlow (wave 3) -------------------------------------------------------------
+
+#: The one bounded fetch of the page-derived flow product (flow-worker, through the proxy).
+TICKER_FLOW_TIMEOUT_S = 8.0
+TOP_PRINTS_MAX = 10
+_PRINT_KEYS = ("cp", "strike", "exp", "dte", "premium", "volume", "direction")
+
+
+def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
+    sym = params.get("symbol")
+    if not isinstance(sym, str) or not _SYMBOL_RE.match(sym):
+        raise WidgetRequestError("symbol is required and must be an uppercase ticker")
+    data = None
+    try:
+        from api.services import flow_card_from_page
+        from api.services.discord_render import symbols
+        data = flow_card_from_page.page_derived_payload(
+            sym, "1", symbols.flow_source(sym), timeout_s=TICKER_FLOW_TIMEOUT_S,
+            top_n=TOP_PRINTS_MAX, enrich=False)
+    except Exception as e:  # noqa: BLE001 -- no flow read is an empty widget, never a failed one
+        _log.info("ticker flow: page read failed for %s: %s", sym, e)
+        data = None
+    window = (data or {}).get("window") or {}
+    contracts = list((data or {}).get("contracts") or []) if isinstance(data, dict) else []
+    # The reader widens an empty day to 5, 20, all sessions. That is not today's flow.
+    today = bool(contracts) and not window.get("widened_from")
+    out: dict[str, Any] = {
+        "asOf": _iso_utc(now),
+        "source": "market",
+        "symbol": sym,
+        # The page product nets bull against bear per contract; it carries no call or put total
+        # and no put/call ratio, and those are never re-summed here, so they are unknown.
+        "callPremium": None,
+        "putPremium": None,
+        "ratio": None,
+        "topPrints": ([{k: c.get(k) for k in _PRINT_KEYS} for c in contracts[:TOP_PRINTS_MAX]]
+                      if today else []),
+    }
+    if not today:
+        out["empty"] = f"No options flow on record for {sym} today."
+    return out
+
+
 # -- dispatch ------------------------------------------------------------------
 
 #: Kind -> builder(user_id, params, now). Later tasks add their kinds here.
@@ -740,6 +850,8 @@ _BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     "myRulesCheck": _my_rules_check,
     "myMistakes": _my_mistakes,
     "tickerCard": _ticker_card,
+    "marketOnMyNames": _market_on_my_names,
+    "tickerFlow": _ticker_flow,
 }
 
 

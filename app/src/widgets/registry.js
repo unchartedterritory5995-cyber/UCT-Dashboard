@@ -960,6 +960,21 @@ const PANEL_MANIFESTS = {
     { key: 'truncated', type: 'number' },
     { key: 'empty', type: 'string' },
   ], (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
+  // Wave 3 (Task 14): the two market kinds. Plain text is a kind, a COUNT or a symbol, and a day.
+  marketOnMyNames: snapshotManifest('Market on my names', [
+    { key: 'sectorBasis', type: 'string' },               // how sectorRet5d was made ('your names')
+    { key: 'rows', type: 'json', required: true },        // [{symbol, ret5d, sector, sectorRet5d, vsSector}]
+    { key: 'truncated', type: 'number' },
+    { key: 'empty', type: 'string' },
+  ], (p) => `[market on my names: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerFlow: snapshotManifest('Options flow on a ticker', [
+    { key: 'symbol', type: 'symbol', required: true },
+    { key: 'callPremium', type: 'number' },
+    { key: 'putPremium', type: 'number' },
+    { key: 'ratio', type: 'number' },
+    { key: 'topPrints', type: 'json' },                   // [{cp, strike, exp, dte, premium, volume, direction}]
+    { key: 'empty', type: 'string' },
+  ], (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

@@ -1108,3 +1108,27 @@ def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(
 def test_wave2_param_keys_are_the_ones_the_builders_emit():
     assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated")
     assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated")
+
+
+# ── Notebook widgets wave 3 (Task 14): the two market kinds stay neutral, switch or no switch ──
+
+_WAVE3_PARAMS = {
+    "marketOnMyNames": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "sectorBasis": "your names",
+                        "rows": [{"symbol": "NVDA", "ret5d": 4.2, "sector": "Technology",
+                                  "sectorRet5d": 1.1, "vsSector": 3.1}]},
+    "tickerFlow": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "symbol": "NVDA",
+                   "callPremium": None, "putPremium": None, "ratio": None,
+                   "topPrints": [{"cp": "C", "strike": 200.0, "exp": "11/20/2026", "premium": 987654}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE3_PARAMS))
+def test_wave3_market_kind_is_neutral_even_with_share(mode, kind):
+    for share in (None, False, True):
+        node = _widget(kind)
+        node["attrs"]["params"] = dict(_WAVE3_PARAMS[kind], **({} if share is None else {"share": share}))
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "987654" not in json.dumps(out) and "3.1" not in json.dumps(out)

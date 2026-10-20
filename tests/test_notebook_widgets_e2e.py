@@ -285,3 +285,60 @@ def test_wave2_routes_are_dark_without_their_flag(env, monkeypatch):
         assert client.get(URL + kind).status_code == 404, kind
     # control: wave 1 is still on
     assert client.get(URL + "myPnlStats").status_code == 200
+
+
+WAVE3 = ("marketOnMyNames", "tickerFlow")
+
+
+@pytest.fixture
+def wave3(env, monkeypatch):
+    """Wave 3 on, with its two market seams patched: the taxonomy sector and the page flow read."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W3_ENABLED", "1")
+    import api.services.discord_render.symbols as symbols
+    import api.services.flow_card_from_page as page
+    import api.services.groups as groups
+
+    sectors = {"AAPL": "Technology", "NVDA": "Technology", "TSLA": "Consumer"}
+    monkeypatch.setattr(groups, "resolve_primary_theme",
+                        lambda sym: {"sector_name": sectors[sym]} if sym in sectors else None)
+    monkeypatch.setattr(symbols, "flow_source", lambda sym: "stocks")
+    flow = {"ok": True, "symbol": "NVDA", "window": {"days_requested": "1"},
+            "net": {"bull": 2, "bear": 1, "dir": "BULL"}, "contract_count": 1,
+            "contracts": [{"cp": "C", "strike": 200.0, "exp": "11/20/2026", "dte": 31,
+                           "premium": 250000, "volume": 900, "direction": "Bull"}]}
+    monkeypatch.setattr(page, "page_derived_payload", lambda *a, **k: flow)
+    return env
+
+
+def test_wave3_kinds_build_and_stay_neutral_publicly(wave3):
+    _seed_member("u-e2e3")
+    client = _client("u-e2e3")
+    names = _get(client, "marketOnMyNames")
+    flow = client.get(URL + "tickerFlow?symbol=NVDA")
+    assert flow.status_code == 200, flow.text
+    flow = flow.json()
+
+    # the seeded names (two watchlist names and the open position) reached the payload
+    by = {r["symbol"]: r for r in names["rows"]}
+    assert set(by) == {"AAPL", "NVDA", "TSLA"}, names
+    assert by["NVDA"]["ret5d"] is not None and by["NVDA"]["sector"] == "Technology"
+    assert by["NVDA"]["sectorRet5d"] is not None and by["TSLA"]["sectorRet5d"] is None
+    assert names["sectorBasis"] == "your names"
+    assert flow["symbol"] == "NVDA" and flow["topPrints"][0]["premium"] == 250000
+    assert flow["callPremium"] is None and flow["ratio"] is None
+
+    for kind, payload in (("marketOnMyNames", names), ("tickerFlow", flow)):
+        assert payload["asOf"] and payload["source"] == "market"
+        for share in (None, False, True):
+            out = _reduce(_embed(kind, payload, share=share))
+            assert _paragraph_texts(out) == [NEUTRAL_MARKET], (kind, share)
+            assert not _embeds(out)
+
+
+def test_wave3_routes_are_dark_without_their_flag(wave3, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W3_ENABLED")
+    client = _client("u-dark3")
+    assert client.get(URL + "marketOnMyNames").status_code == 404
+    assert client.get(URL + "tickerFlow?symbol=NVDA").status_code == 404
+    # control: wave 1 is still on
+    assert client.get(URL + "myWatchlistToday").status_code == 200

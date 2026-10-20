@@ -897,3 +897,193 @@ def test_member_rules_real_read_never_writes(monkeypatch, tmp_path):
     after = tuple(_count(auth_db, t) for t in tables)
     out = nw._member_rules("u9")
     assert set(out) == {"setup", "journal"} and tuple(_count(auth_db, t) for t in tables) == after
+
+
+# -- wave 3: marketOnMyNames ---------------------------------------------------------
+
+def _patch_names(monkeypatch, sets):
+    import api.services.journal_two.earnings_prep as ep
+    monkeypatch.setattr(ep, "_member_sets", lambda user_id: dict(sets))
+
+
+def _patch_daily(monkeypatch, closes_by_sym):
+    """Daily bars from close lists (oldest first); a symbol not given has no bars."""
+    import api.services.bars_sqlite as bars
+    calls = []
+
+    def fake(sym, tf, n):
+        calls.append((sym, tf, n))
+        closes = closes_by_sym.get(sym) or []
+        return [(20261001 + i, 0, 0, 0, c, 0) for i, c in enumerate(closes[-n:])]
+
+    monkeypatch.setattr(bars, "get_bars", fake)
+    return calls
+
+
+def _patch_sector(monkeypatch, sector_by_sym):
+    import api.services.groups as groups
+    monkeypatch.setattr(
+        groups, "resolve_primary_theme",
+        lambda sym: ({"theme_name": "t", "sector_name": sector_by_sym[sym]}
+                     if sector_by_sym.get(sym) else None),
+    )
+
+
+def _no_network(monkeypatch):
+    """The market kinds must read caches only: a live-price or RS compute call fails the test."""
+    import api.routers.live_prices as lp
+    import api.services.rs_ranking as rs
+
+    def boom(*a, **k):
+        raise AssertionError("network or compute call from a cache-only builder")
+
+    monkeypatch.setattr(lp, "get_live_prices", boom)
+    monkeypatch.setattr(rs, "compute_rs_scores", boom)
+
+
+def test_market_on_my_names_ret5d_vs_sector_from_your_names(monkeypatch):
+    _no_network(monkeypatch)
+    _patch_names(monkeypatch, {"NVDA": ["positions"], "AMD": ["watchlist"], "XOM": ["flagged"]})
+    calls = _patch_daily(monkeypatch, {
+        "NVDA": [100, 101, 102, 103, 104, 110],   # +10.0
+        "AMD": [50, 50, 50, 50, 50, 51],          # +2.0
+        "XOM": [80, 80, 80, 80, 80, 76],          # -5.0
+    })
+    _patch_sector(monkeypatch, {"NVDA": "Technology", "AMD": "Technology", "XOM": "Traditional Energy"})
+    out = nw.build("marketOnMyNames", "u1", {}, now=NOW)
+    assert out["asOf"] == "2026-10-20T15:00:00Z" and out["source"] == "market"
+    assert out["sectorBasis"] == "your names"
+    by = {r["symbol"]: r for r in out["rows"]}
+    assert set(by) == {"NVDA", "AMD", "XOM"}
+    assert by["NVDA"]["ret5d"] == pytest.approx(10.0)
+    assert by["AMD"]["ret5d"] == pytest.approx(2.0)
+    assert by["NVDA"]["sector"] == "Technology"
+    assert by["NVDA"]["sectorRet5d"] == pytest.approx(6.0)
+    assert by["NVDA"]["vsSector"] == pytest.approx(4.0)
+    assert by["AMD"]["vsSector"] == pytest.approx(-4.0)
+    # a sector holding only one of your names has no group figure to compare with: null, never 0
+    assert by["XOM"]["sectorRet5d"] is None and by["XOM"]["vsSector"] is None
+    assert all(c[1:] == ("D", 6) for c in calls)
+
+
+def test_market_on_my_names_short_history_is_null(monkeypatch):
+    _no_network(monkeypatch)
+    _patch_names(monkeypatch, {"NEW": ["watchlist"], "OLD": ["watchlist"], "OLD2": ["watchlist"]})
+    _patch_daily(monkeypatch, {"NEW": [10, 11, 12, 13, 14], "OLD": [10] * 5 + [11], "OLD2": [10] * 5 + [12]})
+    _patch_sector(monkeypatch, {"NEW": "Technology", "OLD": "Technology", "OLD2": "Technology"})
+    out = nw.build("marketOnMyNames", "u1", {}, now=NOW)
+    by = {r["symbol"]: r for r in out["rows"]}
+    assert by["NEW"]["ret5d"] is None and by["NEW"]["vsSector"] is None
+    # the null name is left out of the sector figure, not counted as 0
+    assert by["OLD"]["sectorRet5d"] == pytest.approx(15.0)
+    assert by["NEW"]["sectorRet5d"] == pytest.approx(15.0)
+
+
+def test_market_on_my_names_no_sector_and_errors_are_null(monkeypatch):
+    _no_network(monkeypatch)
+    _patch_names(monkeypatch, {"AAA": ["watchlist"], "BBB": ["watchlist"]})
+    import api.services.bars_sqlite as bars
+
+    def bars_fail(sym, tf, n):
+        if sym == "BBB":
+            raise RuntimeError("db locked")
+        return [(i, 0, 0, 0, 10.0 + i, 0) for i in range(6)]
+
+    monkeypatch.setattr(bars, "get_bars", bars_fail)
+    import api.services.groups as groups
+
+    def theme_fail(sym):
+        raise RuntimeError("taxonomy unavailable")
+
+    monkeypatch.setattr(groups, "resolve_primary_theme", theme_fail)
+    out = nw.build("marketOnMyNames", "u1", {}, now=NOW)
+    by = {r["symbol"]: r for r in out["rows"]}
+    assert by["AAA"]["ret5d"] == pytest.approx(50.0)
+    assert by["AAA"]["sector"] is None and by["AAA"]["sectorRet5d"] is None
+    assert by["BBB"]["ret5d"] is None
+
+
+def test_market_on_my_names_capped_and_empty(monkeypatch):
+    _no_network(monkeypatch)
+    _patch_names(monkeypatch, {f"S{n:02d}": ["watchlist"] for n in range(45)})
+    _patch_daily(monkeypatch, {})
+    _patch_sector(monkeypatch, {})
+    out = nw.build("marketOnMyNames", "u1", {}, now=NOW)
+    assert len(out["rows"]) == nw.ROW_CAP and out["truncated"] == 5
+    assert [r["symbol"] for r in out["rows"]] == sorted(r["symbol"] for r in out["rows"])
+    _patch_names(monkeypatch, {})
+    empty = nw.build("marketOnMyNames", "u1", {}, now=NOW)
+    assert empty["rows"] == [] and empty["empty"] == "No names in your positions, watchlist or flagged list."
+
+
+# -- wave 3: tickerFlow --------------------------------------------------------------
+
+def _flow_payload(contracts, widened=None):
+    window = {"days_requested": "1", "start": "10/20/2026", "end": "10/20/2026"}
+    if widened:
+        window["widened_from"] = widened
+    return {"ok": True, "symbol": "NVDA", "source": "stocks",
+            "net": {"bull": 900, "bear": 100, "unclassified": 0, "dir": "BULL"},
+            "window": window, "contract_count": len(contracts), "contracts": contracts}
+
+
+def _contract(i, cp="C"):
+    return {"ticker": "NVDA", "cp": cp, "strike": 200.0 + i, "exp": "11/20/2026", "dte": 31,
+            "premium": 100000 - i, "volume": 500, "oi": 1000, "direction": "Bull",
+            "bull_premium": 100000 - i, "bear_premium": 0}
+
+
+def _patch_flow(monkeypatch, result, source="stocks"):
+    import api.services.flow_card_from_page as page
+    import api.services.discord_render.symbols as symbols
+    calls = []
+
+    def fake(ticker, days, src, timeout_s=20.0, **kw):
+        calls.append({"ticker": ticker, "days": days, "source": src, "timeout_s": timeout_s, **kw})
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(page, "page_derived_payload", fake)
+    monkeypatch.setattr(symbols, "flow_source", lambda sym: source)
+    return calls
+
+
+def test_ticker_flow_calls_the_page_reader_once_bounded(monkeypatch):
+    calls = _patch_flow(monkeypatch, _flow_payload([_contract(i) for i in range(12)]), source="etfs")
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert len(calls) == 1
+    assert calls[0]["ticker"] == "NVDA" and calls[0]["days"] == "1" and calls[0]["source"] == "etfs"
+    assert calls[0]["timeout_s"] == nw.TICKER_FLOW_TIMEOUT_S == 8.0
+    assert out["asOf"] == "2026-10-20T15:00:00Z" and out["source"] == "market" and out["symbol"] == "NVDA"
+    assert len(out["topPrints"]) == 10
+    first = out["topPrints"][0]
+    assert first == {"cp": "C", "strike": 200.0, "exp": "11/20/2026", "dte": 31,
+                     "premium": 100000, "volume": 500, "direction": "Bull"}
+    assert "empty" not in out
+
+
+def test_ticker_flow_figures_absent_from_the_payload_are_null(monkeypatch):
+    # The page reader nets bull against bear; it does not total calls and puts. Never re-derived here.
+    _patch_flow(monkeypatch, _flow_payload([_contract(0, "C"), _contract(1, "P")]))
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["callPremium"] is None and out["putPremium"] is None and out["ratio"] is None
+
+
+@pytest.mark.parametrize("result", [None, TimeoutError("read timed out"), _flow_payload([]),
+                                    _flow_payload([_contract(0)], widened="1")])
+def test_ticker_flow_nothing_today_is_an_empty_payload(monkeypatch, result):
+    _patch_flow(monkeypatch, result)
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["empty"] == "No options flow on record for NVDA today."
+    assert out["callPremium"] is None and out["putPremium"] is None and out["ratio"] is None
+    assert out["topPrints"] == []
+    assert out["asOf"] and out["source"] == "market"
+
+
+def test_ticker_flow_bad_symbol_raises(monkeypatch):
+    calls = _patch_flow(monkeypatch, None)
+    for bad in (None, "", "nvda", "TOO-LONG-SYMBOL", 7):
+        with pytest.raises(nw.WidgetRequestError):
+            nw.build("tickerFlow", "u1", {"symbol": bad}, now=NOW)
+    assert calls == []

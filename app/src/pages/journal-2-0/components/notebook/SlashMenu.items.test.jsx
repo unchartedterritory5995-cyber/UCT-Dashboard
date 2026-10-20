@@ -598,6 +598,31 @@ describe('snapshot widget items (Task 8)', () => {
     expect(off).toContain('My P&L and stats')
   })
 
+  it('wave 3 on: Market on my names under Before the open, /flow NVDA under Planning a trade; wave 3 off: neither', () => {
+    latchNotebookFlags({ notebook_widgets_w3_enabled: true })
+    const on = snapshotWidgetItems('')
+    const names = on.find((i) => i.title === 'Market on my names')
+    const flow = on.find((i) => i.title === 'Options flow on a ticker')
+    expect(names.group).toBe('open')
+    expect(flow.group).toBe('plan')
+    expect(flow.description).toBe('Type a symbol — e.g. /flow NVDA')
+    expect(snapshotWidgetItems('flow NVDA').map((i) => i.title)).toEqual(['Options flow on a ticker — NVDA'])
+    expect(snapshotWidgetItems('flow nvda!')).toEqual([])
+    const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
+    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    expect(labels).toEqual(expect.arrayContaining(['Before the open', 'Planning a trade']))
+    expect(screen.getByText('Market on my names')).toBeInTheDocument()
+    expect(screen.getByText('Options flow on a ticker')).toBeInTheDocument()
+    // Control: with wave 3 off (waves 1 and 2 on) neither is offered, but wave 1's items still are.
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true })
+    const off = snapshotWidgetItems('').map((i) => i.title)
+    expect(off).not.toContain('Market on my names')
+    expect(off).not.toContain('Options flow on a ticker')
+    expect(snapshotWidgetItems('flow NVDA')).toEqual([])
+    expect(off).toContain('My watchlist today')
+  })
+
   it('a wave turns on only its own kinds', () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     const t = snapshotWidgetItems('').map((i) => i.title)
