@@ -16,7 +16,7 @@
     "Bearish Belt Hold"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer, the prior trend is what separates them.",
+   "quote": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close.",
    "subject": "Hammer"
   },
   "reveal_json": {
@@ -530,7 +530,7 @@
     "Umbrella"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Long upper wick, small body near the low, with no clear prior trend. The shooting-star/inverted-hammer geometry, left unnamed because the trend that would name it is not there.",
+   "quote": "Long upper wick, small body near the low, with no clear prior trend.",
    "subject": "Inverted Umbrella"
   },
   "reveal_json": {
@@ -1860,7 +1860,7 @@
     "Matching Low"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A long up bar, then three small bars that rest entirely INSIDE its range, then another up bar closing above the first. A tight pause inside an uptrend that resolved the way it was leaning.",
+   "quote": "A tight pause inside an uptrend that resolved the way it was leaning.",
    "subject": "Rising Three Methods"
   },
   "reveal_json": {
@@ -1970,7 +1970,7 @@
     "Falling Three Methods"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A long down bar, three small bars fully inside its range, then a down bar closing below the first. A pause in a downtrend that resolved lower.",
+   "quote": "A pause in a downtrend that resolved lower.",
    "subject": "Falling Three Methods"
   },
   "reveal_json": {
@@ -2740,7 +2740,7 @@
     "Kicking (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
    "subject": "Three Black Crows"
   },
   "reveal_json": {
@@ -2850,7 +2850,7 @@
     "Evening Doji Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three straight up bars, each opening inside the last body and closing near its high, with no body shrinking away. Orderly accumulation rather than one panicked gap.",
+   "quote": "Orderly accumulation rather than one panicked gap.",
    "subject": "Three White Soldiers"
   },
   "reveal_json": {
@@ -4024,7 +4024,7 @@
     "Tri-Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
+   "quote": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening.",
    "subject": "Advance Block"
   },
   "reveal_json": {
@@ -4244,7 +4244,7 @@
     "Deliberation"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung, this is the state a hikkake trader acts on.",
+   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH.",
    "subject": "Hikkake Confirmed (Bull)"
   },
   "reveal_json": {
@@ -4688,7 +4688,7 @@
     "Separating Lines"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An up bar whose body completely covers the prior down body, printed in a downtrend. The same geometry in an UPTREND is a last engulfing top, which behaves very differently.",
+   "quote": "An up bar whose body completely covers the prior down body, printed in a downtrend.",
    "subject": "Bullish Engulfing"
   },
   "reveal_json": {
@@ -4908,7 +4908,7 @@
     "Last Engulfing Bottom"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely, which is why the trend is part of the definition here.",
+   "quote": "Same shape, different situation entirely, which is why the trend is part of the definition here.",
    "subject": "Last Engulfing Top"
   },
   "reveal_json": {
@@ -5238,7 +5238,7 @@
     "Abandoned Baby (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Opens below the prior LOW, then closes back above the midpoint of that down body. A gap down that was bought all day. Closing at or under the midpoint instead makes it a thrusting line.",
+   "quote": "Opens below the prior LOW, then closes back above the midpoint of that down body. A gap down that was bought all day.",
    "subject": "Piercing Line"
   },
   "reveal_json": {
@@ -5862,7 +5862,7 @@
     "Abandoned Baby (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short, the exact-halfway case belongs here, not to piercing.",
+   "quote": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less.",
    "subject": "Thrusting Line"
   },
   "reveal_json": {

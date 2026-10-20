@@ -6,7 +6,7 @@ The owner reviews items in chat, one at a time. Each verdict is appended to
   {"ts": "2026-10-17", "item_id": "si_…", "segment": "recall.playbooks",
    "verdict": "approve" | "fix" | "reject" | "source_ruling",
    "owner_words": "<verbatim>",            # what the owner actually said
-   "field": "answer" | "q" | "lesson_text" | "choices" | "reveal.<key>",   # fix only
+   "field": "answer" | "q" | "lesson_text" | "choices" | "reveal.<key>" | "prompt.<key>",   # fix only
    "after": <new value>,                    # fix only
    "status": "proposed" | "confirmed" | "withdrawn"}   # applied only once confirmed
 
@@ -75,6 +75,8 @@ def _apply_fix(it: dict, rec: dict) -> None:
         it["lesson_origin"] = "source"          # the owner's own words
     elif isinstance(field, str) and field.startswith("reveal."):
         it.setdefault("reveal_json", {})[field[len("reveal."):]] = after
+    elif isinstance(field, str) and field.startswith("prompt."):
+        it.setdefault("prompt_json", {})[field[len("prompt."):]] = after      # e.g. prompt.quote
     else:
         raise ValueError(f"fix for {it.get('id')}: unknown field {field!r}")
 

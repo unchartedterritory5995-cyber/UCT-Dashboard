@@ -10,6 +10,16 @@ every run (deterministic ids).
 
 Every size item carries an entry AND a stop (§8.5), and no key ever risks
 more than the 2% ceiling.
+
+Owner rulings 2026-10-19 (docs/study/corrections/size.house_rule.jsonl):
+  * a stop wider than 10% keeps the math, but the lesson says the desk would
+    never use a stop that wide (WIDE_STOP_PCT);
+  * a formula position past 20% of the account keeps the formula answer and
+    the lesson adds the trim-to-20-25% account-management note (DESK_MAX_PCT);
+  * "we would benefit from some quick math on tighter stops": a second forward
+    batch with stops between 1.5% and 6% plus a few at 8% (STOP_PCTS_TIGHT),
+    ADDED on its own RNG stream so every existing item keeps its id;
+  * "1 shares" is never written: shares_word().
 """
 from __future__ import annotations
 
@@ -42,6 +52,12 @@ LADDER_QUOTE = ("I lowered my max sizing to 5% down from 10% which is down from 
 ACCOUNTS = (5000, 8000, 10000, 25000, 50000, 75000, 100000, 250000)
 RISKS = (0.25, 0.5, 0.75, 1.0, 1.5, 2.0)
 STOP_PCTS = (2, 3, 4, 5, 6, 8, 10, 12, 15)
+#: the tight batch (owner 2026-10-19): LOD / prior-LOD widths, a few at 8%
+STOP_PCTS_TIGHT = (1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8)
+TIGHT_SEED = SEED + 1          # its own stream: the original items keep their ids
+WIDE_STOP_PCT = 10             # wider than this: "the desk would never use a stop that wide"
+DESK_MAX_PCT = 20              # a formula position past this gets the trim note
+TRIM_TO_PCT = (20, 25)
 
 
 def fmt(v) -> str:
@@ -52,6 +68,27 @@ def fmt(v) -> str:
 
 def money(v) -> str:
     return f"${fmt(v)}"
+
+
+def shares_word(n) -> str:
+    """'1 share', '66 shares' (owner: never '1 shares')."""
+    return f"{fmt(n)} share" if float(n) == 1 else f"{fmt(n)} shares"
+
+
+def forward_lesson(f: dict) -> str:
+    """The forward lesson under the three 2026-10-19 rulings. Every number it
+    writes is in `f` (the grounding check reads the facts)."""
+    stop_part = f"The stop is {fmt(f['stop_pct'])}% away"
+    if f["stop_pct"] > WIDE_STOP_PCT:
+        stop_part += ", far wider than the desk would ever use, but the math is the same"
+    text = (f"Stop first. {stop_part}. Risk {money(f['risk_dollars'])} divided by "
+            f"{money(f['per_share'])} a share is {shares_word(f['shares'])}, {money(f['dollars'])} in the stock, "
+            f"{fmt(f['position_pct'])}% of the account.")
+    if f["position_pct"] > DESK_MAX_PCT:
+        text += (f" That is past the desk's {fmt(DESK_MAX_PCT)}% max. You can take the trade this size on the "
+                 f"entry, but trim it down toward {fmt(TRIM_TO_PCT[0])}-{fmt(TRIM_TO_PCT[1])}% of the account "
+                 f"quickly as it moves, so one name never owns the book.")
+    return text
 
 
 def ladder_max(drawdown_pct: float) -> tuple[float, int]:
@@ -79,6 +116,9 @@ def _facts(account, risk_pct, entry, stop) -> dict:
     if not res["skip"]:
         f["position_pct"] = round(res["dollars"] / account * 100, 1)
         f["formula_pct"] = round(risk_pct / stop_pct * 100, 1)
+        f["desk_max_pct"] = DESK_MAX_PCT
+        f["trim_to_pct"] = list(TRIM_TO_PCT)
+        f["wide_stop"] = stop_pct > WIDE_STOP_PCT
     return f
 
 
@@ -87,7 +127,7 @@ def _q(account, risk_pct, entry, stop, lead="") -> str:
             f"Stop {money(stop)}. How many shares?").strip()
 
 
-def forward_items(rng: random.Random, n: int = 20) -> list[dict]:
+def forward_items(rng: random.Random, n: int = 20, *, stop_pcts: tuple = STOP_PCTS, tag: str = "forward") -> list[dict]:
     out = []
     i = 0
     while len(out) < n:
@@ -95,14 +135,12 @@ def forward_items(rng: random.Random, n: int = 20) -> list[dict]:
         account = rng.choice(ACCOUNTS)
         risk = rng.choice(RISKS)
         entry = _price(rng)
-        stop = _stop_for(entry, rng.choice(STOP_PCTS))
+        stop = _stop_for(entry, rng.choice(stop_pcts))
         f = _facts(account, risk, entry, stop)
         if f["skip"]:
             continue
-        ref = f"{SOURCE}#3-forward-{i}"
-        lesson = (f"Stop first. The stop is {fmt(f['stop_pct'])}% away. Risk {money(f['risk_dollars'])} divided by "
-                  f"{money(f['per_share'])} a share is {fmt(f['shares'])} shares, {money(f['dollars'])} in the stock, "
-                  f"{fmt(f['position_pct'])}% of the account.")
+        ref = f"{SOURCE}#3-{tag}-{i}"
+        lesson = forward_lesson(f)
         out.append(make_item(
             type="size", skill_id="size.formula", module="M5", q=_q(account, risk, entry, stop),
             answer=None, answer_json={"shares": f["shares"], "dollars": f["dollars"]},
@@ -110,6 +148,12 @@ def forward_items(rng: random.Random, n: int = 20) -> list[dict]:
             reveal={"facts": f, "rule": "Position % = risk % / stop distance %; shares round down", "source": SOURCE},
             source_kind="toolkit", source_ref=ref, difficulty=2, lesson_text=lesson, lesson_origin="template"))
     return out
+
+
+def tight_forward_items(n: int = 16) -> list[dict]:
+    """The owner's tighter-stop batch, on its own RNG stream (ADDED, never a
+    reshuffle: the original forward items keep their ids and his verdicts)."""
+    return forward_items(random.Random(TIGHT_SEED), n, stop_pcts=STOP_PCTS_TIGHT, tag="forward-tight")
 
 
 def reverse_items(rng: random.Random, n: int = 12) -> list[dict]:
@@ -168,7 +212,7 @@ def capped_items(rng: random.Random, n: int = 10) -> list[dict]:
             f.update({"capped_shares": capped_shares, "capped_dollars": capped_dollars,
                       "capped_risk_pct": round(capped_shares * f["per_share"] / account * 100, 2)})
             lesson = (f"The formula says {fmt(f['formula_pct'])}%. The cap for {band} {grade} is {fmt(cap)}%. "
-                      f"Cap it: {fmt(capped_shares)} shares, {money(capped_dollars)}. "
+                      f"Cap it: {shares_word(capped_shares)}, {money(capped_dollars)}. "
                       f"A tight stop never licenses a monster position.")
             key = {"shares": capped_shares, "dollars": capped_dollars}
         out.append(make_item(
@@ -194,7 +238,7 @@ def skip_items(rng: random.Random, n: int = 6) -> list[dict]:
             continue
         ref = f"{SOURCE}#2-skip-{i}"
         lesson = (f"The honest stop is {fmt(f['stop_pct'])}% away. {money(f['risk_dollars'])} of risk buys "
-                  f"{fmt(f['shares'])} shares. Skip it. Never tighten the stop to make it fit.")
+                  f"{shares_word(f['shares'])}. Skip it. Never tighten the stop to make it fit.")
         out.append(make_item(
             type="size", skill_id="size.gate", module="M5",
             q=_q(account, risk, entry, stop, lead="The stop under the base is honest. "),
@@ -226,11 +270,11 @@ def flat_vs_scaled_items(rng: random.Random, n_pairs: int = 4) -> list[dict]:
             if mode == "flat":
                 lead = "Flat risk, the same percent every trade. "
                 lesson = (f"Flat risk: {fmt(risk)}% on every trade, whatever the grade. "
-                          f"{money(f['risk_dollars'])} divided by {money(f['per_share'])} is {fmt(f['shares'])} shares.")
+                          f"{money(f['risk_dollars'])} divided by {money(f['per_share'])} is {shares_word(f['shares'])}.")
             else:
                 lead = f"Quality-scaled, {grade} setup. "
                 lesson = (f"Quality-scaled: a {grade} setup gets {fmt(risk)}%. "
-                          f"{money(f['risk_dollars'])} divided by {money(f['per_share'])} is {fmt(f['shares'])} shares. "
+                          f"{money(f['risk_dollars'])} divided by {money(f['per_share'])} is {shares_word(f['shares'])}. "
                           f"Both ways are taught. Pick one and write it in the plan.")
             f = dict(f, mode=mode, grade=grade)
             out.append(make_item(
@@ -294,7 +338,7 @@ def ladder_size_items(rng: random.Random, n: int = 4) -> list[dict]:
         q = (f"You are {fmt(dd)}% off your peak. {band}, {grade} setup. Account {money(account)}. Risk {fmt(risk)}%. "
              f"Entry {money(entry)}. Stop {money(stop)}. How many shares?")
         lesson = (f"The formula says {fmt(f['formula_pct'])}%. {fmt(dd)}% down puts the ladder max at "
-                  f"{fmt(ladder_cap)}%. Cap it: {fmt(capped_shares)} shares, {money(capped_dollars)}.")
+                  f"{fmt(ladder_cap)}%. Cap it: {shares_word(capped_shares)}, {money(capped_dollars)}.")
         out.append(make_item(
             type="size", skill_id="size.drawdown", module="M13", q=q, answer=None,
             answer_json={"shares": capped_shares, "dollars": capped_dollars},
@@ -308,7 +352,8 @@ def ladder_size_items(rng: random.Random, n: int = 4) -> list[dict]:
 def generate() -> dict[str, list[dict]]:
     rng = random.Random(SEED)
     items = (forward_items(rng) + reverse_items(rng) + capped_items(rng) + skip_items(rng)
-             + flat_vs_scaled_items(rng) + drawdown_items(rng) + ladder_size_items(rng))
+             + flat_vs_scaled_items(rng) + drawdown_items(rng) + ladder_size_items(rng)
+             + tight_forward_items())          # appended last: the owner's tight-stop batch
     for it in items:
         if it["type"] == "size":
             assert it["prompt_json"].get("entry") and it["prompt_json"].get("stop"), it["id"]     # §8.5

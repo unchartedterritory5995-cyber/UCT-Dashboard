@@ -86,6 +86,31 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   useHouseChart hook (DrillPlayer) + SWR (StudyReview). Spec D6 "volume and MAs off unless the
   item is about them" is SUPERSEDED by this ruling. Tests: studyChartLook 5, renderlook 7,
   DrillPlayer 9, StudyReview 21, pytest study router 60 (+ house-chart route test).
+- **2026-10-20 (evening) NEXT BATCH built autonomously while Railway's build outage (all regions
+  paused 17:03Z, our #437 web build killed FAILED) blocks the house-look deploy.** Branch
+  feat/study-next-batch:
+  * sizing (owner rulings 2026-10-19): forward lessons carry the wide-stop caveat (>10%) and the
+    past-20%-trim note; a 16-item TIGHT-STOP batch (1.5-8%, STOP_PCTS_TIGHT, own RNG stream so
+    every existing id and verdict survives; refs #3-forward-tight-N); "1 share" never "1 shares";
+    size.house_rule 68 -> 84 items.
+  * candles (owner: "Fix + draw the candle", "include images"): gen_candles.strip_name cuts any
+    sentence naming the answer from a description question (the hammer item now reads exactly the
+    owner's proposed text); NEW segment candles.chart = 247 items from
+    docs/study/terms/candle_examples.json, found on the pod (read-only ssh) by
+    scripts/study/find_candle_examples.py through the screener's own single_candle (63 of 66 keys;
+    no abandoned-baby-bullish / deliberation / kicking-bullish in 700 bars of 61 names; 60 symbols,
+    spread by key). Each item: chart cut at the named bar (window 60, forward 10), "Which candle
+    name fits the last N bars on this chart?", description in the reveal + lesson.
+  * corrections.py applies `prompt.<key>` fixes; the bank-parity test compares the disk against
+    generate()+corrections (the two REJECTED principles items are now out of the bank; they are
+    still draft rows in /data/study.db until rejected on the screen or purged).
+  * tests: test_study_generators 53, test_study_find_candle_examples 4, importer 8, finder 9,
+    router 60 (81 in the last scoped run + router).
+  AFTER MERGE + deploy: owner (or this session if the classifier allows) runs
+  `railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only candles.chart --only size.house_rule --only candles.catalog`
+  then reviews on the screen: Skill = vocab.candle (chart items) and size.formula (tight batch).
+  Railway recovery: the #437 deploy must be REDEPLOYED by hand from the dashboard (web service,
+  failed deployment, Redeploy) once their build pause lifts; nothing retries itself.
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
