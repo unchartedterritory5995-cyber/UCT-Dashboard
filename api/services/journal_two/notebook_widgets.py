@@ -25,6 +25,8 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Any, Callable
 
+from api.services.cache import TTLCache
+
 _log = logging.getLogger(__name__)
 
 PAYLOAD_CAP_BYTES = 16384
@@ -342,13 +344,26 @@ def _my_pnl_stats(user_id: str, params: dict, now: datetime) -> dict:
 # -- myPositionsRisk -----------------------------------------------------------------
 
 def _account_size(user_id: str) -> float | None:
-    """The member's own account size from their account settings, or None when they never
-    set one. Not `portfolio_heat`'s figure: heat falls back to a default amount so its
-    math always runs, and a default must never print as the member's real account."""
+    """The member's own account size, or None when they never set one.
+
+    READ-ONLY by construction: one SELECT on `j2_accounts` (the Default account first, else
+    the oldest). Not `accounts.get_or_migrate_default_account`, which inserts a default
+    account and reassigns the member's positions and trades on first call, and not
+    `portfolio_heat`'s figure, which falls back to a default amount so its math always runs;
+    a default must never print as the member's real account.
+    """
     try:
-        from api.services.journal_two import accounts
-        acc = accounts.get_or_migrate_default_account(user_id) or {}
-        return _num((acc.get("settings") or {}).get("accountSize")) or None
+        from api.services import auth_db
+        conn = auth_db.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT account_size FROM j2_accounts WHERE user_id = ? "
+                "ORDER BY (CASE WHEN name = 'Default' THEN 0 ELSE 1 END), created_at ASC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        return (_num(row[0]) or None) if row else None
     except Exception as e:  # noqa: BLE001 -- no account size is "n/a", never a failed widget
         _log.info("positions risk: account size read failed: %s", e)
         return None
@@ -429,6 +444,23 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
 
 _SYMBOL_RE = re.compile(r"^[A-Z][A-Z.\-]{0,9}$")
 
+#: Per-(member, symbol) cache of the ticker card's history figures. The card can be polled
+#: and the analytics read is the heavy call on this path.
+HISTORY_TTL_S = 300
+_HISTORY_CACHE = TTLCache(max_size=500)
+
+
+def _symbol_history_figures(user_id: str, sym: str) -> dict:
+    key = f"{user_id}::{sym}"
+    hit = _HISTORY_CACHE.get(key)
+    if isinstance(hit, dict):
+        return hit
+    from api.services.journal_two import analytics
+    from api.services.journal_two.filters import FilterSpec
+    fig = _pnl_figures(analytics.get_analytics(user_id, spec=FilterSpec(symbol=sym)))
+    _HISTORY_CACHE.set(key, fig, HISTORY_TTL_S)
+    return fig
+
 
 def _simple_average(closes: list[float], n: int) -> float | None:
     return round(sum(closes[-n:]) / n, 4) if len(closes) >= n else None
@@ -469,9 +501,7 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
     except Exception as e:  # noqa: BLE001
         _log.info("ticker card: earnings window failed for %s: %s", sym, e)
 
-    from api.services.journal_two import analytics
-    from api.services.journal_two.filters import FilterSpec
-    fig = _pnl_figures(analytics.get_analytics(user_id, spec=FilterSpec(symbol=sym)))
+    fig = _symbol_history_figures(user_id, sym)
     history = (
         {"trades": fig["tradeCount"], "winRate": fig["winRate"], "netPnl": fig["netPnl"]}
         if fig["tradeCount"] else None

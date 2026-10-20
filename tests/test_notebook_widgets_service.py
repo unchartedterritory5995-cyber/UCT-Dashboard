@@ -533,3 +533,80 @@ def test_ticker_card_price_missing_is_null(monkeypatch):
     _patch_prices(monkeypatch, {})
     out = nw.build("tickerCard", "u1", {"symbol": "BRK.B"}, now=NOW)
     assert out["price"] is None and out["changePct"] is None
+
+
+@pytest.fixture(autouse=True)
+def _fresh_history_cache():
+    nw._HISTORY_CACHE.clear()
+    yield
+    nw._HISTORY_CACHE.clear()
+
+
+def test_ticker_card_history_read_is_symbol_scoped_and_cached(monkeypatch):
+    _patch_card(monkeypatch, analytics=_analytics(trade_count=2))
+    _patch_prices(monkeypatch, {})
+    import api.services.journal_two.analytics as an
+    calls = []
+    real = an.get_analytics
+
+    def counting(user_id, **kw):
+        calls.append(kw)
+        return real(user_id, **kw)
+
+    monkeypatch.setattr(an, "get_analytics", counting)
+    first = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    second = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert len(calls) == 1
+    assert calls[0]["spec"].symbol == "NVDA"
+    assert first["history"] == second["history"] == {"trades": 2, "winRate": 0.5, "netPnl": 59.5}
+    nw.build("tickerCard", "u1", {"symbol": "AMD"}, now=NOW)
+    nw.build("tickerCard", "u2", {"symbol": "NVDA"}, now=NOW)
+    assert [c["spec"].symbol for c in calls] == ["NVDA", "AMD", "NVDA"]
+
+
+def test_positions_two_lots_same_symbol_and_side_keep_their_own_stops(monkeypatch):
+    positions = [_pos(pid="a", stop=95.0), _pos(pid="b", entry=110.0, stop=104.5)]
+    heat = [_heat_row(stop=95.0), _heat_row(entry=110.0, stop=104.5)]
+    _patch_positions(monkeypatch, positions, heat)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 120.0}})
+    rows = {r["positionId"]: r for r in nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"]}
+    assert rows["a"]["stopPrice"] == 95.0 and rows["a"]["distToStopPct"] == 5.0
+    assert rows["b"]["stopPrice"] == 104.5 and rows["b"]["distToStopPct"] == 5.0
+
+
+def _temp_auth_db(monkeypatch, tmp_path):
+    from api.services import auth_db
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth_t3.db"))
+    auth_db.init_db()
+    return auth_db
+
+
+def _count(auth_db, table):
+    c = auth_db.get_connection()
+    try:
+        return c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    finally:
+        c.close()
+
+
+def test_account_size_read_never_writes_for_a_member_without_an_account(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    before = (_count(auth_db, "j2_accounts"), _count(auth_db, "j2_positions"))
+    assert nw._account_size("nobody") is None
+    assert (_count(auth_db, "j2_accounts"), _count(auth_db, "j2_positions")) == before
+
+
+def test_account_size_reads_the_members_default_account(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    # Control: the migrating helper really does insert a row, so the no-write test above can fail.
+    accounts.get_or_migrate_default_account("u9")
+    assert _count(auth_db, "j2_accounts") == 1
+    c = auth_db.get_connection()
+    try:
+        c.execute("UPDATE j2_accounts SET account_size = 73000 WHERE user_id = 'u9'")
+        c.commit()
+    finally:
+        c.close()
+    assert nw._account_size("u9") == 73000.0
+    assert _count(auth_db, "j2_accounts") == 1
