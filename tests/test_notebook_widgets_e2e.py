@@ -23,7 +23,8 @@ from api.services.journal_two import public_note_payload as public
 
 URL = "/api/j2/notebook-widgets/"
 WAVE1 = ("myWatchlistToday", "myNamesReporting", "tickerCard", "myPnlStats", "myPositionsRisk")
-ACCOUNT = ("myPnlStats", "myPositionsRisk")
+WAVE2 = ("myRulesCheck", "myMistakes")
+ACCOUNT = ("myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
 QUERY = {"tickerCard": "?symbol=NVDA", "myPnlStats": "?from=2020-01-01&to=2099-12-31"}
 NEUTRAL_ACCOUNT = public.ACCOUNT_NEUTRAL_LINE
 NEUTRAL_MARKET = public.NEUTRAL_LINE
@@ -47,6 +48,7 @@ def env(monkeypatch, tmp_path):
     from api.services import auth_db
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W2_ENABLED", "1")
     monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
     auth_db.init_db()
 
@@ -217,3 +219,69 @@ def test_new_member_no_data(env):
             assert payload.get(key) != 0.0, (kind, key)
         for row in payload.get("rows") or []:
             assert row.get("openPnl") != 0.0, kind
+
+
+def _seed_tagged_member(uid):
+    """A member whose one closed manual loss carries a mistake tag, and nothing else."""
+    from api.services import auth_db
+    from api.services.journal_two import settings as j2_settings, trades
+
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)",
+                     (uid, f"{uid}@example.test", "x"))
+        conn.commit()
+    finally:
+        conn.close()
+    cfg = j2_settings.get_settings(uid)
+    d1 = (date.today() - timedelta(days=4)).isoformat()
+    d2 = (date.today() - timedelta(days=2)).isoformat()
+    made = trades.create_trade_manual(uid, {
+        "symbol": "MSFT", "side": "Long", "shares": 5, "entryPrice": 200.0, "entryDate": d1,
+        "exitPrice": 190.0, "exitDate": d2, "originalStop": 195.0, "mistakeTags": ["early_exit"],
+    }, cfg)
+    return made["id"]
+
+
+def test_wave2_kinds_build_and_reduce(env):
+    trade_id = _seed_tagged_member("u-e2e2")
+    client = _client("u-e2e2")
+    payloads = {k: _get(client, k) for k in WAVE2}
+
+    # the seed reached the mistakes payload (an accidentally empty member would pass the rest)
+    rows = payloads["myMistakes"]["rows"]
+    assert [r["mistake"] for r in rows] == ["early_exit"], payloads["myMistakes"]
+    assert rows[0]["countNow"] == 1 and rows[0]["trend"] == "more"
+    # a trade with no adherence record has nothing to count: null headline, never 0 of 0
+    assert payloads["myRulesCheck"]["kept"] is None and payloads["myRulesCheck"]["total"] is None
+    assert payloads["myRulesCheck"]["empty"]
+
+    for kind in WAVE2:
+        payload = payloads[kind]
+        assert payload["asOf"] and payload["source"] in {"broker", "manual", "mixed", "market"}
+        off = _reduce(_embed(kind, payload))
+        assert _paragraph_texts(off) == [NEUTRAL_ACCOUNT], kind
+        assert not _embeds(off)
+        assert _paragraph_texts(_reduce(_embed(kind, payload, share="true"))) == [NEUTRAL_ACCOUNT]
+        on = _reduce(_embed(kind, payload, share=True))
+        assert len(_embeds(on)) == 1, kind
+        assert trade_id not in json.dumps(on)
+    shown = _embeds(_reduce(_embed("myMistakes", payloads["myMistakes"], share=True)))[0]["attrs"]["params"]
+    assert shown["rows"][0]["mistake"] == "early_exit"
+
+
+def test_wave2_kinds_new_member_no_data(env):
+    client = _client("u-fresh2")
+    rules = _get(client, "myRulesCheck")
+    assert rules["kept"] is None and rules["total"] is None and rules["rules"] == [] and rules["empty"]
+    mistakes = _get(client, "myMistakes")
+    assert mistakes["rows"] == [] and mistakes["empty"]
+
+
+def test_wave2_routes_are_dark_without_their_flag(env, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W2_ENABLED")
+    client = _client("u-dark2")
+    for kind in WAVE2:
+        assert client.get(URL + kind).status_code == 404, kind
+    # control: wave 1 is still on
+    assert client.get(URL + "myPnlStats").status_code == 200

@@ -72,6 +72,8 @@ const EMBED_COMPONENTS = {
   tickerCard: lazyLeaf(() => import('./widgets/TickerCardEmbed')),
   myPnlStats: lazyLeaf(() => import('./widgets/MyPnlStatsEmbed')),
   myPositionsRisk: lazyLeaf(() => import('./widgets/MyPositionsRiskEmbed')),
+  myRulesCheck: lazyLeaf(() => import('./widgets/MyRulesCheckEmbed')),
+  myMistakes: lazyLeaf(() => import('./widgets/MyMistakesEmbed')),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state

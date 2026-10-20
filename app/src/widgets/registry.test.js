@@ -52,6 +52,7 @@ const IDS = [
   'screener', 'cot', 'modelbook',
   // Notebook widgets (Task 6): five capture-only snapshot kinds, frozen by a fetch at insert.
   'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
+  'myRulesCheck', 'myMistakes',
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
@@ -62,7 +63,8 @@ const IDS = [
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
-const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk']
+const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
+  'myRulesCheck', 'myMistakes']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // The ids a /charts board can hold — everything except the capture-only kinds.
@@ -86,6 +88,7 @@ describe('widget registry — metadata pins', () => {
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
+      myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -105,6 +108,7 @@ describe('widget registry — metadata pins', () => {
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
+      myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -124,6 +128,7 @@ describe('widget registry — metadata pins', () => {
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
+      myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -162,6 +167,8 @@ describe('widget registry — metadata pins', () => {
       tickerCard: { w: 6, h: 8, minW: 3, minH: 4 },
       myPnlStats: { w: 6, h: 8, minW: 3, minH: 4 },
       myPositionsRisk: { w: 6, h: 8, minW: 3, minH: 4 },
+      myRulesCheck: { w: 6, h: 8, minW: 3, minH: 4 },
+      myMistakes: { w: 6, h: 8, minW: 3, minH: 4 },
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -407,6 +414,15 @@ const CAPTURE_FIXTURES = {
     rows: [{ positionId: 7, symbol: 'NVDA', side: 'long', sizePct: 8.5, openPnl: 4321.09, stopPrice: 210, distToStopPct: 6.3, noStop: false }],
     share: false,
   },
+  myRulesCheck: {
+    asOf: '2026-10-20T14:05:00Z', source: 'manual', range: { from: '2026-10-19', to: '2026-10-20' },
+    kept: 7, total: 10, rules: [{ rule: 'Honor the stop', kept: 7, total: 10 }], share: false,
+  },
+  myMistakes: {
+    asOf: '2026-10-20T14:05:00Z', source: 'manual', share: false,
+    rows: [{ mistake: 'early_exit', cost30d: -1234.56, countNow: 3, countPrior: 1, trend: 'more' },
+      { mistake: 'FOMO', cost30d: -300, countNow: 1, countPrior: 2, trend: 'less' }],
+  },
 }
 
 /** Notebook widgets (Task 6): the exact search lines, and a guard that no account figure leaks. */
@@ -416,6 +432,8 @@ const NOTEBOOK_WIDGET_LINES = {
   tickerCard: '[ticker card: NVDA · as of 2026-10-20]',
   myPnlStats: '[my P&L and stats: 2026-10-19 to 2026-10-20]',
   myPositionsRisk: '[my open positions and risk: 1 position · as of 2026-10-20]',
+  myRulesCheck: '[my rules check: 2026-10-19 to 2026-10-20]',
+  myMistakes: '[my recurring mistakes: 2]',
 }
 
 describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
@@ -441,8 +459,8 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
   })
 
   it('NEVER carries an account figure in the search line', () => {
-    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75']
-    for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard']) {
+    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300']
+    for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes']) {
       const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
       for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)
     }

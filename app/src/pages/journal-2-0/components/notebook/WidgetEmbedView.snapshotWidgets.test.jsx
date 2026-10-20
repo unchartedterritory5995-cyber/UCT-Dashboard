@@ -26,6 +26,8 @@ vi.mock('./widgets/MyNamesReportingEmbed', stub('myNamesReporting'))
 vi.mock('./widgets/TickerCardEmbed', stub('tickerCard'))
 vi.mock('./widgets/MyPnlStatsEmbed', stub('myPnlStats'))
 vi.mock('./widgets/MyPositionsRiskEmbed', stub('myPositionsRisk'))
+vi.mock('./widgets/MyRulesCheckEmbed', stub('myRulesCheck'))
+vi.mock('./widgets/MyMistakesEmbed', stub('myMistakes'))
 
 import WidgetEmbedView from './WidgetEmbedView'
 import { kickSnapshotWarm } from '../../lib/embedArchive'
@@ -37,6 +39,8 @@ const PAYLOADS = {
   tickerCard: { asOf: '2026-10-20T13:14:00Z', source: 'mixed', symbol: 'NVDA', history: null },
   myPnlStats: { asOf: '2026-10-20T13:14:00Z', source: 'broker', range: { from: '2026-10-13', to: '2026-10-17' }, netPnl: 5, tradeCount: 1 },
   myPositionsRisk: { asOf: '2026-10-20T13:14:00Z', source: 'broker', accountSize: null, rows: [] },
+  myRulesCheck: { asOf: '2026-10-20T13:14:00Z', source: 'manual', range: { from: '2026-10-13', to: '2026-10-17' }, kept: 3, total: 4, rules: [] },
+  myMistakes: { asOf: '2026-10-20T13:14:00Z', source: 'manual', rows: [] },
 }
 const editor = (isEditable = true) => ({ isEditable, storage: { uctJournalWidgets: { noteId: 'note-1' } }, on() {}, off() {} })
 
@@ -63,7 +67,7 @@ afterEach(() => { __resetNotebookFlags(); vi.unstubAllGlobals() })
 
 const last = (name) => [...seen].reverse().find((s) => s.name === name)?.props
 
-describe('WidgetEmbedView -> the five snapshot embeds', () => {
+describe('WidgetEmbedView -> the seven snapshot embeds', () => {
   for (const kind of Object.keys(PAYLOADS)) {
     it(`${kind} mounts its own embed with editable and onUpdateParams`, async () => {
       const { attrs } = widgetEmbedNode(kind, PAYLOADS[kind])

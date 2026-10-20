@@ -947,6 +947,19 @@ const PANEL_MANIFESTS = {
     { key: 'truncated', type: 'number' },
     { key: 'empty', type: 'string' },
   ], (p) => `[my open positions and risk: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
+  // Wave 2 (Task 13): the two review kinds. Plain text is a kind, a range or a COUNT, never a figure.
+  myRulesCheck: snapshotManifest('My rules check', [
+    { key: 'range', type: 'json', required: true },       // {from, to}
+    { key: 'kept', type: 'number' },                      // authoritative headline; null = nothing checked
+    { key: 'total', type: 'number' },
+    { key: 'rules', type: 'json' },                       // [{rule, kept, total}] a breakdown, not the headline
+    { key: 'empty', type: 'string' },
+  ], (p) => `[my rules check: ${p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range'}]`),
+  myMistakes: snapshotManifest('My recurring mistakes', [
+    { key: 'rows', type: 'json', required: true },        // [{mistake, cost30d, countNow, countPrior, trend}]
+    { key: 'truncated', type: 'number' },
+    { key: 'empty', type: 'string' },
+  ], (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

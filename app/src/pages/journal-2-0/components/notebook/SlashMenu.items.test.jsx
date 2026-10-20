@@ -578,6 +578,26 @@ describe('snapshot widget items (Task 8)', () => {
     expect(snapshotWidgetItems('ticker NVDA').map((i) => i.title)).toEqual(['Ticker card — NVDA'])
   })
 
+  it('wave 2 on: My rules check and My recurring mistakes appear under Reviewing; wave 2 off: neither', () => {
+    latchNotebookFlags({ notebook_widgets_w2_enabled: true })
+    const on = snapshotWidgetItems('')
+    const mine = on.filter((i) => ['My rules check', 'My recurring mistakes'].includes(i.title))
+    expect(mine.map((i) => i.title).sort()).toEqual(['My recurring mistakes', 'My rules check'])
+    expect(mine.every((i) => i.group === 'review')).toBe(true)
+    const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
+    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    expect(labels).toContain('Reviewing')
+    expect(screen.getByText('My rules check')).toBeInTheDocument()
+    expect(screen.getByText('My recurring mistakes')).toBeInTheDocument()
+    // Control: with wave 2 off (wave 1 on) neither is offered, but wave 1's Reviewing items still are.
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    const off = snapshotWidgetItems('').map((i) => i.title)
+    expect(off).not.toContain('My rules check')
+    expect(off).not.toContain('My recurring mistakes')
+    expect(off).toContain('My P&L and stats')
+  })
+
   it('a wave turns on only its own kinds', () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     const t = snapshotWidgetItems('').map((i) => i.title)

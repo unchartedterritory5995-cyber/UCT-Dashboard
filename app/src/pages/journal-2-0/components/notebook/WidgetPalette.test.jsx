@@ -270,6 +270,17 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     expect(document.activeElement).toBe(screen.getByText('Chart').closest('button'))
   })
 
+  it('wave 2 on lists both new kinds under Reviewing', () => {
+    latchNotebookFlags({ notebook_widgets_w2_enabled: true })
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    const text = screen.getByRole('dialog', { name: 'Insert widget' }).textContent
+    expect(text).toContain('Reviewing')
+    expect(text).toContain('My rules check')
+    expect(text).toContain('My recurring mistakes')
+    expect(text.indexOf('Reviewing')).toBeLessThan(text.indexOf('My rules check'))
+  })
+
   it('a click fetches the snapshot and inserts the frozen widget, then says so', async () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     global.fetch.mockResolvedValue(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))
