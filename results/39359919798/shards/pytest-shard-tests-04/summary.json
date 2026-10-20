@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 3627,
+  "passed": 3596,
+  "failed": 17,
+  "errored": 0,
+  "skipped": 14,
+  "wall_s": 717.76,
+  "failed_files": [
+    "tests/test_chart_health_severity_vocabulary.py",
+    "tests/test_concept_vocabulary.py",
+    "tests/test_corp_actions_census.py",
+    "tests/test_definition_concierge.py",
+    "tests/test_deploy_watch.py",
+    "tests/test_discord_chart_prefs.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "17 failed, 3596 passed, 14 skipped, 257 warnings in 717.76s (0:11:57)",
+  "ok": true
+}
