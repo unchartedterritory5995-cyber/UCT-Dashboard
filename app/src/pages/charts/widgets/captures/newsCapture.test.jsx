@@ -6,6 +6,8 @@ import { Editor } from '@tiptap/core'
 import { WorkspaceContext } from '../../WorkspaceContext'
 import NewsWidget from '../NewsWidget'
 import { snapshotWidgetItems } from '../../../journal-2-0/components/notebook/SlashMenu'
+import WidgetPalette from '../../../journal-2-0/components/notebook/WidgetPalette'
+import { CAPTURE_KINDS } from '../../../journal-2-0/lib/notebookWidgets'
 import { buildExtensions } from '../../../journal-2-0/lib/tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../../journal-2-0/lib/offline/notebookFlags'
 
@@ -44,7 +46,7 @@ const W4 = { notebook_widgets_w4_enabled: true }
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 const answer = (url) => {
   const u = String(url)
-  if (u === '/api/news-catalysts/NVDA') return ok({ status: 'ready', events: EVENTS })
+  if (u === '/api/news-catalysts/NVDA?generate=0') return ok({ status: 'ready', events: EVENTS })
   if (u === '/api/ticker-meta/NVDA') return ok({ name: COMPANY })
   if (u.startsWith('/api/auth/preferences')) return ok(PREFS)
   return { ok: false, status: 404, json: async () => ({}) }
@@ -85,7 +87,9 @@ describe('/news (Task 16)', () => {
     const ed = mount('<p>/news NVDA</p>')
     const res = await item.command({ editor: ed, range: slashRange(ed) })
     expect(res.ok).toBe(true)
-    expect(global.fetch).toHaveBeenCalledWith('/api/news-catalysts/NVDA', expect.anything())
+    // A PEEK: the slash insert never starts an AI catalyst generation (generate=0), only the widget does.
+    expect(global.fetch).toHaveBeenCalledWith('/api/news-catalysts/NVDA?generate=0', expect.anything())
+    expect(global.fetch.mock.calls.some(([u]) => String(u) === '/api/news-catalysts/NVDA')).toBe(false)
     const [node] = embeds(ed)
     const doorNode = ed.schema.nodes.widgetEmbed.create(sent[0])
     expect(strip(node.attrs)).toEqual(strip(doorNode.attrs))
@@ -120,9 +124,18 @@ describe('/news (Task 16)', () => {
     expect(snapshotWidgetItems('new NVDA')).toEqual([])   // prefix + args never matches
   })
 
-  it('a failed fetch inserts nothing (an empty feed is a failure too)', async () => {
+  const GENERIC = 'News and catalysts could not be loaded just now, so nothing was added.'
+  const UNCOVERED = 'No news feed for NVDA yet. Open NVDA on Charts to build it, then try again.'
+  it('a failed fetch inserts nothing; a feed not built yet (or still generating) says so in its own words', async () => {
     latchNotebookFlags(W4)
-    for (const feed of [{ ok: false, status: 500, json: async () => ({}) }, ok({ status: 'generating', events: [] })]) {
+    const cases = [
+      [{ ok: false, status: 500, json: async () => ({}) }, GENERIC],
+      // A generating feed already carries earnings and wire rows: freezing it would freeze it partial.
+      [ok({ status: 'generating', events: EVENTS }), UNCOVERED],
+      [ok({ status: 'none', events: [] }), UNCOVERED],
+      [ok({ status: 'ready', events: [] }), UNCOVERED],
+    ]
+    for (const [feed, sentence] of cases) {
       global.fetch = vi.fn(async (url) => (String(url).startsWith('/api/news-catalysts/') ? feed : answer(url)))
       const ed = mount('<p>Read /news NVDA</p>')
       const notify = vi.fn()
@@ -131,8 +144,40 @@ describe('/news (Task 16)', () => {
       expect(res.ok).toBe(false)
       expect(embeds(ed)).toHaveLength(0)
       expect(ed.state.doc.textContent).toBe('Read ')
-      expect(notify).toHaveBeenCalledWith('News and catalysts could not be loaded just now, so nothing was added.', 'error')
+      expect(notify).toHaveBeenCalledWith(sentence, 'error')
       editor.destroy(); editor = null
+    }
+  })
+
+  it('the not-built-yet sentence renders where the member inserts (the widget palette status line)', async () => {
+    latchNotebookFlags(W4)
+    global.fetch = vi.fn(async (url) => (String(url).startsWith('/api/news-catalysts/')
+      ? ok({ status: 'generating', events: EVENTS }) : answer(url)))
+    const ed = mount('<p>x</p>')
+    render(<WidgetPalette editor={ed} />)
+    fireEvent.click(screen.getByText('News and catalysts'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'NVDA' } })
+    fireEvent.keyDown(screen.getByLabelText('Ticker'), { key: 'Enter' })
+    expect(await screen.findByText(UNCOVERED)).toBeInTheDocument()
+    expect(embeds(ed)).toHaveLength(0)
+  })
+
+  it('a capture chunk that fails to load inserts nothing', async () => {
+    latchNotebookFlags(W4)
+    const row = CAPTURE_KINDS.find((k) => k.id === 'news')
+    const real = row.capture
+    row.capture = () => Promise.reject(new Error('Failed to fetch dynamically imported module'))
+    try {
+      const ed = mount('<p>Read /news NVDA</p>')
+      const notify = vi.fn()
+      ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), notify }
+      const res = await snapshotWidgetItems('news NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+      expect(res.ok).toBe(false)
+      expect(embeds(ed)).toHaveLength(0)
+      expect(ed.state.doc.textContent).toBe('Read ')
+      expect(notify).toHaveBeenCalledWith(GENERIC, 'error')
+    } finally {
+      row.capture = real
     }
   })
 })

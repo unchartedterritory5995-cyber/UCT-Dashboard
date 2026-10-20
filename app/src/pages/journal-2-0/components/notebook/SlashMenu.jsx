@@ -497,9 +497,10 @@ function snapshotCommand(kind, params) {
     editor.off('transaction', track)
     if (editor.isDestroyed) return { ok: false, message: null }
     if (!res.ok) {
-      const message = res.reason === 'offline'
+      // A capture may name its own sentence (a news feed not built yet); otherwise offline vs failed.
+      const message = res.message || (res.reason === 'offline'
         ? `You're offline, so ${kind.title} was not added.`
-        : `${kind.title} could not be loaded just now, so nothing was added.`
+        : `${kind.title} could not be loaded just now, so nothing was added.`)
       editor.storage?.uctJournalWidgets?.notify?.(message, 'error')
       return { ok: false, message }
     }
