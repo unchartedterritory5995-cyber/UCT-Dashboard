@@ -88,11 +88,11 @@
       "where": "No trend is required for the name. Through a support level it is a breakdown bar. After a long decline it can be the capitulation day where the last holders give up.",
       "confirm": "The next session fails to recover the marubozu's midpoint. A gap down the next morning is the loudest version.",
       "cancel": "A close back above the marubozu's high cancels it. The selling was absorbed.",
-      "desk": "A black marubozu on heavy volume in a leader is a change of character. Mark its high. The stock has to reclaim that high before it has earned the benefit of the doubt again."
+      "desk": "A black marubozu on heavy volume in a leader is a change of character. Mark its high. The stock has to reclaim that high before it has earned the benefit of the doubt again. Late in a long decline, the same bar on a volume spike can be the capitulation that ends it, so read the location before the shape."
     },
     "dragonfly-doji": {
       "shape": "Open and close together at the top of the bar with a long tail below and almost nothing above. A hammer with no body at all.",
-      "story": "The session sold off and every bit of it was bought back, to the penny. Sellers had the morning and buyers had the afternoon, and the buyers won the argument so completely that the close landed on the open.",
+      "story": "The session sold off and every bit of it was bought back. Sellers had the morning and buyers had the afternoon, and the buyers won the argument so completely that the close landed almost exactly on the open.",
       "where": "At the bottom of a pullback or a decline, into a level: a prior low, a rising average, the floor of a range. Its meaning flips with the trend. After an advance a dragonfly is a warning that sellers could reach that far down at all.",
       "confirm": "After a decline, a next session that opens above the doji's close or closes above its high confirms the buyers. After an advance, a close below the tail confirms the sellers.",
       "cancel": "The opposite close cancels either reading.",
@@ -264,7 +264,7 @@
       "where": "Only after a decline. Three soldiers off a base low are the picture of a bottom being built. The same three bars at the end of a long run are an advance block or deliberation, and the catalog names them differently.",
       "confirm": "The third bar is the pattern. A fourth bar that holds above the third bar's open confirms it.",
       "cancel": "A close back below the first soldier's open cancels it.",
-      "desk": "The desk likes soldiers out of a base on rising volume. The low of the first soldier is the stop most of the room would use, and the sequence is the kind of start a leader makes."
+      "desk": "The desk likes soldiers out of a base on rising volume. The low of the first soldier is the natural stop, and the sequence is the kind of start a leader makes."
     },
     "identical-three-crows": {
       "shape": "Three black crows where each bar opens right at the prior close. No overnight relief at all between them.",
@@ -276,7 +276,7 @@
     },
     "three-outside-up": {
       "shape": "Three bars. A bullish engulfing two bars back, now confirmed by a third bar closing higher.",
-      "story": "The engulfing bar said the buyers were back. The third bar proved they stayed. The confirmation is what separates this from a bare engulfing, which fails often enough that waiting for the third bar is the whole point.",
+      "story": "The engulfing bar said the buyers were back. The third bar proved they stayed. The confirmation is what separates this from a bare engulfing: a two-bar turn is a claim, and the third bar is the receipt.",
       "where": "Only after a decline. Look for it at a level that matters: the low of a base, a prior support, a rising average.",
       "confirm": "The third bar is the confirmation. Nothing more is needed to name it.",
       "cancel": "A close below the engulfing bar's low cancels it.",
@@ -484,7 +484,7 @@
     },
     "tweezer-top": {
       "shape": "Two sessions rejected at effectively the same high.",
-      "story": "The market tried the same price twice and was turned away both times. Equality is measured with a small band, never exact ticks, so two highs a few cents apart still count.",
+      "story": "The market tried the same price twice and was turned away both times. Equality is measured with a small band, never exact ticks, so two highs a hair apart still count.",
       "where": "Only after an advance. The matching highs are the level, and the best versions come at a prior resistance the stock has stalled at before.",
       "confirm": "A next bar that closes below the lower of the two bars' lows.",
       "cancel": "A close above the matching highs cancels it. The level broke on the third try.",

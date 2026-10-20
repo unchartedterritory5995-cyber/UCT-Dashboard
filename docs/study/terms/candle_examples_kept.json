@@ -1,0 +1,10 @@
+{
+  "why": "Owner ruling 2026-10-20: an approved chart example STAYS when the finder is re-run with new rules; better equivalents are added beside it, never swapped in. Every record here is an example the owner approved on the review screen (docs/study/corrections/candles.chart.jsonl). gen_candles unions this list with the finder's output.",
+  "examples": [
+    {"key": "advance-block", "sym": "SHOP", "asof": "2025-09-22", "ts": 20250922, "bars": 3, "trend": "up", "approved": "2026-10-20", "item_id": "si_007fa0bc4af6"},
+    {"key": "morning-doji-star", "sym": "AVGO", "asof": "2025-08-22", "ts": 20250822, "bars": 3, "trend": "down", "approved": "2026-10-20", "item_id": "si_009336d6eb13"},
+    {"key": "hammer", "sym": "RKLB", "asof": "2026-10-15", "ts": 20261015, "bars": 1, "trend": "down", "approved": "2026-10-20", "item_id": "si_026b57ea53d1"},
+    {"key": "hikkake-bull", "sym": "CAVA", "asof": "2026-10-12", "ts": 20261012, "bars": 3, "trend": "neutral", "approved": "2026-10-20", "item_id": "si_0648022dde6f"},
+    {"key": "evening-star", "sym": "ANET", "asof": "2025-09-12", "ts": 20250912, "bars": 3, "trend": "up", "approved": "2026-10-20", "item_id": "si_06b0322beb86"}
+  ]
+}
