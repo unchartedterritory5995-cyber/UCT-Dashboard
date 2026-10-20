@@ -1046,3 +1046,65 @@ def test_nested_account_kind_in_a_container_follows_the_same_rule():
     assert texts_in(reduce(body, "share")) == [ACCOUNT_LINE]
     body = doc({"type": "blockquote", "content": [_positions(True)]})
     assert "positionId" not in json.dumps(reduce(body, "publish"))
+
+
+# ── Task 12: myRulesCheck and myMistakes follow the same share switch ──
+
+def _rules_check(share: Any = True) -> dict:
+    node = _widget("myRulesCheck")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "manual", "range": {"from": "2026-10-19", "to": "2026-10-20"},
+        "rules": [{"rule": "Volume dried up", "kept": 2, "total": 3}], "empty": None,
+        "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+def _mistakes(share: Any = True) -> dict:
+    node = _widget("myMistakes")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker",
+        "rows": [{"mistake": "fomo", "cost30d": -300.0, "countNow": 4, "countPrior": 2, "trend": "more",
+                  "positionId": "pos-secret-9"}],
+        "empty": None, "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("make", [_rules_check, _mistakes])
+def test_wave2_account_kind_neutral_without_share(mode, make):
+    for share in (None, False, "true", 1):
+        node = make(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        blob = json.dumps(out)
+        for leak in ("Volume dried up", "fomo", "-300", "PRIVATE-ACCT-0042"):
+            assert leak not in blob, (mode, share, leak)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_rules_check_shown_with_share_keeps_only_the_named_keys(mode):
+    emb = find_embed(reduce(doc(_rules_check(True)), mode))
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "myRulesCheck"
+    assert params["rules"] == [{"rule": "Volume dried up", "kept": 2, "total": 3}]
+    assert params["range"] == {"from": "2026-10-19", "to": "2026-10-20"} and params["share"] is True
+    assert "accountNumber" not in params
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(mode):
+    out = reduce(doc(_mistakes(True)), mode)
+    emb = find_embed(out)
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "myMistakes"
+    assert params["rows"][0]["mistake"] == "fomo" and params["rows"][0]["trend"] == "more"
+    assert "accountNumber" not in params
+    assert "positionId" not in json.dumps(out) and "pos-secret-9" not in json.dumps(out)
+
+
+def test_wave2_param_keys_are_the_ones_the_builders_emit():
+    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "rules", "empty", "share", "truncated")
+    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated")

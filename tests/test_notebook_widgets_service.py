@@ -50,7 +50,7 @@ def test_unknown_kind_raises():
 
 def test_kind_without_a_builder_yet_raises():
     with pytest.raises(nw.WidgetRequestError):
-        nw.build("myRulesCheck", "u1", {}, now=NOW)
+        nw.build("tradeRecap", "u1", {}, now=NOW)
 
 
 def test_kind_tables_are_complete():
@@ -636,3 +636,185 @@ def test_account_size_reads_the_members_default_account(monkeypatch, tmp_path):
         c.close()
     assert nw._account_size("u9") == 73000.0
     assert _count(auth_db, "j2_accounts") == 1
+
+
+# -- Task 12: rules check + recurring mistakes (wave 2) -----------------------------
+
+def _trade(i, setup="Flag", source="manual", account="a1", position=None):
+    return {"id": f"t{i}", "tradeRef": f"id:t{i}", "positionId": position or f"p{i}",
+            "setup": setup, "accountId": account, "source": source, "mistakeTags": []}
+
+
+def _patch_rules(monkeypatch, trades, adherence, setup_rules=None, journal=None):
+    import api.services.journal_two.adherence_store as ad
+    import api.services.journal_two.trades as tr
+    seen = {}
+
+    def fake_tr(user_id, **kw):
+        seen["trades"] = kw
+        return list(trades), len(trades)
+
+    monkeypatch.setattr(tr, "list_trades_for_user", fake_tr)
+    monkeypatch.setattr(ad, "list_adherence_for_user", lambda user_id, *a, **k: adherence)
+    monkeypatch.setattr(nw, "_member_rules", lambda user_id: {
+        "setup": setup_rules if setup_rules is not None else {},
+        "journal": journal if journal is not None else []})
+    return seen
+
+
+def _adh(ref, checked, total, setup="Flag"):
+    return {ref: {"tradeRef": ref, "setup": setup, "checkedRuleIds": checked,
+                  "totalRules": total, "adherencePct": 0.0}}
+
+
+def test_rules_check_counts_over_range(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"},
+                                   {"id": "r-stop", "label": "Stop set before entry"}]}}
+    journal = [{"id": "j1", "label": "No trades after 2 pm", "status": "active",
+                "beforeEntry": True, "accountId": None}]
+    adh = {}
+    adh.update(_adh("id:t1", ["r-vol", "r-stop", "rule:j1"], 3))
+    adh.update(_adh("id:t2", ["r-vol"], 3))
+    adh.update(_adh("id:t3", [], 3))
+    seen = _patch_rules(monkeypatch, [_trade(1), _trade(2), _trade(3), _trade(4)], adh,
+                        setup_rules, journal)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    by = {r["rule"]: r for r in out["rules"]}
+    assert by["Volume dried up"] == {"rule": "Volume dried up", "kept": 2, "total": 3}
+    assert by["Stop set before entry"] == {"rule": "Stop set before entry", "kept": 1, "total": 3}
+    assert by["No trades after 2 pm"] == {"rule": "No trades after 2 pm", "kept": 1, "total": 3}
+    assert "empty" not in out and out["source"] == "manual"
+    assert out["range"] == {"from": "2026-10-19", "to": "2026-10-20"}     # Monday of the ET week .. today
+    assert seen["trades"]["spec"].date_from == "2026-10-19"
+    assert "r-vol" not in json.dumps(out) and "rule:j1" not in json.dumps(out)   # never a raw id
+
+
+def test_rules_check_ignores_trades_outside_the_range_and_unchecked_ones(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    adh = _adh("id:t1", ["r-vol"], 1)
+    adh.update(_adh("id:elsewhere", ["r-vol"], 1))      # a trade the range read did not return
+    _patch_rules(monkeypatch, [_trade(1), _trade(2)], adh, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["rules"] == [{"rule": "Volume dried up", "kept": 1, "total": 1}]
+
+
+def test_rules_check_pre_entry_ticks_join_through_the_position(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    adh = _adh("pos:p1", ["r-vol"], 1)               # ticked in Log Trade before any outcome
+    _patch_rules(monkeypatch, [_trade(1, position="p1")], adh, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["rules"] == [{"rule": "Volume dried up", "kept": 1, "total": 1}]
+
+
+def test_rules_check_source_comes_from_the_checked_trades_origin(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    adh = {**_adh("id:t1", ["r-vol"], 1), **_adh("id:t2", [], 1)}
+    _patch_rules(monkeypatch, [_trade(1, source="broker"), _trade(2, source="manual")], adh, setup_rules)
+    assert nw.build("myRulesCheck", "u1", {}, now=NOW)["source"] == "mixed"
+
+
+def test_rules_empty_without_rules(monkeypatch):
+    _patch_rules(monkeypatch, [_trade(1)], {}, {}, [])
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["empty"] == "No rules set yet."
+    assert out["rules"] == []
+
+
+def test_rules_empty_when_nothing_was_checked_in_range(monkeypatch):
+    setup_rules = {"a1": {"Flag": [{"id": "r-vol", "label": "Volume dried up"}]}}
+    _patch_rules(monkeypatch, [_trade(1)], {}, setup_rules)
+    out = nw.build("myRulesCheck", "u1", {}, now=NOW)
+    assert out["empty"] == "No trades checked against your rules in this range."
+    assert out["rules"] == []
+
+
+def test_rules_check_params_range_and_bad_day(monkeypatch):
+    seen = _patch_rules(monkeypatch, [], {}, {})
+    nw.build("myRulesCheck", "u1", {"from": "2026-10-01", "to": "2026-10-10"}, now=NOW)
+    assert seen["trades"]["spec"].date_to == "2026-10-10"
+    with pytest.raises(nw.WidgetRequestError):
+        nw.build("myRulesCheck", "u1", {"from": "nope"}, now=NOW)
+    with pytest.raises(nw.WidgetRequestError):
+        nw.build("myRulesCheck", "u1", {"from": "2026-10-11", "to": "2026-10-10"}, now=NOW)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_mistakes_cache():
+    nw._MISTAKES_CACHE.clear()
+    yield
+    nw._MISTAKES_CACHE.clear()
+
+
+def _psy(by_mistake):
+    return {"psychology": {"costOfMistakes": {"total": sum(m["total"] for m in by_mistake),
+                                              "byMistake": by_mistake}}}
+
+
+def _patch_mistakes(monkeypatch, now_rows, prior_rows, trades=None):
+    import api.services.journal_two.analytics as an
+    import api.services.journal_two.trades as tr
+    calls = []
+
+    def fake_an(user_id, **kw):
+        calls.append(kw)
+        # the window ending today is this one; the other is the 30 days before it
+        return _psy(now_rows if kw["date_to"] == "2026-10-20" else prior_rows)
+
+    monkeypatch.setattr(an, "get_analytics", fake_an)
+    monkeypatch.setattr(tr, "list_trades_for_user",
+                        lambda user_id, **kw: (list(trades or []), len(trades or [])))
+    return calls
+
+
+def test_mistakes_trend_more_less_same(monkeypatch):
+    now_rows = [{"mistake": "fomo", "total": -300.0, "count": 4},
+                {"mistake": "early_exit", "total": -80.0, "count": 1},
+                {"mistake": "oversized", "total": -120.0, "count": 2}]
+    prior_rows = [{"mistake": "fomo", "total": -100.0, "count": 2},
+                  {"mistake": "early_exit", "total": -200.0, "count": 3},
+                  {"mistake": "oversized", "total": -90.0, "count": 2},
+                  {"mistake": "revenge", "total": -50.0, "count": 1}]
+    calls = _patch_mistakes(monkeypatch, now_rows, prior_rows)
+    out = nw.build("myMistakes", "u1", {}, now=NOW)
+    by = {r["mistake"]: r for r in out["rows"]}
+    assert by["fomo"] == {"mistake": "fomo", "cost30d": -300.0, "countNow": 4, "countPrior": 2, "trend": "more"}
+    assert by["early_exit"]["trend"] == "less" and by["early_exit"]["countPrior"] == 3
+    assert by["oversized"]["trend"] == "same"
+    # a mistake only the prior window had is still a row: nothing this window, and it is "less"
+    assert by["revenge"] == {"mistake": "revenge", "cost30d": None, "countNow": 0, "countPrior": 1, "trend": "less"}
+    # biggest bleed first; a row with no figure this window sorts last
+    assert [r["mistake"] for r in out["rows"]] == ["fomo", "oversized", "early_exit", "revenge"]
+    assert "empty" not in out
+    # two windows of 30 days, the older one ending the day before the newer starts
+    ranges = sorted((c["date_from"], c["date_to"]) for c in calls)
+    assert ranges == [("2026-08-22", "2026-09-20"), ("2026-09-21", "2026-10-20")]
+
+
+def test_mistakes_a_new_mistake_is_more(monkeypatch):
+    _patch_mistakes(monkeypatch, [{"mistake": "fomo", "total": -10.0, "count": 1}], [])
+    out = nw.build("myMistakes", "u1", {}, now=NOW)
+    assert out["rows"] == [{"mistake": "fomo", "cost30d": -10.0, "countNow": 1, "countPrior": 0, "trend": "more"}]
+
+
+def test_mistakes_empty(monkeypatch):
+    _patch_mistakes(monkeypatch, [], [])
+    out = nw.build("myMistakes", "u1", {}, now=NOW)
+    assert out["empty"] == "No mistakes tagged in the last 60 days."
+    assert out["rows"] == []
+
+
+def test_mistakes_source_comes_from_the_tagged_trades_origin(monkeypatch):
+    tagged = [{**_trade(1, source="broker"), "mistakeTags": ["fomo"]},
+              {**_trade(2, source="manual"), "mistakeTags": ["fomo"]},
+              _trade(3, source="broker")]                      # untagged: not part of the answer
+    _patch_mistakes(monkeypatch, [{"mistake": "fomo", "total": -1.0, "count": 2}], [], trades=tagged)
+    assert nw.build("myMistakes", "u1", {}, now=NOW)["source"] == "mixed"
+
+
+def test_mistakes_read_is_member_scoped_and_cached(monkeypatch):
+    calls = _patch_mistakes(monkeypatch, [{"mistake": "fomo", "total": -1.0, "count": 1}], [])
+    first = nw.build("myMistakes", "u1", {}, now=NOW)
+    second = nw.build("myMistakes", "u1", {}, now=NOW)
+    assert len(calls) == 2 and first["rows"] == second["rows"]      # two windows, read once
+    nw.build("myMistakes", "u2", {}, now=NOW)
+    assert len(calls) == 4

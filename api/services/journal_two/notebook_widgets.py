@@ -270,6 +270,20 @@ def _iso_day(raw: Any, label: str) -> str:
         raise WidgetRequestError(f"{label} must be an ISO day (YYYY-MM-DD)") from None
 
 
+def _week_range(params: dict, now: datetime) -> tuple[str, str]:
+    """(from, to) ISO days: `params` when given, else Monday of this ET week through today.
+    The one spelling of the default range, shared by every account kind that takes one."""
+    today = _today_et(now)
+    day_to = _iso_day(params["to"], "to") if params.get("to") else today.isoformat()
+    day_from = (
+        _iso_day(params["from"], "from") if params.get("from")
+        else (date.fromisoformat(day_to) - timedelta(days=date.fromisoformat(day_to).weekday())).isoformat()
+    )
+    if day_from > day_to:
+        raise WidgetRequestError("from must not be after to")
+    return day_from, day_to
+
+
 def _pnl_figures(analytics: dict) -> dict:
     """Net P&L, win rate and average R, each read from the analytics section that already
     computes it (never re-derived here; a second authority over one value is a defect):
@@ -312,14 +326,7 @@ def _equity_points(analytics: dict) -> list[list]:
 def _my_pnl_stats(user_id: str, params: dict, now: datetime) -> dict:
     from api.services.journal_two import analytics, trades
     from api.services.journal_two.filters import FilterSpec
-    today = _today_et(now)
-    day_to = _iso_day(params["to"], "to") if params.get("to") else today.isoformat()
-    day_from = (
-        _iso_day(params["from"], "from") if params.get("from")
-        else (date.fromisoformat(day_to) - timedelta(days=date.fromisoformat(day_to).weekday())).isoformat()
-    )
-    if day_from > day_to:
-        raise WidgetRequestError("from must not be after to")
+    day_from, day_to = _week_range(params, now)
     spec = FilterSpec(date_from=day_from, date_to=day_to)
     payload = analytics.get_analytics(user_id, spec=spec)
     got = trades.list_trades_for_user(user_id, spec=FilterSpec(date_from=day_from, date_to=day_to))
@@ -534,6 +541,184 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
     }
 
 
+# -- myRulesCheck --------------------------------------------------------------------
+
+#: The adherence store keys a journal ("before entry") rule's tick as `rule:<id>` (the one
+#: spelling, app/src/pages/journal-2-0/lib/blocks/checklistItems.js RULE_PREFIX); a setup
+#: checklist rule is ticked under its own id.
+_JOURNAL_RULE_PREFIX = "rule:"
+
+RULES_NONE_SENTENCE = "No rules set yet."
+RULES_UNCHECKED_SENTENCE = "No trades checked against your rules in this range."
+
+
+def _member_rules(user_id: str) -> dict:
+    """The member's rules, where the names live: {"setup": {account_id: {setup: [{id, label}]}},
+    "journal": [rule dicts, every status]}.
+
+    Late-bound seam: a test patches this module attribute. Read-only: list_accounts and
+    get_account_settings(account_id=...) are SELECTs (never get_or_migrate_default_account, which
+    writes), and journal rules are listed with status=None so a dismissed rule's name still
+    resolves for the ticks already recorded on it.
+    """
+    from api.services.journal_two import accounts, journal_rules
+    setup: dict[str, dict] = {}
+    for acc in accounts.list_accounts(user_id) or []:
+        acc_id = (acc or {}).get("id")
+        block = accounts.get_account_settings(user_id, acc_id) if acc_id else None
+        rules = (block or {}).get("setupRules")
+        if isinstance(rules, dict) and rules:
+            setup[acc_id] = rules
+    return {"setup": setup, "journal": list(journal_rules.list_rules(user_id, status=None) or [])}
+
+
+def _my_rules_check(user_id: str, params: dict, now: datetime) -> dict:
+    from api.services.journal_two import adherence_store, trades
+    from api.services.journal_two.filters import FilterSpec
+    from api.services.journal_two.trader_blocks import adherence_of_trade
+    day_from, day_to = _week_range(params, now)
+    got = trades.list_trades_for_user(user_id, spec=FilterSpec(date_from=day_from, date_to=day_to))
+    rows = got[0] if isinstance(got, tuple) else got
+    rules = _member_rules(user_id) or {}
+    setup_rules = rules.get("setup") or {}
+    journal = [r for r in (rules.get("journal") or []) if isinstance(r, dict)]
+
+    # Names: setup checklist ids as they are, journal rules under their rule:<id> tick key.
+    names: dict[str, str] = {}
+    for per_setup in setup_rules.values():
+        for items in (per_setup or {}).values():
+            for it in items or []:
+                if isinstance(it, dict) and it.get("id") and it.get("label"):
+                    names[str(it["id"])] = str(it["label"])
+    for r in journal:
+        if r.get("id") and r.get("label"):
+            names[_JOURNAL_RULE_PREFIX + str(r["id"])] = str(r["label"])
+    active_journal = [r for r in journal if r.get("status", "active") == "active"]
+    has_rules = bool(active_journal) or any(
+        items for per_setup in setup_rules.values() for items in (per_setup or {}).values())
+
+    adh = adherence_store.list_adherence_for_user(user_id) or {}
+    tally: dict[str, list[int]] = {}      # label -> [kept, total]
+    checked_trades = []
+    for t in rows:
+        t = t or {}
+        rec = adherence_of_trade(adh.get, t.get("tradeRef"), t.get("positionId"))
+        if not isinstance(rec, dict):
+            continue
+        checked_trades.append(t)
+        ticked = {str(i) for i in (rec.get("checkedRuleIds") or [])}
+        # What was on this trade's list: its setup's checklist, and the before-entry journal rules
+        # that applied to its account. The record keeps the ticks and a count, not the unticked ids,
+        # so the list is rebuilt from the rules as they stand; a tick is always counted as on the list.
+        on_list = set(ticked)
+        setup_name = rec.get("setup") or t.get("setup")
+        for it in (setup_rules.get(t.get("accountId")) or {}).get(setup_name) or []:
+            if isinstance(it, dict) and it.get("id"):
+                on_list.add(str(it["id"]))
+        for r in active_journal:
+            if r.get("beforeEntry") and r.get("accountId") in (None, t.get("accountId")):
+                on_list.add(_JOURNAL_RULE_PREFIX + str(r["id"]))
+        for rid in on_list:
+            label = names.get(rid)
+            if label is None:
+                continue                  # a rule since deleted: never printed as a raw id
+            cell = tally.setdefault(label, [0, 0])
+            cell[1] += 1
+            cell[0] += 1 if rid in ticked else 0
+
+    out_rules = [{"rule": k, "kept": v[0], "total": v[1]} for k, v in tally.items()]
+    out_rules.sort(key=lambda r: (-r["total"], r["rule"]))
+    cut = max(0, len(out_rules) - ROW_CAP)
+    out: dict[str, Any] = {
+        "asOf": _iso_utc(now),
+        "source": _origin([(t or {}).get("source") for t in (checked_trades or rows)]),
+        "range": {"from": day_from, "to": day_to},
+        "rules": out_rules[:ROW_CAP],
+    }
+    if cut:
+        out["truncated"] = cut
+    if not has_rules:
+        out["empty"] = RULES_NONE_SENTENCE
+    elif not out_rules:
+        out["empty"] = RULES_UNCHECKED_SENTENCE
+    return out
+
+
+# -- myMistakes ----------------------------------------------------------------------
+
+MISTAKES_WINDOW_DAYS = 30
+MISTAKES_EMPTY_SENTENCE = "No mistakes tagged in the last 60 days."
+
+#: Per-(member, day) cache of the two analytics reads this widget makes. Both windows are heavy
+#: and an embed can be refreshed; the answer only moves when a trade is tagged.
+MISTAKES_TTL_S = 300
+_MISTAKES_CACHE = TTLCache(max_size=500)
+
+
+def _mistake_rows(analytics: dict) -> dict[str, dict]:
+    """{mistake: {total, count}} from analytics' own psychology.costOfMistakes.byMistake
+    (never re-derived here: the Journal's cost-of-mistakes card reads the same list)."""
+    by = (((analytics or {}).get("psychology") or {}).get("costOfMistakes") or {}).get("byMistake") or []
+    out: dict[str, dict] = {}
+    for m in by:
+        if isinstance(m, dict) and m.get("mistake"):
+            out[str(m["mistake"])] = {"total": _num(m.get("total")), "count": int(m.get("count") or 0)}
+    return out
+
+
+def _mistake_windows(user_id: str, today: date) -> dict:
+    key = f"{user_id}::{today.isoformat()}"
+    hit = _MISTAKES_CACHE.get(key)
+    if isinstance(hit, dict):
+        return hit
+    from api.services.journal_two import analytics, trades
+    from api.services.journal_two.filters import FilterSpec
+    span = MISTAKES_WINDOW_DAYS - 1
+    now_from = today - timedelta(days=span)
+    prior_to = now_from - timedelta(days=1)
+    prior_from = prior_to - timedelta(days=span)
+    now_rows = _mistake_rows(analytics.get_analytics(
+        user_id, date_from=now_from.isoformat(), date_to=today.isoformat()))
+    prior_rows = _mistake_rows(analytics.get_analytics(
+        user_id, date_from=prior_from.isoformat(), date_to=prior_to.isoformat()))
+    got = trades.list_trades_for_user(
+        user_id, spec=FilterSpec(date_from=prior_from.isoformat(), date_to=today.isoformat()))
+    rows = got[0] if isinstance(got, tuple) else got
+    tagged = [(t or {}).get("source") for t in rows if (t or {}).get("mistakeTags")]
+    out = {"now": now_rows, "prior": prior_rows, "source": _origin(tagged)}
+    _MISTAKES_CACHE.set(key, out, MISTAKES_TTL_S)
+    return out
+
+
+def _my_mistakes(user_id: str, params: dict, now: datetime) -> dict:
+    win = _mistake_windows(user_id, _today_et(now))
+    now_rows, prior_rows = win["now"], win["prior"]
+    rows = []
+    for name in set(now_rows) | set(prior_rows):
+        n, p = now_rows.get(name), prior_rows.get(name)
+        count_now, count_prior = (n or {}).get("count", 0), (p or {}).get("count", 0)
+        rows.append({
+            "mistake": name,
+            "cost30d": (n or {}).get("total"),
+            "countNow": count_now,
+            "countPrior": count_prior,
+            "trend": "more" if count_now > count_prior else "less" if count_now < count_prior else "same",
+        })
+    # Biggest bleed first (the most negative total); a mistake with no figure this window last.
+    rows.sort(key=lambda r: (r["cost30d"] is None, r["cost30d"] if r["cost30d"] is not None else 0.0, r["mistake"]))
+    shown, cut = rows[:ROW_CAP], max(0, len(rows) - ROW_CAP)
+    out: dict[str, Any] = {
+        "asOf": _iso_utc(now),
+        "source": win["source"],
+        "rows": shown,
+    }
+    if cut:
+        out["truncated"] = cut
+    if not rows:
+        out["empty"] = MISTAKES_EMPTY_SENTENCE
+    return out
+
+
 # -- dispatch ------------------------------------------------------------------
 
 #: Kind -> builder(user_id, params, now). Later tasks add their kinds here.
@@ -542,6 +727,8 @@ _BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     "myNamesReporting": _my_names_reporting,
     "myPnlStats": _my_pnl_stats,
     "myPositionsRisk": _my_positions_risk,
+    "myRulesCheck": _my_rules_check,
+    "myMistakes": _my_mistakes,
     "tickerCard": _ticker_card,
 }
 
