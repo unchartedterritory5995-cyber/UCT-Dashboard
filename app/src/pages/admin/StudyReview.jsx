@@ -35,7 +35,7 @@ import StockChart from '../../components/StockChart'
 import { appendForwardBars, normalizeBars } from '../study/useStudySession'
 import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
-import { studySettingsOverride } from '../study/DrillPlayer'
+import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import styles from './StudyReview.module.css'
 
@@ -483,7 +483,11 @@ export default function StudyReview() {
   }, [storedBars])
   const chartBarsPending = !!barsKey && !storedBars && !storedBarsError
   const chartOpts = sel?.prompt_json?.chart
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts), [chartOpts])
+  // The house look (the owner's saved chart settings), so the reviewer judges the
+  // picture the member will actually see. Fails open to the defaults.
+  const { data: houseData } = useSWR(HOUSE_CHART_URL, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false })
+  const houseSettings = houseData?.chart_settings || null
+  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings), [chartOpts, houseSettings])
   const markers = useMemo(() => {
     if (!sel?.asof) return null
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]

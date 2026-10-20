@@ -232,6 +232,16 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     return _set_payload(uid, session)
 
 
+@router.get("/house-chart", dependencies=_ARMED)
+def get_house_chart(_user: dict = Depends(require_paid)):
+    """The firm's chart look for a drill: the OWNER's saved chart_settings blob
+    (api/services/house_chart.py), the same blob the Discord /chart render and
+    the Sunday Scans letter draw with. `chart_settings` is None when nothing is
+    saved; the drill then keeps the schema defaults. Read-only, one key."""
+    from api.services.house_chart import owner_chart_settings
+    return {"chart_settings": owner_chart_settings().get("chart_settings")}
+
+
 @router.get("/items/{item_id}", dependencies=_ARMED)
 def get_item(item_id: str, _user: dict = Depends(require_paid)):
     """Prompt only — no key, no ticker, no forward bars."""

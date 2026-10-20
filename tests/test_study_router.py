@@ -287,6 +287,24 @@ def test_leaderboard_week_and_optout(paid_client, other_client, store):
     assert paid_client.get("/api/study/leaderboard?week=nope").status_code == 400
 
 
+# ── house chart look ─────────────────────────────────────────────────────────
+
+def test_house_chart_serves_the_owners_blob_and_fails_open(paid_client, monkeypatch):
+    from api.services import house_chart
+    monkeypatch.setenv("ADMIN_EMAILS", "owner@example.com, other@example.com")
+    monkeypatch.setattr(house_chart, "get_user_by_email", lambda e: {"id": "u1"} if e == "owner@example.com" else None)
+    monkeypatch.setattr(house_chart, "get_user_preferences",
+                        lambda uid: {"chart_settings": '{"chartType": "candles", "candles": {"upColor": "#1ae51a"}}'})
+    r = paid_client.get("/api/study/house-chart")
+    assert r.status_code == 200
+    assert r.json() == {"chart_settings": {"chartType": "candles", "candles": {"upColor": "#1ae51a"}}}
+    # nothing saved -> None, never an error (the drill keeps the defaults)
+    monkeypatch.setattr(house_chart, "get_user_preferences", lambda uid: {})
+    assert paid_client.get("/api/study/house-chart").json() == {"chart_settings": None}
+    monkeypatch.delenv("ADMIN_EMAILS")
+    assert paid_client.get("/api/study/house-chart").json() == {"chart_settings": None}
+
+
 # ── admin review ──────────────────────────────────────────────────────────────
 
 def test_admin_review_lists_drafts_by_lane_and_acts(admin_client, store):

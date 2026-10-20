@@ -69,11 +69,12 @@ import { useSearchParams } from 'react-router-dom'
 export const COMPARE_COLORS = ['#c084fc', '#22d3ee', '#e8e8ea']
 // Exported-image volume: falls back to these only when the owner blob carries no
 // candle colours. Pane height is a % of the chart (the site default is 22).
-export const RENDER_VOL_UP = '#2faf68'
-export const RENDER_VOL_DOWN = '#df4646'
-export const RENDER_VOL_PANE_PCT = 12
+// The exported-image look is ONE module (houseLook.js) shared with the Study
+// drills; re-exported here so existing importers and tests keep their names.
+export { RENDER_VOL_UP, RENDER_VOL_DOWN, RENDER_VOL_PANE_PCT } from '../components/chart/houseLook'
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
+import { applyHouseLook } from '../components/chart/houseLook'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
@@ -509,30 +510,13 @@ export default function ChartRender() {
     if (fixedBars && !ownerSettings && !indicatorsParam && !instancesParam && !presetDelta && !compareOverride) return null
     let out = ownerSettings
     // The exported-image look (Substack letter + Discord /chart), owner 2026-10-02:
-    // hollow candles, volume in the candles' own green/red, and a slim volume pane.
-    // Lands over the owner blob (whose volume.upColor is white) and UNDER every
-    // per-render choice, so a Discord member's style/preset still wins. A parity
-    // case (fixedBars) pins its own settings and never sees it.
-    if (!fixedBars) {
-      out = mergeSettingsOverride(out || {}, {
-        chartType: 'hollow',
-        volume: { paneHeightPct: RENDER_VOL_PANE_PCT },
-      })
-    }
-    if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
-    if (!fixedBars) {
-      // Volume takes the colours of the candles actually drawn (after a preset
-      // recoloured them), unless the preset itself chose volume colours.
-      // ?indicators= below can still override either.
-      const c = out.candles || {}
-      const pv = (presetDelta && presetDelta.volume) || {}
-      out = mergeSettingsOverride(out, {
-        volume: {
-          upColor: pv.upColor || c.upColor || RENDER_VOL_UP,
-          downColor: pv.downColor || c.downColor || RENDER_VOL_DOWN,
-        },
-      })
-    }
+    // hollow candles, volume in the candles' own green/red, and a slim volume pane
+    // (houseLook.applyHouseLook, shared with the Study drills). Lands over the
+    // owner blob and UNDER every per-render choice, so a Discord member's
+    // style/preset still wins. A parity case (fixedBars) pins its own settings
+    // and never sees it.
+    if (!fixedBars) out = applyHouseLook(out || {}, presetDelta)
+    else if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
     if (compareOverride) out = mergeSettingsOverride(out || {}, compareOverride)
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {

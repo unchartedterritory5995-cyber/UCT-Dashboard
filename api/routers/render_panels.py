@@ -510,25 +510,11 @@ def chart_settings_for_render(token: str = ""):
     effectively public, so it returns ONE key rather than the whole dict.
     """
     _check_token(token)
-
-    emails = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
-    if not emails:
-        return {"chart_settings": None, "reason": "ADMIN_EMAILS unset"}
-
-    try:
-        from api.services.auth_service import get_user_by_email, get_user_preferences
-        user = get_user_by_email(emails[0])
-        if not user:
-            return {"chart_settings": None, "reason": "owner not found"}
-        raw = (get_user_preferences(user["id"]) or {}).get("chart_settings")
-        if not raw:
-            return {"chart_settings": None, "reason": "no saved chart_settings"}
-        # Stored as a JSON STRING in pref_value; hand back parsed so the page can
-        # spread it straight into the StockChart override without re-parsing.
-        import json as _json
-        return {"chart_settings": _json.loads(raw) if isinstance(raw, str) else raw}
-    except Exception as e:  # noqa: BLE001 -- a broken lookup must not fail the render
-        return {"chart_settings": None, "reason": f"{type(e).__name__}"}
+    # One owner, one blob: api/services/house_chart.py is the single authority
+    # (the Study drills read the same function), so the Discord picture and the
+    # Study picture cannot drift apart.
+    from api.services.house_chart import owner_chart_settings
+    return owner_chart_settings()
 
 
 # ── breadth reads for /r/breadth + /r/internals ──────────────────────────────
