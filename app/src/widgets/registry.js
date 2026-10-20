@@ -290,15 +290,28 @@ function _asOfDay(p) {
   const day = typeof p?.asOf === 'string' ? p.asOf.slice(0, 10) : ''
   return _isIsoDay(day) ? ` · as of ${day}` : ''
 }
+/** A frozen `range` as `<from> to <to>`, or `no range` when either end is missing. */
+const _rangeText = (p) => (p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range')
 /** `N name(s)` from a frozen rows array; a missing array reads as zero, never as a blank. */
 function _countOf(rows, noun) {
   const n = Array.isArray(rows) ? rows.length : 0
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
+const _SNAP_TYPE = { n: 'number', j: 'json', b: 'boolean', y: 'symbol' }
+/** One payload field from its short form (Task 16D: first-open bytes): `key` is a string, `key:t` has
+ *  type t (n number, j json, b boolean, y symbol), and a trailing `!` makes it required. A field that
+ *  needs more (an enum's options) is written out as the object itself. */
+function _snapField(f) {
+  if (typeof f !== 'string') return f
+  const [key, t = ''] = f.split(':')
+  return t.endsWith('!') ? { key, type: _SNAP_TYPE[t[0]], required: true } : { key, type: _SNAP_TYPE[t] || 'string' }
+}
+
 /** A Notebook snapshot widget's manifest (Task 6): one shape, so each entry costs its payload keys
  *  and its search line only. Capture-only, in no menu, never live; `reconstructable` is true when the
- *  frozen payload carries its own `asOf`, because the embed host re-renders from params alone. */
+ *  frozen payload carries its own `asOf`, because the embed host re-renders from params alone.
+ *  `payloadSchema` is a space-separated list of short fields, or an array of them (see _snapField). */
 function snapshotManifest(label, payloadSchema, plainText) {
   return {
     labels: { header: label, menu: label, tab: label },
@@ -310,7 +323,7 @@ function snapshotManifest(label, payloadSchema, plainText) {
     paramsSchema: [
       { key: 'asOf', type: 'string', required: true },    // ISO UTC, stamped by the server
       { key: 'source', type: 'string' },                   // broker | manual | mixed | market
-      ...payloadSchema,
+      ...(typeof payloadSchema === 'string' ? payloadSchema.split(' ') : payloadSchema).map(_snapField),
       { key: 'share', type: 'boolean', default: false },   // the member's publish switch (an editor transaction)
     ],
     plainText,
@@ -911,70 +924,43 @@ const PANEL_MANIFESTS = {
   // api/services/journal_two/notebook_widgets.py; `share` is the member's own publish switch.
   // ⛔ plainText feeds search and AI context, so it names the kind, a COUNT and a DAY and nothing
   // else: no price, no P&L, no account size, no row.
-  myWatchlistToday: snapshotManifest('My watchlist today', [
-    { key: 'listLabel', type: 'string' },
-    { key: 'rows', type: 'json', required: true },        // [{symbol, price, changePct, earningsDay}]
-    { key: 'truncated', type: 'number' },
-  ], (p) => `[my watchlist today: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
-  myNamesReporting: snapshotManifest('My names reporting', [
-    { key: 'rows', type: 'json', required: true },        // [{symbol, day, timing, daysAway, sources, impliedMovePct}]
-    { key: 'partial', type: 'boolean' },
-    { key: 'truncated', type: 'number' },
-  ], (p) => `[my names reporting: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
-  tickerCard: snapshotManifest('Ticker card', [
-    { key: 'symbol', type: 'symbol', required: true },
-    { key: 'price', type: 'number' },
-    { key: 'changePct', type: 'number' },
-    { key: 'ma10', type: 'number' },
-    { key: 'ma50', type: 'number' },
-    { key: 'earningsDay', type: 'string' },
-    { key: 'impliedMovePct', type: 'number' },
-    { key: 'history', type: 'json' },                      // {trades, winRate, netPnl} or null
-  ], (p) => `[ticker card: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
-  myPnlStats: snapshotManifest('My P&L and stats', [
-    { key: 'range', type: 'json', required: true },       // {from, to}
-    { key: 'netPnl', type: 'number' },
-    { key: 'winRate', type: 'number' },
-    { key: 'avgR', type: 'number' },
-    { key: 'tradeCount', type: 'number' },
-    { key: 'equity', type: 'json' },                      // [[day, value], ...]
-    { key: 'empty', type: 'string' },
-  ], (p) => `[my P&L and stats: ${p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range'}]`),
+  myWatchlistToday: snapshotManifest('My watchlist today',
+    'listLabel rows:j! truncated:n', // rows: [{symbol, price, changePct, earningsDay}]
+    (p) => `[my watchlist today: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  myNamesReporting: snapshotManifest('My names reporting',
+    'rows:j! partial:b truncated:n', // rows: [{symbol, day, timing, daysAway, sources, impliedMovePct}]
+    (p) => `[my names reporting: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerCard: snapshotManifest('Ticker card',
+    'symbol:y! price:n changePct:n ma10:n ma50:n earningsDay impliedMovePct:n history:j', // history: {trades, winRate, netPnl} or null
+    (p) => `[ticker card: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  myPnlStats: snapshotManifest('My P&L and stats',
+    'range:j! netPnl:n winRate:n avgR:n tradeCount:n equity:j empty', // range: {from, to}; equity: [[day, value], ...]
+    (p) => `[my P&L and stats: ${_rangeText(p)}]`),
   myPositionsRisk: snapshotManifest('My open positions and risk', [
-    { key: 'accountSize', type: 'number' },
+    'accountSize:n',
     { key: 'accountSizeSource', type: 'enum', options: ['member', 'default'] },
-    { key: 'rows', type: 'json', required: true },        // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
-    { key: 'truncated', type: 'number' },
-    { key: 'empty', type: 'string' },
+    'rows:j!', // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
+    'truncated:n', 'empty',
   ], (p) => `[my open positions and risk: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
   // Wave 2 (Task 13): the two review kinds. Plain text is a kind, a range or a COUNT, never a figure.
-  myRulesCheck: snapshotManifest('My rules check', [
-    { key: 'range', type: 'json', required: true },       // {from, to}
-    { key: 'kept', type: 'number' },                      // authoritative headline; null = nothing checked
-    { key: 'total', type: 'number' },
-    { key: 'rules', type: 'json' },                       // [{rule, kept, total}] a breakdown, not the headline
-    { key: 'empty', type: 'string' },
-  ], (p) => `[my rules check: ${p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range'}]`),
-  myMistakes: snapshotManifest('My recurring mistakes', [
-    { key: 'rows', type: 'json', required: true },        // [{mistake, cost30d, countNow, countPrior, trend}]
-    { key: 'truncated', type: 'number' },
-    { key: 'empty', type: 'string' },
-  ], (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
+  myRulesCheck: snapshotManifest('My rules check',
+    // range: {from, to}; kept: the authoritative headline (null = nothing checked); rules: [{rule, kept, total}],
+    // a breakdown, not the headline
+    'range:j! kept:n total:n rules:j empty',
+    (p) => `[my rules check: ${_rangeText(p)}]`),
+  myMistakes: snapshotManifest('My recurring mistakes',
+    'rows:j! truncated:n empty', // rows: [{mistake, cost30d, countNow, countPrior, trend}]
+    (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
   // Wave 3 (Task 14): the two market kinds. Plain text is a kind, a COUNT or a symbol, and a day.
-  marketOnMyNames: snapshotManifest('Market on my names', [
-    { key: 'sectorBasis', type: 'string' },               // how sectorRet5d was made ('your names')
-    { key: 'rows', type: 'json', required: true },        // [{symbol, ret5d, sector, sectorRet5d, vsSector}]
-    { key: 'truncated', type: 'number' },
-    { key: 'empty', type: 'string' },
-  ], (p) => `[market on my names: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
-  tickerFlow: snapshotManifest('Options flow on a ticker', [
-    { key: 'symbol', type: 'symbol', required: true },
-    { key: 'bullPremium', type: 'number' },               // the page's own net.bull, never re-summed
-    { key: 'bearPremium', type: 'number' },
-    { key: 'window', type: 'string' },                    // the served rung: Today, Last 5 sessions, ...
-    { key: 'topPrints', type: 'json' },                   // [{cp, strike, exp, dte, premium, volume, direction}]
-    { key: 'empty', type: 'string' },
-  ], (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  marketOnMyNames: snapshotManifest('Market on my names',
+    // sectorBasis: how sectorRet5d was made ('your names'); rows: [{symbol, ret5d, sector, sectorRet5d, vsSector}]
+    'sectorBasis rows:j! truncated:n empty',
+    (p) => `[market on my names: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerFlow: snapshotManifest('Options flow on a ticker',
+    // bullPremium: the page's own net.bull, never re-summed; window: the served rung (Today, Last 5 sessions,
+    // ...); topPrints: [{cp, strike, exp, dte, premium, volume, direction}]
+    'symbol:y! bullPremium:n bearPremium:n window topPrints:j empty',
+    (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).
