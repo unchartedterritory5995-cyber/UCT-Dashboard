@@ -917,3 +917,132 @@ def test_never_the_authors_identity(published):
     blob = json.dumps(published)
     for leak in (OWNER, "Pat Member", "member@example.com"):
         assert leak not in blob, leak
+
+
+# ── Notebook widgets (Task 5): account kinds are neutral unless the member switches them on ──
+
+ACCOUNT_LINE = pnp.ACCOUNT_NEUTRAL_LINE
+
+
+def _pnl(share: Any = True) -> dict:
+    node = _widget("myPnlStats")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "range": "30d", "netPnl": 1234.5,
+        "winRate": 0.55, "avgR": 0.4, "tradeCount": 12, "equity": [1, 2, 3], "empty": False,
+        "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+def _positions(share: Any = True) -> dict:
+    node = _widget("myPositionsRisk")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "accountSize": 50000,
+        "rows": [{"symbol": "AAPL", "positionId": "pos-secret-1", "riskPct": 1.0},
+                 {"symbol": "MSFT", "positionId": "pos-secret-2", "riskPct": 0.5}],
+        "truncated": 3, "empty": False, "share": share}
+    return node
+
+
+def test_account_neutral_line_is_the_exact_words_and_exported():
+    assert ACCOUNT_LINE == "A private account item is not shown on public pages."
+    assert "ACCOUNT_NEUTRAL_LINE" in pnp.__all__
+    assert ACCOUNT_LINE != NEUTRAL
+
+
+def test_member_optin_vendor_fails_closed():
+    assert pnp.VENDOR_VERDICT["member-optin"] == pnp.NEUTRAL
+    for kind in ("myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
+                 "tradeRecap", "myPnlCalendar", "mySetupEdge"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "member-optin", kind
+        assert pnp.market_data_verdict("widgetEmbed", kind) == pnp.NEUTRAL, kind
+    for kind in ("tickerCard", "myWatchlistToday", "myNamesReporting", "marketOnMyNames", "tickerFlow",
+                 "myScreenToday", "roomBuzzOnMyNames", "myEarningsReactions"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "mixed", kind
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_account_kind_neutral_without_share(mode, make):
+    for share in (None, False):
+        node = make(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "1234.5" not in json.dumps(out) and "PRIVATE-ACCT-0042" not in json.dumps(out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_account_kind_shown_with_share(mode):
+    out = reduce(doc(_pnl(True)), mode)
+    emb = find_embed(out)
+    assert emb["attrs"]["widgetId"] == "myPnlStats"
+    params = emb["attrs"]["params"]
+    assert params["netPnl"] == 1234.5 and params["share"] is True
+    assert "accountNumber" not in params          # only the named keys survive
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_positions_shown_strips_position_id(mode):
+    out = reduce(doc(_positions(True)), mode)
+    emb = find_embed(out)
+    rows = emb["attrs"]["params"]["rows"]
+    assert [r["symbol"] for r in rows] == ["AAPL", "MSFT"]
+    assert emb["attrs"]["params"]["truncated"] == 3
+    assert "positionId" not in json.dumps(out)
+    assert "pos-secret" not in json.dumps(out)
+
+
+def find_embed(d: dict) -> dict:
+    found = find(d, "widgetEmbed")
+    assert len(found) == 1, d
+    return found[0]
+
+
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_account_kind_gallery_always_neutral(make):
+    out = reduce(doc(make(True)), "gallery")
+    assert texts_in(out) == [ACCOUNT_LINE]
+    assert "widgetEmbed" not in types_in(out)
+    assert "positionId" not in json.dumps(out)
+
+
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_share_switched_off_hides_again(make):
+    on = reduce(doc(make(True)), "share")
+    assert "widgetEmbed" in types_in(on)
+    off = reduce(doc(make(False)), "share")
+    assert texts_in(off) == [ACCOUNT_LINE]
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("bad", ["true", 1, "True", [True], {"v": True}])
+def test_share_truthy_string_is_not_true(mode, bad):
+    out = reduce(doc(_pnl(bad)), mode)
+    assert texts_in(out) == [ACCOUNT_LINE], (bad, out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+@pytest.mark.parametrize("kind", ["myWatchlistToday", "myNamesReporting", "tickerCard"])
+def test_market_widget_kinds_neutral(mode, kind):
+    out = reduce(doc(_widget(kind)), mode)
+    assert texts_in(out) == [NEUTRAL]
+
+
+def test_adjacent_mixed_neutral_lines_collapse_per_line():
+    two_account = reduce(doc(_pnl(False), _positions(False)), "share")
+    assert texts_in(two_account) == [ACCOUNT_LINE]
+    mixed = reduce(doc(_widget("tickerCard"), _pnl(False)), "share")
+    assert texts_in(mixed) == [NEUTRAL, ACCOUNT_LINE]
+    mixed2 = reduce(doc(_pnl(False), _widget("tickerCard"), _widget("chart")), "share")
+    assert texts_in(mixed2) == [ACCOUNT_LINE, NEUTRAL]
+    gallery = reduce(doc(_pnl(True), _positions(True)), "gallery")
+    assert texts_in(gallery) == [ACCOUNT_LINE]
+
+
+def test_nested_account_kind_in_a_container_follows_the_same_rule():
+    body = doc({"type": "blockquote", "content": [_pnl(False)]})
+    assert texts_in(reduce(body, "share")) == [ACCOUNT_LINE]
+    body = doc({"type": "blockquote", "content": [_positions(True)]})
+    assert "positionId" not in json.dumps(reduce(body, "publish"))

@@ -214,6 +214,12 @@ def _email_in_href(href: Any) -> str | None:
 #: links by the owner's L3). Adjacent ones collapse to one.
 NEUTRAL_LINE = "A market-data item is not shown on public pages."
 
+#: The neutral line for a member's own ACCOUNT figures (Notebook widgets, Task 5): P&L, open
+#: positions, rules and mistakes. Different words from NEUTRAL_LINE on purpose: the reason a
+#: stranger does not see it is the member's privacy, not a vendor licence. Adjacent runs of the
+#: SAME line collapse to one; a market line beside an account line stays two.
+ACCOUNT_NEUTRAL_LINE = "A private account item is not shown on public pages."
+
 #: What a noteLink becomes (ruling D-B7): no id and no title leaves.
 LINKED_NOTE_TEXT = "linked note"
 
@@ -288,8 +294,20 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
     ("widgetEmbed", "myNamesReporting"): "mixed",    # earnings windows over the member's names
     ("widgetEmbed", "tickerCard"): "mixed",          # one ticker's prices, earnings and the member's history
-    ("widgetEmbed", "myPnlStats"): "private",        # the member's own P&L and stats
-    ("widgetEmbed", "myPositionsRisk"): "private",   # the member's own open positions and risk
+    # "member-optin": an ACCOUNT figure. Neutral on every public page unless the member switched
+    # `params.share` on in the editor, and then only the keys EMBED_PARAM_KEYS names (never positionId).
+    ("widgetEmbed", "myPnlStats"): "member-optin",        # the member's own P&L and stats
+    ("widgetEmbed", "myPositionsRisk"): "member-optin",   # the member's own open positions and risk
+    ("widgetEmbed", "myRulesCheck"): "member-optin",      # later waves, declared now so a stored node fails closed
+    ("widgetEmbed", "myMistakes"): "member-optin",
+    ("widgetEmbed", "tradeRecap"): "member-optin",
+    ("widgetEmbed", "myPnlCalendar"): "member-optin",
+    ("widgetEmbed", "mySetupEdge"): "member-optin",
+    ("widgetEmbed", "marketOnMyNames"): "mixed",
+    ("widgetEmbed", "tickerFlow"): "mixed",
+    ("widgetEmbed", "myScreenToday"): "mixed",
+    ("widgetEmbed", "roomBuzzOnMyNames"): "mixed",
+    ("widgetEmbed", "myEarningsReactions"): "mixed",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",
@@ -314,6 +332,9 @@ VENDOR_VERDICT: dict[str, str] = {
     "mixed": NEUTRAL,      # not attributable to an approved vendor alone (L3 as sent)
     "document": NEUTRAL,   # D-B4, unchanged
     "private": NEUTRAL,    # member-private, not a vendor question at all
+    # An account figure the MEMBER may switch on (`params.share is True`). Any caller that asks the
+    # table and ignores the switch gets NEUTRAL: fails closed. `_market_data` is what reads the switch.
+    "member-optin": NEUTRAL,
 }
 
 
@@ -462,7 +483,14 @@ def attr_decision(row: str, mode: str) -> str:
     return decision["gallery"] if mode == "example" else decision[mode]
 EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
+    # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
+    # builders' own honesty flags. NEVER `positionId`: `_market_data` also strips it from every row.
+    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
+    "myPositionsRisk": ("asOf", "source", "accountSize", "rows", "empty", "share", "truncated", "partial"),
 }
+
+#: Row keys that never leave, whatever a builder one day adds.
+_ACCOUNT_ROW_DROP = frozenset({"positionId"})
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
 #: paragraph rather than becoming a document the editor refuses to read.
@@ -1170,13 +1198,32 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
     return node
 
 
-def _neutral() -> dict:
-    return {"type": "paragraph", "content": [{"type": "text", "text": NEUTRAL_LINE}]}
+def _neutral(line: str = NEUTRAL_LINE) -> dict:
+    return {"type": "paragraph", "content": [{"type": "text", "text": line}]}
 
 
-def _is_neutral(node: Any) -> bool:
-    return (isinstance(node, dict) and node.get("type") == "paragraph"
-            and node.get("content") == [{"type": "text", "text": NEUTRAL_LINE}])
+def _neutral_line_of(node: Any) -> str | None:
+    """Which neutral line this node is (market or account), or None when it is neither."""
+    if isinstance(node, dict) and node.get("type") == "paragraph":
+        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE):
+            if node.get("content") == [{"type": "text", "text": line}]:
+                return line
+    return None
+
+
+def _is_neutral(node: Any, line: str | None = None) -> bool:
+    """A neutral line. With `line`, exactly that one; without, either."""
+    found = _neutral_line_of(node)
+    return found is not None and (line is None or found == line)
+
+
+def _is_account_kind(widget_id: Any) -> bool:
+    return MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "member-optin"
+
+
+def _neutral_for_embed(widget_id: Any) -> dict:
+    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
+    return _neutral(ACCOUNT_NEUTRAL_LINE if _is_account_kind(widget_id) else NEUTRAL_LINE)
 
 
 def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
@@ -1262,11 +1309,21 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     if t == "widgetEmbed":
         widget_id = attrs.get("widgetId")
-        if market_data_verdict("widgetEmbed", widget_id) != SHOWN:
-            return [_neutral()]
-        kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
         params = attrs.get("params") if isinstance(attrs.get("params"), dict) else {}
-        kept["params"] = {k: params[k] for k in EMBED_PARAM_KEYS.get(widget_id, ()) if k in params}
+        if _is_account_kind(widget_id):
+            # The member's switch, read BEFORE the vendor verdict (which is NEUTRAL for this vendor).
+            # Only a real boolean True shows: "true", 1 and everything else are the neutral line.
+            if params.get("share") is not True:
+                return [_neutral_for_embed(widget_id)]
+        elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
+            return [_neutral_for_embed(widget_id)]
+        kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
+        kept["params"] = {k: copy.deepcopy(params[k]) for k in EMBED_PARAM_KEYS.get(widget_id, ()) if k in params}
+        rows = kept["params"].get("rows")
+        if isinstance(rows, list):
+            kept["params"]["rows"] = [
+                {k: v for k, v in row.items() if k not in _ACCOUNT_ROW_DROP} if isinstance(row, dict) else row
+                for row in rows]
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1305,7 +1362,8 @@ def _reduce_children(children: Any, ctx: _Ctx) -> list:
             ctx.path.pop()
         placed = None
         for reduced in produced:
-            if _is_neutral(reduced) and out and _is_neutral(out[-1]):
+            line = _neutral_line_of(reduced)
+            if line is not None and out and _neutral_line_of(out[-1]) == line:
                 placed = len(out) - 1 if placed is None else placed
                 continue                             # ONE neutral line for a run of them
             placed = len(out) if placed is None else placed
@@ -1378,8 +1436,8 @@ def _example_neutral(node: dict, ctx: _Ctx) -> list:
         widget_id = attrs.get("widgetId")
         if widget_id in trader_blocks.BLOCK_IDS:
             return _reset_block(attrs, ctx)
-        if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "private":
-            ctx.note("dropped", widget_id)
+        if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) in ("private", "member-optin"):
+            ctx.note("dropped", widget_id)           # an account kind is dropped in an example, as private was
             return []
         ctx.note("market_data", widget_id)
         return [_neutral()]
@@ -1404,7 +1462,12 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         ctx.note("dropped", t)
         return []
     if action == "neutral":
-        return _example_neutral(node, ctx) if ctx.example else [_neutral()]
+        if ctx.example:
+            return _example_neutral(node, ctx)
+        if t == "widgetEmbed":                       # gallery: the line is chosen by the kind, same helper
+            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+            return [_neutral_for_embed(attrs.get("widgetId"))]
+        return [_neutral()]
     if action == "market-data":
         return _market_data(node, ctx)
     if action == "linked-note":
@@ -1621,7 +1684,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
