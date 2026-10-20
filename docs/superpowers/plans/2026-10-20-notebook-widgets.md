@@ -14,7 +14,7 @@
 
 - No schema change. No new node, mark or attr, in either `lib/notebookSchema.js` or `notebook_schema.py`. If a task finds it needs one, it stops and comes back to the owner (never-revert rule).
 - First-open bytes stay within budget: `python tools/notebook_perf_budgets.py --dist app/dist` must say `VERDICT: PASS` (budget 2,260,793 B, about 17.5 KB of headroom on 2026-10-19). The budget is never raised to fit. Every embed body is a `lazyLeaf(() => import(...))`. Nothing imports the chart engine statically.
-- One release flag per wave, all OFF when unset: `NOTEBOOK_WIDGETS_W1_ENABLED`, `NOTEBOOK_WIDGETS_W2_ENABLED`, `NOTEBOOK_WIDGETS_W3_ENABLED`, `NOTEBOOK_WIDGETS_W4_ENABLED`. Each is read per request. Payload keys are derived lowercase (`notebook_widgets_w1_enabled`, and so on). A flag gates the menu entries and the server reads only. A stored widget always renders.
+- One release flag per wave, all OFF when unset: `NOTEBOOK_WIDGETS_W1_ENABLED`, `NOTEBOOK_WIDGETS_W2_ENABLED`, `NOTEBOOK_WIDGETS_W3_ENABLED`, `NOTEBOOK_WIDGETS_W4_ENABLED`, `NOTEBOOK_WIDGETS_W5_ENABLED`, `NOTEBOOK_WIDGETS_W6_ENABLED`. Each is read per request. Payload keys are derived lowercase (`notebook_widgets_w1_enabled`, and so on). A flag gates the menu entries and the server reads only. A stored widget always renders.
 - Each new router defines its own `require_paid` with its own sentence: `"Notebook widgets require a paid plan"`.
 - Payload cap: `PAYLOAD_CAP_BYTES = 16384` (compact JSON) and `ROW_CAP = 40`. Rows beyond the cap are dropped, and the count dropped is kept as `truncated: <n>`.
 - Every payload carries `asOf` (ISO UTC) and `source`, one of `"broker" | "manual" | "mixed" | "market"`. Every figure that is unknown is `null`. The UI shows `null` as "n/a" with a reason in its `title`, never `0` and never a blank cell.
@@ -36,7 +36,7 @@
 
 ## Wave 1
 
-### Task 1: Release flags for all four waves
+### Task 1: Release flags for all six waves
 
 **Files:**
 - Modify: `api/routers/auth.py` (the `NOTEBOOK_FLAGS` table, about line 145)
@@ -45,9 +45,9 @@
 - Test: `tests/test_notebook_flags.py`, `tests/test_notebook_flag_table_form.py` (existing derived rails), `app/src/pages/journal-2-0/lib/notebookWidgetsFlags.test.js`
 
 **Interfaces:**
-- Produces: `widgetsWaveOn(wave: 1|2|3|4) -> boolean` (client), reading `notebookFlag('notebook_widgets_w<wave>_enabled') === true`. Server: `notebook_widgets_wave_on(wave: int) -> bool` in `api/services/journal_two/notebook_widgets.py` (Task 2), via `flag_on('NOTEBOOK_WIDGETS_W<n>_ENABLED', False)`.
+- Produces: `widgetsWaveOn(wave: 1|2|3|4|5|6) -> boolean` (client), reading `notebookFlag('notebook_widgets_w<wave>_enabled') === true`. Server: `notebook_widgets_wave_on(wave: int) -> bool` in `api/services/journal_two/notebook_widgets.py` (Task 2), via `flag_on('NOTEBOOK_WIDGETS_W<n>_ENABLED', False)`.
 
-- [ ] **Step 1:** Add the four rows to `NOTEBOOK_FLAGS`, each `False` and each with a one-line comment in the house style, plus the four `docs/feature_flags.json` rows (status `dark`, the note naming this plan).
+- [ ] **Step 1:** Add the six rows to `NOTEBOOK_FLAGS`, each `False` and each with a one-line comment in the house style, plus the six `docs/feature_flags.json` rows (status `dark`, the note naming this plan).
 - [ ] **Step 2:** Run `pytest tests/test_notebook_flags.py tests/test_notebook_flag_table_form.py tests/test_notebook_flag_parse.py -q`. Expected: PASS. These rails derive from the table, so a missing ledger row fails here by name.
 - [ ] **Step 3:** Write `notebookWidgetsFlags.test.js`: `widgetsWaveOn(1)` is false with no latch, true once `notebook_widgets_w1_enabled: true` is latched, and `widgetsWaveOn(2)` stays false then. Use the latch helper the `chartPlanEnabled` tests use.
 - [ ] **Step 4:** Implement `widgetsWaveOn`, then run `npx vitest run src/pages/journal-2-0/lib/notebookWidgetsFlags.test.js`. Expected: PASS.
@@ -62,8 +62,8 @@
 **Interfaces:**
 - Consumes: `earnings_prep._member_sets(user_id) -> {SYM: [source]}`, `earnings_prep.reporting_soon(user_id, today=)`, `api.routers.live_prices.get_live_prices(tickers=",".join(...))` (row keys `price`, `change_pct`), `earnings_enrichment.get_implied_move(sym, earnings_date)`.
 - Produces:
-  - `KIND_WAVE: dict[str, int]`, all nine kinds: `myWatchlistToday:1, myNamesReporting:1, tickerCard:1, myPnlStats:1, myPositionsRisk:1, myRulesCheck:2, myMistakes:2, marketOnMyNames:3, tickerFlow:3`.
-  - `ACCOUNT_KINDS = frozenset({"myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes"})`.
+  - `KIND_WAVE: dict[str, int]`, all fifteen kinds: `myWatchlistToday:1, myNamesReporting:1, tickerCard:1, myPnlStats:1, myPositionsRisk:1, myRulesCheck:2, myMistakes:2, marketOnMyNames:3, tickerFlow:3, tradeRecap:6, myPnlCalendar:6, mySetupEdge:6, myScreenToday:6, roomBuzzOnMyNames:6, myEarningsReactions:6`.
+  - `ACCOUNT_KINDS = frozenset({"myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes", "tradeRecap", "myPnlCalendar", "mySetupEdge"})`.
   - `class WidgetRequestError(ValueError)`.
   - `build(kind: str, user_id: str, params: dict, *, now: datetime | None = None) -> dict`, which raises `WidgetRequestError` for an unknown kind or bad params.
   - `cap_payload(payload: dict) -> dict`.
@@ -394,3 +394,92 @@ Payload shapes (the keys are fixed, later tasks read them):
 - Their public rows are unchanged.
 
 - [ ] Per kind: failing test, then implement, then pass, then commit. Ship dark behind `NOTEBOOK_WIDGETS_W4_ENABLED`.
+
+## Wave 5: make it yours
+
+### Task 17: Saved chart sets and widget presets
+
+**Files:**
+- Modify: `api/routers/auth.py` (preference schema table: `"notebook_chart_sets": _PREF_OPAQUE`)
+- Create: `app/src/pages/journal-2-0/lib/notebookSets.js`
+- Create: `app/src/pages/journal-2-0/components/notebook/widgets/SetsDialog.jsx` (lazy) + `.module.css`
+- Modify: `SlashMenu.jsx` (`chartSetItems(query)` and `presetItems(query)`, both shown only when W5 is on)
+- Test: `notebookSets.test.js`, `SetsDialog.test.jsx`, `SlashMenu.items.test.jsx`, and the preference-allowlist rail (`grep -rn "_PREF_OPAQUE" tests`)
+
+**Interfaces:**
+- The preference value is the JSON string `{"v":1,"sets":[{"id","name","charts":[{"symbol","tf"}]}],"presets":[{"id","name","kind","params"}]}`. `sets` holds up to 30 sets with up to 12 charts each; `presets` holds up to 50.
+- `readSets(raw: string|null) -> {v, sets, presets}`. It never throws; garbled input gives empty lists.
+- `saveSets(next) -> Promise<{ok, reason?}>`: read-modify-write, posting the WHOLE value to `POST /api/auth/preferences`, because that endpoint replaces it.
+- `chartSetNodes(set, settings) -> node[]`, one `chartInsertNodes('chart', {symbol, tf}, settings)` result per chart, in order.
+- `presetParams(preset) -> params`. These are settings only; the data keys from Tasks 2-3 are stripped.
+- Slash rows and entry points:
+  - `/set` lists sets, and `/set <name>` inserts one.
+  - `/preset` lists presets under the group label "My presets".
+  - Each SnapshotFrame gets a "Save these settings as a preset" action.
+- The "Chart sets" dialog creates, renames, deletes and reorders sets. It can start a set from a watchlist (`/api/watchlists?include_prebuilt=0`) or a theme's holdings, capped at 12. Touch targets are 44 px.
+
+- [ ] **Step 1: Write the failing tests:**
+  - `readSets_garbage_gives_empty`
+  - `saveSets_posts_whole_value_keeping_other_key`
+  - `chart_set_inserts_n_chart_embeds_in_order`
+  - `preset_strips_data_keys`
+  - `set_over_12_charts_refused_with_reason`
+  - `slash_set_absent_when_w5_off`
+- [ ] **Step 2:** Run. Expected: FAIL. **Step 3:** Implement. **Step 4:** Run. Expected: PASS, and the bytes check `VERDICT: PASS`.
+- [ ] **Step 5:** Commit: `feat(notebook): saved chart sets and widget presets (dark)`.
+
+### Task 18: Member note presets with live slots
+
+**Files:** the P3a style-library save and apply path (`grep -rn "saveAsStyle\|applyStyle\|styleLibrary" app/src/pages/journal-2-0/lib`), and `applyStyleWidgets` from Task 15.
+
+**Interfaces:**
+- `noteToPresetSlots(doc) -> {body, slots: [{kind, params}]}`. Each snapshot `widgetEmbed` keeps its place, with `params` reduced to `presetParams` and `capturedAt: null`.
+- Apply goes through `applyStyleWidgets`. Publishing a member preset to the gallery empties every slot's params.
+- No new storage.
+
+- [ ] Tests:
+  - `slots_hold_settings_not_data`
+  - `apply_refills_each_slot`
+  - `gallery_publish_empties_slots`
+  
+  Run, implement, run, commit: `feat(notebook): member note presets with live widget slots (dark)`.
+
+## Wave 6: six more widgets
+
+### Task 19: Server payloads for the wave-6 kinds
+
+**Files:** `api/services/journal_two/notebook_widgets.py`, `tests/test_notebook_widgets_service.py`
+
+**Interfaces:**
+- `tradeRecap` (`params.tradeId` required): `{"asOf","source","symbol","side","entryDate","exitDate","entryPrice","exitPrice","r","pnl","setup","holdDays","mistakes","bars"}`. `bars` holds at most 120 daily bars. A trade not owned by the user raises `WidgetRequestError("Trade not found")`.
+- `myPnlCalendar` (`params.month` = `YYYY-MM`, default the current ET month): `{"asOf","source","month","days":[{"day","pnl","trades"}],"best","worst","empty"?}`.
+- `mySetupEdge`: `{"asOf","source","rows":[{"setup","n","expectancyR","winRate","thin"}],"empty"?}`, from `personal_edge.edge_for_setups`, with `thin = n < 25`.
+- `myScreenToday` (`params.definitionId` required): `{"asOf","source":"market","name","hits":[{"symbol","price","changePct"}],"coverage":{"evaluated","answered","dropped","notComputable","withheld"}}`, from the service behind `/api/scans/definition-results`. The counts are never collapsed.
+- `roomBuzzOnMyNames`: `{"asOf","source":"market","rows":[{"symbol","mentions","people"}],"empty"?}`. It is `buzz_store.board(today_open_ts, now_ts, channels)` intersected with `_member_sets`. It never returns message text.
+- `myEarningsReactions`: `{"asOf","source":"market","rows":[{"symbol","day","epsActual","epsEst","revActual","revEst","nextDayPct"}]}`, for member names that reported in the last 7 days.
+
+- [ ] Tests, one per kind plus:
+  - `trade_recap_other_users_trade_refused`
+  - `pnl_calendar_empty_month_sentence`: "No closed trades this month yet."
+  - `setup_edge_thin_below_25`
+  - `screen_coverage_counts_close`
+  - `buzz_never_returns_text`
+  - `earnings_reactions_null_next_day_before_session`
+  
+  Run, implement, run, commit: `feat(notebook): wave-6 widget payloads`.
+
+### Task 20: Wave-6 kinds end to end
+
+**Files:**
+- `registry.js`: six entries. The plain-text lines are:
+  - `[trade recap: <SYM> <side> · <exitDate>]`
+  - `[my P&L calendar: <month>]`
+  - `[my setup edge: N setups]`
+  - `[my screen today: <name> · N hits]`
+  - `[room buzz on my names: N names]`
+  - `[my earnings reactions: N names]`
+- `public_note_payload.py`: the three account kinds are `member-optin`, with `EMBED_PARAM_KEYS` rows that never include `tradeId`; the three market kinds are `mixed`.
+- Six embeds in `widgets/`, `EMBED_COMPONENTS` rows, and the parity fixtures.
+- Slash items: `/recap` picks from recent closed trades (`/api/j2/trades?status=closed&limit=10`), `/screen` picks from saved screens, and the other four insert directly.
+
+- [ ] Extend the parametrised tests from Tasks 5-9 to the six kinds. The privacy rail also asserts that `tradeId` never appears in a shown public payload. Run, implement, run, then the bytes check, then commit and ship dark behind `NOTEBOOK_WIDGETS_W5_ENABLED` / `_W6_ENABLED`.

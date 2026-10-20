@@ -45,6 +45,7 @@ The goal: when a member writes in the Notebook, the data the app already holds a
 - **Snapshot by default (C1), confirmed 2026-10-20.**
 - **Anything the member wants is shareable (2026-10-20).** This replaces "account widgets are never shared"; see C2/C11 as revised.
 - **Do it all (2026-10-20):** waves 1-3, plus the existing kinds in `/` (wave 4, now scheduled).
+- **"You decide it all and get it all done fully" (2026-10-20)**, plus: customizable presets ("a customized preset of a set of charts, groups etc") and any other valuable widgets. Waves 5-6 below are Claude's picks under that grant.
 - Broker-linked data first.
 - Smooth, easy insertion.
 
@@ -65,6 +66,18 @@ The goal: when a member writes in the Notebook, the data the app already holds a
 - C14. **`/` grouping**: the existing Trading group splits into three: Before the open · Planning a trade · Reviewing. Basics and More are unchanged, and existing trading items go in whichever group fits.
 - C15. **Starter styles (wave 3)** fill their widgets at apply time, through the same fetch-and-freeze builders. A gallery template ships the widget shells empty, and they render neutral in gallery mode anyway.
 
+- C16. **Saved chart sets (wave 5).** A member names a set of symbols and timeframes ("Semis: NVDA AMD AVGO, D + 60m") and inserts it as a block of frozen charts with `/set <name>`. A set is a list of `{symbol, tf}` (max 12 charts), stored as one opaque user preference `notebook_chart_sets` (a `_PREF_OPAQUE` row), read-modify-write because the preferences endpoint replaces the whole value. Insertion reuses `chartInsertNodes`, so a set is N ordinary chart embeds, not a new kind. The member can also start a set from a watchlist or a theme.
+- C17. **Saved widget presets (wave 5).** Any snapshot widget's settings (which list, date range, columns, sort) can be saved under a name ("Weekly review P&L", "Flagged only"), and `/` lists the member's presets under "My presets". Stored in the same preference as C16 under its own key. A preset stores settings only, never data; inserting one runs the normal fetch-and-freeze.
+- C18. **Member-made note presets with live slots (wave 5).** "Save as preset" on a note records its text plus each snapshot widget as a slot (`{kind, params}`). Applying it refills every slot at apply time (the C15 path, opened up to members). It goes through the existing style library (P3a); a preset shared to the gallery ships its slots empty (C15).
+- C19. **Six more widgets (wave 6).** Picked for the owner's "account stuff, group stuff, market context" and "individualized":
+  - `tradeRecap`: one closed trade (entry, exit, R, setup, hold time, mistakes) with a small daily chart. Account kind.
+  - `myPnlCalendar`: a month of daily P&L as a heat strip, with best and worst days. Account kind.
+  - `mySetupEdge`: the member's own expectancy by setup (`personal_edge.edge_for_setups`), with thin samples labelled as thin. Account kind.
+  - `myScreenToday`: today's hits for one of the member's saved screens, with the four-count coverage line (`/api/scans/definition-results`). Market kind.
+  - `roomBuzzOnMyNames`: which of the member's names the community chat is talking about today (`buzz_store.board`), with mention counts. This is the group widget, and it stores no message text, like the board itself. Market kind (neutral publicly; mention counts are ours, but the rows sit beside prices).
+  - `myEarningsReactions`: the member's names that reported this week, with EPS and revenue against estimate and the next-day move. Market kind.
+- C20. **Considered and left out:** exposure gauges (owner: "less exposure score"); a live-updating ticker tape (it breaks the snapshot rule, and the Dashboard already has one); member-written formula widgets (another write surface needing its own review).
+
 ## 4. The widgets
 
 Every widget has: a header (name, snapshot chip or 🔒 Only you, as-of stamp, See it now), a body, and a source line.
@@ -81,7 +94,14 @@ Every widget has: a header (name, snapshot chip or 🔒 Only you, as-of stamp, S
 | `marketOnMyNames` | Each of the member's names vs its sector over 5 days | RS / sector data, theme taxonomy | no | 3 |
 | `tickerFlow` | Options flow summary for one name | flow proxy reads | no | 3 |
 
-Existing kinds are NOT added to `/` in wave 1 (C9).
+| `tradeRecap` | One closed trade: entry, exit, R, setup, hold, mistakes, mini chart | J2 trade by id + bars | yes | 6 |
+| `myPnlCalendar` | Month of daily P&L as a heat strip, best/worst day | `/api/j2/analytics` performance by day | yes | 6 |
+| `mySetupEdge` | Expectancy per setup, n per setup, thin-sample label | `personal_edge.edge_for_setups` | yes | 6 |
+| `myScreenToday` | Today's hits for one saved screen + coverage counts | `/api/scans/definition-results` | no | 6 |
+| `roomBuzzOnMyNames` | Member's names the chat is talking about today | `buzz_store.board` ∩ my-sets | no | 6 |
+| `myEarningsReactions` | My names that reported: EPS/rev vs estimate, next-day move | `get_year_earnings` + bars | no | 6 |
+
+Existing kinds are NOT added to `/` in wave 1 (C9). Saved chart sets (C16) are chart embeds, not a kind.
 
 ## 5. Waves
 
@@ -91,6 +111,9 @@ Existing kinds are NOT added to `/` in wave 1 (C9).
 - **Wave 3.** `marketOnMyNames`, `tickerFlow`, and starter styles shipping with widgets pre-placed (Morning prep: watchlist today + names reporting; Weekly review: P&L + positions + rules + mistakes).
 
 - **Wave 4.** Fetch-and-freeze builders for the existing non-capture-only kinds (calendar, watchlist, themes, breadth, indexes, news, fundamentals, alerts, profile and the rest), so they join `/` under More. `captureOnly` kinds stay capture-only.
+
+- **Wave 5 (make it yours).** Saved chart sets (C16), saved widget presets (C17), member note presets with live slots (C18).
+- **Wave 6.** The six widgets in C19.
 
 Each wave ships dark behind one Notebook flag and gets armed separately.
 
@@ -120,7 +143,7 @@ Each wave ships dark behind one Notebook flag and gets armed separately.
 
 1. Snapshot by default: **yes**.
 2. Account widgets shareable: **yes, anything the member wants** (C2/C11 revised to an opt-in switch, off by default).
-3. Waves: **do it all**, waves 1-4.
+3. Waves: **do it all**, waves 1-4; then waves 5-6 added under "you decide it all".
 
 Still the owner's, not changed here: Massive-sourced market data stays neutral on public pages under the 2026-09-25 legal sign-off; flipping it is one line in `VENDOR_VERDICT`.
 
