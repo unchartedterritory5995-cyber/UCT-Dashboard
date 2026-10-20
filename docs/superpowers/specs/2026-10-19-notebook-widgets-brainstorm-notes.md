@@ -22,3 +22,4 @@ Rebuild of a plan lost in a box crash on 2026-10-19. Not a design yet.
 - Owner on live vs snapshot: "idk" -> proposed SNAPSHOT by default + "see it now" (Claude's call, not agreed yet).
 - Owner: "think about templates and what a trader would want to journal about" -> proposed widgets grouped by moment (prep / plan a trade / review / end of day / weekly), a `$TICKER` card, and starter packs/styles shipping with widgets pre-placed + auto-filled.
 - Owner: "also maybe some account stuff, group stuff, market context things like that"
+- Owner: "less exposure score and more individualized stuff" -> direction: center widgets on the MEMBER's own data (their names, trades, stats, rules); market context reframed as how the market touches *their* names. Sharing rule for account widgets: Claude's default = never in anything published (not yet confirmed).
