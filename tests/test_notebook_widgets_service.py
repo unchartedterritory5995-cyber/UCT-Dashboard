@@ -5,6 +5,7 @@ Every consumed function is monkeypatched: no network, no live data, no C:\data.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -178,3 +179,55 @@ def test_every_payload_has_asOf_and_source(monkeypatch):
         out = nw.build(kind, "u1", {}, now=NOW)
         assert out["asOf"] == "2026-10-20T15:00:00Z"
         assert out["source"] == "market"
+
+
+def test_slow_implied_move_is_bounded_by_total_budget(monkeypatch):
+    monkeypatch.setattr(nw, "IMPLIED_MOVE_BUDGET_S", 0.3)
+    items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo",
+              "sources": ["watchlist"]} for s in ("AAA", "SLOW", "CCC")]
+    _patch_reporting(monkeypatch, items)
+    import api.services.earnings_enrichment as ee
+
+    def fake(sym, earnings_date=None, timing=None):
+        if sym == "SLOW":
+            time.sleep(2.0)
+        return {"pct": 5.0}
+
+    monkeypatch.setattr(ee, "get_implied_move", fake)
+    t0 = time.monotonic()
+    out = nw.build("myNamesReporting", "u1", {}, now=NOW)
+    assert time.monotonic() - t0 < 0.3 + 1.0
+    r = {x["symbol"]: x for x in out["rows"]}
+    assert r["SLOW"]["impliedMovePct"] is None
+    assert r["AAA"]["impliedMovePct"] == 5.0 and r["CCC"]["impliedMovePct"] == 5.0
+    assert out["partial"] is True
+
+
+def test_reporting_soon_gets_today_in_et_from_now(monkeypatch):
+    import api.services.journal_two.earnings_prep as ep
+    seen = []
+
+    def fake(user_id, today=None):
+        seen.append(today)
+        return {"items": [], "partial": False}
+
+    monkeypatch.setattr(ep, "reporting_soon", fake)
+    _patch_sets(monkeypatch, watchlist=["AAPL"])
+    _patch_prices(monkeypatch, {})
+    late_utc = datetime(2026, 10, 21, 2, 30, tzinfo=timezone.utc)  # still Oct 20 in ET
+    nw.build("myNamesReporting", "u1", {}, now=late_utc)
+    nw.build("myWatchlistToday", "u1", {}, now=late_utc)
+    from datetime import date
+    assert seen == [date(2026, 10, 20), date(2026, 10, 20)]
+
+
+def test_cap_payload_adds_builder_truncated_to_trimmed_rows():
+    rows = [{"symbol": f"S{i}", "blob": "x" * 1000} for i in range(30)]
+    out = nw.cap_payload({"asOf": "x", "source": "market", "rows": rows, "truncated": 7})
+    assert out["truncated"] == 7 + (30 - len(out["rows"]))
+    assert len(json.dumps(out, separators=(",", ":"))) <= nw.PAYLOAD_CAP_BYTES
+
+
+def test_non_dict_params_raises():
+    with pytest.raises(nw.WidgetRequestError):
+        nw.build("myNamesReporting", "u1", ["x"], now=NOW)

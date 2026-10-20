@@ -18,13 +18,21 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Any, Callable
 
 _log = logging.getLogger(__name__)
 
 PAYLOAD_CAP_BYTES = 16384
 ROW_CAP = 40
+
+#: TOTAL wall-clock budget for the implied-move reads of one request, and the pool size.
+#: A vendor read is an unbounded external call on the single web pod's threadpool.
+IMPLIED_MOVE_BUDGET_S = 6.0
+IMPLIED_MOVE_WORKERS = 4
 
 #: Kind -> the release wave whose flag gates its menu entry and server read.
 KIND_WAVE: dict[str, int] = {
@@ -66,6 +74,13 @@ def _iso_utc(now: datetime) -> str:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     return now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _today_et(now: datetime) -> date:
+    """The ET calendar date of `now`, so the earnings window agrees with `asOf`."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(ZoneInfo("America/New_York")).date()
 
 
 def _num(v: Any) -> float | None:
@@ -131,7 +146,7 @@ def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
             _log.info("watchlist today: live prices failed: %s", e)
         try:
             from api.services.journal_two import earnings_prep
-            soon = earnings_prep.reporting_soon(user_id)
+            soon = earnings_prep.reporting_soon(user_id, today=_today_et(now))
             for it in (soon or {}).get("items") or []:
                 if it.get("symbol") and it.get("date"):
                     earnings[str(it["symbol"]).upper()] = str(it["date"])
@@ -170,11 +185,41 @@ def _implied_move_pct(sym: str, day: str | None, timing: str | None) -> float | 
         return None
 
 
+def _implied_moves(items: list[dict]) -> tuple[dict[str, float | None], bool]:
+    """{SYM: pct or None} for `items`, run in a small pool under ONE total budget.
+
+    A symbol not finished when the budget runs out is None and the second value is
+    True (the payload is partial). Nothing blocks past the budget: unstarted futures
+    are cancelled and the pool is released without waiting for a straggler.
+    """
+    out: dict[str, float | None] = {}
+    if not items:
+        return out, False
+    pool = ThreadPoolExecutor(max_workers=IMPLIED_MOVE_WORKERS)
+    deadline = time.monotonic() + IMPLIED_MOVE_BUDGET_S
+    timed_out = False
+    try:
+        futs = {}
+        for it in items:
+            sym = str(it.get("symbol") or "").upper()
+            futs[sym] = pool.submit(_implied_move_pct, sym, it.get("date"), it.get("timing"))
+        for sym, fut in futs.items():
+            try:
+                out[sym] = fut.result(timeout=max(0.0, deadline - time.monotonic()))
+            except _FutTimeout:
+                out[sym] = None
+                timed_out = True
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    return out, timed_out
+
+
 def _my_names_reporting(user_id: str, params: dict, now: datetime) -> dict:
     from api.services.journal_two import earnings_prep
-    soon = earnings_prep.reporting_soon(user_id) or {}
+    soon = earnings_prep.reporting_soon(user_id, today=_today_et(now)) or {}
     items = list(soon.get("items") or [])
     shown, cut = items[:ROW_CAP], max(0, len(items) - ROW_CAP)
+    moves, timed_out = _implied_moves(shown)
     rows = []
     for it in shown:
         sym = str(it.get("symbol") or "").upper()
@@ -184,13 +229,13 @@ def _my_names_reporting(user_id: str, params: dict, now: datetime) -> dict:
             "timing": it.get("timing"),
             "daysAway": it.get("daysAway"),
             "sources": list(it.get("sources") or []),
-            "impliedMovePct": _implied_move_pct(sym, it.get("date"), it.get("timing")),
+            "impliedMovePct": moves.get(sym),
         })
     out: dict[str, Any] = {
         "asOf": _iso_utc(now),
         "source": "market",
         "rows": rows,
-        "partial": bool(soon.get("partial")),
+        "partial": bool(soon.get("partial")) or timed_out,
     }
     if cut:
         out["truncated"] = cut
