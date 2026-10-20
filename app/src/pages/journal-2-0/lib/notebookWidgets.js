@@ -43,6 +43,16 @@ export const WIDGET_KINDS = Object.freeze([
     keywords: ['mistakes', 'errors', 'cost', 'review'], account: true },
 ])
 
+/** Notebook widgets Task 16: existing /charts widget kinds the / menu inserts by fetch-and-freeze, through
+ *  the SAME insert path as WIDGET_KINDS. Deliberately NOT in WIDGET_KINDS: they are not endpoint snapshots,
+ *  so a stored one gets no refresh doors (isSnapshotKind) and renders exactly as before. `capture` loads
+ *  the kind's capture module only when the command runs; `cmd` (a symbol) or `day` is its slash grammar. */
+export const CAPTURE_KINDS = Object.freeze([
+  { id: 'calendar', wave: 4, group: 'more', title: 'UCT Terminal day', day: 1,
+    description: "Today's earnings and economic events", keywords: ['calendar', 'economic'],
+    capture: () => import('../../charts/widgets/captures/calendarCapture') },
+])
+
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
 
 /** The kind's entry, or null for an id that is not a Notebook widget. */

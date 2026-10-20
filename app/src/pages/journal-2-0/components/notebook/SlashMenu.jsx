@@ -14,7 +14,7 @@ import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
-  parseVsSlashArgs, chartPlanEnabled, VS_BROAD, VS_KEYWORDS,
+  parseVsSlashArgs, chartPlanEnabled, VS_BROAD, VS_KEYWORDS, parseDayToken,
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
@@ -28,7 +28,7 @@ import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
-import { WIDGET_KINDS, fetchWidgetPayload, widgetEmbedNode } from '../../lib/notebookWidgets'
+import { WIDGET_KINDS, CAPTURE_KINDS, fetchWidgetPayload, widgetEmbedNode } from '../../lib/notebookWidgets'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import styles from './SlashMenu.module.css'
 
@@ -490,7 +490,10 @@ function snapshotCommand(kind, params) {
     let pos = range ? range.from : editor.state.selection.from
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
     editor.on('transaction', track)
-    const res = await fetchWidgetPayload(kind.id, params)
+    // A Task 16 kind fetches and builds through its own lazily loaded capture module; a lost chunk is a failed fetch.
+    const res = kind.capture
+      ? await kind.capture().then((m) => m.slashCapture(params), () => ({ ok: false, reason: 'failed' }))
+      : await fetchWidgetPayload(kind.id, params)
     editor.off('transaction', track)
     if (editor.isDestroyed) return { ok: false, message: null }
     if (!res.ok) {
@@ -513,10 +516,16 @@ export function snapshotWidgetItems(query) {
   const first = tokens[0]?.toLowerCase() || ''
   const singleToken = tokens.length <= 1
   const out = []
-  for (const kind of WIDGET_KINDS) {
+  for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
     if (!widgetsWaveOn(kind.wave)) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
-    const cmd = SNAPSHOT_SYMBOL_CMD[kind.id]
+    const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
+    // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.
+    if (kind.day && !singleToken) {
+      const date = first === kind.id && tokens.length === 2 && parseDayToken(tokens[1])
+      if (date) out.push({ ...item, cmd: first, title: `${kind.title} — ${fmtDayTitle(date)}`, command: snapshotCommand(kind, { date }) })
+      continue
+    }
     if (!cmd) {
       if (blockItemMatches(kind, raw.toLowerCase())) out.push({ ...item, command: snapshotCommand(kind, {}) })
       continue

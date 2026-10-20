@@ -12,6 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { buildCalendarCapture, calendarCaptureSettings } from './captures/calendarCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import usePreferences from '../../../hooks/usePreferences'
@@ -30,9 +31,7 @@ import NewsSettingsPanel from './NewsSettingsPanel'
 // CalendarWidget.weekIntent.test.jsx traces both intents back to an import from
 // weekAnchor and fails on anything locally declared.
 import { mondayOf, lastSessionDay } from '../../calendar/weekAnchor'
-import {
-  mergeCalendarWidgetSettings, calendarWidgetStyleVars, calendarDefaultsForTheme,
-} from './calendarWidgetSettings'
+import { calendarWidgetStyleVars } from './calendarWidgetSettings'
 import styles from './CalendarWidget.module.css'
 import { nextSort } from '../../../lib/presentation/dataGrid'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
@@ -277,7 +276,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   const { prefs } = usePreferences()
   const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeCalendarWidgetSettings(opts?.settings ?? calendarDefaultsForTheme(placedTheme)),
+    () => calendarCaptureSettings(opts?.settings, placedTheme),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -325,9 +324,10 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   // Freeze exactly what the widget shows right now — shared by the one-click
   // default send AND the destination-picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildDayCapture = useCallback(() => ({
-    date: selected, econStars, selectedSym, tbdOpen, settings,
-  }), [selected, econStars, selectedSym, tbdOpen, settings])
+  // ONE builder with the Notebook's /calendar insert (captures/calendarCapture.js).
+  const buildDayCapture = useCallback(() => buildCalendarCapture(
+    { date: selected }, { econStars, selectedSym, tbdOpen, settings },
+  ), [selected, econStars, selectedSym, tbdOpen, settings])
   const sendDayToJournal = useCallback(async () => {
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', buildDayCapture(), { label: `UCT Terminal ${selected}` }))
