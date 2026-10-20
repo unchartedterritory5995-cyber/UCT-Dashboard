@@ -141,6 +141,8 @@ import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import TickerCardSlot from './widgets/TickerCardSlot'
 // Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
 // also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
 // imports below, and the chip itself is lazy.
@@ -5740,6 +5742,8 @@ export default function NoteEditorPage({
         {smartChipsEnabled() && (
           <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>
         )}
+        {/* Notebook widgets W1: the $TICKER chip's card, a lazy chunk (widgets/TickerCardSlot.jsx). */}
+        {widgetsWaveOn(1) && <TickerCardSlot editor={editor} />}
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer}
