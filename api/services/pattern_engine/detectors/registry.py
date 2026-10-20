@@ -252,6 +252,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "uct_pullback_ma_v5",
     "uct_flat_top_breakout",
     "bc:base",
+    "draw:inside-day",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -308,9 +309,19 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc); served recognition 8 of 8 decided. Where a
 #: stamped cup is served, bc:flat-base (member_cup_precedence) and bc:base (member_base_precedence) near
 #: its pivot or overlapping its span are dropped for members: the cup is the confirmed, judged drawing.
+#: draw:inside-day (lab id_draw_v2, 2026-10-19) is the member INSIDE-DAY drawing over the served
+#: uct_inside_day_id4 recognition (which itself stays INTERNAL): a light box over the inside day and
+#: the bar it sits inside, a solid "trigger" line at the inside day's high and a dashed "stop" at its
+#: low, withheld unless the stock rests near the top of its 60-session range and the inside day is
+#: clearly narrower than its mother bar. It passed two fresh pre-registered blind packets, two judges
+#: each, AS DRAWN: A2 2.56 [2.36, 2.74] 96% >= 2 and B2 2.44 [2.28, 2.60] 100% >= 2 (the previous
+#: round failed its second packet, 1.98). The team axis was too thin to test. A row exists only beside
+#: a drawing (auto_structures.inside_day_draw_row); member_rows serves it only while it carries
+#: draw_round == MEMBER_INSIDE_DAY_ROUND beside a well-formed draw_inside_day, and
+#: member_inside_day_precedence keeps it to daily charts and drops it under an incumbent breakout line.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
-    "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle",
+    "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

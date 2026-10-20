@@ -45,6 +45,9 @@
 //   plus a hollow circle on each touch, and nothing else of that row (`flatTopDrawing`).
 //   bc:base (a structures row): `draw_base` (lab base_draw) draws a light region over the base, a
 //   solid "pivot" line on its top and a dashed "base low" line, and nothing else (`baseDrawing`).
+//   draw:inside-day (a structures row): `draw_inside_day` (lab id_draw_v2) draws a light box over the
+//   inside day and the bar it sits inside, a solid "trigger" line at the inside day's high extended
+//   past the last bar, and a dashed "stop" line at its low, and nothing else (`insideDayDrawing`).
 //
 // ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
 //   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
@@ -114,6 +117,7 @@ export function drawGeometry(d) {
 export const TRENDLINE_BREAK_ID = 'uct_trendline_break'
 export const FLAT_TOP_ID = 'uct_flat_top_breakout'
 export const BASE_DRAW_ID = 'bc:base'
+export const INSIDE_DAY_DRAW_ID = 'draw:inside-day'
 
 const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
 
@@ -155,6 +159,32 @@ export function baseDrawing(d) {
   return {
     pivot, low, start_t: bd.start_t, end_t: bd.end_t,
     label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
+  }
+}
+
+/**
+ * The INSIDE DAY a draw:inside-day structures row draws (lab id_draw_v2, blind-confirmed as drawn):
+ * `extras.draw_inside_day` = {trigger, stop, mother_high, mother_low, start_t, inside_t, end_t, label,
+ * stop_label}. Returns null for any other row or a malformed stamp (a trigger not above the stop, a stop
+ * or trigger outside the mother range, a missing span). When it returns a drawing, the row draws exactly
+ * what the judges scored and nothing else: a light box over the mother bar through the inside day, a
+ * solid trigger line at the inside day's high extended past the last bar, and a dashed stop line at its
+ * low. Pure — exported for tests.
+ */
+export function insideDayDrawing(d) {
+  if (d?.pattern_id !== INSIDE_DAY_DRAW_ID) return null
+  const x = d?.geometry?.extras?.draw_inside_day
+  if (!x || typeof x !== 'object') return null
+  const trigger = Number(x.trigger)
+  const stop = Number(x.stop)
+  const motherHigh = Number(x.mother_high)
+  const motherLow = Number(x.mother_low)
+  if (![trigger, stop, motherHigh, motherLow].every(Number.isFinite)) return null
+  if (!(trigger > stop && motherHigh >= trigger && stop >= motherLow)) return null
+  if (x.start_t == null || x.inside_t == null || x.end_t == null) return null
+  return {
+    trigger, stop, motherHigh, motherLow, start_t: x.start_t, inside_t: x.inside_t, end_t: x.end_t,
+    label: x.label || 'trigger', stopLabel: x.stop_label || 'stop',
   }
 }
 
@@ -368,7 +398,9 @@ export default function PatternOverlay({
         const flatTop = flatTopDrawing(d)
         // The base drawing (bc:base) is its own geometry: region + pivot + low, nothing else.
         const base = baseDrawing(d)
-        const Renderer = (flatTop || base) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
+        // The inside-day drawing (draw:inside-day) is its own geometry: box + trigger + stop, nothing else.
+        const insideDay = insideDayDrawing(d)
+        const Renderer = (flatTop || base || insideDay) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
         // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
@@ -378,7 +410,7 @@ export default function PatternOverlay({
         // the stop to start at the TAG bar (the detector's own stop secondary runs from the
         // 10-session high, far left) — same price, same label, display only.
         const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
-        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base ? d.geometry.secondary : [])
+        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
           .map((sec) => (drawStop && sec?.role === 'stop'
             ? {
@@ -503,6 +535,47 @@ export default function PatternOverlay({
                   {region}
                   {level('base-pivot', base.pivot, base.label, { extendRight: 40, dashed: false, role: 'base-pivot' })}
                   {level('base-low', base.low, base.lowLabel, { dashed: true, role: 'base-low' })}
+                </g>
+              )
+            })()}
+            {insideDay && (() => {
+              const x1 = tToX(insideDay.start_t)
+              const x2 = tToX(insideDay.inside_t)
+              const yH = priceToY(insideDay.motherHigh)
+              const yL = priceToY(insideDay.motherLow)
+              // the box covers the mother bar through the inside day: half a bar either side
+              const box = [x1, x2, yH, yL].every((v) => v != null) ? (
+                <rect data-role="inside-day-box" x={Math.min(x1, x2) - barHalfWidthPx}
+                  y={Math.min(yH, yL)} width={Math.max(1, Math.abs(x2 - x1) + 2 * barHalfWidthPx)}
+                  height={Math.max(1, Math.abs(yL - yH))}
+                  fill={getColor(d)} fillOpacity={getOpacity(d) * 0.08} stroke="none"
+                  style={{ pointerEvents: 'none' }} />
+              ) : null
+              const level = (suffix, price, label, extra) => (
+                <LevelSegment
+                  detection={{
+                    ...d,
+                    id: `${d.id}:${suffix}`,
+                    confidence: null,
+                    geometry: {
+                      shape: 'horizontal_line',
+                      label,
+                      anchors: [{ t: insideDay.start_t, price }, { t: insideDay.end_t, price }],
+                    },
+                  }}
+                  tToX={tToX}
+                  priceToY={priceToY}
+                  onClick={onDetectionClick}
+                  {...extra}
+                />
+              )
+              return (
+                <g data-role="inside-day-draw">
+                  {box}
+                  {level('inside-day-trigger', insideDay.trigger, insideDay.label,
+                    { extendRight: 40, dashed: false, role: 'inside-day-trigger' })}
+                  {level('inside-day-stop', insideDay.stop, insideDay.stopLabel,
+                    { dashed: true, role: 'inside-day-stop' })}
                 </g>
               )
             })()}

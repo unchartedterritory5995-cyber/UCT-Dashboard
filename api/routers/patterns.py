@@ -844,6 +844,9 @@ def get_detections(
                 # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
                 # covering the same base wins over the bc:base drawing (members only)
                 boxes = auto_structures.member_base_precedence(rows, boxes)
+                # the inside-day drawing: daily charts only, and an incumbent breakout line near its
+                # trigger wins over it (members only)
+                boxes = auto_structures.member_inside_day_precedence(rows, boxes, tf)
                 if boxes:
                     mout["structures"] = boxes
                 drawn = auto_structures.drawn_for(sym)

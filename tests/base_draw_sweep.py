@@ -21,13 +21,18 @@ SW = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(SW)
 
 BASE_ID = "bc:base"
+#: A LATER drawing's own row (lab id_draw_v2). The base golden pins the rows that existed before the
+#: base drawing, so this row is never part of its digest; tests/test_inside_day_draw_golden.py rails it.
+INSIDE_DAY_ID = "draw:inside-day"
 SYM = "SYN"
 
 
-def canonical(rows: list, drop_base: bool = True) -> str:
+def canonical(rows: list, drop_base: bool = True, drop_inside_day: bool = True) -> str:
     out = []
     for r in rows:
         if drop_base and r.get("pattern_id") == BASE_ID:
+            continue
+        if drop_inside_day and r.get("pattern_id") == INSIDE_DAY_ID:
             continue
         out.append(json.dumps(r, sort_keys=True, separators=(",", ":"), default=str))
     return "[" + ",".join(out) + "]"
@@ -37,10 +42,10 @@ def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def run(auto_structures, drop_base: bool = True):
+def run(auto_structures, drop_base: bool = True, drop_inside_day: bool = True):
     """({key: digest}, counts) for one implementation of auto_structures.structures_for."""
     saved = auto_structures._daily_bars, auto_structures.last_bar_forming
-    out, counts = {}, {"scans": 0, "rows": 0, "base_rows": 0, "keys": 0}
+    out, counts = {}, {"scans": 0, "rows": 0, "base_rows": 0, "inside_day_rows": 0, "keys": 0}
     keys = set()
     try:
         auto_structures.last_bar_forming = lambda t, now=None: False
@@ -53,8 +58,9 @@ def run(auto_structures, drop_base: bool = True):
             for r in rows:
                 counts["rows"] += 1
                 counts["base_rows"] += r.get("pattern_id") == BASE_ID
+                counts["inside_day_rows"] += r.get("pattern_id") == INSIDE_DAY_ID
                 keys.add(r.get("pattern_id"))
-            out[key] = digest(canonical(rows, drop_base))
+            out[key] = digest(canonical(rows, drop_base, drop_inside_day))
     finally:
         auto_structures._daily_bars, auto_structures.last_bar_forming = saved
         auto_structures._CACHE.clear()
