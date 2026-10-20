@@ -10,6 +10,8 @@ vi.mock('../../components/StockChart', () => ({
     <div data-testid="stock-chart">
       <span>chart:{sym}</span>
       <span>bars:{Array.isArray(barsOverride) ? barsOverride.length : (barsOverridePending ? 'pending' : 'none')}</span>
+      <span>first:{Array.isArray(barsOverride) && barsOverride[0] ? String(barsOverride[0].t) : '-'}</span>
+      <span>last:{Array.isArray(barsOverride) && barsOverride.length ? String(barsOverride[barsOverride.length - 1].t) : '-'}</span>
       <span>study:{studyMode ? '1' : '0'}</span>
       <span>frame:{entryDate || '-'}..{exitDate || '-'}</span>
       <span>markers:{(markers || []).map((m) => m.text).join('|')}</span>
@@ -118,6 +120,10 @@ describe('StudyReview card', () => {
     // The STORED snapshot drives the chart (3 visible + 2 forward), in study
     // mode, from the admin bars route; never a live fetch by ticker.
     expect(chart).toHaveTextContent('bars:5')
+    // Stored ints (20250529) reach the chart as the dates it reads ('2025-05-29'),
+    // visible first, forward last: the shape the member's drill hands it.
+    expect(chart).toHaveTextContent('first:2025-05-29')
+    expect(chart).toHaveTextContent('last:2025-06-04')
     expect(chart).toHaveTextContent('study:1')
     expect(KEYS).toContain('/api/study/admin/items/si_a/bars')
     expect(chart).toHaveTextContent('frame:2024-11-27..2025-07-07')

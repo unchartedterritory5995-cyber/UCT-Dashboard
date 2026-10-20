@@ -32,6 +32,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
+import { appendForwardBars, normalizeBars } from '../study/useStudySession'
 import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride } from '../study/DrillPlayer'
@@ -466,9 +467,13 @@ export default function StudyReview() {
   // chart item. `null` key = no request for text items.
   const barsKey = sel && itemHasChartView(sel) ? `/api/study/admin/items/${encodeURIComponent(sel.id)}/bars` : null
   const { data: storedBars, error: storedBarsError } = useSWR(barsKey, fetcher, { revalidateOnFocus: false })
+  // Stored bars carry `t` as YYYYMMDD ints; the chart wants 'YYYY-MM-DD'. The
+  // drill normalises through the same two helpers, so the reviewer and the
+  // member see one shape (raw ints under `exactDateRange` match no date and
+  // the chart reports "No <sym> chart data", measured on production 2026-10-20).
   const chartBars = useMemo(() => {
     if (!storedBars || !Array.isArray(storedBars.bars) || !storedBars.bars.length) return null
-    return storedBars.bars.concat(Array.isArray(storedBars.forward) ? storedBars.forward : [])
+    return appendForwardBars(normalizeBars(storedBars), storedBars.forward)
   }, [storedBars])
   const chartBarsPending = !!barsKey && !storedBars && !storedBarsError
   const chartOpts = sel?.prompt_json?.chart
