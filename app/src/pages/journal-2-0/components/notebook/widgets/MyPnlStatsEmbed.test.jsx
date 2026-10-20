@@ -1,5 +1,6 @@
 // My P&L and stats (Task 7): rendered from the frozen params; See it now refreshes in place.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useState } from 'react'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import MyPnlStatsEmbed from './MyPnlStatsEmbed'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
@@ -77,5 +78,44 @@ describe('MyPnlStatsEmbed', () => {
     expect(onUpdateParams).toHaveBeenCalledTimes(1)
     expect(onUpdateParams.mock.calls[0][0]).toMatchObject({ share: true, netPnl: 2840 })
     expect(fetchSpy).toHaveBeenCalledTimes(0)
+  })
+
+  // Fix round 1: the privacy race. The member switches share OFF while See it now is in flight; the
+  // refresh must land with share false, never the click-time true.
+  it('a share switched off during a refresh stays off when the refresh lands', async () => {
+    let resolveFetch
+    fetchSpy.mockImplementationOnce(() => new Promise((r) => { resolveFetch = r }))
+    const stored = { params: null }
+    function Host() {
+      const [attrs, setAttrs] = useState(() => {
+        const a = attrsOf()
+        return { ...a, params: { ...a.params, share: true } }
+      })
+      stored.params = attrs.params
+      return <MyPnlStatsEmbed attrs={attrs} editable onUpdateParams={(next) => setAttrs((a) => ({ ...a, params: next }))} />
+    }
+    render(<Host />)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'See it now' })) })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('switch', { name: 'Show on shared pages' }))
+    expect(stored.params.share).toBe(false)
+    await act(async () => {
+      resolveFetch({ ok: true, status: 200, json: async () => ({ ...PAYLOAD, asOf: '2026-10-20T13:00:00Z', netPnl: 3100 }) })
+    })
+    expect(stored.params.netPnl).toBe(3100)
+    expect(stored.params.share).toBe(false)
+  })
+
+  it('a refresh that lands after the note turned read-only writes nothing', async () => {
+    let resolveFetch
+    fetchSpy.mockImplementationOnce(() => new Promise((r) => { resolveFetch = r }))
+    const onUpdateParams = vi.fn()
+    const { rerender } = render(<MyPnlStatsEmbed attrs={attrsOf()} editable onUpdateParams={onUpdateParams} />)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'See it now' })) })
+    rerender(<MyPnlStatsEmbed attrs={attrsOf()} editable={false} onUpdateParams={onUpdateParams} />)
+    await act(async () => {
+      resolveFetch({ ok: true, status: 200, json: async () => ({ ...PAYLOAD, asOf: '2026-10-20T13:00:00Z' }) })
+    })
+    expect(onUpdateParams).not.toHaveBeenCalled()
   })
 })

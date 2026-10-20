@@ -28,6 +28,7 @@ vi.mock('./widgets/MyPnlStatsEmbed', stub('myPnlStats'))
 vi.mock('./widgets/MyPositionsRiskEmbed', stub('myPositionsRisk'))
 
 import WidgetEmbedView from './WidgetEmbedView'
+import { kickSnapshotWarm } from '../../lib/embedArchive'
 import { widgetEmbedNode } from '../../lib/notebookWidgets'
 
 const PAYLOADS = {
@@ -54,6 +55,7 @@ afterAll(() => { globalThis.IntersectionObserver = RealIO })
 beforeEach(() => {
   __resetNotebookFlags()
   seen.length = 0
+  kickSnapshotWarm.mockClear()
   fetchSpy = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
   vi.stubGlobal('fetch', fetchSpy)
 })
@@ -118,5 +120,69 @@ describe('WidgetEmbedView -> the five snapshot embeds', () => {
     updateAttributes.mockClear()
     last('myPnlStats').onUpdateParams({ ...attrs.params, share: true })
     expect(updateAttributes).not.toHaveBeenCalled()
+  })
+
+  it('a write that arrives after the editor turned read-only is dropped (read live, not captured)', async () => {
+    const { attrs } = widgetEmbedNode('myPnlStats', PAYLOADS.myPnlStats)
+    const updateAttributes = vi.fn()
+    const ed = editor(true)
+    render(<WidgetEmbedView node={{ attrs }} selected={false} editor={ed} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('myPnlStats-stub')
+    const write = last('myPnlStats').onUpdateParams
+    updateAttributes.mockClear()
+    ed.isEditable = false
+    expect(write({ ...attrs.params, asOf: '2026-10-21T14:00:00Z' })).toBe(false)
+    expect(updateAttributes).not.toHaveBeenCalled()
+  })
+
+  it('a write that arrives inside a share view is dropped', async () => {
+    const { attrs } = widgetEmbedNode('myPnlStats', PAYLOADS.myPnlStats)
+    const updateAttributes = vi.fn()
+    const ed = editor(true)
+    render(<WidgetEmbedView node={{ attrs }} selected={false} editor={ed} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('myPnlStats-stub')
+    const write = last('myPnlStats').onUpdateParams
+    updateAttributes.mockClear()
+    ed.storage.uctJournalWidgets.shareView = true
+    expect(write({ ...attrs.params, share: true })).toBe(false)
+    expect(updateAttributes).not.toHaveBeenCalled()
+  })
+})
+
+// Public pages render a widgetEmbed from its archived image only (shareView), so a private
+// account widget must never be archived. The archive arming calls kickSnapshotWarm synchronously,
+// which is the signal read here.
+describe('WidgetEmbedView -> snapshot archive and privacy', () => {
+  const mount = async (kind, payload) => {
+    const { attrs } = widgetEmbedNode(kind, payload)
+    render(<WidgetEmbedView node={{ attrs }} selected={false} editor={editor()} updateAttributes={vi.fn()} />)
+    await screen.findByTestId(`${kind}-stub`)
+  }
+
+  it('a private account widget is never armed for the archive', async () => {
+    await mount('myPnlStats', PAYLOADS.myPnlStats)
+    expect(kickSnapshotWarm).not.toHaveBeenCalled()
+  })
+
+  it('a shared account widget is armed', async () => {
+    await mount('myPositionsRisk', { ...PAYLOADS.myPositionsRisk, share: true })
+    expect(kickSnapshotWarm).toHaveBeenCalledTimes(1)
+  })
+
+  it('a market snapshot kind is armed as before', async () => {
+    await mount('myWatchlistToday', PAYLOADS.myWatchlistToday)
+    expect(kickSnapshotWarm).toHaveBeenCalledTimes(1)
+  })
+
+  it('switching share off clears the archived image in the same write', async () => {
+    const { attrs } = widgetEmbedNode('myPnlStats', { ...PAYLOADS.myPnlStats, share: true })
+    attrs.fallback = { url: '/api/j2/notes/n1/images/0123456789abcdef0123456789abcdef.png', w: 10, h: 10 }
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs }} selected={false} editor={editor()} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('myPnlStats-stub')
+    updateAttributes.mockClear()
+    last('myPnlStats').onUpdateParams({ ...attrs.params, share: false })
+    expect(updateAttributes).toHaveBeenCalledTimes(1)
+    expect(updateAttributes.mock.calls[0][0]).toMatchObject({ fallback: null, params: { share: false } })
   })
 })

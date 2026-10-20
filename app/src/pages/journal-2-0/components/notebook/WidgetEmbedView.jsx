@@ -19,7 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
-import { isSnapshotKind } from '../../lib/notebookWidgets'
+import { isSnapshotKind, widgetKind } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -267,8 +267,15 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // would keep). ONE updateAttributes: the params, the searchText derived from them, and
   // `fallback: null` because the archived image shows the old numbers (or the old privacy chip). A
   // refresh that moves `asOf` moves `capturedAt` with it in the same write. No request of its own.
+  // ⛔ Writability is read LIVE, at write time, from the editor itself (never the captured
+  // `embedEditable`): a refresh that resolves after the note turned read-only, or inside a share
+  // view, writes nothing.
+  const editorRef = useRef(editor)
+  editorRef.current = editor
   const updateSnapshotParams = useCallback((next) => {
-    if (!embedEditable || typeof updateAttributes !== 'function') return false
+    const ed = editorRef.current
+    if (ed?.isEditable === false || ed?.storage?.uctJournalWidgets?.shareView) return false
+    if (typeof updateAttributes !== 'function') return false
     if (!next || typeof next !== 'object' || Array.isArray(next)) return false
     const cur = attrsRef.current
     const write = { params: next, searchText: paramsPlainText(cur.widgetId, next), fallback: null }
@@ -277,7 +284,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     updateAttributes(write)
     setArchiveEpoch((n) => n + 1)
     return true
-  }, [embedEditable, updateAttributes])
+  }, [updateAttributes])
 
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
@@ -580,7 +587,13 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // live component is actually mounting.
   // !peek: the aftermath view must never become the permanent archive PNG.
   // !shareView: a public reader never uploads anything.
+  // Notebook widgets (fix round 1): public pages render an embed from its archived image only
+  // (shareView keeps every embed on `fallback`; ReadOnlyNote stamps it). So an ACCOUNT snapshot kind
+  // may be archived only while the member has it shared: never while private, and switching share
+  // off clears `fallback` in the same write (updateSnapshotParams) and does not re-archive.
+  const archiveAllowed = (attrsNow) => widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true
   const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek && !shareView
+    && archiveAllowed(attrs)
   useEffect(() => {
     if (!needsArchive || archivedOnceRef.current) return undefined
     archivedOnceRef.current = true
@@ -630,6 +643,12 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
         const blob = await captureElementPng(bodyRef.current)
         if (!blob) return
         const up = await storeFallbackImage(noteId, blob)
+        // The capture and upload are async: a member who switched an account widget's share OFF
+        // meanwhile must not get the image stamped back on.
+        if (!archiveAllowed(attrsRef.current)) {
+          archivedOnceRef.current = false
+          return
+        }
         updateAttributes?.({ fallback: { url: up.url, w: up.width || null, h: up.height || null } })
       } catch (e) {
         // Best-effort: the embed stays live; the next editing session retries.

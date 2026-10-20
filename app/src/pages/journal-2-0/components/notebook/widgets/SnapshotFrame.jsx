@@ -101,17 +101,27 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   const params = attrs?.params || {}
   const meta = widgetKind(kind)
   const canWrite = editable === true && typeof onUpdateParams === 'function'
+  // ⛔ LIVE, NOT CLICK-TIME. A refresh awaits a request, and in that time the member can switch
+  // `share` off or the note can turn read-only. These refs are updated every render, and the write
+  // after the await reads them: the merge starts from the CURRENT params (so the current `share`
+  // wins, never the click-time copy), and a host that is no longer writable gets no write at all.
   const paramsRef = useRef(params)
   paramsRef.current = params
+  const writeRef = useRef(null)
+  writeRef.current = canWrite ? onUpdateParams : null
   const onRefresh = useCallback(async () => {
-    const before = paramsRef.current
-    const got = await fetchWidgetPayload(kind, requestParamsOf(before))
-    if (got.ok) onUpdateParams(refreshParams(before, got.payload))
+    const got = await fetchWidgetPayload(kind, requestParamsOf(paramsRef.current))
+    if (got.ok) {
+      const write = writeRef.current
+      if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+      write(refreshParams(paramsRef.current, got.payload))
+    }
     return got
-  }, [kind, onUpdateParams])
+  }, [kind])
   const onShareChange = useCallback((value) => {
-    onUpdateParams({ ...paramsRef.current, share: value === true })
-  }, [onUpdateParams])
+    const write = writeRef.current
+    if (typeof write === 'function') write({ ...paramsRef.current, share: value === true })
+  }, [])
   return {
     title: meta?.title || kind,
     asOf: params.asOf,
