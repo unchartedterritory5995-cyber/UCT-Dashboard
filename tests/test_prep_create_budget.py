@@ -382,8 +382,13 @@ def test_READS_ON_CREATE_is_exactly_the_builders_that_read(db_path, monkeypatch)
     """The set _plan skips is derived, not guessed: every builder OUTSIDE it reads nothing in create
     mode, and every builder INSIDE it reads (so the set holds no idle entry)."""
     from datetime import datetime, timezone
-    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw, trader_blocks as tb
     seen = _reads_spy(monkeypatch)
+    # Notebook widgets Task 15: a snapshot slot reads through notebook_widgets.build, and _plan skips it on
+    # the empty-note switch by its own clause (SNAPSHOT_SLOT_KINDS), so the set the plan skips is the union.
+    monkeypatch.setattr(nw, "build", lambda kind, *a, **k: seen.append(f"notebook_widgets.build:{kind}")
+                        or {"asOf": "2026-10-20T00:00:00Z", "source": "market"})
+    skipped_by_plan = tb.READS_ON_CREATE | set(js.SNAPSHOT_SLOT_KINDS)
     for bid, builder in js.BLOCK_BUILDERS.items():
         kind = js._BLOCK_BY_ID.get(bid) or {"settings": []}
         block = {"block": bid, "enabled": True,
@@ -391,7 +396,7 @@ def test_READS_ON_CREATE_is_exactly_the_builders_that_read(db_path, monkeypatch)
         seen.clear()
         node, reason = builder(block, {"ticker": "NVDA", "now": datetime.now(timezone.utc), "memo": {},
                                        "mode": "create", "user_id": "u1"})
-        if bid in tb.READS_ON_CREATE:
+        if bid in skipped_by_plan:
             assert seen and node is not None and reason is None, (bid, seen, reason)
         else:
             assert seen == [], (bid, seen)

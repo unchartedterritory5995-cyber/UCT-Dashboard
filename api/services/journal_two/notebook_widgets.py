@@ -63,6 +63,23 @@ ACCOUNT_KINDS = frozenset({
 })
 
 
+#: Kind -> its member-facing title, for the kinds the client lists (WIDGET_KINDS in
+#: app/src/pages/journal-2-0/lib/notebookWidgets.js). ⛔ ONE FACT IN TWO FILES, railed by
+#: tests/test_journal_styles_compose.py, which reads the client file. A starter style's failed
+#: slot names the widget by this title (journal_styles._build_widget_slot).
+KIND_TITLE: dict[str, str] = {
+    "myWatchlistToday": "My watchlist today",
+    "myNamesReporting": "My names reporting",
+    "marketOnMyNames": "Market on my names",
+    "tickerCard": "Ticker card",
+    "tickerFlow": "Options flow on a ticker",
+    "myPnlStats": "My P&L and stats",
+    "myPositionsRisk": "My open positions and risk",
+    "myRulesCheck": "My rules check",
+    "myMistakes": "My recurring mistakes",
+}
+
+
 class WidgetRequestError(ValueError):
     """An unknown kind, or params a builder cannot use. The router maps it to 400."""
 

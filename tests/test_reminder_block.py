@@ -65,7 +65,8 @@ def test_the_block_is_catalogued_with_a_builder_and_is_create_only():
     assert js._BLOCK_BY_ID["reminder"]["settings"][0] == {"key": "days", "options": rb.DAYS_OPTIONS,
                                                           "default": rb.DEFAULT_DAYS}
     assert "search" not in js._BLOCK_BY_ID["reminder"]     # not a widget: no searchText
-    assert js.CREATE_ONLY_BLOCKS == frozenset({"reminder"})
+    # Notebook widgets Task 15: the snapshot slots are create-only too (never today's data in an older note).
+    assert js.CREATE_ONLY_BLOCKS == frozenset({"reminder", *js.SNAPSHOT_SLOT_KINDS})
 
 
 # ── the horizon guard: never a date the calendar dataset cannot vouch for ──────────────────────────────────────────

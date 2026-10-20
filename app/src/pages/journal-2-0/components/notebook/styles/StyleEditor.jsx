@@ -11,7 +11,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import useJ2PropertyDefs from '../../../hooks/useJ2PropertyDefs'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
-import { BLOCK_KINDS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
+import { BLOCK_KINDS, SNAPSHOT_BLOCK_LABELS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
 import { isTier3Block, tier3Enabled } from '../../../lib/tier3Flag'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
@@ -244,7 +244,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
         {blocks.length === 0 && <p className={styles.hint}>No blocks yet. Add one below.</p>}
         <ol className={styles.blocks} aria-label="Blocks in this style">
           {blocks.map((b, i) => {
-            const known = KNOWN.has(b.block)
+            const known = KNOWN.has(b.block) || Object.hasOwn(SNAPSHOT_BLOCK_LABELS, b.block)
             const label = known ? blockLabel(b.block) : 'A block from a newer version'
             const kind = kindOf(b.block)
             return (

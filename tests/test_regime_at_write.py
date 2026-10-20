@@ -381,7 +381,7 @@ def test_a_daily_prep_create_stamps_the_regime_its_builder_froze(db_path, regime
     the regime's own wire date), not a default and not a second read."""
     regime["regime"] = {**regime["regime"], "value": "amber", "asOf": "2026-10-09"}
     n = _daily_prep()
-    assert (n["styleId"], n["styleVersion"]) == ("builtin:daily_prep", 2)       # the builtin v2 door
+    assert (n["styleId"], n["styleVersion"]) == ("builtin:daily_prep", 3)       # the builtin v3 door (Task 15)
     stamp = _stamp(n)
     assert stamp is not None and stamp["capturedAt"]                             # a CREATE: it captured
     assert stamp["params"]["readings"]["regime"]["value"] == "amber"

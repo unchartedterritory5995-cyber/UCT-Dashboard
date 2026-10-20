@@ -48,6 +48,24 @@ def test_the_client_block_catalog_equals_the_server_catalog():
     assert shape(client) == shape(js.BLOCK_KINDS)
 
 
+def test_the_client_names_every_snapshot_slot_by_the_servers_title():
+    """Notebook widgets Task 15: a starter style's snapshot slot has no BLOCK_KINDS row, so journalBlocks.js names
+    it from SNAPSHOT_BLOCK_LABELS. Every slot the server can place is named there, by notebook_widgets.KIND_TITLE."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    node = shutil.which("node")
+    assert node, "node is not on PATH"
+    code = (f"import({json.dumps(CLIENT.resolve().as_uri())}).then((m) => process.stdout.write(JSON.stringify("
+            "{labels: m.SNAPSHOT_BLOCK_LABELS, named: m.blockLabel('myPnlStats'), other: m.blockLabel('zzNew')})))")
+    r = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, timeout=120)
+    assert r.returncode == 0, (r.stderr or b"").decode("utf-8", "replace")[:2000]
+    got = json.loads(r.stdout.decode("utf-8"))
+    assert got["labels"]                                                   # non-vacuity
+    assert got["labels"] == {k: nw.KIND_TITLE[k] for k in js.SNAPSHOT_SLOT_KINDS}
+    assert got["named"] == "My P&L and stats"
+    assert got["other"] == "A block from a newer version (zzNew)"          # control: an unknown id still reads so
+    assert not set(js.SNAPSHOT_SLOT_KINDS) & {k["id"] for k in js.BLOCK_KINDS}   # never offered by the editor
+
+
 def test_the_mood_checkin_row_and_its_builder():
     """P2 Tier 3 Task 3: the check-in is a catalog block with no style setting (R-T3-V1) and the search
     line the client inserts; its builder makes the empty triple. (The Node rail above pins the row's
