@@ -28,9 +28,11 @@ import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
+import { WIDGET_KINDS, fetchWidgetPayload, widgetEmbedNode } from '../../lib/notebookWidgets'
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import styles from './SlashMenu.module.css'
 
-// Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
+// Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
 // switch (R-P2-1). Words and defaults are the registry's, already first-open; registry.test.js S20
 // pins them to journalBlocks.js, which is NOT first-open (SlashMenu.blocks.test.jsx proves agreement).
 // No params: buildWidgetEmbedAttrs -> normalizeParams fills every registry default.
@@ -39,7 +41,7 @@ const traderItem = (id, more) => ({
   description: 'A trader block',
   keywords: ['block', 'trading'],
   available: journalStylesEnabled,
-  trading: true,
+  trader: true,
   command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertWidgetEmbed(id).run(),
   ...more,
 })
@@ -338,11 +340,14 @@ export const ITEMS = [
   }),
 ]
 
-// A bare `/` offers three groups, trading first: this is a trading notebook, and the chart, price
-// and plan blocks are what a member reaches for most (UX pass 2026-10-10). Typing narrows the list
-// exactly as before; the groups only order and label it. A block item not named here is "more".
+// A bare `/` offers the moments a member reaches for something (Notebook widgets Task 8): before the
+// open, planning a trade, reviewing, then the everyday basics and everything else (UX pass 2026-10-10
+// put trading first; this splits it by moment). Typing narrows the list exactly as before; the groups
+// only order and label it. A block item not named here is "more".
 export const SLASH_GROUPS = [
-  { id: 'trading', label: 'Trading' },
+  { id: 'open', label: 'Before the open' },
+  { id: 'plan', label: 'Planning a trade' },
+  { id: 'review', label: 'Reviewing' },
   { id: 'basics', label: 'Basics' },
   { id: 'more', label: 'More' },
 ]
@@ -350,22 +355,21 @@ const BASICS = new Set([
   'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Reminder', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
-const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage', 'Journal style'])
+const MOMENT_BLOCKS = { 'Trade-plan canvas': 'plan', 'Journal style': 'plan', 'Transcript passage': 'review' }
 
-/** Which group a block item belongs to. Widget and fact captures are always trading. */
+/** Which group a block item belongs to. Trader blocks plan a trade; so do the chart and fact captures. */
 export function blockItemGroup(item) {
-  if (item.trading || TRADING_BLOCKS.has(item.title)) return 'trading'
-  return BASICS.has(item.title) ? 'basics' : 'more'
+  if (item.trader) return 'plan'
+  return MOMENT_BLOCKS[item.title] || (BASICS.has(item.title) ? 'basics' : 'more')
 }
 
-/** The bare-`/` list: trading, then basics, then more, each item tagged with its group. */
+/** The bare-`/` list in SLASH_GROUPS order, each item tagged with its group. In each group the
+ *  captures come first, then the blocks. A capture without its own group (chart, price, plan...)
+ *  plans a trade; a snapshot widget item carries its kind's group. */
 export function groupedSlashItems(blocks, captures) {
-  const tag = (it, group) => ({ ...it, group })
-  const trading = [...captures.map((it) => tag(it, 'trading')),
-    ...blocks.filter((it) => blockItemGroup(it) === 'trading').map((it) => tag(it, 'trading'))]
-  const basics = blocks.filter((it) => blockItemGroup(it) === 'basics').map((it) => tag(it, 'basics'))
-  const more = blocks.filter((it) => blockItemGroup(it) === 'more').map((it) => tag(it, 'more'))
-  return [...trading, ...basics, ...more]
+  const tagged = [...captures.map((it) => ({ ...it, group: it.group || 'plan' })),
+    ...blocks.map((it) => ({ ...it, group: blockItemGroup(it) }))]
+  return SLASH_GROUPS.flatMap((g) => tagged.filter((it) => it.group === g.id))
 }
 
 /** Does a block item answer the typed query (its title, or one of its keywords)? */
@@ -466,6 +470,70 @@ export function factItems(query) {
       }
     },
   }]
+}
+
+// ── Notebook widgets Task 8: the fetch-and-freeze snapshot items, one per kind whose wave is on (the
+// gate decides what is OFFERED, never whether a stored widget renders). ONE builder for the / menu and
+// the widget palette. A kind that reads a symbol takes the /price matching: a bare prefix completes to
+// `/ticker `, a valid symbol inserts, anything else offers nothing so Enter stays a newline.
+const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
+
+/** The command for one snapshot: the typed range leaves at once (a palette has none, so it steps
+ *  off a selected embed instead), nothing goes in until the fetch answers, then the frozen widget
+ *  goes in where the command was, mapped through anything the member typed meanwhile. A failed fetch
+ *  inserts nothing and says so. Resolves `{ok, message}` for the palette's own status line. */
+function snapshotCommand(kind, params) {
+  return async ({ editor, range }) => {
+    const chain = editor.chain().focus()
+    ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
+    // Where the typed command was (its range's start once deleted); the palette's caret otherwise.
+    let pos = range ? range.from : editor.state.selection.from
+    const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
+    editor.on('transaction', track)
+    const res = await fetchWidgetPayload(kind.id, params)
+    editor.off('transaction', track)
+    if (editor.isDestroyed) return { ok: false, message: null }
+    if (!res.ok) {
+      const message = res.reason === 'offline'
+        ? `You're offline, so ${kind.title} was not added.`
+        : `${kind.title} could not be loaded just now, so nothing was added.`
+      editor.storage?.uctJournalWidgets?.notify?.(message, 'error')
+      return { ok: false, message }
+    }
+    const at = Math.min(pos, editor.state.doc.content.size)
+    editor.chain().focus().insertContentAt(at, widgetEmbedNode(kind.id, { ...res.payload, ...params }))
+      .caretAfterWidgetEmbed().run()
+    return { ok: true, message: null }
+  }
+}
+
+export function snapshotWidgetItems(query) {
+  const raw = String(query || '').trim()
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
+  const out = []
+  for (const kind of WIDGET_KINDS) {
+    if (!widgetsWaveOn(kind.wave)) continue
+    const item = { title: kind.title, description: kind.description, group: kind.group }
+    const cmd = SNAPSHOT_SYMBOL_CMD[kind.id]
+    if (!cmd) {
+      if (blockItemMatches(kind, raw.toLowerCase())) out.push({ ...item, command: snapshotCommand(kind, {}) })
+      continue
+    }
+    if (singleToken ? !cmd.startsWith(first) : first !== cmd) continue
+    const rest = singleToken ? '' : raw.slice(first.length).trim()
+    if (!rest) {
+      out.push({ ...item, cmd, description: `Type a symbol — e.g. /${cmd} NVDA`,
+        command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).insertContent(`/${cmd} `).run() } })
+      continue
+    }
+    const sym = rest.replace(/^\$/, '')
+    if (!FACT_SYMBOL_RE.test(sym)) continue
+    const symbol = sym.toUpperCase()
+    out.push({ ...item, cmd, title: `${kind.title} — ${symbol}`, command: snapshotCommand(kind, { symbol }) })
+  }
+  return out
 }
 
 // ── Tier 2 part A, item 9: /plan NVDA makes a Trade plan note for NVDA (the member's default
@@ -748,7 +816,7 @@ function vsItems(rest) {
   }))
 }
 
-const SlashList = forwardRef((props, ref) => {
+export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
   const menuId = props.menuId || 'uct-slash-menu'
@@ -844,18 +912,21 @@ export const SlashMenuExtension = Extension.create({
           const factCaptures = factItems(query)
           const consensusCaptures = consensusFactItems(query)
           const planCaptures = planItems(query)
+          const snapshots = snapshotWidgetItems(query)
           // Wave 6: an item may say where it is NOT offered (`available`) —
           // today only columns, never inside a column (they do not nest). A
           // table of contents is an ordinary block and is offered anywhere.
           const here = blockItemsAvailable(editor)
-          if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures])
+          if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures])
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
           // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
           // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
           // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
           // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
-          const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures]
+          // A typed list is not grouped, so a snapshot item's own group is dropped (no label).
+          const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures,
+            ...snapshots.map(({ group, ...it }) => it)] // eslint-disable-line no-unused-vars
           const cmd = q.trim().split(/\s+/)[0]
           const blocks = rankedBlockItems(here, q)
           const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())

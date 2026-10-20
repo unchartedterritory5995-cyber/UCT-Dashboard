@@ -12,12 +12,17 @@
  *
  * Settings ride the editor-storage stamp (stampChartSettings), so a palette
  * insert freezes the user's resolved own chart exactly like /chart does.
+ *
+ * Notebook widgets Task 8: the snapshot widgets (My watchlist today, Ticker card...) are listed under
+ * the / menu's moment labels, and every one is the item SlashMenu.snapshotWidgetItems builds -- the
+ * palette clicks the same command, and a symbol kind asks for a ticker and runs the same grammar.
  */
 import { useEffect, useRef, useState } from 'react'
 import { JOURNAL_MENU_TYPES, widgetMeta, isReconstructable } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
 } from '../../lib/widgetEmbedCore'
+import { snapshotWidgetItems, SLASH_GROUPS } from './SlashMenu'
 import styles from './WidgetPalette.module.css'
 
 // The tf pills speak slash TOKENS ('15m', '1h', 'M' — case decides
@@ -113,8 +118,20 @@ export default function WidgetPalette({ editor, onClose }) {
     return () => document.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  const { args, reason: blockReason } = kind ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
+  // A snapshot kind that reads a symbol opens the form as `snap:<cmd>`; the slash grammar decides validity.
+  const snapCmd = kind?.startsWith('snap:') ? kind.slice(5) : null
+  const snapItem = snapCmd && sym ? snapshotWidgetItems(`${snapCmd} ${sym}`).find((it) => it.cmd === snapCmd) || null : null
+  const { args, reason: blockReason } = kind && !snapCmd ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
   const multi = kind === 'mtf' || kind === 'compare'
+  const snapshots = kind ? [] : snapshotWidgetItems('')
+
+  const runSnapshot = async (item) => {
+    if (!item || !editor) return
+    setInserted(null)
+    const res = await item.command({ editor, range: null })
+    setInserted(res?.ok ? `${item.title} inserted` : res?.message || null)
+    if (res?.ok && snapCmd) { setSym(''); symRef.current?.focus() }
+  }
 
   const insert = () => {
     if (!args || !editor) return
@@ -184,6 +201,22 @@ export default function WidgetPalette({ editor, onClose }) {
               <span className={styles.typeHint}>{p.hint}</span>
             </button>
           ))}
+          {SLASH_GROUPS.map((g) => {
+            const inGroup = snapshots.filter((it) => it.group === g.id)
+            return inGroup.length ? (
+              <div key={g.id} role="group" aria-label={g.label}>
+                <div className={styles.fieldLabel}>{g.label}</div>
+                {inGroup.map((it) => (
+                  <button key={it.title} type="button" className={styles.typeBtn}
+                    onClick={() => (it.cmd ? setKind(`snap:${it.cmd}`) : runSnapshot(it))}>
+                    <span className={styles.typeLabel}>{it.title}</span>
+                    <span className={styles.typeHint}>{it.cmd ? 'Choose a ticker, then insert a snapshot' : it.description}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null
+          })}
+          {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
           <div className={styles.footNote}>
             Widgets with live data (news, breadth, calendar…) come in from their
             own page — use the journal button beside each widget&apos;s gear.
@@ -201,9 +234,9 @@ export default function WidgetPalette({ editor, onClose }) {
             value={sym}
             placeholder="e.g. AMD"
             onChange={(e) => setSym(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-            onKeyDown={(e) => { if (e.key === 'Enter') insert() }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { if (snapCmd) runSnapshot(snapItem); else insert() } }}
           />
-          {kind !== 'mtf' && (
+          {!snapCmd && kind !== 'mtf' && (
             <>
               <span className={styles.fieldLabel}>Timeframe</span>
               <div className={styles.tfRow} role="group" aria-label="Timeframe">
@@ -220,24 +253,29 @@ export default function WidgetPalette({ editor, onClose }) {
               </div>
             </>
           )}
-          <label className={styles.fieldLabel} htmlFor="uct-palette-day">
-            {kind === 'compare' ? 'Anchor date' : 'Date (optional)'}
-          </label>
-          <input
-            id="uct-palette-day"
-            type="date"
-            className={styles.dayInput}
-            value={day}
-            max={etTodayIso()}
-            onChange={(e) => setDay(e.target.value)}
-          />
+          {!snapCmd && (
+            <>
+              <label className={styles.fieldLabel} htmlFor="uct-palette-day">
+                {kind === 'compare' ? 'Anchor date' : 'Date (optional)'}
+              </label>
+              <input
+                id="uct-palette-day"
+                type="date"
+                className={styles.dayInput}
+                value={day}
+                max={etTodayIso()}
+                onChange={(e) => setDay(e.target.value)}
+              />
+            </>
+          )}
           <button
             type="button"
             className={styles.insertBtn}
-            disabled={!args}
-            onClick={insert}
+            disabled={snapCmd ? !snapItem : !args}
+            onClick={snapCmd ? () => runSnapshot(snapItem) : insert}
           >
-            {multi ? 'Insert charts' : 'Insert chart'}
+            {snapCmd ? `Insert ${(snapshotWidgetItems(snapCmd).find((it) => it.cmd === snapCmd)?.title || 'snapshot').toLowerCase()}`
+              : multi ? 'Insert charts' : 'Insert chart'}
           </button>
           {blockReason && <span className={styles.blockMsg} role="status">{blockReason}</span>}
           {inserted && !blockReason && <span className={styles.insertedMsg} role="status">{inserted}</span>}

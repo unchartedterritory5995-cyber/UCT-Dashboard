@@ -7,9 +7,9 @@ afterEach(() => __resetNotebookFlags())
 const item = () => ITEMS.find((i) => i.title === 'Journal style')
 
 describe('/style', () => {
-  it('is a Trading item available only while journal styles are on', () => {
+  it('is a Planning a trade item available only while journal styles are on', () => {
     expect(item()).toBeTruthy()
-    expect(blockItemGroup(item())).toBe('trading')
+    expect(blockItemGroup(item())).toBe('plan')
     expect(item().available({})).toBe(false)
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     expect(item().available({})).toBe(true)

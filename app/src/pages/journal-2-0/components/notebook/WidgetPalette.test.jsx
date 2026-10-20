@@ -3,9 +3,17 @@
 // It must ride the SAME grammar (parseChartSlashArgs & friends) and the SAME
 // node builder (chartInsertNodes) as the slash menu — a second hand-written
 // insert payload is the "one grammar, four copies" defect.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import { Editor } from '@tiptap/core'
 import WidgetPalette from './WidgetPalette'
+import { buildExtensions } from '../../lib/tiptap'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+// jsdom has no Range layout; an editor focus() scrolls the caret into view on the next frame.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+}
 
 const makeEditor = () => {
   const calls = { content: null, focused: 0, ran: 0 }
@@ -219,5 +227,83 @@ describe('WidgetPalette autofocus on open (13Q-3, Q20)', () => {
     render(<WidgetPalette editor={editor} />)
     fireEvent.click(screen.getByText('MTF stack'))
     expect(document.activeElement).toBe(screen.getByLabelText('Ticker'))
+  })
+})
+
+// Notebook widgets Task 8: the palette offers the same snapshot items as the / menu, built by the SAME
+// builder (SlashMenu.snapshotWidgetItems), under the same moment labels.
+describe('WidgetPalette snapshot widgets (Task 8)', () => {
+  const realFetch = global.fetch
+  let ed
+  beforeEach(() => { global.fetch = vi.fn() })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); ed?.destroy(); ed = null })
+  const mount = () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    ed = new Editor({ element: el, extensions: buildExtensions(), content: '<p>Plan</p>' })
+    return ed
+  }
+  const embeds = () => { const o = []; ed.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') o.push(n) }); return o }
+  const ok = (body) => ({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', ...body }) })
+
+  it('offers no snapshot widgets while every wave is off', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    expect(screen.queryByText('Before the open')).toBeNull()
+    expect(screen.queryByText('My watchlist today')).toBeNull()
+    expect(screen.queryByText('Ticker card')).toBeNull()
+  })
+
+  it('lists the wave-on snapshot widgets under the moment labels, in order', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    const panel = screen.getByRole('dialog', { name: 'Insert widget' })
+    const text = panel.textContent
+    for (const t of ['Before the open', 'My watchlist today', 'Planning a trade', 'Ticker card', 'Reviewing', 'My P&L and stats']) {
+      expect(text, t).toContain(t)
+    }
+    expect(text.indexOf('Before the open')).toBeLessThan(text.indexOf('Planning a trade'))
+    expect(text.indexOf('Planning a trade')).toBeLessThan(text.indexOf('Reviewing'))
+    expect(text).not.toContain('My rules check')   // wave 2 is off
+    // The first-focus target is still the first chart type.
+    expect(document.activeElement).toBe(screen.getByText('Chart').closest('button'))
+  })
+
+  it('a click fetches the snapshot and inserts the frozen widget, then says so', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    global.fetch.mockResolvedValue(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))
+    render(<WidgetPalette editor={mount()} />)
+    fireEvent.click(screen.getByText('My watchlist today'))
+    expect(await screen.findByText('My watchlist today inserted')).toBeInTheDocument()
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myWatchlistToday', expect.anything())
+    expect(embeds().map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
+  })
+
+  it('a failed fetch inserts nothing and says nothing was inserted', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    global.fetch.mockResolvedValue({ ok: false, status: 500 })
+    render(<WidgetPalette editor={mount()} />)
+    fireEvent.click(screen.getByText('My watchlist today'))
+    expect(await screen.findByText('My watchlist today could not be loaded just now, so nothing was added.')).toBeInTheDocument()
+    expect(embeds()).toHaveLength(0)
+  })
+
+  it('Ticker card asks for a ticker and inserts the card for it', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    global.fetch.mockResolvedValue(ok({ symbol: 'AMD', price: 150 }))
+    render(<WidgetPalette editor={mount()} />)
+    fireEvent.click(screen.getByText('Ticker card'))
+    const insert = screen.getByRole('button', { name: 'Insert ticker card' })
+    expect(insert).toBeDisabled()
+    expect(screen.queryByText('Timeframe')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: '123' } })
+    expect(insert).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'amd' } })
+    expect(insert).not.toBeDisabled()
+    fireEvent.click(insert)
+    expect(await screen.findByText('Ticker card — AMD inserted')).toBeInTheDocument()
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/tickerCard?symbol=AMD', expect.anything())
+    expect(embeds().map((n) => n.attrs.params.symbol)).toEqual(['AMD'])
   })
 })

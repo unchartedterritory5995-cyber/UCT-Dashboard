@@ -1,5 +1,5 @@
 // Notebook P2a Task 12: the slash menu's P2a rail (there is no SlashMenu.test.jsx; pre-flight N6).
-// The trader blocks (P2a's three, P2b's six) and the market context stamp, offered in the Trading group while journal
+// The trader blocks (P2a's three, P2b's six) and the market context stamp, offered in the Planning a trade group while journal
 // styles are on. A block item inserts its kind with its catalog defaults; "Market context" reads
 // GET /api/j2/trader-blocks/market-context and stamps what it read (R-P2-8), or inserts nothing.
 // ⛔ R-RC-4: the typed "/market context" leaves the note BEFORE the read is awaited, so a slow read
@@ -61,17 +61,17 @@ describe('P2a slash items', () => {
     for (const t of titles) expect(ITEMS.filter((i) => i.title === t).length, t).toBe(1)
   })
 
-  it('each is offered in the Trading group while the switch is on', () => {
+  it('each is offered in the Planning a trade group while the switch is on', () => {
     ON()
     const here = blockItemsAvailable({})
     for (const t of titles) {
       const item = here.find((i) => i.title === t)
       expect(item, t).toBeTruthy()
-      expect(blockItemGroup(item), t).toBe('trading')
+      expect(blockItemGroup(item), t).toBe('plan')
     }
     const grouped = groupedSlashItems(here, []).filter((i) => titles.includes(i.title))
     expect(grouped.map((i) => i.title).sort()).toEqual([...titles].sort())
-    expect(grouped.every((i) => i.group === 'trading')).toBe(true)
+    expect(grouped.every((i) => i.group === 'plan')).toBe(true)
   })
 
   it('none is offered while the switch is off, though each is in the menu', () => {
@@ -328,11 +328,11 @@ describe('P2 Tier 3: the mood and focus check-in slash item', () => {
   const CHECKIN = label('moodCheckIn')
   const offered = () => blockItemsAvailable({}).some((i) => i.title === CHECKIN)
 
-  it('is in the menu, titled by the catalog, in the Trading group', () => {
+  it('is in the menu, titled by the catalog, in the Planning a trade group', () => {
     expect(CHECKIN).toBe('Mood and focus check-in')
     const item = ITEMS.find((i) => i.title === CHECKIN)
     expect(item).toBeTruthy()
-    expect(blockItemGroup(item)).toBe('trading')
+    expect(blockItemGroup(item)).toBe('plan')
     expect(ITEMS.filter((i) => i.title === CHECKIN)).toHaveLength(1)
   })
 
