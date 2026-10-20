@@ -1,6 +1,6 @@
 # Notebook widgets: design (2026-10-20)
 
-Status: DRAFT for owner review. Nothing is built.
+Status: APPROVED by the owner 2026-10-20 ("yes it should freeze data, and yes anything the user wants should be shareable. Lets do it all").
 Mockups: `docs/notebook/mockups/2026-10-20-notebook-widgets.html` (static, sample data).
 Brainstorm record: `docs/superpowers/specs/2026-10-19-notebook-widgets-brainstorm-notes.md`.
 
@@ -42,22 +42,25 @@ The goal: when a member writes in the Notebook, the data the app already holds a
 
 ### Owner-decided
 - Individualized widgets over market scores.
+- **Snapshot by default (C1), confirmed 2026-10-20.**
+- **Anything the member wants is shareable (2026-10-20).** This replaces "account widgets are never shared"; see C2/C11 as revised.
+- **Do it all (2026-10-20):** waves 1-3, plus the existing kinds in `/` (wave 4, now scheduled).
 - Broker-linked data first.
 - Smooth, easy insertion.
 
 ### Claude's calls (unconfirmed)
 - C1. **Snapshot by default.** A widget freezes its data at insert time and stores it in the note, with an "as of" stamp and a **See it now** button that refreshes it in place. The existing live chart embed keeps its current behaviour. Reason: G4, and journals are records.
-- C2. **Account widgets are private.** They never render in shared/published/gallery views; the reader sees a neutral placeholder. Each new kind gets a `private` row in `public_note_payload.py`, which already handles today's member-data embeds.
+- C2. **Account widgets are private by default, shareable by choice (revised per owner).** Each account widget's header carries a **Show on shared pages** switch, off by default, stored as `params.share: true` inside the frozen payload (no schema change). Off: the reader sees the account neutral line. On: share links and published pages show the **frozen snapshot only** (never a live refetch, never trade ids, notes text or links into the app), through a per-kind public param allowlist. Gallery templates stay neutral whatever the switch says (a template is a scaffold, not the author's page).
 - C3. **The `/` menu is grouped by moment**: Before the open · Planning a trade · Reviewing · (existing kinds under "More").
 - C4. **`$TICKER` becomes an inline chip** with a hover/tap card (price, 10/50-day, earnings date + expected move, today's options flow ratio, and the member's own history with the name). The card can insert a chart or a full ticker-card widget.
 - C5. Without a linked broker, account widgets read manual/CSV trades and say so in their source line. They do not hide.
 - C6. Wave order is §5.
 - C7. **Snapshot storage is the existing payload-freeze regime**: the frozen data lives in `attrs.params`, with a `plainText` line and a passing `reconstructable`, exactly like today's captures. No new attr and no new node type, so no never-revert schema change.
 - C8. **A `/` insert is a fetch-and-freeze builder**, one per new kind: on pick it fetches, freezes into `params`, and inserts. That is what lets a slash command supply the payload `registry.js` says a slash command cannot.
-- C9. **Existing kinds stay where they are in wave 1.** Calendar, watchlist, themes and the rest keep arriving through Send to Journal. Giving each a fetch-and-freeze builder is ~11 separate paths and is deferred (wave 4, unscheduled). The `captureOnly` kinds (screener, cot, modelbook) stay capture-only, and the registry invariant that refuses them in a menu stands.
+- C9. **Existing kinds stay where they are in waves 1-3; wave 4 brings them to `/` (owner: "do it all").** Calendar, watchlist, themes and the rest keep arriving through Send to Journal. Giving each a fetch-and-freeze builder is ~11 separate paths and is wave 4. The `captureOnly` kinds (screener, cot, modelbook) stay capture-only, and the registry invariant that refuses them in a menu stands.
 - C10. **Release gate is a server `notebook_*` flag on the auth payload**, one per wave (unset = OFF), read per request like the other Notebook gates. It gates the `/` menu entries only. A widget already stored in a note always renders, with the gate off too; every kind stays registered.
-- C11. **Public views: every new kind is neutral.** Each gets a `MARKET_DATA_VENDORS` row (`private` for account kinds; `massive`/`mixed` for the rest), all of which reduce to neutral. No archived PNG is produced. `tickerCard` is neutral as a whole. Account kinds get their own neutral line, "A private account item is not shown on public pages."; market kinds keep the existing line.
-- C12. **`$TICKER` is an editor decoration, not a node or mark.** The text stays plain `$NVDA`; a ProseMirror decoration draws the chip and opens the card. No schema change. In shared, published and gallery views it renders as plain text, so the member's history never reaches a stranger.
+- C11. **Public views (revised per owner).** Account kinds get a new vendor `member-optin`: SHOWN when `params.share === true`, else the account neutral line "A private account item is not shown on public pages." Market kinds (`myWatchlistToday`, `myNamesReporting`, `marketOnMyNames`, `tickerFlow`, the market half of `tickerCard`) keep their real vendor rows (`massive`/`mixed`) and stay neutral: that is the owner's 2026-09-25 legal sign-off in `VENDOR_VERDICT`, and loosening Massive is the one line `"massive": SHOWN` the owner can flip. The member's own-history rows of `tickerCard` follow the account switch.
+- C12. **`$TICKER` is an editor decoration, not a node or mark.** The text stays plain `$NVDA`; a ProseMirror decoration draws the chip and opens the card. No schema change. In shared, published and gallery views it renders as plain text; a member who wants to share the card inserts it as a `tickerCard` widget and turns its switch on.
 - C13. **"Add" on a no-stop position deep-links** to that position in the Journal's positions tab. It never writes `j2_positions` from inside a note.
 - C14. **`/` grouping**: the existing Trading group splits into three: Before the open · Planning a trade · Reviewing. Basics and More are unchanged, and existing trading items go in whichever group fits.
 - C15. **Starter styles (wave 3)** fill their widgets at apply time, through the same fetch-and-freeze builders. A gallery template ships the widget shells empty, and they render neutral in gallery mode anyway.
@@ -66,11 +69,11 @@ The goal: when a member writes in the Notebook, the data the app already holds a
 
 Every widget has: a header (name, snapshot chip or 🔒 Only you, as-of stamp, See it now), a body, and a source line.
 
-| Kind (working id) | Shows | Reads (existing) | Private | Wave |
+| Kind (working id) | Shows | Reads (existing) | Private (shareable by switch) | Wave |
 |---|---|---|---|---|
 | `myWatchlistToday` | Member's names: pre-market/today %, rel. volume, news count, earnings flag, near-52w-high | watchlists + live prices + news + calendar | no | 1 |
 | `myNamesReporting` | Earnings this week/next for names on watchlists or in positions, with expected move | calendar enrichment (`get_implied_move`) + my-sets | no | 1 |
-| `tickerCard` | Inline `$TICKER` chip + card; full-card widget form | ticker meta, bars (10/50), calendar, flow summary, J2 trades/notes for that symbol | own-history rows only | 1 |
+| `tickerCard` | Inline `$TICKER` chip + card; full-card widget form | ticker meta, bars (10/50), calendar, flow summary, J2 trades/notes for that symbol | own-history rows (shareable by switch) | 1 |
 | `myPnlStats` | Closed P&L, win rate, avg R, trade count, equity line for a date range | `/api/j2/analytics`, `/broker/equity-curve` | yes | 1 |
 | `myPositionsRisk` | Open positions: size % of account, open P&L, stop + distance; "No stop set" + link to the position | `/api/portfolio/heat` `per_position` (stop_price, dist_to_stop_pct, placeholder_stop) joined with J2 open positions + live prices for size % and open P&L (heat carries neither) | yes | 1 |
 | `myRulesCheck` | Rules kept / total over a range | `j2_trade_adherence` (needs an over-time read, §6) | yes | 2 |
@@ -84,7 +87,10 @@ Existing kinds are NOT added to `/` in wave 1 (C9).
 
 - **Wave 1.** The regrouped `/` menu (C14) with the new kinds, the fetch-and-freeze builders (C8), the snapshot/See-it-now frame shared by every new widget, `tickerCard` + `$TICKER` chip, `myWatchlistToday`, `myNamesReporting`, `myPnlStats`, `myPositionsRisk`, and the private rows.
 - **Wave 2.** `myRulesCheck`, `myMistakes`, plus their two server reads.
+- **Wave 1 also:** the Show-on-shared-pages switch and the `member-optin` public path (C2/C11).
 - **Wave 3.** `marketOnMyNames`, `tickerFlow`, and starter styles shipping with widgets pre-placed (Morning prep: watchlist today + names reporting; Weekly review: P&L + positions + rules + mistakes).
+
+- **Wave 4.** Fetch-and-freeze builders for the existing non-capture-only kinds (calendar, watchlist, themes, breadth, indexes, news, fundamentals, alerts, profile and the rest), so they join `/` under More. `captureOnly` kinds stay capture-only.
 
 Each wave ships dark behind one Notebook flag and gets armed separately.
 
@@ -110,12 +116,13 @@ Each wave ships dark behind one Notebook flag and gets armed separately.
 - How the `$TICKER` chip is detected while typing (input rule vs. paste) and how it avoids real-ticker false positives (RS/EMA/MA/GAP/PEG are real tickers, so require the `$`).
 - Test shape, following the repo's rails (render-text assertions for user-facing copy, reachability rail, privacy rail per kind).
 
-## 8. Open questions for the owner
+## 8. Owner answers (2026-10-20)
 
-The ones that change what gets built:
-1. Is snapshot-by-default right, or should widgets stay live?
-2. Should account widgets ever be shareable (e.g. to a group you're in)? Today's answer (C2/C11) is never.
-3. Is the wave order right, and is it OK that the existing kinds (calendar, watchlist, themes...) stay Send-to-Journal-only for now (C9)?
+1. Snapshot by default: **yes**.
+2. Account widgets shareable: **yes, anything the member wants** (C2/C11 revised to an opt-in switch, off by default).
+3. Waves: **do it all**, waves 1-4.
+
+Still the owner's, not changed here: Massive-sourced market data stays neutral on public pages under the 2026-09-25 legal sign-off; flipping it is one line in `VENDOR_VERDICT`.
 
 ## 9. Builder check (2026-10-20)
 
