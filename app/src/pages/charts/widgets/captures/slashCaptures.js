@@ -4,3 +4,7 @@
 export { slashCapture as calendar } from './calendarCapture'
 export { slashCapture as news } from './newsCapture'
 export { slashCapture as fundamentals } from './fundamentalsCapture'
+export { slashCapture as breadth } from './breadthCapture'
+export { slashCapture as indexes } from './indexesCapture'
+export { slashCapture as marketcontext } from './marketcontextCapture'
+export { slashCapture as alerts } from './alertsCapture'

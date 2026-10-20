@@ -24,9 +24,8 @@ import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalT
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import {
-  mergeAlertsWidgetSettings, alertsWidgetStyleVars, alertsDefaultsForTheme,
-} from './alertsWidgetSettings'
+import { alertsWidgetStyleVars } from './alertsWidgetSettings'
+import { ALERTS_URL, levelNow, alertsCaptureSettings, alertPriceOf, buildAlertsCapture } from './captures/alertsCapture'
 import styles from './AlertsWidget.module.css'
 import Input from '../../../components/ui/Input'
 
@@ -46,19 +45,8 @@ function fmtDate(ts) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// The alert's level right now. A trendline's level is interpolated/extrapolated
-// from its two anchors (matches the server-side checker); everything else is the
-// fixed target_price.
-function levelNow(a) {
-  if (a.alert_type === 'trendline') {
-    const { anchor_t1: t1, anchor_p1: p1, anchor_t2: t2, anchor_p2: p2 } = a
-    if ([t1, p1, t2, p2].every(v => v != null) && t2 !== t1) {
-      const now = Date.now() / 1000
-      return p1 + (p2 - p1) * ((now - t1) / (t2 - t1))
-    }
-  }
-  return Number(a.target_price)
-}
+// The alert's level right now (levelNow) lives in captures/alertsCapture.js, beside the builder the
+// Notebook's /alerts insert shares with this widget's Send to Journal.
 
 export default function AlertsWidget({
   color, opts, onOptsChange,
@@ -81,7 +69,7 @@ export default function AlertsWidget({
   const { prefs } = usePreferences()
   const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeAlertsWidgetSettings(opts?.settings ?? alertsDefaultsForTheme(placedTheme)),
+    () => alertsCaptureSettings(opts?.settings, placedTheme),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -106,7 +94,7 @@ export default function AlertsWidget({
 
   // ── Alerts data (active + triggered) — ALL of the user's, chart-independent ──
   const { data, mutate } = useSWR(
-    user && !frozenAlerts ? '/api/watchlist-alerts?active_only=false' : null,
+    user && !frozenAlerts ? ALERTS_URL : null,
     fetcher,
     { refreshInterval: 30000, dedupingInterval: 10000 },
   )
@@ -129,18 +117,16 @@ export default function AlertsWidget({
   )
   const { prices } = useLivePrices(frozenAlerts ? [] : priceSyms)
   const liveFor = useCallback(
-    (s) => (frozenAlerts ? null : (prices[(s || '').toUpperCase()]?.price ?? null)),
+    (s) => (frozenAlerts ? null : alertPriceOf(prices, s)),
     [frozenAlerts, prices],
   )
   // Freeze exactly what the widget shows right now — shared by the one-click
   // default send AND the Wave 1 destination-picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildAlertsCapture = useCallback(() => ({
-    alerts: allAlerts.map((a) => ({
-      ...a, levelAtCapture: levelNow(a), priceAtCapture: liveFor(a.sym),
-    })),
-    settings,
-  }), [allAlerts, liveFor, settings])
+  const doorCapture = useCallback(
+    () => buildAlertsCapture(allAlerts, { priceOf: liveFor, settings }),
+    [allAlerts, liveFor, settings],
+  )
 
   // ── Quick-add — any ticker, a level, above/below ──
   const [ticker, setTicker] = useState('')
@@ -265,7 +251,7 @@ export default function AlertsWidget({
               style={{ right: 34 }}
               onClick={async () => {
                 setJournalMsg('sending…')
-                setJournalMsg(await sendCaptureToJournal('alerts', buildAlertsCapture(), { label: `${active.length} alerts` }))
+                setJournalMsg(await sendCaptureToJournal('alerts', doorCapture(), { label: `${active.length} alerts` }))
               }}
               title="Send these alerts to Journal"
               aria-label="Send these alerts to Journal"
@@ -277,7 +263,7 @@ export default function AlertsWidget({
               className={styles.gearBtn}
               style={{ right: 56 }}
               onClick={(e) => setCaptureMenu({
-                anchor: { x: e.clientX, y: e.clientY }, capture: buildAlertsCapture(),
+                anchor: { x: e.clientX, y: e.clientY }, capture: doorCapture(),
               })}
               title="Send to Journal — choose where"
               aria-label="Send to Journal — choose where"

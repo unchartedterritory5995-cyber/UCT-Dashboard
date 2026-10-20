@@ -30,6 +30,7 @@ import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journal
 import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS, widgetEmbedNode } from '../../lib/notebookWidgets'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { captureEnabled } from '../../../../widgets/captureRelease'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
@@ -521,7 +522,8 @@ export function snapshotWidgetItems(query) {
   const singleToken = tokens.length <= 1
   const out = []
   for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
-    if (!widgetsWaveOn(kind.wave)) continue
+    // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
+    if (!widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
     // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.

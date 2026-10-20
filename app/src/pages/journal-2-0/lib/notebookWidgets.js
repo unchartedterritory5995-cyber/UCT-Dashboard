@@ -48,13 +48,18 @@ export const WIDGET_KINDS = Object.freeze([
  *  or `day` is its slash grammar. `capture(params)` loads ONE module, captures/slashCaptures.js, only when
  *  a command runs (R41: one lazy import for every kind, so a new kind costs a row, not a chunk), and
  *  answers `{ok, payload}` or `{ok: false, reason}`; a chunk that fails to load rejects. Every row is
- *  wave 4 under More unless it says otherwise (the defaults are applied once, below: first-open bytes). */
+ *  wave 4 under More unless it says otherwise (the defaults are applied once, below: first-open bytes).
+ *  `held`: Wave R keeps it dark (widgets/captureRelease.js captureEnabled()); no wave flag releases it. */
 const slashCaptures = () => import('../../charts/widgets/captures/slashCaptures')
 export const CAPTURE_KINDS = Object.freeze([
   { id: 'calendar', title: 'UCT Terminal day', day: 1,
     description: "Today's earnings and economic events", keywords: ['calendar', 'economic'] },
   { id: 'news', title: 'News and catalysts', cmd: 'news', description: 'Catalysts and headlines as they read now' },
   { id: 'fundamentals', title: 'Fundamentals', cmd: 'fundamentals', description: 'Reported EPS and sales as shown' },
+  { id: 'breadth', title: 'Breadth heatmap', description: 'The breadth readings as they stand now' },
+  { id: 'indexes', title: 'Index levels', held: 1, description: 'SPY, QQQ, DIA, IWM, BTC and VIX now', keywords: ['indexes'] },
+  { id: 'marketcontext', title: 'Market context', held: 1, description: 'Phase, exposure and breadth from the wire' },
+  { id: 'alerts', title: 'My price alerts', description: 'Your alerts and where price sits' },
 ].map((k) => ({ wave: 4, group: 'more', ...k, capture: (p) => slashCaptures().then((m) => m[k.id](p)) })))
 
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))

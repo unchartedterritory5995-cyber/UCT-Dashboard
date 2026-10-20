@@ -41,6 +41,9 @@ import UIcon from '../../../components/ui/UIcon'
 import {
   CONTEXT_ROWS, readingsFrom, finite, SOURCED_ROWS, sourcedText, presetFor, uncapturedSentence,
 } from './marketContextModel'
+import {
+  MARKET_CONTEXT_URL, marketContextWireDate, marketContextUpdated, buildMarketContextCapture,
+} from './captures/marketcontextCapture'
 import styles from './MarketContextWidget.module.css'
 
 // ⭐ The fetcher stamps the moment the payload LANDED — the wire payload dates
@@ -50,18 +53,10 @@ import styles from './MarketContextWidget.module.css'
 const fetcher = (url) => fetchSnapshot(url)
   .then((d) => (d ? { ...d, _fetchedAt: Date.now() } : d))
 
-const BREADTH_URL = '/api/breadth'
+const BREADTH_URL = MARKET_CONTEXT_URL
 
 // The property name is builtin:regime_at_write's (note_properties.py).
 const BOARD_DOOR = 'To see your notes by the regime they were written in, open your notes as a Board and group by "Regime when written".'
-
-function fmtEtTime(ms) {
-  try {
-    return new Date(ms).toLocaleTimeString('en-US', {
-      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
-    })
-  } catch { return null }
-}
 
 export default function MarketContextWidget({
   // Frozen-embed mode (journal host): `frozen` carries {readings, wireDate,
@@ -91,11 +86,11 @@ export default function MarketContextWidget({
 
   const wireDate = frozen
     ? (frozen.wireDate || null)
-    : (typeof data?.wire_date === 'string' ? data.wire_date : null)
+    : marketContextWireDate(data)
 
   const updated = frozen
     ? (frozen.updated || null)
-    : (data?._fetchedAt ? `${fmtEtTime(data._fetchedAt)} ET` : null)
+    : marketContextUpdated(data)
 
   const [journalMsg, setJournalMsg] = useJournalToast()
   const [captureMenu, setCaptureMenu] = useState(null)
@@ -103,9 +98,11 @@ export default function MarketContextWidget({
   // Freeze exactly what the widget shows right now — shared by the one-click
   // default send AND the destination picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildCapture = useCallback(() => ({
-    readings, wireDate, updated,
-  }), [readings, wireDate, updated])
+  // (captures/marketcontextCapture.js: the same builder the Notebook's /marketcontext insert uses.)
+  const buildCapture = useCallback(
+    () => buildMarketContextCapture({ readings, wireDate, updated }),
+    [readings, wireDate, updated],
+  )
 
   return (
     <div className={styles.root}>

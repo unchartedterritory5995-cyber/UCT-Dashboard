@@ -17,8 +17,8 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useMobileSWR from '../../../hooks/useMobileSWR'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
-import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
+import usePreferences from '../../../hooks/usePreferences'
+import { tagAppTheme } from '../../../components/chart/chartThemes'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -26,7 +26,8 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
-import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS, FFILL_KEYS } from '../../breadth/heatmapMetrics'
+import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS } from '../../breadth/heatmapMetrics'
+import { buildBreadthCapture, breadthCaptureSettings, breadthCurrentRow, breadthSeries, breadthUpdated } from './captures/breadthCapture'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
 import {
   BREADTH_WIDGET_SETTINGS_KEY, mergeBreadthWidgetSettings, breadthDefaultsForTheme,
@@ -340,7 +341,7 @@ export default function BreadthWidget({
   const { prefs, setPref } = usePreferences()
   const placedTheme = usePlacedTheme()
   const bwSettings = useMemo(
-    () => mergeBreadthWidgetSettings(frozen?.settings ?? resolveGlobalPrefSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null), placedTheme, breadthDefaultsForTheme)),
+    () => (frozen?.settings != null ? mergeBreadthWidgetSettings(frozen.settings) : breadthCaptureSettings(prefs, placedTheme)),
     [prefs, frozen, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -381,35 +382,19 @@ export default function BreadthWidget({
   const liveBreadth = useLiveBreadth({ enabled: !frozen })
   // Live intraday row on top of stored history; forward-fill the sparse weekly
   // sentiment keys (AAII/NAAIM) from recent rows so those tiles aren't "—".
-  const currentRow = useMemo(() => {
-    if (frozen?.row) return frozen.row
-    const base = liveBreadth.row ? liveBreadth.row : rows[0]
-    if (!base) return null
-    const filled = { ...base }
-    for (const k of FFILL_KEYS) {
-      if (filled[k] == null) {
-        for (const r of rows) { if (r?.[k] != null) { filled[k] = r[k]; break } }
-      }
-    }
-    return filled
-  }, [frozen, liveBreadth.row, rows])
+  // (captures/breadthCapture.js: the same rule the Notebook's /breadth insert freezes.)
+  const currentRow = useMemo(
+    () => (frozen?.row ? frozen.row : breadthCurrentRow(rows, liveBreadth.row)),
+    [frozen, liveBreadth.row, rows],
+  )
 
   // Per-reading trend series for the sparkline tile styles: today's INTRADAY path
   // for the 7 live-sampled readings (real-time), else the last ~month of daily
   // values (newest = the live row, so the endpoint tracks live). oldest-first.
-  const TREND_N = 24
-  const trendBase = useMemo(
-    () => (liveBreadth.row && currentRow ? [currentRow, ...rows] : rows),
-    [liveBreadth.row, currentRow, rows],
-  )
   const seriesFor = useCallback((key) => {
     if (frozen) return Array.isArray(frozen.series?.[key]) ? frozen.series[key] : []
-    const p = liveBreadth.path?.[key]
-    if (Array.isArray(p) && p.length >= 2) return p.map(x => x?.[1])
-    const out = []
-    for (let i = Math.min(TREND_N, trendBase.length) - 1; i >= 0; i--) out.push(trendBase[i]?.[key])
-    return out
-  }, [frozen, liveBreadth.path, trendBase])
+    return breadthSeries(key, rows, liveBreadth, currentRow)
+  }, [frozen, liveBreadth, rows, currentRow])
   const tileStyle = bwSettings.tileStyle || 'values'
 
   // When we last pulled the data (client-side), so the footer always shows a TIME
@@ -431,15 +416,9 @@ export default function BreadthWidget({
 
   // "Last updated" always carries a time: the live intraday clock while a live row
   // stands, else the last fetch time. ET, "h:mm AM/PM".
-  const fmtEtTime = (ms) => {
-    try { return new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) }
-    catch { return null }
-  }
   const updated = frozen
     ? (frozen.updated || currentRow?.date || null)
-    : liveBreadth.clock
-      ? `${liveBreadth.clock} ET`
-      : (fetchedAt ? `${fmtEtTime(fetchedAt)} ET` : (currentRow?.date || null))
+    : breadthUpdated(liveBreadth, fetchedAt, currentRow)
 
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
@@ -513,13 +492,11 @@ export default function BreadthWidget({
           // Freeze exactly what the widget shows right now — shared by the
           // one-click default send AND the Wave 1 destination-picker, so
           // both paths capture the identical payload.
-          const buildBreadthCapture = () => {
+          const doorCapture = () => {
             const series = {}
             for (const k of visibleKeys) series[k] = seriesFor(k)
-            return {
-              hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
-              tileStyle, settings: bwSettings, row: currentRow, series, updated,
-            }
+            return buildBreadthCapture({ row: currentRow, series, updated },
+              { hiddenMetrics: opts?.hiddenMetrics, settings: bwSettings })
           }
           return (
             <>
@@ -527,14 +504,14 @@ export default function BreadthWidget({
                 type="button" className={styles.iconBtn}
                 onClick={async () => {
                   setJournalMsg('sending…')
-                  setJournalMsg(await sendCaptureToJournal('breadth', buildBreadthCapture(), { label: 'Breadth' }))
+                  setJournalMsg(await sendCaptureToJournal('breadth', doorCapture(), { label: 'Breadth' }))
                 }}
                 title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
               ><UIcon name="journal" size={13} /></button>
               <button
                 type="button" className={styles.iconBtn}
                 onClick={(e) => setCaptureMenu({
-                  anchor: { x: e.clientX, y: e.clientY }, capture: buildBreadthCapture(),
+                  anchor: { x: e.clientX, y: e.clientY }, capture: doorCapture(),
                 })}
                 title="Send to Journal — choose where" aria-label="Send to Journal — choose where"
               ><UIcon name="chevronDown" size={13} /></button>

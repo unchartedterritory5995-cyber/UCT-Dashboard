@@ -35,6 +35,11 @@ export function refreshIntervalFor(latest) {
   return !latest || latest.superseded ? 15 * 60_000 : 60_000
 }
 
+/** Does a live read carry a row that may sit on the stored history? Not once the collector has
+ *  written the day (`superseded`), nor when bars.db measured a different population (`degraded`).
+ *  One predicate, read by this hook and by the Notebook's frozen breadth capture. */
+export const isLiveRowUsable = (data) => !!(data?.ok && !data.superseded && !data.degraded && data.row)
+
 export function useLiveBreadth({ enabled = true } = {}) {
   const { data, error } = useSWR(
     enabled ? '/api/breadth-monitor/live' : null,
@@ -57,7 +62,7 @@ export function useLiveBreadth({ enabled = true } = {}) {
     // the daily row does — at that point the live number is not a fresher view
     // of the same metric, it is a different metric wearing the same name. Show
     // nothing and let the stored history stand.
-    if (!data?.ok || data.superseded || data.degraded || !data.row) {
+    if (!isLiveRowUsable(data)) {
       return {
         row: null, asOf: null, clock: null, degraded: !!data?.degraded,
         path: {}, openValues: {},

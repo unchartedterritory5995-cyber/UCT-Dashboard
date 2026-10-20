@@ -12,6 +12,15 @@ export const isOffline = () => typeof navigator !== 'undefined' && navigator.onL
 /** A failed capture, in the words snapshotCommand reads: `offline` or `failed`. */
 export const captureFailure = () => ({ ok: false, reason: isOffline() ? 'offline' : 'failed' })
 
+/** `fetch` with the capture timeout: for a widget fetcher that takes its own fetch (fetchSnapshot), so its
+ *  check-and-parse stays the widget's own while a dead answer still cannot hang the editor. Rejects on timeout. */
+export function boundedFetch(url, init = {}, { timeoutMs = CAPTURE_TIMEOUT_MS } = {}) {
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null
+  return fetch(url, { ...init, ...(ctl ? { signal: ctl.signal } : {}) })
+    .finally(() => { if (timer) clearTimeout(timer) })
+}
+
 /** GET a JSON answer. Never throws: `{ok: true, status, data}` or `{ok: false, status}` (0 = no answer). */
 export async function getJson(url, { timeoutMs = CAPTURE_TIMEOUT_MS } = {}) {
   const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
@@ -34,4 +43,30 @@ export async function readPreferences() {
   const r = await getJson(PREFS_URL)
   const data = r.ok && r.data && typeof r.data === 'object' ? r.data : {}
   return { ...PREFERENCE_DEFAULTS, ...data }
+}
+
+/** ET wall-clock "h:mm AM/PM" for a fetch instant, or null. */
+export function fmtEtTime(ms) {
+  try {
+    return new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })
+  } catch { return null }
+}
+
+/** The "h:mm AM/PM ET" stamp a frozen widget's footer reads, for a fetch instant. */
+export const etStamp = (ms) => `${fmtEtTime(ms)} ET`
+
+/** The live quotes for some symbols, as the shared live-price store keeps them: an entry only when it
+ *  carries a real price (finite, above 0), so a degraded quote reads as no quote. Asked in chunks of
+ *  250, the server's own cap. A failed read is no quotes, never a failed capture. Never throws. */
+export async function readLivePrices(symbols) {
+  const syms = [...new Set((symbols || []).map((s) => String(s || '').toUpperCase()).filter(Boolean))]
+  const out = {}
+  for (let i = 0; i < syms.length; i += 250) {
+    const r = await getJson(`/api/live-prices?tickers=${syms.slice(i, i + 250).join(',')}`)
+    if (!r.ok || !r.data || typeof r.data !== 'object') continue
+    for (const [sym, q] of Object.entries(r.data)) {
+      if (q && typeof q === 'object' && Number(q.price) > 0 && Number.isFinite(Number(q.price))) out[sym] = q
+    }
+  }
+  return out
 }
