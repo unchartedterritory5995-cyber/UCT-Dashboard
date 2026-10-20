@@ -17,3 +17,8 @@ Rebuild of a plan lost in a box crash on 2026-10-19. Not a design yet.
 
 ## Open questions
 - Live or frozen snapshot when a widget is inserted?
+
+## Round 2 (owner)
+- Owner on live vs snapshot: "idk" -> proposed SNAPSHOT by default + "see it now" (Claude's call, not agreed yet).
+- Owner: "think about templates and what a trader would want to journal about" -> proposed widgets grouped by moment (prep / plan a trade / review / end of day / weekly), a `$TICKER` card, and starter packs/styles shipping with widgets pre-placed + auto-filled.
+- Owner: "also maybe some account stuff, group stuff, market context things like that"
