@@ -1,0 +1,474 @@
+{
+ "generated": "2026-10-20",
+ "candidates": 61,
+ "examples": [
+  {
+   "concept": "trending",
+   "sym": "AAPL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "trending",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "trending",
+   "sym": "NVDA",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "trending",
+   "sym": "AMZN",
+   "asof": "2026-08-20",
+   "ts": 20260820
+  },
+  {
+   "concept": "trending",
+   "sym": "GOOGL",
+   "asof": "2026-10-15",
+   "ts": 20261015
+  },
+  {
+   "concept": "trending",
+   "sym": "META",
+   "asof": "2026-10-15",
+   "ts": 20261015
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "AAPL",
+   "asof": "2025-06-18",
+   "ts": 20250618
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "MSFT",
+   "asof": "2026-07-24",
+   "ts": 20260724
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "NVDA",
+   "asof": "2025-04-23",
+   "ts": 20250423
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "AMZN",
+   "asof": "2026-03-31",
+   "ts": 20260331
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "GOOGL",
+   "asof": "2025-05-09",
+   "ts": 20250509
+  },
+  {
+   "concept": "in a downtrend",
+   "sym": "META",
+   "asof": "2026-08-31",
+   "ts": 20260831
+  },
+  {
+   "concept": "coiled",
+   "sym": "AAPL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "coiled",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "coiled",
+   "sym": "NVDA",
+   "asof": "2026-10-14",
+   "ts": 20261014
+  },
+  {
+   "concept": "coiled",
+   "sym": "AMZN",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "coiled",
+   "sym": "GOOGL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "coiled",
+   "sym": "META",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "higher lows",
+   "sym": "AAPL",
+   "asof": "2026-10-02",
+   "ts": 20261002
+  },
+  {
+   "concept": "higher lows",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "higher lows",
+   "sym": "NVDA",
+   "asof": "2026-07-30",
+   "ts": 20260730
+  },
+  {
+   "concept": "higher lows",
+   "sym": "AMZN",
+   "asof": "2026-07-20",
+   "ts": 20260720
+  },
+  {
+   "concept": "higher lows",
+   "sym": "GOOGL",
+   "asof": "2026-07-20",
+   "ts": 20260720
+  },
+  {
+   "concept": "higher lows",
+   "sym": "META",
+   "asof": "2026-10-09",
+   "ts": 20261009
+  },
+  {
+   "concept": "inside day",
+   "sym": "AAPL",
+   "asof": "2026-10-14",
+   "ts": 20261014
+  },
+  {
+   "concept": "inside day",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "inside day",
+   "sym": "NVDA",
+   "asof": "2026-09-30",
+   "ts": 20260930
+  },
+  {
+   "concept": "inside day",
+   "sym": "AMZN",
+   "asof": "2026-10-08",
+   "ts": 20261008
+  },
+  {
+   "concept": "inside day",
+   "sym": "GOOGL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "inside day",
+   "sym": "META",
+   "asof": "2026-10-01",
+   "ts": 20261001
+  },
+  {
+   "concept": "gapping up",
+   "sym": "AAPL",
+   "asof": "2025-09-03",
+   "ts": 20250903
+  },
+  {
+   "concept": "gapping up",
+   "sym": "MSFT",
+   "asof": "2026-07-30",
+   "ts": 20260730
+  },
+  {
+   "concept": "gapping up",
+   "sym": "NVDA",
+   "asof": "2026-08-27",
+   "ts": 20260827
+  },
+  {
+   "concept": "gapping up",
+   "sym": "AMZN",
+   "asof": "2026-07-31",
+   "ts": 20260731
+  },
+  {
+   "concept": "gapping up",
+   "sym": "GOOGL",
+   "asof": "2026-04-30",
+   "ts": 20260430
+  },
+  {
+   "concept": "gapping up",
+   "sym": "META",
+   "asof": "2026-09-09",
+   "ts": 20260909
+  },
+  {
+   "concept": "gapping down",
+   "sym": "AAPL",
+   "asof": "2026-07-31",
+   "ts": 20260731
+  },
+  {
+   "concept": "gapping down",
+   "sym": "MSFT",
+   "asof": "2026-04-30",
+   "ts": 20260430
+  },
+  {
+   "concept": "gapping down",
+   "sym": "NVDA",
+   "asof": "2026-09-14",
+   "ts": 20260914
+  },
+  {
+   "concept": "gapping down",
+   "sym": "AMZN",
+   "asof": "2026-07-23",
+   "ts": 20260723
+  },
+  {
+   "concept": "gapping down",
+   "sym": "GOOGL",
+   "asof": "2026-07-23",
+   "ts": 20260723
+  },
+  {
+   "concept": "gapping down",
+   "sym": "META",
+   "asof": "2026-07-30",
+   "ts": 20260730
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "AAPL",
+   "asof": "2026-09-18",
+   "ts": 20260918
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "MSFT",
+   "asof": "2026-07-30",
+   "ts": 20260730
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "NVDA",
+   "asof": "2026-08-27",
+   "ts": 20260827
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "AMZN",
+   "asof": "2026-07-31",
+   "ts": 20260731
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "GOOGL",
+   "asof": "2026-07-23",
+   "ts": 20260723
+  },
+  {
+   "concept": "heavy volume",
+   "sym": "META",
+   "asof": "2026-09-21",
+   "ts": 20260921
+  },
+  {
+   "concept": "near its highs",
+   "sym": "AAPL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "near its highs",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "near its highs",
+   "sym": "NVDA",
+   "asof": "2026-10-07",
+   "ts": 20261007
+  },
+  {
+   "concept": "near its highs",
+   "sym": "AMZN",
+   "asof": "2026-08-10",
+   "ts": 20260810
+  },
+  {
+   "concept": "near its highs",
+   "sym": "GOOGL",
+   "asof": "2026-05-28",
+   "ts": 20260528
+  },
+  {
+   "concept": "near its highs",
+   "sym": "META",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "at new highs",
+   "sym": "AAPL",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "at new highs",
+   "sym": "MSFT",
+   "asof": "2025-07-31",
+   "ts": 20250731
+  },
+  {
+   "concept": "at new highs",
+   "sym": "NVDA",
+   "asof": "2026-10-06",
+   "ts": 20261006
+  },
+  {
+   "concept": "at new highs",
+   "sym": "AMZN",
+   "asof": "2026-08-03",
+   "ts": 20260803
+  },
+  {
+   "concept": "at new highs",
+   "sym": "GOOGL",
+   "asof": "2026-05-18",
+   "ts": 20260518
+  },
+  {
+   "concept": "at new highs",
+   "sym": "META",
+   "asof": "2026-09-24",
+   "ts": 20260924
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "AAPL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "NVDA",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "AMZN",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "GOOGL",
+   "asof": "2026-10-15",
+   "ts": 20261015
+  },
+  {
+   "concept": "at the 20 ema",
+   "sym": "META",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "AAPL",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "MSFT",
+   "asof": "2026-10-19",
+   "ts": 20261019
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "NVDA",
+   "asof": "2026-10-07",
+   "ts": 20261007
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "AMZN",
+   "asof": "2026-08-10",
+   "ts": 20260810
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "GOOGL",
+   "asof": "2026-05-28",
+   "ts": 20260528
+  },
+  {
+   "concept": "shallow pullback",
+   "sym": "META",
+   "asof": "2026-10-13",
+   "ts": 20261013
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "AAPL",
+   "asof": "2025-05-09",
+   "ts": 20250509
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "MSFT",
+   "asof": "2026-06-30",
+   "ts": 20260630
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "NVDA",
+   "asof": "2025-05-06",
+   "ts": 20250506
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "AMZN",
+   "asof": "2026-02-13",
+   "ts": 20260213
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "GOOGL",
+   "asof": "2026-07-27",
+   "ts": 20260727
+  },
+  {
+   "concept": "deep pullback",
+   "sym": "META",
+   "asof": "2026-08-20",
+   "ts": 20260820
+  }
+ ]
+}

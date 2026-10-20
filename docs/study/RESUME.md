@@ -43,6 +43,22 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (scripts/study/corrections.py; docs/study/corrections/*.jsonl; owner-approved items import approved).
   Integrator re-ran lane W: backend 6 files 177 passed; WalkthroughDrill 5, DrillPlayer 9,
   useStudySession 12, CoursesSection 14. Bank now 660 (walk.method 25).
+- **2026-10-20 (overnight): review screen fixed + first verdicts + chart words.** PR #434 (merged 5fff820f21):
+  the StudyReview chart drew a live fetch by ticker and showed "No MSFT chart data"; it now draws the item's
+  STORED bars through `GET /api/study/admin/items/{id}/bars` (admin, any status, visible + forward). Verdicts
+  in docs/study/corrections: sizing 1-8 approved (wide-stop caveat, over-cap trim note, tight-stop batch
+  wanted; owner called the forward math settled), candles 1-2 (segment goes IMAGE-FIRST: a real chart per
+  candle from the firm's detector; review paused), principles 1-4 (1 fixed, Kelly + ATR sizing REJECTED,
+  correlation rewritten as judgment; segment on HOLD: "too rigid", "a bit myopic"; rebuild from the owner's
+  prose later). STANDING RULE: every lesson answers the follow-up questions. Owner then chose vocabulary /
+  technical terms: docs/study/terms/chart_words.json (14 V.02 terms from the screener's own formulas),
+  scripts/study/find_term_examples.py (pod-side, read-only: real (sym, asof) pairs where the firm's formula
+  fires; output docs/study/terms/examples.json, 78 examples over 13 concepts), scripts/study/gen_terms.py ->
+  bank segment vocab.chart (78 draft items, bars as a SPEC resolved on import). NEXT: owner merges, then
+  `railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only vocab.chart` (owner-run),
+  then review chart words on the review screen (Type = recall, skill vocab.chart). Owner rule 2026-10-19:
+  review happens where he can SEE the chart (the review screen / a browser), not as text in chat.
+  The study-import worktree's app/node_modules is a JUNCTION to the main checkout (remove with `cmd /c rmdir`).
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts

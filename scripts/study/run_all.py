@@ -15,10 +15,10 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from scripts.study import (gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size,  # noqa: E402
-                           gen_walkthroughs)
+                           gen_terms, gen_walkthroughs)
 from scripts.study._common import write_segment  # noqa: E402
 
-GENERATORS = (gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs)
+GENERATORS = (gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms)
 
 
 def run() -> dict[str, int]:
