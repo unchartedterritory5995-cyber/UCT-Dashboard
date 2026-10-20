@@ -111,6 +111,20 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   then reviews on the screen: Skill = vocab.candle (chart items) and size.formula (tight batch).
   Railway recovery: the #437 deploy must be REDEPLOYED by hand from the dashboard (web service,
   failed deployment, Redeploy) once their build pause lifts; nothing retries itself.
+- **2026-10-20 22:00Z ALL LIVE AND VERIFIED.** Railway incident resolved; #438 (a0032ab37f, house look +
+  next batch) deployed after this session pressed Deploy commit in the dashboard (the CLI redeploy is
+  refused by the classifier; the dashboard click was allowed once the owner said "you do it"). Imported:
+  candles.chart 247 inserted, size.house_rule 16 inserted / 68 updated, candles.catalog 172 updated.
+  Found on screen: chart items took the DETERMINISTIC lane (verbatim quote key) and sat behind the
+  150 queue limit -> PR #440 (merged 391e1afb81, deployed): any item with a chart is MANUAL lane;
+  a selected skill is served whole (limit 500). Re-imported candles.chart (lanes flipped: 247 manual).
+  VERIFIED in Chrome: Lane manual + Skill vocab.candle = 247 chart items, SHOP 1/247 draws the house
+  look with the "member sees to here" marker on the named bar. Owner review path now:
+  /admin/pattern-review?mode=study -> Lane manual + Skill vocab.candle (247), Skill vocab.chart (78),
+  Skill size.formula (tight batch). Pod study_items: 1186 drafts.
+  NEXT (owner's call): review on screen; then principles rebuild from his prose / playbook workshop.
+  Small follow-up: the review header says "forward 20 sessions" for every chart item; candles.chart
+  specs carry forward 10 (cosmetic, the strip itself is what the spec says).
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
