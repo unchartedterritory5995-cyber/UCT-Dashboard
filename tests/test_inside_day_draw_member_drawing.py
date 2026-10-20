@@ -69,8 +69,10 @@ def _draw(b):
 
 @pytest.fixture(autouse=True)
 def _complete_sessions(monkeypatch):
-    """Synthetic dates are long past: no forming session unless a test says so."""
+    """Synthetic dates are long past: no forming session unless a test says so. The inside-day row asks
+    the fail-closed question (last_bar_complete); the other rows of structures_for ask last_bar_forming."""
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
+    monkeypatch.setattr(auto_structures, "last_bar_complete", lambda t, now=None: True)
 
 
 def test_an_inside_day_resting_after_an_advance_is_drawn():
@@ -141,9 +143,36 @@ def test_the_row_carries_the_drawing_and_the_round():
 def test_a_forming_session_is_dropped_before_drawing(monkeypatch):
     b = _synth()
     junk = {"t": b[-1]["t"] + 1, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}
-    monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: t == junk["t"])
+    monkeypatch.setattr(auto_structures, "last_bar_complete", lambda t, now=None: t != junk["t"])
     got = auto_structures.inside_day_draw_row("SYN", b + [junk])
     assert got is not None and got == auto_structures.inside_day_draw_row("SYN", b)
+
+
+@pytest.mark.parametrize("clock", ["none", "raises"])
+def test_an_unknown_session_clock_fails_closed_on_a_half_formed_inside_bar(monkeypatch, clock):
+    """FAIL CLOSED: when the session clock cannot be read (None, or it raises), the last bar may be a
+    session still in progress -- and a half-formed session is exactly what reads as an inside day (its
+    range has not widened yet). It must be dropped, not drawn as a finished inside day. Runs on the
+    REAL clock seam (every autouse patch undone) so it reds if inside_day_draw_row goes back to
+    last_bar_forming, which answers "not forming" (keep the bar) on an unknown clock."""
+    from api.services import barspack
+    monkeypatch.undo()
+    b = _synth()                       # the last bar is the inside day: here, a half-formed session
+    last = b[-1]["t"]
+    # Controls: with a clock that says the inside bar's session is COMPLETE it is drawn, and without
+    # the inside bar nothing is drawn -- so a None below can only come from dropping the bar.
+    monkeypatch.setattr(barspack, "_last_complete_session_ymd", lambda now=None: last)
+    assert auto_structures.inside_day_draw_row("SYN", b) is not None
+    assert auto_structures.inside_day_draw_row("SYN", b[:-1]) is None
+    if clock == "none":
+        monkeypatch.setattr(barspack, "_last_complete_session_ymd", lambda now=None: None)
+    else:
+        def _boom(now=None):
+            raise RuntimeError("clock unreadable")
+        monkeypatch.setattr(barspack, "_last_complete_session_ymd", _boom)
+    assert auto_structures.last_bar_complete(last) is False
+    assert auto_structures.last_bar_forming(last) is False      # the fail-OPEN answer, for contrast
+    assert auto_structures.inside_day_draw_row("SYN", b) is None
 
 
 def test_no_drawing_no_row_and_junk_never_raises():
@@ -204,6 +233,7 @@ def test_structures_for_appends_the_inside_day_last_and_leaves_the_rest_alone(mo
     without = auto_structures.structures_for("SYN")
     monkeypatch.undo()
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
+    monkeypatch.setattr(auto_structures, "last_bar_complete", lambda t, now=None: True)
     monkeypatch.setattr(auto_structures, "_daily_bars", lambda sym: json.loads(json.dumps(b)))
     auto_structures._CACHE.clear()
     got = auto_structures.structures_for("SYN")

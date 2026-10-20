@@ -45,10 +45,14 @@ def digest(text: str) -> str:
 def run(auto_structures, drop_base: bool = True, drop_inside_day: bool = True):
     """({key: digest}, counts) for one implementation of auto_structures.structures_for."""
     saved = auto_structures._daily_bars, auto_structures.last_bar_forming
+    #: The inside-day row asks the fail-closed question; code predating it has no such seam.
+    saved_complete = getattr(auto_structures, "last_bar_complete", None)
     out, counts = {}, {"scans": 0, "rows": 0, "base_rows": 0, "inside_day_rows": 0, "keys": 0}
     keys = set()
     try:
         auto_structures.last_bar_forming = lambda t, now=None: False
+        if saved_complete is not None:
+            auto_structures.last_bar_complete = lambda t, now=None: True
         for key, bars in SW.scans():
             snap = json.loads(json.dumps(bars))
             auto_structures._daily_bars = lambda sym, _b=snap: json.loads(json.dumps(_b))
@@ -63,6 +67,8 @@ def run(auto_structures, drop_base: bool = True, drop_inside_day: bool = True):
             out[key] = digest(canonical(rows, drop_base, drop_inside_day))
     finally:
         auto_structures._daily_bars, auto_structures.last_bar_forming = saved
+        if saved_complete is not None:
+            auto_structures.last_bar_complete = saved_complete
         auto_structures._CACHE.clear()
     counts["keys"] = len(keys)
     return out, counts

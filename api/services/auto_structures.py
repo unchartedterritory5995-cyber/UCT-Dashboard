@@ -591,12 +591,15 @@ def base_draw_row(sym: str, bars: list):
 
 def inside_day_draw_row(sym: str, bars: list):
     """The inside-day drawing row for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
-    first), or None when no inside day is drawn there. A forming session (last_bar_forming) is
-    dropped first: the lab judged drawings at finished sessions. Display only. Never raises."""
+    first), or None when no inside day is drawn there. A last bar that is not a COMPLETED session
+    (last_bar_complete) is dropped first: the lab judged drawings at finished sessions. This FAILS
+    CLOSED: an unknown or failing session clock drops the last bar too, because a half-formed session
+    can read as an inside day (its range is still narrow) and would otherwise be drawn as a finished
+    one. Display only. Never raises."""
     try:
         from api.services.pattern_engine import inside_day_draw
         b = list(bars or [])
-        if b and last_bar_forming(b[-1]["t"]):
+        if b and not last_bar_complete(b[-1]["t"]):
             b = b[:-1]
         if not b:
             return None
@@ -985,6 +988,15 @@ def last_bar_forming(last_t, now=None) -> bool:
         return done is not None and int(last_t) > int(done)
     except Exception:  # noqa: BLE001 -- a clock question never breaks the drawing
         return False
+
+
+def last_bar_complete(last_t, now=None) -> bool:
+    """True ONLY when the daily series' last bar is a COMPLETED session (levels_session_state ==
+    'complete'). The fail-CLOSED counterpart of last_bar_forming: an unknown or failing session clock
+    answers False, so a caller that drops a not-complete last bar treats an unreadable clock as a
+    possibly forming session and drops it (as _complete_session_bars and latest_completed_bar_t do),
+    instead of drawing a half-formed bar's range as if the session had closed. Never raises."""
+    return levels_session_state(last_t, now) == "complete"
 
 
 #: The levels drawing round confirmed for the chart's `drawn` levels: lab levels_v3 (2026-10-18, pre-registered):

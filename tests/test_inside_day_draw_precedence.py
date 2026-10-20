@@ -24,16 +24,17 @@ from tests.test_member_drawing_set import _flags, _get, _store
 @pytest.fixture(autouse=True)
 def _complete_sessions(monkeypatch):
     monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    monkeypatch.setattr(AS, "last_bar_complete", lambda t, now=None: True)
 
 
 @pytest.fixture(scope="module")
 def idrow():
-    AS_last = AS.last_bar_forming
-    AS.last_bar_forming = lambda t, now=None: False
+    AS_last = AS.last_bar_complete
+    AS.last_bar_complete = lambda t, now=None: True
     try:
         row = AS.inside_day_draw_row("SYN", _synth())
     finally:
-        AS.last_bar_forming = AS_last
+        AS.last_bar_complete = AS_last
     assert row is not None
     return row
 
