@@ -50,7 +50,10 @@
 name: notebook budgets
 
 on:
+  # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
+  # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
+    branches: [master]
     paths:
       - 'api/services/journal_two/**'
       - 'api/routers/journal_two.py'
