@@ -51,6 +51,9 @@ export const CAPTURE_KINDS = Object.freeze([
   { id: 'calendar', wave: 4, group: 'more', title: 'UCT Terminal day', day: 1,
     description: "Today's earnings and economic events", keywords: ['calendar', 'economic'],
     capture: () => import('../../charts/widgets/captures/calendarCapture') },
+  { id: 'news', wave: 4, group: 'more', title: 'News and catalysts', cmd: 'news',
+    description: 'Catalysts and headlines as they read now',
+    capture: () => import('../../charts/widgets/captures/newsCapture') },
 ])
 
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
