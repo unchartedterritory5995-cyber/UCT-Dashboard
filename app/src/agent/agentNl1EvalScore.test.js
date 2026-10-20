@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { SETS, turnsOf } from './testing/sets'
 import { hostFor, nameToId } from './testing/fixtureHost'
-import { scoreTurn, aggregate } from './testing/score'
+import { scoreTurn, aggregate, selectionOutcome } from './testing/score'
+import { assembleNl1 } from './nl1/selection'
 import { GATES, checkGates } from './testing/acceptance'
 
 registerBuiltins()
@@ -27,7 +28,9 @@ const pct = (xs, q) => { if (!xs.length) return null; const s = [...xs].sort((a,
 
 it.skipIf(!env.AGENT_EVAL_BODIES || !env.AGENT_EVAL_RESULTS)('scores the replay', () => {
   const spec = JSON.parse(fs.readFileSync(path.join(DIR, 'corpus.json'), 'utf8'))
-  const bodies = new Map(JSON.parse(fs.readFileSync(env.AGENT_EVAL_BODIES, 'utf8')).map(i => [`${i.mode}|${i.key}|${i.set}`, i]))
+  const captured = JSON.parse(fs.readFileSync(env.AGENT_EVAL_BODIES, 'utf8'))
+  const bodies = new Map(captured.filter(i => i.mode).map(i => [`${i.mode}|${i.key}|${i.set}`, i]))
+  const catalogs = new Map(captured.filter(i => !i.mode && i.catalog && i.manifest).map(i => [i.catalog, i]))
   const run = JSON.parse(fs.readFileSync(env.AGENT_EVAL_RESULTS, 'utf8'))
   const cases = new Map()
   for (const s of SETS) {
@@ -41,10 +44,14 @@ it.skipIf(!env.AGENT_EVAL_BODIES || !env.AGENT_EVAL_RESULTS)('scores the replay'
     if (!item || !k) continue
     const { host, selected, lib } = hostFor(spec, k.c.fx, { state: k.t.state, libExtra: k.c.libExtra })
     const selectedLabel = selected ? host.charts.list().find(s => s.ref === selected || String(s.ref).endsWith(selected))?.label || null : null
+    // NL-1: the action selection's outcome, and the envelope as the PANEL acts on it (an apply made while the words
+    // pointed at a group the request could not carry is proposed — useAgent)
+    const sel = r.mode === 'nl1' && !r.error ? selectionOutcome({ expect: k.t.expect, item, result: r, catalog: catalogs.get(item.catalog), assemble: assembleNl1 }) : null
     const s = r.error
       ? { interp: 'error', correct: false, disposition: null, actions: [], clarify: null, choicesOk: null, execution: { planned: false, refused: [r.error] }, wrongRunsNow: false, unsafe: [] }
-      : scoreTurn({ expect: k.t.expect, env: r.envelope, refMap: item.refMap, host, selectedLabel, names: nameToId(lib) })
-    rows.push({ key: r.key, set: r.set, split: k.split, cat: k.c.cat, ms: r.ms, usage: r.usage, ...s })
+      : scoreTurn({ expect: k.t.expect, env: sel ? sel.env : r.envelope, refMap: item.refMap, host, selectedLabel, names: nameToId(lib) })
+    rows.push({ key: r.key, set: r.set, split: k.split, cat: k.c.cat, ms: r.ms, usage: r.usage, ...s,
+      ...(sel ? { selection: { firstCall: sel.firstCall, rerouted: sel.rerouted, escalated: sel.escalated, substitution: sel.substitution } } : {}) })
   }
   const bySet = {}
   for (const s of SETS) {
@@ -59,7 +66,9 @@ it.skipIf(!env.AGENT_EVAL_BODIES || !env.AGENT_EVAL_RESULTS)('scores the replay'
   const gates = headline ? checkGates(headline, all, { spentUsd: run.spent_usd, requests: run.results.length, convInterpretation: conv.length ? aggregate(conv).interpretation : null }) : null
   const lines = [
     `model ${run.model}  mode ${run.mode}  effort ${run.effort || 'default'}  spent $${(run.spent_usd || 0).toFixed(4)}  scored ${rows.length}`,
-    ...Object.entries(bySet).map(([f, a]) => `${f.padEnd(16)} ${a.split.padEnd(8)} n ${String(a.n).padStart(3)}  interp ${a.interpretation}%  clarify recall ${a.clarifyRecall}%  unneeded ${a.unnecessaryClarify}%  choices ${a.choicesCorrect}%  wrong-runs ${a.wrongRunsNow}  UNSAFE ${a.unsafe}  p50 ${a.p50ms}ms p95 ${a.p95ms}ms`),
+    ...Object.entries(bySet).map(([f, a]) => `${f.padEnd(16)} ${a.split.padEnd(8)} n ${String(a.n).padStart(3)}  interp ${a.interpretation}%  clarify recall ${a.clarifyRecall}%  unneeded ${a.unnecessaryClarify}%  choices ${a.choicesCorrect}%  wrong-runs ${a.wrongRunsNow}  UNSAFE ${a.unsafe}  p50 ${a.p50ms}ms p95 ${a.p95ms}ms`
+      + (a.firstCallCoverage != null ? `\n${''.padEnd(26)}selection: first-call coverage ${a.firstCallCoverage}%  reroutes ${a.rerouteRate}%  substitutions ${a.substitutions}  escalated ${a.escalated}` : '')
+      + (a.tokens ? `  tokens/request in ${a.tokens.input} read ${a.tokens.cacheRead} write ${a.tokens.cacheWrite} out ${a.tokens.output} calls ${a.tokens.modelCalls}` : '')),
     ...(gates ? ['ACCEPTANCE (sealed sets):', ...gates.map(g => `  ${g.pass ? 'PASS' : 'FAIL'} ${g.name}: ${g.value} (bar ${g.bar})`)] : []),
   ]
   // per-case rows: dev / exposed always; sealed only when the owner unseals for the final report

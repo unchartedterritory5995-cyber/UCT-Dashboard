@@ -7,7 +7,10 @@
   # 4. score (free):    AGENT_EVAL_BODIES=bodies.json AGENT_EVAL_RESULTS=r.json npx vitest run src/agent/agentNl1EvalScore.test.js
 
 Each captured request goes through the server's OWN `turn.run_turn` — same prompt, schema, sanitizer, NL-1 gate and
-repair as production — on a SEPARATE eval key. Nothing is executed: no browser, database, workspace or member data,
+repair as production — on a SEPARATE eval key. NL-1 requests carry the hybrid action selection the panel sends
+(app/src/agent/nl1/selection.js); when the model asks for more action groups (`need_groups`), the panel's ONE reroute
+is replayed with the groups the capture recorded for it (`reroutes`, assembled by `assemble_nl1` exactly as the
+browser's `assembleNl1`), or ends as the panel's refusal when they cannot be supplied. Nothing is executed: no browser, database, workspace or member data,
 no web research, no write to UCT's cost ledgers. The key is read from the environment only; it is never printed,
 logged or written to any output file.
 
@@ -57,19 +60,26 @@ def trial_keys(path: str = TRIAL) -> set[tuple[str, str]]:
 
 
 def prompt_parts(item: dict) -> dict:
-    """The characters of one request, split into the cacheable prefix (system prompt + schema) and the rest."""
+    """The characters of one request: the system prompt + schema (cacheable) and the rest. NL-1's system prompt is
+    split as run_turn sends it: `stable` (the core + rules + glossary, and the reference data) is the same on every
+    request; `variable` (a routed request's other actions and the groups it was not given, and the schema) varies."""
     body = item["body"]
     nl1 = body.get("interpreter") == "nl1"
     limit = turn.MAX_CAPABILITIES_NL1 if nl1 else turn.MAX_CAPABILITIES
     caps = turn.validate_manifest(body["capabilities"], limit)
-    route = None if nl1 else turn.validate_routing(body.get("routing"))
+    route = turn.validate_routing(body.get("routing"))
     unselected = route["unselected"] if route else None
     compact = True if nl1 else turn.compact_ops(caps)
-    system = turn.system_prompt(caps, unselected, compact, nl1=nl1) + (turn.reference_block(body.get("reference")) or "" if nl1 else "")
     schema = json.dumps(turn.envelope_schema(caps, unselected, compact, nl1=nl1))
+    if nl1:
+        texts = turn.nl1_system_texts(caps, unselected, turn.nl1_stable_names(body.get("routing"), body["capabilities"]))
+        stable = texts[0] + (turn.reference_block(body.get("reference")) or "")
+        variable = "".join(texts[1:]) + schema
+    else:
+        stable, variable = "", turn.system_prompt(caps, unselected, compact) + schema
     rest = (len(turn._block("workspace_context", body["context"])) + len(body["message"])
             + sum(len(str(h.get("text") or "")) + 20 for h in item.get("history") or []) + 400)
-    return {"system": len(system) + len(schema), "rest": rest}
+    return {"system": len(stable) + len(variable), "stable": stable, "variable": variable, "rest": rest}
 
 
 def rates(prices: dict, model: str, prompt_tokens: int = 0) -> dict:
@@ -90,19 +100,26 @@ def estimate(items: list[dict], prices: dict, model: str, out_tokens: int = 350)
     sys_hi = sum(r["system"] for r in rows) / CHARS_PER_TOKEN_HIGH
     rest_lo = sum(r["rest"] for r in rows) / CHARS_PER_TOKEN_LOW
     rest_hi = sum(r["rest"] for r in rows) / CHARS_PER_TOKEN_HIGH
-    distinct = len({r["system"] for r in rows}) or 1
+    distinct = len({(r["stable"], r["variable"]) for r in rows}) or 1
     avg_sys_hi = sys_hi / max(n, 1)
     per_call_prompt_hi = int((sys_hi + rest_hi) / max(n, 1))
     uncached = sum(usd(prices, model, inp=int((r["system"] + r["rest"]) / CHARS_PER_TOKEN_HIGH), out=out_tokens) for r in rows)
-    # cached, PER REQUEST (a price tier applies to one request's prompt, never to a run's total): the first
-    # request with a given system prompt writes it to the cache, every later one reads it
-    seen: set[int] = set()
+    # cached, PER REQUEST (a price tier applies to one request's prompt, never to a run's total): the first request
+    # with a given prefix writes it to the cache, every later one reads it — the stable part (NL-1's core block +
+    # reference data) and, after it, the variable part (a routed request's other actions + schema) separately
+    seen_stable: set[str] = set()
+    seen_whole: set[tuple[str, str]] = set()
     cached = 0.0
     for r in rows:
-        sys_t, rest_t = int(r["system"] / CHARS_PER_TOKEN_HIGH), int(r["rest"] / CHARS_PER_TOKEN_HIGH)
-        first = r["system"] not in seen
-        seen.add(r["system"])
-        cached += usd(prices, model, inp=rest_t, out=out_tokens, cache_write=sys_t if first else 0, cache_read=0 if first else sys_t)
+        st_t, var_t = int(len(r["stable"]) / CHARS_PER_TOKEN_HIGH), int(len(r["variable"]) / CHARS_PER_TOKEN_HIGH)
+        rest_t = int(r["rest"] / CHARS_PER_TOKEN_HIGH)
+        new_stable = r["stable"] not in seen_stable
+        new_whole = (r["stable"], r["variable"]) not in seen_whole
+        seen_stable.add(r["stable"])
+        seen_whole.add((r["stable"], r["variable"]))
+        write = (st_t if new_stable else 0) + (var_t if new_whole else 0)
+        read = (0 if new_stable else st_t) + (0 if new_whole else var_t)
+        cached += usd(prices, model, inp=rest_t, out=out_tokens, cache_write=write, cache_read=read)
     worst_one = usd(prices, model, cache_write=per_call_prompt_hi, out=turn.MAX_TOKENS)
     return {"requests": n, "input_tokens_low": int(sys_lo + rest_lo), "input_tokens_high": int(sys_hi + rest_hi),
             "system_tokens_per_request_high": int(avg_sys_hi), "prompt_tokens_per_request_high": per_call_prompt_hi,
@@ -126,6 +143,79 @@ def refusal(args, prices: dict) -> str | None:
     if key == os.environ.get("ANTHROPIC_API_KEY", ""):
         return f"{EVAL_KEY_ENV} is the production key: the eval never spends the production budget"
     return None
+
+
+#: A reroute adds at most this many groups (app/src/agent/nl1/selection.js NL1_MAX_NEED).
+MAX_NEED = 3
+#: The panel's words when a reroute cannot be made or is not enough (useAgent): nothing runs.
+TOO_MANY_PARTS = "That touches too many parts of UCT for one request. Try asking for one part at a time."
+NEEDS_MORE = "That needs more of UCT than I can plan in one step. Try asking for one part at a time."
+
+
+def catalogs_of(entries: list[dict]) -> dict:
+    """The capture's catalog entries ({catalog, manifest, core, groupOf, groups}) by id."""
+    return {e["catalog"]: e for e in entries
+            if isinstance(e, dict) and "manifest" in e and "catalog" in e and "mode" not in e}
+
+
+def assemble_nl1(catalog: dict, selected: list[str]) -> tuple[list[dict], dict | None]:
+    """The browser's `assembleNl1` (nl1/selection.js), exactly: the whole catalog (routing None) when every present
+    group is selected; else the core's actions first, then the other selected groups' — each in catalog order — and
+    the routing (`stable` = how many leading actions are the core). Held to the browser by
+    tests/fixtures/nl1_assemble_parity.json."""
+    full, group_of, core, present = catalog["manifest"], catalog["groupOf"], catalog["core"], catalog["groups"]
+    selected = list(dict.fromkeys([*core, *selected]))          # the core is always selected (and sent first)
+    if all(g["id"] in selected for g in present):
+        return full, None
+    head = [c for c in full if group_of.get(c["name"]) in core]
+    tail = [c for c in full if group_of.get(c["name"]) not in core
+            and (group_of.get(c["name"]) is None or group_of.get(c["name"]) in selected)]
+    routing = {"version": 1, "groups": [{"id": g["id"], "title": g["title"]} for g in present],
+               "selected": [g["id"] for g in present if g["id"] in selected], "stable": len(head)}
+    return head + tail, routing
+
+
+def reroute_request(item: dict, catalogs: dict, need: list) -> dict | None:
+    """The panel's ONE reroute (useAgent) for the groups the model asked for: the same request with the groups the
+    capture recorded for them, or None when the panel would stop instead (more than MAX_NEED groups, or they do not
+    fit beside the core under the 60-action limit)."""
+    sel = item.get("selection") or {}
+    need = sorted({str(g) for g in need or [] if g not in (sel.get("selected") or [])})
+    if not need or len(need) > MAX_NEED:
+        return None
+    rr = (item.get("reroutes") or {}).get("+".join(need))
+    cat = catalogs.get(item.get("catalog"))
+    if not rr or not cat:
+        return None
+    manifest, routing = assemble_nl1(cat, rr["selected"])
+    return {**item["body"], "capabilities": manifest, "routing": routing}
+
+
+class CeilingMeter:
+    """The /turn route's CALL CEILING for one member request (budget.py: 2 paid calls, a reroute included),
+    without the ledgers: the replay makes exactly the calls production would — a reroute that is the request's
+    second call is never repaired, and nothing makes a third. One instance per request."""
+
+    def __init__(self, max_calls: int = 2):
+        self.max_calls, self.calls = max_calls, 0
+
+    def calls_left(self) -> int:
+        return max(0, self.max_calls - self.calls)
+
+    def call(self, category: str, fn, **kwargs):
+        from api.services.uct_agent.budget import BudgetRefused
+        if self.calls >= self.max_calls:
+            raise BudgetRefused("call_limit", "This request reached its model-call limit.")
+        self.calls += 1
+        return fn(**kwargs)
+
+    def research(self, fn):
+        return fn()
+
+
+def stopped_envelope(reply: str) -> dict:
+    """What the member gets when the panel stops instead of rerouting: nothing runs."""
+    return {"disposition": "answer", "reply": reply, "question": None, "ops": [], "unsupported_category": None}
 
 
 def select(items: list[dict], mode: str, sets: str | None, keys: str | None) -> list[dict]:
@@ -185,7 +275,9 @@ def main(argv=None) -> int:
     if a.model not in prices["models"]:
         print(f"refused: no price for {a.model} in tools/agent_eval_prices.json")
         return 2
-    items = select(json.load(open(a.bodies, encoding="utf-8")), a.mode, a.sets, a.keys)
+    captured = json.load(open(a.bodies, encoding="utf-8"))
+    items = select(captured, a.mode, a.sets, a.keys)
+    a.catalogs = catalogs_of(captured)
     est = estimate(items, prices, a.model)
     by_set: dict[str, int] = {}
     for i in items:
@@ -266,15 +358,34 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
 
     out = []
     stopped = None
+
+    def one(it, b, meter, reroute=False):
+        return turn.run_turn(message=b["message"], context=b["context"], history=it.get("history") or [],
+                             capabilities=b["capabilities"], routing=b.get("routing"), pending=b.get("pending"),
+                             manifest_version=b.get("manifestVersion"), caller=caller, interpreter=b.get("interpreter"),
+                             reference=b.get("reference"), reroute=reroute, meter=meter)
+
     for it in items:
         b = it["body"]
         t0 = time.monotonic()
+        need, rerouted = [], False
+        meter = CeilingMeter()
         try:
-            r = turn.run_turn(message=b["message"], context=b["context"], history=it.get("history") or [],
-                              capabilities=b["capabilities"], routing=b.get("routing"), pending=b.get("pending"),
-                              manifest_version=b.get("manifestVersion"), caller=caller, interpreter=b.get("interpreter"),
-                              reference=b.get("reference"))
-            env, err, usage = r["envelope"], None, r["usage"]
+            r = one(it, b, meter)
+            env, err, usage = r["envelope"], None, dict(r["usage"])
+            need = list(env.get("need_groups") or []) if a.mode == "nl1" else []
+            if need:
+                # the panel's ONE reroute (useAgent), inside the request's 2-call ceiling
+                b2 = reroute_request(it, a.catalogs, need) if meter.calls_left() >= 1 else None
+                if b2 is None:
+                    env = stopped_envelope(TOO_MANY_PARTS)
+                else:
+                    rerouted = True
+                    r2 = one(it, b2, meter, reroute=True)
+                    env = r2["envelope"] if not r2["envelope"].get("need_groups") else stopped_envelope(NEEDS_MORE)
+                    for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "model_calls"):
+                        usage[k] = int(usage.get(k) or 0) + int(r2["usage"].get(k) or 0)
+                    usage["repaired"] = usage.get("repaired") or r2["usage"].get("repaired")
         except Stop as e:
             stopped = str(e)
             print(f"ABORT: {e}")
@@ -284,7 +395,7 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
         except Exception as e:  # noqa: BLE001 -- an API error on one request (the monitor decides whether to stop)
             env, err, usage = {}, f"{type(e).__name__}", {}
         out.append({"key": it["key"], "set": it["set"], "mode": it["mode"], "ms": int((time.monotonic() - t0) * 1000),
-                    "envelope": env, "error": err,
+                    "envelope": env, "error": err, "need": sorted(set(need)), "rerouted": rerouted,
                     "usage": {k: usage.get(k) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "model_calls", "repaired")}})
     reads = [c for c in calls if "cache_read" in c]
     hit = sum(c["cache_read"] for c in reads) / max(1, sum(c["cache_read"] + c["cache_write"] + c["input"] for c in reads))

@@ -107,9 +107,10 @@ describe('NL-1 × the Create Indicator door', () => {
     expect(turnCalls).toHaveLength(0)                                // asking is free
     await act(async () => { type('plot the EMA 20 of close') })
     await waitFor(() => expect(converseCalls).toHaveLength(1))
-    // one model call, with the question it answers, the whole catalog, no routing
+    // one model call, with the question it answers and the core (indicators always among it)
     expect(turnCalls).toHaveLength(1)
-    expect(turnCalls[0]).toMatchObject({ interpreter: 'nl1', routing: null, message: 'plot the EMA 20 of close' })
+    expect(turnCalls[0]).toMatchObject({ interpreter: 'nl1', message: 'plot the EMA 20 of close' })
+    expect(turnCalls[0].routing.selected).toContain('indicators')
     expect(turnCalls[0].context.pending_question.text).toBe(QUESTION)
     expect(turnCalls[0].capabilities.some(c => c.name === 'indicator.draft')).toBe(true)
     // the existing engine built the draft on THAT chart (AMD), from the member's own words

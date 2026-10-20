@@ -1,5 +1,7 @@
 # NL-1 handoff: evaluation candidate 1 (frozen 2026-10-16)
 
+> **Hybrid action selection, 2026-10-20** (branch `feat/agent-nl1-hybrid-selection`, local): an NL-1 request now carries a fixed core (charts, indicators, screener, agent) plus pinned and word-added groups, at most 60 actions, with one bounded reroute when the model asks for a group it was not given. NL-1 can therefore run under the unchanged 60 limit; limitation 7 below is resolved by it. Design, safety and measured coverage: [NL1-SELECTION.md](NL1-SELECTION.md). Where this handoff says "all 91 actions", read "the selected actions".
+
 > **Rebased 2026-10-19** onto master `7d0ee0e300`, which holds the released Gate C (PR #403) and its stabilization (PR #423, S6/S11). Branch `feat/agent-nl1-rebased`, worktree `C:\UCT\nl1-rebase`. The 8 NL-1 commits were reapplied unchanged except one `useAgent.js` conflict (Undo's return value beside the released `withdrawPending`). One integration fix: the S11 layout-visit check now runs before the NL-1 path too. See [NL1-PROGRESS.md](NL1-PROGRESS.md), iteration 4. The evaluation instructions below still apply; read `C:\UCT\nl1` as `C:\UCT\nl1-rebase`.
 
 ## Candidate
@@ -39,7 +41,7 @@ Both are **incorrect interpretations whose execution was prevented**. Neither co
 4. **The eval's execution check is narrower than the panel's.** It runs the real planner and policy, but not `resolveArgs` (name→id), the protected-layout guard or async `prepare`. It can therefore report a planner refusal the panel would not, and it under-states the protection layer. It never over-states safety: the panel runs more checks, not fewer.
 5. **Some original-corpus (dev) expectations are incomplete** (e.g. "2" / "amd" after a question, with no arguments). Genuine no-ops are accepted by the scorer.
 6. **Request size.** ~24k tokens (FULL) or ~17k (LEAN), ~95% of it a cacheable prefix. Real caching, latency and reasoning tokens are unmeasured until T1.
-7. **The action limit is 60 for NL-1 too** (owner, 2026-10-19 dark merge: the proposed 120 is not implemented). NL-1's whole catalog (~91 actions) is over it, so with both switches on every NL-1 request would be refused whole, before any model call. NL-1 and its real-model evaluation therefore need the owner's limit decision first.
+7. **The action limit is 60 for NL-1 too** (owner, 2026-10-19 dark merge: the proposed 120 is not implemented). NL-1's whole catalog (~91 actions) is over it. **Resolved 2026-10-20 by hybrid selection** ([NL1-SELECTION.md](NL1-SELECTION.md)): each request carries at most 55 actions, the limit stays 60, and the eval runs under it.
 8. **Legacy phrase layers are bypassed under NL-1, not deleted.** Removal happens only after NL-1 passes its gates and runs at parity.
 
 ## Evaluation instructions

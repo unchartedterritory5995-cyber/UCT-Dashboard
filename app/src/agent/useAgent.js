@@ -38,6 +38,7 @@ import { routeManifest, routingEnabled, routingNames } from './routing'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
+import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouch } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
@@ -1189,10 +1190,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
-      let res, refMap, live, nl1Body = null
+      let res, refMap, live, nl1Body = null, nl1Sel = null, rerouted = false
       if (nl1) {
-        // NL-1: the whole catalog, every context section (none gated on the member's words), the session
-        // memory with the last change, and the question this message may answer
+        // NL-1: the request's actions (nl1/selection.js: the core, pinned groups, groups its words add — every
+        // other group named), every context section (none gated on the member's words), the session memory
+        // with the last change, and the question this message may answer
         turnPath('model')
         await refreshContext(1500)
         mark('context:refreshed')
@@ -1203,10 +1205,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const asked = pendingQuestionRef.current || (p?.kind === 'target' ? lastQuestionRef.current : null) || authoringAsked
         if (p?.kind === 'target') pendingRef.current = null
         pendingQuestionRef.current = null
-        const req = buildNl1Request({ host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
-          pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })) } : null,
-          pendingProposal: p?.kind === 'proposal' ? p : null })
+        const nl1Args = { host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
+          pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })), groups: asked.groups || [] } : null,
+          pendingProposal: p?.kind === 'proposal' ? p : null }
+        const req = buildNl1Request(nl1Args)
         refMap = req.refMap
+        nl1Sel = req.selection
+        mark('route', nl1Sel.manifest.length === req.full.length ? 'full' : `${nl1Sel.manifest.length}/${req.full.length}`)
         mark('context:built')
         live = streamLine()
         const b = { ...req.body, conversationId: conversationRef.current, voice }
@@ -1214,6 +1219,34 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         mark('turn:sent')
         res = await (serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b))
         mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
+        // ⭐ NL-1 REROUTE (owner 2026-10-20): the model asked for action groups it was not given (`need_groups`;
+        // it planned nothing). ONE more call with them, inside the server's 2-call ceiling — it takes priority
+        // over the repair, which a rerouted plan never gets. If they cannot be supplied (too many, no call left,
+        // or they would not fit the 60-action limit beside the core), nothing runs and the member is told —
+        // never a different action in their place.
+        const need = res.ok ? (res.data.envelope?.need_groups || []).filter(g => !nl1Sel.selected.includes(g)) : []
+        if (need.length) {
+          if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
+          live.settle(null)
+          const again = need.length <= NL1_MAX_NEED && (res.data.usage?.model_calls ?? 1) < 2 ? buildNl1Request({ ...nl1Args, need }) : null
+          if (!again || !again.selection.needMet) {
+            push({ role: 'agent', text: 'That touches too many parts of UCT for one request. Try asking for one part at a time.' })
+            return
+          }
+          mark('reroute', need.join(','))
+          refMap = again.refMap
+          nl1Sel = again.selection
+          nl1Body = { ...again.body, conversationId: res.data.conversationId, voice }
+          rerouted = true
+          const rb = { ...nl1Body, reroute: true }
+          res = await (serverStreams() ? agentTurnStream(rb, live.onEvent) : agentTurn(rb))
+          mark('reroute:received', res.ok ? stagesOf(res.data) : res.status || 'error')
+          if (res.ok && (res.data.envelope?.need_groups || []).length) {
+            live.settle(null)
+            push({ role: 'agent', text: 'That needs more of UCT than I can plan in one step. Try asking for one part at a time.' })
+            return
+          }
+        }
       }
       if (!nl1) { // ── the legacy routed request: unchanged (not re-indented) ──
       const full = manifestFor({ ...capCtx, manageIndicators })
@@ -1286,7 +1319,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // to the model ONCE with the planner's reasons — as a reroute of this same request, so the server's
       // 2-call ceiling bounds it (and a plan the server already repaired is never repaired again). The new
       // plan then passes every check below exactly like a first answer, and never asks for less approval.
-      if (nl1 && nl1Body && ['apply', 'propose'].includes(env.disposition) && res.data.usage?.repaired == null) {
+      // A REROUTED request has spent its second call: no repair (a refused plan is refused by the planner).
+      if (nl1 && nl1Body && !rerouted && ['apply', 'propose'].includes(env.disposition) && res.data.usage?.repaired == null) {
         const refused = preflightRefusals(host, translateRefs(env.ops || [], refMap))
         if (refused.length) {
           mark('repair')
@@ -1298,6 +1332,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             env = { ...r2.data.envelope, disposition: repairedDisposition(first, r2.data.envelope.disposition) }
           }
         }
+      }
+      // ⛔ NO SUBSTITUTION WITHOUT APPROVAL (owner 2026-10-20): the member's words pointed at a group of actions
+      // this request could not carry (they did not fit beside the core). A plan made without them may be a
+      // stand-in for what was asked — so it is only PROPOSED, never run at once. Words only ADD this caution.
+      const unsentWords = nl1 && nl1Sel ? nl1Sel.wordsNotSent : []
+      if (unsentWords.length && env.disposition === 'apply') {
+        mark('escalate', unsentWords.join(','))
+        env = { ...env, disposition: 'propose' }
       }
       const sources = res.data.usage?.citations || []
       const talk = env.disposition === 'answer' || env.disposition === 'unsupported'
@@ -1312,7 +1354,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // a click on a choice — or "the right one", "2", "AMD" typed — is read against them
         const choices = (env.question?.choices || []).map(c => (typeof c === 'string' ? { label: c, ref: null } : { label: c.label, ref: (c.ref && refMap[c.ref]?.ref) || null }))
         pendingRef.current = p?.kind === 'proposal' ? p : null
-        pendingQuestionRef.current = { text: env.question?.text || env.reply, choices }
+        // the groups this request was given (beyond the core) stay with the question, so the answer has them too
+        pendingQuestionRef.current = { text: env.question?.text || env.reply, choices, groups: nl1Sel ? nl1Sel.selected.filter(g => !nl1Sel.core.includes(g)) : [] }
         push({ role: 'question', text: env.question?.text || env.reply, choices: choices.map(c => ({ label: c.label })) })
         return
       }
@@ -1369,7 +1412,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (fingerprints). Only then does the corrected change run. If it cannot be reversed, nothing is undone
       // and the corrected change is only PROPOSED: the member decides, never silently.
       if (nl1 && env.correction) {
-        const cp = correctionPlan({ env, memory: memoryRef.current, epoch: epochOf(host), undoStack: undoRef.current })
+        // a plan held for approval (above) never reverses anything by itself: the earlier change stays
+        const cp = unsentWords.length ? { ok: false, reason: 'part of your request needs actions I couldn’t include' }
+          : correctionPlan({ env, memory: memoryRef.current, epoch: epochOf(host), undoStack: undoRef.current })
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
           push({ role: 'agent', text: `I didn't reverse my earlier change${cp && !cp.ok ? ` (${cp.reason})` : ''}, so here is the corrected change on its own — apply it only if you still want it.` })

@@ -91,16 +91,18 @@ def test_flag_off_an_nl1_request_is_served_as_legacy(flag_off):
 
 
 def test_flag_on_reads_the_whole_catalog_compact_with_rules_and_glossary(flag_on):
+    # an UNROUTED NL-1 request (the browser sends the whole catalog when it fits: routing null) is ONE block;
+    # routed requests (the hybrid selection) are held by tests/test_uct_agent_nl1_selection.py
     c = caller_of(_resp(nl1_env("apply", [TF15])))
     out = turn.run_turn(message="flip the left one to 15m", context=CTX, history=[], capabilities=CATALOG,
-                        caller=c, interpreter="nl1", routing={"version": 1, "groups": [{"id": "charts", "title": "x"}, {"id": "lists", "title": "y"}], "selected": ["charts"]})
+                        caller=c, interpreter="nl1", routing=None)
     kw = c.calls[0]
     sysprompt = kw["system"][0]["text"]
-    assert kw["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert len(kw["system"]) == 1 and kw["system"][0]["cache_control"] == {"type": "ephemeral"}
     for cap in CATALOG:                                  # every action is visible to the model
         assert f"- {cap['name']}(" in sysprompt
     assert "UNDERSTANDING THE MEMBER" in sysprompt and "UCT'S OWN MEANINGS" in sysprompt
-    assert "OTHER ACTION GROUPS" not in sysprompt         # routing ignored: NL-1 is never routed
+    assert "OTHER ACTION GROUPS" not in sysprompt and "NO SUBSTITUTION" not in sysprompt
     schema = kw["output_config"]["format"]["schema"]
     assert "correction" in schema["required"] and "need_groups" not in schema["properties"]
     assert out["envelope"]["ops"] == [TF15] and out["usage"]["interpreter"] == "nl1"

@@ -112,6 +112,19 @@ def validate_routing(routing: Any) -> dict | None:
     unselected = [g for g in out if g["id"] not in sel]
     return {"unselected": unselected} if unselected else None
 
+
+def nl1_stable_names(routing: Any, capabilities: Any) -> set[str]:
+    """NL-1, routed (app/src/agent/nl1/selection.js): the names of the request's leading `routing.stable`
+    actions — its fixed core, which the browser sends first. This decides only WHERE they sit in the system
+    prompt (the cached block that is the same on every request), never what may run: the action list and
+    every check on it are the manifest's, as for any request."""
+    if not isinstance(routing, dict) or not isinstance(capabilities, list):
+        return set()
+    n = routing.get("stable")
+    if not isinstance(n, int) or isinstance(n, bool) or n <= 0 or n > len(capabilities):
+        return set()
+    return {str(c.get("name")) for c in capabilities[:n] if isinstance(c, dict) and c.get("name")}
+
 def _closed_schema(node: Any, depth: int = 0) -> bool:
     """Only the structured-output-safe subset, every object closed and fully required."""
     if depth > 6 or not isinstance(node, dict) or set(node) - _SCHEMA_KEYS:
@@ -483,13 +496,30 @@ def _arg_text(spec: dict) -> str:
 
 
 def system_prompt(capabilities: list[dict], unselected: list[dict] | None = None, compact: bool | None = None,
-                  nl1: bool = False) -> str:
+                  nl1: bool = False, stable: set[str] | None = None) -> str:
     """Generic rules + an action list GENERATED from the manifest."""
     if nl1:
-        # NL-1: the whole catalog (never routed), then the understanding rules and UCT's glossary.
-        # Everything here is stable for a given catalog, so the whole system prompt is one cached prefix.
-        return _system_prompt_core(capabilities, compact, lean=nl1_catalog_variant() == "lean") + NL1_RULES + _glossary_text()
+        return "".join(nl1_system_texts(capabilities, unselected, stable))
     return _system_prompt_core(capabilities, compact) + _routing_note(unselected)
+
+
+def nl1_system_texts(capabilities: list[dict], unselected: list[dict] | None = None, stable: set[str] | None = None) -> list[str]:
+    """NL-1's system prompt, as the texts of its cache blocks (run_turn puts the reference data between them).
+      unrouted (the whole catalog fits one request): ONE text — the catalog, NL-1's rules, UCT's glossary.
+      routed (nl1/selection.js): [the CORE actions (`stable`) + the rules + the glossary — the same on every
+        request, so it is the cached prefix; the request's OTHER actions + the groups it was not given].
+    Both parts are AVAILABLE ACTIONS alike: the split changes where an action is written, never whether it may run."""
+    lean = nl1_catalog_variant() == "lean"
+    if not unselected:
+        return [_system_prompt_core(capabilities, True, lean=lean) + NL1_RULES + _glossary_text()]
+    core = [c for c in capabilities if c["name"] in (stable or set())]
+    more = [c for c in capabilities if c["name"] not in (stable or set())]
+    first = (_SYSTEM_HEAD + "\n".join(_catalog_lines(core, lean)) + "\n" + _COMPACT_OPS_RULE + "\n"
+             + "(More actions for this request follow later, under MORE AVAILABLE ACTIONS.)\n"
+             + _SYSTEM_TAIL + NL1_ROUTED_RULES + _glossary_text())
+    second = ("MORE AVAILABLE ACTIONS for this request (the same format; valid ops[].action values like those above)\n"
+              + "\n".join(_catalog_lines(more, lean)) + "\n" + _routing_note(unselected, nl1=True))
+    return [first, second]
 
 
 NL1_RULES = """
@@ -526,14 +556,38 @@ def _glossary_text() -> str:
     return _GLOSSARY
 
 
-def _routing_note(unselected: list[dict] | None) -> str:
+def _routing_note(unselected: list[dict] | None, nl1: bool = False) -> str:
     if not unselected:
         return ""
     lines = "\n".join(f"- {g['id']}: {g['title']}" for g in unselected)
-    return ("\nOTHER ACTION GROUPS exist in UCT but their actions are NOT listed above:\n" + lines + "\n"
+    note = ("\nOTHER ACTION GROUPS exist in UCT but their actions are NOT listed above:\n" + lines + "\n"
             "If doing what the member asked needs an action from one of these groups, set need_groups to those group ids, "
             "use disposition clarify with ops [] and reply \"\", and plan nothing else: UCT will ask you again with those "
             "actions listed. Never invent an action. Otherwise set need_groups to null.\n")
+    if nl1:
+        # NL-1 (hybrid selection): the model, not a word list, decides whether a group is needed — and must
+        # never plan around one it was not given (NO SUBSTITUTION in NL1_ROUTED_RULES)
+        note += ("Ask for a group whenever ANY part of the request needs it, even if listed actions could do something "
+                 "similar. Asking costs the member nothing; a stand-in change is wrong.\n")
+    return note
+
+
+# NL-1 with a routed request (nl1/selection.js): the same rules, with the catalog sentence replaced by what the
+# model must do about actions it was not given (owner 2026-10-20: no capability substitution).
+_NL1_WHOLE_CATALOG = ("Every action UCT has is listed above. If no listed action can do what they asked, use unsupported "
+                      "and say so plainly — never answer as if it were done, and never substitute a different action.")
+_NL1_ROUTED_CATALOG = (
+    "ACTIONS FOR THIS REQUEST. AVAILABLE ACTIONS and MORE AVAILABLE ACTIONS are the actions UCT gave you for THIS "
+    "request; the OTHER ACTION GROUPS named after them exist too, but their actions are not listed. If what the member "
+    "asked needs an action that is not listed, set need_groups to its group — never plan around it. If no group has "
+    "it, use unsupported and say so plainly — never answer as if it were done.\n"
+    "NO SUBSTITUTION. Never use a listed action as a stand-in for one that is not listed. Asked to ADD a chart, never "
+    "change an existing chart instead; never delete, rename, clear, overwrite, edit an indicator, change a watchlist, "
+    "layout or alert, or make any other change in place of the action the member asked for. Plan exactly what was "
+    "asked, with the action that does it, or ask for its group.")
+
+
+NL1_ROUTED_RULES = NL1_RULES.replace(_NL1_WHOLE_CATALOG, _NL1_ROUTED_CATALOG)
 
 
 NL1_CATALOG_ENV = "UCT_AGENT_NL1_CATALOG"      # "full" (default) | "lean": an EVAL knob, measured before any use
@@ -543,9 +597,22 @@ def nl1_catalog_variant() -> str:
     return "lean" if os.environ.get(NL1_CATALOG_ENV, "").strip().lower() == "lean" else "full"
 
 
+_COMPACT_OPS_RULE = ('Each op is {"action", "target", "args_json"}: args_json is a JSON object written as a string, '
+                     'with EXACTLY the args listed for that action — e.g. args_json "{\\"timeframe\\": \\"W\\"}".')
+
+
 def _system_prompt_core(capabilities: list[dict], compact: bool | None = None, lean: bool = False) -> str:
     if not capabilities:
         return _SYSTEM_HEAD + "(none available here -- answer, clarify or say unsupported)\n" + _SYSTEM_TAIL
+    lines = _catalog_lines(capabilities, lean)
+    if compact_ops(capabilities, force=bool(compact)):
+        lines.append(_COMPACT_OPS_RULE)
+    return _SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
+
+
+def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
+    """One line per action (its args, risk, Undo truth, summary and — unless lean — hints), long id lists,
+    and the breadth rule when breadth.show is among them."""
     lines = []
     for a in capabilities:
         props = ", ".join(f"{k}: {_arg_text(v)}" for k, v in a["args"]["properties"].items())
@@ -564,10 +631,7 @@ def _system_prompt_core(capabilities: list[dict], compact: bool | None = None, l
                 lines.append(f"  {k} ids: " + ", ".join(map(str, vals)))
     if any(a["name"] == "breadth.show" for a in capabilities):
         lines.append(BREADTH_RULE)
-    if compact_ops(capabilities, force=bool(compact)):
-        lines.append('Each op is {"action", "target", "args_json"}: args_json is a JSON object written as a string, '
-                     'with EXACTLY the args listed for that action — e.g. args_json "{\\"timeframe\\": \\"W\\"}".')
-    return _SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
+    return lines
 
 
 def _esc(s: str) -> str:
@@ -1411,7 +1475,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # Still served (every op is re-validated in the browser); logged so a skew is visible.
         log.warning("[uct-agent] manifest version %r is not one this server knows (%s)", manifest_version, sorted(MANIFEST_VERSIONS))
 
-    route = None if nl1 else validate_routing(routing)      # NL-1 is never routed
+    # Routing (legacy, and NL-1's hybrid selection — app/src/agent/nl1/selection.js): the groups this request was
+    # not given are named, and the model may ask for them (`need_groups`). It only changes what the model SEES.
+    route = validate_routing(routing)
     unselected = route["unselected"] if route else None
     unselected_ids = {g["id"] for g in unselected} if unselected else None
 
@@ -1425,15 +1491,20 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     forced_research = False if nl1 else _needs_current_facts(msg)
     compact = True if nl1 else compact_ops(caps)
     schema = envelope_schema(caps, unselected, compact, nl1=nl1)
-    sysprompt = system_prompt(caps, unselected, compact, nl1=nl1)
     has_last = bool(((context or {}).get("conversation_memory") or {}).get("last_change_detail")) if nl1 else False
     finish = (lambda e, raw: nl1_finish(e, raw, valid_refs, has_last)) if nl1 else (lambda e, raw: e)
     blocks = [_block("workspace_context", context or {})]
     repair_in = validate_repair(repair, {c["name"] for c in caps}) if nl1 else None
     ref_block = reference_block(reference) if nl1 else None
-    system_blocks = [{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}]
-    if ref_block:
-        system_blocks.append({"type": "text", "text": ref_block, "cache_control": {"type": "ephemeral"}})
+    if nl1:
+        # NL-1's cache blocks, most stable first: [the core + rules + glossary] [reference data] [this request's
+        # other actions + the groups it was not given]. A routed request's variable part comes last, so the core
+        # and the reference data stay a cached prefix whatever else the request carries.
+        texts = nl1_system_texts(caps, unselected, nl1_stable_names(routing, capabilities))
+        parts = texts[:1] + ([ref_block] if ref_block else []) + texts[1:]
+    else:
+        parts = [system_prompt(caps, unselected, compact)]
+    system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
     if repair_in:
         blocks.append(_block("validation_error", repair_in))
     if pending:
@@ -1511,7 +1582,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                         output_tokens=int(getattr(u, "output_tokens", 0) or 0))
         if nl1:
             env = nl1_coerce_ops(env, caps)
-        if nl1 and round_ == 0 and not repaired:
+        # a request for more action groups plans nothing (sanitize_envelope drops its ops): the browser's reroute
+        # takes this request's second call, so it is never repaired first
+        asks_groups = bool(unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list)
+                           and any(g in unselected_ids for g in env["need_groups"]))
+        if nl1 and round_ == 0 and not repaired and not asks_groups:
             problems = nl1_plan_problems(env, caps, valid_refs)
             if problems and (meter is None or meter.calls_left() >= 1):
                 # NL-1's ONE repair: the plan goes back with the server's reasons; whatever comes back is

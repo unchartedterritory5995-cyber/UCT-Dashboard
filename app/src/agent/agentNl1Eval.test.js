@@ -17,7 +17,8 @@ import { registerBuiltins } from './builtins'
 import { getCapability, getTargetKind } from './capabilities'
 import { SETS, caseProblems, turnsOf, lockText } from './testing/sets'
 import { hostFor, nameToId } from './testing/fixtureHost'
-import { scoreTurn, aggregate } from './testing/score'
+import { scoreTurn, aggregate, selectionOutcome } from './testing/score'
+import { assembleNl1 } from './nl1/selection'
 import { captureCase } from './testing/capture'
 import { exactLane } from './nl1/interpreter'
 import lock from './testing/sealed.lock.json'
@@ -151,8 +152,11 @@ describe('NL-1 request capture', () => {
           for (const it_ of items) {
             expect(it_.body.message).toBeTruthy()
             if (mode === 'nl1') {
+              // the hybrid selection (nl1/selection.js): never over the 60-action limit, the core first
               expect(it_.body.interpreter).toBe('nl1')
-              expect(it_.body.routing).toBe(null)
+              expect(it_.body.capabilities.length).toBeLessThanOrEqual(60)
+              expect(it_.body.routing === null || it_.body.routing.stable > 0).toBe(true)
+              expect(it_.selection.core).toEqual(['charts', 'indicators', 'screener', 'agent'])
             } else {
               expect(it_.body.interpreter).toBeUndefined()
               expect(it_.body.capabilities.length).toBeLessThanOrEqual(60)
@@ -163,7 +167,7 @@ describe('NL-1 request capture', () => {
     }
   })
 
-  it('NL-1 sends the whole catalog and no keyword decides the context', () => {
+  it('NL-1 sends its core (more actions than the legacy routed request) and no keyword decides the context', () => {
     const c = { id: 'x', fx: 'one_chart', text: 'can I get bollinger bands?', expect: { kind: 'act' } }
     const [nl1] = captureCase(spec, c, 'nl1')
     const [legacy] = captureCase(spec, c, 'legacy')
@@ -222,11 +226,16 @@ describe('NL-1 acceptance gates (fixed before any paid evaluation)', () => {
 })
 
 describe('NL-1 proxy-smoke regressions (2026-10-16)', () => {
-  it('the capture asks with ALL 91 actions on a member\'s board (charts that manage indicators; an admin may create them)', () => {
+  it('the capture selects from ALL 91 actions on a member\'s board (charts that manage indicators; an admin may create them)', () => {
     const golden = JSON.parse(fs.readFileSync(path.resolve(HERE, 'contract/manifest.golden.json'), 'utf8')).capabilities
-    const [nl1] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'add rsi', expect: { kind: 'act' } }, 'nl1')
-    expect(nl1.body.capabilities.map(c => c.name).sort()).toEqual(golden.map(c => c.name).sort())
+    const catalogs = new Map()
+    const [nl1] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'add rsi', expect: { kind: 'act' } }, 'nl1', { catalogs })
+    // the catalog it selected from is the whole available one; the request carries the core (+ what fits), ≤ 60
+    expect(catalogs.get(nl1.catalog).manifest.map(c => c.name).sort()).toEqual(golden.map(c => c.name).sort())
+    expect(nl1.body.capabilities.length).toBeLessThanOrEqual(60)
     expect(nl1.body.capabilities.some(c => c.name === 'indicator.add')).toBe(true)
+    // every other group is named, and a reroute for any one of them fits
+    for (const g of nl1.selection.unselected) expect(nl1.reroutes[g], g).toBeTruthy()
   })
 
   it('an exact Undo / Cancel that the panel handles itself is marked, never sent to the model as a turn', () => {
@@ -267,5 +276,50 @@ describe('NL-1 proxy-smoke round 3 regressions (2026-10-16)', () => {
     expect(lay(n).find(e => e.name === 'Main Trading').protected).toBe(true)
     expect(lay(n).find(e => e.name === 'Swing Board').protected).toBeUndefined()
     expect(lay(l).some(e => 'protected' in e)).toBe(false)
+  })
+})
+
+describe('NL-1 hybrid action selection in the scoring (owner 2026-10-20)', () => {
+  const catalogs = new Map()
+  const [item] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'hmm', expect: { kind: 'act' } }, 'nl1', { catalogs })
+  const catalog = catalogs.get(item.catalog)
+  const sent = new Set(item.body.capabilities.map(c => c.name))
+  const hidden = catalog.manifest.map(c => c.name).find(n => n.startsWith('widget.') && !sent.has(n))
+  const addChart = { kind: 'act', ops: [{ a: hidden }] }
+  const env = (disposition, ops) => ({ disposition, reply: '', ops: ops.map(action => ({ action, target: 'c1', args: {} })) })
+
+  it('first-call coverage: the accepted plan\'s actions were (not) all in the first call', () => {
+    expect(hidden).toBeTruthy()
+    expect(selectionOutcome({ expect: { kind: 'act', ops: [{ a: 'chart.setTimeframe' }] }, item, result: { envelope: env('apply', ['chart.setTimeframe']) } }).firstCall).toBe(true)
+    expect(selectionOutcome({ expect: addChart, item, result: { envelope: env('answer', []) } }).firstCall).toBe(false)
+    expect(selectionOutcome({ expect: { kind: 'answer' }, item, result: { envelope: env('answer', []) } }).firstCall).toBe(null)
+  })
+
+  it('a SUBSTITUTION: a change planned without the action that was asked for — not when it was rerouted in', () => {
+    const stand = selectionOutcome({ expect: addChart, item, result: { envelope: env('apply', ['chart.setSymbol']) } })
+    expect(stand.substitution).toBe(true)
+    const group = catalog.groupOf[hidden]
+    const rr = selectionOutcome({ expect: addChart, item, result: { envelope: env('apply', [hidden]), rerouted: true, need: [group] }, catalog, assemble: assembleNl1 })
+    expect(rr.rerouted).toBe(true)
+    expect(rr.substitution).toBe(false)
+    expect(selectionOutcome({ expect: addChart, item, result: { envelope: env('clarify', []) } }).substitution).toBe(false)
+  })
+
+  it('an apply made while the words named a group that could not be sent is scored as the PROPOSAL the panel makes', () => {
+    const withUnsent = { ...item, selection: { ...item.selection, wordsNotSent: ['workspace'] } }
+    const o = selectionOutcome({ expect: { kind: 'act', ops: [{ a: 'chart.setTimeframe' }] }, item: withUnsent, result: { envelope: env('apply', ['chart.setTimeframe']) } })
+    expect(o.escalated).toBe(true)
+    expect(o.env.disposition).toBe('propose')
+  })
+
+  it('aggregates the selection metrics beside the unchanged acceptance metrics', () => {
+    const row = (sel, usage) => ({ correct: true, clarify: null, choicesOk: null, wrongRunsNow: false, unsafe: [], execution: { refused: null }, interp: 'correct', selection: sel, usage })
+    const a = aggregate([
+      row({ firstCall: true, rerouted: false, escalated: false, substitution: false }, { input_tokens: 100, cache_read_tokens: 900, cache_write_tokens: 0, output_tokens: 50, model_calls: 1 }),
+      row({ firstCall: false, rerouted: true, escalated: false, substitution: false }, { input_tokens: 300, cache_read_tokens: 1800, cache_write_tokens: 100, output_tokens: 70, model_calls: 2 }),
+      row({ firstCall: null, rerouted: false, escalated: true, substitution: true }, null),
+    ])
+    expect(a).toMatchObject({ firstCallCoverage: 50, rerouteRate: 33.3, substitutions: 1, escalated: 1, interpretation: 100 })
+    expect(a.tokens).toEqual({ input: 200, cacheRead: 1350, cacheWrite: 50, output: 60, modelCalls: 1.5 })
   })
 })
