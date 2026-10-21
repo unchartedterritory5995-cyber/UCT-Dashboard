@@ -1556,16 +1556,21 @@ def _reported_window(today: date) -> tuple[dict[str, str], bool]:
         return dict(hit["window"]), bool(hit["partial"])
 
     def read():
+        # Fix F1 (I-1): the job stores its OWN answer, so a walk past the request's budget still warms
+        # the cache and the next request is fast (it used to be cached only on the request path).
         from api.services.calendar_alerts import collect_earnings_window
-        return collect_earnings_window(today - timedelta(days=REACTIONS_WINDOW_DAYS), REACTIONS_WINDOW_DAYS)
+        window, partial = collect_earnings_window(today - timedelta(days=REACTIONS_WINDOW_DAYS),
+                                                  REACTIONS_WINDOW_DAYS)
+        hit = {"window": {str(s).upper(): str(d)[:10] for s, d in (window or {}).items()},
+               "partial": bool(partial)}
+        cache.set(ck, hit, ttl=300 if partial else 3600)
+        return hit
 
-    ok, got = _one_bounded(read, REACTIONS_WINDOW_BUDGET_S)       # saturated: partial at once (I-4)
-    if not ok:
+    # ONE shared walk however many members miss at once; saturated: partial at once (final review I-4).
+    ok, got = _WALKS.run(ck, read, REACTIONS_WINDOW_BUDGET_S)
+    if not ok or not isinstance(got, dict):
         return {}, True
-    window, partial = got
-    window = {str(s).upper(): str(d)[:10] for s, d in (window or {}).items()}
-    cache.set(ck, {"window": window, "partial": bool(partial)}, ttl=300 if partial else 3600)
-    return window, bool(partial)
+    return dict(got["window"]), bool(got["partial"])
 
 
 _NO_FIGURES = {"epsActual": None, "epsEst": None, "revActual": None, "revEst": None}

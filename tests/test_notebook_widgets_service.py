@@ -2025,3 +2025,46 @@ def test_c1_the_builders_never_walk_on_the_request_thread(monkeypatch):
                 assert "window_read" in {k.arg for k in c.keywords}, fn
         assert any(isinstance(c, ast.Call) and getattr(c.func, "id", None) == "_earnings_window"
                    for c in ast.walk(node)), fn
+
+
+# -- fix F1, I-1: a reactions walk past its budget is still cached ------------------------------------
+
+def test_i1_a_slow_reactions_walk_is_cached_for_the_next_request(monkeypatch):
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"]})
+    monkeypatch.setattr(nw, "REACTIONS_WINDOW_BUDGET_S", 0.1)
+    seen = _patch_reactions(monkeypatch, window={"NVDA": "2026-10-15"})
+    import api.services.calendar_alerts as ca
+    fast = ca.collect_earnings_window
+
+    def slow(today, days):
+        time.sleep(0.5)
+        return fast(today, days)
+
+    monkeypatch.setattr(ca, "collect_earnings_window", slow)
+    t0 = time.monotonic()
+    first = nw.build("myEarningsReactions", "u1", {}, now=NOW)
+    assert time.monotonic() - t0 < 0.4
+    assert first["rows"] == [] and first["partial"] is True
+    _wait_walks_done()
+    t0 = time.monotonic()
+    second = nw.build("myEarningsReactions", "u2", {}, now=NOW)
+    assert time.monotonic() - t0 < 0.3                        # a cache hit, not another 0.5 s walk
+    assert [r["symbol"] for r in second["rows"]] == ["NVDA"] and second["partial"] is False
+    assert len(seen["window"]) == 1                           # the straggler's answer was kept
+
+
+def test_i1_concurrent_reactions_misses_share_one_walk(monkeypatch):
+    import threading
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"]})
+    seen = _patch_reactions(monkeypatch, window={"NVDA": "2026-10-15"})
+    import api.services.calendar_alerts as ca
+    fast = ca.collect_earnings_window
+    monkeypatch.setattr(ca, "collect_earnings_window", lambda t, d: (time.sleep(0.3), fast(t, d))[1])
+    ts = [threading.Thread(target=nw.build, args=("myEarningsReactions", f"u{i}", {}), kwargs={"now": NOW})
+          for i in range(12)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join(10)
+    _wait_walks_done()
+    assert len(seen["window"]) == 1
