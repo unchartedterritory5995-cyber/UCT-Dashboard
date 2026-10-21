@@ -334,6 +334,10 @@ def test_admin_review_lists_drafts_by_lane_and_acts(admin_client, store):
     ids_any = {d["id"] for d in admin_client.get("/api/study/admin/review?type=spot&status=any").json()["drafts"]}
     assert {"si_spot1", "si_spot2"} <= ids_any
     assert "si_spot1" not in {d["id"] for d in admin_client.get("/api/study/admin/review?type=spot").json()["drafts"]}
+    light = admin_client.get("/api/study/admin/review?type=spot&status=any&light=1&limit=5000").json()["drafts"]
+    row = next(d for d in light if d["id"] == "si_spot1")
+    assert row["reveal_json"] == {"example_grade": "good"} or row["reveal_json"].get("example_grade") == "good"
+    assert "lesson_text" not in row and "answer_json" not in row and row["sym"] == "NVDA"
     assert admin_client.post("/api/study/admin/review/si_recall1", json={"action": "bless"}).status_code == 400
     assert admin_client.post("/api/study/admin/review/nope", json={"action": "approve"}).status_code == 400
     ex = admin_client.get("/api/study/admin/corrections/export").json()

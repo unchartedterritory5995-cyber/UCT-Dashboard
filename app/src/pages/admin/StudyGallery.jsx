@@ -24,6 +24,7 @@ import { GRADES, galleryKey, subjectOf } from './studyGalleryHelpers'
 import styles from './StudyReview.module.css'
 
 const GOLD = '#dcbb5e'
+const STATUS_RANK = { approved: 0, draft: 1, rejected: 2 }
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -143,7 +144,12 @@ export default function StudyGallery({ skill }) {
   }, [items])
   const [subject, setSubject] = useState('')
   const current = subject || subjects[0]?.name || ''
-  const shown = useMemo(() => items.filter((it) => subjectOf(it) === current), [items, current])
+  // the live examples first (approved, then drafts), the retired ones last
+  const shown = useMemo(
+    () => items.filter((it) => subjectOf(it) === current)
+      .sort((a, b) => (STATUS_RANK[a.review_status] ?? 1) - (STATUS_RANK[b.review_status] ?? 1)),
+    [items, current],
+  )
 
   const onChanged = (updated) => {
     if (!updated) return mutate()

@@ -337,15 +337,34 @@ def get_leaderboard(week: Optional[str] = None, user: dict = Depends(require_pai
 
 # ── Admin review (graduated trust, §13.9 #3) ─────────────────────────────────
 
+LIGHT_KEYS = ("id", "type", "skill_id", "sym", "asof", "review_status", "review_lane", "bars_ref")
+
+
+def _light(item: dict) -> dict:
+    """The gallery's row: identity, status, the prompt's subject and chart
+    options, the example grade. No question, no lesson, no reveal facts."""
+    p = item.get("prompt_json") or {}
+    r = item.get("reveal_json") or {}
+    out = {k: item.get(k) for k in LIGHT_KEYS}
+    out["prompt_json"] = {k: p[k] for k in ("subject", "chart", "image_url") if k in p}
+    out["reveal_json"] = {k: r[k] for k in ("example_grade", "label", "key", "detector", "window_bars") if k in r}
+    return out
+
+
 @router.get("/admin/review", dependencies=_ARMED)
 def admin_review(lane: Optional[str] = None, type: Optional[str] = None, skill: Optional[str] = None,
-                 limit: int = 150, status: Optional[str] = None, _admin: dict = Depends(require_admin)):
+                 limit: int = 150, status: Optional[str] = None, light: int = 0,
+                 _admin: dict = Depends(require_admin)):
     """`status` (default drafts): "any" lists every status, for the example
-    gallery that grades approved and draft charts side by side."""
-    drafts = study_store.list_drafts(lane=lane, item_type=type, skill=skill, limit=max(1, min(500, limit)),
+    gallery that grades approved and draft charts side by side. `light=1`
+    returns gallery rows (identity, subject, grade) and allows up to 5000 of
+    them; the full card is capped at 500."""
+    cap = 5000 if light else 500
+    drafts = study_store.list_drafts(lane=lane, item_type=type, skill=skill, limit=max(1, min(cap, limit)),
                                      status=status)
     types = sorted({d["type"] for d in drafts})
-    return {"drafts": drafts, "counts": study_store.draft_counts(), "skills": study_store.draft_skill_counts(),
+    rows = [_light(d) for d in drafts] if light else drafts
+    return {"drafts": rows, "counts": study_store.draft_counts(), "skills": study_store.draft_skill_counts(),
             "trust": {t: study_store.trust_state(t) for t in types}}
 
 
