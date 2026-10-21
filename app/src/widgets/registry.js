@@ -297,8 +297,8 @@ function _countOf(rows, noun) {
   const n = Array.isArray(rows) ? rows.length : 0
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
-/** Wave 6: a `[label: N nouns]` search line over the payload's `rows`. */
-const _countLine = (label, noun) => (p) => `[${label}: ${_countOf(p?.rows, noun)}]`
+/** Wave 6: a `[label: N nouns]` search line over the payload's `rows` (`l`: the lowercased label). */
+const _countLine = (noun) => (p, l) => `[${l}: ${_countOf(p?.rows, noun)}]`
 const _ROWS = 'rows:j! truncated:n empty'
 
 const _SNAP_TYPE = { n: 'number', j: 'json', b: 'boolean', y: 'symbol' }
@@ -329,7 +329,7 @@ function snapshotManifest(label, payloadSchema, plainText) {
       ...(typeof payloadSchema === 'string' ? payloadSchema.split(' ') : payloadSchema).map(_snapField),
       { key: 'share', type: 'boolean', default: false },   // the member's publish switch (an editor transaction)
     ],
-    plainText,
+    plainText: (p) => plainText(p, label.toLowerCase()),
     reconstructable: (p) => typeof p?.asOf === 'string',
     liveCapable: false,
   }
@@ -929,13 +929,13 @@ const PANEL_MANIFESTS = {
   // else: no price, no P&L, no account size, no row.
   myWatchlistToday: snapshotManifest('My watchlist today',
     'listLabel rows:j! truncated:n', // rows: [{symbol, price, changePct, earningsDay}]
-    (p) => `[my watchlist today: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
   myNamesReporting: snapshotManifest('My names reporting',
     'rows:j! partial:b truncated:n', // rows: [{symbol, day, timing, daysAway, sources, impliedMovePct}]
-    (p) => `[my names reporting: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
   tickerCard: snapshotManifest('Ticker card',
     'symbol:y! price:n changePct:n ma10:n ma50:n earningsDay impliedMovePct:n history:j', // history: {trades, winRate, netPnl} or null
-    (p) => `[ticker card: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+    (p, l) => `[${l}: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
   myPnlStats: snapshotManifest('My P&L and stats',
     'range:j! netPnl:n winRate:n avgR:n tradeCount:n equity:j empty', // range: {from, to}; equity: [[day, value], ...]
     (p) => `[my P&L and stats: ${_rangeText(p)}]`),
@@ -944,21 +944,21 @@ const PANEL_MANIFESTS = {
     { key: 'accountSizeSource', type: 'enum', options: ['member', 'default'] },
     'rows:j!', // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
     'truncated:n', 'empty',
-  ], (p) => `[my open positions and risk: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
+  ], (p, l) => `[${l}: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
   // Wave 2 (Task 13): the two review kinds. Plain text is a kind, a range or a COUNT, never a figure.
   myRulesCheck: snapshotManifest('My rules check',
     // range: {from, to}; kept: the authoritative headline (null = nothing checked); rules: [{rule, kept, total}],
     // a breakdown, not the headline
     'range:j! kept:n total:n rules:j empty',
-    (p) => `[my rules check: ${_rangeText(p)}]`),
+    (p, l) => `[${l}: ${_rangeText(p)}]`),
   myMistakes: snapshotManifest('My recurring mistakes',
     _ROWS, // rows: [{mistake, cost30d, countNow, countPrior, trend}]
-    (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
+    (p, l) => `[${l}: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
   // Wave 3 (Task 14): the two market kinds. Plain text is a kind, a COUNT or a symbol, and a day.
   marketOnMyNames: snapshotManifest('Market on my names',
     // sectorBasis: how sectorRet5d was made ('your names'); rows: [{symbol, ret5d, sector, sectorRet5d, vsSector}]
     'sectorBasis rows:j! truncated:n empty',
-    (p) => `[market on my names: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
   tickerFlow: snapshotManifest('Options flow on a ticker',
     // bullPremium: the page's own net.bull, never re-summed; window: the served rung (Today, Last 5 sessions,
     // ...); topPrints: [{cp, strike, exp, dte, premium, volume, direction}]
@@ -969,20 +969,20 @@ const PANEL_MANIFESTS = {
   tradeRecap: snapshotManifest('Trade recap',
     // bars: [{t, o, h, l, c}] daily, entry-20 to exit+20 sessions
     'tradeId symbol:y! side entryDate exitDate entryPrice:n exitPrice:n r:n pnl:n setup holdDays:n mistakes:j bars:j',
-    (p) => `[trade recap: ${[p?.symbol, p?.side].join(' ')} · ${[p?.exitDate]}]`), // an array prints a missing value as ''
+    (p, l) => `[${l}: ${[p?.symbol, p?.side].join(' ')} · ${[p?.exitDate]}]`), // an array prints a missing value as ''
   myPnlCalendar: snapshotManifest('My P&L calendar', 'month days:j! best:j worst:j empty', // days: [{day, pnl}]
     (p) => `[my P&L calendar: ${[p?.month]}]`),
   mySetupEdge: snapshotManifest('My setup edge', _ROWS, // rows: [{setup, n, expectancyR, winRate, thin}]
-    _countLine('my setup edge', 'setup')),
+    _countLine('setup')),
   myScreenToday: snapshotManifest('My screen today',
     // hits: [{symbol, price, changePct}]; coverage: the receipt's four counts plus withheld
     'definitionId name hits:j! coverage:j session truncated:b empty',
-    (p) => `[my screen today: ${p?.name || 'screen'} · ${_countOf(p?.hits, 'hit')}]`),
+    (p, l) => `[${l}: ${p?.name || 'screen'} · ${_countOf(p?.hits, 'hit')}]`),
   roomBuzzOnMyNames: snapshotManifest('Room buzz on my names', _ROWS, // rows: [{symbol, mentions, people}]
-    _countLine('room buzz on my names', 'name')),
+    _countLine('name')),
   myEarningsReactions: snapshotManifest('My earnings reactions',
     // rows: [{symbol, day, epsActual, epsEst, revActual, revEst, nextDayPct}]
-    'rows:j! partial:b truncated:n empty', _countLine('my earnings reactions', 'name')),
+    'rows:j! partial:b truncated:n empty', _countLine('name')),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).
