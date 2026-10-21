@@ -35,6 +35,10 @@
 }
 
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
   margin: 0;
   color: var(--text-muted);
   font-size: var(--text-md);

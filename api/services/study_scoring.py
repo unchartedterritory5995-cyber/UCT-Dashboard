@@ -61,6 +61,9 @@ def _norm(v: Any) -> str:
     if isinstance(v, bool):
         return "true" if v else "false"
     if isinstance(v, (int, float)):
+        # 42 and 42.0 are one value (a key stored as 42.0 vs a typed 42)
+        if isinstance(v, float) and math.isfinite(v) and v.is_integer():
+            return str(int(v))
         return repr(float(v)) if isinstance(v, float) else str(v)
     return " ".join(str(v).strip().casefold().split())
 
@@ -80,9 +83,20 @@ def _as_key(key: Any) -> dict:
     return {"answer": key}
 
 
+#: The one-field answer shapes that carry a single chosen value. The member
+#: drills post `{choice: <value>}` (app/src/pages/study/drills/types.js
+#: `choiceAnswer`); older callers and the tests post `{answer: <value>}`.
+#: ⚰️ Only `answer` was unwrapped until 2026-10-21, so EVERY multiple-choice
+#: answer from the live app compared a dict's repr against the key and scored
+#: wrong (seen live: "Matching Low" chosen, "Not quite. The answer: Matching Low").
+_SINGLE_VALUE_KEYS = ("answer", "choice")
+
+
 def _as_answer_value(answer: Any) -> Any:
-    if isinstance(answer, dict) and "answer" in answer and len(answer) == 1:
-        return answer["answer"]
+    if isinstance(answer, dict) and len(answer) == 1:
+        for k in _SINGLE_VALUE_KEYS:
+            if k in answer:
+                return answer[k]
     return answer
 
 
