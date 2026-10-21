@@ -208,8 +208,20 @@ def test_flag_on_an_admin_sees_the_metrics(monkeypatch):
     assert ex["metrics_round"] == base_metrics.METRICS_ROUND
 
 
-def test_the_member_round_is_a_literal_and_starts_closed():
-    assert auto_structures.MEMBER_METRICS_ROUND is None
+def test_the_member_round_is_the_confirmed_literal():
+    """Set by hand to the round the blind packets confirmed (lab base_metrics P1 2.64 / P2 2.82)."""
+    assert type(auto_structures.MEMBER_METRICS_ROUND) is int
+    assert auto_structures.MEMBER_METRICS_ROUND == base_metrics.METRICS_ROUND == 1
+
+
+@pytest.mark.parametrize("pid,shown", [
+    ("bc:base", True), ("bc:flat-base", False), ("bc:cup-with-handle", False), ("flat_base", False)])
+def test_member_metrics_only_on_the_row_type_the_packets_judged(monkeypatch, pid, shown):
+    """The packets judged the numbers on bc:base alone; flat-base depth reads the box top while its
+    drawn pivot moves, and the cup's depth is a detector re-run, so neither reaches a member."""
+    monkeypatch.setattr(auto_structures, "MEMBER_METRICS_ROUND", 1)
+    row = {"pattern_id": pid, "geometry": {"extras": {"metrics_round": 1, "metrics": {"pivot": 10.0}}}}
+    assert auto_structures._member_metrics_ok(row) is shown
 
 
 @pytest.mark.parametrize("member_round,shown", [

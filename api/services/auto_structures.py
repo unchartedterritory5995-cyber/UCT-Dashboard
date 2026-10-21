@@ -69,7 +69,12 @@ def metrics_enabled() -> bool:
 #: `extras.metrics_round`). A literal ON PURPOSE, like the drawing rounds: None until a blind packet
 #: confirms the printed numbers, so members get NO metrics (fail closed) while admins see them under the
 #: flag. Set it by hand to the confirmed round.
-MEMBER_METRICS_ROUND = None
+MEMBER_METRICS_ROUND = 1
+#: The ONLY row type a member may get metrics on: the blind packets (lab base_metrics P1 2.64 / P2 2.82,
+#: confirmed 2026-10-20) judged the numbers on the bc:base drawing alone. bc:flat-base measures depth from the
+#: box top while its drawn pivot moves, and the cup's depth comes from a detector re-run, so both stay
+#: admin-only until each passes its own packet.
+MEMBER_METRICS_IDS = frozenset({"bc:base"})
 
 
 def with_metrics(sym: str, rows, *, member: bool = False) -> list:
@@ -93,7 +98,10 @@ def with_metrics(sym: str, rows, *, member: bool = False) -> list:
 
 
 def _member_metrics_ok(row) -> bool:
-    """True only while MEMBER_METRICS_ROUND is an int and equals the row's stamped metrics_round."""
+    """True only for a MEMBER_METRICS_IDS row, while MEMBER_METRICS_ROUND is an int and equals the row's
+    stamped metrics_round."""
+    if (row or {}).get("pattern_id") not in MEMBER_METRICS_IDS:
+        return False
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
     rnd = ex.get("metrics_round")
     return (type(MEMBER_METRICS_ROUND) is int and type(rnd) is int and rnd == MEMBER_METRICS_ROUND
