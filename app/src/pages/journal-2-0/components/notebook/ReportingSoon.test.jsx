@@ -168,6 +168,32 @@ describe('ReportingSoon', () => {
     await waitFor(() => expect(n).toBeGreaterThan(1 + UNREAD_RETRIES))
   })
 
+  // F3 (pollingSites rail): the retry rides useMobileSWR. A BEHAVIOUR rail, not the adoption rail: bare SWR also
+  // skips a hidden tab's ticks (measured: this case passes with `useSWR` swapped back in), so what proves the
+  // helper is used is src/hooks/pollingSites.rail.test.js. This pins the member-visible half: hidden asks nothing,
+  // shown again asks.
+  it('a hidden tab holds the retry, and showing the tab again lets it ask', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, { ...SOON, items: [], partial: true }) })
+    const setVisibility = (v) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+    try {
+      render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={30} /></Providers>)
+      await screen.findByText("Couldn't check report dates just now. Trying again shortly.")
+      setVisibility('hidden')
+      const held = n
+      await new Promise((r) => setTimeout(r, 300))               // ten intervals (five on a touch client)
+      expect(n).toBe(held)
+      setVisibility('visible')
+      await waitFor(() => expect(n).toBeGreaterThan(held))
+    } finally {
+      setVisibility('visible')
+    }
+  })
+
   it('a name already prepped opens that note instead of drafting another', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const calls = stub([[/\/api\/j2\/earnings-prep\/soon$/, SOON]])

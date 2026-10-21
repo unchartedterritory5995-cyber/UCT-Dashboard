@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import useSWR from 'swr'
+import useMobileSWR from '../../../../hooks/useMobileSWR'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import {
@@ -42,7 +42,11 @@ export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS })
   // Review N-3: the interval is a NUMBER held in state and changed only by an answer, so an unrelated re-render
   // never re-arms SWR's refresh timer (a function given inline was a new identity on every render).
   const [refreshInterval, setRefreshInterval] = useState(0)
-  const { data, error, isLoading, mutate } = useSWR(
+  // F3 (pollingSites rail): the bounded retry rides the repo's opt-in polling helper, not a bare useSWR
+  // refreshInterval. It stops the timer while the tab is hidden and doubles the wait on a touch client (Research
+  // Home renders on phones); revalidateOnFocus stays false as before. The cap is the count above, not the clock,
+  // so a held or slowed retry still stops after UNREAD_RETRIES answers.
+  const { data, error, isLoading, mutate } = useMobileSWR(
     enabled ? SOON_URL : null, () => fetchReportingSoon(),
     {
       revalidateOnFocus: false, shouldRetryOnError: false,
