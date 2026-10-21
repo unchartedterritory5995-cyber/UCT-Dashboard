@@ -504,8 +504,13 @@ def test_ticker_card_bad_symbol_raises():
         nw.build("tickerCard", "u1", {}, now=NOW)
 
 
-def _patch_card(monkeypatch, closes=(), window=None, move=None, trades=None, analytics=None):
+#: The open-position and note counts the card reads (F4 O2), stood in where a test is about something else.
+_NO_FOOTPRINT = {"openPositions": 0, "notes": 0, "notesMore": False}
+
+
+def _patch_card(monkeypatch, closes=(), window=None, move=None, trades=None, analytics=None, footprint=None):
     import api.services.bars_sqlite as bs
+    monkeypatch.setattr(nw, "_symbol_footprint", lambda u, s: dict(footprint or _NO_FOOTPRINT))
     import api.services.journal_two.earnings_prep as ep
     import api.services.earnings_enrichment as ee
     bars_seen = []
@@ -535,7 +540,7 @@ def test_ticker_card_history_from_the_members_trades(monkeypatch):
     _patch_card(monkeypatch, analytics=_analytics(trade_count=4, win_rate=0.75))
     _patch_prices(monkeypatch, {})
     out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
-    assert out["history"] == {"trades": 4, "winRate": 0.75, "netPnl": 59.5}
+    assert out["history"] == {"trades": 4, "winRate": 0.75, "netPnl": 59.5, **_NO_FOOTPRINT}
 
 
 def test_ticker_card_moving_averages(monkeypatch):
@@ -611,10 +616,100 @@ def test_ticker_card_history_read_is_symbol_scoped_and_cached(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["spec"].symbol == "NVDA"
     assert calls[0]["spec"].symbol_exact is True
-    assert first["history"] == second["history"] == {"trades": 2, "winRate": 0.5, "netPnl": 59.5}
+    assert first["history"] == second["history"] == {"trades": 2, "winRate": 0.5, "netPnl": 59.5, **_NO_FOOTPRINT}
     nw.build("tickerCard", "u1", {"symbol": "AMD"}, now=NOW)
     nw.build("tickerCard", "u2", {"symbol": "NVDA"}, now=NOW)
     assert [c["spec"].symbol for c in calls] == ["NVDA", "AMD", "NVDA"]
+
+
+def test_f4_o2_ticker_card_history_carries_open_positions_and_notes(monkeypatch):
+    # Fix F4 (O2, walk 2026-10-21): an open NVDA position and a note on NVDA, no closed trade -- the card said
+    # "No trades in NVDA yet." The history row now carries all three counts and is not null.
+    _patch_card(monkeypatch, analytics=_analytics(trade_count=0, days=[]),
+                footprint={"openPositions": 1, "notes": 1, "notesMore": False})
+    _patch_prices(monkeypatch, {})
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["history"]["trades"] == 0
+    assert (out["history"]["openPositions"], out["history"]["notes"]) == (1, 1)
+
+
+def test_f4_o2_an_unread_count_keeps_the_row_as_unknown_never_zero(monkeypatch):
+    _patch_card(monkeypatch, analytics=_analytics(trade_count=0, days=[]),
+                footprint={"openPositions": None, "notes": None, "notesMore": False})
+    _patch_prices(monkeypatch, {})
+    h = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)["history"]
+    assert h is not None and h["openPositions"] is None and h["notes"] is None
+
+
+def _seed_footprint(auth_db):
+    c = auth_db.get_connection()
+    try:
+        def pos(pid, user, sym, closed=None):
+            c.execute(
+                "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares,"
+                " entry_price, stop_price, context_at_entry, created_at, updated_at, closed_at)"
+                " VALUES (?, ?, ?, 'Long', '2026-10-13T00:00:00Z', 10, 10, 120, 110, '{}', 'x', 'x', ?)",
+                (pid, user, sym, closed))
+
+        def note(nid, user, ticker=None, deleted=None):
+            c.execute("INSERT INTO j2_notes (id, user_id, title, ticker, created_at, updated_at, deleted_at)"
+                      " VALUES (?, ?, 't', ?, 'x', 'x', ?)", (nid, user, ticker, deleted))
+
+        pos("p-open", "owner", "NVDA")
+        pos("p-closed", "owner", "NVDA", closed="2026-10-15T00:00:00Z")
+        pos("p-prefix", "owner", "NVD")                       # a prefix of the symbol is another symbol
+        pos("p-other", "intruder", "NVDA")                    # another member's row
+        note("n-ticker", "owner", ticker="NVDA")              # the note's own ticker field
+        note("n-mention", "owner")                            # a $NVDA cashtag mention
+        c.execute("INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at) VALUES"
+                  " ('n-mention', 'owner', 'NVDA', 'x')")
+        note("n-embed", "owner")                              # a chart embed of NVDA
+        c.execute("INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol) VALUES"
+                  " ('n-embed', 'owner', 0, 'chart', 'NVDA')")
+        note("n-trash", "owner", ticker="NVDA", deleted="2026-10-16")
+        note("n-prefix", "owner", ticker="NVD")
+        note("n-other", "intruder", ticker="NVDA")
+        c.commit()
+    finally:
+        c.close()
+
+
+def test_f4_o2_footprint_real_read_is_own_scoped_exact_symbol_and_open_only(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    _seed_footprint(auth_db)
+    assert nw._symbol_footprint("owner", "NVDA") == {"openPositions": 1, "notes": 3, "notesMore": False}
+    assert nw._symbol_footprint("owner", "NVD") == {"openPositions": 1, "notes": 1, "notesMore": False}
+    assert nw._symbol_footprint("intruder", "NVDA") == {"openPositions": 1, "notes": 1, "notesMore": False}
+    assert nw._symbol_footprint("nobody", "NVDA") == {"openPositions": 0, "notes": 0, "notesMore": False}
+
+
+def test_f4_o2_footprint_notes_are_capped(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    c = auth_db.get_connection()
+    try:
+        for i in range(nw.HISTORY_NOTES_CAP + 5):
+            c.execute("INSERT INTO j2_notes (id, user_id, title, ticker, created_at, updated_at)"
+                      " VALUES (?, 'owner', 't', 'AMD', 'x', 'x')", (f"n{i}",))
+        c.commit()
+    finally:
+        c.close()
+    got = nw._symbol_footprint("owner", "AMD")
+    assert got["notes"] == nw.HISTORY_NOTES_CAP and got["notesMore"] is True
+
+
+def test_f4_o2_ticker_card_end_to_end_with_an_open_position_and_a_note(monkeypatch, tmp_path):
+    # The walk's scenario through the real footprint read: no closed trade, one open position, notes.
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    _seed_footprint(auth_db)
+    import api.services.journal_two.analytics as an
+    monkeypatch.setattr(an, "get_analytics", lambda user_id, **kw: _analytics(trade_count=0, days=[]))
+    _patch_prices(monkeypatch, {})
+    import api.services.bars_sqlite as bs
+    import api.services.journal_two.earnings_prep as ep
+    monkeypatch.setattr(bs, "get_bars", lambda *a, **k: [])
+    monkeypatch.setattr(ep, "_window", lambda today: ({}, {}, False, "x"))
+    h = nw.build("tickerCard", "owner", {"symbol": "NVDA"}, now=NOW)["history"]
+    assert (h["trades"], h["openPositions"], h["notes"]) == (0, 1, 3)
 
 
 def test_positions_two_lots_same_symbol_and_side_keep_their_own_stops(monkeypatch):

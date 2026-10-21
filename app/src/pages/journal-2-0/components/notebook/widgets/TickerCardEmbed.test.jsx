@@ -50,10 +50,44 @@ describe('TickerCardEmbed', () => {
     render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', {
       ...PAYLOAD, price: null, changePct: null, ma50: null, earningsDay: null, impliedMovePct: null, history: null,
     }).attrs} />)
-    expect(screen.getByText('No trades in NVDA yet.')).toBeInTheDocument()
+    expect(screen.getByText('No trades, open positions or notes in NVDA yet.')).toBeInTheDocument()
     const nas = screen.getAllByText('n/a')
     expect(nas.length).toBeGreaterThanOrEqual(3)
     for (const na of nas) expect(na.getAttribute('title')).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/\$0\.00/)
+  })
+
+  // Fix F4 (O2, walk 2026-10-21): an open NVDA position and a note on NVDA, no closed trade, read
+  // "No trades in NVDA yet." The row counts what the spec lists: the member's trades AND notes in the name.
+  it('an open position and a note, no closed trade: the row says so, labelled Only you', () => {
+    render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', {
+      ...PAYLOAD, history: { trades: 0, winRate: null, netPnl: null, openPositions: 1, notes: 1, notesMore: false },
+    }).attrs} />)
+    const row = rowOf('Your history')
+    expect(row).toHaveTextContent('No closed trades · 1 open position · 1 note')
+    expect(row).not.toHaveTextContent('No trades in NVDA yet.')
+    expect(within(row).getByText('Only you')).toBeInTheDocument()
+  })
+
+  it('trades, positions and notes read together; a capped note count says so', () => {
+    render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', {
+      ...PAYLOAD, history: { trades: 5, winRate: 0.6, netPnl: 1234.5, openPositions: 2, notes: 99, notesMore: true },
+    }).attrs} />)
+    expect(rowOf('Your history')).toHaveTextContent('5 trades · 60% wins · +$1,234.50 · 2 open positions · 99+ notes')
+  })
+
+  it('a count the capture could not read is n/a with a reason, never 0', () => {
+    render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', {
+      ...PAYLOAD, history: { trades: 0, winRate: null, netPnl: null, openPositions: null, notes: null, notesMore: false },
+    }).attrs} />)
+    const row = rowOf('Your history')
+    expect(row).toHaveTextContent('No closed trades · open positions n/a · notes n/a')
+    for (const na of within(row).getAllByText('n/a')) expect(na.getAttribute('title')).toBeTruthy()
+    expect(row.textContent).not.toMatch(/\b0 (open|notes?)/)
+  })
+
+  it('a snapshot taken before these counts existed shows its trades as before', () => {
+    render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', PAYLOAD).attrs} />)
+    expect(rowOf('Your history').textContent).toMatch(/5 trades · 60% wins · \+\$1,234\.50$/)
   })
 })

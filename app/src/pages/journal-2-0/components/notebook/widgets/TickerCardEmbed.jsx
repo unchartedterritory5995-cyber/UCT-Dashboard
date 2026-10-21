@@ -18,6 +18,34 @@ function Row({ label, children }) {
   )
 }
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** "Your history": the member's closed trades in the name, then (fix F4, O2) their open positions and notes in it.
+ *  A count the capture could not read is null and shows n/a with a reason; a snapshot taken before these counts
+ *  existed carries no key at all and simply omits them; a zero is left out rather than spelled. */
+function HistoryLine({ h }) {
+  const trades = Number(h.trades) || 0
+  const parts = [trades > 0 ? (
+    <span key="trades">
+      {`${plural(trades, 'trade')} · `}
+      {numCell(h.winRate, fmtRatioPct, 'No decisive trades yet')}
+      {' wins · '}
+      <span className={toneOf(h.netPnl)}>{numCell(h.netPnl, fmtMoneySigned, 'No closed P&L yet')}</span>
+    </span>
+  ) : <span key="trades">No closed trades</span>]
+  if (h.openPositions === null) {
+    parts.push(<span key="open">open positions {numCell(null, String, 'Open positions could not be read just now')}</span>)
+  } else if (typeof h.openPositions === 'number' && h.openPositions > 0) {
+    parts.push(<span key="open">{plural(h.openPositions, 'open position')}</span>)
+  }
+  if (h.notes === null) {
+    parts.push(<span key="notes">notes {numCell(null, String, 'Notes could not be read just now')}</span>)
+  } else if (typeof h.notes === 'number' && h.notes > 0) {
+    parts.push(<span key="notes">{h.notesMore === true ? `${h.notes}+ notes` : plural(h.notes, 'note')}</span>)
+  }
+  return parts.flatMap((p, i) => (i ? [' · ', p] : [p]))
+}
+
 /** Notebook widgets: the ticker card. Rendered from `attrs.params` only. */
 export default function TickerCardEmbed({ attrs, height = 240, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
@@ -29,7 +57,7 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="ticker-card-embed">
       {/* F1b: the card says `partial` whenever the earnings calendar was not read; it gets the partial line. */}
       <SnapshotFrame {...frame} title={sym} sourceLine={[
-        frame.sourceDetail ? '' : 'Market data, and your own trades in this name.',
+        frame.sourceDetail ? '' : 'Market data, and your own trades, positions and notes in this name.',
         p.partial === true ? 'Some figures could not be read in time.' : '',
       ].filter(Boolean).join(' ') || null}>
         <dl className={s.dl}>
@@ -62,14 +90,7 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
               </span>
             </>
           )}>
-            {h && Number(h.trades) > 0 ? (
-              <>
-                {`${h.trades} trade${Number(h.trades) === 1 ? '' : 's'} · `}
-                {numCell(h.winRate, fmtRatioPct, 'No decisive trades yet')}
-                {' wins · '}
-                <span className={toneOf(h.netPnl)}>{numCell(h.netPnl, fmtMoneySigned, 'No closed P&L yet')}</span>
-              </>
-            ) : `No trades in ${sym} yet.`}
+            {h ? <HistoryLine h={h} /> : `No trades, open positions or notes in ${sym} yet.`}
           </Row>
         </dl>
       </SnapshotFrame>

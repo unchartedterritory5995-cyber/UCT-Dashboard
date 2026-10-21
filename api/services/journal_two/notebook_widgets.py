@@ -973,7 +973,55 @@ HISTORY_TTL_S = 300
 _HISTORY_CACHE = TTLCache(max_size=500)
 
 
+#: The most notes the card counts in one name; past it the card says "99+ notes" (the read is a LIMIT).
+HISTORY_NOTES_CAP = 99
+
+
+def _symbol_footprint(user_id: str, sym: str) -> dict:
+    """The member's open positions and notes in this EXACT symbol (never a prefix: NVD is not NVDA).
+
+    Fix F4 (O2, walk 2026-10-21): the card's "Your history" counted closed trades only, so a member with an
+    open NVDA position and a note on NVDA read "No trades in NVDA yet." The spec's ticker card lists J2 trades
+    AND notes; an open position is the member's open trade in that name.
+
+    Own rows only, read-only, bounded: one COUNT on `j2_positions` (open = `closed_at IS NULL`), and one
+    LIMITed id read over the notes' own symbol membership -- the note's `ticker` field, or a chart/widget embed
+    or `$CASHTAG` mention of the symbol (`notes._symbol_note_ids_sql`, the one answer every symbol-scoped note
+    read uses, a non-correlated set). Trash excluded. A read that fails is UNKNOWN (None), never 0."""
+    out: dict[str, Any] = {"openPositions": None, "notes": None, "notesMore": False}
+    try:
+        from api.services import auth_db
+        from api.services.journal_two.notes import _symbol_note_ids_sql
+        conn = auth_db.get_connection()
+    except Exception as e:  # noqa: BLE001
+        _log.info("ticker card: footprint read unavailable for %s: %s", sym, e)
+        return out
+    try:
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM j2_positions WHERE user_id = ? AND symbol = ? AND closed_at IS NULL",
+                (user_id, sym)).fetchone()
+            out["openPositions"] = int(row[0] or 0) if row else 0
+        except Exception as e:  # noqa: BLE001
+            _log.info("ticker card: open positions read failed for %s: %s", sym, e)
+        try:
+            ids_sql, ids_params = _symbol_note_ids_sql(user_id, [sym])
+            rows = conn.execute(
+                "SELECT n.id FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+                f" AND (n.ticker = ? OR n.id IN ({ids_sql})) LIMIT ?",
+                (user_id, sym, *ids_params, HISTORY_NOTES_CAP + 1)).fetchall()
+            out["notes"] = min(len(rows), HISTORY_NOTES_CAP)
+            out["notesMore"] = len(rows) > HISTORY_NOTES_CAP
+        except Exception as e:  # noqa: BLE001
+            _log.info("ticker card: notes read failed for %s: %s", sym, e)
+    finally:
+        conn.close()
+    return out
+
+
 def _symbol_history_figures(user_id: str, sym: str) -> dict:
+    """Closed-trade figures (analytics, symbol_exact) plus the open positions and notes in the name, cached
+    together per (member, symbol). The footprint is late-bound (a module lookup), so a test can stand it in."""
     key = f"{user_id}::{sym}"
     hit = _HISTORY_CACHE.get(key)
     if isinstance(hit, dict):
@@ -981,6 +1029,7 @@ def _symbol_history_figures(user_id: str, sym: str) -> dict:
     from api.services.journal_two import analytics
     from api.services.journal_two.filters import FilterSpec
     fig = _pnl_figures(analytics.get_analytics(user_id, spec=FilterSpec(symbol=sym, symbol_exact=True)))
+    fig = {**fig, **_symbol_footprint(user_id, sym)}
     _HISTORY_CACHE.set(key, fig, HISTORY_TTL_S)
     return fig
 
@@ -1029,10 +1078,14 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
             earnings_day, earnings_unknown = None, True
 
     fig = _symbol_history_figures(user_id, sym)
-    history = (
-        {"trades": fig["tradeCount"], "winRate": fig["winRate"], "netPnl": fig["netPnl"]}
-        if fig["tradeCount"] else None
-    )
+    # Null only when every count is KNOWN to be zero: an unread count keeps the row, which then says n/a.
+    history = {
+        "trades": fig["tradeCount"], "winRate": fig["winRate"], "netPnl": fig["netPnl"],
+        "openPositions": fig.get("openPositions"), "notes": fig.get("notes"),
+        "notesMore": bool(fig.get("notesMore")),
+    }
+    if not fig["tradeCount"] and history["openPositions"] == 0 and history["notes"] == 0:
+        history = None
     out = {
         "asOf": _iso_utc(now),
         "source": "mixed",
