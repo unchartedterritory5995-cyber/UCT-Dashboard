@@ -498,6 +498,7 @@ function snapshotCommand(kind, params) {
     const key = kind.id + JSON.stringify(params)
     const adding = `Adding ${kind.title}…`
     const offline = `You're offline, so ${kind.title} was not added.`
+    const failed = `${kind.title} could not be loaded just now, so nothing was added.`
     // Review I-3: "Adding …" is a busy toast (it stays until the result replaces it), and a second Enter says it again.
     const say = (m, tone = 'error') => editor.storage?.uctJournalWidgets?.notify?.(m, tone)
     say(adding, 'busy')
@@ -521,14 +522,15 @@ function snapshotCommand(kind, params) {
         // A capture may name its own sentence (a news feed not built yet); otherwise offline vs failed.
         const message = res.message || (res.reason === 'offline'
           ? offline
-          : `${kind.title} could not be loaded just now, so nothing was added.`)
+          : failed)
         say(message)
         return { ok: false, message }
       }
       // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
       // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
+      // Review N-2: a throw inside the insert says the failed sentence (it replaces the busy toast, never strands it).
       const landed = await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
-        lost)
+        lost).catch(() => ({ ok: false, message: failed }))
       // Review m-3: the insert's chunk lost while offline is said as offline (lost() names no sentence for it).
       if (landed.reason) landed.message = offline
       if (landed.message) say(landed.message)

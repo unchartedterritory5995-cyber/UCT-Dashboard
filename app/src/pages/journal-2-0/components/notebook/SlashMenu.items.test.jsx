@@ -775,6 +775,29 @@ describe('snapshot widget items (Task 8)', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it('review N-2: an insert that throws replaces the busy toast with the failed sentence', async () => {
+    latchNotebookFlags(WAVES_ON)
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const chain = ed.chain.bind(ed)
+    let calls = 0
+    // The second chain is the insert's: make its insertContentAt refuse the node.
+    ed.chain = () => {
+      calls += 1
+      const c = chain()
+      if (calls > 1) c.insertContentAt = () => { throw new Error('the schema refused the node') }
+      return c
+    }
+    try {
+      const out = await snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+      expect(out).toEqual({ ok: false, message: 'Ticker card could not be loaded just now, so nothing was added.' })
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card could not be loaded just now, so nothing was added.')
+      expect(screen.getByRole('status')).not.toHaveTextContent('Adding')
+      expect(embeds(ed)).toHaveLength(0)
+    } finally { ed.chain = chain }
+  })
+
   it('review I-3: a note that turns read-only mid-fetch takes the busy toast down (it never sticks)', async () => {
     latchNotebookFlags(WAVES_ON)
     let answer
