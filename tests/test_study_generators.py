@@ -476,6 +476,25 @@ def test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors(segm
         assert it["prompt_json"]["note"].startswith("The other three")
 
 
+def test_corrections_bulk_lists_are_one_verdict_per_id(tmp_path):
+    """<segment>.approved-<date>.json / .retired-<date>.json apply on regeneration
+    like per-item lines (the delegated bulk decisions of 2026-10-21)."""
+    from scripts.study import corrections
+    (tmp_path / "x.approved-2026-10-21.json").write_text(json.dumps({"why": "bulk ok", "ids": ["si_a", "si_b"]}), encoding="utf-8")
+    (tmp_path / "x.retired-2026-10-20.json").write_text(json.dumps({"why": "too small", "ids": ["si_c"]}), encoding="utf-8")
+    recs = corrections.load(tmp_path)
+    assert [(r["item_id"], r["verdict"], r["ts"]) for r in recs] == [
+        ("si_a", "approve", "2026-10-21"), ("si_b", "approve", "2026-10-21"), ("si_c", "reject", "2026-10-20")]
+    items = [{"id": i, "review_status": "draft", "prompt_json": {}, "answer_json": {}, "reveal_json": {}} for i in ("si_a", "si_c", "si_d")]
+    out = corrections.apply(items, recs)
+    assert [(i["id"], i["review_status"]) for i in out] == [("si_a", "approved"), ("si_d", "draft")]
+    assert out[0]["reviewed"]["by"] == "owner"
+    # the committed candle bulk lists resolve to real bank items
+    bank_ids = {it["id"] for it in gen_candles.generate()["candles.chart"]}
+    approved = json.loads((REPO / "docs" / "study" / "corrections" / "candles.chart.approved-2026-10-21.json").read_text(encoding="utf-8"))["ids"]
+    assert approved and set(approved) <= bank_ids
+
+
 def test_corrections_overlay_applies_a_prompt_field_fix():
     """The owner's candle fix (2026-10-19) is on `prompt.quote`; the overlay
     reaches prompt_json keys the same way it reaches reveal.<key>."""
