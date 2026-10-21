@@ -1995,11 +1995,15 @@ _JOURNAL_DETAIL = {
 }
 
 
-def source_detail(kind: str, payload: dict) -> str:
+def source_detail(kind: str, payload: dict) -> str | None:
     """One short plain sentence naming where this payload's data came from (ruling R58, UX I-6 / I-7),
     derived from what the builder actually read: the broker vs manual verdict in `source`, and for open
-    positions the `priceBasis` the rows were priced at."""
+    positions the `priceBasis` the rows were priced at. None (no sentence) for an EMPTY positions widget:
+    with nothing open, `source` is only `_origin([])`'s fallback, and naming a source for a list that holds
+    nothing is a claim about nothing (fix F1b, review M-9)."""
     src = payload.get("source")
+    if kind == "myPositionsRisk" and payload.get("empty"):
+        return None
     if kind == "myPositionsRisk":
         parts = [_POSITIONS.get(src, "Positions: your Journal."), _MARKS.get(payload.get("priceBasis"), "")]
         return " ".join(p for p in parts if p)

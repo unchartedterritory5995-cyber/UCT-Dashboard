@@ -2430,6 +2430,19 @@ def test_ux_i6_positions_source_names_the_broker_and_the_price_it_used(monkeypat
     assert unpriced["sourceDetail"] == "Positions: your manual entries."   # nothing priced: no price claim
 
 
+def test_m9_an_empty_positions_widget_names_no_source(monkeypatch):
+    """Fix F1b (review M-9): nothing open means no sourceDetail at all (null), never "Positions: your manual
+    entries." for a list that holds nothing. An open option strategy alone is not empty and keeps its line."""
+    _patch_positions(monkeypatch, [], [])
+    _patch_prices(monkeypatch, {})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert out["empty"] == "No open positions." and out["sourceDetail"] is None
+    _patch_positions(monkeypatch, [], [], strategies=[_strategy()])
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert "empty" not in out
+    assert out["sourceDetail"] == "Positions: your linked broker. Open P&L and size: your broker's marks."
+
+
 def test_ux_i6_pnl_stats_names_where_the_fills_came_from(monkeypatch):
     _patch_pnl(monkeypatch, _analytics(), [{"source": "broker"}, {"source": None}])
     out = nw.build("myPnlStats", "u1", {}, now=NOW)
