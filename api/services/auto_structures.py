@@ -106,9 +106,15 @@ def member_rows(rows) -> list:
     An inside-day drawing (draw:inside-day, lab id_draw_v2) passed its blind check as drawn by one
     round (MEMBER_INSIDE_DAY_ROUND), so a member gets one only while it carries that round's stamp
     beside a well-formed `draw_inside_day` (`_confirmed_inside_day`). Fail closed. On the member
-    path the route also applies `member_inside_day_precedence`."""
+    path the route also applies `member_inside_day_precedence`.
+
+    A flat_base passed its blind check as drawn by ONE drawing round (MEMBER_FLAT_BASE_ROUND), so a
+    member gets one only as that round draws it (`_flat_base_member_row`): a row of a later round is
+    served with that round's drawing swapped back for the confirmed one, or dropped. Fail closed."""
     allowed = member_ids()
-    kept = [r for r in rows or []
+    rows = [_flat_base_member_row(r) if (r or {}).get("pattern_id") == "flat_base" else r
+            for r in rows or []]
+    kept = [r for r in rows if r is not None
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
@@ -240,6 +246,46 @@ def _confirmed_flat_top(row) -> bool:
     return (isinstance(touches, list) and len(touches) >= 3
             and all(isinstance(t, dict) and t.get("t") is not None and _finite(t.get("price"))
                     for t in touches))
+
+
+#: The flat_base drawing round the blind check confirmed for members: round 1, the drawing that passed the
+#: team-set blind packets (registry.DISPLAY_MEMBER_SET; R4 confirm / R5 / R5c), stored without a stamp. A
+#: literal ON PURPOSE, not display.FLAT_BASE_DRAW_ROUND: the drawing code may move to a new round (round 2,
+#: lab flatbase_breakdown: `broke_down` read as of the last bar) while members keep the confirmed drawing
+#: until the new round passes its own blind check and this is changed by hand.
+MEMBER_FLAT_BASE_ROUND = 1
+#: The one later round that carries the round-1 drawing beside its own (extras.draw_r1).
+_FLAT_BASE_R1_CARRIER = 2
+
+
+def _flat_base_member_row(row):
+    """A member's copy of a flat_base row drawn by MEMBER_FLAT_BASE_ROUND, or None (dropped). Fail closed.
+
+    The row's round is extras.draw_round; a row without one was stored by the round-1 code (before the
+    stamp existed) and is round 1. A row of the member round is served as it is. While the member round is
+    1, a round-2 row is served as ROUND 1 drew it: its FLAT_BASE_DRAW_KEYS replaced by extras.draw_r1 when
+    round 1 drew it differently (no draw_r1 = both rounds drew it the same). Any other round, a malformed
+    stamp or a malformed draw_r1 drops the row. The row passed in is not modified."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if not isinstance(ex, dict):
+        return row if MEMBER_FLAT_BASE_ROUND == 1 else None
+    rnd = ex.get("draw_round", 1)
+    if type(rnd) is not int:
+        return None
+    if rnd == MEMBER_FLAT_BASE_ROUND:
+        return row
+    if not (MEMBER_FLAT_BASE_ROUND == 1 and rnd == _FLAT_BASE_R1_CARRIER):
+        return None
+    if "draw_r1" not in ex:
+        return row
+    prior = ex.get("draw_r1")
+    keys = _display.FLAT_BASE_DRAW_KEYS
+    if not isinstance(prior, dict) or not prior or not set(prior) <= set(keys):
+        return None
+    out = {k: v for k, v in ex.items() if k not in keys and k != "draw_r1"}
+    out.update(prior)
+    out["draw_round"] = 1
+    return {**row, "geometry": {**row["geometry"], "extras": out}}
 
 
 #: The cup row id (a base_catalog box).

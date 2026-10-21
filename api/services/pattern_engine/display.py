@@ -125,6 +125,12 @@ display-only:
               carries `flagging` {tier, draw_round, draw_lanes, draw_anchors?}: what a member may see
               as the team's "flagging" (light lanes, no entry line), never over a confirmed flag's
               bars. Every field a confirmed flag carries is exactly as before.
+  flat_base (drawing round 2, lab flatbase_breakdown 2026-10-20) -- `broke_down` is read AS OF THE LAST BAR
+              (`flat_base_breakdown_verdict`): a base whose last close is back in the upper half of its
+              range is not broken; otherwise a rollover out of the upper half or a close under the base's
+              low is.
+              Stamped extras.draw_round = FLAT_BASE_DRAW_ROUND; round 1's drawing rides along as
+              extras.draw_r1 where it differs, and the member set serves MEMBER_FLAT_BASE_ROUND.
   bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
               `flat_shape_verdict` (stair_step / deep_v) and `pullback_handle`
               (round 6: the box is the pullback from the right side's peak; no_pullback / short /
@@ -913,6 +919,83 @@ def flat_base_box(bars: list, base_start_t, base_end_t, base_bars=None, base_low
         "price": line,
         "break": "breakout" if breakout else None,
     }, None
+
+
+#: The flat_base drawing round this code IS (lab flatbase_breakdown, 2026-10-20). Round 1 is the drawing that
+#: passed the team-set blind packets (R4 confirm / R5 / R5c) and carried no stamp; round 2 changes ONE verdict,
+#: `flat_base_breakdown_verdict`. A flat_base the drawing code finished carries extras.draw_round =
+#: FLAT_BASE_DRAW_ROUND, and, where round 1 would have drawn it differently, that round's drawing under
+#: extras.draw_r1 (the FLAT_BASE_DRAW_KEYS it would have set). The member set serves the round named by
+#: auto_structures.MEMBER_FLAT_BASE_ROUND (a literal), so a member keeps the confirmed drawing until the new
+#: round passes its own blind check. Bump it with every new flat_base drawing round.
+FLAT_BASE_DRAW_ROUND = 2
+#: The extras keys a flat_base drawing sets (and the only ones draw_r1 may restore).
+FLAT_BASE_DRAW_KEYS = ("draw_anchors", "draw_pivot", "stale", "stale_reason")
+
+
+def flat_base_breakdown_verdict(bars: list, start_t, top, floor, r1_down: bool):
+    """Round 2: the flat base [start_t .. the last bar] read AS OF THE LAST BAR. One of
+
+      "recovered"    the last close is back in the upper half of the range (>= the midpoint of `top` and
+                     `floor`): NOT broken, whatever dipped before -- a dip inside the range, or a shakeout
+                     under the floor that came back;
+      "rolled_over"  otherwise, round 1's breakdown (`r1_down`: `consolidation_extent` saw the closes leave
+                     the upper half and not come back before the base's end): broken;
+      "below_floor"  otherwise, a close from `start_t` to the last bar is BELOW `floor` (the base's low): a
+                     decisive break of the floor. draw_geometry applies it after the other verdicts, so a
+                     base they already withhold keeps their reason;
+      None           none of these, or the span or a level is unknown (the other verdicts decide).
+
+    Round 1 (`consolidation_extent` alone) called a base broken when its closes left the UPPER half of the
+    range before the base's end: a few closes in the lower half of a healthy flat range withheld it even
+    with the last bar back near the top (lab gold_set member_path REPORT.md: DASH, INTC)."""
+    if not bars or top is None or floor is None:
+        return None
+    s = _index(bars).get(start_t)
+    if s is None:
+        return None
+    top, floor = float(top), float(floor)
+    if float(bars[-1]["c"]) >= (top + floor) / 2.0:
+        return "recovered"
+    if r1_down:
+        return "rolled_over"
+    if any(float(bars[j]["c"]) < floor for j in range(s, len(bars))):
+        return "below_floor"
+    return None
+
+
+def _flat_base_broken(anchors: list, ext) -> dict:
+    """A flat_base stale as broken DOWN: the capped consolidation box (`ext`) when there is one."""
+    return {"draw_anchors": extent_anchors(ext) if ext else [dict(anchors[1]), dict(anchors[3])],
+            "stale": True, "stale_reason": "broke_down"}
+
+
+def _flat_base_drawing(bars: list, anchors: list, extras: dict, ext, down: bool) -> dict:
+    """The FLAT_BASE_DRAW_KEYS a flat_base gets, given the breakdown verdict `down` (draw_geometry runs it for
+    round 2's verdict and, where they differ, round 1's). `ext` is `consolidation_extent` over the base."""
+    if down:
+        return _flat_base_broken(anchors, ext)
+    # round 4: the box spans the FULL base (gap-tolerant run, at least the
+    # detector's base length) under a line the breakout bar never sets
+    fb, why = flat_base_box(bars, anchors[1]["t"], anchors[2]["t"],
+                            extras.get("base_bars"), anchors[3]["price"])
+    if fb is None and why != "unknown":
+        return {"stale": True, "stale_reason": why}
+    box = fb or ext
+    out = {"draw_anchors": extent_anchors(box) if box else [dict(anchors[1]), dict(anchors[3])]}
+    # Team set: the flat-top pivot line (the level it fires above).
+    pv = pivot_line(box, anchors[1]["t"], anchors[3]["t"], fb["price"] if fb else anchors[1]["price"])
+    ok, why = pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+    if ok and fb:   # round 4: the same flat-base shape rules as bc:flat-base
+        ok, why = flat_shape_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+    if ok and fb:
+        ok, why = flat_range_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+    if ok:
+        out["draw_pivot"] = pv
+    else:   # round 2: no base under the line, or far from price
+        out["stale"] = True
+        out["stale_reason"] = why
+    return out
 
 
 def robust_top(bars: list, s: int, e: int, at):
@@ -1910,38 +1993,28 @@ def draw_geometry(detections: list, bars: list) -> list:
                     ]
             elif pid == "flat_base" and len(anchors) == 4:
                 # [prior_advance_low, base_start@high, base_end@high, base_end@low]
+                extras = geom.setdefault("extras", {})
                 ext = consolidation_extent(bars, anchors[1]["t"], anchors[3]["t"],
                                            anchors[1]["price"], anchors[3]["price"])
-                extras = geom.setdefault("extras", {})
-                # Team set: the flat-top pivot line (the level it fires above).
-                if ext and ext.get("break") == "breakdown":
-                    extras["draw_anchors"] = extent_anchors(ext)
-                    extras["stale"] = True
-                    extras["stale_reason"] = "broke_down"
-                else:
-                    # round 4: the box spans the FULL base (gap-tolerant run, at least the
-                    # detector's base length) under a line the breakout bar never sets
-                    fb, why = flat_base_box(bars, anchors[1]["t"], anchors[2]["t"],
-                                            extras.get("base_bars"), anchors[3]["price"])
-                    if fb is None and why != "unknown":
-                        extras["stale"] = True
-                        extras["stale_reason"] = why
-                        continue
-                    box = fb or ext
-                    extras["draw_anchors"] = (
-                        extent_anchors(box) if box else [dict(anchors[1]), dict(anchors[3])])
-                    pv = pivot_line(box, anchors[1]["t"], anchors[3]["t"],
-                                    fb["price"] if fb else anchors[1]["price"])
-                    ok, why = pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
-                    if ok and fb:   # round 4: the same flat-base shape rules as bc:flat-base
-                        ok, why = flat_shape_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
-                    if ok and fb:
-                        ok, why = flat_range_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
-                    if ok:
-                        extras["draw_pivot"] = pv
-                    else:   # round 2: no base under the line, or far from price
-                        extras["stale"] = True
-                        extras["stale_reason"] = why
+                r1_down = bool(ext and ext.get("break") == "breakdown")
+                verdict = flat_base_breakdown_verdict(bars, anchors[1]["t"], anchors[1]["price"],
+                                                      anchors[3]["price"], r1_down)
+                down = verdict == "rolled_over"
+                drawn = _flat_base_drawing(bars, anchors, extras, ext, down)
+                if verdict == "below_floor" and not drawn.get("stale"):
+                    drawn = _flat_base_broken(anchors, ext)
+                prior = None
+                if down != r1_down or verdict == "below_floor":
+                    # the confirmed round's drawing, kept for the member set where it differs
+                    r1 = _flat_base_drawing(bars, anchors, extras, ext, r1_down)
+                    prior = r1 if r1 != drawn else None
+                for k in FLAT_BASE_DRAW_KEYS:
+                    extras.pop(k, None)
+                extras.update(drawn)
+                extras.pop("draw_r1", None)
+                if prior is not None:
+                    extras["draw_r1"] = prior
+                extras["draw_round"] = FLAT_BASE_DRAW_ROUND
             elif pid in TEAM_PULLBACKS:
                 ex0 = geom.setdefault("extras", {})
                 ok, why = ma_tag_verdict(bars, pos, ex0)
