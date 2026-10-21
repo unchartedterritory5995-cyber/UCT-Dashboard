@@ -148,7 +148,9 @@ def member_rows(rows) -> list:
 
     A bc:base (the shape-agnostic base drawing, lab base_draw) passed its blind check as drawn
     by one round (MEMBER_BASE_ROUND), so a member gets one only while it carries that round's
-    stamp beside a well-formed `draw_base` (`_confirmed_base`). Fail closed. On the member path
+    stamp beside a well-formed `draw_base` (`_confirmed_base`); a row of a later drawing round is
+    served as the member round drew it (`_base_member_row`, from `extras.draw_member`). Fail closed. On the
+    member path
     the route also applies `member_base_precedence`, so a bc:base never sits beside an incumbent
     base drawing's breakout line.
 
@@ -161,7 +163,8 @@ def member_rows(rows) -> list:
     member gets one only as that round draws it (`_flat_base_member_row`): a row of a later round is
     served with that round's drawing swapped back for the confirmed one, or dropped. Fail closed."""
     allowed = member_ids()
-    rows = [_flat_base_member_row(r) if (r or {}).get("pattern_id") == "flat_base" else r
+    rows = [_flat_base_member_row(r) if (r or {}).get("pattern_id") == "flat_base"
+            else _base_member_row(r) if (r or {}).get("pattern_id") == BASE_DRAW_ID else r
             for r in rows or []]
     kept = [r for r in rows if r is not None
             if (r or {}).get("display_tier") == "trusted"
@@ -360,11 +363,65 @@ def _span(d) -> bool:
 BASE_DRAW_ID = "bc:base"
 #: The base drawing round the blind check confirmed for members (lab base_draw, 2026-10-18: packets
 #: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]). A literal ON PURPOSE, not
-#: base_draw.BASE_DRAW_ROUND: when the drawing code moves to a new round, members stop getting the
-#: base until that round is confirmed and this is changed by hand.
+#: base_draw.BASE_DRAW_ROUND: while the drawing code is on a later round (round 2, lab base_draw_v2: the
+#: pivot on the base's highest body, no base straight after a parabolic run), every bc:base row also
+#: carries THIS round's drawing (`extras.draw_member`) and a member is served exactly the row this round
+#: draws (`_base_member_row`), until the new round passes its own blind check and this is changed by hand.
 MEMBER_BASE_ROUND = 1
+#: The one later round whose rows carry the round-1 drawing beside their own (extras.draw_member).
+_BASE_R1_CARRIER = 2
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
+
+
+def _base_member_row(row):
+    """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
+
+    A row stamped with the member round is served as it is. A row of a later round is served as the
+    member round drew the SAME bars -- only while the member round is 1 and the row is of the one known
+    carrier round (_BASE_R1_CARRIER) -- and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
+    "draw_base": <that round's drawing or None>}; the member gets `_base_row` rebuilt from that drawing
+    (byte-identical to the row the member round's code built), or nothing when that round drew nothing.
+    Any other round, a missing or malformed carrier drops the row. The row passed in is not modified."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if not isinstance(ex, dict):
+        return None
+    rnd = ex.get("draw_round")
+    if type(rnd) is not int:
+        return None
+    if rnd == MEMBER_BASE_ROUND:
+        return row
+    if not (MEMBER_BASE_ROUND == 1 and rnd == _BASE_R1_CARRIER):
+        return None
+    mem = ex.get("draw_member")
+    if not isinstance(mem, dict) or set(mem) != {"round", "draw_base"}:
+        return None
+    if not (type(mem.get("round")) is int and mem["round"] == MEMBER_BASE_ROUND):
+        return None
+    d = mem.get("draw_base")
+    if d is None:
+        return None
+    if not isinstance(d, dict) or not isinstance((row or {}).get("sym"), str):
+        return None
+    try:
+        return _base_row(row["sym"], d, MEMBER_BASE_ROUND)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def admin_base_rows(rows) -> list:
+    """The admin structures: every row as it is, except a bc:base row whose current-round drawing is
+    None (it exists only to carry the member round's drawing, `extras.draw_member`): dropped, so an admin
+    sees exactly what the current drawing round draws. Order is kept. Never raises."""
+    out = []
+    for r in rows or []:
+        try:
+            if (r or {}).get("pattern_id") == BASE_DRAW_ID and r["geometry"]["extras"].get("draw_base") is None:
+                continue
+        except (KeyError, TypeError, AttributeError):
+            continue
+        out.append(r)
+    return out
 
 
 def _confirmed_base(row) -> bool:
@@ -653,10 +710,41 @@ def member_cup_precedence(structures) -> list:
         return list(structures or [])
 
 
+def _base_row(sym: str, d: dict, rnd: int) -> dict:
+    """The bc:base structures row for drawing `d`, stamped with drawing round `rnd`."""
+    sym = (sym or "").upper()
+    return {
+        "id": f"{BASE_DRAW_ID}:{sym}:{d['start_t']}:{d['end_t']}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": BASE_DRAW_ID,
+        "pattern_name": "Base",
+        "category": "base",
+        "direction": "bullish",
+        "start_t": d["start_t"],
+        "end_t": d["end_t"],
+        "geometry": {
+            "shape": "base_draw",
+            "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
+            "extras": {"draw_base": d, "draw_round": rnd},
+        },
+        "levels": {"entry": d["pivot"]},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(BASE_DRAW_ID),
+    }
+
+
 def base_draw_row(sym: str, bars: list):
     """The bc:base row for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest first), or
     None when no base is drawn there. A forming session (auto_structures.last_bar_forming) is dropped
-    first: the lab judged drawings at finished sessions. Display only. Never raises."""
+    first: the lab judged drawings at finished sessions. Display only. Never raises.
+
+    While the drawing code (base_draw.BASE_DRAW_ROUND) is ahead of MEMBER_BASE_ROUND, the row is the
+    current round's drawing and carries the member round's drawing of the same bars in
+    `extras.draw_member` ({"round", "draw_base"}; draw_base None when that round draws nothing). When only
+    the member round draws, the row's own `draw_base` is None (admin_base_rows drops it; a member is served
+    the member round's row). When the rounds are equal there is no carrier."""
     try:
         from api.services.pattern_engine import base_draw
         b = list(bars or [])
@@ -664,30 +752,17 @@ def base_draw_row(sym: str, bars: list):
             b = b[:-1]
         if not b:
             return None
+        cur_round = base_draw.BASE_DRAW_ROUND
         d = base_draw.base_drawing(b, len(b) - 1)
-        if d is None:
+        if MEMBER_BASE_ROUND == cur_round:
+            return _base_row(sym, d, cur_round) if d is not None else None
+        m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
+        if d is None and m is None:
             return None
-        sym = (sym or "").upper()
-        return {
-            "id": f"{BASE_DRAW_ID}:{sym}:{d['start_t']}:{d['end_t']}",
-            "sym": sym,
-            "tf": "D",
-            "pattern_id": BASE_DRAW_ID,
-            "pattern_name": "Base",
-            "category": "base",
-            "direction": "bullish",
-            "start_t": d["start_t"],
-            "end_t": d["end_t"],
-            "geometry": {
-                "shape": "base_draw",
-                "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
-                "extras": {"draw_base": d, "draw_round": base_draw.BASE_DRAW_ROUND},
-            },
-            "levels": {"entry": d["pivot"]},
-            "confidence": None,
-            "status": "forming",
-            **display_policy(BASE_DRAW_ID),
-        }
+        row = _base_row(sym, d if d is not None else m, cur_round)
+        row["geometry"]["extras"] = {"draw_base": d, "draw_round": cur_round,
+                                     "draw_member": {"round": MEMBER_BASE_ROUND, "draw_base": m}}
+        return row
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
 

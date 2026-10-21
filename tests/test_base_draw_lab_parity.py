@@ -2,7 +2,8 @@
 
 lab base_draw/rule_bd.py is the code whose drawings passed the pre-registered checks (held-out team
 axis; blind packets A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]). This file imports that code BY
-PATH, runs it beside the dashboard code on the SAME real bars, and requires the same answer. The lab
+PATH, runs it beside the dashboard code's ROUND 1 (`draw_round=1`, the round members are served while
+auth_structures.MEMBER_BASE_ROUND is 1) on the SAME real bars, and requires the same answer. The lab
 and C:/data/bars.db live outside this repo, so the file SKIPS when either is absent (a lab that
 cannot import is "absent", never a pass). bars.db is opened mode=ro.
 
@@ -113,7 +114,7 @@ def test_every_judged_case_is_drawn_identically(lab, db):
         ld = lab.base_drawing(full, k)
         assert ld is not None
         for cut in (full, full[-_SLICE:]):
-            dd = BD.base_drawing(_dicts(cut), len(cut) - 1)
+            dd = BD.base_drawing(_dicts(cut), len(cut) - 1, draw_round=1)
             assert _same(lab.base_drawing(cut, len(cut) - 1), dd, cut)
             assert dd["pivot"] == ld["pivot"] and dd["low"] == ld["low"] and dd["bars"] == ld["len"]
         # the key's recorded facts
@@ -149,7 +150,7 @@ def sweep(lab, db):
 def test_every_swept_session_draws_or_withholds_as_the_lab_does(sweep):
     drawn = withheld = 0
     for cut, ld in sweep:
-        dd = BD.base_drawing(_dicts(cut), len(cut) - 1)
+        dd = BD.base_drawing(_dicts(cut), len(cut) - 1, draw_round=1)
         assert _same(ld, dd, cut), (cut[-1][0], ld, dd)
         drawn += ld is not None
         withheld += ld is None
@@ -165,7 +166,7 @@ _MUTATIONS = (("MIN_LEN", 40), ("NEAR_BELOW", 0.5), ("MAX_EXT", 0.2), ("PRIOR_BA
 @pytest.mark.parametrize("name,value", _MUTATIONS)
 def test_each_moved_constant_is_seen_by_the_sweep(sweep, monkeypatch, name, value):
     monkeypatch.setattr(BD, name, value)
-    caught = any(not _same(ld, BD.base_drawing(_dicts(cut), len(cut) - 1), cut)
+    caught = any(not _same(ld, BD.base_drawing(_dicts(cut), len(cut) - 1, draw_round=1), cut)
                  for cut, ld in sweep if ld is not None)
     assert caught, name
 
@@ -181,6 +182,7 @@ def test_the_drawing_reads_nothing_after_its_session(db):
             fut = b + [{"t": b[-1]["t"] + 1 + j, "o": c * 1.3, "h": c * 1.6, "l": c * 0.5, "c": c * 1.5,
                         "v": 1e9} for j in range(30)]
             a1, a2 = BD.base_drawing(b, k), BD.base_drawing(fut, k)
+            assert BD.base_drawing(b, k, draw_round=1) == BD.base_drawing(fut, k, draw_round=1)
             assert json.dumps(a1, sort_keys=True) == json.dumps(a2, sort_keys=True)
             seen += 1
             drawn += a1 is not None

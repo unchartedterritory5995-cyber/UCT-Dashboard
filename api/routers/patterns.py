@@ -861,7 +861,9 @@ def get_detections(
         from api.services import auto_structures
         if auto_structures.enabled():
             # base metrics ride the admin structures only under AUTO_STRUCTURES_METRICS_ENABLED
-            out["structures"] = auto_structures.with_metrics(sym, auto_structures.structures_for(sym))
+            # admin_base_rows: a bc:base row that only carries the member round's drawing is not an admin row
+            out["structures"] = auto_structures.with_metrics(
+                sym, auto_structures.admin_base_rows(auto_structures.structures_for(sym)))
             # The learned auto-drawer (display-only; same gate as the base boxes):
             # trendlines + levels on the DAILY series, so D/W/M only.
             if (tf or "D").upper() in ("D", "W", "M"):
