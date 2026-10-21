@@ -171,6 +171,52 @@ export function baseDrawing(d) {
 }
 
 /**
+ * The BASE METRICS a base row carries (`extras.metrics`, server-computed under
+ * AUTO_STRUCTURES_METRICS_ENABLED; api/services/base_metrics.py), as the two short lines printed above
+ * its pivot line: ["Pivot 81.98 · 12% deep · 5.2 wks · stage 2 (est.)", "BZ to 86.08 · +3.1% vs pivot"].
+ * Returns null when the row has no metrics or they are malformed (pivot, depth, length and buy zone must
+ * all be finite); a missing stage is simply omitted (the server never guesses one), and the stage is
+ * always labelled an estimate. Pure — exported for tests.
+ */
+export function baseMetricsLines(d) {
+  const m = d?.geometry?.extras?.metrics
+  if (!m || typeof m !== 'object') return null
+  const pivot = Number(m.pivot)
+  const depth = Number(m.depth_pct)
+  const weeks = Number(m.length_weeks)
+  const bz = Number(m.buy_zone_top)
+  if (![pivot, depth, weeks, bz].every(Number.isFinite) || m.pivot == null || m.depth_pct == null
+      || m.length_weeks == null || m.buy_zone_top == null) return null
+  const first = [`Pivot ${pivot.toFixed(2)}`, `${Math.round(depth)}% deep`, `${weeks.toFixed(1)} wks`]
+  const stage = Number(m.stage)
+  if (m.stage != null && Number.isInteger(stage) && stage >= 1) first.push(`stage ${stage} (est.)`)
+  const second = [`BZ to ${bz.toFixed(2)}`]
+  const pfp = Number(m.pct_from_pivot)
+  if (m.pct_from_pivot != null && Number.isFinite(pfp)) {
+    second.push(`${pfp >= 0 ? '+' : '−'}${Math.abs(pfp).toFixed(1)}% vs pivot`)
+  }
+  return [first.join(' · '), second.join(' · ')]
+}
+
+// The metrics text: two lines right-aligned to the END of the pivot line (its extended tip) and set
+// just ABOVE it, so it sits over the base (whose prices are below the pivot) and never touches the
+// pivot label, which starts 4px to the right of that same tip.
+function BaseMetricsText({ d, lines, line, tToX, priceToY }) {
+  if (!lines || !line) return null
+  const xs = [tToX(line.start_t), tToX(line.end_t)].filter((v) => v != null)
+  const y = priceToY(Number(line.price))
+  if (!xs.length || y == null) return null
+  const x = Math.max(...xs) + 40
+  return (
+    <text data-role="base-metrics" x={x} y={y - 18} textAnchor="end" fontSize="10" fontWeight="600"
+      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }}>
+      <tspan x={x} dy="0">{lines[0]}</tspan>
+      <tspan x={x} dy="12">{lines[1]}</tspan>
+    </text>
+  )
+}
+
+/**
  * The INSIDE DAY a draw:inside-day structures row draws (lab id_draw_v2, blind-confirmed as drawn):
  * `extras.draw_inside_day` = {trigger, stop, mother_high, mother_low, start_t, inside_t, end_t, label,
  * stop_label}. Returns null for any other row or a malformed stamp (a trigger not above the stop, a stop
@@ -468,6 +514,9 @@ export default function PatternOverlay({
           : NaN
         const anchors = d?.geometry?.anchors || []
         const tlBreak = trendlineBreakLine(d)
+        // base metrics print only beside a pivot line that actually draws (the base's own, or draw_pivot)
+        const metricsLine = base ? { start_t: base.start_t, end_t: base.end_t, price: base.pivot } : pivot
+        const metricsLines = metricsLine ? baseMetricsLines(d) : null
         return (
           <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
@@ -764,6 +813,9 @@ export default function PatternOverlay({
                 onClick={onDetectionClick}
                 extendRight={40}
               />
+            )}
+            {metricsLines && (
+              <BaseMetricsText d={d} lines={metricsLines} line={metricsLine} tToX={tToX} priceToY={priceToY} />
             )}
           </g>
         )

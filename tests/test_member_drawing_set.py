@@ -402,12 +402,13 @@ def test_flag_on_no_other_internal_or_experimental_row_reaches_a_member(monkeypa
 def test_flag_on_every_other_type_stays_out(monkeypatch):
     """One row for EVERY registered detector id (internal ones included) and every team-set base
     box, each carrying the bull_flag round stamp so no stamp check can be what drops it (the flat
-    top carries its OWN round's stamp, for the same reason): a member is served the member-set ids
-    and nothing else."""
+    top and the flat base carry their OWN round's stamp, for the same reason): a member is served
+    the member-set ids and nothing else."""
     every = sorted(set(registry.list_pattern_ids()) | set(registry.DISPLAY_TEAM_SET))
     assert "bull_flag" in every and "bc:cup-with-handle" in every     # the sweep is not vacuous
     rows = [(_flat_top(f"x{i}") if pid == "uct_flat_top_breakout"
-             else _flag(f"x{i}", draw_round=CONFIRMED_ROUND) | {"pattern_id": pid})
+             else _flag(f"x{i}", draw_round=(auto_structures.MEMBER_FLAT_BASE_ROUND if pid == "flat_base"
+                                             else CONFIRMED_ROUND)) | {"pattern_id": pid})
             for i, pid in enumerate(every)]
     _flags(monkeypatch, True, True)
     _store(monkeypatch, rows)

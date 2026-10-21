@@ -59,6 +59,55 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
+def metrics_enabled() -> bool:
+    """AUTO_STRUCTURES_METRICS_ENABLED, read PER CALL; unset means OFF. While off, no metrics are
+    computed and the structures payload is exactly what it was before metrics existed."""
+    return os.environ.get("AUTO_STRUCTURES_METRICS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps
+#: `extras.metrics_round`). A literal ON PURPOSE, like the drawing rounds: None until a blind packet
+#: confirms the printed numbers, so members get NO metrics (fail closed) while admins see them under the
+#: flag. Set it by hand to the confirmed round.
+MEMBER_METRICS_ROUND = 1
+#: The ONLY row type a member may get metrics on: the blind packets (lab base_metrics P1 2.64 / P2 2.82,
+#: confirmed 2026-10-20) judged the numbers on the bc:base drawing alone. bc:flat-base measures depth from the
+#: box top while its drawn pivot moves, and the cup's depth comes from a detector re-run, so both stay
+#: admin-only until each passes its own packet.
+MEMBER_METRICS_IDS = frozenset({"bc:base"})
+
+
+def with_metrics(sym: str, rows, *, member: bool = False) -> list:
+    """`rows` with base metrics attached (base_metrics.with_metrics) when AUTO_STRUCTURES_METRICS_ENABLED
+    is on; `rows` itself, untouched, when it is off. On the member path a row keeps its metrics only while
+    MEMBER_METRICS_ROUND is an int equal to its stamped `extras.metrics_round`; otherwise the member gets
+    the row exactly as it was before metrics (fail closed). Never mutates a cached row. Never raises."""
+    if not metrics_enabled():
+        return rows
+    try:
+        from api.services import base_metrics
+        if not any((r or {}).get("pattern_id") in base_metrics.METRIC_IDS for r in rows or []):
+            return rows
+        out = base_metrics.with_metrics(rows, _daily_bars(sym))
+    except Exception:  # noqa: BLE001 -- metrics never break a read
+        _log.debug("[base-metrics] %s failed", sym, exc_info=True)
+        return rows
+    if not member:
+        return out
+    return [m if _member_metrics_ok(m) else r for r, m in zip(rows, out)]
+
+
+def _member_metrics_ok(row) -> bool:
+    """True only for a MEMBER_METRICS_IDS row, while MEMBER_METRICS_ROUND is an int and equals the row's
+    stamped metrics_round."""
+    if (row or {}).get("pattern_id") not in MEMBER_METRICS_IDS:
+        return False
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    rnd = ex.get("metrics_round")
+    return (type(MEMBER_METRICS_ROUND) is int and type(rnd) is int and rnd == MEMBER_METRICS_ROUND
+            and isinstance(ex.get("metrics"), dict))
+
+
 def member_ids() -> frozenset:
     """The pattern ids a member may be drawn: registry.DISPLAY_MEMBER_SET, read
     from the registry module PER CALL (one authority, never a copy here)."""
@@ -112,9 +161,15 @@ def member_rows(rows) -> list:
     carries the round its MEMBER_<SHAPE>_ROUND literal names beside a well-formed `draw_shape`
     (`_confirmed_shape`) and is not stale. Only the double bottom's literal is set (round 2); the
     saucer, ascending base and IPO base literals are None, so every such row is dropped whatever
-    else is true of it. Fail closed."""
+    else is true of it. Fail closed.
+
+    A flat_base passed its blind check as drawn by ONE drawing round (MEMBER_FLAT_BASE_ROUND), so a
+    member gets one only as that round draws it (`_flat_base_member_row`): a row of a later round is
+    served with that round's drawing swapped back for the confirmed one, or dropped. Fail closed."""
     allowed = member_ids()
-    kept = [r for r in rows or []
+    rows = [_flat_base_member_row(r) if (r or {}).get("pattern_id") == "flat_base" else r
+            for r in rows or []]
+    kept = [r for r in rows if r is not None
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
@@ -247,6 +302,46 @@ def _confirmed_flat_top(row) -> bool:
     return (isinstance(touches, list) and len(touches) >= 3
             and all(isinstance(t, dict) and t.get("t") is not None and _finite(t.get("price"))
                     for t in touches))
+
+
+#: The flat_base drawing round the blind check confirmed for members: round 1, the drawing that passed the
+#: team-set blind packets (registry.DISPLAY_MEMBER_SET; R4 confirm / R5 / R5c), stored without a stamp. A
+#: literal ON PURPOSE, not display.FLAT_BASE_DRAW_ROUND: the drawing code may move to a new round (round 2,
+#: lab flatbase_breakdown: `broke_down` read as of the last bar) while members keep the confirmed drawing
+#: until the new round passes its own blind check and this is changed by hand.
+MEMBER_FLAT_BASE_ROUND = 1
+#: The one later round that carries the round-1 drawing beside its own (extras.draw_r1).
+_FLAT_BASE_R1_CARRIER = 2
+
+
+def _flat_base_member_row(row):
+    """A member's copy of a flat_base row drawn by MEMBER_FLAT_BASE_ROUND, or None (dropped). Fail closed.
+
+    The row's round is extras.draw_round; a row without one was stored by the round-1 code (before the
+    stamp existed) and is round 1. A row of the member round is served as it is. While the member round is
+    1, a round-2 row is served as ROUND 1 drew it: its FLAT_BASE_DRAW_KEYS replaced by extras.draw_r1 when
+    round 1 drew it differently (no draw_r1 = both rounds drew it the same). Any other round, a malformed
+    stamp or a malformed draw_r1 drops the row. The row passed in is not modified."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if not isinstance(ex, dict):
+        return row if MEMBER_FLAT_BASE_ROUND == 1 else None
+    rnd = ex.get("draw_round", 1)
+    if type(rnd) is not int:
+        return None
+    if rnd == MEMBER_FLAT_BASE_ROUND:
+        return row
+    if not (MEMBER_FLAT_BASE_ROUND == 1 and rnd == _FLAT_BASE_R1_CARRIER):
+        return None
+    if "draw_r1" not in ex:
+        return row
+    prior = ex.get("draw_r1")
+    keys = _display.FLAT_BASE_DRAW_KEYS
+    if not isinstance(prior, dict) or not prior or not set(prior) <= set(keys):
+        return None
+    out = {k: v for k, v in ex.items() if k not in keys and k != "draw_r1"}
+    out.update(prior)
+    out["draw_round"] = 1
+    return {**row, "geometry": {**row["geometry"], "extras": out}}
 
 
 #: The cup row id (a base_catalog box).

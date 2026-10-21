@@ -74,6 +74,7 @@ export default function DrillPlayer({
   onFinished,
   onKeepPractising,
   fetcher,
+  reviewer = false,            // an admin: the reveal card carries the verdict row (quiz = review)
 }) {
   const s = useStudySession(fetcher ? { initial, sessionId, fetcher } : { initial, sessionId })
   const item = s.current
@@ -340,7 +341,8 @@ export default function DrillPlayer({
       {!s.finished && s.status === 'ready' && item && (
         <div className={styles.bottom}>
           {phase === 'reveal' && result && (
-            <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile} />
+            <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
+              attemptId={result.attempt_id ?? null} reviewer={reviewer} />
           )}
           <StickyActionBar className={styles.bar}>
             <button

@@ -128,6 +128,18 @@ class TrustIn(BaseModel):
     sample_rate: Optional[float] = None
 
 
+class FeedbackIn(BaseModel):
+    kind: str                          # study_store.FEEDBACK_KINDS
+    text: Optional[str] = None
+    attempt_id: Optional[int] = None
+    verdict: Optional[str] = None      # owner only: approve | fix | reject
+
+
+class FeedbackHandleIn(BaseModel):
+    ids: list[int] = []
+    note: Optional[str] = None
+
+
 class ImportIn(BaseModel):
     items: list[dict] = []
     terms: list[dict] = []
@@ -273,6 +285,7 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
         time_ms=body.time_ms, session_id=body.session_id, unscored=verdict.unscored)
     reveal = study_store.reveal_for(item)
     reveal["detail"] = verdict.detail
+    reveal["ref"] = study_store.short_ref(item["id"])      # named from Discord: /study ref:872a0a
     if item.get("bars_ref") or item["type"] in _CHART_REVEAL_TYPES:
         fwd = study_store.get_forward_bars(item["id"])
         reveal["forward_bars"] = fwd[:REVEAL_FORWARD_BARS]
@@ -365,7 +378,8 @@ def admin_review(lane: Optional[str] = None, type: Optional[str] = None, skill: 
     types = sorted({d["type"] for d in drafts})
     rows = [_light(d) for d in drafts] if light else drafts
     return {"drafts": rows, "counts": study_store.draft_counts(), "skills": study_store.draft_skill_counts(),
-            "trust": {t: study_store.trust_state(t) for t in types}}
+            "trust": {t: study_store.trust_state(t) for t in types},
+            "feedback": study_store.feedback_counts()}
 
 
 @router.get("/admin/items/{item_id}/bars", dependencies=_ARMED)
@@ -405,6 +419,62 @@ def admin_corrections_export(since_id: int = 0, limit: int = 5000,
                              _admin: dict = Depends(require_admin)):
     rows = study_store.export_corrections(since_id=since_id, limit=max(1, min(20000, limit)))
     return {"corrections": rows, "next_since_id": rows[-1]["id"] if rows else since_id}
+
+
+# ── Feedback (owner 2026-10-21: review in site / in Discord, ingest later) ─────
+
+def _is_owner(user: dict) -> bool:
+    return (user.get("role") or "") == "admin"
+
+
+@router.post("/items/{item_id}/feedback", dependencies=_ARMED)
+def post_item_feedback(item_id: str, body: FeedbackIn, user: dict = Depends(require_paid)):
+    """What a member says about an item from the reveal card. An admin's row is
+    OWNER feedback: a verdict of approve / reject is applied to the item at
+    once (the quiz becomes a review door); a member's verdict is ignored."""
+    item = study_store.get_item_full(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    owner = _is_owner(user)
+    answer = correct = None
+    att = study_store.get_attempt(body.attempt_id) if body.attempt_id else None
+    if att and (att.get("user_id") != user["id"] or att.get("item_id") != item_id):
+        att = None                                   # somebody else's attempt is not attached
+    if att:
+        answer, correct = att.get("answer_json"), att.get("correct")
+    try:
+        res = study_store.add_feedback(
+            item_id, user["id"], role="owner" if owner else "member", channel="site",
+            kind=body.kind, text=body.text, verdict=body.verdict if owner else None,
+            answer_json=answer, correct=None if correct is None else bool(correct),
+            attempt_id=att["id"] if att else None)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    fb = res["feedback"]
+    return {"id": fb["id"], "kind": fb["kind"], "applied": res["applied"], "role": fb["role"],
+            "ref": fb["ref"]}
+
+
+@router.get("/admin/feedback", dependencies=_ARMED)
+def admin_feedback(unhandled: int = 1, item_id: Optional[str] = None, since_id: int = 0,
+                   limit: int = 500, _admin: dict = Depends(require_admin)):
+    rows = study_store.list_feedback(item_id=item_id, unhandled_only=bool(unhandled), since_id=since_id,
+                                     limit=max(1, min(5000, limit)))
+    return {"feedback": rows, "counts": study_store.feedback_counts()}
+
+
+@router.post("/admin/feedback/handle", dependencies=_ARMED)
+def admin_feedback_handle(body: FeedbackHandleIn, admin: dict = Depends(require_admin)):
+    n = study_store.handle_feedback(body.ids, admin.get("id") or admin.get("email") or "admin", body.note)
+    return {"handled": n, "counts": study_store.feedback_counts()}
+
+
+@router.get("/admin/feedback/export", dependencies=_ARMED)
+def admin_feedback_export(since_id: int = 0, limit: int = 5000, _admin: dict = Depends(require_admin)):
+    """Oldest first; the ingest script (scripts/study/ingest_feedback.py) turns
+    these into corrections records and a report for the next build."""
+    rows = study_store.export_feedback(since_id=since_id, limit=max(1, min(20000, limit)))
+    return {"feedback": rows, "next_since_id": rows[-1]["id"] if rows else since_id}
 
 
 # ── Import (PUSH_SECRET) ──────────────────────────────────────────────────────
