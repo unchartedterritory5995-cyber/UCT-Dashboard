@@ -623,6 +623,46 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
     assert set(js.SNAPSHOT_SLOT_KINDS) <= set(nw.KIND_TITLE)
 
 
+def _client_widget_rows():
+    """{id: row text} for each WIDGET_KINDS row in the client file, read from the file, never restated."""
+    import re
+    from pathlib import Path
+    src = Path("app/src/pages/journal-2-0/lib/notebookWidgets.js").read_text(encoding="utf-8")
+    start = src.index("export const WIDGET_KINDS")
+    block = src[start:src.index("])", start)]
+    rows = re.findall(r"\{ id: '(\w+)'(.*?)\}", block, flags=re.S)
+    return {kid: body for kid, body in rows}
+
+
+def test_account_kinds_agree_client_server_and_public_table():
+    """Final review M-4: "account kind" has three authorities -- the client's `account: true` (drives the
+    archive rule and the lock chip), the server's ACCOUNT_KINDS, and the public table's member-optin rows.
+    A client flag drifting to false would archive a private widget to a PNG, so all three are railed."""
+    import re
+    from api.services.journal_two import notebook_widgets as nw, public_note_payload as public
+    rows = _client_widget_rows()
+    assert len(rows) == 15                                                               # non-vacuity
+    client = {k for k, body in rows.items() if re.search(r"\baccount: true\b", body)}
+    optin = {d for (t, d), v in public.MARKET_DATA_VENDORS.items() if t == "widgetEmbed" and v == "member-optin"}
+    assert len(client) == 7                                                              # non-vacuity
+    assert client == set(nw.ACCOUNT_KINDS) == optin
+    assert set(nw.ACCOUNT_KINDS) <= set(public.EMBED_PARAM_KEYS)
+
+
+def test_client_waves_match_the_server_kind_wave():
+    """Final review M-4: the client's `wave` (which gates the menu entry) is the server's KIND_WAVE (which
+    gates the read)."""
+    import re
+    from api.services.journal_two import notebook_widgets as nw
+    client = {}
+    for k, body in _client_widget_rows().items():
+        m = re.search(r"\bwave: (\d+)", body)
+        assert m, k
+        client[k] = int(m.group(1))
+    assert len(client) == 15                                                             # non-vacuity
+    assert client == nw.KIND_WAVE
+
+
 def test_gallery_template_has_no_payload(conn, lib_on, monkeypatch):
     """A member style shared to the gallery carries its slots as unfilled placeholders: publishing builds
     nothing, a snapshot the member's outline held is reduced away, and the library's Preview (the journal
