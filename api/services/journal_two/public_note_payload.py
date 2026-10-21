@@ -486,7 +486,7 @@ def attr_decision(row: str, mode: str) -> str:
 EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
     # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
-    # builders' own honesty flags. NEVER `positionId`: `_market_data` also strips it from every row.
+    # builders' own honesty flags. NEVER `positionId`: every row passes EMBED_ROW_KEYS (R60).
     "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
     "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
     "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated"),
@@ -499,8 +499,63 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated"),
 }
 
-#: Row keys that never leave, whatever a builder one day adds.
-_ACCOUNT_ROW_DROP = frozenset({"positionId"})
+#: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
+#: object kept by EMBED_PARAM_KEYS goes through this table: a dict item keeps ONLY the keys named here, and
+#: only their scalar values (a nested id, an unknown key, a key a builder adds later or an imported row's
+#: extra all stay home); `SCALAR_ITEMS` names a list of scalars (a recap's mistake tags) and `PAIR_ITEMS` a
+#: list of scalar pairs (the equity curve's [day, value]). A structured param this table does not name is
+#: not published.
+SCALAR_ITEMS: tuple[str, ...] = ()
+PAIR_ITEMS: tuple[str, ...] = ("[day, value]",)
+EMBED_ROW_KEYS: dict[str, dict[str, tuple[str, ...]]] = {
+    "myPnlStats": {"range": ("from", "to"), "equity": PAIR_ITEMS},
+    "myPositionsRisk": {"rows": ("symbol", "side", "kind", "sizePct", "openPnl", "stopPrice", "distToStopPct",
+                                 "noStop")},
+    "myRulesCheck": {"range": ("from", "to"), "rules": ("rule", "kept", "total")},
+    "myMistakes": {"rows": ("mistake", "cost30d", "countNow", "countPrior", "trend")},
+    "tradeRecap": {"bars": ("t", "o", "h", "l", "c"), "mistakes": SCALAR_ITEMS},
+    "myPnlCalendar": {"days": ("day", "pnl"), "best": ("day", "pnl"), "worst": ("day", "pnl")},
+    "mySetupEdge": {"rows": ("setup", "n", "expectancyR", "winRate", "thin")},
+}
+
+
+def _scalar(v: Any) -> bool:
+    return v is None or isinstance(v, (str, int, float, bool))
+
+
+def _allowed_item(item: Any, keys: tuple[str, ...]) -> Any:
+    """One list item through its allowlist, or `_DROP`."""
+    if keys == SCALAR_ITEMS:
+        return item if _scalar(item) else _DROP
+    if keys == PAIR_ITEMS:
+        ok = isinstance(item, (list, tuple)) and len(item) == 2 and all(_scalar(x) for x in item)
+        return list(item) if ok else _DROP
+    if isinstance(item, dict):
+        return {k: item[k] for k in keys if k in item and _scalar(item[k])}
+    return _DROP
+
+
+_DROP = object()
+
+
+def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
+    """`params` reduced to what a stranger may read for this shown widget: the EMBED_PARAM_KEYS names, each
+    structured value through EMBED_ROW_KEYS (ruling R60). Scalars pass as they are."""
+    rows = EMBED_ROW_KEYS.get(widget_id, {}) if isinstance(widget_id, str) else {}
+    out: dict[str, Any] = {}
+    for k in EMBED_PARAM_KEYS.get(widget_id, ()) if isinstance(widget_id, str) else ():
+        if k not in params:
+            continue
+        v = params[k]
+        if _scalar(v):
+            out[k] = v
+        elif k not in rows:
+            continue                                     # a structure nobody vetted stays home
+        elif isinstance(v, dict):
+            out[k] = {f: v[f] for f in rows[k] if f in v and _scalar(v[f])}
+        elif isinstance(v, list):
+            out[k] = [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP]
+    return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
 #: paragraph rather than becoming a document the editor refuses to read.
@@ -1328,12 +1383,7 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
         kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
-        kept["params"] = {k: copy.deepcopy(params[k]) for k in EMBED_PARAM_KEYS.get(widget_id, ()) if k in params}
-        rows = kept["params"].get("rows")
-        if isinstance(rows, list):
-            kept["params"]["rows"] = [
-                {k: v for k, v in row.items() if k not in _ACCOUNT_ROW_DROP} if isinstance(row, dict) else row
-                for row in rows]
+        kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1736,7 +1786,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 __all__ = [
     "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
-    "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
+    "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
     "PUBLIC_ATTR_POLICY", "ATTR_POLICY_BY_MODE", "PUBLIC_FONT_SIZE_BOUNDS", "safe_font_family", "safe_font_size",
     "SHOWN", "NEUTRAL", "MODES", "BASE_MODES", "EXAMPLE_OVERRIDES", "EXAMPLE_IMAGE_ATTRS", "node_action",

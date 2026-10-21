@@ -1248,3 +1248,71 @@ def test_wave6_market_kind_is_neutral_even_with_share(mode, kind):
         assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
         assert "widgetEmbed" not in types_in(out)
         assert "987654" not in json.dumps(out) and "u_0123456789ab" not in json.dumps(out)
+
+
+# ── Ruling R60: a shown account widget publishes its rows through a per-kind row allowlist ──
+
+_SECRET = {"positionId": "SECRET-pos", "nested": {"positionId": "SECRET-nested", "tradeId": "SECRET-trade"},
+           "extraKey": "<b>SECRET-extra</b>", "accountNumber": "SECRET-acct"}
+
+_R60_PARAMS = {
+    "myPositionsRisk": {"rows": [{"symbol": "AAPL", "side": "Long", "kind": "stock", "sizePct": 2.0, "openPnl": 77.7,
+                                  "stopPrice": 95.0, "distToStopPct": 5.0, "noStop": False, **_SECRET}]},
+    "myMistakes": {"rows": [{"mistake": "fomo", "cost30d": -10.0, "countNow": 2, "countPrior": 1, "trend": "more",
+                             **_SECRET}]},
+    "mySetupEdge": {"rows": [{"setup": "Flag", "n": 30, "expectancyR": 0.4, "winRate": 0.5, "thin": False,
+                              **_SECRET}]},
+    "myRulesCheck": {"range": {"from": "2026-10-13", "to": "2026-10-20", **_SECRET},
+                     "rules": [{"rule": "Wait for the open", "kept": 3, "total": 4, **_SECRET}]},
+    "myPnlCalendar": {"days": [{"day": "2026-10-01", "pnl": 120.0, **_SECRET}],
+                      "best": {"day": "2026-10-01", "pnl": 120.0, **_SECRET},
+                      "worst": {"day": "2026-10-01", "pnl": 120.0, **_SECRET}},
+    "tradeRecap": {"bars": [{"t": "2026-09-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5, **_SECRET}],
+                   "mistakes": ["fomo", {"positionId": "SECRET-in-a-list"}, ["SECRET-list"]]},
+    "myPnlStats": {"range": {"from": "2026-10-13", "to": "2026-10-20", **_SECRET},
+                   "equity": [["2026-10-13", 100.0], ["2026-10-14", {"tradeId": "SECRET-eq"}], {"positionId": "SECRET-x"}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_R60_PARAMS))
+def test_r60_rows_keep_only_their_allowlisted_scalar_keys(kind, mode):
+    node = _widget(kind)
+    node["attrs"]["params"] = dict(copy.deepcopy(_R60_PARAMS[kind]), asOf="2026-10-20T14:00:00Z", share=True)
+    out = reduce(doc(node), mode)
+    blob = json.dumps(out)
+    assert "SECRET" not in blob, (kind, mode, blob)
+    params = find_embed(out)["attrs"]["params"]
+    for key, allowed in pnp.EMBED_ROW_KEYS[kind].items():
+        val = params.get(key)
+        items = val if isinstance(val, list) else [val]
+        for item in items:
+            if isinstance(item, dict):
+                assert set(item) <= set(allowed), (kind, key, item)
+                assert item, (kind, key)                           # control: the allowed figures survived
+    # control: the figure the member chose to share is there
+    assert any(str(x) in blob for x in ("77.7", "fomo", "Flag", "Wait for the open", "120.0", "1.5", "100.0"))
+
+
+def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
+    """A list or object kept by EMBED_PARAM_KEYS without an EMBED_ROW_KEYS entry would be silently dropped
+    from a shown widget; the table must name every one the account builders write."""
+    structured = {"myPnlStats": {"range", "equity"}, "myPositionsRisk": {"rows"}, "myRulesCheck": {"range", "rules"},
+                  "myMistakes": {"rows"}, "tradeRecap": {"bars", "mistakes"},
+                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"}}
+    from api.services.journal_two import notebook_widgets as nw
+    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
+    for kind, keys in structured.items():
+        assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
+        assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind
+        for allowed in pnp.EMBED_ROW_KEYS[kind].values():
+            assert "positionId" not in allowed and "tradeId" not in allowed and "definitionId" not in allowed
+
+
+def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id():
+    """Derived, not restated: the keys a positions row carries (both kinds) minus positionId."""
+    import inspect
+    from api.services.journal_two import notebook_widgets as nw
+    src = inspect.getsource(nw._option_row)
+    for k in pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"]:
+        assert f'"{k}"' in src, k
