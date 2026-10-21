@@ -213,6 +213,34 @@ class SingleFlight:
                 started = True
         if started:          # outside the lock: a job already done runs the callback in this thread
             fut.add_done_callback(lambda f, k=key: self._forget(k, f))
+        return self._wait(key, fut, budget_s)
+
+    def run_here(self, key: Any, fn: Callable[[], Any], budget_s: float) -> tuple[bool, Any]:
+        """`run` with the leader computing `fn` on the CALLER's own thread, never the pool (fix F1b, review
+        M-2): for work bound to its thread, such as a read through a sqlite connection the request opened.
+        The first caller for `key` runs `fn` and returns (True, value), or raises what `fn` raised. A caller
+        that arrives while it runs waits at most `budget_s` for that value; past it, when the leader raised,
+        or when `waiters` callers already wait, it gets (False, None) and computes its own."""
+        with self._lock:
+            fut = self._inflight.get(key)
+            lead = fut is None or fut.done()
+            if lead:
+                fut = Future()
+                self._inflight[key] = fut
+        if not lead:
+            return self._wait(key, fut, budget_s)
+        try:
+            value = fn()
+        except BaseException as e:
+            fut.set_exception(e)
+            raise
+        else:
+            fut.set_result(value)
+            return True, value
+        finally:
+            self._forget(key, fut)
+
+    def _wait(self, key: Any, fut: Future, budget_s: float) -> tuple[bool, Any]:
         if not self._waiters.acquire(blocking=False):
             return False, None
         try:

@@ -647,6 +647,76 @@ def test_r59_the_reference_cache_is_per_key_and_expires():
     assert calls == ["a", "c", "d"]
 
 
+def _fresh_reference_cache(monkeypatch):
+    from api.services.journal_two import public_note_payload as public
+    monkeypatch.setattr(public, "_REF_SETS", {})
+    monkeypatch.setattr(public, "_REF_FLIGHT", None)
+    return public
+
+
+def test_m2_concurrent_misses_compute_the_reference_set_once(monkeypatch):
+    """Fix F1b (review M-2): a burst of image requests for one cold key runs ONE reduction, on the first
+    request's own thread (its sqlite connection is bound to it), and every request gets that set."""
+    import threading
+    import time
+    public = _fresh_reference_cache(monkeypatch)
+    calls, lock = [], threading.Lock()
+
+    def compute():
+        with lock:
+            calls.append(threading.current_thread().name)
+        time.sleep(0.3)
+        return frozenset({"inline/a1.png"})
+
+    out, errs = [], []
+
+    def one(i):
+        try:
+            out.append(public.cached_reference_set(("share", "tok", "note", "rev-1"), compute))
+        except Exception as e:  # noqa: BLE001
+            errs.append(e)
+
+    n = public.REFERENCE_SET_WAITERS + 1                        # the leader plus every waiter it admits
+    ts = [threading.Thread(target=one, args=(i,), name=f"req-{i}") for i in range(n)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join(10)
+    assert errs == [] and len(out) == n and all(o == {"inline/a1.png"} for o in out)
+    assert len(calls) == 1 and calls[0].startswith("req-")       # one reduction, on a request's own thread
+    # control: a different key (a new revision) is its own computation
+    assert public.cached_reference_set(("share", "tok", "note", "rev-2"), compute) == {"inline/a1.png"}
+    assert len(calls) == 2
+
+
+def test_m2_a_leader_that_raises_leaves_nothing_cached_and_its_waiters_compute_their_own(monkeypatch):
+    import threading
+    import time
+    public = _fresh_reference_cache(monkeypatch)
+    started = threading.Event()
+    calls = []
+
+    def boom():
+        calls.append("boom")
+        started.set()
+        time.sleep(0.2)
+        raise RuntimeError("reduction failed")
+
+    def ok():
+        calls.append("ok")
+        return frozenset({"hero/h1.jpg"})
+
+    errs, got = [], []
+    lead = threading.Thread(target=lambda: errs.append(
+        pytest.raises(RuntimeError, public.cached_reference_set, ("k",), boom)))
+    lead.start()
+    started.wait(2)
+    got.append(public.cached_reference_set(("k",), ok))           # waited on the leader, then computed its own
+    lead.join(5)
+    assert len(errs) == 1 and got == [{"hero/h1.jpg"}] and calls == ["boom", "ok"]
+    assert public.cached_reference_set(("k",), boom) == {"hero/h1.jpg"}   # the follower's own answer is held
+
+
 # -- ruling R60: an imported note never arrives already shared -------------------------------------
 
 def test_r60_import_forces_share_false_on_every_widget_at_any_depth(env, monkeypatch):

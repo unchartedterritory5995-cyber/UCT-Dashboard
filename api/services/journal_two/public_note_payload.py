@@ -1706,25 +1706,51 @@ REFERENCE_SET_TTL_S = 60.0
 _REF_SETS: dict[tuple, tuple[float, frozenset[str]]] = {}
 _REF_SETS_MAX = 500
 _REF_LOCK = threading.Lock()
+#: Fix F1b (review M-2): ONE computation per cold key. A page's images arrive as a burst, and each miss is a
+#: full `public_note` reduction plus `public_facts`; the burst now waits on the first request's answer. A
+#: waiter holds a request thread, so at most `REFERENCE_SET_WAITERS` wait, each at most
+#: `REFERENCE_SET_WAIT_S`; any other computes its own (the old behaviour, never a refusal).
+REFERENCE_SET_WAITERS = 16
+REFERENCE_SET_WAIT_S = 10.0
+_REF_FLIGHT: Any = None
+
+
+def _reference_flight() -> Any:
+    """The reference sets' single-flight table (notebook_widgets.SingleFlight, created on first use)."""
+    global _REF_FLIGHT
+    with _REF_LOCK:
+        if _REF_FLIGHT is None:
+            from api.services.journal_two.notebook_widgets import SingleFlight
+            _REF_FLIGHT = SingleFlight(REFERENCE_SET_WAITERS)
+        return _REF_FLIGHT
 
 
 def cached_reference_set(key: tuple, compute: Callable[[], frozenset[str]], *,
                          now: Callable[[], float] | None = None) -> frozenset[str]:
     """`compute()`'s set, held `REFERENCE_SET_TTL_S` per `key`. The caller's key names the note AND its
     revision (`updated_at`), so a write that drops an image is never answered from the old set. Bounded:
-    past `_REF_SETS_MAX` keys the oldest entries go. Per process."""
+    past `_REF_SETS_MAX` keys the oldest entries go. Per process.
+
+    Concurrent misses for one key compute it ONCE (review M-2): the first runs `compute` on its own thread
+    (it reads through the request's own sqlite connection, which is bound to that thread, so never a pool)
+    and the rest take its answer."""
     t = (now or time.monotonic)()
     with _REF_LOCK:
         hit = _REF_SETS.get(key)
         if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
             return hit[1]
-    got = frozenset(compute())
-    with _REF_LOCK:
-        _REF_SETS[key] = (t, got)
-        if len(_REF_SETS) > _REF_SETS_MAX:
-            for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
-                _REF_SETS.pop(k, None)
-    return got
+
+    def fill() -> frozenset[str]:
+        got = frozenset(compute())
+        with _REF_LOCK:
+            _REF_SETS[key] = (t, got)
+            if len(_REF_SETS) > _REF_SETS_MAX:
+                for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
+                    _REF_SETS.pop(k, None)
+        return got
+
+    ok, got = _reference_flight().run_here(key, fill, REFERENCE_SET_WAIT_S)
+    return got if ok else fill()
 
 
 def read_public_note(conn: Any, owner_id: str, note_id: str) -> dict[str, Any] | None:
