@@ -149,6 +149,18 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   the rules and shows the owner samples; the owner reviews lessons in question form.
   THEN (owner): redesign the Study landing page in Desk -> Courses: "cool and fun, not lame like
   this". Plan + work stay LOCAL (RESUME.md, docs/study), no artifacts (owner rule).
+- **2026-10-21 00:40Z: pod is CURRENT and the landing v1 is merged.** #443 deployed by hand from the
+  dashboard (Deploy commit), then import --only candles.catalog --only candles.chart: 603 sent, 579
+  inserted, 24 updated (the 5 approved kept their status). The 221 first-run chart drafts that the
+  legibility rule dropped were REJECTED on the pod as "bad chart" through the admin review route
+  from the logged-in tab (ids: docs/study/corrections/candles.chart.retired-2026-10-20.json). Pod
+  vocab.candle chart items now: 599 draft (legible, delegated to the session), 5 approved, 222
+  rejected. Lessons (six parts) are live on every candle item.
+  LANDING v1 (docs/study/landing_redesign.md) merged as #445 (38fea21c83): StudyLanding.jsx hero
+  candle chart of the member's progress + station decks + badges shelf, mounted above the existing
+  Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
+  owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
+  the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts
