@@ -362,3 +362,19 @@ test('kill switch: study_enabled=false hides the panel, cards open the syllabus,
   renderSection(['/desk?section=courses&study=map&curriculum=foundations'])
   expect(screen.queryByRole('button', { name: /Back to courses/ })).toBeNull()
 })
+
+test('owner 2026-10-21: an admin gets "Feedback on this screen" on the landing and the trail; a member never does', () => {
+  mockStudy = { '/api/study/map': studyMapFixture(), '/api/study/today': studyTodayFixture() }
+  renderSection()
+  expect(screen.getByTestId('screen-feedback').dataset.screen).toBe('landing')
+  fireEvent.click(courseCard(/UCT Foundations/))
+  const door = screen.getByTestId('screen-feedback')
+  expect(door.dataset.screen).toBe('trail')
+  fireEvent.click(within(door).getByTestId('screen-feedback-open'))
+  expect(screen.getByTestId('screen-feedback-form')).toHaveTextContent('Skill trail')
+
+  mockRole = null
+  renderSection(['/desk?section=courses&study=map&curriculum=foundations'])
+  renderSection()
+  expect(screen.getAllByTestId('screen-feedback')).toHaveLength(1)        // only the admin render above
+})

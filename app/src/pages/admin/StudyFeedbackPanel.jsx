@@ -14,16 +14,30 @@
  * for the next build). "Open" selects the item in the queue when it is a
  * draft; "Handled" clears the row. The export (`scripts/study/ingest_feedback.py`)
  * carries everything into docs/study so a regeneration keeps the verdicts.
+ *
+ * Notes on a whole SCREEN (the "Feedback on this screen" door: layout,
+ * visuals, effects, how it works, teaching) sit in the same list, marked with
+ * the screen they were left on and what it was showing; the scope select
+ * narrows the list to questions or to screens.
  */
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import styles from './StudyReview.module.css'
-import { FEEDBACK_EXPORT_URL, FEEDBACK_HANDLE_URL, feedbackKey } from './studyFeedbackHelpers'
+import { FEEDBACK_EXPORT_URL, FEEDBACK_HANDLE_URL, FEEDBACK_SCOPES, feedbackKey } from './studyFeedbackHelpers'
+import { screenLabel } from '../study/screenFeedbackHelpers'
 
 const KIND_WORD = {
   wrong_answer: 'wrong answer', bad_chart: 'bad chart', unclear_question: 'question unclear',
   unclear_lesson: 'lesson unclear', too_easy: 'too easy', too_hard: 'too hard', great: 'great example',
   other: 'other',
+  // notes on a whole screen (study_store.SCREEN_KINDS)
+  layout: 'layout', visuals: 'visuals', effects: 'effects', interaction: 'how it works',
+  learning: 'teaching', broken: 'broken',
+}
+
+function contextLine(ctx) {
+  if (!ctx || typeof ctx !== 'object') return ''
+  return Object.entries(ctx).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k} ${v}`).join(' · ')
 }
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
@@ -43,7 +57,8 @@ function when(row) {
 
 export default function StudyFeedbackPanel({ queueIds, onOpenItem }) {
   const [showHandled, setShowHandled] = useState(false)
-  const key = feedbackKey(showHandled)
+  const [scope, setScope] = useState('all')
+  const key = feedbackKey(showHandled, scope)
   const { data, error, mutate } = useSWR(key, fetcher, { revalidateOnFocus: false })
   const rows = useMemo(() => data?.feedback || [], [data])
   const [busy, setBusy] = useState(null)
@@ -78,6 +93,10 @@ export default function StudyFeedbackPanel({ queueIds, onOpenItem }) {
           What members and you said from the reveal card and from <code>/study</code> in Discord. An owner approve or
           reject is already applied; a fix is a note for the next build. Handled clears a row.
         </span>
+        <select aria-label="Show notes" className={styles.select} value={scope}
+          onChange={(e) => setScope(e.target.value)} data-testid="feedback-scope">
+          {FEEDBACK_SCOPES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
         <label className={styles.fbToggle}>
           <input type="checkbox" checked={showHandled} onChange={(e) => setShowHandled(e.target.checked)} />
           <span>Show handled</span>
@@ -92,20 +111,28 @@ export default function StudyFeedbackPanel({ queueIds, onOpenItem }) {
       {err && <span className={styles.err}>{err}</span>}
       <ul className={styles.fbList}>
         {rows.map((row) => {
-          const inQueue = queueIds?.has?.(row.item_id)
+          const inQueue = !row.screen && queueIds?.has?.(row.item_id)
+          const where = row.screen ? contextLine(row.context) : ''
           return (
             <li key={row.id} className={styles.fbRow} data-testid="feedback-row" data-kind={row.kind}
-              data-handled={row.handled_at ? '1' : '0'}>
+              data-handled={row.handled_at ? '1' : '0'} data-screen={row.screen || undefined}>
               <div className={styles.fbHead}>
-                <span className={styles.gSym}>{row.sym || row.type || row.item_id}</span>
-                {row.asof && <span className={styles.gDate}>{row.asof}</span>}
-                {row.subject && <span className={styles.fbSubject}>{row.subject}</span>}
+                {row.screen ? (
+                  <span className={styles.gSym}>Screen · {screenLabel(row.screen)}</span>
+                ) : (
+                  <>
+                    <span className={styles.gSym}>{row.sym || row.type || row.item_id}</span>
+                    {row.asof && <span className={styles.gDate}>{row.asof}</span>}
+                    {row.subject && <span className={styles.fbSubject}>{row.subject}</span>}
+                  </>
+                )}
                 <span className={styles.fbKind}>{KIND_WORD[row.kind] || row.kind}</span>
                 {row.verdict && <span className={`${styles.gGrade} ${styles[`fbV_${row.verdict}`] || ''}`}>{row.verdict}</span>}
-                <span className={styles.fbRef}>ref {row.ref}</span>
+                {row.ref && <span className={styles.fbRef}>ref {row.ref}</span>}
               </div>
               {row.q && <p className={styles.fbQ}>{row.q}</p>}
               {row.text && <p className={styles.fbText}>{row.text}</p>}
+              {where && <p className={styles.fbMeta}>on {where}</p>}
               {row.answer_json != null && (
                 <p className={styles.fbMeta}>
                   answered {typeof row.answer_json === 'string' ? row.answer_json : JSON.stringify(row.answer_json)}

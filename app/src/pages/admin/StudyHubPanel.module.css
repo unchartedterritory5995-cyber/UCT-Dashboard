@@ -1,0 +1,253 @@
+/* StudyHubPanel — the review hub: the sections on the course map, then every
+   candle lesson as members read it. Gold marks what is live and the chosen
+   verdict; never green or red (they mean price direction to a trader). */
+
+.hub {
+  display: grid;
+  gap: var(--space-lg);
+  min-width: 0;
+  padding: var(--space-md) 0;
+}
+
+.block {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.blockTitle {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.hint {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-snug);
+}
+.muted { color: var(--text-muted); font-weight: 400; font-size: var(--text-sm); }
+.empty { color: var(--text-muted); font-size: var(--text-md); padding: var(--space-sm) 0; }
+
+/* ── sections ─────────────────────────────────────────────────────────────── */
+.curriculum {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.curTitle {
+  margin: var(--space-sm) 0 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.track {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+.trackSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px auto;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-md);
+  cursor: pointer;
+  list-style: none;
+}
+.trackSummary::-webkit-details-marker { display: none; }
+.trackName { color: var(--text); font-size: var(--text-md); min-width: 0; }
+.meter {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.meterFill {
+  display: block;
+  height: 100%;
+  background: var(--ut-gold);
+}
+.units {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0 var(--space-md) var(--space-sm);
+  list-style: none;
+}
+.unit {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.unit[data-empty='1'] .unitName { color: var(--text-muted); }
+.unitId {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.unitName { color: var(--text); min-width: 0; }
+
+/* ── lessons ──────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.select,
+.search {
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.search { flex: 1 1 180px; min-width: 0; }
+
+.lessons {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lesson {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  min-width: 0;
+}
+.lessonHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--space-sm);
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 10px var(--space-md);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lessonHead:focus-visible { outline: 2px solid var(--text-bright); outline-offset: -2px; }
+.lessonName { color: var(--text-bright); font-size: var(--text-md); font-weight: 600; }
+.verdict {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.v_approve { border-color: var(--ut-gold); color: var(--ut-gold); }
+.v_fix { border-color: var(--text-muted); color: var(--text-bright); }
+
+.lessonBody {
+  display: grid;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-md);
+}
+.parts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  max-width: 72ch;
+}
+.part { display: grid; gap: 2px; }
+.partLabel {
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.partText {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
+.door { display: grid; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--ut-gold); }
+.chipOn {
+  border-color: var(--ut-gold);
+  background: rgba(220, 187, 94, 0.14);
+  color: var(--ut-gold);
+}
+.text {
+  width: 100%;
+  max-width: 72ch;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.send {
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.send:disabled { opacity: 0.5; cursor: default; }
+.cancel {
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.cancel:disabled { opacity: 0.5; cursor: default; }
+.err { color: var(--text-bright); font-size: var(--text-sm); }
+
+@media (max-width: 640px) {
+  .trackSummary { grid-template-columns: minmax(0, 1fr) auto; }
+  .trackSummary .meter { display: none; }
+  .unit { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

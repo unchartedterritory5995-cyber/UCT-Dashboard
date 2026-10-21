@@ -161,6 +161,47 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
   owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
   the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
+- **2026-10-21 ~16:00Z: BUILT the two review tools offered in the walkthrough** (branch
+  feat/study-screen-feedback-hub, while Railway builds were paused). (1) "Feedback on this
+  screen", admin-only, on every Study screen: landing, trail, practise sheet, the quiz's top bar
+  (question / reveal / end), the review screen, gallery, lesson reading view. Kinds are the
+  owner's words (layout, visuals, effects, how it works, teaching, broken, great, other);
+  `POST /api/study/admin/screen-feedback`; a study_feedback row with `screen` set and item_id ''
+  (never counted against an item, never applied); listed in the Feedback panel as
+  "Screen · ..." with a scope select. (2) The review hub (review screen -> "Review hub",
+  `GET /api/study/admin/hub`): counts laid on the course map (curriculum -> track -> unit) plus
+  unplaced skills, and all candle lessons as members read them with live-example counts and a
+  verdict door on the LESSON (approve / needs fix + note -> a lessons screen note; ingest writes
+  a source_ruling about:"lesson"). FOUND + FIXED: the review screen's A/F/R keys stayed live
+  under the gallery / feedback panels (A could approve a hidden draft); now they act on the card
+  only (mutation-checked). Also walked two member routes the sym-leak rail had missed
+  (house-chart, item feedback). Doc: docs/study/feedback_loop.md. NEXT for the owner once
+  deployed: open Review hub, read the lessons, Approve / Needs fix each; leave screen notes as he
+  goes; the session ingests them.
+- **2026-10-21 15:10Z: THE WALKTHROUGH FOUND A SCORING BUG; fix merged, waiting on a Railway outage.**
+  Owner asked to see everything ("show me everything here and now so we can go through it all ... layout and
+  visual and effects and interactive and learning"). Six screens shown (landing, question, reveal, admin
+  review card, example gallery, feedback panel). FOUND LIVE: drills post `{choice: x}` (drills/types.js
+  choiceAnswer) but study_scoring._as_answer_value only unwrapped `{answer: x}`, so EVERY multiple-choice
+  answer scored wrong. #457 (merge 8043eca012): `_SINGLE_VALUE_KEYS = ("answer","choice")`, `_norm` makes
+  integral floats equal ints, RevealCard .meta flex (ref no longer jammed against the date); router test fails
+  on the old code. NOT LIVE YET: Railway major outage from 07:24Z ("builds paused" in every region,
+  dashboard/API/CLI unavailable, `railway ssh` port 22 times out). The site still serves the 05:19Z build
+  (b90c568537). The production branch holds 8043eca012; nothing registered on Railway web since 05:19Z.
+  The scheduled 13:02Z full-suite run failed only on its report (vitest job cancelled, no diff.json); all 12
+  pytest shards passed. NEXT once it deploys: verify a right choice says Correct; run scratchpad
+  pod_count_misscored.py (read-only) to count past mis-scored attempts, then decide a repair.
+  Walkthrough findings put to the owner (no verdicts yet): start button below the fold; duplicate intros;
+  empty Foundations / DRAFT course cards; chart small on the desktop question screen; bracket the bars the
+  question means; reveal cramped (lesson scrolls, review door under Continue), no divider before the forward
+  bars; 3 names with no chart example (abandoned-baby-bullish, deliberation, kicking-bullish), thin Kicking
+  (Bear) 3 / Abandoned Baby (Bear) 2; Bullish Engulfing has 6 of 10 examples on 2025-04-09 -> proposed cap 2
+  per day per name; trust panel "recall 599 clean" inflated by bulk approvals.
+  POD INVENTORY: 610 live (604 candle charts + 6 size.formula), 1003 drafts (candles text 172, vocab.chart
+  78, vocab.method 54, Method stations ~690, walkthroughs ~25), 222 rejected; Foundations has no content;
+  the landing's 8 Method stations have no live questions. Offered: (1) a "Feedback on this screen" button on
+  every Study screen into the same panel, (2) a review hub with section counts + a reading view of all 66
+  lessons. OWNER DECISION PENDING: how to take the ~1000 Method drafts (section by section, or prune first).
 - **2026-10-21 05:05Z ALL LIVE: the feedback loop, `/study`, the audited lessons, every approved example on
   the pod.** #453 deployed (6404d2d280, a 43-minute Railway build, then SUCCESS; review screen shows
   "Feedback (0)", /api/study/admin/feedback answers). `/study` REGISTERED for the UT guild: the owner ran

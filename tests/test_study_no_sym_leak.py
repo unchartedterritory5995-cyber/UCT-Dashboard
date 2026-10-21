@@ -139,6 +139,19 @@ def _step_without_attempt(c):
     return c.post("/api/study/attempts/1/step", json={"n": 5})
 
 
+def _house_chart(c):
+    # the owner's saved look, stubbed: the walk is about what the route returns
+    from unittest import mock
+    with mock.patch("api.services.house_chart.owner_chart_settings",
+                    return_value={"chart_settings": {"chartType": "candles"}}):
+        return c.get("/api/study/house-chart")
+
+
+def _feedback_before_scoring(c):
+    # a member can say something about an item before answering it
+    return c.post("/api/study/items/si_chart0/feedback", json={"kind": "other", "text": "hm"})
+
+
 def _attempt_on_a_draft(c):
     # the one POST /attempts shape that happens BEFORE scoring: a refused one
     return c.post("/api/study/attempts", json={"item_id": "si_nope", "answer": "x"})
@@ -156,6 +169,8 @@ WALKS = [
     ("GET", "/api/study/profile", _profile),
     ("PUT", "/api/study/profile", _put_profile),
     ("GET", "/api/study/leaderboard", _leaderboard),
+    ("GET", "/api/study/house-chart", _house_chart),
+    ("POST", "/api/study/items/{item_id}/feedback", _feedback_before_scoring),
 ]
 
 

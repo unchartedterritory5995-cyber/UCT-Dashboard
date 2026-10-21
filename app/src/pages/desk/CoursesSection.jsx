@@ -37,6 +37,7 @@ import StudyLanding from '../study/StudyLanding'
 import SkillTrail from '../study/SkillTrail'
 import DrillPlayer from '../study/DrillPlayer'
 import PractiseSheet from '../study/PractiseSheet'
+import ScreenFeedback from '../study/ScreenFeedback'
 import { useStudyMap, useStudyProfile, useStudyToday } from '../study/useStudy'
 import { SESSIONS_URL, studyFetch } from '../study/useStudySession'
 import { skillsById, curriculumIdForCourse, curriculumSummary, locateUnit, weekDots } from '../study/studyMap'
@@ -348,9 +349,19 @@ export default function CoursesSection() {
           staleSkillId={studyToday?.stale_skill_id || null}
           trailSkillId={studyToday?.next_skill_id || null}
           onStart={openSet}
+          reviewer={isAdmin}
         />
       )}
 
+      {/* The owner's note on the whole screen (owner 2026-10-21: "the overall
+          layout and visual and effects and interactive and learning"); the
+          drill and the practise sheet carry their own, inside the sheet. */}
+      {isAdmin && studyOn && showTrail && (
+        <div className={cs.screenFb}>
+          <ScreenFeedback screen="trail"
+            context={{ curriculum: trail.curriculumId || null, unit: trail.unitId || null }} />
+        </div>
+      )}
       {showTrail && (
         <SkillTrail
           key={`${trail.curriculumId}:${trail.unitId || ''}`}
@@ -409,6 +420,11 @@ export default function CoursesSection() {
                 <UIcon name="plus" size={12} gold={false} />
                 New course outline
               </button>
+            )}
+            {isAdmin && studyOn && (
+              <div className={cs.screenFb}>
+                <ScreenFeedback screen="landing" align="end" />
+              </div>
             )}
           </header>
 

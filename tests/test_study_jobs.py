@@ -250,7 +250,8 @@ def test_detections_query_uses_only_indexed_columns_and_filters_confidence_in_py
     assert all(d["bars_ref"] == f"sb_det_{d['source_ref'][4:]}" for d in drafts)
     assert all(d["sym"] == "NVDA" and d["asof"] == "2024-05-20" for d in drafts)
     assert {d["type"] for d in drafts} == {"spot", "levels", "next", "family"}
-    assert {d["review_lane"] for d in drafts} == {"fast"}
+    # a chart item is always the manual lane: the owner judges it by looking (f2f4c83b59)
+    assert {d["review_lane"] for d in drafts} == {"manual"}
     # the ticker never rides the prompt
     for d in drafts:
         assert "NVDA" not in json.dumps(d["prompt_json"])
@@ -288,7 +289,9 @@ def test_items_for_detection_shapes_keys_and_the_one_next_window():
     assert "Bull Flag" in spot["prompt_json"]["choices"] and "Kicker Candle" in spot["prompt_json"]["choices"]
     assert items["levels"]["answer_json"] == {"entry": 51.25, "stop": 48.1, "target": 60.0, "atr14": 1.5}
     assert items["next"]["answer_json"] == {"outcome": "undecided", "window": 20}
-    assert items["next"]["review_lane"] == "second_look"        # C14: unresolved inside the window
+    # C14 (unresolved inside the window) would be second_look, but a chart item is
+    # always the manual lane: the owner judges it by looking (f2f4c83b59)
+    assert items["next"]["review_lane"] == "manual"
     assert items["family"]["answer_json"] == {"answer": "Bases & Breakouts"}
     for it in items.values():
         assert it["sym"] == "NVDA" and it["asof"] == "2024-05-20" and it["source_ref"] == "det:d9"

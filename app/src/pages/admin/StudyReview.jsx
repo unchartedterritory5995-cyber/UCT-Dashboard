@@ -40,6 +40,8 @@ import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '
 import styles from './StudyReview.module.css'
 import StudyGallery from './StudyGallery'
 import StudyFeedbackPanel from './StudyFeedbackPanel'
+import StudyHubPanel from './StudyHubPanel'
+import ScreenFeedback from '../study/ScreenFeedback'
 
 export const REVIEW_URL = '/api/study/admin/review'
 export const TRUST_URL = '/api/study/admin/trust'
@@ -246,6 +248,10 @@ export default function StudyReview() {
   const [skill, setSkill] = useState('')
   const [gallery, setGallery] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  // The review hub (owner 2026-10-21): the sections on the course map and the
+  // 66 candle lessons, each with a verdict door. Beside the queue, like the gallery.
+  const [hubOpen, setHubOpen] = useState(false)
+  const panelOpen = gallery || feedbackOpen || hubOpen
   // one skill is a bounded set the owner works through in order, so the whole
   // skill is served (the route caps at 500); the unscoped queue stays at 150
   const key = reviewKey(lane, type, skill ? QUEUE_LIMIT_SKILL : QUEUE_LIMIT, skill)
@@ -455,6 +461,9 @@ export default function StudyReview() {
   useEffect(() => {
     function onKey(e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      // The card's keys act on the card only: with the gallery, the feedback list
+      // or the hub over it, A would approve a draft nobody can see.
+      if (panelOpen) return
       const typing = isTypingTarget(e.target)
       if (e.key === 'Escape' && mode !== 'view') { e.preventDefault(); setMode('view'); return }
       if (e.key === 'Enter') {
@@ -473,7 +482,7 @@ export default function StudyReview() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mode, approve, saveFix, confirmReject, go])
+  }, [mode, approve, saveFix, confirmReject, go, panelOpen])
 
   const trust = sel ? trustFor(sel.type) : null
   const askTrust = !!(trust && sel && trust.state === 'manual' && (trust.ask_to_switch || trust.ask) && !dismissed.has(sel.type))
@@ -576,15 +585,22 @@ export default function StudyReview() {
         {/* The example gallery (owner 2026-10-21): every chart of one subject on one
             screen with a grade under each. Lives beside the queue, never replaces it. */}
         <button type="button" className={`${styles.galleryToggle} ${gallery ? styles.galleryToggleOn : ''}`}
-          aria-pressed={gallery} onClick={() => { setGallery((g) => !g); setFeedbackOpen(false) }}>
+          aria-pressed={gallery} onClick={() => { setGallery((g) => !g); setFeedbackOpen(false); setHubOpen(false) }}>
           {gallery ? 'Back to the queue' : 'Example gallery'}
         </button>
         {/* Feedback from the reveal card and from Discord (owner 2026-10-21). */}
         <button type="button" className={`${styles.galleryToggle} ${feedbackOpen ? styles.galleryToggleOn : ''}`}
           aria-pressed={feedbackOpen} data-testid="feedback-toggle"
-          onClick={() => { setFeedbackOpen((f) => !f); setGallery(false) }}>
+          onClick={() => { setFeedbackOpen((f) => !f); setGallery(false); setHubOpen(false) }}>
           {feedbackOpen ? 'Back to the queue' : `Feedback (${feedbackOpenTotal})`}
         </button>
+        <button type="button" className={`${styles.galleryToggle} ${hubOpen ? styles.galleryToggleOn : ''}`}
+          aria-pressed={hubOpen} data-testid="hub-toggle"
+          onClick={() => { setHubOpen((h) => !h); setGallery(false); setFeedbackOpen(false) }}>
+          {hubOpen ? 'Back to the queue' : 'Review hub'}
+        </button>
+        <ScreenFeedback screen={hubOpen ? 'lessons' : gallery ? 'gallery' : 'review'} align="start"
+          context={{ skill: skill || null, type: type || null, item_id: !panelOpen && sel ? sel.id : null }} />
 
         <div className={styles.list}>
           {drafts.length === 0 && <div className={styles.empty}>Nothing in this lane.</div>}
@@ -616,11 +632,12 @@ export default function StudyReview() {
       </div>
 
       {gallery && <StudyGallery skill={skill} />}
+      {hubOpen && <StudyHubPanel />}
       {feedbackOpen && (
         <StudyFeedbackPanel queueIds={queueIds}
           onOpenItem={(id) => { setSelId(id); setStatus(null); setFeedbackOpen(false) }} />
       )}
-      <div className={styles.card} hidden={gallery || feedbackOpen}>
+      <div className={styles.card} hidden={panelOpen}>
         {!sel && <div className={styles.empty}>Nothing to review in this lane.</div>}
         {sel && (
           <>

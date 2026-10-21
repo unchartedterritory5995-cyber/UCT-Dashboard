@@ -15,6 +15,8 @@ T11/T17, §13.7 D6/D7/D18, §8).
   POST /api/study/admin/review/{id}       approve | fix | reject (admin)
   POST /api/study/import                  bank upsert (PUSH_SECRET); bars via get_bars_before ONLY
   GET  /api/study/admin/corrections/export
+  POST /api/study/admin/screen-feedback   a note on a whole Study screen (admin)
+  GET  /api/study/admin/hub               section counts + the 66 candle lessons (admin)
 
 ⛔ THE KILL SWITCH IS READ PER REQUEST. `STUDY_ENABLED` unset or anything but
 0/false/no/off means ON (it is a kill switch on a shipped product, the
@@ -138,6 +140,14 @@ class FeedbackIn(BaseModel):
 class FeedbackHandleIn(BaseModel):
     ids: list[int] = []
     note: Optional[str] = None
+
+
+class ScreenFeedbackIn(BaseModel):
+    screen: str                        # study_store.SCREENS
+    kind: str                          # study_store.SCREEN_KINDS
+    text: Optional[str] = None
+    verdict: Optional[str] = None      # lessons only: approve | fix
+    context: Optional[dict] = None     # what the screen showed (item id, lesson key, …)
 
 
 class ImportIn(BaseModel):
@@ -457,10 +467,69 @@ def post_item_feedback(item_id: str, body: FeedbackIn, user: dict = Depends(requ
 
 @router.get("/admin/feedback", dependencies=_ARMED)
 def admin_feedback(unhandled: int = 1, item_id: Optional[str] = None, since_id: int = 0,
-                   limit: int = 500, _admin: dict = Depends(require_admin)):
+                   limit: int = 500, screen: Optional[str] = None, _admin: dict = Depends(require_admin)):
     rows = study_store.list_feedback(item_id=item_id, unhandled_only=bool(unhandled), since_id=since_id,
-                                     limit=max(1, min(5000, limit)))
+                                     limit=max(1, min(5000, limit)), screen=screen)
     return {"feedback": rows, "counts": study_store.feedback_counts()}
+
+
+@router.post("/admin/screen-feedback", dependencies=_ARMED)
+def admin_screen_feedback(body: ScreenFeedbackIn, admin: dict = Depends(require_admin)):
+    """A note on a whole Study screen (owner 2026-10-21: the layout, visuals,
+    effects, how it behaves, what it teaches). It lands in the review screen's
+    Feedback panel beside the item notes and is carried by the ingest; nothing
+    is applied. On the lessons reading view it can carry approve / fix on one
+    lesson, which the ingest records as a source ruling."""
+    try:
+        res = study_store.add_screen_feedback(
+            body.screen, admin.get("id") or admin.get("email") or "admin", role="owner", kind=body.kind,
+            text=body.text, verdict=body.verdict, context=body.context)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    fb = res["feedback"]
+    return {"id": fb["id"], "screen": fb["screen"], "kind": fb["kind"], "verdict": fb["verdict"]}
+
+
+_HUB_STATUSES = ("approved", "draft", "rejected", "retired", "total")
+
+
+def _hub_tree(sections: list[dict]) -> tuple[list[dict], list[dict]]:
+    """The skill map's curricula → tracks → units, each carrying its skills'
+    counts summed; plus the skills that sit on no unit (still counted, so a
+    section never disappears from the hub because the map does not name it)."""
+    by_skill = {s["skill_id"]: s for s in sections}
+    placed: set[str] = set()
+
+    def total(rows):
+        return {k: sum(int(r.get(k) or 0) for r in rows) for k in _HUB_STATUSES}
+
+    tree = []
+    for cur in _skill_map().get("curricula") or []:
+        tracks = []
+        for tr in cur.get("tracks") or []:
+            units = []
+            for un in tr.get("units") or []:
+                ids = [s for s in un.get("skills") or [] if isinstance(s, str)]
+                placed.update(ids)
+                rows = [by_skill[s] for s in ids if s in by_skill]
+                units.append({"id": un.get("id"), "title": un.get("title"), "skills": ids, "counts": total(rows)})
+            tracks.append({"id": tr.get("id"), "title": tr.get("title"), "units": units,
+                           "counts": total([u["counts"] for u in units])})
+        tree.append({"id": cur.get("id"), "title": cur.get("title") or cur.get("id"), "tracks": tracks,
+                     "counts": total([t["counts"] for t in tracks])})
+    unplaced = [s for s in sections if s["skill_id"] not in placed]
+    return tree, unplaced
+
+
+@router.get("/admin/hub", dependencies=_ARMED)
+def admin_hub(_admin: dict = Depends(require_admin)):
+    """The review hub: every skill's counts by status, laid on the skill map
+    (curriculum → track → unit), and every candle lesson as members read it
+    with its examples' counts and the owner's verdict."""
+    sections = study_store.review_sections()
+    tree, unplaced = _hub_tree(sections)
+    return {"sections": sections, "tree": tree, "unplaced": unplaced,
+            "lessons": study_store.lesson_overview(), "feedback": study_store.feedback_counts()}
 
 
 @router.post("/admin/feedback/handle", dependencies=_ARMED)

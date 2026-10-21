@@ -130,7 +130,7 @@ def test_list_counts_handle_and_export(store):
     assert [f["id"] for f in ss.list_feedback()] == [3, 2, 1], "newest first for the screen"
     assert [f["id"] for f in ss.list_feedback(item_id="si_872a0a87de98")] == [2, 1]
     counts = ss.feedback_counts()
-    assert counts == {"open": {"si_872a0a87de98": 2, "si_21a45eab27a0": 1}, "open_total": 3, "total": 3}
+    assert counts == {"open": {"si_872a0a87de98": 2, "si_21a45eab27a0": 1}, "open_screens": {}, "open_total": 3, "total": 3}
     assert ss.handle_feedback([1, 2, 999], "session", note="lesson rewritten") == 2
     assert ss.handle_feedback([1], "session") == 0, "already handled rows are not re-stamped"
     assert [f["id"] for f in ss.list_feedback(unhandled_only=True)] == [3]

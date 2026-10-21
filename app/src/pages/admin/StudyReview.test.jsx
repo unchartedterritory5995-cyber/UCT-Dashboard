@@ -28,6 +28,8 @@ let SKILLS
 let KEYS
 let FEEDBACK_COUNTS = { open: {}, open_total: 0, total: 0 }
 let FEEDBACK_ROWS = []
+let HUB_DATA
+const HUB_MUTATE = vi.fn()
 
 vi.mock('swr', () => ({
   default: (key) => {
@@ -38,6 +40,7 @@ vi.mock('swr', () => ({
     if (key && key.startsWith('/api/study/admin/feedback')) {
       return { data: { feedback: FEEDBACK_ROWS, counts: FEEDBACK_COUNTS }, error: undefined, mutate: vi.fn() }
     }
+    if (key && key.startsWith('/api/study/admin/hub')) return { data: HUB_DATA, error: undefined, mutate: HUB_MUTATE }
     if (key && key.includes('/patterns/admin/review')) return { data: { verdicts: [] }, mutate: vi.fn() }
     if (key && /^\/api\/study\/admin\/items\/[^/]+\/bars$/.test(key)) {
       return { data: STORED_BARS, error: undefined, mutate: vi.fn() }
@@ -112,6 +115,24 @@ beforeEach(() => {
       text: 'bars too small', role: 'owner', channel: 'discord', verdict: 'reject', answer_json: null, correct: null,
       at: '2026-10-21T03:05:00+00:00', handled_at: null, ref: 'zz', q: 'Which candle?' },
   ]
+  HUB_MUTATE.mockClear()
+  HUB_DATA = {
+    sections: [{ skill_id: 'vocab.candle', approved: 604, draft: 172, rejected: 222, retired: 0, total: 998 }],
+    tree: [{ id: 'method', title: 'The UCT Method', counts: { approved: 6, draft: 690, rejected: 0, retired: 0, total: 696 },
+      tracks: [{ id: 'REG', title: 'Regime', counts: { approved: 0, draft: 64, rejected: 0, retired: 0, total: 64 },
+        units: [{ id: 'REG.02', title: 'The exposure dial', skills: ['regime.dial'], counts: { approved: 0, draft: 7, rejected: 0, retired: 0, total: 7 } },
+          { id: 'REG.09', title: 'An empty unit', skills: [], counts: { approved: 0, draft: 0, rejected: 0, retired: 0, total: 0 } }] }] }],
+    unplaced: [{ skill_id: 'vocab.candle', approved: 604, draft: 172, rejected: 222, retired: 0, total: 998 }],
+    lessons: [
+      { key: 'hammer', label: 'Hammer', axis: 'shape', bars: 1, parts_from: 'approved', charts: { approved: 14 }, text: {},
+        parts: { shape: 'A small body near the top.', story: 'Sellers pushed, buyers took it back.', where: 'After a fall.',
+          confirm: 'A higher close next.', cancel: 'A close under the low.', desk: 'Mark the low.' },
+        verdict: { id: 3, verdict: 'approve', text: null, at: '2026-10-21T04:00:00+00:00' }, notes_open: 1, example_id: 'si_h' },
+      { key: 'deliberation', label: 'Deliberation', axis: 'relation', bars: 3, parts_from: 'draft', charts: {}, text: { draft: 3 },
+        parts: { shape: 'Three white bodies, the last small.' }, verdict: null, notes_open: 0, example_id: null },
+    ],
+    feedback: { open: {}, open_screens: {}, open_total: 0, total: 0 },
+  }
   globalThis.fetch = vi.fn((url) => {
     if (String(url).startsWith(TRUST_URL)) return jsonResponse({ item_type: 'recall', state: 'sampled', clean_count: 20, sample_rate: 0.1 })
     return jsonResponse({ item: {}, trust: { item_type: 'spot', clean_count: 4, state: 'manual', ask_to_switch: false } })
@@ -410,5 +431,105 @@ describe('StudyReview feedback panel', () => {
     fireEvent.click(within(screen.getAllByTestId('feedback-row')[0]).getByRole('button', { name: 'Open' }))
     expect(screen.getByTestId('study-ticker').closest('[hidden]')).toBeNull()
     expect(screen.getByTestId('feedback-toggle')).toHaveTextContent('Feedback (3)')
+  })
+})
+
+// ── the review hub + screen notes (owner 2026-10-21) ──────────────────────────
+describe('StudyReview hub', () => {
+  it('the hub lays the counts on the course map and lists every lesson with its verdict', () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByTestId('hub-toggle'))
+    expect(screen.getByTestId('hub-toggle')).toHaveTextContent('Back to the queue')
+    expect(screen.getByTestId('study-ticker').closest('[hidden]')).not.toBeNull()
+    const sections = screen.getByTestId('hub-sections')
+    expect(sections).toHaveTextContent('The UCT Method')
+    expect(sections).toHaveTextContent('690 waiting')
+    expect(sections).toHaveTextContent('The exposure dial')
+    expect(sections).toHaveTextContent('nothing yet')
+    expect(sections).toHaveTextContent('Not on the course map')
+    expect(sections).toHaveTextContent('604 live · 172 waiting · 222 rejected')
+    const lessons = screen.getAllByTestId('hub-lesson')
+    expect(lessons.map((l) => l.dataset.key)).toEqual(['hammer', 'deliberation'])
+    expect(lessons[0]).toHaveTextContent('14 live examples')
+    expect(lessons[0]).toHaveTextContent('Approved')
+    expect(lessons[1]).toHaveTextContent('Not reviewed')
+    expect(screen.getByTestId('hub-lessons')).toHaveTextContent('1 of 2 reviewed')
+  })
+
+  it('opening a lesson reads its six parts; Needs fix needs words and posts a lesson note', async () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByTestId('hub-toggle'))
+    const hammer = screen.getAllByTestId('hub-lesson')[0]
+    fireEvent.click(within(hammer).getByRole('button', { name: /Hammer/ }))
+    expect(hammer).toHaveTextContent('The shape')
+    expect(hammer).toHaveTextContent('Sellers pushed, buyers took it back.')
+    expect(hammer).toHaveTextContent('At the desk')
+    fireEvent.click(within(hammer).getByRole('radio', { name: 'Needs fix' }))
+    expect(within(hammer).getByTestId('lesson-door-send')).toBeDisabled()
+    fireEvent.change(within(hammer).getByLabelText('Your note'), { target: { value: 'say where the low is' } })
+    fireEvent.click(within(hammer).getByTestId('lesson-door-send'))
+    await waitFor(() => expect(postCalls('/api/study/admin/screen-feedback')).toHaveLength(1))
+    expect(postCalls('/api/study/admin/screen-feedback')[0].body).toEqual({
+      screen: 'lessons', kind: 'learning', verdict: 'fix', text: 'say where the low is',
+      context: { lesson_key: 'hammer', label: 'Hammer' },
+    })
+    await waitFor(() => expect(HUB_MUTATE).toHaveBeenCalled())
+  })
+
+  it('a lesson read from a draft says so; the filter keeps the unreviewed ones', () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByTestId('hub-toggle'))
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'todo' } })
+    const only = screen.getAllByTestId('hub-lesson')
+    expect(only.map((l) => l.dataset.key)).toEqual(['deliberation'])
+    fireEvent.click(within(only[0]).getByRole('button', { name: /Deliberation/ }))
+    expect(only[0]).toHaveTextContent('Read from a draft item')
+  })
+
+  it('the card keys do nothing while a panel covers the card', async () => {
+    renderWithProviders(<StudyReview />)
+    for (const toggle of ['hub-toggle', 'feedback-toggle']) {
+      fireEvent.click(screen.getByTestId(toggle))
+      fireEvent.keyDown(document.body, { key: 'a' })
+      fireEvent.keyDown(document.body, { key: 'f' })
+      fireEvent.click(screen.getByTestId(toggle))                 // back to the queue
+    }
+    expect(postCalls(REVIEW_URL)).toHaveLength(0)
+    expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'a' })                 // the card is back: A works again
+    await waitFor(() => expect(postCalls(REVIEW_URL)).toHaveLength(1))
+  })
+
+  it('the review screen has its own screen door, naming the view it was left on', async () => {
+    renderWithProviders(<StudyReview />)
+    expect(screen.getByTestId('screen-feedback').dataset.screen).toBe('review')
+    fireEvent.click(screen.getByTestId('hub-toggle'))
+    expect(screen.getByTestId('screen-feedback').dataset.screen).toBe('lessons')
+    fireEvent.click(screen.getByTestId('hub-toggle'))
+    fireEvent.click(screen.getByTestId('screen-feedback-open'))
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+    fireEvent.click(screen.getByTestId('screen-feedback-send'))
+    await waitFor(() => expect(postCalls('/api/study/admin/screen-feedback')).toHaveLength(1))
+    expect(postCalls('/api/study/admin/screen-feedback')[0].body).toMatchObject({
+      screen: 'review', kind: 'layout', context: { item_id: 'si_a' } })
+  })
+
+  it('the feedback list marks a screen note with its screen and what it showed, and offers no Open', () => {
+    FEEDBACK_ROWS = [{ id: 9, item_id: '', screen: 'reveal', context: { item_id: 'si_a', question: 3 }, kind: 'layout',
+      text: 'door under Continue', role: 'owner', channel: 'site', verdict: null, answer_json: null, correct: null,
+      at: '2026-10-21T05:00:00+00:00', handled_at: null, ref: null }]
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByTestId('feedback-toggle'))
+    const row = screen.getByTestId('feedback-row')
+    expect(row.dataset.screen).toBe('reveal')
+    expect(row).toHaveTextContent('Screen · Answer reveal')
+    expect(row).toHaveTextContent('door under Continue')
+    expect(row).toHaveTextContent('on item_id si_a · question 3')
+    expect(row).not.toHaveTextContent('ref ')
+    expect(within(row).queryByRole('button', { name: 'Open' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('feedback-scope'), { target: { value: 'screens' } })
+    expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=any')
+    fireEvent.change(screen.getByTestId('feedback-scope'), { target: { value: 'items' } })
+    expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=none')
   })
 })
