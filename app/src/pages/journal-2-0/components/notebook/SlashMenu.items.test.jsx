@@ -764,6 +764,27 @@ describe('snapshot widget items (Task 8)', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
+  it('review m-1: the same widget asked for in another note while the first fetches is that note’s own insert', async () => {
+    latchNotebookFlags(WAVES_ON)
+    const answers = []
+    global.fetch.mockImplementation(() => new Promise((r) => { answers.push(r) }))
+    const a = mount('<p>Plan /ticker NVDA</p>')
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const b = new Editor({ element: el, extensions: buildExtensions(), content: '<p>Other /ticker NVDA</p>' })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const first = item.command({ editor: a, range: slashRange(a) })
+      const second = item.command({ editor: b, range: slashRange(b) })
+      await waitFor(() => expect(answers).toHaveLength(2))
+      for (const r of answers) r({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      expect((await first).ok).toBe(true)
+      expect((await second).ok).toBe(true)
+      expect(embeds(a)).toHaveLength(1)
+      expect(embeds(b)).toHaveLength(1)
+    } finally { b.destroy(); el.remove() }
+  })
+
   it('R58 I-2: a second identical command while the first fetches inserts nothing; after it lands, one more does', async () => {
     latchNotebookFlags(WAVES_ON)
     let answer

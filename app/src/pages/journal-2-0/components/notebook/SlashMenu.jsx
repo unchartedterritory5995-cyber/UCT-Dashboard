@@ -488,8 +488,9 @@ const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
 // F2 cleanup: a lazy chunk that cannot load (lost after a deploy) is said, never silent; offline is offline.
 const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === false ? { ok: false, reason: 'offline' }
   : { ok: false, message: "This widget couldn't load. Reload the page to try again." })
-// R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing.
-const inflight = new Set()
+// R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing. Per editor
+// (review m-1): the same widget asked for in another note is that note's own insert.
+const inflight = new WeakMap()
 function snapshotCommand(kind, params) {
   return async ({ editor, range }) => {
     const chain = editor.chain().focus()
@@ -499,8 +500,10 @@ function snapshotCommand(kind, params) {
     // Review I-3: "Adding …" is a busy toast (it stays until the result replaces it), and a second Enter says it again.
     const say = (m, tone = 'error') => editor.storage?.uctJournalWidgets?.notify?.(m, tone)
     say(adding, 'busy')
-    if (inflight.has(key)) return { ok: false, message: adding }
-    inflight.add(key)
+    const busy = inflight.get(editor) || new Set()
+    inflight.set(editor, busy)
+    if (busy.has(key)) return { ok: false, message: adding }
+    busy.add(key)
     // Where the typed command was (its range's start once deleted); the palette's caret otherwise.
     let pos = range ? range.from : editor.state.selection.from
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
@@ -529,7 +532,7 @@ function snapshotCommand(kind, params) {
       return landed
     } finally {
       editor.off('transaction', track)
-      inflight.delete(key)
+      busy.delete(key)
     }
   }
 }
