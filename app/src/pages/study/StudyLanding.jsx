@@ -21,7 +21,7 @@ import s from './StudyLanding.module.css'
 
 function TrailChart({ tracks, byId, recommendedTrackId, onOpenTrack }) {
   const cs = candles(tracks, byId, recommendedTrackId)
-  const path = cs.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${(c.top - 8).toFixed(1)}`).join(' ')
+  const path = cs.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${(c.wickTop - 8).toFixed(1)}`).join(' ')
   const rec = cs.find((c) => c.recommended) || null
   return (
     <figure className={s.chart} aria-label="Your trail, drawn as a chart">
@@ -40,7 +40,7 @@ function TrailChart({ tracks, byId, recommendedTrackId, onOpenTrack }) {
         <path d={path} className={s.trail} />
         {cs.map((c) => (
           <g key={c.id} className={`${s.candle} ${s[c.state]}`}>
-            <line x1={c.x} x2={c.x} y1={c.top - 10} y2={c.bottom + 6} className={s.wick} />
+            <line x1={c.x} x2={c.x} y1={c.wickTop} y2={c.bottom + 6} className={s.wick} />
             <rect x={c.x - 12} y={c.top} width={24} height={Math.max(2, c.bottom - c.top)} rx={2} className={s.body} />
             <text x={c.x} y={BASE + 22} textAnchor="middle" className={s.label}>{c.title}</text>
           </g>
@@ -48,7 +48,7 @@ function TrailChart({ tracks, byId, recommendedTrackId, onOpenTrack }) {
         {rec && (
           /* the attribute transform places it; the CSS float animates an INNER
              group, so the two transforms never fight */
-          <g transform={`translate(${rec.x.toFixed(1)} ${(rec.top - 34).toFixed(1)})`}>
+          <g transform={`translate(${rec.x.toFixed(1)} ${(rec.wickTop - 30).toFixed(1)})`}>
             <g className={s.marker}>
               <text x="0" y="-6" textAnchor="middle" className={s.markerText}>you are here</text>
               <path d="M -6 2 L 6 2 L 0 12 Z" className={s.markerArrow} />
