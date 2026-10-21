@@ -39,12 +39,19 @@ export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS })
   // not re-render for an unchanged payload). The ref mirrors it for SWR's refreshInterval.
   const [tries, setTries] = useState(0)
   const triesRef = useRef(0)
+  // Review N-3: the interval is a NUMBER held in state and changed only by an answer, so an unrelated re-render
+  // never re-arms SWR's refresh timer (a function given inline was a new identity on every render).
+  const [refreshInterval, setRefreshInterval] = useState(0)
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? SOON_URL : null, () => fetchReportingSoon(),
     {
       revalidateOnFocus: false, shouldRetryOnError: false,
-      onSuccess: (d) => { triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0; setTries(triesRef.current) },
-      refreshInterval: (d) => (unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? retryMs : 0),
+      onSuccess: (d) => {
+        triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0
+        setTries(triesRef.current)
+        setRefreshInterval(unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? retryMs : 0)
+      },
+      refreshInterval,
     },
   )
   const [busy, setBusy] = useState(null)

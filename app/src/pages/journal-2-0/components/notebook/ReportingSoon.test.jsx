@@ -135,6 +135,21 @@ describe('ReportingSoon', () => {
     expect(n).toBe(asked)
   })
 
+  it('review N-3: re-renders faster than the interval do not hold the retry back', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, { ...SOON, items: [], partial: true }) })
+    const onOpenNote = () => {}
+    const { rerender } = render(<Providers><ReportingSoon onOpenNote={onOpenNote} retryMs={120} /></Providers>)
+    await screen.findByText("Couldn't check report dates just now. Trying again shortly.")
+    // A parent re-rendering every 30 ms: a timer re-armed on every render would never reach 120 ms.
+    for (let i = 0; i < 12; i += 1) {
+      rerender(<Providers><ReportingSoon onOpenNote={onOpenNote} retryMs={120} /></Providers>)
+      await new Promise((r) => setTimeout(r, 30))
+    }
+    expect(n).toBeGreaterThanOrEqual(2)
+  })
+
   it('review N-1: identical partial answers run out the retries, then Try again shows (never "none")', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const SAME = { ...SOON, items: [], partial: true }              // byte-identical every time (a cached partial window)
