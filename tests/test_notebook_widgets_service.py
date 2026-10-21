@@ -2284,3 +2284,29 @@ def test_i6_nothing_priced_has_no_basis_and_options_count_as_broker(monkeypatch)
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], strategies=[_strategy()])
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     assert nw.build("myPositionsRisk", "u1", {}, now=NOW)["priceBasis"] == "mixed"
+
+
+# -- ruling R60: every request regex is a fullmatch (no trailing newline) -----------------------------
+
+def test_r60_a_trailing_newline_is_refused_by_every_request_regex(monkeypatch):
+    _card_seams(monkeypatch)
+    _patch_flow(monkeypatch, None)
+    calls = _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade()))
+    for kind, params in (("tickerCard", {"symbol": "AAPL\n"}), ("tickerFlow", {"symbol": "AAPL\n"}),
+                         ("myPnlCalendar", {"month": "2026-10\n"}), ("tradeRecap", {"tradeId": "t-1\n"}),
+                         ("myScreenToday", {"definitionId": "u_0123456789ab\n"})):
+        with pytest.raises(nw.WidgetRequestError):
+            nw.build(kind, "u1", params, now=NOW)
+    assert calls == []                                       # the malformed id never reached the read
+    # control: the same values without the newline are accepted
+    assert nw.build("tickerCard", "u1", {"symbol": "AAPL"}, now=NOW)["symbol"] == "AAPL"
+    assert nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)["symbol"] == "NVDA"
+
+
+def test_r60_no_request_regex_is_used_with_match():
+    import ast
+    import inspect
+    tree = ast.parse(inspect.getsource(nw))
+    bad = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+           and n.func.attr in ("match", "search") and getattr(n.func.value, "id", "").endswith("_RE")]
+    assert bad == []

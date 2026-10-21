@@ -387,7 +387,7 @@ def test_wave3_routes_are_dark_without_their_flag(wave3, monkeypatch):
 
 WAVE6_ACCOUNT = ("tradeRecap", "myPnlCalendar", "mySetupEdge")
 WAVE6_MARKET = ("myScreenToday", "roomBuzzOnMyNames", "myEarningsReactions")
-SCREEN_ID = "u:screen-1"
+SCREEN_ID = "u_5c4ee1000001"          # the user_definitions id grammar: u_ + 12 hex
 
 
 @pytest.fixture

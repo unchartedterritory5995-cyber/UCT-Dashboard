@@ -899,6 +899,8 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
 
 # -- tickerCard ----------------------------------------------------------------------
 
+#: ⛔ Every request regex is used with `fullmatch` (ruling R60): `$` also matches before ONE trailing
+#: newline, so `match("AAPL\n")` passed and the value was echoed back and cached under its own key.
 _SYMBOL_RE = re.compile(r"^[A-Z][A-Z.\-]{0,9}$")
 
 #: Per-(member, symbol) cache of the ticker card's history figures. The card can be polled
@@ -925,7 +927,7 @@ def _simple_average(closes: list[float], n: int) -> float | None:
 
 def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
     sym = params.get("symbol")
-    if not isinstance(sym, str) or not _SYMBOL_RE.match(sym):
+    if not isinstance(sym, str) or not _SYMBOL_RE.fullmatch(sym):
         raise WidgetRequestError("symbol is required and must be an uppercase ticker")
 
     price = change_pct = None
@@ -1280,7 +1282,7 @@ def _flow_bounded(sym: str) -> dict | None:
 
 def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
     sym = params.get("symbol")
-    if not isinstance(sym, str) or not _SYMBOL_RE.match(sym):
+    if not isinstance(sym, str) or not _SYMBOL_RE.fullmatch(sym):
         raise WidgetRequestError("symbol is required and must be an uppercase ticker")
     data = _flow_bounded(sym)
     data = data if isinstance(data, dict) else {}
@@ -1385,7 +1387,7 @@ def _trade_recap(user_id: str, params: dict, now: datetime) -> dict:
     trade_id = params.get("tradeId")
     if not isinstance(trade_id, str) or not trade_id:
         raise WidgetRequestError("tradeId is required")
-    if not _TRADE_ID_RE.match(trade_id):
+    if not _TRADE_ID_RE.fullmatch(trade_id):
         raise WidgetRequestError(TRADE_NOT_FOUND)
     from api.services.journal_two import trades
     detail = trades.get_trade_detail(user_id, trade_id)      # OWN-SCOPED: user_id AND id, read-only
@@ -1433,7 +1435,7 @@ def _month_window(params: dict, now: datetime) -> tuple[str, str, str]:
     if raw is None:
         today = _today_et(now)
         raw = f"{today.year:04d}-{today.month:02d}"
-    m = _MONTH_RE.match(raw) if isinstance(raw, str) else None
+    m = _MONTH_RE.fullmatch(raw) if isinstance(raw, str) else None
     if not m:
         raise WidgetRequestError("month must be YYYY-MM")
     first = date(int(m.group(1)), int(m.group(2)), 1)
@@ -1635,6 +1637,10 @@ def _my_screen_today(user_id: str, params: dict, now: datetime) -> dict:
     def_id = params.get("definitionId")
     if not isinstance(def_id, str) or not def_id:
         raise WidgetRequestError("definitionId is required")
+    from api.services import user_definitions
+    # fullmatch (R60): `DEF_ID_RE.match` accepts a trailing newline; the same one sentence as not found.
+    if not user_definitions.DEF_ID_RE.fullmatch(def_id):
+        raise WidgetRequestError(SCREEN_NOT_FOUND)
     row = _own_definition(user_id, def_id)
     if row is None:
         raise WidgetRequestError(SCREEN_NOT_FOUND)
