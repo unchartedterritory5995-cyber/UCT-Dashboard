@@ -805,6 +805,21 @@ describe('snapshot widget items (Task 8)', () => {
     expect(embeds(ed)).toHaveLength(1)
   })
 
+  it('R58 I-11: each near-duplicate pair reads differently in the menu: the snapshot refreshes, the capture is frozen', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w3_enabled: true,
+      notebook_widgets_w4_enabled: true, notebook_widgets_w6_enabled: true })
+    localStorage.setItem(CAPTURE_FLAG_KEY, '1')
+    try {
+      render(<SlashList items={snapshotWidgetItems('')} command={() => {}} />)
+      const hint = (title) => screen.getByText(title).closest('button').textContent
+      expect(hint('My watchlist today')).toContain('refreshes')
+      expect(hint('Watchlist snapshot')).toContain('as on Charts, frozen')
+      expect(hint('Market on my names')).toContain('refreshes')
+      expect(hint('Market context')).toContain("The Morning Wire's market read, frozen")
+      expect(hint('Scan results')).toContain('as on Charts, frozen')
+    } finally { localStorage.removeItem(CAPTURE_FLAG_KEY) }
+  })
+
   it('/market and /marketcontext both reach Market context once W4 is on and the capture switch releases it', () => {
     latchNotebookFlags({ notebook_widgets_w4_enabled: true })
     localStorage.setItem(CAPTURE_FLAG_KEY, '1')
