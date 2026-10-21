@@ -179,6 +179,10 @@ def _one_bounded(fn: Callable, budget_s: float) -> tuple[bool, Any]:
         return False, None
 
 
+class _LeaderAborted(Exception):
+    """What a run_here waiter receives when its leader was interrupted by a non-Exception BaseException."""
+
+
 class SingleFlight:
     """Fix F1 (C-1, I-1): ONE shared walk per key on the module pool, however many requests miss at once.
 
@@ -235,8 +239,13 @@ class SingleFlight:
             return self._wait(key, fut, budget_s)
         try:
             value = fn()
-        except BaseException as e:
+        except Exception as e:
             fut.set_exception(e)
+            raise
+        except BaseException:
+            # Review m5: a KeyboardInterrupt / SystemExit belongs to the LEADER's thread and propagates there;
+            # its waiters get an ordinary failure, so they take the miss path instead of re-raising it.
+            fut.set_exception(_LeaderAborted(f"the leader for {key!r} was interrupted"))
             raise
         else:
             fut.set_result(value)

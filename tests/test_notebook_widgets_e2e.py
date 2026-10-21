@@ -717,6 +717,35 @@ def test_m2_a_leader_that_raises_leaves_nothing_cached_and_its_waiters_compute_t
     assert public.cached_reference_set(("k",), boom) == {"hero/h1.jpg"}   # the follower's own answer is held
 
 
+def test_m5_a_leader_interrupt_propagates_in_the_leader_and_its_waiters_take_the_miss_path():
+    import threading
+    import time
+    flight = nw.SingleFlight(4)
+    started = threading.Event()
+
+    def interrupted():
+        started.set()
+        time.sleep(0.2)
+        raise KeyboardInterrupt
+
+    caught = []
+
+    def leader():
+        try:
+            flight.run_here("k", interrupted, 2.0)
+        except KeyboardInterrupt:
+            caught.append("leader")
+
+    t = threading.Thread(target=leader)
+    t.start()
+    started.wait(2)
+    got = flight.run_here("k", lambda: "never-run", 2.0)                # joins the interrupted leader
+    t.join(5)
+    assert caught == ["leader"]                                          # it still propagates in the leader
+    assert got == (False, None)                                          # the waiter never re-raises it
+    assert flight.inflight() == 0
+
+
 # -- ruling R60: an imported note never arrives already shared -------------------------------------
 
 def test_r60_import_forces_share_false_on_every_widget_at_any_depth(env, monkeypatch):
