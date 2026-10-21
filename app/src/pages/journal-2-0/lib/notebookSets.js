@@ -119,6 +119,9 @@ export function chartSetNodes(set, settings) {
 
 const READ_TIMEOUT_MS = 8000
 let _cached = null   // the last value read or saved in this tab
+// R60 (privacy audit M-5): the member that value belongs to. A different member on the same browser starts from
+// nothing, and a read or a save another member started never lands in this member's cache.
+let _uid
 
 async function readRaw() {
   const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
@@ -135,21 +138,24 @@ async function readRaw() {
   }
 }
 
-/** The member's sets and presets. Cached for the tab after the first read (a save updates it). A failed
- *  read answers the empty value and caches nothing, so the next menu open asks again. */
-export async function loadSets({ fresh = false } = {}) {
+/** The member's sets and presets. Cached for the tab after the first read (a save updates it), keyed by the member
+ *  (`uid`; omitted, the member already held). A failed read answers the empty value and caches nothing, so the next
+ *  menu open asks again. */
+export async function loadSets({ fresh = false, uid = _uid } = {}) {
+  if (uid !== _uid) { _cached = null; _uid = uid }
   if (_cached && !fresh) return _cached
   const r = await readRaw()
   if (!r.ok) return { ...EMPTY_DOC, failed: true }
-  _cached = readSets(r.raw)
-  return _cached
+  const doc = readSets(r.raw)
+  if (uid === _uid) _cached = doc
+  return doc
 }
 
-/** What is already loaded in this tab (a save updates it), or null. Never a request. */
-export const peekSets = () => _cached
+/** What is already loaded in this tab for member `uid` (a save updates it), or null. Never a request. */
+export const peekSets = (uid) => (uid === _uid ? _cached : null)
 
 /** Tests only. */
-export function __resetSetsCache() { _cached = null }
+export function __resetSetsCache() { _cached = null; _uid = undefined }
 
 export const READ_FAILED_REASON = "Your saved sets couldn't be read just now, so nothing was saved. Try again."
 export const SAVE_FAILED_REASON = "Couldn't save just now. Your sets are unchanged."
@@ -159,6 +165,7 @@ export const SAVE_FAILED_REASON = "Couldn't save just now. Your sets are unchang
  *  replace only the key(s) given, and post the WHOLE value (the endpoint replaces it).
  *  `{ok: true, doc}` or `{ok: false, reason}`. */
 export async function saveSets(update) {
+  const owner = _uid
   const cur = await readRaw()
   if (!cur.ok) return { ok: false, reason: READ_FAILED_REASON }
   const stored = readSets(cur.raw)
@@ -182,7 +189,7 @@ export async function saveSets(update) {
   } catch {
     return { ok: false, reason: SAVE_FAILED_REASON }
   }
-  _cached = doc
+  if (owner === _uid) _cached = doc
   try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value) } catch { /* the cache is a convenience */ }
   return { ok: true, doc }
 }

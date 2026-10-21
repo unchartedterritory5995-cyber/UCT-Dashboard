@@ -886,6 +886,29 @@ describe('chart sets and presets (Task 17)', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it("R60 (privacy M-5): a read member A started never shows in member B's menu on the same browser", async () => {
+    latchNotebookFlags(W5)
+    const prefsOf = (name) => ({ notebook_chart_sets: JSON.stringify({ v: 1, presets: [],
+      sets: [{ id: 's_1', name, charts: [{ symbol: 'NVDA', tf: 'D' }] }] }) })
+    let answerA
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { answerA = r }))
+      .mockImplementationOnce(async () => ({ ok: true, status: 200, json: async () => prefsOf('B set') }))
+    const asMember = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    mineItems('set', asMember('A'))                  // A's read starts and is still in flight...
+    mineItems('set', asMember('B'))                  // ...when B signs in on the same tab
+    await __mineLoad()
+    answerA({ ok: true, status: 200, json: async () => prefsOf('A set') })
+    await new Promise((r) => setTimeout(r, 0))
+    const titles = mineItems('set', asMember('B')).map((i) => i.title)
+    expect(global.fetch).toHaveBeenCalledTimes(2)    // non-vacuity: both reads ran, and A's did land
+    expect(titles).toContain('Set — B set')
+    expect(titles).not.toContain('Set — A set')
+    render(<SlashList items={mineItems('set', asMember('B'))} command={() => {}} />)
+    expect(screen.getByText('Set — B set')).toBeInTheDocument()
+    expect(screen.queryByText('Set — A set')).toBeNull()
+  })
+
   it('a bare / shows the member presets and sets under "My presets"', async () => {
     latchNotebookFlags(W5)
     const items = slashItems('', null, await loaded(''))

@@ -545,7 +545,7 @@ function background(load) {
     const t = s
     const now = Date.now()
     if (!t.loading && now - t.failedAt >= 30000 && !(t.v && now - t.at < 60000)) {
-      t.loading = load()
+      t.loading = load(uid)
         .then((v) => { t.v = v; t.at = Date.now() }, () => { t.failedAt = Date.now() })
         .finally(() => { t.loading = null })
     }
@@ -557,16 +557,16 @@ function background(load) {
 /** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
  *  come from lib/notebookSets.js, loaded only here and only while wave 5 is on (first-open bytes); a
  *  preset inserts through snapshotCommand, the one snapshot insert. */
-const mine = background(() => import('../../lib/notebookSets').then(async (m) => {
-  const doc = await m.loadSets({ fresh: true })
+const mine = background((uid) => import('../../lib/notebookSets').then(async (m) => {
+  const doc = await m.loadSets({ fresh: true, uid })
   if (doc.failed) throw doc
   return { m, doc }
 }))
 export function mineItems(query, editor) {
   if (!widgetsWaveOn(5)) return []
   const v = mine.kick(editor)
-  // The module's own copy wins: a save in this tab updates it at once.
-  const doc = v && (v.m.peekSets() || v.doc)
+  // The module's own copy wins (a save in this tab updates it at once), and only while it is this member's (R60).
+  const doc = v && (v.m.peekSets(editor?.storage?.uctJournalWidgets?.uid) || v.doc)
   return doc ? [...v.m.presetRows(query, doc, 'mine', snapshotCommand), ...v.m.chartSetRows(query, doc, 'mine')] : []
 }
 /** Tests only: the load in flight (or none), and a clean slate. */

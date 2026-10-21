@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import {
   readSets, saveSets, chartSetNodes, presetParams, setRefusal, chartSetRows, presetRows, savePreset, BARE_ROWS,
-  CHART_SETS_PREF, MAX_CHARTS_PER_SET, SETTINGS_KEYS, __resetSetsCache, READ_FAILED_REASON,
+  CHART_SETS_PREF, MAX_CHARTS_PER_SET, SETTINGS_KEYS, __resetSetsCache, READ_FAILED_REASON, loadSets, peekSets,
 } from './notebookSets'
 import { WIDGET_KINDS } from './notebookWidgets'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
@@ -256,5 +256,33 @@ describe('fix round 1', () => {
     __resetSetsCache()
     global.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [], presets: [PRESET] }))
     expect(await savePreset({ name: 'Weekly', kind: 'myPnlStats', params: {} })).toMatchObject({ ok: true, replaced: false, message: 'Saved as a preset.' })
+  })
+})
+
+// R60 (privacy audit M-5): the tab's cache belongs to one member at a time.
+describe('the sets cache is keyed by member', () => {
+  const docOf = (name) => JSON.stringify({ v: 1, presets: [], sets: [{ id: 's_1', name, charts: [{ symbol: 'NVDA', tf: 'D' }] }] })
+  const reply = (raw) => ({ ok: true, status: 200, json: async () => ({ notebook_chart_sets: raw }) })
+
+  it("a read A started that lands after B's never becomes B's cache, and peek answers only its own member", async () => {
+    let answerA
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { answerA = r }))
+      .mockImplementationOnce(async () => reply(docOf('B set')))
+    const a = loadSets({ fresh: true, uid: 'A' })
+    const b = await loadSets({ fresh: true, uid: 'B' })
+    answerA(reply(docOf('A set')))
+    expect((await a).sets[0].name).toBe('A set')     // A's own caller still gets A's answer
+    expect(b.sets[0].name).toBe('B set')
+    expect(peekSets('B').sets[0].name).toBe('B set')
+    expect(peekSets('A')).toBeNull()
+  })
+
+  it('control: the same member keeps its cache, and a cached read is not asked again', async () => {
+    global.fetch = vi.fn(async () => reply(docOf('Mine')))
+    await loadSets({ uid: 'A' })
+    expect((await loadSets({ uid: 'A' })).sets[0].name).toBe('Mine')
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(peekSets('A').sets[0].name).toBe('Mine')
   })
 })
