@@ -377,6 +377,15 @@ FLOW_COMMAND = "flow"
 LESSON_COMMAND = "lesson"
 LESSON_OPTION = "about"
 COT_COMMAND = "cot"
+#: `/study ref:872a0a say:...` - the owner's feedback on a Study item from
+#: Discord (owner 2026-10-21). Admin-only at registration AND at the handler.
+STUDY_COMMAND = "study"
+STUDY_REF_OPTION = "ref"
+STUDY_SAY_OPTION = "say"
+STUDY_VERDICT_OPTION = "verdict"
+STUDY_KIND_OPTION = "kind"
+#: Discord's ADMINISTRATOR permission bit, read off `member.permissions`.
+ADMINISTRATOR_BIT = 0x8
 
 
 def cmd_channel_ids() -> tuple:
@@ -1097,6 +1106,52 @@ def build_lesson_command() -> dict:
     }
 
 
+def build_study_command() -> dict:
+    """`/study ref:872a0a say:the lesson skips the stop` - the owner's feedback
+    on a Study item, from Discord (owner 2026-10-21: "a system for reviewing in
+    site or in the discord and giving feedback"). The ref is the six characters
+    printed on the reveal card (or the whole item id). An optional verdict
+    approves or retires the item on the spot; `fix` leaves a note for the next
+    build. Admin-only: `default_member_permissions` hides it from members, and
+    the handler checks the administrator bit again."""
+    return {
+        "name": STUDY_COMMAND, "type": 1,
+        "description": "Feedback on a Study question (admins): the ref from the card, then what is off",
+        "default_member_permissions": "8",
+        "options": [
+            {"name": STUDY_REF_OPTION, "type": 3, "required": True,
+             "description": "The ref printed on the reveal card, e.g. 872a0a (or the item id)"},
+            {"name": STUDY_SAY_OPTION, "type": 3, "required": True,
+             "description": "What is off, or what is great, in your words"},
+            {"name": STUDY_VERDICT_OPTION, "type": 3, "required": False,
+             "description": "approve = publish it · reject = retire it · fix = a note for the next build",
+             "choices": [{"name": "approve", "value": "approve"}, {"name": "fix", "value": "fix"},
+                         {"name": "reject", "value": "reject"}]},
+            {"name": STUDY_KIND_OPTION, "type": 3, "required": False,
+             "description": "What the note is about",
+             "choices": [{"name": "wrong answer", "value": "wrong_answer"},
+                         {"name": "bad chart", "value": "bad_chart"},
+                         {"name": "question unclear", "value": "unclear_question"},
+                         {"name": "lesson unclear", "value": "unclear_lesson"},
+                         {"name": "too easy", "value": "too_easy"},
+                         {"name": "too hard", "value": "too_hard"},
+                         {"name": "great example", "value": "great"},
+                         {"name": "other", "value": "other"}]},
+        ],
+    }
+
+
+def member_is_administrator(interaction: dict) -> bool:
+    """Discord sends the invoking member's resolved permissions as a decimal
+    string bitfield; the administrator bit is the handler's own gate, because
+    `default_member_permissions` is a default a server can override."""
+    try:
+        perms = int(str(((interaction.get("member") or {}).get("permissions")) or "0"))
+    except ValueError:
+        return False
+    return bool(perms & ADMINISTRATOR_BIT)
+
+
 def build_buzz_command() -> dict:
     """`/buzz` - what the room is talking about.
 
@@ -1248,7 +1303,7 @@ def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
             build_settings_command(), build_buzz_command(), build_flow_command(),
-            build_lesson_command(), build_cot_command()]
+            build_lesson_command(), build_cot_command(), build_study_command()]
     if activity:
         cmds.append(build_launch_command())
     if renderhealth:

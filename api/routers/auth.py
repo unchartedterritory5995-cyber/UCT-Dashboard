@@ -583,6 +583,18 @@ def _wisdom_ticker_history_enabled() -> bool:
         return False
 
 
+def _wisdom_archive_enabled() -> bool:
+    """The sidebar / More-sheet "Trader Archive" entry's switch -- the SAME reader the
+    archive routes' dark gate uses (wisdom_archive._require_enabled -> flags.archive_enabled,
+    WISDOM_ARCHIVE_ENABLED), so the nav can never link to a page whose API 404s. Flag only:
+    reads no record. Never raises."""
+    try:
+        from api.services.wisdom.core import flags
+        return bool(flags.archive_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _decision_record_enabled() -> bool:
     """TERM-088: the Research "Decision Record" tab's switch -- the SAME reader
     the route's dark gate uses, so the two cannot disagree. Never raises: a
@@ -881,6 +893,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         "ticker_history_enabled": _ticker_history_enabled(),
         # The chart's Team history panel (TSDR archive). Same one-authority rule.
         "wisdom_ticker_history_enabled": _wisdom_ticker_history_enabled(),
+        # The nav's Trader Archive entry (TSDR archive page). Same one-authority rule.
+        "wisdom_archive_enabled": _wisdom_archive_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
         "options_vol_surface_enabled": _options_vol_surface_enabled(),

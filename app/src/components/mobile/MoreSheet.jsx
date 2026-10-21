@@ -45,6 +45,9 @@ const NAV_SECTIONS = [
     label: 'Trading',
     items: [
       { to: '/model-book', label: 'Model Book', icon: 'book' },
+      // DARK with the archive (auth payload `wisdom_archive_enabled`, mirrors the NavBar gate);
+      // `search` opens it on its Today view.
+      { to: '/trader-archive', label: 'Trader Archive', icon: 'quote', search: '?view=today' },
       { to: '/desk', label: 'The Desk', icon: 'desk' },
       { to: '/journal', label: 'Journal', icon: 'journal' },
       { to: '/community', label: 'Community', icon: 'community' },
@@ -73,7 +76,7 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 export default function MoreSheet({ open, onClose }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { user, plan, isPaid } = useAuth()
+  const { user, plan, isPaid, wisdomArchiveEnabled } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
 
@@ -140,6 +143,7 @@ export default function MoreSheet({ open, onClose }) {
               <div className={styles.sectionLabel}>{section.label}</div>
               {section.items
                 .filter((l) => l.to !== '/community' || communityStatus?.enabled)
+                .filter((l) => l.to !== '/trader-archive' || wisdomArchiveEnabled === true)
                 .map((l) => {
                 const locked = !showAll && !FREE_PAGES.includes(l.to)
                 return (
@@ -149,7 +153,7 @@ export default function MoreSheet({ open, onClose }) {
                     className={`${styles.item} ${isActive(l.to) ? styles.active : ''} ${locked ? styles.locked : ''}`}
                     aria-current={isActive(l.to) ? 'page' : undefined}
                     aria-label={locked ? `${l.label} — unlock with Pro` : undefined}
-                    onClick={() => go(locked ? '/subscribe' : l.to === TERMINAL_PATH ? terminalNavPath : l.to)}
+                    onClick={() => go(locked ? '/subscribe' : l.to === TERMINAL_PATH ? terminalNavPath : `${l.to}${l.search || ''}`)}
                   >
                     <span className={styles.icon} aria-hidden="true"><UIcon name={l.icon} size={20} /></span>
                     <span className={styles.itemLabel}>{l.label}</span>

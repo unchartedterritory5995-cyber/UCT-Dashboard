@@ -1,0 +1,587 @@
+{
+ "tip": "4f85af3559",
+ "instrument": "f5_route_scroll_measure.py",
+ "viewport": "1200x800",
+ "scrollbars": "shown",
+ "routes": [
+  "/charts",
+  "/trader-archive",
+  "/settings"
+ ],
+ "rows": [
+  {
+   "route": "/charts",
+   "pending": {
+    "first": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "charts-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "charts-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/trader-archive",
+   "pending": {
+    "first": {
+     "path": "/trader-archive",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_10sfz_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 340,
+      "height": 262,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/trader-archive",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_10sfz_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 340,
+      "height": 262,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "trader-archive-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/trader-archive",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_10sfz_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 262,
+      "height": 262,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/trader-archive",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_10sfz_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 262,
+      "height": 262,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "trader-archive-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     340,
+     340
+    ],
+    "seen_root_bottom": [
+     262,
+     262
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/settings",
+   "pending": {
+    "first": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1447,
+      "clientHeight": 800,
+      "range": 647
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 78,
+      "bottom": 1447,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1447,
+      "clientHeight": 800,
+      "range": 647
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 78,
+      "bottom": 1447,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "settings-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1369,
+      "clientHeight": 800,
+      "range": 569
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 0,
+      "bottom": 1369,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1369,
+      "clientHeight": 800,
+      "range": 569
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 0,
+      "bottom": 1369,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "settings-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     647,
+     647
+    ],
+    "seen_range": [
+     569,
+     569
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     1447,
+     1447
+    ],
+    "seen_root_bottom": [
+     1369,
+     1369
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  }
+ ],
+ "control": {
+  "charts_classified_locked": false,
+  "settings_classified_ordinary": true
+ },
+ "locked": [],
+ "sandbox_identity": "http://127.0.0.1:8231 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-dashboard\\.worktrees\\archive-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-20T20-58-24.md (identity 9cd9ce1d583c..., data dir C:\\data-archivenav)",
+ "inconclusive": [
+  "/charts"
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\uct-dashboard\\.worktrees\\archive-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-20T20-58-24.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-dashboard\\.worktrees\\archive-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-20T20-58-24.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-20 20:58:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-20 20:58:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-20 20:59:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

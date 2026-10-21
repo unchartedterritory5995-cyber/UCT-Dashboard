@@ -5582,6 +5582,125 @@ ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
 
 
+# -- IPO Base (EXPERIMENTAL, admin-only) -------------------------------------
+# ⛔ DELIBERATELY OUTSIDE `RELATIONS` / `ALL_STRUCTURES`. Those feed the
+# screener's `base_matches`, `meta()`, `provenance()` and the filter presets, so
+# a structure there is a member-facing tag the day it lands. The IPO base has
+# not been measured (lift) or judged as drawn, so it lives in its own list and
+# is read only by the admin drawing layer (pattern_engine.shape_draw) until a
+# lab run promotes it. `experimental_by_key` is its lookup.
+#
+# ⚠️ THE LISTING DATE IS THE FIRST BAR WE HOLD. There is no IPO-date field
+# anywhere (see LOW_CHEAT's refusal above: "we hold no IPO-price field
+# either"), so "since listing" means "since the first bar of the series the
+# caller passed". That is only the listing when the caller passed the whole
+# history -- a store whose history was backfilled from a later date makes an old
+# company look newly listed. The state therefore takes `first_t`: a caller that
+# KNOWS the series' first stored bar passes it, and the state refuses unless the
+# window it was handed actually starts there.
+
+_IPO_SOURCE = "ibd_ipo_base"
+
+#: The base must start within roughly a year of the listing.
+IPO_MAX_START_BARS = 252
+#: And the as-of bar no more than this many bars after the listing (a year to
+#: start the base plus room for the base itself).
+IPO_MAX_AGE_BARS = 320
+#: A base is at least three weeks long.
+IPO_MIN_BARS = 15
+#: IPO bases run deeper than seasoned ones; roughly a third is the ceiling.
+IPO_MAX_DEPTH = 0.35
+#: The same IBD buy zone every other pivot here uses.
+IPO_BUY_ZONE = IBD_BUY_ZONE
+
+
+def ipo_base_state(ctx, first_t=None) -> Optional[dict]:
+    """The first base after a listing, or None.
+
+    The base top is the highest high since the listing (the IPO's high so far),
+    the base runs from that high to the as-of bar (at least IPO_MIN_BARS), it
+    is no deeper than IPO_MAX_DEPTH, and price has not closed above the top
+    since (the base is still forming; a close inside the published buy zone on
+    the as-of bar is a breakout in progress). The pivot is the base top.
+
+    `first_t`: the first stored bar of the series (YYYYMMDD). When given, the
+    state refuses unless `ctx.bars_full` starts on it -- a window that does not
+    reach back to the listing cannot say how old the listing is."""
+    full = ctx.bars_full or ctx.bars
+    if not full or len(full) < IPO_MIN_BARS + 2:
+        return None
+    if first_t is not None and int(full[0]["t"]) != int(first_t):
+        return None
+    n = len(full)
+    age = n - 1
+    if age > IPO_MAX_AGE_BARS:
+        return None
+    if not liquidity_floor(full).passes:
+        return None
+    hi_i = max(range(n), key=lambda k: (float(full[k]["h"] or 0), -k))
+    if hi_i > IPO_MAX_START_BARS:
+        return None
+    length = (n - 1) - hi_i
+    if length < IPO_MIN_BARS:
+        return None
+    top = float(full[hi_i]["h"])
+    if top <= 0:
+        return None
+    # still a base: no close above the top before the as-of bar
+    if any(float(full[k]["c"]) > top for k in range(hi_i + 1, n - 1)):
+        return None
+    close = float(full[-1]["c"])
+    if close > top * (1.0 + IPO_BUY_ZONE):
+        return None
+    low = min(float(full[k]["l"]) for k in range(hi_i, n))
+    if low <= 0:
+        return None
+    depth = (top - low) / top
+    if depth > IPO_MAX_DEPTH:
+        return None
+    return {"top": top, "low": low, "depth": depth, "bars": length,
+            "top_index": hi_i, "listing_age_bars": age,
+            "listing_t": int(full[0]["t"]), "pivot": top}
+
+
+def _detect_ipo_base(ctx) -> bool:
+    return ipo_base_state(ctx) is not None
+
+
+IPO_BASE = Structure(
+    key="ipo-base",
+    label="IPO Base",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=24,
+    min_bars=IPO_MIN_BARS + 2,
+    desc=("The first base a newly listed stock builds: a consolidation of at "
+          "least three weeks under its post-listing high, within about a year "
+          "of the listing. Experimental -- not measured, not served to members."),
+    criteria=(
+        _uct("Listing date = the first stored bar (no IPO-date field exists)", True),
+        _uct("Base starts within this many bars of the listing", IPO_MAX_START_BARS),
+        _uct("As-of bar within this many bars of the listing", IPO_MAX_AGE_BARS),
+        _uct("Base length, minimum (three weeks)", IPO_MIN_BARS),
+        _uct("Depth, maximum (top to lowest low)", IPO_MAX_DEPTH),
+        _uct("Pivot = the base top (the highest high since listing)", True),
+    ),
+    coverage_pct=None,
+    detect=_detect_ipo_base,
+    pivot=lambda ctx: _pivot_of(ipo_base_state(ctx)),
+)
+
+#: Structures that exist for the admin drawing layer only. Never in
+#: ALL_STRUCTURES (see the IPO Base note above).
+EXPERIMENTAL_STRUCTURES = [IPO_BASE]
+_EXPERIMENTAL_BY_KEY = {s.key: s for s in EXPERIMENTAL_STRUCTURES}
+
+
+def experimental_by_key(key):
+    return _EXPERIMENTAL_BY_KEY.get(key)
+
+
 def structure_origin(st) -> str:
     """Whose structure is this -- "published" or "uct". DERIVED, never typed.
 

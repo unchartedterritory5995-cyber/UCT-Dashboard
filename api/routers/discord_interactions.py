@@ -261,6 +261,42 @@ def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None
         log.warning("[discord-lesson] could not deliver the reply: %s", e)
 
 
+def study_feedback_reply(interaction: dict) -> dict:
+    """`/study ref:872a0a say:... [verdict] [kind]` -> one study_feedback row
+    (channel discord, role owner) and a PRIVATE reply naming the item. An
+    approve / reject verdict is applied on the spot by the store; `fix` is a
+    note. Admin-only twice: the command's default permissions, and the
+    administrator bit on the invoking member read here (a server can widen
+    the default; this cannot be widened from Discord)."""
+    from api.services import study_store
+    if not di.member_is_administrator(interaction):
+        return _ephemeral("Study feedback is for the desk's admins.")
+    opts = {o["name"]: o.get("value") for o in ((interaction.get("data") or {}).get("options") or [])}
+    ref = str(opts.get(di.STUDY_REF_OPTION) or "").strip()
+    say = str(opts.get(di.STUDY_SAY_OPTION) or "").strip()
+    verdict = str(opts.get(di.STUDY_VERDICT_OPTION) or "").strip() or None
+    kind = str(opts.get(di.STUDY_KIND_OPTION) or "").strip() or "other"
+    if not ref or not say:
+        return _ephemeral("Give me the ref from the card and what is off, e.g. "
+                          "`/study ref:872a0a say:the lesson never says where the stop goes`.")
+    item = study_store.find_item_by_ref(ref)
+    if not item:
+        return _ephemeral(f"No Study item matches `{ref[:24]}`. The ref is the six characters on the reveal card.")
+    uid = di.interaction_user_id(interaction) or "unknown"
+    try:
+        res = study_store.add_feedback(item["id"], f"discord:{uid}", role="owner", channel="discord",
+                                       kind=kind, text=say, verdict=verdict)
+    except ValueError as e:
+        return _ephemeral(f"Could not record that: {e}")
+    subject = (item.get("prompt_json") or {}).get("subject") or item.get("type") or "item"
+    who = " ".join(x for x in (item.get("sym"), item.get("asof")) if x)
+    label = f"{subject}{' · ' + who if who else ''} (ref {study_store.short_ref(item['id'])})"
+    applied = res.get("applied")
+    tail = {"approve": "Approved and live.", "reject": "Retired from the bank."}.get(applied or "",
+            "Noted for the next build." if verdict == "fix" else "Noted.")
+    return _ephemeral(f"Feedback saved on {label}: {kind.replace('_', ' ')}. {tail}")
+
+
 def run_cot_job(app_id: str, token: str, symbol: str, lookback: str, *,
                 render_fn=None, edit_fn=None) -> None:
     """The far side of a `/cot` defer: render the site's COT Data page for one market
@@ -767,6 +803,8 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(run_lesson_search_job, app_id, token, query)
         return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+    if itype == 2 and name == di.STUDY_COMMAND:
+        return study_feedback_reply(interaction)
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`

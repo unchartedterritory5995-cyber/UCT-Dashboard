@@ -253,6 +253,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "uct_flat_top_breakout",
     "bc:base",
     "draw:inside-day",
+    "draw:double-bottom",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -319,9 +320,19 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: a drawing (auto_structures.inside_day_draw_row); member_rows serves it only while it carries
 #: draw_round == MEMBER_INSIDE_DAY_ROUND beside a well-formed draw_inside_day, and
 #: member_inside_day_precedence keeps it to daily charts and drops it under an incumbent breakout line.
+#: draw:double-bottom (api/services/pattern_engine/shape_draw.py, drawing round 2) passed two fresh
+#: pre-registered blind packets, two judges each, AS DRAWN: A 2.46, 88% >= 2 and B 2.32, 76% >= 2. It
+#: reaches a member only while AUTO_STRUCTURES_SHAPES_ENABLED is on and its row carries draw_round ==
+#: auto_structures.MEMBER_DOUBLE_BOTTOM_ROUND beside a well-formed draw_shape, not stale (a breakout more
+#: than auto_structures.DB_BREAKOUT_MAX_AGE sessions old is stale); where it is served it outranks bc:base
+#: (member_base_precedence). draw:saucer / draw:ascending-base / draw:ipo-base are deliberately in
+#: NEITHER set: admin-only, experimental, and only while AUTO_STRUCTURES_SHAPES_ENABLED is on. A shape is
+#: released by setting its auto_structures.MEMBER_<SHAPE>_ROUND literal to its blind-confirmed round AND
+#: adding its id here and to DISPLAY_TEAM_SET; until then member_rows drops it (fail closed).
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
+    "draw:double-bottom",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp
@@ -331,6 +342,13 @@ assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the tea
 #: Served per row by `row_display_policy`; `display_policy(id)` alone answers for the stamped row.
 DISPLAY_TRUSTED_WHEN_STAMPED: dict = {"uct_flat_top_breakout": "draw_flat_top"}
 assert set(DISPLAY_TRUSTED_WHEN_STAMPED) <= DISPLAY_TEAM_SET
+#: Ids that fire in BOTH directions under one id while the chart draws them as a LONG setup: a row of
+#: the id whose own `direction` is the one named here is `hidden` (never drawn), per ROW in
+#: `row_display_policy`. donchian_breakout emits its 20/55-bar LOW breaks (Turtle shorts) under the same
+#: id as its long breakouts, and half of a gold-set slice of what the overlay drew was downside breaks.
+#: The detector, its firing, confidence, HIST_SCORE, `confirmed_only` and the screener's id list are
+#: untouched: only the drawing of the short side stops. A row with no direction keeps the id's tier.
+DISPLAY_HIDDEN_WHEN_DIRECTION: dict = {"donchian_breakout": "bearish"}
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
     "double_bottom", "double_top", "head_shoulders", "vcp",
@@ -398,10 +416,14 @@ def display_policy(pattern_id) -> dict:
 def row_display_policy(row) -> dict:
     """`display_policy` for one detection ROW: the same, except that a row of an id in
     DISPLAY_TRUSTED_WHEN_STAMPED is `trusted` only while its geometry.extras carries that id's stamp
-    as a dict; otherwise it is `experimental`, the tier it had before the id joined the team set."""
+    as a dict; otherwise it is `experimental`, the tier it had before the id joined the team set. A row
+    of an id in DISPLAY_HIDDEN_WHEN_DIRECTION whose own `direction` is the named one is `hidden`."""
     r = row if isinstance(row, dict) else {}
     pid = r.get("pattern_id")
     pol = display_policy(pid)
+    hide_dir = DISPLAY_HIDDEN_WHEN_DIRECTION.get(str(pid or ""))
+    if hide_dir is not None and str(r.get("direction") or "").lower() == hide_dir:
+        return {**pol, "display_tier": "hidden"}
     stamp = DISPLAY_TRUSTED_WHEN_STAMPED.get(str(pid or ""))
     if stamp is not None and pol["display_tier"] == "trusted":
         geom = r.get("geometry")

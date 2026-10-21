@@ -48,6 +48,12 @@
 //   draw:inside-day (a structures row): `draw_inside_day` (lab id_draw_v2) draws a light box over the
 //   inside day and the bar it sits inside, a solid "trigger" line at the inside day's high extended
 //   past the last bar, and a dashed "stop" line at its low, and nothing else (`insideDayDrawing`).
+//   draw:saucer / draw:ascending-base / draw:double-bottom / draw:ipo-base (structures rows, lab
+//   base_shapes; the double bottom is member-released at round 2, the other three stay ADMIN-ONLY;
+//   a double bottom whose breakout is too old arrives `stale` and is skipped): `draw_shape` (api/services/pattern_engine/
+//   shape_draw.py) draws a light region over the base, a solid "pivot" line from the shape's own pivot
+//   point, a dashed "base low", a dot on each of the shape's points and, for the W and the staircase, a
+//   dotted path through them -- and nothing else (`shapeDrawing`).
 //
 // ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
 //   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
@@ -118,6 +124,8 @@ export const TRENDLINE_BREAK_ID = 'uct_trendline_break'
 export const FLAT_TOP_ID = 'uct_flat_top_breakout'
 export const BASE_DRAW_ID = 'bc:base'
 export const INSIDE_DAY_DRAW_ID = 'draw:inside-day'
+// The named base-shape drawing rows (auto_structures.SHAPE_DRAW_IDS -- keep the two lists equal).
+export const SHAPE_DRAW_IDS = ['draw:saucer', 'draw:ascending-base', 'draw:double-bottom', 'draw:ipo-base']
 
 const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
 
@@ -163,6 +171,52 @@ export function baseDrawing(d) {
 }
 
 /**
+ * The BASE METRICS a base row carries (`extras.metrics`, server-computed under
+ * AUTO_STRUCTURES_METRICS_ENABLED; api/services/base_metrics.py), as the two short lines printed above
+ * its pivot line: ["Pivot 81.98 · 12% deep · 5.2 wks · stage 2 (est.)", "BZ to 86.08 · +3.1% vs pivot"].
+ * Returns null when the row has no metrics or they are malformed (pivot, depth, length and buy zone must
+ * all be finite); a missing stage is simply omitted (the server never guesses one), and the stage is
+ * always labelled an estimate. Pure — exported for tests.
+ */
+export function baseMetricsLines(d) {
+  const m = d?.geometry?.extras?.metrics
+  if (!m || typeof m !== 'object') return null
+  const pivot = Number(m.pivot)
+  const depth = Number(m.depth_pct)
+  const weeks = Number(m.length_weeks)
+  const bz = Number(m.buy_zone_top)
+  if (![pivot, depth, weeks, bz].every(Number.isFinite) || m.pivot == null || m.depth_pct == null
+      || m.length_weeks == null || m.buy_zone_top == null) return null
+  const first = [`Pivot ${pivot.toFixed(2)}`, `${Math.round(depth)}% deep`, `${weeks.toFixed(1)} wks`]
+  const stage = Number(m.stage)
+  if (m.stage != null && Number.isInteger(stage) && stage >= 1) first.push(`stage ${stage} (est.)`)
+  const second = [`BZ to ${bz.toFixed(2)}`]
+  const pfp = Number(m.pct_from_pivot)
+  if (m.pct_from_pivot != null && Number.isFinite(pfp)) {
+    second.push(`${pfp >= 0 ? '+' : '−'}${Math.abs(pfp).toFixed(1)}% vs pivot`)
+  }
+  return [first.join(' · '), second.join(' · ')]
+}
+
+// The metrics text: two lines right-aligned to the END of the pivot line (its extended tip) and set
+// just ABOVE it, so it sits over the base (whose prices are below the pivot) and never touches the
+// pivot label, which starts 4px to the right of that same tip.
+function BaseMetricsText({ d, lines, line, tToX, priceToY }) {
+  if (!lines || !line) return null
+  const xs = [tToX(line.start_t), tToX(line.end_t)].filter((v) => v != null)
+  const y = priceToY(Number(line.price))
+  if (!xs.length || y == null) return null
+  const x = Math.max(...xs) + 40
+  return (
+    <text data-role="base-metrics" x={x} y={y - 18} textAnchor="end" fontSize="10" fontWeight="600"
+      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }}>
+      <tspan x={x} dy="0">{lines[0]}</tspan>
+      <tspan x={x} dy="12">{lines[1]}</tspan>
+    </text>
+  )
+}
+
+/**
  * The INSIDE DAY a draw:inside-day structures row draws (lab id_draw_v2, blind-confirmed as drawn):
  * `extras.draw_inside_day` = {trigger, stop, mother_high, mother_low, start_t, inside_t, end_t, label,
  * stop_label}. Returns null for any other row or a malformed stamp (a trigger not above the stop, a stop
@@ -185,6 +239,34 @@ export function insideDayDrawing(d) {
   return {
     trigger, stop, motherHigh, motherLow, start_t: x.start_t, inside_t: x.inside_t, end_t: x.end_t,
     label: x.label || 'trigger', stopLabel: x.stop_label || 'stop',
+  }
+}
+
+/**
+ * The named base shape a draw:<shape> structures row draws (lab base_shapes; admin-only until its round is
+ * blind-confirmed): `extras.draw_shape` = {pivot, low, start_t, end_t, pivot_from_t?, top?, marks: [{t, price,
+ * kind}], path?, label, low_label}. Returns null for any other row or a malformed stamp (a pivot not above the
+ * low, a missing span, a mark without a finite price). When it returns a drawing, the row draws the region
+ * (start_t .. end_t, low .. max(top, pivot)), the pivot line from pivot_from_t, the base low, one dot per mark
+ * and -- only when `path` is true -- a dotted line through the marks. Pure — exported for tests.
+ */
+export function shapeDrawing(d) {
+  if (!SHAPE_DRAW_IDS.includes(d?.pattern_id)) return null
+  const x = d?.geometry?.extras?.draw_shape
+  if (!x || typeof x !== 'object') return null
+  const pivot = Number(x.pivot)
+  const low = Number(x.low)
+  if (!Number.isFinite(pivot) || !Number.isFinite(low) || !(pivot > low)) return null
+  if (x.start_t == null || x.end_t == null) return null
+  const top = Number.isFinite(Number(x.top)) ? Math.max(Number(x.top), pivot) : pivot
+  const marks = Array.isArray(x.marks) ? x.marks : []
+  if (!marks.every((m) => m && m.t != null && Number.isFinite(Number(m.price)))) return null
+  return {
+    pivot, low, top, start_t: x.start_t, end_t: x.end_t,
+    pivot_from_t: x.pivot_from_t != null ? x.pivot_from_t : x.start_t,
+    marks: marks.map((m) => ({ t: m.t, price: Number(m.price), kind: String(m.kind || '') })),
+    path: x.path === true,
+    label: x.label || 'pivot', lowLabel: x.low_label || 'base low',
   }
 }
 
@@ -400,7 +482,9 @@ export default function PatternOverlay({
         const base = baseDrawing(d)
         // The inside-day drawing (draw:inside-day) is its own geometry: box + trigger + stop, nothing else.
         const insideDay = insideDayDrawing(d)
-        const Renderer = (flatTop || base || insideDay) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
+        // A named base shape (draw:<shape>) is its own geometry: region + pivot + low + its points.
+        const shapeDraw = shapeDrawing(d)
+        const Renderer = (flatTop || base || insideDay || shapeDraw) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
         // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
@@ -410,7 +494,7 @@ export default function PatternOverlay({
         // the stop to start at the TAG bar (the detector's own stop secondary runs from the
         // 10-session high, far left) — same price, same label, display only.
         const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
-        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay ? d.geometry.secondary : [])
+        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay && !shapeDraw ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
           .map((sec) => (drawStop && sec?.role === 'stop'
             ? {
@@ -430,6 +514,9 @@ export default function PatternOverlay({
           : NaN
         const anchors = d?.geometry?.anchors || []
         const tlBreak = trendlineBreakLine(d)
+        // base metrics print only beside a pivot line that actually draws (the base's own, or draw_pivot)
+        const metricsLine = base ? { start_t: base.start_t, end_t: base.end_t, price: base.pivot } : pivot
+        const metricsLines = metricsLine ? baseMetricsLines(d) : null
         return (
           <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
@@ -535,6 +622,57 @@ export default function PatternOverlay({
                   {region}
                   {level('base-pivot', base.pivot, base.label, { extendRight: 40, dashed: false, role: 'base-pivot' })}
                   {level('base-low', base.low, base.lowLabel, { dashed: true, role: 'base-low' })}
+                </g>
+              )
+            })()}
+            {shapeDraw && (() => {
+              const x1 = tToX(shapeDraw.start_t)
+              const x2 = tToX(shapeDraw.end_t)
+              const yT = priceToY(shapeDraw.top)
+              const yL = priceToY(shapeDraw.low)
+              const region = [x1, x2, yT, yL].every((v) => v != null) ? (
+                <rect data-role="shape-region" x={Math.min(x1, x2)} y={Math.min(yT, yL)}
+                  width={Math.max(1, Math.abs(x2 - x1))} height={Math.max(1, Math.abs(yL - yT))}
+                  fill={getColor(d)} fillOpacity={getOpacity(d) * 0.08} stroke="none"
+                  style={{ pointerEvents: 'none' }} />
+              ) : null
+              const level = (suffix, price, label, fromT, extra) => (
+                <LevelSegment
+                  detection={{
+                    ...d,
+                    id: `${d.id}:${suffix}`,
+                    confidence: null,
+                    geometry: {
+                      shape: 'horizontal_line',
+                      label,
+                      anchors: [{ t: fromT, price }, { t: shapeDraw.end_t, price }],
+                    },
+                  }}
+                  tToX={tToX}
+                  priceToY={priceToY}
+                  onClick={onDetectionClick}
+                  {...extra}
+                />
+              )
+              const pts = shapeDraw.marks
+                .map((m) => [tToX(m.t), priceToY(m.price)])
+                .filter(([px, py]) => px != null && py != null)
+              return (
+                <g data-role="shape-draw">
+                  {region}
+                  {shapeDraw.path && pts.length >= 2 && (
+                    <polyline data-role="shape-path" points={pts.map((p) => p.join(',')).join(' ')}
+                      fill="none" stroke={getColor(d)} strokeWidth={1} strokeDasharray="2,3"
+                      opacity={getOpacity(d)} style={{ pointerEvents: 'none' }} />
+                  )}
+                  {pts.map(([px, py], i) => (
+                    <circle key={i} data-role="shape-mark" cx={px} cy={py} r={3}
+                      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }} />
+                  ))}
+                  {level('shape-pivot', shapeDraw.pivot, shapeDraw.label, shapeDraw.pivot_from_t,
+                    { extendRight: 40, dashed: false, role: 'shape-pivot' })}
+                  {level('shape-low', shapeDraw.low, shapeDraw.lowLabel, shapeDraw.start_t,
+                    { dashed: true, role: 'shape-low' })}
                 </g>
               )
             })()}
@@ -675,6 +813,9 @@ export default function PatternOverlay({
                 onClick={onDetectionClick}
                 extendRight={40}
               />
+            )}
+            {metricsLines && (
+              <BaseMetricsText d={d} lines={metricsLines} line={metricsLine} tToX={tToX} priceToY={priceToY} />
             )}
           </g>
         )

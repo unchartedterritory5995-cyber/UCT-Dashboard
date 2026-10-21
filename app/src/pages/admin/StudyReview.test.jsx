@@ -26,12 +26,17 @@ let TRUST
 let COUNTS
 let SKILLS
 let KEYS
+let FEEDBACK_COUNTS = { open: {}, open_total: 0, total: 0 }
+let FEEDBACK_ROWS = []
 
 vi.mock('swr', () => ({
   default: (key) => {
     KEYS.push(key)
     if (key && key.startsWith('/api/study/admin/review')) {
-      return { data: { drafts: DRAFTS, counts: COUNTS, skills: SKILLS, trust: TRUST }, error: undefined, mutate: vi.fn() }
+      return { data: { drafts: DRAFTS, counts: COUNTS, skills: SKILLS, trust: TRUST, feedback: FEEDBACK_COUNTS }, error: undefined, mutate: vi.fn() }
+    }
+    if (key && key.startsWith('/api/study/admin/feedback')) {
+      return { data: { feedback: FEEDBACK_ROWS, counts: FEEDBACK_COUNTS }, error: undefined, mutate: vi.fn() }
     }
     if (key && key.includes('/patterns/admin/review')) return { data: { verdicts: [] }, mutate: vi.fn() }
     if (key && /^\/api\/study\/admin\/items\/[^/]+\/bars$/.test(key)) {
@@ -98,6 +103,15 @@ beforeEach(() => {
   }
   COUNTS = { fast: { spot: 2 }, manual: { recall: 1 } }
   SKILLS = { 'setup.vcp': 2, 'vocab.method': 1 }
+  FEEDBACK_COUNTS = { open: { si_a: 2 }, open_total: 3, total: 4 }
+  FEEDBACK_ROWS = [
+    { id: 7, item_id: 'si_a', sym: 'NVDA', asof: '2025-06-02', subject: 'VCP', kind: 'unclear_lesson',
+      text: 'the where part lost me', role: 'member', channel: 'site', verdict: null, answer_json: 'no', correct: false,
+      at: '2026-10-21T03:00:00+00:00', handled_at: null, ref: 'a', q: 'VCP?' },
+    { id: 8, item_id: 'si_zz', sym: 'CAVA', asof: '2025-12-10', subject: 'Hanging Man', kind: 'bad_chart',
+      text: 'bars too small', role: 'owner', channel: 'discord', verdict: 'reject', answer_json: null, correct: null,
+      at: '2026-10-21T03:05:00+00:00', handled_at: null, ref: 'zz', q: 'Which candle?' },
+  ]
   globalThis.fetch = vi.fn((url) => {
     if (String(url).startsWith(TRUST_URL)) return jsonResponse({ item_type: 'recall', state: 'sampled', clean_count: 20, sample_rate: 0.1 })
     return jsonResponse({ item: {}, trust: { item_type: 'spot', clean_count: 4, state: 'manual', ask_to_switch: false } })
@@ -303,7 +317,7 @@ describe('StudyReview card', () => {
   it('the example gallery shows every chart of one subject with a grade row, and a grade posts the grade action', async () => {
     renderWithProviders(<StudyReview />)
     fireEvent.click(screen.getByRole('button', { name: 'Example gallery' }))
-    expect(KEYS).toContain('/api/study/admin/review?status=any&limit=500')
+    expect(KEYS).toContain('/api/study/admin/review?status=any&light=1&limit=5000')
     const cards = screen.getAllByTestId('gallery-card')
     expect(cards.length).toBe(2)                       // SPOT_A + SPOT_C share the subject (vcp); the recall item has no chart
     expect(within(cards[0]).getByText('chart:NVDA')).toBeInTheDocument()
@@ -355,5 +369,46 @@ describe('StudyReview helpers', () => {
     const s = forwardSummaryOf({ answer_json: { answer: 'take', accept: ['watch'] }, reveal_json: { facts: { window: 10 } } })
     expect(s).toBe('window 10 sessions · accepts watch (fair-scoring)')
     expect(forwardSummaryOf({ reveal_json: { window_bars: 60, fires: true } })).toBe('60 bars shown · fires: yes')
+  })
+})
+
+// ── the feedback panel (owner 2026-10-21) ─────────────────────────────────────
+describe('StudyReview feedback panel', () => {
+  it('the toggle counts the open feedback, the queue row carries its notes, and the panel lists every row', () => {
+    renderWithProviders(<StudyReview />)
+    const toggle = screen.getByTestId('feedback-toggle')
+    expect(toggle).toHaveTextContent('Feedback (3)')
+    expect(screen.getByTestId('row-feedback')).toHaveTextContent('2 notes')
+    fireEvent.click(toggle)
+    expect(KEYS.some((k) => k === '/api/study/admin/feedback?unhandled=1&limit=500')).toBe(true)
+    const rows = screen.getAllByTestId('feedback-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('NVDA')
+    expect(rows[0]).toHaveTextContent('lesson unclear')
+    expect(rows[0]).toHaveTextContent('the where part lost me')
+    expect(rows[0]).toHaveTextContent('member · the site')
+    expect(rows[0]).toHaveTextContent('answered no (not quite)')
+    expect(rows[1]).toHaveTextContent('Hanging Man')
+    expect(rows[1]).toHaveTextContent('reject')
+    expect(rows[1]).toHaveTextContent('owner · Discord')
+    // the card is hidden while the panel is up; Open is offered only for an item in the queue
+    expect(screen.getByTestId('study-ticker').closest('[hidden]')).not.toBeNull()
+    expect(within(rows[0]).getByRole('button', { name: 'Open' })).toBeInTheDocument()
+    expect(within(rows[1]).queryByRole('button', { name: 'Open' })).not.toBeInTheDocument()
+  })
+
+  it('Handled posts the id and drops the row; Open returns to the queue on that item', async () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByTestId('feedback-toggle'))
+    const rows = screen.getAllByTestId('feedback-row')
+    fireEvent.click(within(rows[0]).getByRole('button', { name: 'Handled' }))
+    await waitFor(() => {
+      const call = globalThis.fetch.mock.calls.find(([url]) => String(url) === '/api/study/admin/feedback/handle')
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ ids: [7] })
+    })
+    fireEvent.click(within(screen.getAllByTestId('feedback-row')[0]).getByRole('button', { name: 'Open' }))
+    expect(screen.getByTestId('study-ticker').closest('[hidden]')).toBeNull()
+    expect(screen.getByTestId('feedback-toggle')).toHaveTextContent('Feedback (3)')
   })
 })

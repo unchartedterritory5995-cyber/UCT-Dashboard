@@ -59,6 +59,55 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
+def metrics_enabled() -> bool:
+    """AUTO_STRUCTURES_METRICS_ENABLED, read PER CALL; unset means OFF. While off, no metrics are
+    computed and the structures payload is exactly what it was before metrics existed."""
+    return os.environ.get("AUTO_STRUCTURES_METRICS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps
+#: `extras.metrics_round`). A literal ON PURPOSE, like the drawing rounds: None until a blind packet
+#: confirms the printed numbers, so members get NO metrics (fail closed) while admins see them under the
+#: flag. Set it by hand to the confirmed round.
+MEMBER_METRICS_ROUND = 1
+#: The ONLY row type a member may get metrics on: the blind packets (lab base_metrics P1 2.64 / P2 2.82,
+#: confirmed 2026-10-20) judged the numbers on the bc:base drawing alone. bc:flat-base measures depth from the
+#: box top while its drawn pivot moves, and the cup's depth comes from a detector re-run, so both stay
+#: admin-only until each passes its own packet.
+MEMBER_METRICS_IDS = frozenset({"bc:base"})
+
+
+def with_metrics(sym: str, rows, *, member: bool = False) -> list:
+    """`rows` with base metrics attached (base_metrics.with_metrics) when AUTO_STRUCTURES_METRICS_ENABLED
+    is on; `rows` itself, untouched, when it is off. On the member path a row keeps its metrics only while
+    MEMBER_METRICS_ROUND is an int equal to its stamped `extras.metrics_round`; otherwise the member gets
+    the row exactly as it was before metrics (fail closed). Never mutates a cached row. Never raises."""
+    if not metrics_enabled():
+        return rows
+    try:
+        from api.services import base_metrics
+        if not any((r or {}).get("pattern_id") in base_metrics.METRIC_IDS for r in rows or []):
+            return rows
+        out = base_metrics.with_metrics(rows, _daily_bars(sym))
+    except Exception:  # noqa: BLE001 -- metrics never break a read
+        _log.debug("[base-metrics] %s failed", sym, exc_info=True)
+        return rows
+    if not member:
+        return out
+    return [m if _member_metrics_ok(m) else r for r, m in zip(rows, out)]
+
+
+def _member_metrics_ok(row) -> bool:
+    """True only for a MEMBER_METRICS_IDS row, while MEMBER_METRICS_ROUND is an int and equals the row's
+    stamped metrics_round."""
+    if (row or {}).get("pattern_id") not in MEMBER_METRICS_IDS:
+        return False
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    rnd = ex.get("metrics_round")
+    return (type(MEMBER_METRICS_ROUND) is int and type(rnd) is int and rnd == MEMBER_METRICS_ROUND
+            and isinstance(ex.get("metrics"), dict))
+
+
 def member_ids() -> frozenset:
     """The pattern ids a member may be drawn: registry.DISPLAY_MEMBER_SET, read
     from the registry module PER CALL (one authority, never a copy here)."""
@@ -106,9 +155,21 @@ def member_rows(rows) -> list:
     An inside-day drawing (draw:inside-day, lab id_draw_v2) passed its blind check as drawn by one
     round (MEMBER_INSIDE_DAY_ROUND), so a member gets one only while it carries that round's stamp
     beside a well-formed `draw_inside_day` (`_confirmed_inside_day`). Fail closed. On the member
-    path the route also applies `member_inside_day_precedence`."""
+    path the route also applies `member_inside_day_precedence`.
+
+    A named base-shape drawing (SHAPE_DRAW_IDS, lab base_shapes) reaches a member only while its row
+    carries the round its MEMBER_<SHAPE>_ROUND literal names beside a well-formed `draw_shape`
+    (`_confirmed_shape`) and is not stale. Only the double bottom's literal is set (round 2); the
+    saucer, ascending base and IPO base literals are None, so every such row is dropped whatever
+    else is true of it. Fail closed.
+
+    A flat_base passed its blind check as drawn by ONE drawing round (MEMBER_FLAT_BASE_ROUND), so a
+    member gets one only as that round draws it (`_flat_base_member_row`): a row of a later round is
+    served with that round's drawing swapped back for the confirmed one, or dropped. Fail closed."""
     allowed = member_ids()
-    kept = [r for r in rows or []
+    rows = [_flat_base_member_row(r) if (r or {}).get("pattern_id") == "flat_base" else r
+            for r in rows or []]
+    kept = [r for r in rows if r is not None
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
@@ -117,6 +178,7 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
             and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
+            and ((r or {}).get("pattern_id") not in SHAPE_DRAW_IDS or _confirmed_shape(r))
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
                  or _pivot_only(r))]
     return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
@@ -242,6 +304,46 @@ def _confirmed_flat_top(row) -> bool:
                     for t in touches))
 
 
+#: The flat_base drawing round the blind check confirmed for members: round 1, the drawing that passed the
+#: team-set blind packets (registry.DISPLAY_MEMBER_SET; R4 confirm / R5 / R5c), stored without a stamp. A
+#: literal ON PURPOSE, not display.FLAT_BASE_DRAW_ROUND: the drawing code may move to a new round (round 2,
+#: lab flatbase_breakdown: `broke_down` read as of the last bar) while members keep the confirmed drawing
+#: until the new round passes its own blind check and this is changed by hand.
+MEMBER_FLAT_BASE_ROUND = 1
+#: The one later round that carries the round-1 drawing beside its own (extras.draw_r1).
+_FLAT_BASE_R1_CARRIER = 2
+
+
+def _flat_base_member_row(row):
+    """A member's copy of a flat_base row drawn by MEMBER_FLAT_BASE_ROUND, or None (dropped). Fail closed.
+
+    The row's round is extras.draw_round; a row without one was stored by the round-1 code (before the
+    stamp existed) and is round 1. A row of the member round is served as it is. While the member round is
+    1, a round-2 row is served as ROUND 1 drew it: its FLAT_BASE_DRAW_KEYS replaced by extras.draw_r1 when
+    round 1 drew it differently (no draw_r1 = both rounds drew it the same). Any other round, a malformed
+    stamp or a malformed draw_r1 drops the row. The row passed in is not modified."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if not isinstance(ex, dict):
+        return row if MEMBER_FLAT_BASE_ROUND == 1 else None
+    rnd = ex.get("draw_round", 1)
+    if type(rnd) is not int:
+        return None
+    if rnd == MEMBER_FLAT_BASE_ROUND:
+        return row
+    if not (MEMBER_FLAT_BASE_ROUND == 1 and rnd == _FLAT_BASE_R1_CARRIER):
+        return None
+    if "draw_r1" not in ex:
+        return row
+    prior = ex.get("draw_r1")
+    keys = _display.FLAT_BASE_DRAW_KEYS
+    if not isinstance(prior, dict) or not prior or not set(prior) <= set(keys):
+        return None
+    out = {k: v for k, v in ex.items() if k not in keys and k != "draw_r1"}
+    out.update(prior)
+    out["draw_round"] = 1
+    return {**row, "geometry": {**row["geometry"], "extras": out}}
+
+
 #: The cup row id (a base_catalog box).
 CUP_ID = "bc:cup-with-handle"
 #: The cup tier drawing round the blind check confirmed for members (lab cup_draw_v4, 2026-10-18,
@@ -331,6 +433,68 @@ def _confirmed_inside_day(row) -> bool:
         return False
     try:
         return int(d["start_t"]) < int(d["inside_t"]) <= int(d["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+#: The named base-shape drawing rows (lab base_shapes, api/services/pattern_engine/shape_draw.py). A row of
+#: one of these ids is built ONLY beside a drawing (`shape_draw_rows`). Keep PatternOverlay.SHAPE_DRAW_IDS equal.
+SHAPE_DRAW_IDS = ("draw:saucer", "draw:ascending-base", "draw:double-bottom", "draw:ipo-base")
+#: The drawing round each shape's blind check confirmed for members -- None: NOT confirmed. Literals ON
+#: PURPOSE, never shape_draw's *_DRAW_ROUND constants: a member gets a shape only after its round passed the
+#: two pre-registered blind packets (lab base_shapes/PREREG.txt) and someone set the literal by hand. To
+#: release one: set its literal to the confirmed round AND add its id to registry.DISPLAY_TEAM_SET and
+#: DISPLAY_MEMBER_SET (member_rows also requires the trusted tier and the member set).
+MEMBER_SAUCER_ROUND = None
+MEMBER_ASCENDING_BASE_ROUND = None
+#: The double bottom: drawing round 2 passed both pre-registered blind packets and an independent review,
+#: which released it with two conditions railed here -- a breakout older than DB_BREAKOUT_MAX_AGE sessions
+#: is withheld (`_db_breakout_stale`), and a served double bottom outranks bc:base (BASE_INCUMBENT_IDS).
+MEMBER_DOUBLE_BOTTOM_ROUND = 2
+#: The IPO base is EXPERIMENTAL (base_catalog.EXPERIMENTAL_STRUCTURES): no lift measurement exists, so it
+#: stays admin-only whatever its drawing scores.
+MEMBER_IPO_BASE_ROUND = None
+#: The drawn labels the judges see.
+MEMBER_SHAPE_LABELS = ("pivot", "base low")
+
+
+def _member_shape_round(pid):
+    """The confirmed member round for one shape id (read PER CALL so a test can move one literal)."""
+    return {
+        "draw:saucer": MEMBER_SAUCER_ROUND,
+        "draw:ascending-base": MEMBER_ASCENDING_BASE_ROUND,
+        "draw:double-bottom": MEMBER_DOUBLE_BOTTOM_ROUND,
+        "draw:ipo-base": MEMBER_IPO_BASE_ROUND,
+    }.get(pid)
+
+
+def _confirmed_shape(row) -> bool:
+    """True when a named base-shape row is drawn by its shape's confirmed round: the shape's member literal
+    is an int (None = not confirmed: always False), not stale, `extras.draw_round` equals it, and
+    `draw_shape` is well formed -- the row's own shape, a finite pivot above a finite low, a start before
+    its end, the judged labels, and every mark a finite price. Anything else is False."""
+    r = row or {}
+    want = _member_shape_round(r.get("pattern_id"))
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    # an int round equal to the literal: a None literal (not confirmed) can never be equalled
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_shape")
+    if not isinstance(d, dict) or "draw:" + str(d.get("shape")) != r.get("pattern_id"):
+        return False
+    if (d.get("label"), d.get("low_label")) != MEMBER_SHAPE_LABELS or d.get("draw_round") != rnd:
+        return False
+    if not (_finite(d.get("pivot")) and _finite(d.get("low")) and float(d["pivot"]) > float(d["low"])):
+        return False
+    marks = d.get("marks")
+    if not (isinstance(marks, list) and marks
+            and all(isinstance(m, dict) and m.get("t") is not None and _finite(m.get("price")) for m in marks)):
+        return False
+    try:
+        return int(d["start_t"]) < int(d["end_t"])
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -425,7 +589,8 @@ def cup_tier_stamp(det: dict, bars: list) -> None:
 #: a chart never shows two or three different "pivot" / "breakout" lines for one base. Cup ids are
 #: listed now so a cup tier that reaches members later is covered the day it lands.
 BASE_INCUMBENT_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout",
-                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct"})
+                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct",
+                                "draw:double-bottom"})
 #: A breakout level within this many ATR(14) of the base drawing's pivot is the same breakout line.
 BASE_PRECEDENCE_ATR = 1.0
 
@@ -595,6 +760,114 @@ def base_draw_row(sym: str, bars: list):
         }
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
+
+
+def shapes_enabled() -> bool:
+    """Read PER CALL. AUTO_STRUCTURES_SHAPES_ENABLED (default OFF): when on, structures_for appends the named
+    base-shape drawing rows (shape_draw_rows). Off, structures_for is byte-identical to the code before them.
+    The rows are admin-only either way until a MEMBER_<SHAPE>_ROUND literal is set (member_rows)."""
+    return os.environ.get("AUTO_STRUCTURES_SHAPES_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: Shape id -> (shape_draw function name, display name).
+_SHAPE_FUNCS = (
+    ("draw:saucer", "saucer_drawing", "Saucer"),
+    ("draw:ascending-base", "ascending_base_drawing", "Ascending base"),
+    ("draw:double-bottom", "double_bottom_drawing", "Double bottom"),
+    ("draw:ipo-base", "ipo_base_drawing", "IPO base"),
+)
+
+
+#: A double bottom whose first close above its pivot (after the second low) came MORE than this many sessions
+#: before the drawn bar is an old W that price already left: the row is marked stale (served, never drawn).
+DB_BREAKOUT_MAX_AGE = 5
+
+
+def _db_breakout_stale(bars, d) -> bool:
+    """True when the double-bottom drawing `d` over `bars` (the drawn bars, oldest first, the last one the
+    drawn bar) should be withheld as stale: the first close above `d["pivot"]` after the second-low mark came
+    more than DB_BREAKOUT_MAX_AGE sessions before the last bar. No close above the pivot yet is not stale.
+    Fails closed: a missing / unreadable second-low mark or pivot, or a second low not found among `bars`,
+    is stale. Never raises."""
+    try:
+        piv = d.get("pivot")
+        if not _finite(piv):
+            return True
+        low2 = [m for m in (d.get("marks") or []) if isinstance(m, dict) and m.get("kind") == "low2"]
+        if len(low2) != 1 or low2[0].get("t") is None:
+            return True
+        t2 = int(low2[0]["t"])
+        ts = [int(x["t"]) for x in bars]
+        if t2 not in ts:
+            return True
+        last = len(bars) - 1
+        for k in range(ts.index(t2) + 1, len(bars)):
+            if float(bars[k]["c"]) > float(piv):
+                return last - k > DB_BREAKOUT_MAX_AGE
+        return False
+    except Exception:  # noqa: BLE001 -- fail closed: an unreadable drawing is withheld
+        return True
+
+
+def shape_draw_rows(sym: str, bars: list) -> list:
+    """The named base-shape drawing rows for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
+    first): one row per shape whose drawing fires there (lab base_shapes; display only). A forming session
+    (last_bar_forming) is dropped first: the lab drew finished sessions. The IPO base needs the series' first
+    stored bar: `bars` is the store's latest STRUCTURE_BARS, so it reaches back to the first stored bar only
+    when it holds fewer than that -- otherwise the ticker is too old to be a recent listing and no IPO base is
+    attempted. A double bottom whose breakout is older than DB_BREAKOUT_MAX_AGE sessions is marked
+    `extras.stale` (`_db_breakout_stale`): served, never drawn. A failing shape costs that shape only.
+    Never raises."""
+    out = []
+    try:
+        from api.services.pattern_engine import shape_draw
+        b = list(bars or [])
+        first_t = int(b[0]["t"]) if b and len(b) < STRUCTURE_BARS else None
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return []
+        sym = (sym or "").upper()
+        for pid, fn, name in _SHAPE_FUNCS:
+            try:
+                if pid == "draw:ipo-base":
+                    if first_t is None:
+                        continue
+                    d = shape_draw.ipo_base_drawing(b, len(b) - 1, first_t=first_t)
+                else:
+                    d = getattr(shape_draw, fn)(b, len(b) - 1)
+            except Exception:  # noqa: BLE001 -- a failing shape costs that shape only
+                _log.debug("[auto-structures] %s %s failed", sym, pid, exc_info=True)
+                continue
+            if d is None:
+                continue
+            extras = {"draw_shape": d, "draw_round": d["draw_round"]}
+            if pid == "draw:double-bottom" and _db_breakout_stale(b, d):
+                extras["stale"] = True
+                extras["stale_reason"] = "breakout_age"
+            out.append({
+                "id": f"{pid}:{sym}:{d['start_t']}:{d['end_t']}",
+                "sym": sym,
+                "tf": "D",
+                "pattern_id": pid,
+                "pattern_name": name,
+                "category": "base",
+                "direction": "bullish",
+                "start_t": d["start_t"],
+                "end_t": d["end_t"],
+                "geometry": {
+                    "shape": "shape_draw",
+                    "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
+                    "extras": extras,
+                },
+                "levels": {"entry": d["pivot"]},
+                "confidence": None,
+                "status": "forming",
+                **display_policy(pid),
+            })
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return []
+    return out
 
 
 def inside_day_draw_row(sym: str, bars: list):
@@ -977,6 +1250,9 @@ def structures_for(sym: str) -> list:
             idd = inside_day_draw_row(sym, bars)
             if idd is not None:
                 out.append(idd)
+            # the named base-shape drawings (lab base_shapes): admin-only rows, behind their own flag
+            if shapes_enabled():
+                out.extend(shape_draw_rows(sym, bars))
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []
