@@ -122,3 +122,13 @@ def test_the_route_applies_it_for_members_only(monkeypatch, idrow):
     _serve(monkeypatch, [idrow])
     assert "structures" not in _get(PAID_MEMBER, "/api/patterns/ZZZ?tf=W&confirmed_only=false&include_structures=true").json()
     assert _ids(_get(PAID_MEMBER).json()["structures"]) == ["draw:inside-day"]
+
+
+def test_a_stale_incumbent_is_never_drawn_so_it_covers_nothing(idrow):
+    """A stale row is served but never drawn (PatternOverlay.selectDrawable), so it cannot be the
+    breakout line that makes the inside-day trigger redundant."""
+    near = _d(idrow)["trigger"] + 0.5 * _d(idrow)["atr"]
+    ft = _flat_top(near)
+    assert _ids(AS.member_inside_day_precedence([ft], [idrow])) == []
+    ft["geometry"]["extras"]["stale"] = True
+    assert _ids(AS.member_inside_day_precedence([ft], [idrow])) == ["draw:inside-day"]

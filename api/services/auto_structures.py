@@ -462,13 +462,21 @@ def _row_span(row):
         return None
 
 
+def _drawn_incumbent(row) -> bool:
+    """True when the chart will actually DRAW this incumbent row: not stale, or a stale bull_flag
+    the client redraws as the stamped "flagging" tier (PatternOverlay.selectDrawable / flaggingView).
+    A stale row is served but never drawn, so it covers nothing and must not suppress a drawing."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    return not ex.get("stale") or _flagging_flag(row)
+
+
 def member_base_precedence(detections, structures) -> list:
     """`structures` without the bc:base drawing when a member-served incumbent covers the same base.
 
     Applied on the MEMBER path only, after member_rows and the freshness filter. An incumbent is any
     row of BASE_INCUMBENT_IDS among `detections` or `structures`. It covers the base when one of its
     breakout / pivot prices is within BASE_PRECEDENCE_ATR ATR of the base pivot, OR its span overlaps
-    the base's span. Then bc:base is dropped and the incumbent stays: the base drawing is purely
+    the base's span. A stale incumbent (served, never drawn: `_drawn_incumbent`) covers nothing. Then bc:base is dropped and the incumbent stays: the base drawing is purely
     additive where nothing else covers the base. Fails closed: a base drawing without a finite ATR,
     or an incumbent whose span cannot be read, drops the base drawing. Order is kept; never raises."""
     try:
@@ -477,7 +485,7 @@ def member_base_precedence(detections, structures) -> list:
         if not bases:
             return sts
         inc = [r for r in list(detections or []) + sts
-               if (r or {}).get("pattern_id") in BASE_INCUMBENT_IDS]
+               if (r or {}).get("pattern_id") in BASE_INCUMBENT_IDS and _drawn_incumbent(r)]
         if not inc:
             return sts
         drop = set()
@@ -647,7 +655,7 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
     precedence. The drawing is dropped (1) on any timeframe but daily -- it was judged on a daily
     chart and its bars are daily sessions -- and (2) when an incumbent row (INSIDE_DAY_INCUMBENT_IDS,
     among `detections` or `structures`) carries a breakout / entry level within
-    INSIDE_DAY_PRECEDENCE_ATR ATR of the trigger. Span overlap is NOT a cover: the inside-day box is
+    INSIDE_DAY_PRECEDENCE_ATR ATR of the trigger; a stale incumbent (never drawn) covers nothing. Span overlap is NOT a cover: the inside-day box is
     the last two or three sessions and sits inside nearly every base. Fails closed: a drawing
     without a finite trigger and ATR is dropped. Order is kept; never raises."""
     try:
@@ -658,7 +666,7 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         if (tf or "D").upper() != "D":
             return [s for s in sts if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
         inc = [r for r in list(detections or []) + sts
-               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS]
+               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS and _drawn_incumbent(r)]
         drop = set()
         for s in ids:
             d = ((s.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
