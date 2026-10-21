@@ -368,13 +368,16 @@ def _span(d) -> bool:
 
 #: The base drawing's row id. A bc:base row is built ONLY beside a drawing (`base_draw_row`).
 BASE_DRAW_ID = "bc:base"
-#: The base drawing round the blind check confirmed for members (lab base_draw, 2026-10-18: packets
-#: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]). A literal ON PURPOSE, not
-#: base_draw.BASE_DRAW_ROUND: while the drawing code is on a later round (round 2, lab base_draw_v2: the
-#: pivot on the base's highest body, no base straight after a parabolic run), every bc:base row also
-#: carries THIS round's drawing (`extras.draw_member`) and a member is served exactly the row this round
-#: draws (`_base_member_row`), until the new round passes its own blind check and this is changed by hand.
-MEMBER_BASE_ROUND = 1
+#: The base drawing round the blind check confirmed for members. Round 1 passed 2026-10-18 (packets
+#: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]); round 2 (the pivot on the base's highest body, no base
+#: straight after a parabolic run) passed its own blind check 2026-10-21 (packets A 2.76 [2.60, 2.90] and
+#: B 2.78 [2.64, 2.90]) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
+#: the drawing code moves ahead of this round, every bc:base row carries THIS round's drawing
+#: (`extras.draw_member`) and a member is served exactly the row this round draws (`_base_member_row`),
+#: until the new round passes its own blind check and this is changed by hand. While the two are equal
+#: there is no carrier. Setting this back to 1 restores the round-1 member drawing byte for byte (the
+#: carrier path below; railed by tests/test_base_draw_member_parity.py).
+MEMBER_BASE_ROUND = 2
 #: The one later round whose rows carry the round-1 drawing beside their own (extras.draw_member).
 _BASE_R1_CARRIER = 2
 #: The drawn labels the judges saw.

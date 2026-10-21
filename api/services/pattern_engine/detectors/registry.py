@@ -297,9 +297,11 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: served it only where no incumbent base drawing covers the same base
 #: (auto_structures.member_base_precedence). A bc:base row
 #: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
-#: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base. While
-#: the drawing code is on a later round (round 2, lab base_draw_v2), the member is served the round-1
-#: drawing that every row carries in extras.draw_member (auto_structures._base_member_row).
+#: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
+#: Members are on round 2 (the pivot on the base's highest body) since 2026-10-21; a row stamped with any
+#: other round is dropped. Were the drawing code ever ahead of the member round, the member would be served
+#: the member round's drawing that every row then carries in extras.draw_member
+#: (auto_structures._base_member_row).
 #: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup
 #: recognition tier draws it (pattern_engine/cup_tier.py): recognition 28 of 33 = 84.8% on two fresh
 #: blind packets (live detector alone 14.3%), and drawing round 4 on two fresh pre-registered packets,

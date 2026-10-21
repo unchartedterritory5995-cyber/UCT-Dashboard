@@ -49,7 +49,7 @@ def _base(row, pivot):
     s, e = d["start_t"] - 400, d["end_t"]
     return {"id": "bb", "pattern_id": "bc:base", "start_t": s, "end_t": e, "levels": {"entry": pivot},
             "geometry": {"shape": "base_draw", "anchors": [],
-                         "extras": {"draw_round": 1, "draw_base": {"pivot": pivot, "low": pivot * 0.8,
+                         "extras": {"draw_round": AS.MEMBER_BASE_ROUND, "draw_base": {"pivot": pivot, "low": pivot * 0.8,
                                                                      "start_t": s, "end_t": e, "atr": 1.0,
                                                                      "label": "pivot", "low_label": "base low"}}}}
 

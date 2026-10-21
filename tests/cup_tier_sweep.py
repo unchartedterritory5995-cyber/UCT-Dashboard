@@ -43,10 +43,11 @@ def digest(text: str) -> str:
 
 def _base_as_round_one(auto_structures, rows):
     """The bc:base row in the form round 1 drew it. This golden was written while the base drawing was round 1;
-    the drawing code has since moved to round 2 (lab base_draw_v2), whose rows carry round 1's drawing for
-    members (auto_structures._base_member_row). Mapping through it keeps this rail pinned to exactly what it
-    pinned before -- the round-2 drawing has its own rails (tests/test_base_draw_round2.py,
-    tests/test_base_draw_member_parity.py). Code without the carrier is passed through unchanged."""
+    the drawing code has since moved to round 2, and members now get round 2 too. `run` sweeps with the member
+    literal held at 1, so every row carries round 1's drawing, and mapping through
+    auto_structures._base_member_row keeps this rail pinned to exactly what it pinned before -- the round-2
+    drawing has its own rails (tests/test_base_draw_round2.py, tests/test_base_draw_member_drawing.py).
+    Code without the carrier is passed through unchanged."""
     fn = getattr(auto_structures, "_base_member_row", None)
     if fn is None:
         return rows
@@ -63,9 +64,13 @@ def _base_as_round_one(auto_structures, rows):
 def run(auto_structures, strip: bool = True):
     """({key: digest}, counts) for one implementation of auto_structures.structures_for."""
     saved = auto_structures._daily_bars, auto_structures.last_bar_forming
+    had_member_round = hasattr(auto_structures, "MEMBER_BASE_ROUND")
+    saved_member_round = getattr(auto_structures, "MEMBER_BASE_ROUND", None)
     out, counts = {}, {"scans": 0, "rows": 0, "cup_rows": 0, "stamped": 0}
     try:
         auto_structures.last_bar_forming = lambda t, now=None: False
+        if had_member_round:
+            auto_structures.MEMBER_BASE_ROUND = 1      # the round this golden was written under
         for key, bars in SW.scans():
             snap = json.loads(json.dumps(bars))
             auto_structures._daily_bars = lambda sym, _b=snap: json.loads(json.dumps(_b))
@@ -80,5 +85,7 @@ def run(auto_structures, strip: bool = True):
             out[key] = digest(canonical(rows, strip))
     finally:
         auto_structures._daily_bars, auto_structures.last_bar_forming = saved
+        if had_member_round:
+            auto_structures.MEMBER_BASE_ROUND = saved_member_round
         auto_structures._CACHE.clear()
     return out, counts

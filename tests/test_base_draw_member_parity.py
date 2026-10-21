@@ -1,8 +1,10 @@
-"""MEMBER PARITY: while MEMBER_BASE_ROUND is 1, a member is served byte-for-byte what round 1 served.
+"""ROLLBACK PARITY: with MEMBER_BASE_ROUND set back to 1, a member is served byte-for-byte what round 1 served.
 
-The drawing code moved to round 2 (lab base_draw_v2: the pivot on the base's highest body, no base straight
-after a parabolic run). Round 2 has NOT passed its blind check, so members must keep the confirmed round-1
-drawing until the literal auth_structures.MEMBER_BASE_ROUND is moved by hand.
+The drawing code moved to round 2 (the pivot on the base's highest body, no base straight after a parabolic
+run), and round 2 passed its own blind check: members now get round 2 (auto_structures.MEMBER_BASE_ROUND == 2,
+railed in test_base_draw_member_drawing.py). This file is KEPT, not retired, as the rollback rail: the round-1
+drawing and the carrier path (extras.draw_member) are still in the code, so moving the literal back to 1 must
+restore the round-1 member view exactly. The sweep runs with the literal patched to 1 in memory.
 
 tests/fixtures/base_draw_member_golden.json was written by tools/base_draw_member_golden.py from the
 pre-round-2 code (origin/master 0a6d21b7b9, where base_draw.BASE_DRAW_ROUND == MEMBER_BASE_ROUND == 1): one
@@ -17,6 +19,8 @@ import importlib.util
 import json
 import os
 
+import pytest
+
 from api.services import auto_structures
 from api.services.pattern_engine import base_draw
 
@@ -30,15 +34,24 @@ with open(os.path.join(_HERE, "fixtures", "base_draw_member_golden.json"), encod
     GOLDEN = json.load(_f)
 
 
-def test_the_golden_is_from_the_member_round_and_is_not_vacuous():
-    assert GOLDEN["member_round"] == 1 == auto_structures.MEMBER_BASE_ROUND
+@pytest.fixture
+def round_one_members(monkeypatch):
+    """The rollback state: the member literal moved back to 1, in memory only."""
+    monkeypatch.setattr(auto_structures, "MEMBER_BASE_ROUND", 1)
+
+
+def test_the_golden_is_from_round_one_and_is_not_vacuous():
+    # members are on round 2 now; the golden is the round-1 view a rollback must restore
+    assert auto_structures.MEMBER_BASE_ROUND == 2
+    assert GOLDEN["member_round"] == 1
     c = GOLDEN["counts"]
     assert c["rows"] == 960 and c["scans"] == 168
     assert c["row_served"] >= 50 and c["scan_served"] >= 10
     assert c["row_metrics"] == c["row_served"]          # members saw metrics on every served base
 
 
-def test_members_are_served_byte_for_byte_the_confirmed_round():
+def test_a_rollback_to_round_one_serves_byte_for_byte_the_round_one_view(round_one_members):
+    assert auto_structures.MEMBER_BASE_ROUND == 1
     got, counts = SW.run(auto_structures)
     assert set(got) == set(GOLDEN["digests"])
     bad = sorted(k for k, d in GOLDEN["digests"].items() if got[k] != d)
@@ -47,7 +60,8 @@ def test_members_are_served_byte_for_byte_the_confirmed_round():
 
 
 def test_control_round_two_draws_differently_on_this_sweep():
-    """Without sessions where the rounds differ, the parity above would prove nothing about the carrier."""
+    """Without sessions where the rounds differ, the rollback parity above would prove nothing about the
+    carrier."""
     differ = only_r1 = only_r2 = 0
     for s in range(SW.SW.SERIES):
         bars = SW.SW.series(s)
