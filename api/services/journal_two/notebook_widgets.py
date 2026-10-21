@@ -1598,6 +1598,9 @@ def _room_buzz_on_my_names(user_id: str, params: dict, now: datetime) -> dict:
 
 REACTIONS_WINDOW_DAYS = 7
 REACTIONS_EMPTY_SENTENCE = "None of your names reported in the last 7 days."
+#: Fix F1 (audit I-3): with no before-the-open / after-the-close answer, the reacting session is not
+#: known, so the reaction is not shown (a BMO reporter read off the next session showed 0.91% for 10.0%).
+TIMING_UNKNOWN_SENTENCE = "Report time unknown, so the reaction isn't shown."
 #: ONE total wall-clock budget for the request's earnings reads, and the pool size (the
 #: `_implied_moves` pattern): a cold `get_year_earnings` walks up to four providers.
 REACTIONS_BUDGET_S = 6.0
@@ -1675,7 +1678,10 @@ def _reaction_figures(items: list[tuple[str, str]]) -> tuple[dict[str, dict], bo
 def _next_day_pct(sym: str, day: str, timing: str | None, now: datetime) -> float | None:
     """The reaction from LOCAL daily bars: the close of the first session to trade on the report
     (the report day itself before the bell, else the session after it) against the close before it.
-    None when that session has not closed yet, or the bars do not hold it."""
+    None when that session has not closed yet, or the bars do not hold it, and None when `timing` is not
+    'bmo' or 'amc': an unknown report time is never assumed to be after the close (fix F1, I-3)."""
+    if timing not in ("bmo", "amc"):
+        return None
     try:
         from api.services import bars_sqlite
         bars = [(int(b[0]), _num(b[4])) for b in bars_sqlite.get_bars(sym, "D", _REACTION_BARS) or []]
@@ -1715,8 +1721,12 @@ def _my_earnings_reactions(user_id: str, params: dict, now: datetime) -> dict:
     rows = []
     for sym, day in shown:
         timing = earnings_prep._timing_from_calendar_cache(sym, day)
-        rows.append({"symbol": sym, "day": day, **(figures.get(sym) or dict(_NO_FIGURES)),
-                     "nextDayPct": _next_day_pct(sym, day, timing, now)})
+        row = {"symbol": sym, "day": day, **(figures.get(sym) or dict(_NO_FIGURES)),
+               "nextDayPct": _next_day_pct(sym, day, timing, now)}
+        if timing not in ("bmo", "amc"):
+            row["timingUnknown"] = True
+            row["nextDayNote"] = TIMING_UNKNOWN_SENTENCE
+        rows.append(row)
     out: dict[str, Any] = {"asOf": _iso_utc(now), "source": "market", "rows": rows,
                            "partial": bool(partial) or late}
     if cut:

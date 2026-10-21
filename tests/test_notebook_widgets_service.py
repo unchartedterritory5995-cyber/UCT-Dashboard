@@ -2148,3 +2148,20 @@ def test_i2_the_card_over_the_cap_is_the_too_large_form():
     out = nw.cap_payload({"asOf": "x", "source": "mixed", "symbol": "NVDA", "pad": "p" * 20000}, "tickerCard")
     assert out == {"asOf": "x", "source": "mixed", "symbol": "NVDA", "tooLarge": True,
                    "empty": nw.TOO_LARGE_SENTENCE}
+
+
+# -- fix F1, I-3: an unknown report time is never read as after the close ---------------------------
+
+def test_i3_unknown_timing_shows_no_reaction_and_says_why(monkeypatch):
+    _patch_names(monkeypatch, {"BMO": ["watchlist"], "KNOWN": ["watchlist"]})
+    # BMO reported Thursday before the open (+10.0% that day) and drifted +0.91% Friday. With the time
+    # unknown the old code read Friday's 0.91 as the reaction.
+    bars = [(20261014, 0, 0, 0, 100.0, 0), (20261015, 0, 0, 0, 110.0, 0), (20261016, 0, 0, 0, 111.0, 0)]
+    _patch_reactions(monkeypatch, window={"BMO": "2026-10-15", "KNOWN": "2026-10-15"},
+                     timing={"KNOWN": "bmo"}, closes={"BMO": bars, "KNOWN": bars})
+    rows = {r["symbol"]: r for r in nw.build("myEarningsReactions", "u1", {}, now=NOW)["rows"]}
+    assert rows["BMO"]["nextDayPct"] is None and rows["BMO"]["timingUnknown"] is True
+    assert rows["BMO"]["nextDayNote"] == "Report time unknown, so the reaction isn't shown."
+    assert rows["KNOWN"]["nextDayPct"] == 10.0
+    assert "timingUnknown" not in rows["KNOWN"] and "nextDayNote" not in rows["KNOWN"]
+    assert nw._next_day_pct("BMO", "2026-10-15", None, NOW) is None
