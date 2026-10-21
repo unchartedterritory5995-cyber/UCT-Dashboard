@@ -1121,14 +1121,22 @@ def test_ticker_flow_widened_window_is_named_not_called_empty(monkeypatch, serve
     assert out["bullPremium"] == 900000
 
 
-@pytest.mark.parametrize("result", [None, TimeoutError("read timed out"), _flow_payload([])])
-def test_ticker_flow_nothing_on_any_rung_is_an_empty_payload(monkeypatch, result):
-    _patch_flow(monkeypatch, result)
+def test_ticker_flow_nothing_on_any_rung_is_an_empty_payload(monkeypatch):
+    _patch_flow(monkeypatch, _flow_payload([]))
     out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
-    assert out["empty"] == "No options flow on record for NVDA today."
+    assert out["empty"] == "No options flow on record for NVDA today." and "failed" not in out
     assert out["bullPremium"] is None and out["bearPremium"] is None and out["window"] is None
     assert out["topPrints"] == []
     assert out["asOf"] and out["source"] == "market"
+
+
+@pytest.mark.parametrize("result", [None, TimeoutError("read timed out")])
+def test_ticker_flow_a_failed_read_is_failed_never_no_flow(monkeypatch, result):
+    """UX audit I-5 (R58): no product (None) or a raised read is a failure, distinct from a true empty."""
+    _patch_flow(monkeypatch, result)
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["failed"] is True and out["empty"] == "Couldn't load options flow right now."
+    assert out["bullPremium"] is None and out["window"] is None and out["topPrints"] == []
 
 
 def test_ticker_flow_a_reader_past_the_budget_is_abandoned(monkeypatch):
@@ -1137,7 +1145,7 @@ def test_ticker_flow_a_reader_past_the_budget_is_abandoned(monkeypatch):
     t0 = time.monotonic()
     out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
     assert time.monotonic() - t0 < 1.0
-    assert out["empty"] == "No options flow on record for NVDA today." and out["topPrints"] == []
+    assert out["failed"] is True and out["empty"] == nw.FLOW_FAILED_SENTENCE and out["topPrints"] == []
 
 
 def test_ticker_flow_bad_symbol_raises(monkeypatch):
@@ -1870,7 +1878,8 @@ def test_saturated_pool_ticker_flow_answers_empty_at_once(monkeypatch):
     t0 = time.monotonic()
     out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
     assert time.monotonic() - t0 < 0.5
-    assert calls == [] and out["topPrints"] == [] and out["empty"].startswith("No options flow")
+    assert calls == [] and out["topPrints"] == []
+    assert out["failed"] is True and out["empty"] == "Couldn't load options flow right now."
 
 
 def test_saturated_pool_earnings_reactions_answer_partial_at_once(monkeypatch):
@@ -2351,3 +2360,23 @@ def test_r60_out_of_range_dates_answer_400_through_the_route(monkeypatch):
         assert r.status_code == 400, (url, r.status_code, r.text)
         assert "between" in r.json()["detail"]
     limiter.reset()
+
+
+# -- UX audit I-4 (R58): "none this week" and "could not be read" are two different payloads --------
+
+def test_ux_i4_none_this_week_versus_unknown(monkeypatch):
+    _card_seams(monkeypatch)
+    import api.services.journal_two.earnings_prep as ep
+    monkeypatch.setattr(ep, "_window", lambda today: ({"AMD": "2026-10-22"}, {}, False, "x"))
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["earningsDay"] is None and out["earningsUnknown"] is False         # read: none this week
+    monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+    from api.services.cache import cache
+    cache.delete_prefix("notebook_earnings_prep_window::")
+    monkeypatch.setattr(ep, "_window", lambda today: (_ for _ in ()).throw(RuntimeError("calendar down")))
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["earningsDay"] is None and out["earningsUnknown"] is True          # not read: unknown
+    # a PARTIAL walk (a day it could not read) with no date for the name is unknown too
+    monkeypatch.setattr(ep, "_window", lambda today: ({"AMD": "2026-10-22"}, {}, True, "x"))
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert out["earningsUnknown"] is True

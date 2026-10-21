@@ -1288,12 +1288,17 @@ def _flow_read(sym: str) -> dict | None:
         top_n=TOP_PRINTS_MAX, enrich=False)
 
 
+#: UX audit I-5 (ruling R58): a read that did not happen is never "no flow".
+FLOW_FAILED_SENTENCE = "Couldn't load options flow right now."
+
+
 def _flow_bounded(sym: str) -> dict | None:
     """`_flow_read` under ONE wall-clock budget, the `_implied_moves` shape: a straggler past the
     budget is abandoned (never waited for) and the answer is None. A saturated pool answers None at once
-    (final review I-4): no flow read is an empty widget, never a failed one."""
+    (final review I-4). None is a FAILED read (timeout, saturation, an error, or a product the reader
+    could not derive); only a dict, even an empty one, is an answer."""
     ok, data = _one_bounded(lambda: _flow_read(sym), TICKER_FLOW_TIMEOUT_S)
-    return data if ok else None
+    return data if ok and isinstance(data, dict) else None
 
 
 def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
@@ -1301,6 +1306,7 @@ def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
     if not isinstance(sym, str) or not _SYMBOL_RE.fullmatch(sym):
         raise WidgetRequestError("symbol is required and must be an uppercase ticker")
     data = _flow_bounded(sym)
+    failed = data is None
     data = data if isinstance(data, dict) else {}
     contracts = list(data.get("contracts") or [])
     net = data.get("net") if isinstance(data.get("net"), dict) else {}
@@ -1317,8 +1323,11 @@ def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
         "window": window,
         "topPrints": [{k: c.get(k) for k in _PRINT_KEYS} for c in contracts[:TOP_PRINTS_MAX]],
     }
-    if not contracts:
-        out["empty"] = f"No options flow on record for {sym} today."
+    if failed:
+        out["failed"] = True                           # timeout, saturated pool or read failure
+        out["empty"] = FLOW_FAILED_SENTENCE
+    elif not contracts:
+        out["empty"] = f"No options flow on record for {sym} today."   # a read that found nothing
     return out
 
 
