@@ -32,6 +32,8 @@ describe('StudyLanding', () => {
     expect(cs[0].state).toBe('started')
     expect(cs[1].state).toBe('open')                      // started skill, no unit mastered
     expect(cs[0].top).toBeLessThan(cs[1].top)             // taller body = more mastered
+    expect(cs[0].wickTop).toBeLessThan(cs[1].wickTop)     // taller wick = a bigger station (2 units vs 1)
+    expect(cs[0].wickTop).toBeLessThanOrEqual(cs[0].top)  // the body never leaves its wick
     expect(cs[0].recommended).toBe(true)
     expect(trackShare(curricula[1].tracks[1], byId)).toBe(0)
   })

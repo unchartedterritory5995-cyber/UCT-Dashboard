@@ -18,19 +18,28 @@ export function trackShare(track, byId) {
   return sum.units ? sum.mastered / sum.units : 0
 }
 
-/** One candle per track: x, body top/bottom, state (mastered | started | open),
- *  the counts, and whether it carries the "you are here" marker. */
+const MIN_WICK = 26
+const MIN_BODY = 10
+
+/** One candle per track. The WICK is the station's size (units, scaled to the
+ *  largest station) so the chart has a skyline on day one; the BODY is the
+ *  share of those units mastered, filling the wick as the member learns.
+ *  state: mastered | started | open; `recommended` carries "you are here". */
 export function candles(tracks, byId, recommendedTrackId) {
   const n = Math.max(tracks.length, 1)
   const step = (CHART_W - CHART_PAD_X * 2) / Math.max(n - 1, 1)
+  const sums = tracks.map((t) => trackSummary(t, byId))
+  const maxUnits = Math.max(1, ...sums.map((s) => s.units))
   return tracks.map((track, i) => {
-    const sum = trackSummary(track, byId)
+    const sum = sums[i]
     const share = sum.units ? sum.mastered / sum.units : 0
-    const bodyH = 14 + share * (CHART_BASE - CHART_TOP - 14)
+    const wickH = MIN_WICK + (sum.units / maxUnits) * (CHART_BASE - CHART_TOP - MIN_WICK)
+    const bodyH = MIN_BODY + share * (wickH - MIN_BODY)
     const x = n === 1 ? CHART_W / 2 : CHART_PAD_X + i * step
     const state = share >= 1 ? 'mastered' : share > 0 ? 'started' : 'open'
     return {
-      id: track.id, title: track.title, x, top: CHART_BASE - bodyH, bottom: CHART_BASE, share, state,
+      id: track.id, title: track.title, x, top: CHART_BASE - bodyH, bottom: CHART_BASE,
+      wickTop: CHART_BASE - wickH, share, state,
       mastered: sum.mastered, units: sum.units, recommended: track.id === recommendedTrackId,
     }
   })
