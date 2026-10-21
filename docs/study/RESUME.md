@@ -206,6 +206,26 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
   status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
   import once Railway is back; the hub then shows the survivors by station; sizing first.
+- **2026-10-21 ~17:45Z to 22:00Z: BATCH 1 APPLIED, glossary choices shortened (branch
+  feat/study-method-audit, stacked on #458, pushed).** a9f984ca53 rebuilt six segments from the audit's
+  corrections records: size.house_rule 84->62, walk.method 25->9, vocab.chart 78->29, recall.glossary
+  54->52, recall.concepts 22->5, regime.bottoms 48->17 (the 17 held for a price check on real index
+  bars). Then the 26 glossary "what does X mean" items still had choices of 60-130 characters, too long
+  on a phone: docs/study/audits/2026-10-21/gloss_shorten.py appended 52 fix records (choices + answer,
+  tag "short-choices 2026-10-21", delegated under "whatever you suggest honestly"), one short form per
+  term, every one <=55 characters, meaning kept from each item's own support lines; the rebuild changed
+  only those 26 items' choices and answers (52 items, ids unchanged, every key still a choice; the
+  term->name items were already <=24). 338 Study tests pass. OPEN: the review card's "Source says" line
+  for glossary items still prints reveal.quote, the AI brief's sentence, which the audit found wrong in
+  places (exposure "computed from breadth, distribution days"); the firm's own lines sit in
+  reveal.support, which the card does not show. Fix before the owner reviews that station: show
+  support on the card, or point reveal.quote at the firm's line. RAILWAY at 21:50Z: still a major
+  outage, builds paused in every region, and Railway invalidated CLI sessions (`railway deployment
+  list` answers Unauthorized: the owner runs `! railway login`). Live site up, pod booted ~05:24Z, so
+  #457 is NOT live. The watcher (wait_railway_recovery.sh) was stopped by Claude Code for low memory
+  and not restarted. After recovery, same order: verify #457, merge #458, open a PR for this branch and
+  merge it, import --only the six segments (recall.glossary now carries the short choices), retire the 137 cut ids (scratchpad
+  pod_reject_audit_batch1.json).
 - **2026-10-21 15:10Z: THE WALKTHROUGH FOUND A SCORING BUG; fix merged, waiting on a Railway outage.**
   Owner asked to see everything ("show me everything here and now so we can go through it all ... layout and
   visual and effects and interactive and learning"). Six screens shown (landing, question, reveal, admin

@@ -1,7 +1,7 @@
 [
  {
   "answer_json": {
-   "answer": "The firm's daily 0-150 score; the number is the recommended exposure %."
+   "answer": "The firm's daily 0-150 score: suggested exposure %"
   },
   "difficulty": 1,
   "id": "si_f2a5dbcf1885",
@@ -10,10 +10,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The firm's daily 0-150 score; the number is the recommended exposure %.",
-    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "The firm's daily pre-market brief, out around 7:35 AM ET."
+    "The firm's daily 0-150 score: suggested exposure %",
+    "A wedge breaking up through, or down from, the MAs",
+    "Weak close, then a gap up closing above that day's high",
+    "The firm's daily pre-market brief, about 7:35 AM ET"
    ],
    "q": "At the desk, what does \"UCT Exposure Rating\" mean?",
    "subject": "UCT Exposure Rating"
@@ -74,7 +74,7 @@
  },
  {
   "answer_json": {
-   "answer": "A major index down 0.2% or more on higher volume than the prior session."
+   "answer": "Index falls 0.2%+ on higher volume than the prior day"
   },
   "difficulty": 1,
   "id": "si_6602cc3e3003",
@@ -83,10 +83,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "The firm's daily pre-market brief, out around 7:35 AM ET.",
-    "The firm's weekend scan publication, the weekly deep pass over the universe.",
-    "A major index down 0.2% or more on higher volume than the prior session."
+    "Weak close, then a gap up closing above that day's high",
+    "The firm's daily pre-market brief, about 7:35 AM ET",
+    "The firm's weekend scan publication",
+    "Index falls 0.2%+ on higher volume than the prior day"
    ],
    "q": "At the desk, what does \"Distribution day\" mean?",
    "subject": "Distribution day"
@@ -145,7 +145,7 @@
  },
  {
   "answer_json": {
-   "answer": "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume."
+   "answer": "Rally day 4-7: index up 1.5%+ on higher volume"
   },
   "difficulty": 1,
   "id": "si_65124ebfdbb4",
@@ -154,10 +154,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
-    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
+    "The % of the account one trade risks; 2% is the cap",
+    "Total open risk across all positions; flagged at 10%",
+    "Rally day 4-7: index up 1.5%+ on higher volume",
+    "What a system makes per trade on average, in R"
    ],
    "q": "At the desk, what does \"Follow-through day\" mean?",
    "subject": "Follow-through day"
@@ -216,7 +216,7 @@
  },
  {
   "answer_json": {
-   "answer": "The advancing phase of a stock's four-stage life cycle."
+   "answer": "The advancing phase of the four-stage cycle"
   },
   "difficulty": 1,
   "id": "si_4d2ef9399e05",
@@ -225,10 +225,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The firm's daily pre-market brief, out around 7:35 AM ET.",
-    "The advancing phase of a stock's four-stage life cycle.",
-    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts."
+    "The firm's daily pre-market brief, about 7:35 AM ET",
+    "The advancing phase of the four-stage cycle",
+    "A wedge breaking up through, or down from, the MAs",
+    "Weak close, then a gap up closing above that day's high"
    ],
    "q": "At the desk, what does \"Stage 2\" mean?",
    "subject": "Stage 2"
@@ -287,7 +287,7 @@
  },
  {
   "answer_json": {
-   "answer": "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
+   "answer": "Average daily range in %; the candidate floor is 4%"
   },
   "difficulty": 1,
   "id": "si_947ebd54d6e0",
@@ -296,10 +296,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A leader slips below its moving average, shakes out, then retakes it with authority.",
-    "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
-    "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
-    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
+    "A leader dips below a moving average, then retakes it",
+    "Recapturing the 4-EMA of the highs after a pullback",
+    "A failed break of a prior high or low that snaps back",
+    "Average daily range in %; the candidate floor is 4%"
    ],
    "q": "At the desk, what does \"ADR%\" mean?",
    "subject": "ADR%"
@@ -358,7 +358,7 @@
  },
  {
   "answer_json": {
-   "answer": "Relative strength versus SPY plotted as a line; it rises when the stock beats the market."
+   "answer": "Stock ÷ SPY as a line; rises when it beats the market"
   },
   "difficulty": 1,
   "id": "si_23a0fe67d039",
@@ -367,10 +367,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback.",
-    "The highest-volume day's close becomes the line the stock must hold.",
-    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
-    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market."
+    "The prior up-gap zone a pullback must hold",
+    "The highest-volume day's close, a line to hold",
+    "Undercuts a prior low, traps sellers, then reclaims it",
+    "Stock ÷ SPY as a line; rises when it beats the market"
    ],
    "q": "At the desk, what does \"RS line\" mean?",
    "subject": "RS line"
@@ -433,7 +433,7 @@
  },
  {
   "answer_json": {
-   "answer": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable."
+   "answer": "One R = your planned dollar loss if the stop hits"
   },
   "difficulty": 1,
   "id": "si_2324677f72fa",
@@ -442,10 +442,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market.",
-    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "The advancing phase of a stock's four-stage life cycle."
+    "Average daily range in %; the candidate floor is 4%",
+    "Stock ÷ SPY as a line; rises when it beats the market",
+    "One R = your planned dollar loss if the stop hits",
+    "The advancing phase of the four-stage cycle"
    ],
    "q": "At the desk, what does \"R / R-multiple\" mean?",
    "subject": "R / R-multiple"
@@ -504,7 +504,7 @@
  },
  {
   "answer_json": {
-   "answer": "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
+   "answer": "What a system makes per trade on average, in R"
   },
   "difficulty": 1,
   "id": "si_a3375fc56d73",
@@ -513,10 +513,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
-    "The prior up-gap zone that price must defend on a pullback.",
-    "The highest-volume day's close becomes the line the stock must hold.",
-    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
+    "What a system makes per trade on average, in R",
+    "The prior up-gap zone a pullback must hold",
+    "The highest-volume day's close, a line to hold",
+    "Undercuts a prior low, traps sellers, then reclaims it"
    ],
    "q": "At the desk, what does \"Expectancy\" mean?",
    "subject": "Expectancy"
@@ -573,7 +573,7 @@
  },
  {
   "answer_json": {
-   "answer": "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%."
+   "answer": "The % of the account one trade risks; 2% is the cap"
   },
   "difficulty": 1,
   "id": "si_1718caca9bbc",
@@ -582,10 +582,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "The firm's weekend scan publication, the weekly deep pass over the universe.",
-    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
-    "The firm's daily 0-150 score; the number is the recommended exposure %."
+    "The % of the account one trade risks; 2% is the cap",
+    "The firm's weekend scan publication",
+    "The firm's ranked list of 20 leading stocks",
+    "The firm's daily 0-150 score: suggested exposure %"
    ],
    "q": "At the desk, what does \"Account Risk %\" mean?",
    "subject": "Account Risk %"
@@ -646,7 +646,7 @@
  },
  {
   "answer_json": {
-   "answer": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
+   "answer": "Total open risk across all positions; flagged at 10%"
   },
   "difficulty": 1,
   "id": "si_4946598b9aae",
@@ -655,10 +655,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "The firm's daily pre-market brief, out around 7:35 AM ET.",
-    "The firm's weekend scan publication, the weekly deep pass over the universe."
+    "Total open risk across all positions; flagged at 10%",
+    "Weak close, then a gap up closing above that day's high",
+    "The firm's daily pre-market brief, about 7:35 AM ET",
+    "The firm's weekend scan publication"
    ],
    "q": "At the desk, what does \"Portfolio heat\" mean?",
    "subject": "Portfolio heat"
@@ -721,7 +721,7 @@
  },
  {
   "answer_json": {
-   "answer": "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend."
+   "answer": "A neglected stock's catalyst gap starts a new trend"
   },
   "difficulty": 1,
   "id": "si_2f65cfa44fab",
@@ -730,10 +730,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback.",
-    "The highest-volume day's close becomes the line the stock must hold.",
-    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
-    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend."
+    "The prior up-gap zone a pullback must hold",
+    "The highest-volume day's close, a line to hold",
+    "Undercuts a prior low, traps sellers, then reclaims it",
+    "A neglected stock's catalyst gap starts a new trend"
    ],
    "q": "At the desk, what does \"Episodic Pivot (EP)\" mean?",
    "subject": "Episodic Pivot (EP)"
@@ -794,7 +794,7 @@
  },
  {
   "answer_json": {
-   "answer": "An earnings report so strong the stock gaps above its base on huge volume."
+   "answer": "Blowout earnings gap the stock above its base"
   },
   "difficulty": 1,
   "id": "si_2b0b868c69b1",
@@ -803,10 +803,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "An earnings report so strong the stock gaps above its base on huge volume.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
+    "Blowout earnings gap the stock above its base",
+    "What a system makes per trade on average, in R",
+    "The % of the account one trade risks; 2% is the cap",
+    "Total open risk across all positions; flagged at 10%"
    ],
    "q": "At the desk, what does \"Power Earnings Gap (PEG)\" mean?",
    "subject": "Power Earnings Gap (PEG)"
@@ -869,7 +869,7 @@
  },
  {
   "answer_json": {
-   "answer": "The prior up-gap zone that price must defend on a pullback."
+   "answer": "The prior up-gap zone a pullback must hold"
   },
   "difficulty": 1,
   "id": "si_83a511c154da",
@@ -878,10 +878,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
-    "The prior up-gap zone that price must defend on a pullback.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
+    "The % of the account one trade risks; 2% is the cap",
+    "Total open risk across all positions; flagged at 10%",
+    "The prior up-gap zone a pullback must hold",
+    "What a system makes per trade on average, in R"
    ],
    "q": "At the desk, what does \"Gap support\" mean?",
    "subject": "Gap support"
@@ -940,7 +940,7 @@
  },
  {
   "answer_json": {
-   "answer": "The highest-volume day's close becomes the line the stock must hold."
+   "answer": "The highest-volume day's close, a line to hold"
   },
   "difficulty": 1,
   "id": "si_6a58afbc1174",
@@ -949,10 +949,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The firm's library of history's best stocks by year, with setups labeled on each chart.",
-    "The firm's daily 0-150 score; the number is the recommended exposure %.",
-    "A major index down 0.2% or more on higher volume than the prior session.",
-    "The highest-volume day's close becomes the line the stock must hold."
+    "The firm's library of history's best stocks, by year",
+    "The firm's daily 0-150 score: suggested exposure %",
+    "Index falls 0.2%+ on higher volume than the prior day",
+    "The highest-volume day's close, a line to hold"
    ],
    "q": "At the desk, what does \"HVC (High Volume Close)\" mean?",
    "subject": "High Volume Edge (HVC)"
@@ -1015,7 +1015,7 @@
  },
  {
   "answer_json": {
-   "answer": "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
+   "answer": "Undercuts a prior low, traps sellers, then reclaims it"
   },
   "difficulty": 1,
   "id": "si_26085f1e9fda",
@@ -1024,10 +1024,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
-    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
+    "The % of the account one trade risks; 2% is the cap",
+    "Undercuts a prior low, traps sellers, then reclaims it",
+    "One R = your planned dollar loss if the stop hits",
+    "What a system makes per trade on average, in R"
    ],
    "q": "At the desk, what does \"U&R (Undercut & Rally)\" mean?",
    "subject": "U&R (Undercut & Rally)"
@@ -1090,7 +1090,7 @@
  },
  {
   "answer_json": {
-   "answer": "A leader slips below its moving average, shakes out, then retakes it with authority."
+   "answer": "A leader dips below a moving average, then retakes it"
   },
   "difficulty": 1,
   "id": "si_c3e3a9da02fa",
@@ -1099,10 +1099,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market.",
-    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
-    "A leader slips below its moving average, shakes out, then retakes it with authority."
+    "Stock ÷ SPY as a line; rises when it beats the market",
+    "One R = your planned dollar loss if the stop hits",
+    "What a system makes per trade on average, in R",
+    "A leader dips below a moving average, then retakes it"
    ],
    "q": "At the desk, what does \"Remount\" mean?",
    "subject": "Remount"
@@ -1165,7 +1165,7 @@
  },
  {
   "answer_json": {
-   "answer": "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low."
+   "answer": "Recapturing the 4-EMA of the highs after a pullback"
   },
   "difficulty": 1,
   "id": "si_6b22331a0410",
@@ -1174,10 +1174,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
-    "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
+    "A neglected stock's catalyst gap starts a new trend",
+    "Recapturing the 4-EMA of the highs after a pullback",
+    "The % of the account one trade risks; 2% is the cap",
+    "Total open risk across all positions; flagged at 10%"
    ],
    "q": "At the desk, what does \"Slingshot\" mean?",
    "subject": "Slingshot"
@@ -1234,7 +1234,7 @@
  },
  {
   "answer_json": {
-   "answer": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
+   "answer": "A failed break of a prior high or low that snaps back"
   },
   "difficulty": 1,
   "id": "si_37a28a376722",
@@ -1243,10 +1243,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "The firm's daily pre-market brief, out around 7:35 AM ET.",
-    "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
+    "A wedge breaking up through, or down from, the MAs",
+    "Weak close, then a gap up closing above that day's high",
+    "The firm's daily pre-market brief, about 7:35 AM ET",
+    "A failed break of a prior high or low that snaps back"
    ],
    "q": "At the desk, what does \"2B Reversal / Oops\" mean?",
    "subject": "2B Reversal / Oops"
@@ -1307,7 +1307,7 @@
  },
  {
   "answer_json": {
-   "answer": "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+   "answer": "A catalyst gap digests into the 9 EMA, then engulfs"
   },
   "difficulty": 1,
   "id": "si_98dfe5951957",
@@ -1316,10 +1316,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
-    "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
+    "The % of the account one trade risks; 2% is the cap",
+    "A catalyst gap digests into the 9 EMA, then engulfs",
+    "One R = your planned dollar loss if the stop hits",
+    "What a system makes per trade on average, in R"
    ],
    "q": "At the desk, what does \"Go Signal\" mean?",
    "subject": "Go Signal"
@@ -1378,7 +1378,7 @@
  },
  {
   "answer_json": {
-   "answer": "A tight consolidation sitting on a stacked bundle of moving averages, before it launches."
+   "answer": "A tight base on top of stacked moving averages"
   },
   "difficulty": 1,
   "id": "si_c0389d04c5e6",
@@ -1387,10 +1387,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
-    "An earnings report so strong the stock gaps above its base on huge volume.",
-    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
+    "A neglected stock's catalyst gap starts a new trend",
+    "Blowout earnings gap the stock above its base",
+    "A tight base on top of stacked moving averages",
+    "Total open risk across all positions; flagged at 10%"
    ],
    "q": "At the desk, what does \"Launchpad\" mean?",
    "subject": "Launchpad"
@@ -1451,7 +1451,7 @@
  },
  {
   "answer_json": {
-   "answer": "A wedge under the averages that resolves: the pop reclaims them, the drop loses them."
+   "answer": "A wedge breaking up through, or down from, the MAs"
   },
   "difficulty": 1,
   "id": "si_7b05a3f0b4d2",
@@ -1460,10 +1460,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
-    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+    "A tight base on top of stacked moving averages",
+    "Weak close, then a gap up closing above that day's high",
+    "A wedge breaking up through, or down from, the MAs",
+    "A catalyst gap digests into the 9 EMA, then engulfs"
    ],
    "q": "At the desk, what does \"Wedge Pop / Wedge Drop\" mean?",
    "subject": "Wedge Pop / Wedge Drop"
@@ -1524,7 +1524,7 @@
  },
  {
   "answer_json": {
-   "answer": "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts."
+   "answer": "Weak close, then a gap up closing above that day's high"
   },
   "difficulty": 1,
   "id": "si_a37372af6124",
@@ -1533,10 +1533,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The advancing phase of a stock's four-stage life cycle.",
-    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
-    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume."
+    "The advancing phase of the four-stage cycle",
+    "Average daily range in %; the candidate floor is 4%",
+    "Weak close, then a gap up closing above that day's high",
+    "Rally day 4-7: index up 1.5%+ on higher volume"
    ],
    "q": "At the desk, what does \"Kicker candle\" mean?",
    "subject": "Kicker candle"
@@ -1593,7 +1593,7 @@
  },
  {
   "answer_json": {
-   "answer": "The firm's daily pre-market brief, out around 7:35 AM ET."
+   "answer": "The firm's daily pre-market brief, about 7:35 AM ET"
   },
   "difficulty": 1,
   "id": "si_ac0108051fce",
@@ -1602,10 +1602,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
-    "The advancing phase of a stock's four-stage life cycle.",
-    "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "The firm's daily pre-market brief, out around 7:35 AM ET."
+    "Rally day 4-7: index up 1.5%+ on higher volume",
+    "The advancing phase of the four-stage cycle",
+    "Average daily range in %; the candidate floor is 4%",
+    "The firm's daily pre-market brief, about 7:35 AM ET"
    ],
    "q": "At the desk, what does \"Morning Wire\" mean?",
    "subject": "Morning Wire"
@@ -1664,7 +1664,7 @@
  },
  {
   "answer_json": {
-   "answer": "The firm's weekend scan publication, the weekly deep pass over the universe."
+   "answer": "The firm's weekend scan publication"
   },
   "difficulty": 1,
   "id": "si_2a2dd26742b5",
@@ -1673,10 +1673,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
-    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
-    "The firm's weekend scan publication, the weekly deep pass over the universe.",
-    "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
+    "A tight base on top of stacked moving averages",
+    "A wedge breaking up through, or down from, the MAs",
+    "The firm's weekend scan publication",
+    "A catalyst gap digests into the 9 EMA, then engulfs"
    ],
    "q": "At the desk, what does \"Sunday Scans\" mean?",
    "subject": "Sunday Scans"
@@ -1737,7 +1737,7 @@
  },
  {
   "answer_json": {
-   "answer": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run."
+   "answer": "The firm's ranked list of 20 leading stocks"
   },
   "difficulty": 1,
   "id": "si_25f05f89df8a",
@@ -1746,10 +1746,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
-    "The advancing phase of a stock's four-stage life cycle.",
-    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
-    "A major index down 0.2% or more on higher volume than the prior session."
+    "Rally day 4-7: index up 1.5%+ on higher volume",
+    "The advancing phase of the four-stage cycle",
+    "The firm's ranked list of 20 leading stocks",
+    "Index falls 0.2%+ on higher volume than the prior day"
    ],
    "q": "At the desk, what does \"UCT 20\" mean?",
    "subject": "UCT 20"
@@ -1808,7 +1808,7 @@
  },
  {
   "answer_json": {
-   "answer": "The firm's library of history's best stocks by year, with setups labeled on each chart."
+   "answer": "The firm's library of history's best stocks, by year"
   },
   "difficulty": 1,
   "id": "si_cadbcaa31d48",
@@ -1817,10 +1817,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback.",
-    "The firm's library of history's best stocks by year, with setups labeled on each chart.",
-    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
-    "An earnings report so strong the stock gaps above its base on huge volume."
+    "The prior up-gap zone a pullback must hold",
+    "The firm's library of history's best stocks, by year",
+    "A neglected stock's catalyst gap starts a new trend",
+    "Blowout earnings gap the stock above its base"
    ],
    "q": "At the desk, what does \"Model Book\" mean?",
    "subject": "Model Book"
