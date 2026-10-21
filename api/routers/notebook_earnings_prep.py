@@ -95,7 +95,9 @@ def draft_prep(symbol: str, user: dict = Depends(require_paid)) -> dict[str, Any
         # not read in time is the unknown window: the date then comes from the earnings record (labelled),
         # or is the labelled missing cell, exactly as for a name the window does not list.
         today_d = prep._today_et()
-        out = prep.draft(str(user["id"]), sym, today=today_d, window_read=_bounded_window(today_d))
+        # Inside `_safe` (review m1): a window read that ever raised is the unknown window, never a 500.
+        window = prep._safe(_bounded_window, today_d, fallback=prep.unknown_window())
+        out = prep.draft(str(user["id"]), sym, today=today_d, window_read=window)
     except Exception:
         daily_counters.give_back(day, [daily_counters.Charge(prep.DAILY_SCOPE, str(user["id"]), 1)])
         raise

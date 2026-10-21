@@ -532,6 +532,23 @@ def test_i1_r65_both_routes_read_the_window_through_the_bounded_reader():
         assert made and all("window_read" in {k.arg for k in c.keywords} for c in made), entry
 
 
+def test_m1_a_draft_window_read_that_raises_is_the_unknown_window_never_a_500(client, app, gate_on,
+                                                                             monkeypatch, stores):
+    from api.routers import notebook_earnings_prep as route
+    from api.services.journal_two import earnings_prep
+    _today(monkeypatch)
+    _full_market(monkeypatch, stores)
+    _intel(monkeypatch, {"ticker": "NVDA", "quarters": []})
+
+    def boom(today):
+        raise RuntimeError("window reader broke")
+    monkeypatch.setattr(route, "_bounded_window", boom)
+    as_user(app, A)
+    r = client.post("/api/j2/earnings-prep/NVDA/draft")
+    assert r.status_code == 200
+    assert r.json()["report"]["date"]["missing"] == earnings_prep.UNREADABLE
+
+
 def test_r65_a_cold_draft_never_waits_for_the_walk_and_labels_the_date_honestly(client, app, gate_on,
                                                                                 monkeypatch, stores):
     from api.services.journal_two import earnings_prep
