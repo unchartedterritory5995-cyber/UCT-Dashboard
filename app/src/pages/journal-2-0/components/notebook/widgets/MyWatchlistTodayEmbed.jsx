@@ -1,7 +1,7 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import { fmtShortDay } from '../../../lib/earningsPrepShared'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, NA, toneOf, fmtPrice, fmtChangePct, snapshotStyles as s,
+  useSnapshotFrame, numCell, earningsCell, toneOf, fmtPrice, fmtChangePct, snapshotStyles as s,
 } from './SnapshotFrame'
 
 /** Notebook widgets: My watchlist today. Rendered from `attrs.params` only. */
@@ -11,7 +11,8 @@ export default function MyWatchlistTodayEmbed({ attrs, height = 300, editable = 
   const rows = Array.isArray(p.rows) ? p.rows : []
   const list = p.listLabel ? `From your ${p.listLabel} list.` : ''
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
-  const sourceLine = [list, extra].filter(Boolean).join(' ') || null
+  const partial = p.partial === true ? 'Some figures could not be read in time.' : ''
+  const sourceLine = [list, partial, extra].filter(Boolean).join(' ') || null
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-watchlist-today-embed">
@@ -35,7 +36,7 @@ export default function MyWatchlistTodayEmbed({ attrs, height = 300, editable = 
                     <td><span className={s.sym}>{r?.symbol || '?'}</span></td>
                     <td>{numCell(r?.price, fmtPrice, 'No price available right now')}</td>
                     <td className={toneOf(r?.changePct)}>{numCell(r?.changePct, fmtChangePct, 'No move available right now')}</td>
-                    <td>{r?.earningsDay ? fmtShortDay(r.earningsDay) : <NA reason="No earnings date in the next seven days" />}</td>
+                    <td>{earningsCell(r?.earningsDay, p.earningsUnknown, fmtShortDay)}</td>
                   </tr>
                 ))}
               </tbody>

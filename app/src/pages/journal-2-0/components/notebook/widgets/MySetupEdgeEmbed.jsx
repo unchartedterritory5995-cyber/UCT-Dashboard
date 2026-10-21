@@ -16,7 +16,7 @@ export default function MySetupEdgeEmbed({ attrs, height = 260, editable = false
   const frame = useSnapshotFrame('mySetupEdge', attrs, { editable, onUpdateParams })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
-  const sourceLine = [accountSourceLine(p.source), extra].filter(Boolean).join(' · ') || null
+  const sourceLine = [accountSourceLine(p), extra].filter(Boolean).join(' · ') || null
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-setup-edge-embed">

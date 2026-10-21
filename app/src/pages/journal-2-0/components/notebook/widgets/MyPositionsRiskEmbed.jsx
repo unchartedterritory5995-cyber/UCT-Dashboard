@@ -3,6 +3,15 @@ import SnapshotFrame, {
   useSnapshotFrame, numCell, NA, toneOf, fmtMoneySigned, fmtPrice, fmtPctPlain, accountSourceLine, snapshotStyles as s,
 } from './SnapshotFrame'
 
+/** How open P&L and size were priced (F1 `priceBasis`), said only when the server sent no `sourceDetail`. */
+const PRICE_BASIS = {
+  live: 'Open P&L and size: live market prices.',
+  broker: 'Open P&L and size: broker marks.',
+  mixed: 'Open P&L and size: live prices and broker marks.',
+}
+/** An option row's stop cells (F1: options carry no stop). */
+export const OPTION_STOP = 'Not applicable to options'
+
 /** Where a member sets a stop. The Journal reads only the tab (it has no per-position param). */
 export const SET_STOP_HREF = '/journal?j2tab=positions'
 
@@ -20,7 +29,8 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
   const hasAccount = typeof p.accountSize === 'number' && Number.isFinite(p.accountSize)
   const sizeReason = hasAccount ? 'No price available right now' : 'No account size set in Journal'
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
-  const sourceLine = [accountSourceLine(p.source), extra].filter(Boolean).join(' · ') || null
+  const basis = p.sourceDetail ? null : PRICE_BASIS[p.priceBasis]
+  const sourceLine = [accountSourceLine(p), basis, extra].filter(Boolean).join(' · ') || null
   const usesDefault = p.accountSizeSource === 'default' && hasAccount
 
   return (
@@ -45,11 +55,18 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
                   <tr key={`${r?.symbol || 'row'}-${i}`}>
                     <td>
                       <span className={s.sym}>{r?.symbol || '?'}</span>
-                      {r?.side === 'short' && <span className={s.side}>short</span>}
+                      {r?.kind === 'option'
+                        ? r?.side && <span className={s.side}>{r.side}</span>
+                        : r?.side === 'short' && <span className={s.side}>short</span>}
                     </td>
                     <td>{numCell(r?.sizePct, (v) => fmtPctPlain(v), sizeReason)}</td>
                     <td className={toneOf(r?.openPnl)}>{numCell(r?.openPnl, fmtMoneySigned, 'No price available right now')}</td>
-                    {r?.noStop === true ? (
+                    {r?.kind === 'option' ? (
+                      <>
+                        <td><span className={s.none}>{OPTION_STOP}</span></td>
+                        <td><span className={s.none}>{OPTION_STOP}</span></td>
+                      </>
+                    ) : r?.noStop === true ? (
                       <>
                         <td>
                           <span>No stop set</span>

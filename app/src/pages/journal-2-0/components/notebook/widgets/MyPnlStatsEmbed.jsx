@@ -38,7 +38,7 @@ export default function MyPnlStatsEmbed({ attrs, height = 260, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-pnl-stats-embed">
-      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p.source)}>
+      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p)}>
         {from && to && <p className={s.range}>{`${from} to ${to}`}</p>}
         {noTrades ? (
           <p className={s.empty}>{p.empty}</p>

@@ -1,6 +1,6 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import { fmtShortDay, sourceLabel, timingLabel } from '../../../lib/earningsPrepShared'
-import SnapshotFrame, { useSnapshotFrame, numCell, snapshotStyles as s } from './SnapshotFrame'
+import SnapshotFrame, { useSnapshotFrame, numCell, EARNINGS_UNREAD, snapshotStyles as s } from './SnapshotFrame'
 
 const fmtMove = (v) => `±${v.toFixed(1)}%`
 
@@ -26,7 +26,9 @@ export default function MyNamesReportingEmbed({ attrs, height = 260, editable = 
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-names-reporting-embed">
       <SnapshotFrame {...frame} sourceLine={notes}>
         {rows.length === 0 ? (
-          <p className={s.empty}>None of your names report in the next seven days.</p>
+          p.earningsUnknown === true
+            ? <p className={s.failed}>{`${EARNINGS_UNREAD}, so this can't say who reports. Press See it now to try again.`}</p>
+            : <p className={s.empty}>None of your names report in the next seven days.</p>
         ) : (
           <div className={s.tableWrap}>
             <table className={s.table} aria-label="Names reporting earnings, as captured">

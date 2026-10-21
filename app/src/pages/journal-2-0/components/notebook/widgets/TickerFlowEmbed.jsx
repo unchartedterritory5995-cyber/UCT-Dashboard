@@ -35,7 +35,8 @@ export default function TickerFlowEmbed({ attrs, height = 300, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="ticker-flow-embed">
-      <SnapshotFrame {...frame} title={`Options flow — ${sym}`} sourceLine="Options flow as the Options Flow page reads it.">
+      <SnapshotFrame {...frame} title={`Options flow — ${sym}`}
+        sourceLine={frame.sourceDetail ? null : 'Options flow as the Options Flow page reads it.'}>
         {prints.length > 0 && (
           <dl className={s.dl}>
             <Row label="Window">{typeof p.window === 'string' && p.window ? p.window : <NA reason="The window was not recorded" />}</Row>
@@ -44,7 +45,10 @@ export default function TickerFlowEmbed({ attrs, height = 300, editable = false,
           </dl>
         )}
         {prints.length === 0 ? (
-          <p className={s.empty}>{(typeof p.empty === 'string' && p.empty) || `No options flow on record for ${sym} today.`}</p>
+          // F1: a failed read is said as a failure, never as "no flow".
+          <p className={p.failed === true ? s.failed : s.empty}>
+            {(typeof p.empty === 'string' && p.empty) || (p.failed === true ? "Couldn't load options flow right now." : `No options flow on record for ${sym} today.`)}
+          </p>
         ) : (
           <div className={s.tableWrap}>
             <table className={s.table} aria-label="Largest contracts, as captured">

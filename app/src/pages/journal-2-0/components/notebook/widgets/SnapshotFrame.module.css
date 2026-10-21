@@ -148,6 +148,17 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+.none {
+  color: var(--text-dim);
+}
+/* A read that failed: its own look, never the dashed empty box. */
+.failed {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  color: var(--warn);
+}
 .naWhy {
   color: var(--text-dim);
   font-size: 11px;

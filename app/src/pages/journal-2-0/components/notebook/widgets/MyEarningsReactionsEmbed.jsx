@@ -59,9 +59,14 @@ export default function MyEarningsReactionsEmbed({ attrs, height = 280, editable
                     <td>{r?.day ? fmtShortDay(r.day) : <NA reason="Report day not recorded" />}</td>
                     <td>{versus(r?.epsActual, r?.epsEst, fmtEps, 'EPS')}</td>
                     <td>{versus(r?.revActual, r?.revEst, fmtRevenue, 'revenue')}</td>
-                    <td className={toneOf(r?.nextDayPct)}>
-                      {numCell(r?.nextDayPct, fmtChangePct, 'The session after the report has not closed yet, or its bars are not held')}
-                    </td>
+                    {r?.timingUnknown === true ? (
+                      // F1: no BMO/AMC timing, so no reaction is shown; the server says why, in words.
+                      <td><span className={s.none}>{r?.nextDayNote || "Report time unknown, so the reaction isn't shown."}</span></td>
+                    ) : (
+                      <td className={toneOf(r?.nextDayPct)}>
+                        {numCell(r?.nextDayPct, fmtChangePct, 'The session after the report has not closed yet, or its bars are not held')}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

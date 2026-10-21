@@ -56,7 +56,7 @@ export default function TradeRecapEmbed({ attrs, height = 300, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="trade-recap-embed">
-      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p.source)}>
+      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p)}>
         <p className={s.range}>
           <span className={s.sym}>{p.symbol || 'Ticker'}</span>
           {p.side && <span className={s.side}>{String(p.side).toLowerCase()}</span>}
@@ -74,7 +74,10 @@ export default function TradeRecapEmbed({ attrs, height = 300, editable = false,
           <Row label="Hold">
             {numCell(p.holdDays, (v) => `${v} ${v === 1 ? 'day' : 'days'}`, 'Hold time not recorded')}
           </Row>
-          <Row label="Mistakes">{mistakes.length ? mistakes.join(', ') : 'None tagged'}</Row>
+          <Row label="Mistakes">
+            {mistakes.length ? mistakes.join(', ') : 'None tagged'}
+            {Number(p.mistakesTruncated) > 0 && <span className={s.side}>{`+${p.mistakesTruncated} more`}</span>}
+          </Row>
         </dl>
         {chart ? (
           <svg

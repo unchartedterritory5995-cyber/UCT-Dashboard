@@ -1,7 +1,7 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import { fmtShortDay } from '../../../lib/earningsPrepShared'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, NA, toneOf, fmtPrice, fmtChangePct, fmtMoneySigned, fmtRatioPct, snapshotStyles as s,
+  useSnapshotFrame, numCell, earningsCell, toneOf, fmtPrice, fmtChangePct, fmtMoneySigned, fmtRatioPct, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const NO_PRICE = 'No price available right now'
@@ -26,7 +26,7 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="ticker-card-embed">
-      <SnapshotFrame {...frame} title={sym} sourceLine="Market data, and your own trades in this name.">
+      <SnapshotFrame {...frame} title={sym} sourceLine={frame.sourceDetail ? null : 'Market data, and your own trades in this name.'}>
         <dl className={s.dl}>
           <Row label="Last">
             {numCell(p.price, fmtPrice, NO_PRICE)}{' '}
@@ -44,7 +44,7 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
                 {' · '}
                 {numCell(p.impliedMovePct, fmtMove, 'No options-implied move available')}
               </>
-            ) : <NA reason="No earnings date in the next seven days" />}
+            ) : earningsCell(null, p.earningsUnknown)}
           </Row>
           <Row label="Your history">
             {h && Number(h.trades) > 0 ? (

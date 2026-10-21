@@ -53,7 +53,7 @@ export default function MyPnlCalendarEmbed({ attrs, height = 280, editable = fal
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-pnl-calendar-embed">
-      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p.source)}>
+      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p)}>
         <p className={s.range}>{title || 'Month not recorded'}</p>
         {noTrades ? (
           <p className={s.empty}>{p.empty}</p>

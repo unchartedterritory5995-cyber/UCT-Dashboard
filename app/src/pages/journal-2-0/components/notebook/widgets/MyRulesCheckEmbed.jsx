@@ -24,7 +24,7 @@ export default function MyRulesCheckEmbed({ attrs, height = 260, editable = fals
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="my-rules-check-embed">
-      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p.source)}>
+      <SnapshotFrame {...frame} sourceLine={accountSourceLine(p)}>
         {from && to && <p className={s.range}>{`${from} to ${to}`}</p>}
         {!hasCounts ? (
           <p className={s.empty}>{(typeof p.empty === 'string' && p.empty) || NO_CHECKS}</p>

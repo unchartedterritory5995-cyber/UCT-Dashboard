@@ -25,10 +25,14 @@ import styles from './SnapshotFrame.module.css'
 
 /** How long a failed refresh's sentence stays up. */
 export const REFRESH_MESSAGE_MS = 4000
+/** The server's sentence for a payload over the byte cap (fix-f1-report.md: `tooLarge`), when it sent none. */
+export const TOO_LARGE_SENTENCE = "This widget's data was too large to save. Narrow it and try again."
+/** The earnings calendar was not read (`earningsUnknown: true`): an unknown day, never "none". */
+export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now'
 
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
-  onRefresh, onShareChange, onSavePreset, sourceLine, children,
+  onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
 }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -134,7 +138,10 @@ export default function SnapshotFrame({
       )}
       {offline && !message && <p className={styles.note}>{OFFLINE_SENTENCE}</p>}
       {message && <p className={styles.message} role="status">{message}</p>}
-      <div className={styles.body}>{children}</div>
+      <div className={styles.body}>
+        {tooLarge ? <p className={styles.empty} data-snapshot-too-large="">{tooLargeText || TOO_LARGE_SENTENCE}</p> : children}
+      </div>
+      {sourceDetail && <p className={styles.source}>{sourceDetail}</p>}
       {sourceLine && <p className={styles.source}>{sourceLine}</p>}
     </div>
   )
@@ -181,6 +188,10 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     asOf: params.asOf,
     account: meta?.account === true,
     share: params.share === true,
+    // F1's payload keys: where the numbers came from, and the too-large form (its sentence is `empty`).
+    sourceDetail: typeof params.sourceDetail === 'string' && params.sourceDetail ? params.sourceDetail : null,
+    tooLarge: params.tooLarge === true,
+    tooLargeText: typeof params.empty === 'string' ? params.empty : null,
     editable: canWrite,
     onRefresh: canWrite ? onRefresh : undefined,
     onShareChange: canWrite ? onShareChange : undefined,
@@ -205,6 +216,15 @@ export function NA({ reason }) {
   )
 }
 
+/** An earnings day: the date, or for none "None this week" once the calendar was read, or n/a with the reason
+ *  when it was not (`earningsUnknown`). A snapshot from before F1 carries neither, and keeps its old reason. */
+export function earningsCell(day, unknown, fmt) {
+  if (day) return fmt(day)
+  if (unknown === true) return <NA reason={EARNINGS_UNREAD} />
+  if (unknown === false) return <span className={styles.none}>None this week</span>
+  return <NA reason="No earnings date in the next seven days" />
+}
+
 /** `fmt(value)`, or n/a with `reason` when the value is not a finite number. */
 export function numCell(value, fmt, reason) {
   return typeof value === 'number' && Number.isFinite(value) ? fmt(value) : <NA reason={reason} />
@@ -225,7 +245,8 @@ const SOURCE_LINES = {
   manual: 'Source: your manual trades',
   mixed: 'Source: your linked broker and manual trades',
 }
-/** The provenance line for an account kind's `source`. */
-export const accountSourceLine = (source) => SOURCE_LINES[source] || null
+/** The provenance line for an account kind's params: none when the server sent its own `sourceDetail`, which the
+ *  frame shows instead. */
+export const accountSourceLine = (p) => (p?.sourceDetail ? null : SOURCE_LINES[p?.source] || null)
 
 export { styles as snapshotStyles }
