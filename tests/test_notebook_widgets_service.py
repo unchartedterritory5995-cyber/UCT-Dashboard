@@ -374,10 +374,13 @@ def _heat_row(sym="NVDA", side="Long", entry=100.0, stop=95.0, shares=10):
             "placeholder_stop": placeholder}
 
 
-def _patch_positions(monkeypatch, positions, heat_rows, account=50000.0, default=False):
+def _patch_positions(monkeypatch, positions, heat_rows, account=50000.0, default=False, strategies=()):
     import api.services.journal_two.positions as ps
+    import api.services.journal_two.options as op
     import api.services.portfolio_heat as ph
     monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: positions)
+    monkeypatch.setattr(op, "list_strategies",
+                        lambda user_id, status=None, **k: list(strategies) if status == "open" else [])
     monkeypatch.setattr(ph, "portfolio_heat", lambda user_id, *a, **k: {
         "ok": True, "per_position": heat_rows, "account_size_is_default": default})
     monkeypatch.setattr(nw, "_account_size", lambda user_id: account)
@@ -2165,3 +2168,55 @@ def test_i3_unknown_timing_shows_no_reaction_and_says_why(monkeypatch):
     assert rows["KNOWN"]["nextDayPct"] == 10.0
     assert "timingUnknown" not in rows["KNOWN"] and "nextDayNote" not in rows["KNOWN"]
     assert nw._next_day_pct("BMO", "2026-10-15", None, NOW) is None
+
+
+# -- fix F1, I-5: open option strategies are rows; never "No open positions." while one is open ------
+
+def _strategy(**over):
+    s = {"id": "st-1", "underlying": "CRWV", "strategyType": "long_call", "netEntry": 1200.0,
+         "brokerCurrentValue": 1500.0, "source": "broker", "status": "open",
+         "legs": [{"side": "buy", "contractType": "call", "strike": 110.0, "expiration": "2026-10-16",
+                   "qty": 2, "entryPrice": 6.0}]}
+    s.update(over)
+    return s
+
+
+def test_i5_an_open_option_alone_is_a_row_and_never_no_open_positions(monkeypatch):
+    _patch_positions(monkeypatch, [], [], strategies=[_strategy()])
+    _patch_prices(monkeypatch, {})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert "empty" not in out
+    assert out["rows"] == [{"positionId": None, "symbol": "CRWV Oct 16 $110C", "side": "Long Call",
+                            "kind": "option", "sizePct": 3.0, "openPnl": 300.0, "stopPrice": None,
+                            "distToStopPct": None, "noStop": None}]
+    assert out["source"] == "broker"
+
+
+def test_i5_stock_and_option_rows_together_and_labels_match_the_table(monkeypatch):
+    vertical = _strategy(id="st-2", underlying="NVDA", strategyType="vertical_credit_call", netEntry=-300.0,
+                         brokerCurrentValue=-120.0, source="manual",
+                         legs=[{"side": "sell", "contractType": "call", "strike": 550.0, "expiration": "2026-06-20",
+                                "qty": 1, "entryPrice": 5.0},
+                               {"side": "buy", "contractType": "call", "strike": 560.5, "expiration": "2026-06-20",
+                                "qty": 1, "entryPrice": 2.0}])
+    short_put = _strategy(id="st-3", strategyType="short_put", netEntry=-400.0, brokerCurrentValue=None,
+                          legs=[{"side": "sell", "contractType": "put", "strike": 95.5, "expiration": "2026-11-06",
+                                 "qty": 1, "entryPrice": 4.0}])
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()], strategies=[vertical, short_put])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    rows = nw.build("myPositionsRisk", "u1", {}, now=NOW)["rows"]
+    assert [r["kind"] for r in rows] == ["stock", "option", "option"]
+    assert (rows[1]["symbol"], rows[1]["side"]) == ("NVDA 550/560.5 Call Credit Spread Jun 20", "Short")
+    assert rows[1]["openPnl"] == 180.0 and rows[1]["sizePct"] == 0.24
+    assert (rows[2]["symbol"], rows[2]["side"]) == ("CRWV Nov 6 $95.5P", "Short Put")
+    assert rows[2]["openPnl"] is None and rows[2]["sizePct"] is None   # no stored mark: unknown, never 0
+
+
+def test_i5_options_share_the_row_cap(monkeypatch):
+    positions = [_pos(sym=f"S{i:02d}", pid=f"p{i}") for i in range(38)]
+    strategies = [_strategy(id=f"st{i}") for i in range(5)]
+    _patch_positions(monkeypatch, positions, [], strategies=strategies)
+    _patch_prices(monkeypatch, {})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert len(out["rows"]) == nw.ROW_CAP and out["truncated"] == 3
+    assert [r["kind"] for r in out["rows"]].count("option") == 2

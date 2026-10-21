@@ -235,6 +235,30 @@ def test_new_member_no_data(env):
             assert row.get("openPnl") != 0.0, kind
 
 
+def test_an_open_option_strategy_is_a_row_through_the_journals_own_reader(env):
+    """Fix F1 (audit I-5): a member whose only open position is an option strategy, written by the
+    Journal's own create_strategy, reads it as a row (never "No open positions.")."""
+    from api.services import auth_db
+    from api.services.journal_two import options
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash) VALUES ('u-opt', 'o@example.test', 'x')")
+        conn.commit()
+    finally:
+        conn.close()
+    exp = (date.today() + timedelta(days=30)).isoformat()
+    options.create_strategy("u-opt", {
+        "underlying": "CRWV", "strategyType": "long_call", "direction": "bullish",
+        "entryDate": date.today().isoformat(),
+        "legs": [{"side": "buy", "contractType": "call", "strike": 110, "expiration": exp, "qty": 2,
+                  "entryPrice": 6.0}]})
+    payload = _get(_client("u-opt"), "myPositionsRisk")
+    assert "empty" not in payload
+    assert [(r["kind"], r["side"]) for r in payload["rows"]] == [("option", "Long Call")]
+    assert payload["rows"][0]["symbol"].startswith("CRWV ") and payload["rows"][0]["symbol"].endswith(" $110C")
+    assert payload["rows"][0]["openPnl"] is None              # no broker mark stored yet: unknown, never 0
+
+
 def _seed_tagged_member(uid):
     """A member whose one closed manual loss carries a mistake tag, and nothing else."""
     from api.services import auth_db

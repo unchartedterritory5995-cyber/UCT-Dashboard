@@ -660,6 +660,96 @@ def _account_size(user_id: str) -> float | None:
         return None
 
 
+_OPT_SINGLE_LEG = frozenset({"long_call", "long_put", "short_call", "short_put"})
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _js_number(v: Any) -> str:
+    """A number the way the client's template literal prints it: 110 -> '110', 110.5 -> '110.5'."""
+    f = _num(v)
+    if f is None:
+        return str(v)
+    return str(int(f)) if f == int(f) else repr(f)
+
+
+def _exp_short(exp: Any) -> str:
+    """'2026-10-16' -> 'Oct 16' (the table's `toLocaleString` month and day), '' when unreadable."""
+    try:
+        d = date.fromisoformat(str(exp)[:10])
+    except (TypeError, ValueError):
+        return ""
+    return f"{_MONTHS[d.month - 1]} {d.day}"
+
+
+def _strategy_label(s: dict) -> str:
+    """optionCalcs.js `buildStrategyLabel`, the multi-leg label the Open Positions table shows."""
+    legs = [l for l in (s.get("legs") or []) if isinstance(l, dict)]
+    underlying = str(s.get("underlying") or "")
+    kind = str(s.get("strategyType") or "")
+    exps = [str(l.get("expiration")) for l in legs if l.get("expiration")]
+    exp_code = _exp_short(min(exps)) if exps else ""
+    strikes = "/".join(_js_number(x) for x in sorted(_num(l.get("strike")) or 0.0 for l in legs))
+    if len(legs) == 1:
+        leg = legs[0]
+        cp = "C" if leg.get("contractType") == "call" else "P"
+        word = "Long" if leg.get("side") == "buy" else "Short"
+        return f"{underlying} {_js_number(leg.get('strike'))}{cp} {word} {exp_code}".strip()
+    if kind.startswith("vertical_"):
+        cp = "Call" if kind.endswith("_call") else "Put"
+        spread = "Debit Spread" if "debit" in kind else "Credit Spread"
+        return f"{underlying} {strikes} {cp} {spread} {exp_code}".strip()
+    if kind in ("iron_condor", "iron_butterfly"):
+        name = "Iron Condor" if kind == "iron_condor" else "Iron Butterfly"
+        return f"{underlying} {strikes} {name} {exp_code}".strip()
+    pretty = re.sub(r"\b\w", lambda m: m.group(0).upper(), kind.replace("_", " "))
+    return f"{underlying} {pretty} {exp_code}".strip()
+
+
+def _option_row(s: dict, account: float | None) -> dict:
+    """One OPEN option strategy as the Open Positions table shows it (OpenPositionsTab `optionToRow`): the
+    compact "CRWV Oct 16 $110C" + "Long Call" for a single leg, `buildStrategyLabel` + Long/Short for a
+    multi-leg one. Open P&L is the stored broker value less the net entry; size % is the value's share of
+    the account. ⚠️ The table prefers a live option mark when its marks feed has one; this server read has
+    only the stored broker value, so `priceBasis` counts every option row as a broker mark."""
+    legs = [l for l in (s.get("legs") or []) if isinstance(l, dict)]
+    leg = legs[0] if legs else {}
+    kind = str(s.get("strategyType") or "")
+    underlying = str(s.get("underlying") or "").upper()
+    if kind in _OPT_SINGLE_LEG:
+        is_long, is_call = kind.startswith("long_"), kind.endswith("call")
+        side = f"{'Long' if is_long else 'Short'} {'Call' if is_call else 'Put'}"
+        when = _exp_short(leg.get("expiration"))
+        symbol = f"{underlying}{' ' + when if when else ''} ${_js_number(leg.get('strike'))}{'C' if is_call else 'P'}"
+    else:
+        net = _num(s.get("netEntry")) or 0.0
+        side = "Short" if net < 0 else "Long"           # classifyDebitCredit: only a credit is short
+        symbol = _strategy_label(s)
+    value = _num(s.get("brokerCurrentValue"))
+    net_entry = _num(s.get("netEntry"))
+    return {
+        "positionId": None,
+        "symbol": symbol,
+        "side": side,
+        "kind": "option",
+        "sizePct": round(abs(value) / account * 100, 2) if value is not None and account else None,
+        "openPnl": round(value - net_entry, 2) if None not in (value, net_entry) else None,
+        "stopPrice": None,
+        "distToStopPct": None,
+        "noStop": None,                                  # a stop does not apply to an option row
+    }
+
+
+def _open_strategies(user_id: str) -> list[dict]:
+    """The member's OPEN option strategies through the Journal's own reader (the Open Positions tab's
+    `GET /api/j2/option-strategies?status=open`). Read-only. A failed read is no rows, logged."""
+    try:
+        from api.services.journal_two import options as j2_options
+        return [s for s in (j2_options.list_strategies(user_id, status="open") or []) if isinstance(s, dict)]
+    except Exception as e:  # noqa: BLE001 -- one source failing never blanks the stock rows
+        _log.info("positions risk: option strategies read failed: %s", e)
+        return []
+
+
 def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import portfolio_heat
     from api.services.journal_two import accounts as j2_accounts
@@ -669,7 +759,11 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     # member who has none, so after it runs "a row exists" no longer means "the member set a size".
     stored_size = _account_size(user_id)
     heat = portfolio_heat.portfolio_heat(user_id) or {}
+    # Fix F1 (audit I-5): open option strategies are rows too, as the Open Positions tab shows them.
+    strategies = _open_strategies(user_id)
     shown, cut = open_positions[:ROW_CAP], max(0, len(open_positions) - ROW_CAP)
+    opt_shown = strategies[:ROW_CAP - len(shown)]
+    cut += len(strategies) - len(opt_shown)
 
     # Heat walks the same open positions in order, so rows are matched on symbol + side,
     # in order, which keeps two lots of one name apart.
@@ -725,23 +819,25 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
             "positionId": p.get("id"),
             "symbol": sym,
             "side": p.get("side"),
+            "kind": "stock",
             "sizePct": size_pct,
             "openPnl": open_pnl,
             "stopPrice": _num(h.get("stop_price")) if has_stop else None,
             "distToStopPct": _num(h.get("dist_to_stop_pct")) if has_stop else None,
             "noStop": no_stop,
         })
+    rows += [_option_row(st, account) for st in opt_shown]
     out: dict[str, Any] = {
         "asOf": _iso_utc(now),
-        "source": _origin([p.get("source") for p in open_positions]),
+        "source": _origin([p.get("source") for p in open_positions] + [st.get("source") for st in strategies]),
         "accountSize": account,
         "accountSizeSource": "default" if is_default else "member",
         "rows": rows,
     }
     if cut:
         out["truncated"] = cut
-    if not open_positions:
-        out["empty"] = "No open positions."
+    if not open_positions and not strategies:
+        out["empty"] = "No open positions."     # never while an option strategy is open
     return out
 
 
