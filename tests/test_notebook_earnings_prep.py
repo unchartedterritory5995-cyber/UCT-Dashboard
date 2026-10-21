@@ -434,8 +434,11 @@ def _fresh_walks(monkeypatch):
     """The window walk runs on the shared bounded pool and its single-flight table (module state): a fresh
     pair per test, so one test's deliberately slow walk never saturates the next test's reads."""
     from api.services.journal_two import notebook_widgets as nw
-    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test"))
+    pool = nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test")
+    monkeypatch.setattr(nw, "_POOL", pool)
     monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+    yield
+    pool.shutdown()                                   # review m8: no test leaves its pool behind
 
 
 def _slow_walk(monkeypatch, window: dict, walk_s: float) -> dict:

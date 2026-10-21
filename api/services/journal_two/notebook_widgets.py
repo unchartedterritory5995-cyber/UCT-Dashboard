@@ -116,6 +116,10 @@ class BoundedPool:
         fut.add_done_callback(lambda _f: slots.release())
         return fut
 
+    def shutdown(self) -> None:
+        """Stop taking work and cancel what has not started (a test's teardown; never on a live path)."""
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
 
 #: ONE pool for every builder's vendor fan-out (implied moves, the flow page read, the earnings calendar
 #: walk, the reaction figures). Looked up at call time, so a test can swap in a fresh one.
