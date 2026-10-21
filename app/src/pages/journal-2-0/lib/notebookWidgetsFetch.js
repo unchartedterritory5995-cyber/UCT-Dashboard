@@ -65,8 +65,16 @@ export async function fetchWidgetPayload(kind, params = {}) {
     })
     if (res.status === 404) return { ok: false, reason: 'unavailable' }
     if (res.status === 400) {
-      const body = await res.json().catch(() => null)
-      return { ok: false, reason: 'failed', ...(typeof body?.detail === 'string' && body.detail ? { message: body.detail } : {}) }
+      // A 400 is failed whatever its body says; a readable `detail` only adds the server's own sentence. An
+      // unreadable body is handled HERE, by name, so it is a 400 without a message and never a swallowed throw.
+      let detail = null
+      try {
+        const body = await res.json()
+        if (typeof body?.detail === 'string' && body.detail) detail = body.detail
+      } catch {
+        detail = null
+      }
+      return { ok: false, reason: 'failed', ...(detail ? { message: detail } : {}) }
     }
     if (!res.ok) return { ok: false, reason: 'failed' }
     const payload = await res.json()

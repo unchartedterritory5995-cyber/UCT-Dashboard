@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { WIDGET_KINDS, widgetEmbedNode } from './notebookWidgets'
 import { SETTINGS_KEYS } from './notebookSets'
 import {
-  fetchWidgetPayload, refreshParams, requestParamsOf, REQUEST_KEYS,
+  fetchWidgetPayload, refreshParams, requestParamsOf, REQUEST_KEYS, FETCH_TIMEOUT_MS,
   OFFLINE_SENTENCE, REFRESH_FAILED_SENTENCE, refreshFailureText,
 } from './notebookWidgetsFetch'
 import { resolveEmbedRender } from './widgetEmbedCore'
@@ -101,6 +101,35 @@ describe('fetchWidgetPayload', () => {
     await expect(fetchWidgetPayload('myPnlStats')).resolves.toEqual({ ok: false, reason: 'failed' })
     fetchSpy.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ rows: [] }) })
     await expect(fetchWidgetPayload('myPnlStats')).resolves.toEqual({ ok: false, reason: 'failed' })
+  })
+
+  // F3 item 2: the 400 body is read with explicit handling, not `.catch(() => null)` (swallowedFetch census).
+  it('a 400 carries the server sentence; a 400 with no readable sentence is failed with no message', async () => {
+    fetchSpy.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ detail: 'month must be between 2020-01 and 2026-10' }) })
+    await expect(fetchWidgetPayload('myPnlCalendar', { month: '1999-01' })).resolves.toEqual({
+      ok: false, reason: 'failed', message: 'month must be between 2020-01 and 2026-10',
+    })
+    fetchSpy.mockResolvedValueOnce({ ok: false, status: 400, json: async () => { throw new SyntaxError('Unexpected token') } })
+    await expect(fetchWidgetPayload('myPnlCalendar', { month: '1999-01' })).resolves.toEqual({ ok: false, reason: 'failed' })
+    fetchSpy.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ detail: '' }) })
+    await expect(fetchWidgetPayload('myPnlCalendar')).resolves.toEqual({ ok: false, reason: 'failed' })
+    fetchSpy.mockResolvedValueOnce({ ok: false, status: 400, json: async () => null })
+    await expect(fetchWidgetPayload('myPnlCalendar')).resolves.toEqual({ ok: false, reason: 'failed' })
+  })
+
+  it('a request that never answers is given up as failed at FETCH_TIMEOUT_MS, never a throw', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchSpy.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      }))
+      const pending = fetchWidgetPayload('myPnlStats')
+      await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS)
+      await expect(pending).resolves.toEqual({ ok: false, reason: 'failed' })
+      expect(refreshFailureText('failed')).toBe(REFRESH_FAILED_SENTENCE)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('asks the kind path with only the request keys', async () => {
