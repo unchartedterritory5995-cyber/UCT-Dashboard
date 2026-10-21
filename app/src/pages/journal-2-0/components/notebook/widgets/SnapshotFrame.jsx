@@ -7,7 +7,7 @@ import { widgetKind } from '../../../lib/notebookWidgets'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import { savePreset, NAME_MAX } from '../../../lib/notebookSets'
 import {
-  fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText,
+  fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText, OFFLINE_SENTENCE,
 } from '../../../lib/notebookWidgetsFetch'
 import styles from './SnapshotFrame.module.css'
 
@@ -33,6 +33,16 @@ export default function SnapshotFrame({
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [naming, setNaming] = useState(null)   // the preset name being typed, or null when closed
+  // Spec §6 (final review M-10): offline, See it now is DISABLED with the reason as its title, and it is
+  // enabled again on the browser's online event.
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
+  useEffect(() => {
+    const on = () => setOffline(false)
+    const off = () => setOffline(true)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -100,7 +110,8 @@ export default function SnapshotFrame({
           </label>
         )}
         {editable && (
-          <button type="button" className={styles.btn} onClick={refresh} disabled={busy} aria-busy={busy || undefined}>
+          <button type="button" className={styles.btn} onClick={refresh} disabled={busy || offline}
+            aria-busy={busy || undefined} title={offline ? OFFLINE_SENTENCE : undefined}>
             See it now
           </button>
         )}

@@ -91,6 +91,37 @@ describe('SnapshotFrame controls', () => {
   })
 })
 
+// Spec §6 (final review M-10): offline, See it now is disabled with the reason, and comes back online.
+describe('SnapshotFrame offline', () => {
+  const setOnline = (v) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => v })
+  afterEach(() => setOnline(true))
+
+  it('offline: See it now is disabled and its title says the saved snapshot is shown; online enables it again', async () => {
+    setOnline(false)
+    const onRefresh = vi.fn(async () => ({ ok: true }))
+    frame({ onRefresh })
+    const btn = screen.getByRole('button', { name: 'See it now' })
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveAttribute('title', "You're offline. This shows the saved snapshot.")
+    fireEvent.click(btn)
+    expect(onRefresh).not.toHaveBeenCalled()
+    setOnline(true)
+    act(() => { window.dispatchEvent(new Event('online')) })
+    expect(btn).toBeEnabled()
+    expect(btn).not.toHaveAttribute('title')
+    // ...and the offline event disables it again, in place.
+    act(() => { window.dispatchEvent(new Event('offline')) })
+    expect(btn).toBeDisabled()
+  })
+
+  it('online: See it now is enabled with no offline title (control)', () => {
+    frame()
+    const btn = screen.getByRole('button', { name: 'See it now' })
+    expect(btn).toBeEnabled()
+    expect(btn).not.toHaveAttribute('title')
+  })
+})
+
 // Final review M-1: two writes before a re-render. The host's attrs reach the hook only on the next render, so a
 // refresh that resolves in the same frame as the member switching share OFF must not write share back ON.
 describe('useSnapshotFrame: two writes in one frame', () => {
