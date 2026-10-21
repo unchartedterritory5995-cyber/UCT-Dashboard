@@ -1768,6 +1768,10 @@ def cached_reference_set(key: tuple, compute: Callable[[], frozenset[str]], *,
             return hit[1]
 
     def fill() -> frozenset[str]:
+        with _REF_LOCK:     # review m4: a caller that missed above but became a leader after the last one stored
+            hit = _REF_SETS.get(key)
+            if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
+                return hit[1]
         got = frozenset(compute())
         with _REF_LOCK:
             _REF_SETS[key] = (t, got)

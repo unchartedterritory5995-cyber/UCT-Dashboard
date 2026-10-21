@@ -656,37 +656,70 @@ def _fresh_reference_cache(monkeypatch):
 
 def test_m2_concurrent_misses_compute_the_reference_set_once(monkeypatch):
     """Fix F1b (review M-2): a burst of image requests for one cold key runs ONE reduction, on the first
-    request's own thread (its sqlite connection is bound to it), and every request gets that set."""
+    request's own thread (its sqlite connection is bound to it), and every request gets that set.
+    Deterministic (review m4): the leader's compute is held until every other request is waiting on it."""
     import threading
-    import time
     public = _fresh_reference_cache(monkeypatch)
-    calls, lock = [], threading.Lock()
+    flight = nw.SingleFlight(public.REFERENCE_SET_WAITERS, name="public reference set")
+    monkeypatch.setattr(public, "_REF_FLIGHT", flight)
+    n = public.REFERENCE_SET_WAITERS + 1                        # the leader plus every waiter it admits
+    joined, all_joined, started = [0], threading.Event(), threading.Event()
+    lock = threading.Lock()
+    real_wait = flight._wait
+
+    def counting_wait(*a, **k):
+        with lock:
+            joined[0] += 1
+            if joined[0] == n - 1:
+                all_joined.set()
+        return real_wait(*a, **k)
+    monkeypatch.setattr(flight, "_wait", counting_wait)
+    calls = []
 
     def compute():
-        with lock:
-            calls.append(threading.current_thread().name)
-        time.sleep(0.3)
+        calls.append(threading.current_thread().name)
+        started.set()
+        assert all_joined.wait(5), "the waiters never joined"
         return frozenset({"inline/a1.png"})
 
     out, errs = [], []
 
-    def one(i):
+    def one():
         try:
             out.append(public.cached_reference_set(("share", "tok", "note", "rev-1"), compute))
         except Exception as e:  # noqa: BLE001
             errs.append(e)
 
-    n = public.REFERENCE_SET_WAITERS + 1                        # the leader plus every waiter it admits
-    ts = [threading.Thread(target=one, args=(i,), name=f"req-{i}") for i in range(n)]
+    leader = threading.Thread(target=one, name="req-leader")
+    leader.start()
+    assert started.wait(5)
+    ts = [threading.Thread(target=one, name=f"req-{i}") for i in range(n - 1)]
     for t in ts:
         t.start()
-    for t in ts:
+    for t in [leader, *ts]:
         t.join(10)
     assert errs == [] and len(out) == n and all(o == {"inline/a1.png"} for o in out)
-    assert len(calls) == 1 and calls[0].startswith("req-")       # one reduction, on a request's own thread
+    assert calls == ["req-leader"] and joined[0] == n - 1       # one reduction, on the leader's own thread
     # control: a different key (a new revision) is its own computation
+    all_joined.set()
     assert public.cached_reference_set(("share", "tok", "note", "rev-2"), compute) == {"inline/a1.png"}
     assert len(calls) == 2
+
+
+def test_m4_a_late_leader_rechecks_the_cache_before_computing(monkeypatch):
+    """Review m4: a caller that missed the cache, then became a leader after the first leader stored, takes
+    the stored set instead of a second full reduction."""
+    public = _fresh_reference_cache(monkeypatch)
+    calls = []
+    real_flight = public._reference_flight()
+
+    class Late:
+        def run_here(self, key, fill, budget_s):
+            public._REF_SETS[key] = (0.0, frozenset({"hero/first.jpg"}))   # the first leader stored meanwhile
+            return real_flight.run_here(key, fill, budget_s)
+    monkeypatch.setattr(public, "_REF_FLIGHT", Late())
+    got = public.cached_reference_set(("k4",), lambda: (calls.append(1), frozenset({"x"}))[1], now=lambda: 1.0)
+    assert got == {"hero/first.jpg"} and calls == []
 
 
 def test_m2_a_leader_that_raises_leaves_nothing_cached_and_its_waiters_compute_their_own(monkeypatch):
