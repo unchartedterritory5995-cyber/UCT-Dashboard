@@ -37,7 +37,9 @@ describe('SnapshotFrame at phone width', () => {
   it('a table wraps its cells instead of scrolling sideways', () => {
     expect(rule(phone, '.tableWrap')).toMatch(/overflow-x:\s*visible/)
     expect(rule(phone, '.table td')).toMatch(/white-space:\s*normal/)
-    expect(rule(phone, '.table td')).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(rule(phone, '.table td')).toMatch(/overflow-wrap:\s*break-word/)
+    expect(rule(phone, '.table td')).toMatch(/word-break:\s*normal/)
+    expect(rule(phone, '.table td')).not.toMatch(/anywhere|break-all/)       // review m-6: a figure stays whole
     expect(rule(phone, '.table')).toMatch(/table-layout:\s*fixed/)
   })
 

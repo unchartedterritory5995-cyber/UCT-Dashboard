@@ -298,7 +298,9 @@
   .table td {
     padding: 4px;
     white-space: normal;
-    overflow-wrap: anywhere;
+    /* Review m-6: wrap between words; a figure ("+$12,345.67") breaks only if it cannot fit at all. */
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 }
 
