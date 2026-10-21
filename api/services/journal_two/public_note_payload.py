@@ -487,16 +487,23 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
     # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
     # builders' own honesty flags. NEVER `positionId`: every row passes EMBED_ROW_KEYS (R60).
-    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
-    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
-    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated"),
-    "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated"),
+    # `tooLarge` + `empty` (the too-large sentence), `truncated` (rows the cap dropped) and
+    # `mistakesTruncated` (tags past MISTAKES_MAX) are the CAP's honesty flags (notebook_widgets.cap_payload),
+    # kept for every kind the cap can set them on, so a stranger reads the sentence and the "+n more" the
+    # member does (fix F1b, review M-4). Railed against the cap's real output.
+    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share",
+                   "truncated", "tooLarge"),
+    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial",
+                        "tooLarge"),
+    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated", "tooLarge"),
+    "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
     # Wave 6. ⛔ NEVER `tradeId`: it names one of the member's trades, and the builder's own payload
     # carries no id, so a shown recap needs none. The settings key stays home with the rest.
     "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
-                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share"),
-    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share"),
-    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated"),
+                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share",
+                   "empty", "truncated", "tooLarge", "mistakesTruncated"),
+    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
+    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or

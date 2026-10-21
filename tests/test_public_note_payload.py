@@ -1106,8 +1106,55 @@ def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(
 
 
 def test_wave2_param_keys_are_the_ones_the_builders_emit():
-    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated")
-    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated")
+    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share",
+                                                    "truncated", "tooLarge")
+    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge")
+
+
+def _cap_honesty_keys(kind: str) -> set[str]:
+    """The keys notebook_widgets.cap_payload ITSELF adds to a `kind` payload, read off its real output (fix
+    F1b, review M-4): the too-large form, a trimmed list, and (for a kind that publishes `mistakes`) a
+    mistake list past MISTAKES_MAX. Derived from the cap, never restated."""
+    from api.services.journal_two import notebook_widgets as nw
+    base = {"asOf": "2026-10-20T14:00:00Z", "source": "manual"}
+    added: set[str] = set()
+    big = nw.cap_payload({**base, "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+    added |= set(big) - set(base) - {"blob"}
+    key = nw.LIST_KEY[kind]
+    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind)
+    added |= set(trimmed) - set(base) - {key}
+    if "mistakes" in pnp.EMBED_ROW_KEYS.get(kind, {}):
+        clipped = nw.cap_payload({**base, "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 3)]}, kind)
+        added |= set(clipped) - set(base) - {"mistakes"}
+    return added
+
+
+def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        added = _cap_honesty_keys(kind)
+        assert {"tooLarge", "empty", "truncated"} <= added, (kind, added)     # control: the fixtures hit the cap
+        assert added <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, added - set(pnp.EMBED_PARAM_KEYS[kind]))
+    assert "mistakesTruncated" in _cap_honesty_keys("tradeRecap")
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
+    """A shown account widget whose data hit the cap is published WITH its sentence, never as a blank frame."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        node = _widget(kind)
+        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                  "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+        node["attrs"]["params"] = dict(payload, share=True)
+        params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+        assert params.get("tooLarge") is True and params.get("empty") == nw.TOO_LARGE_SENTENCE, (kind, params)
+    node = _widget("tradeRecap")
+    node["attrs"]["params"] = dict(nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                                   "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 5)]},
+                                                  "tradeRecap"), share=True)
+    params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+    assert params["mistakesTruncated"] == 5 and len(params["mistakes"]) == nw.MISTAKES_MAX
 
 
 # ── Notebook widgets wave 3 (Task 14): the two market kinds stay neutral, switch or no switch ──
@@ -1177,7 +1224,7 @@ def test_wave6_embed_keys_are_the_ones_the_builders_emit():
         "mySetupEdge": ("asOf", "source", "rows", "empty", "truncated"),
     }
     for kind, keys in emitted.items():
-        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"}, kind
+        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"} | _cap_honesty_keys(kind), kind
         src = inspect.getsource(nw._BUILDERS[kind])
         for k in keys:
             assert f'"{k}"' in src, (kind, k)              # every kept key is one the builder writes
