@@ -162,3 +162,37 @@ Not walked as separate inserts: `indexes`, `marketcontext` and `scanner` are `he
 - `walk-results-news-followup.json` — the one-step re-run that captured the news sentence.
 - `walk-results-run1.json` — the first run, superseded (its 820/390 rows died on the walk's own click target).
 - `sandbox-integrity*.md` — the launcher's C:\data snapshot logs.
+
+## Re-walk on d046f607fa (D1, D2, D3, O2 fixes), 2026-10-21
+
+Same sandbox recipe, fresh member, `app/dist` rebuilt from `d046f607fabee63386198bcde12541ec45d88a0e`. Raw results: `rewalk-results.json`. C:\data: `SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\Users\Patrick\uct-worktrees\notebook-widgets\docs\notebook\evidence\2026-10-20-widgets\sandbox-integrity-rewalk.md`
+
+| width | item | verdict | evidence |
+|---|---|---|---|
+| 1200 | D1-myPositionsRisk | **PASS** | `1200-rewalk-D1-myPositionsRisk.png` |
+| 1200 | D1-myPnlStats | **PASS** | `1200-rewalk-D1-myPnlStats.png` |
+| 1200 | D1-myWatchlistToday | **PASS** | `1200-rewalk-D1-myWatchlistToday.png` |
+| 1200 | D2-calendar | **PASS** | `1200-rewalk-D2-calendar.png` |
+| 1200 | D3-tradeRecap | **PASS** | `1200-rewalk-D3-tradeRecap.png` |
+| 1200 | O2-ticker-card | **PASS** | `1200-rewalk-O2-ticker-card.png` |
+| 1200 | smoke-insert-see-it-now | **PASS** | `1200-rewalk-smoke-myNamesReporting.png` |
+| 820 | D1-myPositionsRisk | **PASS** | `820-rewalk-D1-myPositionsRisk.png` |
+| 820 | D1-myPnlStats | **PASS** | `820-rewalk-D1-myPnlStats.png` |
+| 820 | D1-myWatchlistToday | **PASS** | `820-rewalk-D1-myWatchlistToday.png` |
+| 820 | D2-calendar | **PASS** | `820-rewalk-D2-calendar.png` |
+| 820 | D3-tradeRecap | **PASS** | `820-rewalk-D3-tradeRecap.png` |
+| 820 | O2-ticker-card | **PASS** | `820-rewalk-O2-ticker-card.png` |
+| 390 | D1-myPositionsRisk | **PASS** | `390-rewalk-D1-myPositionsRisk.png` |
+| 390 | D1-myPnlStats | **PASS** | `390-rewalk-D1-myPnlStats.png` |
+| 390 | D1-myWatchlistToday | **PASS** | `390-rewalk-D1-myWatchlistToday.png` |
+| 390 | D2-calendar | **PASS** | `390-rewalk-D2-calendar.png` |
+| 390 | D3-tradeRecap | **PASS** | `390-rewalk-D3-tradeRecap.png` |
+| 390 | O2-ticker-card | **PASS** | `390-rewalk-O2-ticker-card.png` |
+
+- D1: hovered (1200) or tapped (820/390), the toolbar (back, More) sits in its own row above the header; the full title reads, nothing on top of it (elementFromPoint across the title).
+- D2: `/calendar` renders the day (economic events, 34 pre-market earnings rows) and still does after a reload; no placeholder.
+- D3: pick row "Recap — MSFT long, Oct 15"; widget "Entry $500.00 on Oct 13, 2026", "Exit $490.00 on Oct 15, 2026".
+- O2: "Your history · Only you · No closed trades · 1 open position · 2 notes" (the 2 notes are the seeded $NVDA note and the walk note itself).
+- Smoke (1200): My names reporting inserted; See it now sent one request, no error.
+- Console: 6 errors, 0 page errors; all HTTP 503 /api/j2/broker/sync.
+- O4 (new, outside D1 scope): on the calendar capture embed at 820/390 the embed toolbar still covers the calendar's own day header (`390-rewalk-D2-calendar-reloaded.png`); fine at 1200.
