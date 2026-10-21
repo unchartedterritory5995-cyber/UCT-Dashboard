@@ -847,6 +847,8 @@ def get_detections(
                 # the inside-day drawing: daily charts only, and an incumbent breakout line near its
                 # trigger wins over it (members only)
                 boxes = auto_structures.member_inside_day_precedence(rows, boxes, tf)
+                # base metrics (AUTO_STRUCTURES_METRICS_ENABLED + MEMBER_METRICS_ROUND): off = unchanged
+                boxes = auto_structures.with_metrics(sym, boxes, member=True)
                 if boxes:
                     mout["structures"] = boxes
                 drawn = auto_structures.drawn_for(sym)
@@ -858,7 +860,8 @@ def get_detections(
     if include_structures and is_admin:
         from api.services import auto_structures
         if auto_structures.enabled():
-            out["structures"] = auto_structures.structures_for(sym)
+            # base metrics ride the admin structures only under AUTO_STRUCTURES_METRICS_ENABLED
+            out["structures"] = auto_structures.with_metrics(sym, auto_structures.structures_for(sym))
             # The learned auto-drawer (display-only; same gate as the base boxes):
             # trendlines + levels on the DAILY series, so D/W/M only.
             if (tf or "D").upper() in ("D", "W", "M"):

@@ -59,6 +59,47 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
+def metrics_enabled() -> bool:
+    """AUTO_STRUCTURES_METRICS_ENABLED, read PER CALL; unset means OFF. While off, no metrics are
+    computed and the structures payload is exactly what it was before metrics existed."""
+    return os.environ.get("AUTO_STRUCTURES_METRICS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps
+#: `extras.metrics_round`). A literal ON PURPOSE, like the drawing rounds: None until a blind packet
+#: confirms the printed numbers, so members get NO metrics (fail closed) while admins see them under the
+#: flag. Set it by hand to the confirmed round.
+MEMBER_METRICS_ROUND = None
+
+
+def with_metrics(sym: str, rows, *, member: bool = False) -> list:
+    """`rows` with base metrics attached (base_metrics.with_metrics) when AUTO_STRUCTURES_METRICS_ENABLED
+    is on; `rows` itself, untouched, when it is off. On the member path a row keeps its metrics only while
+    MEMBER_METRICS_ROUND is an int equal to its stamped `extras.metrics_round`; otherwise the member gets
+    the row exactly as it was before metrics (fail closed). Never mutates a cached row. Never raises."""
+    if not metrics_enabled():
+        return rows
+    try:
+        from api.services import base_metrics
+        if not any((r or {}).get("pattern_id") in base_metrics.METRIC_IDS for r in rows or []):
+            return rows
+        out = base_metrics.with_metrics(rows, _daily_bars(sym))
+    except Exception:  # noqa: BLE001 -- metrics never break a read
+        _log.debug("[base-metrics] %s failed", sym, exc_info=True)
+        return rows
+    if not member:
+        return out
+    return [m if _member_metrics_ok(m) else r for r, m in zip(rows, out)]
+
+
+def _member_metrics_ok(row) -> bool:
+    """True only while MEMBER_METRICS_ROUND is an int and equals the row's stamped metrics_round."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    rnd = ex.get("metrics_round")
+    return (type(MEMBER_METRICS_ROUND) is int and type(rnd) is int and rnd == MEMBER_METRICS_ROUND
+            and isinstance(ex.get("metrics"), dict))
+
+
 def member_ids() -> frozenset:
     """The pattern ids a member may be drawn: registry.DISPLAY_MEMBER_SET, read
     from the registry module PER CALL (one authority, never a copy here)."""

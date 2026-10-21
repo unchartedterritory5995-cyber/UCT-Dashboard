@@ -1824,7 +1824,7 @@
    "domain": "app",
    "target": "app",
    "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
-   "hints": "target = the ref of the app entry. page: one of terminal (UCT Terminal), charts (Charts), morning-wire (Morning Wire), dashboard (Dashboard), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
+   "hints": "target = the ref of the app entry. page: one of terminal (UCT Terminal), charts (Charts), morning-wire (Morning Wire), dashboard (Dashboard), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), trader-archive (Trader Archive), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
    "args": {
     "type": "object",
     "properties": {
@@ -1844,6 +1844,7 @@
        "live-massive",
        "catalysts-history",
        "model-book",
+       "trader-archive",
        "formulas-reference",
        "desk",
        "journal",
