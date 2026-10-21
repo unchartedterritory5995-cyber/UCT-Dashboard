@@ -195,3 +195,78 @@ describe('TickerCardPopover', () => {
     })
   })
 })
+
+// R58 (UX I-14): on a desktop pointer a click places the caret and a ~300 ms hover opens the card; a touch tap opens.
+describe('TickerCardPopover: hover intent and the click', () => {
+  const realMatchMedia = window.matchMedia
+  const desktop = (fine) => {
+    window.matchMedia = vi.fn((q) => ({ matches: fine && q === '(hover: hover) and (pointer: fine)', media: q,
+      addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
+  }
+  afterEach(() => { window.matchMedia = realMatchMedia; vi.useRealTimers() })
+  const chipEl = () => waitFor(() => {
+    const c = editor.view.dom.querySelector('.tickerChip')
+    expect(c).toBeTruthy()
+    return c
+  })
+  const click = (el, pointerType) => {
+    const ev = new MouseEvent('click', { bubbles: true })
+    if (pointerType !== undefined) Object.defineProperty(ev, 'pointerType', { value: pointerType })
+    act(() => { el.dispatchEvent(ev) })
+  }
+  const ok = () => stubFetch(async () => ({ ok: true, status: 200, json: async () => PAYLOAD }))
+
+  it('desktop: a mouse click on the chip opens nothing (it places the caret)', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    click(chip, 'mouse')
+    click(chip)                      // a click that does not say its pointer, on a desktop pointer
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('desktop: resting on the chip for 300 ms opens the card; leaving sooner opens nothing', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(200) })
+    fireEvent.mouseOut(chip, { relatedTarget: editor.view.dom })
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(299) })
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(screen.getByText('Loading NVDA…')).toBeInTheDocument()
+    vi.useRealTimers()
+    expect(await screen.findByText('Your history')).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('touch: a tap opens the card, and a hover means nothing there', async () => {
+    desktop(false)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    vi.useRealTimers()
+    click(chip, 'touch')
+    expect(await screen.findByText('Your history')).toBeInTheDocument()
+  })
+
+  it('a touch tap opens even on a laptop whose main pointer is a mouse', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    click(await chipEl(), 'touch')
+    expect(await screen.findByText('Your history')).toBeInTheDocument()
+  })
+})

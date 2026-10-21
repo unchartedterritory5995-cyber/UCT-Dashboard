@@ -19,6 +19,11 @@ import styles from './TickerCardPopover.module.css'
 
 export const loadFailedText = (symbol) => `Couldn't load ${symbol} right now.`
 
+/** R58 (UX I-14): how long the mouse rests on a chip before its card opens. */
+export const HOVER_INTENT_MS = 300
+/** A desktop pointer: one that hovers and is precise. There a click places the caret and a hover opens the card. */
+const finePointer = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches === true
+
 /** Where a widget goes for a chip at `pos`: after the top-level block holding it. */
 export function insertPosAfterBlock(doc, pos) {
   const $p = doc.resolve(Math.max(0, Math.min(Number(pos) || 0, doc.content.size)))
@@ -31,20 +36,47 @@ export default function TickerCardPopover({ editor }) {
 
   useEffect(() => {
     if (!editor) return undefined
-    const onOpen = async (e) => {
-      const symbol = e?.detail?.symbol
-      if (!symbol) return
-      const r = e.detail.rect || {}
+    const openFor = async (symbol, r = {}, pos) => {
       const seq = ++seqRef.current
-      setCard({ seq, symbol, pos: Number.isInteger(e.detail.pos) ? e.detail.pos : null, anchor: { x: r.left || 0, y: (r.bottom || 0) + 6 }, status: 'loading', payload: null })
+      setCard({ seq, symbol, pos: Number.isInteger(pos) ? pos : null, anchor: { x: r.left || 0, y: (r.bottom || 0) + 6 }, status: 'loading', payload: null })
       const got = await fetchWidgetPayload('tickerCard', { symbol })
       // Only the latest chip's answer may fill the card.
       setCard((c) => (c && c.seq === seq
         ? { ...c, status: got.ok ? 'ok' : 'error', payload: got.ok ? got.payload : null } : c))
     }
+    // R58 (UX I-14): a click opens the card only from a touch (or a pen). A mouse click is the member placing the
+    // caret in `$NVDA` to edit it; on a desktop pointer the card opens on hover instead. A click that does not say
+    // its pointer (an older browser) is read by the device: a desktop pointer places the caret.
+    const onOpen = (e) => {
+      const d = e?.detail || {}
+      if (!d.symbol || d.via === 'mouse' || (!d.via && finePointer())) return
+      openFor(d.symbol, d.rect, d.pos)
+    }
+    let hoverTimer = null
+    const chipOf = (t) => (t?.closest ? t.closest('.tickerChip') : null)
+    const onOver = (e) => {
+      const el = chipOf(e.target)
+      if (!el || !finePointer() || !editor.isEditable) return
+      clearTimeout(hoverTimer)
+      hoverTimer = setTimeout(() => {
+        let pos = null
+        try { pos = editor.view.posAtDOM(el, 0) } catch { pos = null }
+        openFor(el.getAttribute('data-symbol'), el.getBoundingClientRect(), pos)
+      }, HOVER_INTENT_MS)
+    }
+    const onOut = (e) => {
+      const el = chipOf(e.target)
+      if (el && !el.contains(e.relatedTarget)) clearTimeout(hoverTimer)
+    }
     // The editor's VIEW is a throwing getter until it mounts: attach now if it exists, and on mount/create.
     let dom = null
-    const detach = () => { dom?.removeEventListener(TICKER_CARD_EVENT, onOpen); dom = null }
+    const detach = () => {
+      clearTimeout(hoverTimer)
+      dom?.removeEventListener(TICKER_CARD_EVENT, onOpen)
+      dom?.removeEventListener('mouseover', onOver)
+      dom?.removeEventListener('mouseout', onOut)
+      dom = null
+    }
     const attach = () => {
       if (editor.isDestroyed) return
       let next = null
@@ -53,6 +85,8 @@ export default function TickerCardPopover({ editor }) {
       detach()
       dom = next
       dom.addEventListener(TICKER_CARD_EVENT, onOpen)
+      dom.addEventListener('mouseover', onOver)
+      dom.addEventListener('mouseout', onOut)
     }
     attach()
     editor.on('mount', attach)

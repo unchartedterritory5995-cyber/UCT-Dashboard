@@ -2,7 +2,8 @@
  * Notebook widgets Task 10: the `$TICKER` chip. A DECORATION, never a node or mark: the stored text stays
  * `$NVDA`, so getText, the saved JSON and the public reducer never see it. Editor-only (an editable editor with
  * the W1 switch on); text in a `code` mark or a code block is left alone. A click dispatches TICKER_CARD_EVENT on
- * the editor's own DOM; the card (components/notebook/widgets/TickerCardPopover.jsx) is a lazy chunk.
+ * the editor's own DOM, saying which pointer clicked (`via`); the card (components/notebook/widgets/TickerCardPopover.jsx)
+ * is a lazy chunk, and it decides: a mouse click places the caret, a touch tap opens, a desktop hover opens.
  * ⛔ First-open bytes: keep this file to the regex, the decoration builder and the click.
  */
 import { Extension } from '@tiptap/core'
@@ -87,7 +88,7 @@ export const TickerChipExtension = Extension.create({
             let pos = null
             try { pos = view.posAtDOM(el, 0) } catch { pos = null }
             view.dom.dispatchEvent(new CustomEvent(TICKER_CARD_EVENT, {
-              bubbles: true, detail: { symbol: el.getAttribute('data-symbol'), rect: el.getBoundingClientRect(), pos },
+              bubbles: true, detail: { symbol: el.getAttribute('data-symbol'), rect: el.getBoundingClientRect(), pos, via: event.pointerType },
             }))
             return false
           },
