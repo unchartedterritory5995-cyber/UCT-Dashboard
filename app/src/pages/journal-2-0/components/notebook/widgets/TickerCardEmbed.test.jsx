@@ -1,6 +1,6 @@
 // Ticker card (Task 7): rendered from the frozen params, never fetched.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import TickerCardEmbed from './TickerCardEmbed'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 
@@ -35,6 +35,15 @@ describe('TickerCardEmbed', () => {
     expect(rowOf('Earnings')).toHaveTextContent('Thu, Oct 22 · ±7.1%')
     expect(rowOf('Your history')).toHaveTextContent('5 trades · 60% wins · +$1,234.50')
     expect(fetchSpy).toHaveBeenCalledTimes(0)
+  })
+
+  it('R58 I-9: the history row is labelled Only you, with a lock; no other row is', () => {
+    const { container } = render(<TickerCardEmbed attrs={widgetEmbedNode('tickerCard', PAYLOAD).attrs} />)
+    const history = rowOf('Your history')
+    expect(within(history).getByText('Only you')).toBeInTheDocument()
+    expect(history.querySelector('[data-snapshot-lock] svg')).not.toBeNull()
+    expect(container.querySelectorAll('[data-card-row] [data-snapshot-lock]')).toHaveLength(1)
+    expect(within(rowOf('Last')).queryByText('Only you')).toBeNull()
   })
 
   it('no history says so, and null cells are n/a with a reason', () => {

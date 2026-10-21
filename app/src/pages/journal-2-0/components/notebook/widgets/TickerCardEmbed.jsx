@@ -1,4 +1,5 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
+import UIcon from '../../../../../components/ui/UIcon'
 import { fmtShortDay } from '../../../lib/earningsPrepShared'
 import SnapshotFrame, {
   useSnapshotFrame, numCell, earningsCell, toneOf, fmtPrice, fmtChangePct, fmtMoneySigned, fmtRatioPct, snapshotStyles as s,
@@ -46,7 +47,17 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
               </>
             ) : earningsCell(null, p.earningsUnknown)}
           </Row>
-          <Row label="Your history">
+          {/* R58 (UX I-9): the member's own trades in this name are theirs alone; the card stays neutral on
+              shared pages, so this row is the one that says so. */}
+          <Row label={(
+            <>
+              <span>Your history</span>{' '}
+              <span className={s.chip} data-snapshot-lock="">
+                <UIcon name="lock" size={12} gold={false} />
+                <span>Only you</span>
+              </span>
+            </>
+          )}>
             {h && Number(h.trades) > 0 ? (
               <>
                 {`${h.trades} trade${Number(h.trades) === 1 ? '' : 's'} · `}
