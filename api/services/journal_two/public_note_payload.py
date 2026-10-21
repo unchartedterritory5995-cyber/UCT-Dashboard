@@ -1748,7 +1748,7 @@ def _reference_flight() -> Any:
     with _REF_LOCK:
         if _REF_FLIGHT is None:
             from api.services.journal_two.notebook_widgets import SingleFlight
-            _REF_FLIGHT = SingleFlight(REFERENCE_SET_WAITERS)
+            _REF_FLIGHT = SingleFlight(REFERENCE_SET_WAITERS, name="public reference set")
         return _REF_FLIGHT
 
 

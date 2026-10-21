@@ -717,6 +717,30 @@ def test_m2_a_leader_that_raises_leaves_nothing_cached_and_its_waiters_compute_t
     assert public.cached_reference_set(("k",), boom) == {"hero/h1.jpg"}   # the follower's own answer is held
 
 
+def test_m6_the_reference_set_wait_logs_under_its_own_name(monkeypatch, caplog):
+    import logging
+    import threading
+    import time
+    public = _fresh_reference_cache(monkeypatch)
+    monkeypatch.setattr(public, "REFERENCE_SET_WAIT_S", 0.05)
+    started = threading.Event()
+
+    def slow():
+        started.set()
+        time.sleep(0.4)
+        return frozenset()
+
+    t = threading.Thread(target=public.cached_reference_set, args=(("k6",), slow))
+    t.start()
+    started.wait(2)
+    with caplog.at_level(logging.INFO, logger=nw._log.name):
+        public.cached_reference_set(("k6",), lambda: frozenset())       # waits past its budget
+    t.join(5)
+    lines = [r.getMessage() for r in caplog.records if "ran past" in r.getMessage()]
+    assert lines and all(m.startswith("public reference set ") for m in lines), lines
+    assert not any(m.startswith("widget walk") for m in lines)
+
+
 def test_m5_a_leader_interrupt_propagates_in_the_leader_and_its_waiters_take_the_miss_path():
     import threading
     import time

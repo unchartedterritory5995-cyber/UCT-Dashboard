@@ -194,10 +194,11 @@ class SingleFlight:
     Waiting holds a REQUEST thread (the anyio pool), so at most `waiters` requests wait on walks at once;
     the rest answer their partial form AT ONCE, the way a saturated widget pool does. Per process."""
 
-    def __init__(self, waiters: int):
+    def __init__(self, waiters: int, name: str = "widget walk"):
         self._lock = threading.Lock()
         self._inflight: dict[str, Future] = {}
         self._waiters = threading.BoundedSemaphore(waiters)
+        self.name = name                                  # what the log lines call this table (review m6)
 
     def _forget(self, key: str, fut: Future) -> None:
         with self._lock:
@@ -215,7 +216,7 @@ class SingleFlight:
             if fut is None or fut.done():
                 fut = _POOL.try_submit(fn)
                 if fut is None:
-                    _log.info("widget walk %s skipped: the widget pool is saturated", key)
+                    _log.info("%s %s skipped: the widget pool is saturated", self.name, key)
                     return False, None
                 self._inflight[key] = fut
                 started = True
@@ -259,10 +260,10 @@ class SingleFlight:
         try:
             return True, fut.result(timeout=budget_s)
         except _FutTimeout:
-            _log.info("widget walk %s ran past %.1fs", key, budget_s)
+            _log.info("%s %s ran past %.1fs", self.name, key, budget_s)
             return False, None
         except Exception as e:  # noqa: BLE001
-            _log.info("widget walk %s failed: %s", key, e)
+            _log.info("%s %s failed: %s", self.name, key, e)
             return False, None
         finally:
             self._waiters.release()
