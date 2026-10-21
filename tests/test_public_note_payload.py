@@ -1356,6 +1356,55 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
             assert "positionId" not in allowed and "tradeId" not in allowed and "definitionId" not in allowed
 
 
+#: Ruling R64: what the client now STORES in a widget's params at insert, beside the frozen payload -- the F1
+#: payload honesty/provenance keys and every request key (notebook_widgets.SETTING_KEYS, `range`, and the
+#: identifiers a list, screen, account, trade, note or folder is named by).
+_R64_STORED = {
+    "empty": "SENTENCE-empty", "failed": True, "sourceDetail": "SECRET-sourceDetail", "priceBasis": "broker",
+    "earningsUnknown": True, "timingUnknown": True, "nextDayNote": "SECRET-nextDayNote", "tooLarge": True,
+    "mistakesTruncated": 3,
+    "list": "SECRET-list", "from": "1999-01-01", "to": "1999-12-31", "symbol": "ZZQQ", "month": "1999-07",
+    "range": {"from": "1999-01-01", "to": "1999-12-31"}, "definitionId": "u_0123456789ab", "tradeId": "SECRET-trade",
+    "accountId": "SECRET-acct", "positionId": "SECRET-pos", "listId": "SECRET-listid", "watchKey": "SECRET-watch",
+    "scanKey": "SECRET-scan", "noteId": "SECRET-note", "folderId": "SECRET-folder", "setupId": "SECRET-setup",
+}
+#: Never on a public page for ANY account kind: request keys with no payload meaning, provenance, identifiers.
+_R64_NEVER = {"list", "from", "to", "definitionId", "tradeId", "accountId", "positionId", "listId", "watchKey",
+              "scanKey", "noteId", "folderId", "setupId", "sourceDetail", "priceBasis", "nextDayNote", "failed",
+              "earningsUnknown", "timingUnknown"}
+
+
+def test_r64_the_never_keys_are_in_no_account_allowlist():
+    from api.services.journal_two import notebook_widgets as nw
+    assert set(nw.SETTING_KEYS) - {"symbol", "month"} <= _R64_NEVER         # control: every request key is covered
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        assert not set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER, (kind, set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through_the_allowlist(mode):
+    """Every account kind with EVERY stored key set: share off is the neutral line and nothing else; share on
+    publishes only that kind's EMBED_PARAM_KEYS, so a request key or sourceDetail/priceBasis reaches a stranger
+    only where the member-optin table already names that exact key."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        for share in (None, False, True):
+            node = _widget(kind)
+            node["attrs"]["params"] = dict(copy.deepcopy(_R64_STORED), asOf="2026-10-20T14:00:00Z",
+                                           **({} if share is None else {"share": share}))
+            out = reduce(doc(node), mode)
+            blob = json.dumps(out)
+            if share is not True:
+                assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out), (kind, share)
+                assert "SECRET" not in blob and "1999" not in blob and "ZZQQ" not in blob, (kind, share)
+                continue
+            params = find_embed(out)["attrs"]["params"]
+            assert set(params) <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, set(params) - set(pnp.EMBED_PARAM_KEYS[kind]))
+            assert not set(params) & _R64_NEVER, kind
+            assert "SECRET" not in blob, (kind, blob)
+            assert params["asOf"] == "2026-10-20T14:00:00Z" and params["share"] is True    # control: shown
+
+
 def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
     """Fix F1b (review M-6): the item shapes are matched by identity, so an EMBED_ROW_KEYS entry written `()`
     to mean "keep no keys" keeps NOTHING -- it used to equal SCALAR_ITEMS and pass every scalar through."""
