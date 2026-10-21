@@ -368,3 +368,25 @@ def test_a_save_keeps_a_slot_hidden_from_the_client(client, monkeypatch):
     assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myPnlStats"]
     _waves(monkeypatch, 1)
     assert _slot_names(client.get(f"/api/j2/journal-styles/{sid}").json()["style"]) == {"myPnlStats"}
+
+
+
+def test_a_save_keeps_a_hidden_slot_at_the_index_it_was_stored_at(client, monkeypatch):
+    """F1 cleanup queue: a slot hidden while its wave is off used to be APPENDED on save, so saving once moved
+    it to the end of the style for good. It keeps its stored index."""
+    from api.services.journal_two import journal_styles as js
+    _waves(monkeypatch, 1, 2)
+    _as(client)
+    blocks = [{"block": b, "enabled": True, "settings": {}} for b in ("myRules", "myPnlStats", "myMistakes")]
+    sid = client.post("/api/j2/journal-styles", json={"name": "Mine", "kindId": "weekly_review",
+                                                      "blocks": blocks}).json()["style"]["id"]
+    _waves(monkeypatch, 2)                                          # wave 1 off: myPnlStats is hidden
+    shown = client.get(f"/api/j2/journal-styles/{sid}").json()["style"]
+    assert [b["block"] for b in shown["blocks"]] == ["myRules", "myMistakes"]
+    r = client.put(f"/api/j2/journal-styles/{sid}", json={"blocks": shown["blocks"]})
+    assert r.status_code == 200, r.text
+    assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myRules", "myPnlStats", "myMistakes"]
+    # the member reorders what they can see: the hidden slot keeps its stored index among them
+    r = client.put(f"/api/j2/journal-styles/{sid}", json={"blocks": list(reversed(shown["blocks"]))})
+    assert r.status_code == 200, r.text
+    assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myMistakes", "myPnlStats", "myRules"]

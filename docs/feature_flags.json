@@ -1940,7 +1940,7 @@
       "member_facing": { "label": "Market on my names and options flow widgets", "where": "Notebook" },
       "status": "dark",
       "where": ["web"],
-      "note": "Notebook widgets, wave 3: Market on my names, the options flow for a ticker, and the starter styles that hold widgets. Shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w3_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W3_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
+      "note": "Notebook widgets, wave 3: Market on my names and the options flow for a ticker. The starter styles hold wave 1 and wave 2 widgets, and each of their slots follows its own widget's wave, not this flag. Shipped dark 2026-10-20. Plan: docs/superpowers/plans/2026-10-20-notebook-widgets.md. Enablement gate over menu entries and server reads for this wave only; a widget already stored in a note always renders whatever this says. Rides the auth payload as notebook_widgets_w3_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W3_ENABLED=1 (the owner's). Rollback: unset or 0 on web."
     },
     "NOTEBOOK_WIDGETS_W4_ENABLED": {
       "member_facing": { "label": "Page widgets in the / menu", "where": "Notebook" },

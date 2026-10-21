@@ -2438,7 +2438,9 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
             (row["id"], user_id, style["id"], version, now))
     if commit:
         conn.commit()
-    return {"style": js.get_style(user_id, style["id"], conn),
+    # Final review I-1 / cleanup: the style as the CLIENT is shown it (a dark slot is hidden), like every
+    # journal-styles route answer.
+    return {"style": js.served_style(js.get_style(user_id, style["id"], conn)),
             "notify": bool(notify),
             "credit": f"Based on {_author_label(row)}'s {row['title']}"}
 
@@ -2676,7 +2678,7 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             "UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
             " WHERE user_id = ? AND style_id = ?", (plan["toVersion"], user_id, style_id))
         conn.commit()
-        return js.get_style(user_id, style_id, conn)
+        return js.served_style(js.get_style(user_id, style_id, conn))     # a dark slot stays hidden
     except Exception:
         if conn.in_transaction:
             conn.rollback()

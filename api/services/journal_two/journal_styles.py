@@ -551,9 +551,13 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             cleaned["outlineBodyJson"] = json.dumps(o) if o else None
         if "blocks" in patch:
             sent = _clean_blocks(patch["blocks"])
-            # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped.
+            # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped, and
+            # at the index it was STORED at (cleanup queue: it used to be appended, so a save while a wave
+            # was off moved the slot to the end of the style for good).
             have = {b["block"] for b in sent}
-            sent += [b for b in _hidden_slots(r["blocks_json"]) if b["block"] not in have]
+            for i, b in _hidden_slots_at(r["blocks_json"]):
+                if b["block"] not in have:
+                    sent.insert(min(i, len(sent)), b)
             cleaned["blocks"] = json.dumps(sent)
         if "properties" in patch:
             cleaned["properties"] = json.dumps(_clean_properties(user_id, patch["properties"], conn))
@@ -847,14 +851,16 @@ def served_style(style: Any) -> Any:
     return out
 
 
-def _hidden_slots(blocks_json: Any) -> list[dict]:
-    """The stored slot blocks `served_style` hides right now (their wave is off): a client never saw them,
-    so a save cannot have meant to remove them."""
+def _hidden_slots_at(blocks_json: Any) -> list[tuple[int, dict]]:
+    """(stored index, block) for each stored slot block `served_style` hides right now (its wave is off):
+    a client never saw them, so a save cannot have meant to remove or move them. In stored order."""
     try:
         stored = json.loads(blocks_json or "[]")
     except (TypeError, ValueError):
         return []
-    return [b for b in stored if isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"])]
+    return [(i, b) for i, b in enumerate(stored if isinstance(stored, list) else [])
+            if isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"])]
+
 
 
 def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:

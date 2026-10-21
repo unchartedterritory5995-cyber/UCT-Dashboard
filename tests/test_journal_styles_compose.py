@@ -972,3 +972,27 @@ def test_a_saturated_slot_pool_answers_each_slot_sentence_at_once(db_path, monke
         assert f"{nw.KIND_TITLE[kind]} couldn't load. Type / to add it again." in lines, kind
     assert _slot_embeds(n["bodyJson"]) == []
 
+
+
+def test_the_w3_ledger_note_says_what_the_starter_styles_hold():
+    """F1 cleanup queue: the W3 note said wave 3 carried "the starter styles that hold widgets". The starter
+    styles' slots are wave 1 and wave 2 kinds, each gated by its own wave. Derived from the styles, so the
+    note goes red the day a starter style gains a slot of another wave."""
+    import json as _json
+    from pathlib import Path
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    waves = {nw.KIND_WAVE[b["block"]] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]
+             if b["block"] in nw.KIND_WAVE}
+    assert waves == {1, 2}
+    ledger = _json.loads(Path("docs/feature_flags.json").read_text(encoding="utf-8"))
+    note = next(v for k, v in _iter_flags(ledger) if k == "NOTEBOOK_WIDGETS_W3_ENABLED")["note"]
+    assert "starter styles that hold widgets" not in note
+    assert "starter styles hold wave 1 and wave 2 widgets" in note
+
+
+def _iter_flags(node):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(v, dict) and "note" in v and k.isupper():
+                yield k, v
+            yield from _iter_flags(v)

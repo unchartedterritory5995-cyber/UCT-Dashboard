@@ -855,3 +855,37 @@ def test_applying_a_version_moves_the_watch_so_feature_never_rings_about_it(conn
     with mock.patch("api.services.alerts.add_alert") as add:
         gallery.admin_act("admin", item["id"], "feature", conn=conn)
     assert add.call_count == 0
+
+
+
+# -- F1 cleanup queue: adopt and apply-update answer the style AS SERVED (a dark slot hidden) ---------
+
+def _waves_off(monkeypatch):
+    for w in range(1, 7):
+        monkeypatch.delenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", raising=False)
+
+
+def test_adopt_answers_the_served_style_with_a_dark_slot_hidden(conn, lib_on, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    item = listed_style(conn, blocks=[_blk("myRules"), _blk("myPnlStats")])
+    _waves_off(monkeypatch)
+    out = gallery.adopt_style("member", item["id"], notify=False, conn=conn)
+    assert [b["block"] for b in out["style"]["blocks"]] == ["myRules"]          # what the client is shown
+    stored = js.get_style("member", out["style"]["id"], conn, full=True)
+    assert [b["block"] for b in stored["blocks"]] == ["myRules", "myPnlStats"]  # control: the slot is kept
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    again = gallery.adopt_style("member2", item["id"], notify=False, conn=conn)
+    assert [b["block"] for b in again["style"]["blocks"]] == ["myRules", "myPnlStats"]   # wave on: shown
+
+
+def test_apply_update_answers_the_served_style_with_a_dark_slot_hidden(conn, lib_on, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    item = listed_style(conn, blocks=[_blk("myRules")])
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    bump_and_approve(conn, item, blocks=[_blk("myRules"), _blk("myPnlStats")])
+    _waves_off(monkeypatch)
+    out = gallery.apply_update("member", mine["id"], take_outline=False,
+                               base_updated_at=mine["updatedAt"], conn=conn)
+    assert [b["block"] for b in out["blocks"]] == ["myRules"]
+    assert [b["block"] for b in js.get_style("member", mine["id"], conn, full=True)["blocks"]] == [
+        "myRules", "myPnlStats"]
