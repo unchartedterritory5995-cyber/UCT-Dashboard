@@ -1,8 +1,8 @@
 // The shared snapshot frame (Task 7): its header, See it now, and the share switch.
 // Asserted by RENDERED TEXT: what a member reads is the thing under test.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
-import SnapshotFrame from './SnapshotFrame'
+import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
+import SnapshotFrame, { useSnapshotFrame } from './SnapshotFrame'
 
 const ASOF = '2026-10-20T13:14:00Z'
 
@@ -90,3 +90,56 @@ describe('SnapshotFrame controls', () => {
     expect(screen.getByText("Couldn't refresh. The saved snapshot is unchanged.")).toBeInTheDocument()
   })
 })
+
+// Final review M-1: two writes before a re-render. The host's attrs reach the hook only on the next render, so a
+// refresh that resolves in the same frame as the member switching share OFF must not write share back ON.
+describe('useSnapshotFrame: two writes in one frame', () => {
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch })
+  const PARAMS = { asOf: ASOF, source: 'broker', share: true, netPnl: 100 }
+
+  const pending = () => {
+    let answer
+    global.fetch = vi.fn(() => new Promise((r) => { answer = r }))
+    return (payload) => answer({ ok: true, status: 200, json: async () => payload })
+  }
+
+  it('share switched off, then a refresh resolves before any re-render: the refresh keeps share off', async () => {
+    const onUpdateParams = vi.fn(() => true)                 // takes the write, never re-renders the hook
+    const { result } = renderHook(() => useSnapshotFrame('myPnlStats', { params: PARAMS }, { editable: true, onUpdateParams }))
+    const answer = pending()
+    let refreshed
+    act(() => { refreshed = result.current.onRefresh() })
+    act(() => { result.current.onShareChange(false) })
+    answer({ asOf: '2026-10-20T15:00:00Z', source: 'broker', netPnl: 250 })
+    await act(async () => { await refreshed })
+    expect(onUpdateParams).toHaveBeenCalledTimes(2)
+    expect(onUpdateParams.mock.calls[0][0].share).toBe(false)          // the switch
+    expect(onUpdateParams.mock.calls[1][0]).toMatchObject({ share: false, netPnl: 250 })   // the refresh
+  })
+
+  it('control: with no switch in between, the refresh keeps the member share on', async () => {
+    const onUpdateParams = vi.fn(() => true)
+    const { result } = renderHook(() => useSnapshotFrame('myPnlStats', { params: PARAMS }, { editable: true, onUpdateParams }))
+    const answer = pending()
+    let refreshed
+    act(() => { refreshed = result.current.onRefresh() })
+    answer({ asOf: '2026-10-20T15:00:00Z', source: 'broker', netPnl: 250 })
+    await act(async () => { await refreshed })
+    expect(onUpdateParams).toHaveBeenCalledTimes(1)
+    expect(onUpdateParams.mock.calls[0][0]).toMatchObject({ share: true, netPnl: 250 })
+  })
+
+  it('a write the host refused is not written through: the next write starts from the node as it is', async () => {
+    const onUpdateParams = vi.fn().mockReturnValueOnce(false).mockReturnValue(true)
+    const { result } = renderHook(() => useSnapshotFrame('myPnlStats', { params: PARAMS }, { editable: true, onUpdateParams }))
+    act(() => { result.current.onShareChange(false) })          // refused: nothing changed on the node
+    const answer = pending()
+    let refreshed
+    act(() => { refreshed = result.current.onRefresh() })
+    answer({ asOf: '2026-10-20T15:00:00Z', source: 'broker', netPnl: 250 })
+    await act(async () => { await refreshed })
+    expect(onUpdateParams.mock.calls[1][0].share).toBe(true)
+  })
+})
+

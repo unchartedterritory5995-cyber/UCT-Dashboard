@@ -127,6 +127,9 @@ export default function SnapshotFrame({
   )
 }
 
+/** One snapshot write, written through to `ref` when the host took it (final review M-1, below). */
+const writeThrough = (ref, write, next) => { if (write(next) !== false) ref.current = next }
+
 /** The frame's props for one stored snapshot: title, as-of, privacy, and the two doors wired to
  *  the host's `onUpdateParams`. With no host callback (or a read-only note) there are no doors. */
 export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams } = {}) {
@@ -141,18 +144,23 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   paramsRef.current = params
   const writeRef = useRef(null)
   writeRef.current = canWrite ? onUpdateParams : null
+  // Final review M-1: two writes before a re-render. The node's attrs reach this hook only on the NEXT render,
+  // so a refresh that resolves in the same frame as a share switch would merge from the pre-switch params and
+  // write `share` back the unsafe way. Each write this frame lands is therefore written through to the ref at
+  // once (the host answers false when it wrote nothing), so the next write always starts from the node as it
+  // now stands; the next render re-reads the real attrs.
   const onRefresh = useCallback(async () => {
     const got = await fetchWidgetPayload(kind, requestParamsOf(paramsRef.current))
     if (got.ok) {
       const write = writeRef.current
       if (typeof write !== 'function') return { ok: false, reason: 'failed' }
-      write(refreshParams(paramsRef.current, got.payload))
+      writeThrough(paramsRef, write, refreshParams(paramsRef.current, got.payload))
     }
     return got
   }, [kind])
   const onShareChange = useCallback((value) => {
     const write = writeRef.current
-    if (typeof write === 'function') write({ ...paramsRef.current, share: value === true })
+    if (typeof write === 'function') writeThrough(paramsRef, write, { ...paramsRef.current, share: value === true })
   }, [])
   const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current }), [kind])
   return {
