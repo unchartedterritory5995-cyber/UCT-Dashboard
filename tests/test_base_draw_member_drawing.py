@@ -78,20 +78,21 @@ def test_each_gate_withholds_with_a_drawing_contrast(kw, why):
 
 
 def test_the_row_carries_the_drawing_and_the_round():
-    """The member round IS the drawing round (2): the row is the current drawing with no carrier, and a
-    member is served that row unchanged."""
+    """The drawing round (3) is ahead of the member round (2): the row is the current drawing and carries
+    round 2's drawing of the same bars; a member is served the round-2 row exactly as the round-2 code
+    built it."""
     b = _synth()
     row = auto_structures.base_draw_row("syn", b)
     d = base_draw.base_drawing(b, len(b) - 1)
-    assert d is not None
+    assert d is not None and d == base_draw.base_drawing(b, len(b) - 1, draw_round=2)
     assert row["pattern_id"] == "bc:base" and row["sym"] == "SYN" and row["tf"] == "D"
-    assert row["geometry"]["extras"] == {"draw_base": d, "draw_round": base_draw.BASE_DRAW_ROUND}
-    assert "draw_member" not in row["geometry"]["extras"]
+    assert row["geometry"]["extras"] == {"draw_base": d, "draw_round": base_draw.BASE_DRAW_ROUND,
+                                         "draw_member": {"round": 2, "draw_base": d}}
     assert row["geometry"]["shape"] == "base_draw" and row["levels"]["entry"] == d["pivot"]
     assert row["display_tier"] == "trusted"
     # a member is served the round-2 row, built exactly as the round-2 code builds it
     served = auto_structures.member_rows([row])
-    assert served == [row] == [auto_structures._base_row("SYN", d, 2)]
+    assert served == [auto_structures._base_row("SYN", d, 2)]
     assert served[0]["geometry"]["extras"] == {"draw_base": d, "draw_round": 2}
     assert auto_structures._confirmed_base(served[0])
 
@@ -116,12 +117,12 @@ def test_no_base_no_row_and_junk_never_raises():
 
 def test_the_member_round_is_a_literal_and_it_is_round_two():
     """Round 2 passed its own blind check and the literal was moved BY HAND to 2. It must stay an int
-    literal in source, never derived from the drawing code, so a later drawing round reaches members only
-    when it passes its own check. Round 1 stays drawable (the rollback target)."""
+    literal in source, never derived from the drawing code, so a later drawing round (round 3, admin-only)
+    reaches members only when it passes its own check. Rounds 1 and 2 stay drawable (rollback targets)."""
     import ast
     import inspect
     assert auto_structures.MEMBER_BASE_ROUND == 2
-    assert base_draw.BASE_DRAW_ROUND == 2 and 1 in base_draw.DRAW_ROUNDS and 2 in base_draw.DRAW_ROUNDS
+    assert base_draw.BASE_DRAW_ROUND == 3 and base_draw.DRAW_ROUNDS == (1, 2, 3)
     tree = ast.parse(inspect.getsource(auto_structures))
     lits = [n.value for n in ast.walk(tree) if isinstance(n, ast.Assign)
             and any(getattr(t, "id", None) == "MEMBER_BASE_ROUND" for t in n.targets)]
@@ -193,12 +194,13 @@ def test_flag_on_a_member_is_served_the_base_in_structures(monkeypatch):
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
     assert [s["pattern_id"] for s in body["structures"]] == ["bc:base"]
-    # the member is served the round-2 drawing, with no carrier
+    # the member is served the round-2 drawing (rebuilt from the round-3 row's carrier), with no carrier
     served = body["structures"][0]["geometry"]["extras"]
-    assert served["draw_base"] == row["geometry"]["extras"]["draw_base"]
+    assert row["geometry"]["extras"]["draw_round"] == 3
+    assert served["draw_base"] == row["geometry"]["extras"]["draw_member"]["draw_base"]
     assert served["draw_round"] == auto_structures.MEMBER_BASE_ROUND == 2 and "draw_member" not in served
     # a row stamped round 1, or from an unknown drawing round, is not served
-    for rnd in (1, 3):
+    for rnd in (1, 4):
         bad = json.loads(json.dumps(row))
         bad["geometry"]["extras"]["draw_round"] = rnd
         monkeypatch.setattr(auto_structures, "structures_for", lambda sym, _b=bad: [_b])
@@ -217,9 +219,11 @@ def test_a_round_one_or_unknown_round_row_is_dropped_at_round_two():
     b = _synth()
     d1 = base_draw.base_drawing(b, len(b) - 1, draw_round=1)
     assert d1 is not None
-    good = auto_structures.base_draw_row("SYN", b)
+    # exactly what the round-2 code built (no carrier); the round-3 code's row carries it (draw_member)
+    good = auto_structures._base_row("SYN", base_draw.base_drawing(b, len(b) - 1, draw_round=2), 2)
     assert good["geometry"]["extras"]["draw_round"] == 2
-    assert len(auto_structures.member_rows([good])) == 1
+    assert auto_structures.member_rows([good]) == [good]
+    assert auto_structures.member_rows([auto_structures.base_draw_row("SYN", b)]) == [good]
     round_one = auto_structures._base_row("SYN", d1, 1)       # exactly what the round-1 code served
     assert auto_structures.member_rows([round_one]) == []
 
@@ -230,7 +234,8 @@ def test_a_round_one_or_unknown_round_row_is_dropped_at_round_two():
 
     near = [
         variant(lambda ex: ex.__setitem__("draw_round", 1)),
-        variant(lambda ex: ex.__setitem__("draw_round", 3)),     # an unknown later round
+        variant(lambda ex: ex.__setitem__("draw_round", 3)),     # a round-3 stamp WITHOUT its carrier
+        variant(lambda ex: ex.__setitem__("draw_round", 4)),     # an unknown later round
         variant(lambda ex: ex.__setitem__("draw_round", 0)),
         variant(lambda ex: ex.__setitem__("draw_round", "2")),
         variant(lambda ex: ex.__setitem__("draw_round", True)),
@@ -249,8 +254,8 @@ def test_a_round_one_or_unknown_round_row_is_dropped_at_round_two():
 
 
 def test_only_round_one_draws_then_nobody_gets_a_row(monkeypatch):
-    """At literal 2, a session only round 1 would draw (round 2 withholds) produces no bc:base row at all:
-    members and admins both get round 2's answer, which is nothing."""
+    """At literal 2, a session only round 1 would draw (rounds 2 and 3 withhold) produces no bc:base row at
+    all: members and admins both get nothing."""
     b = _synth()
     d1 = base_draw.base_drawing(b, len(b) - 1, draw_round=1)
     assert d1 is not None
@@ -259,10 +264,12 @@ def test_only_round_one_draws_then_nobody_gets_a_row(monkeypatch):
                         lambda bars, i, draw_round=None: real(bars, i, draw_round=draw_round)
                         if draw_round == 1 else None)
     assert auto_structures.base_draw_row("SYN", b) is None
-    # round 2 draws: the row is round 2's drawing, for admins and members alike
+    # rounds 2 and 3 draw the same: the admin gets the round-3 row, the member the round-2 row it carries
     monkeypatch.setattr(base_draw, "base_drawing", real)
     row = auto_structures.base_draw_row("SYN", b)
-    assert auto_structures.admin_base_rows([row]) == [row] == auto_structures.member_rows([row])
+    assert auto_structures.admin_base_rows([row]) == [row]
+    assert auto_structures.member_rows([row]) == [
+        auto_structures._base_row("SYN", base_draw.base_drawing(b, len(b) - 1, draw_round=2), 2)]
 
 
 def test_when_the_literal_catches_up_there_is_no_carrier(monkeypatch):

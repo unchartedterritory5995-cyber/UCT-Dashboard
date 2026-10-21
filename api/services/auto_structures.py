@@ -378,8 +378,11 @@ BASE_DRAW_ID = "bc:base"
 #: there is no carrier. Setting this back to 1 restores the round-1 member drawing byte for byte (the
 #: carrier path below; railed by tests/test_base_draw_member_parity.py).
 MEMBER_BASE_ROUND = 2
-#: The one later round whose rows carry the round-1 drawing beside their own (extras.draw_member).
-_BASE_R1_CARRIER = 2
+#: The (member round, row round) pairs where a row of the later drawing round carries the member round's
+#: drawing beside its own (extras.draw_member): round-2 rows carrying round 1 (the round-1 era), round-3
+#: rows carrying round 2 (members on round 2 while round 3 is admin-only), and round-3 rows carrying round 1
+#: (a rollback of the literal to 1). Any other pairing is dropped.
+_BASE_CARRIERS = frozenset({(1, 2), (1, 3), (2, 3)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
 
@@ -388,8 +391,8 @@ def _base_member_row(row):
     """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
 
     A row stamped with the member round is served as it is. A row of a later round is served as the
-    member round drew the SAME bars -- only while the member round is 1 and the row is of the one known
-    carrier round (_BASE_R1_CARRIER) -- and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
+    member round drew the SAME bars -- only for a known (member round, row round) pair (_BASE_CARRIERS) --
+    and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
     "draw_base": <that round's drawing or None>}; the member gets `_base_row` rebuilt from that drawing
     (byte-identical to the row the member round's code built), or nothing when that round drew nothing.
     Any other round, a missing or malformed carrier drops the row. The row passed in is not modified."""
@@ -401,7 +404,7 @@ def _base_member_row(row):
         return None
     if rnd == MEMBER_BASE_ROUND:
         return row
-    if not (MEMBER_BASE_ROUND == 1 and rnd == _BASE_R1_CARRIER):
+    if (MEMBER_BASE_ROUND, rnd) not in _BASE_CARRIERS:
         return None
     mem = ex.get("draw_member")
     if not isinstance(mem, dict) or set(mem) != {"round", "draw_base"}:

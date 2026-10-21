@@ -33,16 +33,25 @@ Two drawing rounds live here, chosen by `draw_round`:
     of team charts, the highest wick 60%). Every gate then reads that pivot. Round 2 also withholds a
     deep pullback straight after a parabolic run (PARABOLIC_RUN / PARABOLIC_DEPTH): a blow-off
     unwinding is not a base.
-Members are served round 1 until round 2 passes its own blind check (auto_structures.MEMBER_BASE_ROUND).
+  * ROUND 3 (BASE_DRAW_ROUND) -- a SHELF UNDER A HIGHER PEAK. Rounds 1 and 2 never draw a base that has a
+    high more than PEAK_ATR ATR above its pivot in the PEAK_BARS bars before its lip, and never draw one
+    whose lip is reached from ABOVE (fewer than PRIOR_BARS bars of the span before it) -- but a flat shelf
+    that forms right under a recent higher high, its top tested again and again, is a base with its own
+    breakout level. Round 3 draws exactly round 2's drawing wherever round 2 draws one; only where round 2
+    draws NOTHING does it draw a shelf: a candidate that has such a higher peak before its lip (REQUIRED:
+    without one the relaxation does not apply), whose lip may be reached from above, that passes every
+    other round-2 gate, and that is SHELF_MIN_LEN .. SHELF_MAX_LEN sessions long. The overhead peak stays
+    outside the drawn region, so the pivot is the shelf's own top.
+Members are served a round only once it passes its own blind check (auto_structures.MEMBER_BASE_ROUND).
 """
 from __future__ import annotations
 
 #: The base drawing round this code IS. A row drawn by `base_drawing` carries extras.draw_round =
 #: BASE_DRAW_ROUND; the member set serves only the confirmed round (auto_structures.MEMBER_BASE_ROUND,
 #: a literal). Bump it with every new base drawing.
-BASE_DRAW_ROUND = 2
+BASE_DRAW_ROUND = 3
 #: Every round this module can draw.
-DRAW_ROUNDS = (1, 2)
+DRAW_ROUNDS = (1, 2, 3)
 #: The labels the judges saw.
 PIVOT_LABEL = "pivot"
 LOW_LABEL = "base low"
@@ -97,6 +106,12 @@ PARABOLIC_DEPTH = 0.30
 #: neither is withheld.
 PARABOLIC_MAX_LEN = 35
 
+# -- round 3 only: the shelf under a higher peak (calibrated on DEV-dated charts only) --
+#: A shelf is at least this many sessions long (five weeks) ...
+SHELF_MIN_LEN = 25
+#: ... and at most this many (twenty weeks): a longer range under a peak is a drawn-out top, not a shelf.
+SHELF_MAX_LEN = 100
+
 
 def _f(b, k):
     return float(b[k])
@@ -146,7 +161,10 @@ def _candidates(bars, i):
     return out
 
 
-def _evaluate(bars, i, a, k, rnd=1):
+def _evaluate(bars, i, a, k, rnd=1, shelf=False):
+    """One candidate's base, or None. `shelf` (round 3's second pass only): the candidate must have a
+    higher peak before its lip (the PEAK gate inverted), its lip may be reached from above (the PRIOR_BARS
+    gate lifted) and it must be SHELF_MIN_LEN .. SHELF_MAX_LEN sessions long; every other gate is round 2's."""
     b = bars
     C = _bt(b[k])
     j = i - 1
@@ -155,10 +173,12 @@ def _evaluate(bars, i, a, k, rnd=1):
         j -= 1
     left = j + 1
     lip = next((m for m in range(left, i) if _bt(b[m]) >= C - TOUCH * a), None)
-    if lip is None or lip - left < PRIOR_BARS:
+    if lip is None or (lip - left < PRIOR_BARS and not shelf):
         return None
     n = i - lip
     if n < MIN_LEN or n > LOOK:
+        return None
+    if shelf and not SHELF_MIN_LEN <= n <= SHELF_MAX_LEN:
         return None
     if rnd == 1:
         piv = _cluster_top([_bt(b[m]) for m in range(lip, i)], CLUSTER * a)
@@ -186,7 +206,9 @@ def _evaluate(bars, i, a, k, rnd=1):
     if (_f(b[lip], "h") - _f(b[a0], "c")) / _f(b[a0], "c") < MIN_ADV:
         return None
     pk0 = max(0, lip - PEAK_BARS)
-    if lip > pk0 and max(_f(b[m], "h") for m in range(pk0, lip)) > piv + PEAK_ATR * a:
+    peak_above = lip > pk0 and max(_f(b[m], "h") for m in range(pk0, lip)) > piv + PEAK_ATR * a
+    if peak_above != shelf:
+        # rounds 1-2 and round 3's first pass: no shelf under a peak; round 3's shelf pass: only one
         return None
     if (piv - low) / a > MAX_DEPTH_ATR:
         return None
@@ -208,11 +230,26 @@ def _evaluate(bars, i, a, k, rnd=1):
             "close_minus_pivot_atr": (c - piv) / a}
 
 
+def _pick(b, i, a, cands, rnd, shelf):
+    """Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer)."""
+    seen, best = set(), None
+    for k in cands:
+        d = _evaluate(b, i, a, k, rnd, shelf)
+        if d is None or (d["lip"], round(d["pivot"], 8)) in seen:
+            continue
+        seen.add((d["lip"], round(d["pivot"], 8)))
+        key = (abs(d["close_minus_pivot_atr"]), -d["len"])
+        if best is None or key < best[0]:
+            best = (key, d)
+    return None if best is None else best[1]
+
+
 def base_drawing(bars: list, i: int, draw_round: int | None = None):
     """The base drawing at bar `i` from bars[:i+1] only, or None:
     {pivot, start_t (the lip), end_t (bar i), low, low_t, bars, atr (ATR(14) at bar i), label,
     low_label}.
-    Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer).
+    Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer);
+    round 3 draws round 2's pick, and only when there is none, its pick among the shelves (`_evaluate`).
     `draw_round` picks the round (DRAW_ROUNDS); None is BASE_DRAW_ROUND, anything else draws nothing."""
     try:
         rnd = BASE_DRAW_ROUND if draw_round is None else draw_round
@@ -224,18 +261,13 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
         a = _atr(b, i)
         if not a or a <= 0:
             return None
-        seen, best = set(), None
-        for k in _candidates(b, i):
-            d = _evaluate(b, i, a, k, rnd)
-            if d is None or (d["lip"], round(d["pivot"], 8)) in seen:
-                continue
-            seen.add((d["lip"], round(d["pivot"], 8)))
-            key = (abs(d["close_minus_pivot_atr"]), -d["len"])
-            if best is None or key < best[0]:
-                best = (key, d)
-        if best is None:
+        cands = _candidates(b, i)
+        d = _pick(b, i, a, cands, 2 if rnd == 3 else rnd, False)
+        if d is None and rnd == 3:
+            # round 3: only where round 2 draws nothing, a shelf under a higher peak
+            d = _pick(b, i, a, cands, 3, True)
+        if d is None:
             return None
-        d = best[1]
         return {"pivot": d["pivot"], "start_t": int(b[d["lip"]]["t"]), "end_t": int(b[i]["t"]),
                 "low": d["low"], "low_t": int(b[d["low_i"]]["t"]), "bars": d["len"], "atr": float(a),
                 "label": PIVOT_LABEL, "low_label": LOW_LABEL}
