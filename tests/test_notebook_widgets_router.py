@@ -16,6 +16,15 @@ FREE = {"id": "u-free", "email": "free@example.test", "role": "member", "plan": 
 URL = "/api/j2/notebook-widgets/"
 
 
+@pytest.fixture(autouse=True)
+def _fresh_limiter():
+    """The route's per-member limit (60/minute) is in-process limiter state: start each test clean."""
+    from api.limiter import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 def _client(user=PAID):
     app = FastAPI()
     app.include_router(nwr.router)
@@ -119,3 +128,20 @@ def test_wave6_kinds_404_when_w6_off(seen):
                  "roomBuzzOnMyNames", "myEarningsReactions"):
         assert _client().get(URL + kind).status_code == 404, kind
     assert seen == []
+
+
+def test_sixty_a_minute_per_member_then_a_429_sentence(monkeypatch, seen):
+    """Final review I-4: the 61st read inside a minute is refused with one sentence and builds nothing;
+    another member's budget is their own; a dark kind is still the one 404 (the gate runs first)."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    c = _client()
+    for i in range(60):
+        assert c.get(URL + "tickerCard?symbol=AAPL").status_code == 200, i
+    r = c.get(URL + "tickerCard?symbol=AAPL")
+    assert r.status_code == 429 and r.json()["detail"] == nwr.WIDGET_RATE_SENTENCE
+    assert len(seen) == 60                                      # the refused read built nothing
+    assert c.get(URL + "myRulesCheck").status_code == 404       # W2 dark: the 404, never a 429
+    other = {**PAID, "id": "u-paid-2"}
+    assert _client(other).get(URL + "tickerCard?symbol=AAPL").status_code == 200
+    assert (nwr.WIDGET_RATE, nwr.SCOPE_WIDGETS) == ("60/minute", "notebook-widgets")
+

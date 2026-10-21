@@ -15,6 +15,15 @@ from tests._style_library_helpers import conn, lib_on  # noqa: F401 -- fixtures 
 NOW = datetime(2026, 10, 11, 14, 30, tzinfo=timezone.utc)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_pools(monkeypatch):
+    """Final review I-4: slots and widget builders each run on a module-level bounded pool, where a test's
+    deliberate straggler keeps its permit until it ends. Fresh pools per test keep tests independent."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    monkeypatch.setattr(js, "_SLOT_POOL", nw.BoundedPool(js.SLOT_POOL_WORKERS, "nb-style-slot-test"))
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test"))
+
+
 @pytest.fixture
 def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -886,3 +895,27 @@ def test_the_slot_setting_keys_match_the_client_settings_keys():
     client = re.findall(r"'(\w+)'", m.group(1))
     assert len(client) == 7                                                          # non-vacuity
     assert tuple(client) == nw.SETTING_KEYS == router.PASS_PARAMS
+
+
+def test_a_saturated_slot_pool_answers_each_slot_sentence_at_once(db_path, monkeypatch):
+    """Final review I-4: the slot builder has its OWN bounded pool (never the widget builders' shared one,
+    which a slot task waits on). When it is saturated, each slot is its "couldn't load" sentence AT ONCE:
+    nothing queues, and no build is asked for."""
+    import time as _t
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    assert js._slot_pool() is not nw._POOL                                   # two pools, by construction
+    _waves(monkeypatch, 1, 2)
+    full = nw.BoundedPool(1, "nb-style-slot-full")
+    assert full._slots.acquire(blocking=False)
+    monkeypatch.setattr(js, "_SLOT_POOL", full)
+    asked = []
+    monkeypatch.setattr(nw, "build", lambda kind, *a, **k: asked.append(kind) or {"asOf": "x", "source": "broker"})
+    t0 = _t.monotonic()
+    n, skipped = js.create_styled_note("u1", {"kindId": "weekly_review", "title": "Week"})
+    assert _t.monotonic() - t0 < js.SLOT_BUDGET_S
+    assert asked == []
+    lines = [_text(x) for x in n["bodyJson"]["content"]]
+    for kind in WEEKLY_SLOTS:
+        assert f"{nw.KIND_TITLE[kind]} couldn't load. Type / to add it again." in lines, kind
+    assert _slot_embeds(n["bodyJson"]) == []
+

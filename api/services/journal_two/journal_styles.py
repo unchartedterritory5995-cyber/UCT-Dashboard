@@ -20,7 +20,7 @@ import re
 import sqlite3
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
+from concurrent.futures import TimeoutError as _FutTimeout
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -880,17 +880,36 @@ def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]
     }}, None
 
 
+#: Final review I-4: the slot builder's OWN bounded pool (never notebook_widgets' shared one: a slot task
+#: waits on builder tasks there, so one shared full pool could deadlock). Created on first use, looked up
+#: at call time; a saturated pool answers each slot's sentence at once instead of queueing.
+SLOT_POOL_WORKERS = 8
+_SLOT_POOL = None
+
+
+def _slot_pool():
+    global _SLOT_POOL
+    if _SLOT_POOL is None:
+        _SLOT_POOL = _nw.BoundedPool(SLOT_POOL_WORKERS, "nb-style-slot")
+    return _SLOT_POOL
+
+
 def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | None, str | None]]:
-    """Task 15 fix round 1: every slot as a future in one small pool under ONE total SLOT_BUDGET_S (the
-    `_implied_moves` shape in notebook_widgets). A slot not finished when the budget runs out answers its
-    "widget-failed:<kind>" reason. Nothing blocks past the budget: unstarted futures are cancelled and the
-    pool is released without waiting for a straggler."""
+    """Task 15 fix round 1: every slot as a future under ONE total SLOT_BUDGET_S (the `_implied_moves`
+    shape in notebook_widgets). A slot not finished when the budget runs out answers its
+    "widget-failed:<kind>" reason. Nothing blocks past the budget: an unstarted future is cancelled and a
+    straggler is never waited for. Final review I-4: the slots share this module's bounded pool, and a slot
+    that finds it saturated answers its sentence at once."""
     out: list[tuple[dict | None, str | None]] = []
-    pool = ThreadPoolExecutor(max_workers=max(1, len(blocks)))
+    pool = _slot_pool()
     deadline = time.monotonic() + SLOT_BUDGET_S
+    futs = [pool.try_submit(_build_widget_slot, b, ctx) for b in blocks]
     try:
-        futs = [pool.submit(_build_widget_slot, b, ctx) for b in blocks]
         for b, fut in zip(blocks, futs):
+            if fut is None:
+                _log.warning("widget slot %s not built: the slot pool is saturated", b["block"])
+                out.append((None, f"widget-failed:{b['block']}"))
+                continue
             try:
                 out.append(fut.result(timeout=max(0.0, deadline - time.monotonic())))
             except _FutTimeout:
@@ -900,7 +919,9 @@ def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | Non
                 _log.warning("widget slot %s not built: %s", b["block"], type(e).__name__)
                 out.append((None, f"widget-failed:{b['block']}"))
     finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+        for fut in futs:
+            if fut is not None:
+                fut.cancel()
     return out
 
 

@@ -30,6 +30,15 @@ NEUTRAL_ACCOUNT = public.ACCOUNT_NEUTRAL_LINE
 NEUTRAL_MARKET = public.NEUTRAL_LINE
 
 
+@pytest.fixture(autouse=True)
+def _fresh_limiter():
+    """The route's per-member limit (60/minute) is in-process limiter state: start each test clean."""
+    from api.limiter import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 def _user(uid):
     return {"id": uid, "email": f"{uid}@example.test", "role": "member", "plan": "pro"}
 

@@ -19,8 +19,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, TimeoutError as _FutTimeout, wait
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Any, Callable
@@ -88,6 +89,90 @@ KIND_TITLE: dict[str, str] = {
 
 class WidgetRequestError(ValueError):
     """An unknown kind, or params a builder cannot use. The router maps it to 400."""
+
+
+class BoundedPool:
+    """Final review I-4: a module-level thread pool with a NON-BLOCKING admission semaphore in front of it.
+
+    `try_submit` answers a future, or None AT ONCE when every permit is held: nothing ever queues behind the
+    pool. A permit is held from submit until the future is done (finished, failed or cancelled), so a
+    straggler a request abandoned at its budget still counts against the ceiling until its own leaf
+    timeout ends it. Pools are per process (a second web process doubles the ceiling)."""
+
+    def __init__(self, workers: int, name: str):
+        self.workers = workers
+        self._pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix=name)
+        self._slots = threading.BoundedSemaphore(workers)
+
+    def try_submit(self, fn: Callable, *args: Any) -> Future | None:
+        slots = self._slots
+        if not slots.acquire(blocking=False):
+            return None
+        try:
+            fut = self._pool.submit(fn, *args)
+        except RuntimeError:                        # the pool is shut down (interpreter exit)
+            slots.release()
+            return None
+        fut.add_done_callback(lambda _f: slots.release())
+        return fut
+
+
+#: ONE pool for every builder's vendor fan-out (implied moves, the flow page read, the earnings calendar
+#: walk, the reaction figures). Looked up at call time, so a test can swap in a fresh one.
+#: ⛔ journal_styles' slot builder keeps its OWN pool: a slot task waits on builder tasks, so sharing one
+#: bounded pool could deadlock when it is full.
+WIDGET_POOL_WORKERS = 8
+_POOL = BoundedPool(WIDGET_POOL_WORKERS, "nb-widget")
+
+
+def _fan_out(fn: Callable, jobs: dict[str, tuple], *, per_request: int, budget_s: float) -> dict[str, Any]:
+    """{key: fn(*args)} for each job, on the shared pool under ONE total budget, at most `per_request` in
+    flight at once. A key missing from the answer did not finish: past the budget, raised, or never run
+    because the pool was saturated by other requests (then the rest answer AT ONCE, never queued)."""
+    results: dict[str, Any] = {}
+    pending = list(jobs.items())
+    inflight: dict[Future, str] = {}
+    deadline = time.monotonic() + budget_s
+    try:
+        while pending or inflight:
+            while pending and len(inflight) < per_request:
+                fut = _POOL.try_submit(fn, *pending[0][1])
+                if fut is None:
+                    break
+                inflight[fut] = pending.pop(0)[0]
+            if not inflight:
+                break                                # saturated: nothing of ours is running to wait for
+            left = deadline - time.monotonic()
+            if left <= 0:
+                break
+            done, _ = wait(list(inflight), timeout=left, return_when=FIRST_COMPLETED)
+            for fut in done:
+                key = inflight.pop(fut)
+                try:
+                    results[key] = fut.result()
+                except Exception as e:  # noqa: BLE001 -- one miss is a null cell, not a dead widget
+                    _log.info("widget fan-out: %s failed: %s", key, e)
+    finally:
+        for fut in inflight:
+            fut.cancel()
+    return results
+
+
+def _one_bounded(fn: Callable, budget_s: float) -> tuple[bool, Any]:
+    """(True, fn()) on the shared pool inside `budget_s`; (False, None) when it ran past the budget, raised,
+    or the pool was saturated (answered at once). A straggler is abandoned, never waited for."""
+    fut = _POOL.try_submit(fn)
+    if fut is None:
+        _log.info("widget read skipped: the widget pool is saturated")
+        return False, None
+    try:
+        return True, fut.result(timeout=budget_s)
+    except _FutTimeout:
+        _log.info("widget read ran past %.1fs", budget_s)
+        return False, None
+    except Exception as e:  # noqa: BLE001
+        _log.info("widget read failed: %s", e)
+        return False, None
 
 
 def notebook_widgets_wave_on(wave: int) -> bool:
@@ -240,26 +325,14 @@ def _implied_moves(items: list[dict]) -> tuple[dict[str, float | None], bool]:
     True (the payload is partial). Nothing blocks past the budget: unstarted futures
     are cancelled and the pool is released without waiting for a straggler.
     """
-    out: dict[str, float | None] = {}
     if not items:
-        return out, False
-    pool = ThreadPoolExecutor(max_workers=IMPLIED_MOVE_WORKERS)
-    deadline = time.monotonic() + IMPLIED_MOVE_BUDGET_S
-    timed_out = False
-    try:
-        futs = {}
-        for it in items:
-            sym = str(it.get("symbol") or "").upper()
-            futs[sym] = pool.submit(_implied_move_pct, sym, it.get("date"), it.get("timing"))
-        for sym, fut in futs.items():
-            try:
-                out[sym] = fut.result(timeout=max(0.0, deadline - time.monotonic()))
-            except _FutTimeout:
-                out[sym] = None
-                timed_out = True
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
-    return out, timed_out
+        return {}, False
+    jobs = {}
+    for it in items:
+        sym = str(it.get("symbol") or "").upper()
+        jobs[sym] = (sym, it.get("date"), it.get("timing"))
+    got = _fan_out(_implied_move_pct, jobs, per_request=IMPLIED_MOVE_WORKERS, budget_s=IMPLIED_MOVE_BUDGET_S)
+    return {sym: got.get(sym) for sym in jobs}, any(sym not in got for sym in jobs)
 
 
 def _my_names_reporting(user_id: str, params: dict, now: datetime) -> dict:
@@ -872,19 +945,10 @@ def _flow_read(sym: str) -> dict | None:
 
 def _flow_bounded(sym: str) -> dict | None:
     """`_flow_read` under ONE wall-clock budget, the `_implied_moves` shape: a straggler past the
-    budget is abandoned (the pool is released without waiting) and the answer is None."""
-    pool = ThreadPoolExecutor(max_workers=1)
-    try:
-        fut = pool.submit(_flow_read, sym)
-        return fut.result(timeout=TICKER_FLOW_TIMEOUT_S)
-    except _FutTimeout:
-        _log.info("ticker flow: page read for %s ran past %.1fs", sym, TICKER_FLOW_TIMEOUT_S)
-        return None
-    except Exception as e:  # noqa: BLE001 -- no flow read is an empty widget, never a failed one
-        _log.info("ticker flow: page read failed for %s: %s", sym, e)
-        return None
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+    budget is abandoned (never waited for) and the answer is None. A saturated pool answers None at once
+    (final review I-4): no flow read is an empty widget, never a failed one."""
+    ok, data = _one_bounded(lambda: _flow_read(sym), TICKER_FLOW_TIMEOUT_S)
+    return data if ok else None
 
 
 def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
@@ -1385,17 +1449,10 @@ def _reported_window(today: date) -> tuple[dict[str, str], bool]:
         from api.services.calendar_alerts import collect_earnings_window
         return collect_earnings_window(today - timedelta(days=REACTIONS_WINDOW_DAYS), REACTIONS_WINDOW_DAYS)
 
-    pool = ThreadPoolExecutor(max_workers=1)
-    try:
-        window, partial = pool.submit(read).result(timeout=REACTIONS_WINDOW_BUDGET_S)
-    except _FutTimeout:
-        _log.info("earnings reactions: calendar walk ran past %.1fs", REACTIONS_WINDOW_BUDGET_S)
+    ok, got = _one_bounded(read, REACTIONS_WINDOW_BUDGET_S)       # saturated: partial at once (I-4)
+    if not ok:
         return {}, True
-    except Exception as e:  # noqa: BLE001
-        _log.info("earnings reactions: calendar walk failed: %s", e)
-        return {}, True
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+    window, partial = got
     window = {str(s).upper(): str(d)[:10] for s, d in (window or {}).items()}
     cache.set(ck, {"window": window, "partial": bool(partial)}, ttl=300 if partial else 3600)
     return window, bool(partial)
@@ -1427,23 +1484,12 @@ def _quarter_figures(sym: str, day: str) -> dict:
 def _reaction_figures(items: list[tuple[str, str]]) -> tuple[dict[str, dict], bool]:
     """{SYM: figures} under ONE total budget in a small pool (`_implied_moves`' shape). A name not
     finished when the budget runs out gets null figures and the second value is True."""
-    out: dict[str, dict] = {}
     if not items:
-        return out, False
-    pool = ThreadPoolExecutor(max_workers=REACTIONS_WORKERS)
-    deadline = time.monotonic() + REACTIONS_BUDGET_S
-    late = False
-    try:
-        futs = {sym: pool.submit(_quarter_figures, sym, day) for sym, day in items}
-        for sym, fut in futs.items():
-            try:
-                out[sym] = fut.result(timeout=max(0.0, deadline - time.monotonic()))
-            except _FutTimeout:
-                out[sym] = dict(_NO_FIGURES)
-                late = True
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
-    return out, late
+        return {}, False
+    jobs = {sym: (sym, day) for sym, day in items}
+    got = _fan_out(_quarter_figures, jobs, per_request=REACTIONS_WORKERS, budget_s=REACTIONS_BUDGET_S)
+    return ({sym: got[sym] if isinstance(got.get(sym), dict) else dict(_NO_FIGURES) for sym in jobs},
+            any(sym not in got for sym in jobs))
 
 
 def _next_day_pct(sym: str, day: str, timing: str | None, now: datetime) -> float | None:

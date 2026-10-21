@@ -9,6 +9,9 @@ The rules:
     the same 404 as a kind that does not exist, so a gate-off kind is indistinguishable
     from none. The flag is read PER REQUEST (never captured at import).
   * PAID: this router's own `require_paid`.
+  * RATE (final review I-4): 60/minute per member, scope `notebook-widgets`, in `api/limiter.py`'s
+    in-memory storage (⚠️ PER-PROCESS STATE: a second web process doubles it). Counted after the wave
+    gate, so a dark kind is still the one 404. Over it: 429 with one sentence.
   * 400 carries the `WidgetRequestError` text; 200 is `Cache-Control: no-store`.
   * A sync `def` endpoint runs in the threadpool, which is where the builders' blocking
     reads belong (the same shape as the sibling Notebook routers).
@@ -32,6 +35,12 @@ router = APIRouter(
 #: The query params that pass through to the builder's `params`, when present (the service owns the list).
 PASS_PARAMS = widgets.SETTING_KEYS
 
+#: Final review I-4: every widget read fans out to vendors (a chip tap reads a ticker card), so a member's
+#: reads are bounded per minute.
+WIDGET_RATE = "60/minute"
+SCOPE_WIDGETS = "notebook-widgets"
+WIDGET_RATE_SENTENCE = "You've loaded a lot of widgets in a minute. Try again shortly."
+
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
@@ -46,6 +55,7 @@ def get_widget(kind: str, request: Request, user: dict = Depends(require_paid)) 
     wave = widgets.KIND_WAVE.get(kind)
     if wave is None or not widgets.notebook_widgets_wave_on(wave):
         raise public.not_found()
+    public.enforce_rate(WIDGET_RATE, SCOPE_WIDGETS, f"member:{user['id']}", WIDGET_RATE_SENTENCE, public=False)
     params = {k: request.query_params[k] for k in PASS_PARAMS if k in request.query_params}
     try:
         payload = widgets.build(kind, str(user["id"]), params)

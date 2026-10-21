@@ -15,6 +15,14 @@ from api.services.journal_two import notebook_widgets as nw
 NOW = datetime(2026, 10, 20, 15, 0, tzinfo=timezone.utc)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_widget_pool(monkeypatch):
+    """Final review I-4: the builders share ONE module-level bounded pool, and a test's deliberate straggler
+    (a fake vendor that sleeps past the budget) keeps its permit until it ends. A fresh pool per test keeps
+    one test's stragglers from saturating the next test's reads."""
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test"))
+
+
 def _patch_sets(monkeypatch, watchlist=(), flagged=()):
     import api.services.calendar_personalization as cp
     monkeypatch.setattr(
@@ -1785,3 +1793,92 @@ def test_earnings_reactions_window_is_cached_and_empty_says_so(monkeypatch):
     nw.build("myEarningsReactions", "u2", {}, now=NOW)
     assert out["rows"] == [] and out["empty"] == nw.REACTIONS_EMPTY_SENTENCE
     assert len(seen["window"]) == 1
+
+
+# -- final review I-4: one bounded pool; a saturated pool answers partial AT ONCE ------------------
+
+def _saturate(monkeypatch):
+    """A one-permit pool whose permit is held: every try_submit answers None."""
+    pool = nw.BoundedPool(1, "nb-widget-full")
+    assert pool._slots.acquire(blocking=False)
+    monkeypatch.setattr(nw, "_POOL", pool)
+    return pool
+
+
+def test_no_builder_makes_a_pool_of_its_own():
+    import ast
+    import inspect
+    tree = ast.parse(inspect.getsource(nw))
+    made = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call)
+            and getattr(n.func, "id", getattr(n.func, "attr", None)) == "ThreadPoolExecutor"]
+    assert len(made) == 1, made                                  # BoundedPool's, the one module-level pool
+    assert isinstance(nw._POOL, nw.BoundedPool) and nw.WIDGET_POOL_WORKERS == 8
+
+
+def test_bounded_pool_admits_up_to_its_workers_and_releases_on_done_and_on_cancel():
+    import threading
+    pool = nw.BoundedPool(2, "nb-widget-t")
+    gate = threading.Event()
+    a = pool.try_submit(gate.wait, 5)
+    b = pool.try_submit(gate.wait, 5)
+    assert a is not None and b is not None
+    assert pool.try_submit(lambda: 1) is None                    # saturated: answered at once, never queued
+    gate.set()
+    a.result(2), b.result(2)
+    time.sleep(0.05)
+    c = pool.try_submit(lambda: 7)
+    assert c is not None and c.result(2) == 7                    # permits come back when the work is done
+
+
+def test_saturated_pool_names_reporting_answers_partial_at_once(monkeypatch):
+    _saturate(monkeypatch)
+    items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo", "sources": ["watchlist"]}
+             for s in ("AAA", "BBB")]
+    _patch_reporting(monkeypatch, items)
+    import api.services.earnings_enrichment as ee
+    calls = []
+    monkeypatch.setattr(ee, "get_implied_move", lambda *a, **k: calls.append(a) or {"pct": 5.0})
+    t0 = time.monotonic()
+    out = nw.build("myNamesReporting", "u1", {}, now=NOW)
+    assert time.monotonic() - t0 < 0.5
+    assert out["partial"] is True and calls == []
+    assert [r["impliedMovePct"] for r in out["rows"]] == [None, None]
+
+
+def test_saturated_pool_ticker_flow_answers_empty_at_once(monkeypatch):
+    _saturate(monkeypatch)
+    calls = []
+    monkeypatch.setattr(nw, "_flow_read", lambda sym: calls.append(sym) or {"contracts": [1]})
+    t0 = time.monotonic()
+    out = nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert time.monotonic() - t0 < 0.5
+    assert calls == [] and out["topPrints"] == [] and out["empty"].startswith("No options flow")
+
+
+def test_saturated_pool_earnings_reactions_answer_partial_at_once(monkeypatch):
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"]})
+    seen = _patch_reactions(monkeypatch, window={"NVDA": "2026-10-15"})
+    _saturate(monkeypatch)
+    t0 = time.monotonic()
+    out = nw.build("myEarningsReactions", "u1", {}, now=NOW)
+    assert time.monotonic() - t0 < 0.5
+    assert out["partial"] is True and seen["window"] == []       # the calendar walk never ran
+
+
+def test_saturated_pool_reaction_figures_are_null_and_partial(monkeypatch):
+    _saturate(monkeypatch)
+    figures, late = nw._reaction_figures([("NVDA", "2026-10-15")])
+    assert late is True and figures == {"NVDA": dict(nw._NO_FIGURES)}
+
+
+def test_a_request_with_more_names_than_its_share_still_gets_every_answer(monkeypatch):
+    """The fan-out rolls: more names than `per_request` are answered as earlier ones finish, so a long list
+    is NOT partial on an idle pool (the old per-request pool's behaviour)."""
+    items = [{"symbol": f"S{i:02d}", "date": "2026-10-21", "daysAway": 1, "timing": "bmo",
+              "sources": ["watchlist"]} for i in range(12)]
+    _patch_reporting(monkeypatch, items)
+    import api.services.earnings_enrichment as ee
+    monkeypatch.setattr(ee, "get_implied_move", lambda *a, **k: {"pct": 2.0})
+    out = nw.build("myNamesReporting", "u1", {}, now=NOW)
+    assert out["partial"] is False and all(r["impliedMovePct"] == 2.0 for r in out["rows"])
+
