@@ -92,6 +92,8 @@ from __future__ import annotations
 import copy
 import json
 import re
+import threading
+import time
 import unicodedata
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote, urlsplit
@@ -1635,6 +1637,46 @@ def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: s
     }
 
 
+def referenced_images(payload: Any, attachment_base: str) -> frozenset[str]:
+    """Ruling R59: the `"<sub>/<filename>"` set of THIS note's attachments that a REDUCED public payload
+    references, from whatever attribute carries them (image and figure `src`, a card's image, the hero, a
+    widget's `fallback.url`, and any image-bearing attribute added later), because it reads every string the
+    payload holds rather than a list of attribute names. The public image proxies serve only this set, so a
+    file the page stopped naming (a widget switched back to private, an image deleted from a shared note)
+    is the same not-found as a file that never existed."""
+    if not attachment_base:
+        return frozenset()
+    text = json.dumps(payload, ensure_ascii=False)
+    pattern = re.escape(attachment_base) + r"(inline|hero)/([^\"\\/?#\s]+)"
+    return frozenset(f"{m.group(1)}/{m.group(2)}" for m in re.finditer(pattern, text))
+
+
+#: How long one note revision's reference set is reused (R59): a page's images are fetched in a burst.
+REFERENCE_SET_TTL_S = 60.0
+_REF_SETS: dict[tuple, tuple[float, frozenset[str]]] = {}
+_REF_SETS_MAX = 500
+_REF_LOCK = threading.Lock()
+
+
+def cached_reference_set(key: tuple, compute: Callable[[], frozenset[str]], *,
+                         now: Callable[[], float] | None = None) -> frozenset[str]:
+    """`compute()`'s set, held `REFERENCE_SET_TTL_S` per `key`. The caller's key names the note AND its
+    revision (`updated_at`), so a write that drops an image is never answered from the old set. Bounded:
+    past `_REF_SETS_MAX` keys the oldest entries go. Per process."""
+    t = (now or time.monotonic)()
+    with _REF_LOCK:
+        hit = _REF_SETS.get(key)
+        if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
+            return hit[1]
+    got = frozenset(compute())
+    with _REF_LOCK:
+        _REF_SETS[key] = (t, got)
+        if len(_REF_SETS) > _REF_SETS_MAX:
+            for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
+                _REF_SETS.pop(k, None)
+    return got
+
+
 def read_public_note(conn: Any, owner_id: str, note_id: str) -> dict[str, Any] | None:
     """The columns a public copy is built from, when the note may be served at all: owned
     by `owner_id`, neither trashed nor archived. None otherwise, and None for a body that
@@ -1700,5 +1742,5 @@ __all__ = [
     "SHOWN", "NEUTRAL", "MODES", "BASE_MODES", "EXAMPLE_OVERRIDES", "EXAMPLE_IMAGE_ATTRS", "node_action",
     "attr_decision", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
-    "read_public_note", "walk_types",
+    "read_public_note", "walk_types", "referenced_images", "cached_reference_set", "REFERENCE_SET_TTL_S",
 ]

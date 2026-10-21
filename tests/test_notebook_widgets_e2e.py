@@ -524,3 +524,122 @@ def test_wave6_routes_are_dark_without_their_flag(wave6, monkeypatch):
         assert client.get(URL + kind).status_code == 404, kind
     # control: wave 1 is still on
     assert client.get(URL + "myWatchlistToday").status_code == 200
+
+
+# -- ruling R59: the public image proxies serve ONLY images the current reduced page references -------
+
+def _png(shade=0):
+    """Distinct bytes per shade: the image store names a file by its content."""
+    import io
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (8, 8), (200, shade, 0)).save(b, "PNG")
+    return b.getvalue()
+
+
+def _pin_attachments(monkeypatch, tmp_path):
+    """Writes and the image proxies read ONE root (api/services/journal_two/test_note_shares.py's pattern)."""
+    from api.services.journal_two import notes
+    root = tmp_path / "j2_attachments"
+    monkeypatch.setattr(notes, "_ATTACHMENT_ROOT", root)
+    monkeypatch.setattr(notes, "_read_candidates_with_roots", lambda rel: [(root, root / rel)])
+
+
+def _shared_widget_note(uid):
+    """A note holding a SHARED account widget whose archived picture lives in the note's own inline/, a
+    plain image, and a hero. Returns (note, widget node, archived filename, image filename, hero filename,
+    stray filename): the stray is uploaded to the note's directory and referenced by nothing."""
+    from api.services import auth_db
+    from api.services.journal_two import notes
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)", (uid, f"{uid}@x.test", "x"))
+        conn.commit()
+    finally:
+        conn.close()
+    note = notes.create_note(uid, {"title": "Weekly review", "bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "hi"}]}]}})
+    up = [notes.save_note_image_bytes(uid, note["id"], _png(i * 40), f"{n}.png", "image/png")["url"]
+          for i, n in enumerate(("archive", "image", "hero", "stray"))]
+    assert len({u.rsplit("/", 1)[1] for u in up}) == 4
+    widget = {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "myPnlStats", "mode": "snapshot", "capturedAt": "2026-10-20T14:00:00Z", "embedId": "e1",
+        "params": {"asOf": "2026-10-20T14:00:00Z", "netPnl": 98765.43, "share": True},
+        "fallback": {"url": up[0], "w": 8, "h": 8}}}
+    body = {"type": "doc", "content": [widget, {"type": "image", "attrs": {"src": up[1]}}]}
+    notes.update_note(uid, note["id"], {"bodyJson": body, "heroImageUrl": up[2]})
+    names = [u.rsplit("/", 1)[1] for u in up]
+    return notes.get_note(uid, note["id"]), widget, *names
+
+
+def _share_off(uid, note, widget):
+    from api.services.journal_two import notes
+    widget["attrs"]["params"]["share"] = False
+    widget["attrs"]["fallback"] = None
+    body = dict(note["bodyJson"])
+    body["content"] = [widget] + list(body["content"][1:])
+    notes.update_note(uid, note["id"], {"bodyJson": body}, expected_updated_at=note["updatedAt"])
+
+
+def test_r59_share_proxy_serves_only_what_the_page_references(env, monkeypatch, tmp_path):
+    _pin_attachments(monkeypatch, tmp_path)
+    from api.services.journal_two import note_shares
+    monkeypatch.setenv("J2_SHARE_LINKS_ENABLED", "1")
+    note, widget, archive, image, hero, stray = _shared_widget_note("u-r59s")
+    token = note_shares.create_share("u-r59s", note["id"])["token"]
+    serve = lambda sub, name: note_shares.resolve_share_attachment(token, sub, name)  # noqa: E731
+    # Control: while referenced, each image is served (the fallback, a body image, the hero).
+    assert serve("inline", archive) is not None and serve("inline", archive).exists()
+    assert serve("inline", image) is not None
+    assert serve("inline", hero) is not None                 # the hero's own URL names inline/
+    # A file in the note's directory that the page never names is the same not-found as no file.
+    assert serve("inline", stray) is None and serve("inline", "nope.png") is None
+    # Share switched off: the archived picture is not referenced any more, and stops being served at once
+    # (the write moved updated_at, so the 60 s cache cannot answer from the old set).
+    _share_off("u-r59s", note, widget)
+    assert serve("inline", archive) is None
+    assert serve("inline", image) is not None                  # what the page still shows keeps loading
+
+
+def test_r59_publish_proxy_serves_only_what_the_page_references(env, monkeypatch, tmp_path):
+    _pin_attachments(monkeypatch, tmp_path)
+    from api.services.journal_two import note_publish
+    monkeypatch.setenv("NOTEBOOK_PUBLISH_ENABLED", "1")
+    note, widget, archive, image, hero, stray = _shared_widget_note("u-r59p")
+    slug = note_publish.publish_note("u-r59p", note["id"])["slug"]
+    serve = lambda sub, name: note_publish.resolve_attachment(slug, sub, name)  # noqa: E731
+    assert serve("inline", archive) is not None and serve("inline", hero) is not None
+    assert serve("inline", image) is not None
+    assert serve("inline", stray) is None
+    _share_off("u-r59p", note, widget)
+    assert serve("inline", archive) is None and serve("inline", image) is not None
+
+
+def test_r59_the_reference_set_reads_every_string_and_only_this_notes_base():
+    from api.services.journal_two import public_note_payload as public
+    base = "/api/j2/shared/TOK/att/"
+    payload = {"bodyJson": {"content": [
+        {"type": "widgetEmbed", "attrs": {"fallback": {"url": base + "inline/a1.png"}}},
+        {"type": "figure", "attrs": {"src": base + "inline/b2.png?w=3"}},
+        {"type": "linkCard", "attrs": {"image": base + "inline/c3.webp"}},
+        {"type": "image", "attrs": {"src": "/api/j2/shared/OTHER/att/inline/x9.png"}}]},
+        "heroImageUrl": base + "hero/h4.jpg"}
+    assert public.referenced_images(payload, base) == frozenset(
+        {"inline/a1.png", "inline/b2.png", "inline/c3.webp", "hero/h4.jpg"})
+    assert public.referenced_images(payload, "") == frozenset()
+
+
+def test_r59_the_reference_cache_is_per_key_and_expires():
+    from api.services.journal_two import public_note_payload as public
+    t = [100.0]
+    calls = []
+
+    def compute(v):
+        return lambda: (calls.append(v), frozenset({v}))[1]
+
+    assert public.cached_reference_set(("k", 1), compute("a"), now=lambda: t[0]) == {"a"}
+    assert public.cached_reference_set(("k", 1), compute("b"), now=lambda: t[0]) == {"a"}      # cached
+    assert public.cached_reference_set(("k", 2), compute("c"), now=lambda: t[0]) == {"c"}      # new revision
+    t[0] += public.REFERENCE_SET_TTL_S + 1
+    assert public.cached_reference_set(("k", 1), compute("d"), now=lambda: t[0]) == {"d"}      # expired
+    assert calls == ["a", "c", "d"]
