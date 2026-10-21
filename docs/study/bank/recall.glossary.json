@@ -1,19 +1,19 @@
 [
  {
   "answer_json": {
-   "answer": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission."
+   "answer": "The firm's daily 0-150 score; the number is the recommended exposure %."
   },
   "difficulty": 1,
   "id": "si_f2a5dbcf1885",
-  "lesson_origin": "source",
-  "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+  "lesson_origin": "session",
+  "lesson_text": "The Exposure Rating is one number from 0 to 150, published with the Morning Wire each morning. The number is the recommended exposure: the share of your account the firm thinks should be at work. 100 means fully invested. Above 100 is margin territory, and the engine only gets there in a Confirmed Uptrend. It starts from where QQQ sits against its averages. Above the 50-day it starts at 100. Below the 50-day but above the 200-day, 40. Below the 200-day, 15. The market phase then adjusts it, and a few gates cap or floor it.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
-    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+    "The firm's daily 0-150 score; the number is the recommended exposure %.",
+    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "The firm's daily pre-market brief, out around 7:35 AM ET."
    ],
    "q": "At the desk, what does \"UCT Exposure Rating\" mean?",
    "subject": "UCT Exposure Rating"
@@ -21,6 +21,11 @@
   "reveal_json": {
    "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"Base (QQQ trend state): >50SMA -> 100 | <50SMA but >200SMA -> 40 | <200SMA -> 15 / Phase adj: Confirmed Uptrend +10 (leveraged territory) | Market in Correction -10 / Gates: Restraint cap 65 (pre-B4) | S2 cap 40 | B4 floor 30 | FTD-day floor 40\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"'score': score, # 0-150, IS the recommended exposure %\" / \"ceiling = 150 # 101-150 = margin/leverage territory\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"`breadth` / `risk_apt` / `stockbee` ... no longer move the score.\""
+   ],
    "term": "UCT Exposure Rating"
   },
   "review_status": "draft",
@@ -36,8 +41,8 @@
   },
   "difficulty": 2,
   "id": "si_7fafef315901",
-  "lesson_origin": "source",
-  "lesson_text": "UCT Exposure Rating: The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+  "lesson_origin": "session",
+  "lesson_text": "The Exposure Rating is one number from 0 to 150, published with the Morning Wire each morning. The number is the recommended exposure: the share of your account the firm thinks should be at work. 100 means fully invested. Above 100 is margin territory, and the engine only gets there in a Confirmed Uptrend. It starts from where QQQ sits against its averages. Above the 50-day it starts at 100. Below the 50-day but above the 200-day, 40. Below the 200-day, 15. The market phase then adjusts it, and a few gates cap or floor it.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -47,12 +52,17 @@
     "UCT Exposure Rating"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
+   "quote": "The firm's daily 0-150 score; the number is the recommended exposure %.",
    "subject": "UCT Exposure Rating"
   },
   "reveal_json": {
    "quote": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"Base (QQQ trend state): >50SMA -> 100 | <50SMA but >200SMA -> 40 | <200SMA -> 15 / Phase adj: Confirmed Uptrend +10 (leveraged territory) | Market in Correction -10 / Gates: Restraint cap 65 (pre-B4) | S2 cap 40 | B4 floor 30 | FTD-day floor 40\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"'score': score, # 0-150, IS the recommended exposure %\" / \"ceiling = 150 # 101-150 = margin/leverage territory\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"`breadth` / `risk_apt` / `stockbee` ... no longer move the score.\""
+   ],
    "term": "UCT Exposure Rating"
   },
   "review_status": "draft",
@@ -64,19 +74,19 @@
  },
  {
   "answer_json": {
-   "answer": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+   "answer": "A major index down 0.2% or more on higher volume than the prior session."
   },
   "difficulty": 1,
   "id": "si_6602cc3e3003",
-  "lesson_origin": "source",
-  "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+  "lesson_origin": "session",
+  "lesson_text": "A distribution day is a major index down 0.2% or more on higher volume than the session before. It signals institutional selling. Count them over a rolling 25 sessions. A day drops off after 25 sessions, or once the index gains 5% from that day's close. A day where the index barely gains on heavier volume counts too: that is selling into strength. The firm's Morning Wire counts them on QQQ. Four or five turn a confirmed uptrend into Uptrend Under Pressure. Six or more reads Market in Correction.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "The firm's daily pre-market brief, out around 7:35 AM ET.",
     "The firm's weekend scan publication, the weekly deep pass over the universe.",
-    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+    "A major index down 0.2% or more on higher volume than the prior session."
    ],
    "q": "At the desk, what does \"Distribution day\" mean?",
    "subject": "Distribution day"
@@ -84,6 +94,10 @@
   "reveal_json": {
    "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt DISTRIBUTION DAY RULES: \"major index falls 0.2%+ on higher volume than the prior session. Signals institutional selling. ... rolling 25-session window. Thresholds: 3 days = caution, 4 days = reduce exposure, 5-6 days = market under pressure or correction. Reset: distribution days expire after 25 sessions or if the index gains 5%+ from the distribution day close. Stalling: ... less than 0.1% gain on high volume ... also counts as distribution\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py ~4584: \"elif 4 <= max_d <= 5: if phase == 'Confirmed Uptrend': phase = 'Uptrend Under Pressure' / elif max_d >= 6: ... phase = 'Market in Correction'\" (max_d = QQQ distribution count)"
+   ],
    "term": "Distribution day"
   },
   "review_status": "draft",
@@ -99,8 +113,8 @@
   },
   "difficulty": 2,
   "id": "si_244773c72a0d",
-  "lesson_origin": "source",
-  "lesson_text": "Distribution day: A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+  "lesson_origin": "session",
+  "lesson_text": "A distribution day is a major index down 0.2% or more on higher volume than the session before. It signals institutional selling. Count them over a rolling 25 sessions. A day drops off after 25 sessions, or once the index gains 5% from that day's close. A day where the index barely gains on heavier volume counts too: that is selling into strength. The firm's Morning Wire counts them on QQQ. Four or five turn a confirmed uptrend into Uptrend Under Pressure. Six or more reads Market in Correction.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -110,12 +124,16 @@
     "Slingshot"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
+   "quote": "A major index down 0.2% or more on higher volume than the prior session.",
    "subject": "Distribution day"
   },
   "reveal_json": {
    "quote": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt DISTRIBUTION DAY RULES: \"major index falls 0.2%+ on higher volume than the prior session. Signals institutional selling. ... rolling 25-session window. Thresholds: 3 days = caution, 4 days = reduce exposure, 5-6 days = market under pressure or correction. Reset: distribution days expire after 25 sessions or if the index gains 5%+ from the distribution day close. Stalling: ... less than 0.1% gain on high volume ... also counts as distribution\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py ~4584: \"elif 4 <= max_d <= 5: if phase == 'Confirmed Uptrend': phase = 'Uptrend Under Pressure' / elif max_d >= 6: ... phase = 'Market in Correction'\" (max_d = QQQ distribution count)"
+   ],
    "term": "Distribution day"
   },
   "review_status": "draft",
@@ -127,19 +145,19 @@
  },
  {
   "answer_json": {
-   "answer": "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."
+   "answer": "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume."
   },
   "difficulty": 1,
   "id": "si_65124ebfdbb4",
-  "lesson_origin": "source",
-  "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+  "lesson_origin": "session",
+  "lesson_text": "A Follow-Through Day is the signal that a new uptrend has a chance. After a decline, a major index closes higher: day 1 of a rally attempt. On day 4 to 7 the index rises 1.5% or more on higher volume than the day before. That is the follow-through. It means institutional buying has shown up. It is not a guarantee: if the index undercuts the rally low soon after, it failed. The firm's engine lifts the Exposure Rating to at least 40 on a Follow-Through Day.",
   "module": null,
   "prompt_json": {
    "choices": [
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
-    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
+    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
    ],
    "q": "At the desk, what does \"Follow-through day\" mean?",
    "subject": "Follow-through day"
@@ -147,6 +165,10 @@
   "reveal_json": {
    "quote": "The confirmation of a new uptrend — day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt FOLLOW-THROUGH DAY RULES: \"Day count: starts when a major index ... makes a rally attempt (closes higher than prior day after a decline). Qualifying FTD: occurs on Day 4-7 ... rises 1.5%+ on HIGHER volume than the prior session. ... FTDs on Day 4-5 are stronger than Day 6-7. FTDs that fail (undercut the rally attempt low within a few days) are false signals. After FTD: buy the 2-3 best setups that have formed during the correction. Do not chase everything.\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"FTD-day floor 40\" / \"if ftd_today: floor = max(floor, 40)\""
+   ],
    "term": "Follow-through day"
   },
   "review_status": "draft",
@@ -162,8 +184,8 @@
   },
   "difficulty": 2,
   "id": "si_21096a735a4a",
-  "lesson_origin": "source",
-  "lesson_text": "Follow-through day: The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+  "lesson_origin": "session",
+  "lesson_text": "A Follow-Through Day is the signal that a new uptrend has a chance. After a decline, a major index closes higher: day 1 of a rally attempt. On day 4 to 7 the index rises 1.5% or more on higher volume than the day before. That is the follow-through. It means institutional buying has shown up. It is not a guarantee: if the index undercuts the rally low soon after, it failed. The firm's engine lifts the Exposure Rating to at least 40 on a Follow-Through Day.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -173,12 +195,16 @@
     "Kicker candle"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
+   "quote": "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
    "subject": "Follow-through day"
   },
   "reveal_json": {
    "quote": "The confirmation of a new uptrend — day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt FOLLOW-THROUGH DAY RULES: \"Day count: starts when a major index ... makes a rally attempt (closes higher than prior day after a decline). Qualifying FTD: occurs on Day 4-7 ... rises 1.5%+ on HIGHER volume than the prior session. ... FTDs on Day 4-5 are stronger than Day 6-7. FTDs that fail (undercut the rally attempt low within a few days) are false signals. After FTD: buy the 2-3 best setups that have formed during the correction. Do not chase everything.\"",
+    "C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure (calibration v2, 2026-08-21): \"FTD-day floor 40\" / \"if ftd_today: floor = max(floor, 40)\""
+   ],
    "term": "Follow-through day"
   },
   "review_status": "draft",
@@ -190,19 +216,19 @@
  },
  {
   "answer_json": {
-   "answer": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."
+   "answer": "The advancing phase of a stock's four-stage life cycle."
   },
   "difficulty": 1,
   "id": "si_4d2ef9399e05",
-  "lesson_origin": "source",
-  "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+  "lesson_origin": "session",
+  "lesson_text": "Stocks move through four stages. Stage 1 is a base: sideways after a decline, with the 30-week average flattening. Stage 2 is the advance: price above a rising 30-week average, volume expanding on rallies and contracting on pullbacks. Stage 3 is the top, price swinging around a flattening average. Stage 4 is the decline, price below a falling average. The firm's market notes call Stage 2 the only stage to be long. The owner: \"Big stage 1 base and possible uptrend here.\" (Sunday Scans, 2026-06-28)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
-    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
-    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
-    "The trap that closes above the prior day's high, flipping the short-term control."
+    "The firm's daily pre-market brief, out around 7:35 AM ET.",
+    "The advancing phase of a stock's four-stage life cycle.",
+    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts."
    ],
    "q": "At the desk, what does \"Stage 2\" mean?",
    "subject": "Stage 2"
@@ -210,6 +236,10 @@
   "reveal_json": {
    "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/05_market_health.txt SECTION 3 (Weinstein): \"Stage 1 — Basing ... 30-week moving average ... flattening after trending down\" / \"Stage 2 — Advancing (THE ONLY STAGE TO BE LONG): Price above the 30-week MA, and the 30-week MA is trending UP / Volume expanding on rallies, contracting on pullbacks\" / \"Stage 3 — Distribution/Topping: Price oscillating above and below the 30-week MA\" / \"Stage 4 — Declining: Price below the 30-week MA, and the 30-week MA is trending DOWN\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-28): \"Big stage 1 base and possible uptrend here.\""
+   ],
    "term": "Stage 2"
   },
   "review_status": "draft",
@@ -225,8 +255,8 @@
   },
   "difficulty": 2,
   "id": "si_d3bb1b229169",
-  "lesson_origin": "source",
-  "lesson_text": "Stage 2: The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+  "lesson_origin": "session",
+  "lesson_text": "Stocks move through four stages. Stage 1 is a base: sideways after a decline, with the 30-week average flattening. Stage 2 is the advance: price above a rising 30-week average, volume expanding on rallies and contracting on pullbacks. Stage 3 is the top, price swinging around a flattening average. Stage 4 is the decline, price below a falling average. The firm's market notes call Stage 2 the only stage to be long. The owner: \"Big stage 1 base and possible uptrend here.\" (Sunday Scans, 2026-06-28)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -236,12 +266,16 @@
     "Morning Wire"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+   "quote": "The advancing phase of a stock's four-stage life cycle.",
    "subject": "Stage 2"
   },
   "reveal_json": {
    "quote": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/05_market_health.txt SECTION 3 (Weinstein): \"Stage 1 — Basing ... 30-week moving average ... flattening after trending down\" / \"Stage 2 — Advancing (THE ONLY STAGE TO BE LONG): Price above the 30-week MA, and the 30-week MA is trending UP / Volume expanding on rallies, contracting on pullbacks\" / \"Stage 3 — Distribution/Topping: Price oscillating above and below the 30-week MA\" / \"Stage 4 — Declining: Price below the 30-week MA, and the 30-week MA is trending DOWN\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-28): \"Big stage 1 base and possible uptrend here.\""
+   ],
    "term": "Stage 2"
   },
   "review_status": "draft",
@@ -257,12 +291,12 @@
   },
   "difficulty": 1,
   "id": "si_947ebd54d6e0",
-  "lesson_origin": "source",
-  "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+  "lesson_origin": "session",
+  "lesson_text": "ADR% is the average daily range. It is how far a stock travels from high to low on a normal day, as a percent of price. The firm's scanner averages it over the last 21 bars, and it drops anything under 4%. The bible's EP rules give the reason: a stock needs enough movement to produce meaningful R-multiples. Under 3% is too slow for that style. ADR% says nothing about direction, only how much the stock usually moves.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "A shakeout below a key line followed by retaking it with authority.",
+    "A leader slips below its moving average, shakes out, then retakes it with authority.",
     "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
     "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
     "Average daily range as a percentage, the firm's volatility floor for candidates is 4%."
@@ -273,6 +307,10 @@
   "reveal_json": {
    "quote": "Average daily range as a percentage — the firm's volatility floor for candidates is 4%.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "uct-intelligence/scripts/scanner_candidates.py _compute_adr: \"Average Daily Range % over last 21 bars\" / \"if adr_pct < 4.0: base['alert_state'] = 'LOW_ADR'\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt EP: \"ADR% filter: minimum 4-5% average daily range. This ensures the stock has enough movement to generate meaningful R-multiples. Stocks with ADR below 3% are too slow for EP/HTF methodology.\""
+   ],
    "term": "ADR%"
   },
   "review_status": "draft",
@@ -288,8 +326,8 @@
   },
   "difficulty": 2,
   "id": "si_b5c21fae463d",
-  "lesson_origin": "source",
-  "lesson_text": "ADR%: Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
+  "lesson_origin": "session",
+  "lesson_text": "ADR% is the average daily range. It is how far a stock travels from high to low on a normal day, as a percent of price. The firm's scanner averages it over the last 21 bars, and it drops anything under 4%. The bible's EP rules give the reason: a stock needs enough movement to produce meaningful R-multiples. Under 3% is too slow for that style. ADR% says nothing about direction, only how much the stock usually moves.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -305,6 +343,10 @@
   "reveal_json": {
    "quote": "Average daily range as a percentage — the firm's volatility floor for candidates is 4%.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "uct-intelligence/scripts/scanner_candidates.py _compute_adr: \"Average Daily Range % over last 21 bars\" / \"if adr_pct < 4.0: base['alert_state'] = 'LOW_ADR'\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt EP: \"ADR% filter: minimum 4-5% average daily range. This ensures the stock has enough movement to generate meaningful R-multiples. Stocks with ADR below 3% are too slow for EP/HTF methodology.\""
+   ],
    "term": "ADR%"
   },
   "review_status": "draft",
@@ -316,19 +358,19 @@
  },
  {
   "answer_json": {
-   "answer": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."
+   "answer": "Relative strength versus SPY plotted as a line; it rises when the stock beats the market."
   },
   "difficulty": 1,
   "id": "si_23a0fe67d039",
-  "lesson_origin": "source",
-  "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+  "lesson_origin": "session",
+  "lesson_text": "The RS line is the stock's price divided by SPY, drawn as a line under the chart. It rises when the stock beats the market and falls when it lags. The firm's scanner reads its trend over 20 bars: up, flat or down. O'Neil wants it making new highs before or at the same time as price. Price at a new high with the RS line lagging is a warning. The RS line is not the RS rank, the screener's 1-99 score against every stock it covers.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
-    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "The prior up-gap zone that price must defend on a pullback.",
+    "The highest-volume day's close becomes the line the stock must hold.",
     "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
-    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."
+    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market."
    ],
    "q": "At the desk, what does \"RS line\" mean?",
    "subject": "RS line"
@@ -336,6 +378,12 @@
   "reveal_json": {
    "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "uct-intelligence/scripts/scanner_candidates.py _compute_rs_slope: \"Compute RS line slope: ticker_close / spy_close over last 20 bars. Returns 'up', 'flat', or 'down'\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt line 30: \"8. RS line should be making new highs before or at the same time as price\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt SELL RULES 7: \"RS line fails to confirm new price high: stock making new highs but RS line is not — divergence warning.\"",
+    "api/services/screener/methodology.py _rs_rank_method: \"Price performance rank against the whole universe, 1-99.\" / \"80 means it outperformed 80% of the names we cover.\""
+   ],
    "term": "RS line"
   },
   "review_status": "draft",
@@ -351,8 +399,8 @@
   },
   "difficulty": 2,
   "id": "si_8bb1f221d693",
-  "lesson_origin": "source",
-  "lesson_text": "RS line: Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+  "lesson_origin": "session",
+  "lesson_text": "The RS line is the stock's price divided by SPY, drawn as a line under the chart. It rises when the stock beats the market and falls when it lags. The firm's scanner reads its trend over 20 bars: up, flat or down. O'Neil wants it making new highs before or at the same time as price. Price at a new high with the RS line lagging is a warning. The RS line is not the RS rank, the screener's 1-99 score against every stock it covers.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -362,12 +410,18 @@
     "UCT Exposure Rating"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+   "quote": "Relative strength versus SPY plotted as a line; it rises when the stock beats the market.",
    "subject": "RS line"
   },
   "reveal_json": {
    "quote": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "uct-intelligence/scripts/scanner_candidates.py _compute_rs_slope: \"Compute RS line slope: ticker_close / spy_close over last 20 bars. Returns 'up', 'flat', or 'down'\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt line 30: \"8. RS line should be making new highs before or at the same time as price\"",
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt SELL RULES 7: \"RS line fails to confirm new price high: stock making new highs but RS line is not — divergence warning.\"",
+    "api/services/screener/methodology.py _rs_rank_method: \"Price performance rank against the whole universe, 1-99.\" / \"80 means it outperformed 80% of the names we cover.\""
+   ],
    "term": "RS line"
   },
   "review_status": "draft",
@@ -383,15 +437,15 @@
   },
   "difficulty": 1,
   "id": "si_2324677f72fa",
-  "lesson_origin": "source",
-  "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+  "lesson_origin": "session",
+  "lesson_text": "R is your unit of risk. 1R is the dollars you lose if the stop hits. Every result is then priced in R, so a big trade and a small trade can be compared. Take a $100,000 account risking 1%: 1R is $1,000. With a $2 stop that is 500 shares. A winner that makes $3,000 is +3R. A loser stopped out as planned is -1R.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market.",
     "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."
+    "The advancing phase of a stock's four-stage life cycle."
    ],
    "q": "At the desk, what does \"R / R-multiple\" mean?",
    "subject": "R / R-multiple"
@@ -399,6 +453,10 @@
   "reveal_json": {
    "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/corrections/recall.principles.jsonl si_4ecb84ae36ab (owner-requested lesson): \"A $100,000 account at 1% risk with a $2 stop distance is $1,000 / $2 = 500 shares.\"",
+    "arithmetic on that example: 3 x $1,000 = $3,000 (+3R); a full stop-out = -1R"
+   ],
    "term": "R / R-multiple"
   },
   "review_status": "draft",
@@ -414,8 +472,8 @@
   },
   "difficulty": 2,
   "id": "si_c9b186f6c102",
-  "lesson_origin": "source",
-  "lesson_text": "R / R-multiple: One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+  "lesson_origin": "session",
+  "lesson_text": "R is your unit of risk. 1R is the dollars you lose if the stop hits. Every result is then priced in R, so a big trade and a small trade can be compared. Take a $100,000 account risking 1%: 1R is $1,000. With a $2 stop that is 500 shares. A winner that makes $3,000 is +3R. A loser stopped out as planned is -1R.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -425,12 +483,16 @@
     "R / R-multiple"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
+   "quote": "The dollars you planned to lose if the stop hits. Every result is priced in this unit, so trades of different sizes compare.",
    "subject": "R / R-multiple"
   },
   "reveal_json": {
    "quote": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/corrections/recall.principles.jsonl si_4ecb84ae36ab (owner-requested lesson): \"A $100,000 account at 1% risk with a $2 stop distance is $1,000 / $2 = 500 shares.\"",
+    "arithmetic on that example: 3 x $1,000 = $3,000 (+3R); a full stop-out = -1R"
+   ],
    "term": "R / R-multiple"
   },
   "review_status": "draft",
@@ -442,18 +504,18 @@
  },
  {
   "answer_json": {
-   "answer": "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+   "answer": "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
   },
   "difficulty": 1,
   "id": "si_a3375fc56d73",
-  "lesson_origin": "source",
-  "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+  "lesson_origin": "session",
+  "lesson_text": "Expectancy is what a system makes per trade on average, in R or in percent. Multiply your win rate by your average win, then subtract your loss rate times your average loss. A system can lose most of its trades and still pay. The bible's Martin Luk example: 23% winners averaging +15%, losers averaging -3%. That is (0.23 × 15) minus (0.77 × 3), about +1.14% per trade. Win rate alone does not tell you whether a system pays.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
-    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
-    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
+    "The prior up-gap zone that price must defend on a pullback.",
+    "The highest-volume day's close becomes the line the stock must hold.",
     "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it."
    ],
    "q": "At the desk, what does \"Expectancy\" mean?",
@@ -462,6 +524,9 @@
   "reveal_json": {
    "quote": "(win% × average win in R) − (loss% × average loss in R) — the equation that decides whether a system pays, independent of win rate.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt MARTIN LUK: \"Win rate model: 23% wins ... Average win: +15%. Average loss: -3%. Expectancy: (0.23 × 15) - (0.77 × 3) = 3.45 - 2.31 = +1.14% per trade expectancy. Implication: the MAJORITY of trades are losses, but the occasional 20-50R winner ... overwhelmingly compensates.\""
+   ],
    "term": "Expectancy"
   },
   "review_status": "draft",
@@ -477,8 +542,8 @@
   },
   "difficulty": 2,
   "id": "si_24ea7cb316e2",
-  "lesson_origin": "source",
-  "lesson_text": "Expectancy: (win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+  "lesson_origin": "session",
+  "lesson_text": "Expectancy is what a system makes per trade on average, in R or in percent. Multiply your win rate by your average win, then subtract your loss rate times your average loss. A system can lose most of its trades and still pay. The bible's Martin Luk example: 23% winners averaging +15%, losers averaging -3%. That is (0.23 × 15) minus (0.77 × 3), about +1.14% per trade. Win rate alone does not tell you whether a system pays.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -488,12 +553,15 @@
     "Morning Wire"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+   "quote": "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
    "subject": "Expectancy"
   },
   "reveal_json": {
    "quote": "(win% × average win in R) − (loss% × average loss in R) — the equation that decides whether a system pays, independent of win rate.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "C:/Users/pgosz/projects/uct-intelligence/prompts/01_methodology_bible.txt MARTIN LUK: \"Win rate model: 23% wins ... Average win: +15%. Average loss: -3%. Expectancy: (0.23 × 15) - (0.77 × 3) = 3.45 - 2.31 = +1.14% per trade expectancy. Implication: the MAJORITY of trades are losses, but the occasional 20-50R winner ... overwhelmingly compensates.\""
+   ],
    "term": "Expectancy"
   },
   "review_status": "draft",
@@ -509,15 +577,15 @@
   },
   "difficulty": 1,
   "id": "si_1718caca9bbc",
-  "lesson_origin": "source",
-  "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+  "lesson_origin": "session",
+  "lesson_text": "Account risk is the slice of your account you lose if one trade hits its stop. It is position size times stop distance: a 20% position with a 5% stop risks 1% of the account. The desk's range is 0.25% to 2%, chosen by setup quality, your recent trading and the market. 2% is the hard ceiling, and under 1% is normal. Work it backwards to size a trade: position size equals risk divided by stop distance. Set the stop first, then the size.",
   "module": null,
   "prompt_json": {
    "choices": [
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
     "The firm's weekend scan publication, the weekly deep pass over the universe.",
     "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
-    "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
+    "The firm's daily 0-150 score; the number is the recommended exposure %."
    ],
    "q": "At the desk, what does \"Account Risk %\" mean?",
    "subject": "Account Risk %"
@@ -525,6 +593,11 @@
   "reveal_json": {
    "quote": "The share of the account risked on one trade — Position Size % × Stop Distance % — hard-capped at 2%, preferably under 1%.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/sizing_rule.md §1: \"0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. Under 1% is normal.\"",
+    "docs/study/sizing_rule.md §3: \"Position % = risk % ÷ stop distance %.\" / \"Worked: 1% risk, 5% stop → 20% position.\"",
+    "docs/study/sizing_rule.md §2: \"stop first, distance second, size last.\""
+   ],
    "term": "Account Risk %"
   },
   "review_status": "draft",
@@ -540,8 +613,8 @@
   },
   "difficulty": 2,
   "id": "si_e854e60154f5",
-  "lesson_origin": "source",
-  "lesson_text": "Account Risk %: The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
+  "lesson_origin": "session",
+  "lesson_text": "Account risk is the slice of your account you lose if one trade hits its stop. It is position size times stop distance: a 20% position with a 5% stop risks 1% of the account. The desk's range is 0.25% to 2%, chosen by setup quality, your recent trading and the market. 2% is the hard ceiling, and under 1% is normal. Work it backwards to size a trade: position size equals risk divided by stop distance. Set the stop first, then the size.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -557,6 +630,11 @@
   "reveal_json": {
    "quote": "The share of the account risked on one trade — Position Size % × Stop Distance % — hard-capped at 2%, preferably under 1%.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/sizing_rule.md §1: \"0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. Under 1% is normal.\"",
+    "docs/study/sizing_rule.md §3: \"Position % = risk % ÷ stop distance %.\" / \"Worked: 1% risk, 5% stop → 20% position.\"",
+    "docs/study/sizing_rule.md §2: \"stop first, distance second, size last.\""
+   ],
    "term": "Account Risk %"
   },
   "review_status": "draft",
@@ -568,18 +646,18 @@
  },
  {
   "answer_json": {
-   "answer": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+   "answer": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
   },
   "difficulty": 1,
   "id": "si_4946598b9aae",
-  "lesson_origin": "source",
-  "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+  "lesson_origin": "session",
+  "lesson_text": "Heat is what you would lose if every stop in the book hit at once. For each position take entry minus stop, times shares. Add them up and divide by the account. Five positions each risking 1% is 5% heat. The firm's heat tool flags the book at 10%, and any one sector over 40% of the book. It is a guardrail so you see the number. You decide. Names in one theme tend to stop out together, so count them as one bet.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "The firm's daily pre-market brief, out around 7:35 AM ET.",
     "The firm's weekend scan publication, the weekly deep pass over the universe."
    ],
    "q": "At the desk, what does \"Portfolio heat\" mean?",
@@ -588,6 +666,12 @@
   "reveal_json": {
    "quote": "Total open risk across all positions — Σ (entry − stop) × shares ÷ equity — capped at 10% for the whole book.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/corrections/recall.principles.jsonl si_99956e481849 (owner 2026-10-19): \"The tools flag sector concentration at 40% and open risk at 10% of the account so you see it; you decide.\"",
+    "same, segment rule: \"numeric caps appear only as the tools' guardrails (40% sector flag, 10% heat)\"",
+    "docs/study/corrections/recall.principles.jsonl si_99956e481849 (proposed lesson, owner 2026-10-19): \"If the semis roll over, five semiconductor longs all hit their stops on the same day\"",
+    "arithmetic: 5 positions x 1% = 5% heat"
+   ],
    "term": "Portfolio heat"
   },
   "review_status": "draft",
@@ -603,23 +687,29 @@
   },
   "difficulty": 2,
   "id": "si_641197627e0f",
-  "lesson_origin": "source",
-  "lesson_text": "Portfolio heat: Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+  "lesson_origin": "session",
+  "lesson_text": "Heat is what you would lose if every stop in the book hit at once. For each position take entry minus stop, times shares. Add them up and divide by the account. Five positions each risking 1% is 5% heat. The firm's heat tool flags the book at 10%, and any one sector over 40% of the book. It is a guardrail so you see the number. You decide. Names in one theme tend to stop out together, so count them as one bet.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Portfolio heat",
-    "High Volume Edge (HVC)",
+    "HVC (High Volume Close)",
     "U&R (Undercut & Rally)",
     "Remount"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
+   "quote": "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
    "subject": "Portfolio heat"
   },
   "reveal_json": {
    "quote": "Total open risk across all positions — Σ (entry − stop) × shares ÷ equity — capped at 10% for the whole book.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/corrections/recall.principles.jsonl si_99956e481849 (owner 2026-10-19): \"The tools flag sector concentration at 40% and open risk at 10% of the account so you see it; you decide.\"",
+    "same, segment rule: \"numeric caps appear only as the tools' guardrails (40% sector flag, 10% heat)\"",
+    "docs/study/corrections/recall.principles.jsonl si_99956e481849 (proposed lesson, owner 2026-10-19): \"If the semis roll over, five semiconductor longs all hit their stops on the same day\"",
+    "arithmetic: 5 positions x 1% = 5% heat"
+   ],
    "term": "Portfolio heat"
   },
   "review_status": "draft",
@@ -631,19 +721,19 @@
  },
  {
   "answer_json": {
-   "answer": "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."
+   "answer": "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend."
   },
   "difficulty": 1,
   "id": "si_2f65cfa44fab",
-  "lesson_origin": "source",
-  "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+  "lesson_origin": "session",
+  "lesson_text": "An Episodic Pivot is a neglected stock that gaps up hard on a major catalyst, most often earnings, on massive volume. It is day one of a new trend. The ideal close is in the top 25% of the day's range. The Setup Library gives two entries: the opening-range breakout on day one, or a day-two inside bar that breaks the day-one high. The stop goes under the opening-range low. EPs are meant to be held, trailing the short-term daily averages. The owner: \"This had an episodic pivot where it gapped up to $50 on earnings day, then advanced from $50 up to $100 in about 10 sessions.\" (Sunday Scans, 2026-05-24)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
-    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+    "The prior up-gap zone that price must defend on a pullback.",
+    "The highest-volume day's close becomes the line the stock must hold.",
     "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
-    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."
+    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend."
    ],
    "q": "At the desk, what does \"Episodic Pivot (EP)\" mean?",
    "subject": "Episodic Pivot (EP)"
@@ -651,6 +741,11 @@
   "reveal_json": {
    "quote": "Day one of a new trend — a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Episodic Pivot essence: \"A neglected stock gaps up powerfully on a major catalyst, on massive volume — day one of a sustained new trend.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Episodic Pivot: \"ideally closing in the top 25% of the range\" / \"Day 1: the earnings-day opening-range breakout ... Day 2+: ... an inside bar that then breaks the Day 1 high\" / \"Below the 30-minute opening-range low (Day 1)\" / \"surfing the short-term daily moving averages\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-24): \"This had an episodic pivot where it gapped up to $50 on earnings day, then advanced from $50 up to $100 in about 10 sessions.\""
+   ],
    "term": "Episodic Pivot (EP)"
   },
   "review_status": "draft",
@@ -666,8 +761,8 @@
   },
   "difficulty": 2,
   "id": "si_c0457731fc62",
-  "lesson_origin": "source",
-  "lesson_text": "Episodic Pivot (EP): Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+  "lesson_origin": "session",
+  "lesson_text": "An Episodic Pivot is a neglected stock that gaps up hard on a major catalyst, most often earnings, on massive volume. It is day one of a new trend. The ideal close is in the top 25% of the day's range. The Setup Library gives two entries: the opening-range breakout on day one, or a day-two inside bar that breaks the day-one high. The stop goes under the opening-range low. EPs are meant to be held, trailing the short-term daily averages. The owner: \"This had an episodic pivot where it gapped up to $50 on earnings day, then advanced from $50 up to $100 in about 10 sessions.\" (Sunday Scans, 2026-05-24)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -677,12 +772,17 @@
     "RS line"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+   "quote": "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
    "subject": "Episodic Pivot (EP)"
   },
   "reveal_json": {
    "quote": "Day one of a new trend — a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Episodic Pivot essence: \"A neglected stock gaps up powerfully on a major catalyst, on massive volume — day one of a sustained new trend.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Episodic Pivot: \"ideally closing in the top 25% of the range\" / \"Day 1: the earnings-day opening-range breakout ... Day 2+: ... an inside bar that then breaks the Day 1 high\" / \"Below the 30-minute opening-range low (Day 1)\" / \"surfing the short-term daily moving averages\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-24): \"This had an episodic pivot where it gapped up to $50 on earnings day, then advanced from $50 up to $100 in about 10 sessions.\""
+   ],
    "term": "Episodic Pivot (EP)"
   },
   "review_status": "draft",
@@ -694,19 +794,19 @@
  },
  {
   "answer_json": {
-   "answer": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."
+   "answer": "An earnings report so strong the stock gaps above its base on huge volume."
   },
   "difficulty": 1,
   "id": "si_2b0b868c69b1",
-  "lesson_origin": "source",
-  "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+  "lesson_origin": "session",
+  "lesson_text": "A Power Earnings Gap is a report so strong that the stock gaps above its whole base on huge volume. The Setup Library reads it as institutions repricing the stock in real time. It differs from an Episodic Pivot in where it starts. An EP wakes up a neglected stock; a PEG launches from a base already built. Gap Support is the later setup, the first controlled pullback that tests the gap. The owner: \"Monster earnings gap up and follow through.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
+    "An earnings report so strong the stock gaps above its base on huge volume.",
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
    ],
    "q": "At the desk, what does \"Power Earnings Gap (PEG)\" mean?",
    "subject": "Power Earnings Gap (PEG)"
@@ -714,6 +814,12 @@
   "reveal_json": {
    "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Power Earnings Gap essence: \"Blowout numbers gap the stock above its base on huge volume — institutions repricing in real time.\"",
+    "app/src/pages/modelbook/setupCatalog.js Episodic Pivot essence: \"A neglected stock gaps up powerfully on a major catalyst\"",
+    "app/src/pages/modelbook/setupCatalog.js Gap Support essence: \"The first controlled pullback into a prior up-gap\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"Monster earnings gap up and follow through.\""
+   ],
    "term": "Power Earnings Gap (PEG)"
   },
   "review_status": "draft",
@@ -729,8 +835,8 @@
   },
   "difficulty": 2,
   "id": "si_dc73d76ac779",
-  "lesson_origin": "source",
-  "lesson_text": "Power Earnings Gap (PEG): An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+  "lesson_origin": "session",
+  "lesson_text": "A Power Earnings Gap is a report so strong that the stock gaps above its whole base on huge volume. The Setup Library reads it as institutions repricing the stock in real time. It differs from an Episodic Pivot in where it starts. An EP wakes up a neglected stock; a PEG launches from a base already built. Gap Support is the later setup, the first controlled pullback that tests the gap. The owner: \"Monster earnings gap up and follow through.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -740,12 +846,18 @@
     "Sunday Scans"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
+   "quote": "An earnings report so strong the stock gaps above its base on huge volume.",
    "subject": "Power Earnings Gap (PEG)"
   },
   "reveal_json": {
    "quote": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Power Earnings Gap essence: \"Blowout numbers gap the stock above its base on huge volume — institutions repricing in real time.\"",
+    "app/src/pages/modelbook/setupCatalog.js Episodic Pivot essence: \"A neglected stock gaps up powerfully on a major catalyst\"",
+    "app/src/pages/modelbook/setupCatalog.js Gap Support essence: \"The first controlled pullback into a prior up-gap\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"Monster earnings gap up and follow through.\""
+   ],
    "term": "Power Earnings Gap (PEG)"
   },
   "review_status": "draft",
@@ -757,19 +869,19 @@
  },
  {
   "answer_json": {
-   "answer": "The prior up-gap zone that price must defend on a pullback, the level the tape remembers."
+   "answer": "The prior up-gap zone that price must defend on a pullback."
   },
   "difficulty": 1,
   "id": "si_83a511c154da",
-  "lesson_origin": "source",
-  "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+  "lesson_origin": "session",
+  "lesson_text": "Gap support is the zone left by a prior gap up. On a pullback, price should hold it. The Setup Library trades the first controlled pullback into the gap. A candle holds the gap zone, proving it as support. The entry is over that candle's high. If price falls back through the gap, the support has failed. The owner: \"Maybe one more contraction to the gap support at $62.50 or some build under $70, either way nice to see these software stocks gap up and hold.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book.",
-    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%.",
+    "The prior up-gap zone that price must defend on a pullback.",
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
    ],
    "q": "At the desk, what does \"Gap support\" mean?",
    "subject": "Gap support"
@@ -777,6 +889,10 @@
   "reveal_json": {
    "quote": "The prior up-gap zone that price must defend on a pullback — the level the tape remembers.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Gap Support essence: \"The first controlled pullback into a prior up-gap — a candle holds the gap zone, proving it as support; entry over its high.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"Maybe one more contraction to the gap support at $62.50 or some build under $70, either way nice to see these software stocks gap up and hold.\""
+   ],
    "term": "Gap support"
   },
   "review_status": "draft",
@@ -792,8 +908,8 @@
   },
   "difficulty": 2,
   "id": "si_ec9b47c1d208",
-  "lesson_origin": "source",
-  "lesson_text": "Gap support: The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+  "lesson_origin": "session",
+  "lesson_text": "Gap support is the zone left by a prior gap up. On a pullback, price should hold it. The Setup Library trades the first controlled pullback into the gap. A candle holds the gap zone, proving it as support. The entry is over that candle's high. If price falls back through the gap, the support has failed. The owner: \"Maybe one more contraction to the gap support at $62.50 or some build under $70, either way nice to see these software stocks gap up and hold.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -803,12 +919,16 @@
     "ADR%"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
+   "quote": "The prior up-gap zone that price must defend on a pullback.",
    "subject": "Gap support"
   },
   "reveal_json": {
    "quote": "The prior up-gap zone that price must defend on a pullback — the level the tape remembers.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Gap Support essence: \"The first controlled pullback into a prior up-gap — a candle holds the gap zone, proving it as support; entry over its high.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"Maybe one more contraction to the gap support at $62.50 or some build under $70, either way nice to see these software stocks gap up and hold.\""
+   ],
    "term": "Gap support"
   },
   "review_status": "draft",
@@ -820,26 +940,32 @@
  },
  {
   "answer_json": {
-   "answer": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."
+   "answer": "The highest-volume day's close becomes the line the stock must hold."
   },
   "difficulty": 1,
   "id": "si_6a58afbc1174",
-  "lesson_origin": "source",
-  "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+  "lesson_origin": "session",
+  "lesson_text": "HVC is the high volume close: the close of the day with the most volume in the lookback. That close becomes a line the stock should hold. The Setup Library calls the setup High Volume Edge. A surge on the highest volume closes strong, and that close becomes the pivot to defend. On the firm's charts the 52-week volume high is drawn in gold. The owner: \"Doing nothing wrong above the HVC at $85.\" (Sunday Scans, 2026-05-24)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
-    "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission.",
-    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend.",
-    "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."
+    "The firm's library of history's best stocks by year, with setups labeled on each chart.",
+    "The firm's daily 0-150 score; the number is the recommended exposure %.",
+    "A major index down 0.2% or more on higher volume than the prior session.",
+    "The highest-volume day's close becomes the line the stock must hold."
    ],
-   "q": "At the desk, what does \"High Volume Edge (HVC)\" mean?",
+   "q": "At the desk, what does \"HVC (High Volume Close)\" mean?",
    "subject": "High Volume Edge (HVC)"
   },
   "reveal_json": {
    "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-31): \"The HVC (High Volume Close) from the day the govt announced investments is at $14.70 and I will be tracking that spot.\"",
+    "app/src/pages/modelbook/setupCatalog.js High Volume Edge essence: \"A surge on the highest volume in the lookback, closing strong — that day's close becomes the pivot price must defend.\"",
+    "CLAUDE.md Charts: \"HVC gold volume bars (52W volume high detection ...)\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-24): \"Doing nothing wrong above the HVC at $85.\""
+   ],
    "term": "High Volume Edge (HVC)"
   },
   "review_status": "draft",
@@ -851,27 +977,33 @@
  },
  {
   "answer_json": {
-   "answer": "High Volume Edge (HVC)"
+   "answer": "HVC (High Volume Close)"
   },
   "difficulty": 2,
   "id": "si_d33bf1b956a3",
-  "lesson_origin": "source",
-  "lesson_text": "High Volume Edge (HVC): The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+  "lesson_origin": "session",
+  "lesson_text": "HVC is the high volume close: the close of the day with the most volume in the lookback. That close becomes a line the stock should hold. The Setup Library calls the setup High Volume Edge. A surge on the highest volume closes strong, and that close becomes the pivot to defend. On the firm's charts the 52-week volume high is drawn in gold. The owner: \"Doing nothing wrong above the HVC at $85.\" (Sunday Scans, 2026-05-24)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "High Volume Edge (HVC)",
+    "HVC (High Volume Close)",
     "Kicker candle",
     "Morning Wire",
     "Sunday Scans"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
+   "quote": "The highest-volume day's close becomes the line the stock must hold.",
    "subject": "High Volume Edge (HVC)"
   },
   "reveal_json": {
    "quote": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-31): \"The HVC (High Volume Close) from the day the govt announced investments is at $14.70 and I will be tracking that spot.\"",
+    "app/src/pages/modelbook/setupCatalog.js High Volume Edge essence: \"A surge on the highest volume in the lookback, closing strong — that day's close becomes the pivot price must defend.\"",
+    "CLAUDE.md Charts: \"HVC gold volume bars (52W volume high detection ...)\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-24): \"Doing nothing wrong above the HVC at $85.\""
+   ],
    "term": "High Volume Edge (HVC)"
   },
   "review_status": "draft",
@@ -887,15 +1019,15 @@
   },
   "difficulty": 1,
   "id": "si_26085f1e9fda",
-  "lesson_origin": "source",
-  "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+  "lesson_origin": "session",
+  "lesson_text": "An Undercut & Rally is a shakeout you buy. Price dips just under a prominent prior low, stops out the weak holders and lures in shorts, then reclaims the low. The reclaim is the signal. It differs from a Remount, which reclaims a moving average, and from a 2B, a failed break of any prior extreme. The owner: \"This MXL from the day three undercut of earnings day low at $50 has gone on to double and is now flagging, showing relative strength into the 9EMA.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
     "The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
     "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
    ],
    "q": "At the desk, what does \"U&R (Undercut & Rally)\" mean?",
    "subject": "U&R (Undercut & Rally)"
@@ -903,6 +1035,12 @@
   "reveal_json": {
    "quote": "The shakeout you buy — price undercuts a prior low, traps sellers, and reclaims it.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js U&R essence: \"Price briefly undercuts a prominent prior low — stopping out weak holders, luring shorts — then reclaims it.\"",
+    "app/src/pages/modelbook/setupCatalog.js Remount essence: \"A leader slips below its moving average, shakes out weak hands, then remounts it with authority.\"",
+    "app/src/pages/modelbook/setupCatalog.js 2B Reversal essence: \"Price breaks a prior extreme, fails to follow through, and snaps back\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"This MXL from the day three undercut of earnings day low at $50 has gone on to double and is now flagging, showing relative strength into the 9EMA.\""
+   ],
    "term": "U&R (Undercut & Rally)"
   },
   "review_status": "draft",
@@ -918,8 +1056,8 @@
   },
   "difficulty": 2,
   "id": "si_360bb1e5e0ec",
-  "lesson_origin": "source",
-  "lesson_text": "U&R (Undercut & Rally): The shakeout you buy, price undercuts a prior low, traps sellers, and reclaims it.",
+  "lesson_origin": "session",
+  "lesson_text": "An Undercut & Rally is a shakeout you buy. Price dips just under a prominent prior low, stops out the weak holders and lures in shorts, then reclaims the low. The reclaim is the signal. It differs from a Remount, which reclaims a moving average, and from a 2B, a failed break of any prior extreme. The owner: \"This MXL from the day three undercut of earnings day low at $50 has gone on to double and is now flagging, showing relative strength into the 9EMA.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -935,6 +1073,12 @@
   "reveal_json": {
    "quote": "The shakeout you buy — price undercuts a prior low, traps sellers, and reclaims it.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js U&R essence: \"Price briefly undercuts a prominent prior low — stopping out weak holders, luring shorts — then reclaims it.\"",
+    "app/src/pages/modelbook/setupCatalog.js Remount essence: \"A leader slips below its moving average, shakes out weak hands, then remounts it with authority.\"",
+    "app/src/pages/modelbook/setupCatalog.js 2B Reversal essence: \"Price breaks a prior extreme, fails to follow through, and snaps back\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"This MXL from the day three undercut of earnings day low at $50 has gone on to double and is now flagging, showing relative strength into the 9EMA.\""
+   ],
    "term": "U&R (Undercut & Rally)"
   },
   "review_status": "draft",
@@ -946,19 +1090,19 @@
  },
  {
   "answer_json": {
-   "answer": "A shakeout below a key line followed by retaking it with authority."
+   "answer": "A leader slips below its moving average, shakes out, then retakes it with authority."
   },
   "difficulty": 1,
   "id": "si_c3e3a9da02fa",
-  "lesson_origin": "source",
-  "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
+  "lesson_origin": "session",
+  "lesson_text": "A Remount is a leader that slips below a moving average and shakes out the weak hands. Then it gets back above with authority. The line can be any of the house averages: the 9, 20, 50 or 200. In the 20 EMA Pullback setup, the remount of the 9 EMA is the buy. It differs from an Undercut & Rally, which reclaims a prior low rather than an average. The owner: \"All it did was work into the 20EMA and then remount.\" (Sunday Scans, 2026-07-12)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price.",
+    "Relative strength versus SPY plotted as a line; it rises when the stock beats the market.",
     "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate.",
-    "A shakeout below a key line followed by retaking it with authority."
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average.",
+    "A leader slips below its moving average, shakes out, then retakes it with authority."
    ],
    "q": "At the desk, what does \"Remount\" mean?",
    "subject": "Remount"
@@ -966,6 +1110,12 @@
   "reveal_json": {
    "quote": "A shakeout below a key line followed by retaking it with authority.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Remount essence: \"A leader slips below its moving average, shakes out weak hands, then remounts it with authority.\"",
+    "app/src/pages/modelbook/setupCatalog.js 20 EMA Pullback essence: \"a candle holds it, and the remount of the 9 EMA is the buy.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-07-12): \"All it did was work into the 20EMA and then remount.\" / \"Nice hammer and 3 day bounce off the 50SMA to remount.\" / \"The 200SMA remount was attractive out of this mini base\"",
+    "house moving averages 9/20/50/200 (spec C20 / dossier CORRECTIONS)"
+   ],
    "term": "Remount"
   },
   "review_status": "draft",
@@ -981,8 +1131,8 @@
   },
   "difficulty": 2,
   "id": "si_1bf278156193",
-  "lesson_origin": "source",
-  "lesson_text": "Remount: A shakeout below a key line followed by retaking it with authority.",
+  "lesson_origin": "session",
+  "lesson_text": "A Remount is a leader that slips below a moving average and shakes out the weak hands. Then it gets back above with authority. The line can be any of the house averages: the 9, 20, 50 or 200. In the 20 EMA Pullback setup, the remount of the 9 EMA is the buy. It differs from an Undercut & Rally, which reclaims a prior low rather than an average. The owner: \"All it did was work into the 20EMA and then remount.\" (Sunday Scans, 2026-07-12)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -992,12 +1142,18 @@
     "RS line"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "A shakeout below a key line followed by retaking it with authority.",
+   "quote": "A leader slips below its moving average, shakes out, then retakes it with authority.",
    "subject": "Remount"
   },
   "reveal_json": {
    "quote": "A shakeout below a key line followed by retaking it with authority.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Remount essence: \"A leader slips below its moving average, shakes out weak hands, then remounts it with authority.\"",
+    "app/src/pages/modelbook/setupCatalog.js 20 EMA Pullback essence: \"a candle holds it, and the remount of the 9 EMA is the buy.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-07-12): \"All it did was work into the 20EMA and then remount.\" / \"Nice hammer and 3 day bounce off the 50SMA to remount.\" / \"The 200SMA remount was attractive out of this mini base\"",
+    "house moving averages 9/20/50/200 (spec C20 / dossier CORRECTIONS)"
+   ],
    "term": "Remount"
   },
   "review_status": "draft",
@@ -1013,15 +1169,15 @@
   },
   "difficulty": 1,
   "id": "si_6b22331a0410",
-  "lesson_origin": "source",
-  "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+  "lesson_origin": "session",
+  "lesson_text": "A Slingshot starts with a strong uptrend that pulls back and settles. The trigger is price recapturing a 4-period EMA drawn on the highs, not on the closes. You are buying momentum resuming, not trying to catch the low of the pullback.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
+    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
     "Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
    ],
    "q": "At the desk, what does \"Slingshot\" mean?",
    "subject": "Slingshot"
@@ -1029,6 +1185,9 @@
   "reveal_json": {
    "quote": "Recapturing the 4-EMA of the highs — buying momentum resuming rather than the low.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Slingshot essence: \"A strong uptrend pulls back, stabilizes, then recaptures the 4-EMA of the highs — buy momentum resuming, not the low.\""
+   ],
    "term": "Slingshot"
   },
   "review_status": "draft",
@@ -1044,8 +1203,8 @@
   },
   "difficulty": 2,
   "id": "si_20859c2e7bf4",
-  "lesson_origin": "source",
-  "lesson_text": "Slingshot: Recapturing the 4-EMA of the highs, buying momentum resuming rather than the low.",
+  "lesson_origin": "session",
+  "lesson_text": "A Slingshot starts with a strong uptrend that pulls back and settles. The trigger is price recapturing a 4-period EMA drawn on the highs, not on the closes. You are buying momentum resuming, not trying to catch the low of the pullback.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1061,6 +1220,9 @@
   "reveal_json": {
    "quote": "Recapturing the 4-EMA of the highs — buying momentum resuming rather than the low.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Slingshot essence: \"A strong uptrend pulls back, stabilizes, then recaptures the 4-EMA of the highs — buy momentum resuming, not the low.\""
+   ],
    "term": "Slingshot"
   },
   "review_status": "draft",
@@ -1076,14 +1238,14 @@
   },
   "difficulty": 1,
   "id": "si_37a28a376722",
-  "lesson_origin": "source",
-  "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+  "lesson_origin": "session",
+  "lesson_text": "A 2B is a failed break. Price pushes past a prior high or low, cannot follow through, and snaps back inside, trapping the late entries. A 2B works in either direction. An Oops is the same trap arriving on a gap. The stock gaps below the prior day's low, then reverses and closes the gap. Larry Williams named it. The owner: \"OUST gave a really good opportunity on Monday on the Oops reversal undercut of support at that $24 level, followed by a nice inside day and strong close where I began buying some shares.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "The firm's daily pre-market brief, out around 7:35 AM ET.",
     "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."
    ],
    "q": "At the desk, what does \"2B Reversal / Oops\" mean?",
@@ -1092,6 +1254,11 @@
   "reveal_json": {
    "quote": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js 2B Reversal (direction 'both'): \"Price breaks a prior extreme, fails to follow through, and snaps back — trapping the late entries.\"",
+    "app/src/pages/modelbook/setupCatalog.js Oops Reversal: \"A gap below the prior day's low that reverses and closes the gap — the classic Larry Williams trap for panicked sellers.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"OUST gave a really good opportunity on Monday on the Oops reversal undercut of support at that $24 level, followed by a nice inside day and strong close where I began buying some shares.\""
+   ],
    "term": "2B Reversal / Oops"
   },
   "review_status": "draft",
@@ -1107,8 +1274,8 @@
   },
   "difficulty": 2,
   "id": "si_b09c26135b0d",
-  "lesson_origin": "source",
-  "lesson_text": "2B Reversal / Oops: A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
+  "lesson_origin": "session",
+  "lesson_text": "A 2B is a failed break. Price pushes past a prior high or low, cannot follow through, and snaps back inside, trapping the late entries. A 2B works in either direction. An Oops is the same trap arriving on a gap. The stock gaps below the prior day's low, then reverses and closes the gap. Larry Williams named it. The owner: \"OUST gave a really good opportunity on Monday on the Oops reversal undercut of support at that $24 level, followed by a nice inside day and strong close where I began buying some shares.\" (Sunday Scans, 2026-05-17)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1124,6 +1291,11 @@
   "reveal_json": {
    "quote": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js 2B Reversal (direction 'both'): \"Price breaks a prior extreme, fails to follow through, and snaps back — trapping the late entries.\"",
+    "app/src/pages/modelbook/setupCatalog.js Oops Reversal: \"A gap below the prior day's low that reverses and closes the gap — the classic Larry Williams trap for panicked sellers.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-05-17): \"OUST gave a really good opportunity on Monday on the Oops reversal undercut of support at that $24 level, followed by a nice inside day and strong close where I began buying some shares.\""
+   ],
    "term": "2B Reversal / Oops"
   },
   "review_status": "draft",
@@ -1139,15 +1311,15 @@
   },
   "difficulty": 1,
   "id": "si_98dfe5951957",
-  "lesson_origin": "source",
-  "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+  "lesson_origin": "session",
+  "lesson_text": "A Go Signal follows a catalyst gap. The stock digests the gap and pulls back into the 9 EMA. Then one wide candle engulfs the pullback and closes above the catalyst day's high. That close is the resumption trigger. It differs from Gap Support, which buys a hold of the gap zone itself. And from a Kicker, where the gap day is the signal.",
   "module": null,
   "prompt_json": {
    "choices": [
     "The share of the account risked on one trade, Position Size % × Stop Distance %, hard-capped at 2%, preferably under 1%.",
     "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
     "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable.",
-    "(win% × average win in R) − (loss% × average loss in R), the equation that decides whether a system pays, independent of win rate."
+    "(win% × average win in R) − (loss% × average loss in R): what a system makes per trade on average."
    ],
    "q": "At the desk, what does \"Go Signal\" mean?",
    "subject": "Go Signal"
@@ -1155,6 +1327,10 @@
   "reveal_json": {
    "quote": "A catalyst gap that digests into the 9 EMA and then engulfs — the resumption trigger.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Go Signal essence: \"A catalyst gap digests into the 9 EMA — then one wide candle engulfs the pullback and closes above the catalyst high.\"",
+    "app/src/pages/modelbook/setupCatalog.js Gap Support / Kicker Candle essences"
+   ],
    "term": "Go Signal"
   },
   "review_status": "draft",
@@ -1170,8 +1346,8 @@
   },
   "difficulty": 2,
   "id": "si_eff45912f4a1",
-  "lesson_origin": "source",
-  "lesson_text": "Go Signal: A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger.",
+  "lesson_origin": "session",
+  "lesson_text": "A Go Signal follows a catalyst gap. The stock digests the gap and pulls back into the 9 EMA. Then one wide candle engulfs the pullback and closes above the catalyst day's high. That close is the resumption trigger. It differs from Gap Support, which buys a hold of the gap zone itself. And from a Kicker, where the gap day is the signal.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1187,6 +1363,10 @@
   "reveal_json": {
    "quote": "A catalyst gap that digests into the 9 EMA and then engulfs — the resumption trigger.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Go Signal essence: \"A catalyst gap digests into the 9 EMA — then one wide candle engulfs the pullback and closes above the catalyst high.\"",
+    "app/src/pages/modelbook/setupCatalog.js Gap Support / Kicker Candle essences"
+   ],
    "term": "Go Signal"
   },
   "review_status": "draft",
@@ -1198,19 +1378,19 @@
  },
  {
   "answer_json": {
-   "answer": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching."
+   "answer": "A tight consolidation sitting on a stacked bundle of moving averages, before it launches."
   },
   "difficulty": 1,
   "id": "si_c0389d04c5e6",
-  "lesson_origin": "source",
-  "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+  "lesson_origin": "session",
+  "lesson_text": "A Launchpad forms after a momentum burst or a correction. The moving averages bunch into a tight bundle, stacked in order, and price consolidates on top of them. The tight bundle is the tell: it often comes before a strong move. The entry is the break of the consolidation. The stop goes under the consolidation low or the moving-average stack. The Setup Library's named mistake is forcing it before the averages have actually converged. The owner: \"I like the potential launchpad setting up here with all the MAs stacked.\" (Sunday Scans, 2026-07-12)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
-    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open.",
-    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
-    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity, capped at 10% for the whole book."
+    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
+    "An earnings report so strong the stock gaps above its base on huge volume.",
+    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
+    "Total open risk across all positions, Σ (entry − stop) × shares ÷ equity; the firm's tool flags it at 10%."
    ],
    "q": "At the desk, what does \"Launchpad\" mean?",
    "subject": "Launchpad"
@@ -1218,6 +1398,11 @@
   "reveal_json": {
    "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Launchpad essence: \"A momentum burst, then a pullback that consolidates on top of a stacked cluster of moving averages — and launches.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Launchpad: \"The consolidation that follows a bear market or correction, when multiple moving averages converge into a tight bundle ... frequently precedes a strong, directional move\" / \"The 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together and stacked in order\" / \"Break of the consolidation\" / \"below the consolidation low / the MA stack\" / mistake \"Forcing the trade before the moving averages have actually converged.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-07-12): \"I like the potential launchpad setting up here with all the MAs stacked.\""
+   ],
    "term": "Launchpad"
   },
   "review_status": "draft",
@@ -1233,8 +1418,8 @@
   },
   "difficulty": 2,
   "id": "si_ea1c65d0a404",
-  "lesson_origin": "source",
-  "lesson_text": "Launchpad: Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+  "lesson_origin": "session",
+  "lesson_text": "A Launchpad forms after a momentum burst or a correction. The moving averages bunch into a tight bundle, stacked in order, and price consolidates on top of them. The tight bundle is the tell: it often comes before a strong move. The entry is the break of the consolidation. The stop goes under the consolidation low or the moving-average stack. The Setup Library's named mistake is forcing it before the averages have actually converged. The owner: \"I like the potential launchpad setting up here with all the MAs stacked.\" (Sunday Scans, 2026-07-12)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1244,12 +1429,17 @@
     "Launchpad"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
+   "quote": "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
    "subject": "Launchpad"
   },
   "reveal_json": {
    "quote": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Launchpad essence: \"A momentum burst, then a pullback that consolidates on top of a stacked cluster of moving averages — and launches.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Launchpad: \"The consolidation that follows a bear market or correction, when multiple moving averages converge into a tight bundle ... frequently precedes a strong, directional move\" / \"The 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together and stacked in order\" / \"Break of the consolidation\" / \"below the consolidation low / the MA stack\" / mistake \"Forcing the trade before the moving averages have actually converged.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-07-12): \"I like the potential launchpad setting up here with all the MAs stacked.\""
+   ],
    "term": "Launchpad"
   },
   "review_status": "draft",
@@ -1261,18 +1451,18 @@
  },
  {
   "answer_json": {
-   "answer": "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open."
+   "answer": "A wedge under the averages that resolves: the pop reclaims them, the drop loses them."
   },
   "difficulty": 1,
   "id": "si_7b05a3f0b4d2",
-  "lesson_origin": "source",
-  "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+  "lesson_origin": "session",
+  "lesson_text": "A Wedge Pop comes after a decline ends. Price coils into a tightening wedge, often under the 9 and 20 EMAs, as volume dries up. The pop is a strong candle that breaks out of the wedge and reclaims the averages, starting an up-cycle. A Wedge Drop is the mirror after a top: a rising wedge under the averages, then a drop that loses them. The stop sits on the far side of the wedge. The owner: \"This was a very aggressive wedge pop in the indexes and really more like a failed breakdown for the most part.\" (Sunday Scans, 2026-04-12)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
     "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
    ],
    "q": "At the desk, what does \"Wedge Pop / Wedge Drop\" mean?",
@@ -1281,6 +1471,11 @@
   "reveal_json": {
    "quote": "One descending-coil skeleton with two resolutions — the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupPlaybooks.js Wedge Pop: \"coils into a wedge — often beneath the moving averages — and then pops out the top, reclaiming the averages and confirming a new up-cycle\" / \"frequently still below the 9/20-EMA. Volume dries up\" / stop \"Below the wedge / consolidation low.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Wedge Drop: \"bounces and coils into a rising wedge — often back up to the underside of the moving averages — and then drops out the bottom, losing the averages\" / stop \"Above the wedge / consolidation high.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-04-12): \"This was a very aggressive wedge pop in the indexes and really more like a failed breakdown for the most part.\""
+   ],
    "term": "Wedge Pop / Wedge Drop"
   },
   "review_status": "draft",
@@ -1296,8 +1491,8 @@
   },
   "difficulty": 2,
   "id": "si_8a53969674e8",
-  "lesson_origin": "source",
-  "lesson_text": "Wedge Pop / Wedge Drop: One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+  "lesson_origin": "session",
+  "lesson_text": "A Wedge Pop comes after a decline ends. Price coils into a tightening wedge, often under the 9 and 20 EMAs, as volume dries up. The pop is a strong candle that breaks out of the wedge and reclaims the averages, starting an up-cycle. A Wedge Drop is the mirror after a top: a rising wedge under the averages, then a drop that loses them. The stop sits on the far side of the wedge. The owner: \"This was a very aggressive wedge pop in the indexes and really more like a failed breakdown for the most part.\" (Sunday Scans, 2026-04-12)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1307,12 +1502,17 @@
     "Portfolio heat"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+   "quote": "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
    "subject": "Wedge Pop / Wedge Drop"
   },
   "reveal_json": {
    "quote": "One descending-coil skeleton with two resolutions — the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupPlaybooks.js Wedge Pop: \"coils into a wedge — often beneath the moving averages — and then pops out the top, reclaiming the averages and confirming a new up-cycle\" / \"frequently still below the 9/20-EMA. Volume dries up\" / stop \"Below the wedge / consolidation low.\"",
+    "app/src/pages/modelbook/setupPlaybooks.js Wedge Drop: \"bounces and coils into a rising wedge — often back up to the underside of the moving averages — and then drops out the bottom, losing the averages\" / stop \"Above the wedge / consolidation high.\"",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-04-12): \"This was a very aggressive wedge pop in the indexes and really more like a failed breakdown for the most part.\""
+   ],
    "term": "Wedge Pop / Wedge Drop"
   },
   "review_status": "draft",
@@ -1324,19 +1524,19 @@
  },
  {
   "answer_json": {
-   "answer": "The trap that closes above the prior day's high, flipping the short-term control."
+   "answer": "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts."
   },
   "difficulty": 1,
   "id": "si_a37372af6124",
-  "lesson_origin": "source",
-  "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
+  "lesson_origin": "session",
+  "lesson_text": "A Kicker Candle starts with a weak close that makes the chart look broken. Then a catalyst gaps the stock up, and it closes above that weak day's high. Everyone who sold or shorted the weak close is trapped. In one day, control has flipped to the buyers.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "The advancing phase of a stock's four-stage life cycle.",
     "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "The trap that closes above the prior day's high, flipping the short-term control.",
-    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."
+    "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
+    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume."
    ],
    "q": "At the desk, what does \"Kicker candle\" mean?",
    "subject": "Kicker candle"
@@ -1344,6 +1544,9 @@
   "reveal_json": {
    "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Kicker Candle essence: \"The prior day closes weak, looking broken — then a catalyst gaps it up to close above that day's high, trapping shorts.\""
+   ],
    "term": "Kicker candle"
   },
   "review_status": "draft",
@@ -1359,8 +1562,8 @@
   },
   "difficulty": 2,
   "id": "si_80d74ccc0837",
-  "lesson_origin": "source",
-  "lesson_text": "Kicker candle: The trap that closes above the prior day's high, flipping the short-term control.",
+  "lesson_origin": "session",
+  "lesson_text": "A Kicker Candle starts with a weak close that makes the chart look broken. Then a catalyst gaps the stock up, and it closes above that weak day's high. Everyone who sold or shorted the weak close is trapped. In one day, control has flipped to the buyers.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1370,12 +1573,15 @@
     "Kicker candle"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
+   "quote": "A weak close, then a catalyst gap up that closes above that day's high, trapping shorts.",
    "subject": "Kicker candle"
   },
   "reveal_json": {
    "quote": "The trap that closes above the prior day's high, flipping the short-term control.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "app/src/pages/modelbook/setupCatalog.js Kicker Candle essence: \"The prior day closes weak, looking broken — then a catalyst gaps it up to close above that day's high, trapping shorts.\""
+   ],
    "term": "Kicker candle"
   },
   "review_status": "draft",
@@ -1387,19 +1593,19 @@
  },
  {
   "answer_json": {
-   "answer": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+   "answer": "The firm's daily pre-market brief, out around 7:35 AM ET."
   },
   "difficulty": 1,
   "id": "si_ac0108051fce",
-  "lesson_origin": "source",
-  "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+  "lesson_origin": "session",
+  "lesson_text": "The Morning Wire is the firm's daily brief, out around 7:35 AM ET before the open. It carries the Exposure Rating and the market phase, the UCT 20 leadership list and the day's earnings. It also lists the top picks with entry, stop and target. Read it before you place a trade: it tells you how much to have on and which names lead.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
-    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
+    "The advancing phase of a stock's four-stage life cycle.",
     "Average daily range as a percentage, the firm's volatility floor for candidates is 4%.",
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."
+    "The firm's daily pre-market brief, out around 7:35 AM ET."
    ],
    "q": "At the desk, what does \"Morning Wire\" mean?",
    "subject": "Morning Wire"
@@ -1407,6 +1613,10 @@
   "reveal_json": {
    "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md Data Pipeline: \"Windows Task Scheduler: runs daily at 7:35 AM ET (Mon–Fri)\"; Data Sources: \"Leadership 20 | ... Daily (7:35 AM ET) · Morning Rundown · UCT Exposure Rating · Earnings\"",
+    "CLAUDE.md Top 5 Picks: \"Fields ... Entry Type, Entry, Stop, Target, Invalidation\""
+   ],
    "term": "Morning Wire"
   },
   "review_status": "draft",
@@ -1422,8 +1632,8 @@
   },
   "difficulty": 2,
   "id": "si_2b522e72492f",
-  "lesson_origin": "source",
-  "lesson_text": "Morning Wire: The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+  "lesson_origin": "session",
+  "lesson_text": "The Morning Wire is the firm's daily brief, out around 7:35 AM ET before the open. It carries the Exposure Rating and the market phase, the UCT 20 leadership list and the day's earnings. It also lists the top picks with entry, stop and target. Read it before you place a trade: it tells you how much to have on and which names lead.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1433,12 +1643,16 @@
     "Kicker candle"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
+   "quote": "The firm's daily pre-market brief, out around 7:35 AM ET.",
    "subject": "Morning Wire"
   },
   "reveal_json": {
    "quote": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md Data Pipeline: \"Windows Task Scheduler: runs daily at 7:35 AM ET (Mon–Fri)\"; Data Sources: \"Leadership 20 | ... Daily (7:35 AM ET) · Morning Rundown · UCT Exposure Rating · Earnings\"",
+    "CLAUDE.md Top 5 Picks: \"Fields ... Entry Type, Entry, Stop, Target, Invalidation\""
+   ],
    "term": "Morning Wire"
   },
   "review_status": "draft",
@@ -1454,13 +1668,13 @@
   },
   "difficulty": 1,
   "id": "si_2a2dd26742b5",
-  "lesson_origin": "source",
-  "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
+  "lesson_origin": "session",
+  "lesson_text": "Sunday Scans is the owner's weekend write-up and Desk show. He walks through the week's best charts name by name. What each did, where it is getting tight, what he wants to see next. Use it to build your list for the week. The owner: \"Focus on the strongest names that are building out higher lows and getting tight.\" (Sunday Scans, 2026-06-14)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching.",
-    "One descending-coil skeleton with two resolutions, the pop that starts an up-cycle, the drop that breaks a down-cycle open.",
+    "A tight consolidation sitting on a stacked bundle of moving averages, before it launches.",
+    "A wedge under the averages that resolves: the pop reclaims them, the drop loses them.",
     "The firm's weekend scan publication, the weekly deep pass over the universe.",
     "A catalyst gap that digests into the 9 EMA and then engulfs, the resumption trigger."
    ],
@@ -1470,6 +1684,11 @@
   "reveal_json": {
    "quote": "The firm's weekend scan publication — the weekly deep pass over the universe.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/VOICE.md: \"mined from 88 Substack posts: 27 articles, 61 Sunday Scans\"",
+    "CLAUDE.md The Desk: Sunday Scans uploads public",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-14): \"Focus on the strongest names that are building out higher lows and getting tight.\""
+   ],
    "term": "Sunday Scans"
   },
   "review_status": "draft",
@@ -1485,8 +1704,8 @@
   },
   "difficulty": 2,
   "id": "si_a37a533b6310",
-  "lesson_origin": "source",
-  "lesson_text": "Sunday Scans: The firm's weekend scan publication, the weekly deep pass over the universe.",
+  "lesson_origin": "session",
+  "lesson_text": "Sunday Scans is the owner's weekend write-up and Desk show. He walks through the week's best charts name by name. What each did, where it is getting tight, what he wants to see next. Use it to build your list for the week. The owner: \"Focus on the strongest names that are building out higher lows and getting tight.\" (Sunday Scans, 2026-06-14)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1502,6 +1721,11 @@
   "reveal_json": {
    "quote": "The firm's weekend scan publication — the weekly deep pass over the universe.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "docs/study/VOICE.md: \"mined from 88 Substack posts: 27 articles, 61 Sunday Scans\"",
+    "CLAUDE.md The Desk: Sunday Scans uploads public",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-14): \"Focus on the strongest names that are building out higher lows and getting tight.\""
+   ],
    "term": "Sunday Scans"
   },
   "review_status": "draft",
@@ -1517,15 +1741,15 @@
   },
   "difficulty": 1,
   "id": "si_25f05f89df8a",
-  "lesson_origin": "source",
-  "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+  "lesson_origin": "session",
+  "lesson_text": "The UCT 20 is the firm's ranked list of twenty leading stocks, rebuilt each morning when the wire engine runs. Each name carries its setup, catalyst and a trade plan with entry, stop and target. A tracker follows the list as an equal-weight portfolio. A name is bought at the open when it joins and sold at the open when it leaves. Use it as a starting list of leaders, then judge each chart yourself.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The confirmation of a new uptrend, day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size.",
-    "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable.",
+    "Day 4 to 7 of a rally attempt, a major index up 1.5% or more on higher volume.",
+    "The advancing phase of a stock's four-stage life cycle.",
     "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
-    "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."
+    "A major index down 0.2% or more on higher volume than the prior session."
    ],
    "q": "At the desk, what does \"UCT 20\" mean?",
    "subject": "UCT 20"
@@ -1533,6 +1757,10 @@
   "reveal_json": {
    "quote": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md UCT 20: \"Ranked list of Leadership 20 stocks from /api/leadership\" / \"Expanded row: company desc · catalyst · price action · trade bar (entry/stop/target)\"",
+    "CLAUDE.md UCT20 Portfolio Tracker: \"buys/sells at market open\" / \"equal-weight NAV\""
+   ],
    "term": "UCT 20"
   },
   "review_status": "draft",
@@ -1548,8 +1776,8 @@
   },
   "difficulty": 2,
   "id": "si_230f76e548bd",
-  "lesson_origin": "source",
-  "lesson_text": "UCT 20: The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
+  "lesson_origin": "session",
+  "lesson_text": "The UCT 20 is the firm's ranked list of twenty leading stocks, rebuilt each morning when the wire engine runs. Each name carries its setup, catalyst and a trade plan with entry, stop and target. A tracker follows the list as an equal-weight portfolio. A name is bought at the open when it joins and sold at the open when it leaves. Use it as a starting list of leaders, then judge each chart yourself.",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1565,6 +1793,10 @@
   "reveal_json": {
    "quote": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md UCT 20: \"Ranked list of Leadership 20 stocks from /api/leadership\" / \"Expanded row: company desc · catalyst · price action · trade bar (entry/stop/target)\"",
+    "CLAUDE.md UCT20 Portfolio Tracker: \"buys/sells at market open\" / \"equal-weight NAV\""
+   ],
    "term": "UCT 20"
   },
   "review_status": "draft",
@@ -1576,82 +1808,19 @@
  },
  {
   "answer_json": {
-   "answer": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
-  },
-  "difficulty": 1,
-  "id": "si_1cf86a2d3d0e",
-  "lesson_origin": "source",
-  "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
-  "module": null,
-  "prompt_json": {
-   "choices": [
-    "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard.",
-    "The firm's weekend scan publication, the weekly deep pass over the universe.",
-    "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run.",
-    "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."
-   ],
-   "q": "At the desk, what does \"Compass\" mean?",
-   "subject": "Compass"
-  },
-  "reveal_json": {
-   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
-   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
-   "term": "Compass"
-  },
-  "review_status": "draft",
-  "skill_id": "vocab.method",
-  "source_kind": "glossary",
-  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Compass",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Compass"
-  },
-  "difficulty": 2,
-  "id": "si_ba47fef1fbf5",
-  "lesson_origin": "source",
-  "lesson_text": "Compass: The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
-  "module": null,
-  "prompt_json": {
-   "choices": [
-    "Launchpad",
-    "Wedge Pop / Wedge Drop",
-    "Kicker candle",
-    "Compass"
-   ],
-   "q": "Which term does the desk use for this?",
-   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
-   "subject": "Compass"
-  },
-  "reveal_json": {
-   "quote": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review.",
-   "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
-   "term": "Compass"
-  },
-  "review_status": "draft",
-  "skill_id": "vocab.method",
-  "source_kind": "glossary",
-  "source_ref": "docs/curriculum/uct_method_presenter_brief.json#glossary#Compass",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples."
+   "answer": "The firm's library of history's best stocks by year, with setups labeled on each chart."
   },
   "difficulty": 1,
   "id": "si_cadbcaa31d48",
-  "lesson_origin": "source",
-  "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+  "lesson_origin": "session",
+  "lesson_text": "The Model Book is the firm's library of the best stocks in history, year by year. Open a stock and its chart shows the setups the firm labeled on it. Each has entry, stop and target lines, a grade and notes. A second tab shows the catalysts behind the big up moves. Study it to see what big winners looked like before they ran. The owner: \"Build a playbook, modelbook, rules, and process.\" (Sunday Scans, 2026-06-14)",
   "module": null,
   "prompt_json": {
    "choices": [
-    "The prior up-gap zone that price must defend on a pullback, the level the tape remembers.",
-    "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
-    "Day one of a new trend, a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day.",
-    "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."
+    "The prior up-gap zone that price must defend on a pullback.",
+    "The firm's library of history's best stocks by year, with setups labeled on each chart.",
+    "A neglected stock gaps up on a major catalyst on massive volume; day one of a new trend.",
+    "An earnings report so strong the stock gaps above its base on huge volume."
    ],
    "q": "At the desk, what does \"Model Book\" mean?",
    "subject": "Model Book"
@@ -1659,6 +1828,10 @@
   "reveal_json": {
    "quote": "The in-product library of history's best stocks by year with setups labeled — the source for the Winners Gallery and historical examples.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md Model Book: \"a curated library of the best stocks in history, organized by year, where clicking a stock opens its chart with the firm's playbook setups labeled on it (markers + entry/stop/target price lines + grade + teaching notes)\" / Catalysts tab",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-14): \"Build a playbook, modelbook, rules, and process.\""
+   ],
    "term": "Model Book"
   },
   "review_status": "draft",
@@ -1674,8 +1847,8 @@
   },
   "difficulty": 2,
   "id": "si_bf95efd92868",
-  "lesson_origin": "source",
-  "lesson_text": "Model Book: The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+  "lesson_origin": "session",
+  "lesson_text": "The Model Book is the firm's library of the best stocks in history, year by year. Open a stock and its chart shows the setups the firm labeled on it. Each has entry, stop and target lines, a grade and notes. A second tab shows the catalysts behind the big up moves. Study it to see what big winners looked like before they ran. The owner: \"Build a playbook, modelbook, rules, and process.\" (Sunday Scans, 2026-06-14)",
   "module": null,
   "prompt_json": {
    "choices": [
@@ -1685,12 +1858,16 @@
     "Model Book"
    ],
    "q": "Which term does the desk use for this?",
-   "quote": "The in-product library of history's best stocks by year with setups labeled, the source for the Winners Gallery and historical examples.",
+   "quote": "The firm's library of history's best stocks by year, with setups labeled on each chart.",
    "subject": "Model Book"
   },
   "reveal_json": {
    "quote": "The in-product library of history's best stocks by year with setups labeled — the source for the Winners Gallery and historical examples.",
    "source": "docs/curriculum/uct_method_presenter_brief.json#glossary",
+   "support": [
+    "CLAUDE.md Model Book: \"a curated library of the best stocks in history, organized by year, where clicking a stock opens its chart with the firm's playbook setups labeled on it (markers + entry/stop/target price lines + grade + teaching notes)\" / Catalysts tab",
+    "morning-wire/data/voice/voice_exemplars.json (Sunday Scans 2026-06-14): \"Build a playbook, modelbook, rules, and process.\""
+   ],
    "term": "Model Book"
   },
   "review_status": "draft",

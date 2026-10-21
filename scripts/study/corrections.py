@@ -6,7 +6,7 @@ The owner reviews items in chat, one at a time. Each verdict is appended to
   {"ts": "2026-10-17", "item_id": "si_…", "segment": "recall.playbooks",
    "verdict": "approve" | "fix" | "reject" | "source_ruling",
    "owner_words": "<verbatim>",            # what the owner actually said
-   "field": "answer" | "q" | "lesson_text" | "choices" | "reveal.<key>" | "prompt.<key>",   # fix only
+   "field": "answer" | "answer.<key>" | "q" | "lesson_text" | "choices" | "reveal.<key>" | "prompt.<key>",   # fix only
    "after": <new value>,                    # fix only
    "status": "proposed" | "confirmed" | "withdrawn"}   # applied only once confirmed
 
@@ -79,13 +79,17 @@ def _apply_fix(it: dict, rec: dict) -> None:
         choices = it.get("prompt_json", {}).get("choices")
         if isinstance(choices, list) and before in choices:
             choices[choices.index(before)] = after
+    elif isinstance(field, str) and field.startswith("answer."):
+        it.setdefault("answer_json", {})[field[len("answer."):]] = after       # e.g. answer.accept
     elif field == "q":
         it["prompt_json"]["q"] = after
     elif field == "choices":
         it["prompt_json"]["choices"] = list(after)
     elif field == "lesson_text":
         it["lesson_text"] = after
-        it["lesson_origin"] = "source"          # the owner's own words
+        # the owner's own words, unless the record says a session wrote it from
+        # the item's facts (the 2026-10-21 audit: lesson_origin "session")
+        it["lesson_origin"] = rec.get("lesson_origin") or "source"
     elif isinstance(field, str) and field.startswith("reveal."):
         it.setdefault("reveal_json", {})[field[len("reveal."):]] = after
     elif isinstance(field, str) and field.startswith("prompt."):
