@@ -263,29 +263,94 @@ def _num(v: Any) -> float | None:
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
-def cap_payload(payload: dict) -> dict:
-    """Drop rows from the end until the compact JSON fits `PAYLOAD_CAP_BYTES`.
+#: Kind -> the payload key holding its one trimmable list (fix F1, audit I-2). A kind not named here has
+#: no list to trim: over the cap, it gets the too-large form.
+LIST_KEY: dict[str, str] = {
+    "myWatchlistToday": "rows", "myNamesReporting": "rows", "myPositionsRisk": "rows", "myMistakes": "rows",
+    "marketOnMyNames": "rows", "mySetupEdge": "rows", "roomBuzzOnMyNames": "rows", "myEarningsReactions": "rows",
+    "myRulesCheck": "rules", "myScreenToday": "hits", "myPnlCalendar": "days", "tickerFlow": "topPrints",
+    "tradeRecap": "bars", "myPnlStats": "equity",
+}
+#: The list keys `cap_payload` looks for when it is not told the kind, in this order.
+_ANY_LIST_KEYS = ("rows", "rules", "hits", "days", "topPrints", "bars", "equity")
+#: Member text with no length limit where it is stored (`settings._validate_setup_rules` caps the count of
+#: setup rules, not their labels; `trades._normalize_string_list` caps neither count nor length of tags).
+RULE_LABEL_MAX = 120
+MISTAKE_TAG_MAX = 60
+MISTAKES_MAX = 20
+TOO_LARGE_SENTENCE = "This widget's data was too large to save. Narrow it and try again."
+#: Scalars the too-large form keeps so the frame still says which widget and when.
+_TOO_LARGE_KEEP = ("asOf", "source", "sourceDetail", "symbol", "month", "range", "listLabel", "name")
 
-    Sets `truncated` to the rows removed here added to any the builder already
-    reported. A payload that already fits is returned unchanged.
-    """
-    def size(p: dict) -> int:
-        return len(json.dumps(p, separators=(",", ":")))
 
-    rows = payload.get("rows")
-    if size(payload) <= PAYLOAD_CAP_BYTES or not isinstance(rows, list):
-        return payload
-    base = int(payload.get("truncated") or 0)
+def _payload_size(p: dict) -> int:
+    """Bytes of the compact JSON (ASCII-escaped, so never fewer than the UTF-8 the note stores)."""
+    return len(json.dumps(p, separators=(",", ":")).encode("utf-8"))
+
+
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+
+
+def _clip_member_text(payload: dict) -> dict:
+    """Step 1 of the cap: the known unbounded strings, clipped (rule labels, mistake tags), and a
+    recap's mistake list held to MISTAKES_MAX (`mistakesTruncated` counts the rest)."""
     out = dict(payload)
-    kept = list(rows)
-    dropped = 0
-    out["truncated"] = base
-    while kept and size({**out, "rows": kept}) > PAYLOAD_CAP_BYTES:
-        kept.pop()
-        dropped += 1
-        out["truncated"] = base + dropped
-    out["rows"] = kept
+    if isinstance(out.get("rules"), list):
+        out["rules"] = [{**r, "rule": _clip(r["rule"], RULE_LABEL_MAX)}
+                        if isinstance(r, dict) and isinstance(r.get("rule"), str) else r for r in out["rules"]]
+    if isinstance(out.get("rows"), list):
+        out["rows"] = [{**r, "mistake": _clip(r["mistake"], MISTAKE_TAG_MAX)}
+                       if isinstance(r, dict) and isinstance(r.get("mistake"), str) else r for r in out["rows"]]
+    if isinstance(out.get("mistakes"), list):
+        tags = [_clip(m, MISTAKE_TAG_MAX) if isinstance(m, str) else m for m in out["mistakes"]]
+        if len(tags) > MISTAKES_MAX:
+            out["mistakesTruncated"] = len(tags) - MISTAKES_MAX
+        out["mistakes"] = tags[:MISTAKES_MAX]
     return out
+
+
+def _too_large(payload: dict) -> dict:
+    out: dict[str, Any] = {}
+    for k in _TOO_LARGE_KEEP:
+        v = payload.get(k)
+        if v is not None and _payload_size({k: v}) <= 200:
+            out[k] = v
+    out.setdefault("asOf", payload.get("asOf"))
+    out.setdefault("source", payload.get("source"))
+    out["tooLarge"] = True
+    out["empty"] = TOO_LARGE_SENTENCE
+    return out
+
+
+def cap_payload(payload: dict, kind: str | None = None) -> dict:
+    """Hold the compact JSON to `PAYLOAD_CAP_BYTES` across EVERY field (fix F1, audit I-2):
+
+      1. clip the known unbounded member strings (`_clip_member_text`);
+      2. drop items from the end of the kind's one list (`LIST_KEY`; the first of `_ANY_LIST_KEYS` present
+         when no kind is given) and add what was dropped to `truncated` (a builder's boolean `truncated`
+         stays True);
+      3. still over, or fitting only by dropping EVERY item: the too-large form, `tooLarge: true` and
+         `TOO_LARGE_SENTENCE`. Never an oversized payload, and never every row gone without a sentence.
+
+    A payload that fits after step 1 is returned as it is."""
+    out = _clip_member_text(payload)
+    if _payload_size(out) <= PAYLOAD_CAP_BYTES:
+        return out
+    key = LIST_KEY.get(kind) if kind else next((k for k in _ANY_LIST_KEYS if isinstance(out.get(k), list)), None)
+    items = out.get(key) if key else None
+    if isinstance(items, list) and items:
+        prior = out.get("truncated")
+        kept = list(items)
+        while len(kept) > 1 and _payload_size({**out, key: kept}) > PAYLOAD_CAP_BYTES:
+            kept.pop()
+        trimmed = {**out, key: kept}
+        dropped = len(items) - len(kept)
+        if dropped:
+            trimmed["truncated"] = True if isinstance(prior, bool) and prior else int(prior or 0) + dropped
+        if _payload_size(trimmed) <= PAYLOAD_CAP_BYTES:
+            return trimmed
+    return _too_large(out)
 
 
 # -- the earnings window (tickerCard, myWatchlistToday, myNamesReporting) ------
@@ -1694,4 +1759,4 @@ def build(kind: str, user_id: str, params: dict, *, now: datetime | None = None)
     if params is not None and not isinstance(params, dict):
         raise WidgetRequestError("params must be an object")
     payload = builder(user_id, params or {}, now or datetime.now(timezone.utc))
-    return cap_payload(payload)
+    return cap_payload(payload, kind)

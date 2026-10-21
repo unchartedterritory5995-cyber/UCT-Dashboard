@@ -2068,3 +2068,83 @@ def test_i1_concurrent_reactions_misses_share_one_walk(monkeypatch):
         t.join(10)
     _wait_walks_done()
     assert len(seen["window"]) == 1
+
+
+# -- fix F1, I-2: the 16,384 B cap holds across EVERY field (the audit's oversized fixtures) ----------
+
+def _bytes(p):
+    return len(json.dumps(p, separators=(",", ":")).encode("utf-8"))
+
+
+def test_i2_every_kind_but_the_card_names_its_trimmable_list():
+    assert set(nw.LIST_KEY) | {"tickerCard"} == set(nw.KIND_WAVE)
+
+
+def test_i2_rules_check_with_long_labels_fits_and_labels_are_clipped(monkeypatch):
+    long = "x" * 1500
+    setup_rules = {"acc": {"Breakout": [{"id": f"r{i}", "label": f"{long}{i}"} for i in range(25)],
+                           "Pullback": [{"id": f"q{i}", "label": f"{long}q{i}"} for i in range(25)]}}
+    trades = [{"tradeRef": f"t{i}", "positionId": None, "accountId": "acc",
+               "setup": "Breakout" if i % 2 else "Pullback", "source": "manual", "exitDate": "2026-10-19"}
+              for i in range(5000)]
+    adh = {f"t{i}": {"checkedRuleIds": [f"r{j}" for j in range(10)], "totalRules": 25,
+                     "setup": trades[i]["setup"]} for i in range(5000)}
+    _patch_rules(monkeypatch, trades, adh, setup_rules=setup_rules)
+    import api.services.journal_two.trader_blocks as tbk
+    monkeypatch.setattr(tbk, "adherence_of_trade", lambda get, ref, pid: get(ref))
+    p = nw.build("myRulesCheck", "big", {}, now=NOW)
+    assert _bytes(p) <= nw.PAYLOAD_CAP_BYTES                 # the audit measured 38,555 B
+    assert p["rules"] and all(len(r["rule"]) <= nw.RULE_LABEL_MAX for r in p["rules"])
+    assert p["rules"][0]["rule"].endswith("…")
+
+
+def test_i2_trade_recap_with_400_long_mistakes_fits(monkeypatch):
+    from datetime import date, timedelta
+    tags = [f"mistake-{i}-" + "m" * 60 for i in range(400)]
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(
+        entryDate="2026-01-02", exitDate="2026-09-30", mistakeTags=tags)))
+    bars = [(int((date(2025, 11, 1) + timedelta(days=i)).strftime("%Y%m%d")), 1.123456, 2.123456, 0.123456,
+             1.523456) for i in range(400)]
+    _patch_bars_before(monkeypatch, bars)
+    p = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert _bytes(p) <= nw.PAYLOAD_CAP_BYTES                 # the audit measured 38,644 B
+    assert len(p["mistakes"]) == nw.MISTAKES_MAX and p["mistakesTruncated"] == 400 - nw.MISTAKES_MAX
+    assert all(len(m) <= nw.MISTAKE_TAG_MAX for m in p["mistakes"])
+    assert p["bars"] and "tooLarge" not in p
+
+
+def test_i2_a_non_row_field_over_the_cap_gives_the_too_large_form_never_silently_empty():
+    big = {"asOf": "x", "source": "market", "listLabel": "y" * 20000, "rows": [{"a": 1}] * 5}
+    out = nw.cap_payload(big, "myWatchlistToday")
+    assert _bytes(out) <= nw.PAYLOAD_CAP_BYTES               # the audit measured 20,069 B with no sentence
+    assert out["tooLarge"] is True and out["empty"] == nw.TOO_LARGE_SENTENCE
+    assert out["empty"] == "This widget's data was too large to save. Narrow it and try again."
+    assert "rows" not in out and "listLabel" not in out and out["asOf"] == "x" and out["source"] == "market"
+    # and without the kind, the same answer
+    assert nw.cap_payload(big)["tooLarge"] is True
+
+
+def test_i2_a_list_under_another_key_is_trimmed_and_counted():
+    out = nw.cap_payload({"asOf": "x", "source": "market", "rules": [{"rule": "z" * 1000}] * 400})
+    assert _bytes(out) <= nw.PAYLOAD_CAP_BYTES               # the audit measured 40,520 B
+    assert out["rules"] and len(out["rules"]) + out["truncated"] == 400 and "tooLarge" not in out
+    flow = {"asOf": "x", "source": "market", "topPrints": [{"cp": "C" * 3000}] * 10}
+    out = nw.cap_payload(flow, "tickerFlow")
+    assert _bytes(out) <= nw.PAYLOAD_CAP_BYTES and len(out["topPrints"]) + out["truncated"] == 10
+
+
+def test_i2_one_item_too_big_alone_is_the_too_large_form():
+    out = nw.cap_payload({"asOf": "x", "source": "market", "rows": [{"blob": "q" * 20000}]}, "myMistakes")
+    assert out["tooLarge"] is True and _bytes(out) <= nw.PAYLOAD_CAP_BYTES
+
+
+def test_i2_a_boolean_truncated_stays_true():
+    hits = [{"symbol": "S" * 5, "pad": "p" * 1000} for _ in range(40)]
+    out = nw.cap_payload({"asOf": "x", "source": "market", "hits": hits, "truncated": True}, "myScreenToday")
+    assert out["truncated"] is True and _bytes(out) <= nw.PAYLOAD_CAP_BYTES and len(out["hits"]) < 40
+
+
+def test_i2_the_card_over_the_cap_is_the_too_large_form():
+    out = nw.cap_payload({"asOf": "x", "source": "mixed", "symbol": "NVDA", "pad": "p" * 20000}, "tickerCard")
+    assert out == {"asOf": "x", "source": "mixed", "symbol": "NVDA", "tooLarge": True,
+                   "empty": nw.TOO_LARGE_SENTENCE}
