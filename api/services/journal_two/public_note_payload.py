@@ -487,16 +487,23 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
     # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
     # builders' own honesty flags. NEVER `positionId`: every row passes EMBED_ROW_KEYS (R60).
-    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share"),
-    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
-    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated"),
-    "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated"),
+    # `tooLarge` + `empty` (the too-large sentence), `truncated` (rows the cap dropped) and
+    # `mistakesTruncated` (tags past MISTAKES_MAX) are the CAP's honesty flags (notebook_widgets.cap_payload),
+    # kept for every kind the cap can set them on, so a stranger reads the sentence and the "+n more" the
+    # member does (fix F1b, review M-4). Railed against the cap's real output.
+    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share",
+                   "truncated", "tooLarge"),
+    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial",
+                        "tooLarge"),
+    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated", "tooLarge"),
+    "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
     # Wave 6. ⛔ NEVER `tradeId`: it names one of the member's trades, and the builder's own payload
     # carries no id, so a shown recap needs none. The settings key stays home with the rest.
     "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
-                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share"),
-    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share"),
-    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated"),
+                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share",
+                   "empty", "truncated", "tooLarge", "mistakesTruncated"),
+    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
+    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
@@ -505,9 +512,28 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
 #: extra all stay home); `SCALAR_ITEMS` names a list of scalars (a recap's mistake tags) and `PAIR_ITEMS` a
 #: list of scalar pairs (the equity curve's [day, value]). A structured param this table does not name is
 #: not published.
-SCALAR_ITEMS: tuple[str, ...] = ()
-PAIR_ITEMS: tuple[str, ...] = ("[day, value]",)
-EMBED_ROW_KEYS: dict[str, dict[str, tuple[str, ...]]] = {
+class _ItemShape:
+    """A list-item mode for EMBED_ROW_KEYS, told apart by IDENTITY (`is`), never by equality (fix F1b,
+    review M-6: `keys == ()` was true for ANY empty tuple, so an entry written `()` to mean "keep no keys"
+    would have passed every scalar item through). As a key list it names NO key, so a shape placed where a
+    dict's keys are read keeps nothing (fails closed)."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __iter__(self):
+        return iter(())
+
+    def __contains__(self, _key: object) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return self.name
+
+
+SCALAR_ITEMS = _ItemShape("SCALAR_ITEMS")
+PAIR_ITEMS = _ItemShape("PAIR_ITEMS")
+EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
     "myPnlStats": {"range": ("from", "to"), "equity": PAIR_ITEMS},
     "myPositionsRisk": {"rows": ("symbol", "side", "kind", "sizePct", "openPnl", "stopPrice", "distToStopPct",
                                  "noStop")},
@@ -523,14 +549,15 @@ def _scalar(v: Any) -> bool:
     return v is None or isinstance(v, (str, int, float, bool))
 
 
-def _allowed_item(item: Any, keys: tuple[str, ...]) -> Any:
-    """One list item through its allowlist, or `_DROP`."""
-    if keys == SCALAR_ITEMS:
+def _allowed_item(item: Any, keys: Any) -> Any:
+    """One list item through its allowlist, or `_DROP`. The two item shapes are matched by identity; any
+    other entry is a tuple of key names, and `()` keeps no key of a dict and drops a scalar (fails closed)."""
+    if keys is SCALAR_ITEMS:
         return item if _scalar(item) else _DROP
-    if keys == PAIR_ITEMS:
+    if keys is PAIR_ITEMS:
         ok = isinstance(item, (list, tuple)) and len(item) == 2 and all(_scalar(x) for x in item)
         return list(item) if ok else _DROP
-    if isinstance(item, dict):
+    if isinstance(item, dict) and isinstance(keys, tuple):
         return {k: item[k] for k in keys if k in item and _scalar(item[k])}
     return _DROP
 
@@ -554,7 +581,10 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
         elif isinstance(v, dict):
             out[k] = {f: v[f] for f in rows[k] if f in v and _scalar(v[f])}
         elif isinstance(v, list):
-            out[k] = [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP]
+            # Review m7: a `()` entry names no key, so it publishes NO items -- never one `{}` per item, which
+            # would still tell a stranger how many rows (or bars) the member has.
+            out[k] = ([] if rows[k] == () else
+                      [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
     return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
@@ -1706,25 +1736,55 @@ REFERENCE_SET_TTL_S = 60.0
 _REF_SETS: dict[tuple, tuple[float, frozenset[str]]] = {}
 _REF_SETS_MAX = 500
 _REF_LOCK = threading.Lock()
+#: Fix F1b (review M-2): ONE computation per cold key. A page's images arrive as a burst, and each miss is a
+#: full `public_note` reduction plus `public_facts`; the burst now waits on the first request's answer. A
+#: waiter holds a request thread, so at most `REFERENCE_SET_WAITERS` wait, each at most
+#: `REFERENCE_SET_WAIT_S`; any other computes its own (the old behaviour, never a refusal).
+REFERENCE_SET_WAITERS = 16
+REFERENCE_SET_WAIT_S = 10.0
+_REF_FLIGHT: Any = None
+
+
+def _reference_flight() -> Any:
+    """The reference sets' single-flight table (notebook_widgets.SingleFlight, created on first use)."""
+    global _REF_FLIGHT
+    with _REF_LOCK:
+        if _REF_FLIGHT is None:
+            from api.services.journal_two.notebook_widgets import SingleFlight
+            _REF_FLIGHT = SingleFlight(REFERENCE_SET_WAITERS, name="public reference set")
+        return _REF_FLIGHT
 
 
 def cached_reference_set(key: tuple, compute: Callable[[], frozenset[str]], *,
                          now: Callable[[], float] | None = None) -> frozenset[str]:
     """`compute()`'s set, held `REFERENCE_SET_TTL_S` per `key`. The caller's key names the note AND its
     revision (`updated_at`), so a write that drops an image is never answered from the old set. Bounded:
-    past `_REF_SETS_MAX` keys the oldest entries go. Per process."""
+    past `_REF_SETS_MAX` keys the oldest entries go. Per process.
+
+    Concurrent misses for one key compute it ONCE (review M-2): the first runs `compute` on its own thread
+    (it reads through the request's own sqlite connection, which is bound to that thread, so never a pool)
+    and the rest take its answer."""
     t = (now or time.monotonic)()
     with _REF_LOCK:
         hit = _REF_SETS.get(key)
         if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
             return hit[1]
-    got = frozenset(compute())
-    with _REF_LOCK:
-        _REF_SETS[key] = (t, got)
-        if len(_REF_SETS) > _REF_SETS_MAX:
-            for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
-                _REF_SETS.pop(k, None)
-    return got
+
+    def fill() -> frozenset[str]:
+        with _REF_LOCK:     # review m4: a caller that missed above but became a leader after the last one stored
+            hit = _REF_SETS.get(key)
+            if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
+                return hit[1]
+        got = frozenset(compute())
+        with _REF_LOCK:
+            _REF_SETS[key] = (t, got)
+            if len(_REF_SETS) > _REF_SETS_MAX:
+                for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
+                    _REF_SETS.pop(k, None)
+        return got
+
+    ok, got = _reference_flight().run_here(key, fill, REFERENCE_SET_WAIT_S)
+    return got if ok else fill()
 
 
 def read_public_note(conn: Any, owner_id: str, note_id: str) -> dict[str, Any] | None:

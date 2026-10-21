@@ -116,6 +116,10 @@ class BoundedPool:
         fut.add_done_callback(lambda _f: slots.release())
         return fut
 
+    def shutdown(self) -> None:
+        """Stop taking work and cancel what has not started (a test's teardown; never on a live path)."""
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
 
 #: ONE pool for every builder's vendor fan-out (implied moves, the flow page read, the earnings calendar
 #: walk, the reaction figures). Looked up at call time, so a test can swap in a fresh one.
@@ -175,6 +179,10 @@ def _one_bounded(fn: Callable, budget_s: float) -> tuple[bool, Any]:
         return False, None
 
 
+class _LeaderAborted(Exception):
+    """What a run_here waiter receives when its leader was interrupted by a non-Exception BaseException."""
+
+
 class SingleFlight:
     """Fix F1 (C-1, I-1): ONE shared walk per key on the module pool, however many requests miss at once.
 
@@ -186,10 +194,11 @@ class SingleFlight:
     Waiting holds a REQUEST thread (the anyio pool), so at most `waiters` requests wait on walks at once;
     the rest answer their partial form AT ONCE, the way a saturated widget pool does. Per process."""
 
-    def __init__(self, waiters: int):
+    def __init__(self, waiters: int, name: str = "widget walk"):
         self._lock = threading.Lock()
         self._inflight: dict[str, Future] = {}
         self._waiters = threading.BoundedSemaphore(waiters)
+        self.name = name                                  # what the log lines call this table (review m6)
 
     def _forget(self, key: str, fut: Future) -> None:
         with self._lock:
@@ -207,21 +216,54 @@ class SingleFlight:
             if fut is None or fut.done():
                 fut = _POOL.try_submit(fn)
                 if fut is None:
-                    _log.info("widget walk %s skipped: the widget pool is saturated", key)
+                    _log.info("%s %s skipped: the widget pool is saturated", self.name, key)
                     return False, None
                 self._inflight[key] = fut
                 started = True
         if started:          # outside the lock: a job already done runs the callback in this thread
             fut.add_done_callback(lambda f, k=key: self._forget(k, f))
+        return self._wait(key, fut, budget_s)
+
+    def run_here(self, key: Any, fn: Callable[[], Any], budget_s: float) -> tuple[bool, Any]:
+        """`run` with the leader computing `fn` on the CALLER's own thread, never the pool (fix F1b, review
+        M-2): for work bound to its thread, such as a read through a sqlite connection the request opened.
+        The first caller for `key` runs `fn` and returns (True, value), or raises what `fn` raised. A caller
+        that arrives while it runs waits at most `budget_s` for that value; past it, when the leader raised,
+        or when `waiters` callers already wait, it gets (False, None) and computes its own."""
+        with self._lock:
+            fut = self._inflight.get(key)
+            lead = fut is None or fut.done()
+            if lead:
+                fut = Future()
+                self._inflight[key] = fut
+        if not lead:
+            return self._wait(key, fut, budget_s)
+        try:
+            value = fn()
+        except Exception as e:
+            fut.set_exception(e)
+            raise
+        except BaseException:
+            # Review m5: a KeyboardInterrupt / SystemExit belongs to the LEADER's thread and propagates there;
+            # its waiters get an ordinary failure, so they take the miss path instead of re-raising it.
+            fut.set_exception(_LeaderAborted(f"the leader for {key!r} was interrupted"))
+            raise
+        else:
+            fut.set_result(value)
+            return True, value
+        finally:
+            self._forget(key, fut)
+
+    def _wait(self, key: Any, fut: Future, budget_s: float) -> tuple[bool, Any]:
         if not self._waiters.acquire(blocking=False):
             return False, None
         try:
             return True, fut.result(timeout=budget_s)
         except _FutTimeout:
-            _log.info("widget walk %s ran past %.1fs", key, budget_s)
+            _log.info("%s %s ran past %.1fs", self.name, key, budget_s)
             return False, None
         except Exception as e:  # noqa: BLE001
-            _log.info("widget walk %s failed: %s", key, e)
+            _log.info("%s %s failed: %s", self.name, key, e)
             return False, None
         finally:
             self._waiters.release()
@@ -366,8 +408,14 @@ def _earnings_window(now: datetime) -> tuple | None:
     pool (`_WALKS`) and waits at most `EARNINGS_WINDOW_BUDGET_S`; the walk stores its own answer in the
     cache (inside `_window`), so a walk that outlives every request still warms the next one. Never
     the walk on a request thread: it is up to 8 day lookups, each two vendors with 10 s timeouts."""
+    return earnings_window_for(_today_et(now))
+
+
+def earnings_window_for(today: date) -> tuple | None:
+    """`_earnings_window` for an ET calendar day the caller already holds. The Earnings prep route's
+    GET /soon reads the window through here too (fix F1b, review I-1), so it never walks the calendar
+    on its request thread either, and it shares the one walk (`_WALKS`) with every widget."""
     from api.services.journal_two import earnings_prep
-    today = _today_et(now)
     try:
         got = earnings_prep.cached_window(today)
     except Exception as e:  # noqa: BLE001 -- an unreadable cache is a miss
@@ -999,7 +1047,9 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
         # True: the calendar was not read, so a null earningsDay is unknown. False: no report this week.
         "earningsUnknown": earnings_unknown,
     }
-    if read is None:
+    # ONE rule for `partial` (fix F1b, review M-1), as myWatchlistToday: set whenever earningsUnknown is
+    # true, so a calendar day that failed to load reads "partial" on the card as it does on the watchlist.
+    if earnings_unknown:
         out["partial"] = True
     return out
 
@@ -1959,11 +2009,15 @@ _JOURNAL_DETAIL = {
 }
 
 
-def source_detail(kind: str, payload: dict) -> str:
+def source_detail(kind: str, payload: dict) -> str | None:
     """One short plain sentence naming where this payload's data came from (ruling R58, UX I-6 / I-7),
     derived from what the builder actually read: the broker vs manual verdict in `source`, and for open
-    positions the `priceBasis` the rows were priced at."""
+    positions the `priceBasis` the rows were priced at. None (no sentence) for an EMPTY positions widget:
+    with nothing open, `source` is only `_origin([])`'s fallback, and naming a source for a list that holds
+    nothing is a claim about nothing (fix F1b, review M-9)."""
     src = payload.get("source")
+    if kind == "myPositionsRisk" and payload.get("empty"):
+        return None
     if kind == "myPositionsRisk":
         parts = [_POSITIONS.get(src, "Positions: your Journal."), _MARKS.get(payload.get("priceBasis"), "")]
         return " ".join(p for p in parts if p)

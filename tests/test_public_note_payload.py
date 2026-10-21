@@ -1106,8 +1106,55 @@ def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(
 
 
 def test_wave2_param_keys_are_the_ones_the_builders_emit():
-    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated")
-    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated")
+    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share",
+                                                    "truncated", "tooLarge")
+    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge")
+
+
+def _cap_honesty_keys(kind: str) -> set[str]:
+    """The keys notebook_widgets.cap_payload ITSELF adds to a `kind` payload, read off its real output (fix
+    F1b, review M-4): the too-large form, a trimmed list, and (for a kind that publishes `mistakes`) a
+    mistake list past MISTAKES_MAX. Derived from the cap, never restated."""
+    from api.services.journal_two import notebook_widgets as nw
+    base = {"asOf": "2026-10-20T14:00:00Z", "source": "manual"}
+    added: set[str] = set()
+    big = nw.cap_payload({**base, "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+    added |= set(big) - set(base) - {"blob"}
+    key = nw.LIST_KEY[kind]
+    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind)
+    added |= set(trimmed) - set(base) - {key}
+    if "mistakes" in pnp.EMBED_ROW_KEYS.get(kind, {}):
+        clipped = nw.cap_payload({**base, "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 3)]}, kind)
+        added |= set(clipped) - set(base) - {"mistakes"}
+    return added
+
+
+def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        added = _cap_honesty_keys(kind)
+        assert {"tooLarge", "empty", "truncated"} <= added, (kind, added)     # control: the fixtures hit the cap
+        assert added <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, added - set(pnp.EMBED_PARAM_KEYS[kind]))
+    assert "mistakesTruncated" in _cap_honesty_keys("tradeRecap")
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
+    """A shown account widget whose data hit the cap is published WITH its sentence, never as a blank frame."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        node = _widget(kind)
+        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                  "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+        node["attrs"]["params"] = dict(payload, share=True)
+        params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+        assert params.get("tooLarge") is True and params.get("empty") == nw.TOO_LARGE_SENTENCE, (kind, params)
+    node = _widget("tradeRecap")
+    node["attrs"]["params"] = dict(nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                                   "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 5)]},
+                                                  "tradeRecap"), share=True)
+    params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+    assert params["mistakesTruncated"] == 5 and len(params["mistakes"]) == nw.MISTAKES_MAX
 
 
 # ── Notebook widgets wave 3 (Task 14): the two market kinds stay neutral, switch or no switch ──
@@ -1177,7 +1224,7 @@ def test_wave6_embed_keys_are_the_ones_the_builders_emit():
         "mySetupEdge": ("asOf", "source", "rows", "empty", "truncated"),
     }
     for kind, keys in emitted.items():
-        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"}, kind
+        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"} | _cap_honesty_keys(kind), kind
         src = inspect.getsource(nw._BUILDERS[kind])
         for k in keys:
             assert f'"{k}"' in src, (kind, k)              # every kept key is one the builder writes
@@ -1309,10 +1356,105 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
             assert "positionId" not in allowed and "tradeId" not in allowed and "definitionId" not in allowed
 
 
-def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id():
-    """Derived, not restated: the keys a positions row carries (both kinds) minus positionId."""
-    import inspect
+#: Ruling R64: what the client now STORES in a widget's params at insert, beside the frozen payload -- the F1
+#: payload honesty/provenance keys and every request key (notebook_widgets.SETTING_KEYS, `range`, and the
+#: identifiers a list, screen, account, trade, note or folder is named by).
+_R64_STORED = {
+    "empty": "SENTENCE-empty", "failed": True, "sourceDetail": "SECRET-sourceDetail", "priceBasis": "broker",
+    "earningsUnknown": True, "timingUnknown": True, "nextDayNote": "SECRET-nextDayNote", "tooLarge": True,
+    "mistakesTruncated": 3,
+    "list": "SECRET-list", "from": "1999-01-01", "to": "1999-12-31", "symbol": "ZZQQ", "month": "1999-07",
+    "range": {"from": "1999-01-01", "to": "1999-12-31"}, "definitionId": "u_0123456789ab", "tradeId": "SECRET-trade",
+    "accountId": "SECRET-acct", "positionId": "SECRET-pos", "listId": "SECRET-listid", "watchKey": "SECRET-watch",
+    "scanKey": "SECRET-scan", "noteId": "SECRET-note", "folderId": "SECRET-folder", "setupId": "SECRET-setup",
+}
+#: Never on a public page for ANY account kind: request keys with no payload meaning, provenance, identifiers.
+_R64_NEVER = {"list", "from", "to", "definitionId", "tradeId", "accountId", "positionId", "listId", "watchKey",
+              "scanKey", "noteId", "folderId", "setupId", "sourceDetail", "priceBasis", "nextDayNote", "failed",
+              "earningsUnknown", "timingUnknown"}
+
+
+def test_r64_the_never_keys_are_in_no_account_allowlist():
     from api.services.journal_two import notebook_widgets as nw
-    src = inspect.getsource(nw._option_row)
-    for k in pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"]:
-        assert f'"{k}"' in src, k
+    assert set(nw.SETTING_KEYS) - {"symbol", "month"} <= _R64_NEVER         # control: every request key is covered
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        assert not set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER, (kind, set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through_the_allowlist(mode):
+    """Every account kind with EVERY stored key set: share off is the neutral line and nothing else; share on
+    publishes only that kind's EMBED_PARAM_KEYS, so a request key or sourceDetail/priceBasis reaches a stranger
+    only where the member-optin table already names that exact key."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        for share in (None, False, True):
+            node = _widget(kind)
+            node["attrs"]["params"] = dict(copy.deepcopy(_R64_STORED), asOf="2026-10-20T14:00:00Z",
+                                           **({} if share is None else {"share": share}))
+            out = reduce(doc(node), mode)
+            blob = json.dumps(out)
+            if share is not True:
+                assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out), (kind, share)
+                assert "SECRET" not in blob and "1999" not in blob and "ZZQQ" not in blob, (kind, share)
+                continue
+            params = find_embed(out)["attrs"]["params"]
+            assert set(params) <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, set(params) - set(pnp.EMBED_PARAM_KEYS[kind]))
+            assert not set(params) & _R64_NEVER, kind
+            assert "SECRET" not in blob, (kind, blob)
+            assert params["asOf"] == "2026-10-20T14:00:00Z" and params["share"] is True    # control: shown
+
+
+def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
+    """Fix F1b (review M-6): the item shapes are matched by identity, so an EMBED_ROW_KEYS entry written `()`
+    to mean "keep no keys" keeps NOTHING -- it used to equal SCALAR_ITEMS and pass every scalar through."""
+    params = {"mistakes": ["fomo", "chased"], "bars": [{"t": "2026-09-01", "c": 1.5}],
+              "range": {"from": "2026-10-13", "to": "2026-10-20"}, "share": True}
+    # control: with the real table the member's figures are there
+    real = pnp.allowed_params("tradeRecap", params)
+    assert real["mistakes"] == ["fomo", "chased"] and real["bars"] == [{"t": "2026-09-01", "c": 1.5}]
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "tradeRecap", {"mistakes": (), "bars": ()})
+    out = pnp.allowed_params("tradeRecap", params)
+    assert out["mistakes"] == [] and out["bars"] == [], out          # review m7: no items, so no count either
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": (), "equity": ()})
+    out = pnp.allowed_params("myPnlStats", {"range": params["range"], "equity": [["2026-10-13", 100.0]]})
+    assert out == {"range": {}, "equity": []}, out
+    # a shape placed where a dict's keys are read names no key either
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": pnp.SCALAR_ITEMS})
+    assert pnp.allowed_params("myPnlStats", {"range": params["range"]}) == {"range": {}}
+    assert () is not pnp.SCALAR_ITEMS and () != pnp.SCALAR_ITEMS
+    # review m7: a () entry on a many-row list publishes nothing a stranger could count
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "mySetupEdge", {"rows": ()})
+    rows = [{"setup": f"S{i}", "n": i} for i in range(7)]
+    assert pnp.allowed_params("mySetupEdge", {"rows": rows})["rows"] == []
+
+
+def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeypatch):
+    """Derived, not restated (fix F1b, review M-7): the keys of a stock row AND an option row as
+    `myPositionsRisk` actually BUILDS them, less positionId, are exactly the allowlist -- so a key the
+    builder adds and the allowlist misses (or one the allowlist names and no row carries) reds here."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import notebook_widgets as nw
+    import api.routers.live_prices as lp
+    import api.services.journal_two.options as op
+    import api.services.journal_two.positions as ps
+    import api.services.portfolio_heat as ph
+    stock = {"id": "p1", "symbol": "NVDA", "side": "Long", "shares": 10, "entryPrice": 100.0,
+             "stopPrice": 95.0, "source": "manual"}
+    option = {"id": "st-1", "underlying": "CRWV", "strategyType": "long_call", "netEntry": 1200.0,
+              "brokerCurrentValue": 1500.0, "source": "broker", "status": "open",
+              "legs": [{"side": "buy", "contractType": "call", "strike": 110.0, "expiration": "2026-10-16",
+                        "qty": 2, "entryPrice": 6.0}]}
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [stock])
+    monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [option] if status == "open" else [])
+    monkeypatch.setattr(ph, "portfolio_heat", lambda user_id, *a, **k: {"ok": True, "per_position": [
+        {"symbol": "NVDA", "side": "Long", "dist_to_stop_pct": 5.0, "stop_price": 95.0, "placeholder_stop": False}]})
+    monkeypatch.setattr(nw, "_account_size", lambda user_id: 50000.0)
+    monkeypatch.setattr(nw, "_accounts_by_id", lambda user_id: {})
+    monkeypatch.setattr(lp, "get_live_prices", lambda tickers="": {"NVDA": {"price": 110.0}})
+    rows = nw.build("myPositionsRisk", "u1", {}, now=datetime(2026, 10, 20, 15, 0, tzinfo=timezone.utc))["rows"]
+    assert sorted(r["kind"] for r in rows) == ["option", "stock"]           # control: both kinds were built
+    allowed = set(pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"])
+    for row in rows:
+        assert set(row) - {"positionId"} == allowed, (row["kind"], set(row) ^ (allowed | {"positionId"}))
+        assert "positionId" in row and "positionId" not in allowed
