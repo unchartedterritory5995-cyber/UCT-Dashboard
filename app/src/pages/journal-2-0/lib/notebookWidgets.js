@@ -77,7 +77,9 @@ export const CAPTURE_KINDS = Object.freeze([
   { id: 'scanner', title: 'Scan results', held: 1, description: 'Your first scan as on Charts, frozen', keywords: ['scanner'] },
   { id: 'watchlist', title: 'Watchlist snapshot', description: 'Your first list as on Charts, frozen' },
   { id: 'themes', title: 'Theme rankings', description: "Today's top 40 themes, top theme first", keywords: ['themes'] },
-].map((k) => ({ wave: 4, group: 'more', ...k, capture: (p) => slashCaptures().then((m) => m[k.id](p)) })))
+].map((k) => ({ wave: 4, group: 'more', ...k,
+  // Review m-2: a capture that fails says it failed; only the module not loading rejects (the menu's lost chunk).
+  capture: (p) => slashCaptures().then((m) => m[k.id](p).catch(() => ({ ok: false, reason: 'failed' }))) })))
 
 const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
 

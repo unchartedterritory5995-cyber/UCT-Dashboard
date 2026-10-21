@@ -12,9 +12,8 @@ import { buildExtensions } from '../../lib/tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 
 vi.mock('../../lib/notebookWidgetsFetch', () => { throw new Error('chunk') })
-vi.mock('../../../charts/widgets/captures/slashCaptures', () => ({
-  breadth: async () => ({ ok: true, payload: { updated: '1:26 PM ET' } }),
-}))
+const capture = vi.hoisted(() => ({ breadth: async () => ({ ok: true, payload: { updated: '1:26 PM ET' } }) }))
+vi.mock('../../../charts/widgets/captures/slashCaptures', () => ({ breadth: (p) => capture.breadth(p) }))
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
   Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -65,6 +64,20 @@ describe('a lost lazy chunk', () => {
     expect(out).toEqual({ ok: false, message: LOST })
     expect(screen.getByRole('status')).toHaveTextContent(LOST)
     expect(embeds(ed)).toHaveLength(0)
+  })
+
+  it('review m-2: a capture that rejects inside its own code keeps the failed sentence, never "reload"', async () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: true })
+    const ok = capture.breadth
+    capture.breadth = async () => { throw new Error('vendor said no') }
+    try {
+      const ed = mount('<p>/breadth</p>')
+      const item = snapshotWidgetItems('breadth').find((i) => i.title === 'Breadth heatmap')
+      expect(await item.command({ editor: ed, range: slashRange(ed) }))
+        .toEqual({ ok: false, message: 'Breadth heatmap could not be loaded just now, so nothing was added.' })
+      expect(screen.getByRole('status')).toHaveTextContent('Breadth heatmap could not be loaded just now, so nothing was added.')
+      expect(screen.getByRole('status')).not.toHaveTextContent('Reload the page')
+    } finally { capture.breadth = ok }
   })
 
   it('offline, the same lost chunk is said as offline, not as a reload', async () => {

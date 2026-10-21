@@ -162,7 +162,8 @@ describe('/news (Task 16)', () => {
     expect(embeds(ed)).toHaveLength(0)
   })
 
-  it('a capture chunk that fails to load inserts nothing', async () => {
+  // F2 (cleanup queue): a chunk that cannot load is said as one, with the reload sentence, not as a failed read.
+  it('a capture chunk that fails to load inserts nothing, and says to reload', async () => {
     latchNotebookFlags(W4)
     const row = CAPTURE_KINDS.find((k) => k.id === 'news')
     const real = row.capture
@@ -175,7 +176,8 @@ describe('/news (Task 16)', () => {
       expect(res.ok).toBe(false)
       expect(embeds(ed)).toHaveLength(0)
       expect(ed.state.doc.textContent).toBe('Read ')
-      expect(notify).toHaveBeenCalledWith(GENERIC, 'error')
+      expect(notify).toHaveBeenCalledWith("This widget couldn't load. Reload the page to try again.", 'error')
+      expect(notify).not.toHaveBeenCalledWith(GENERIC, 'error')
     } finally {
       row.capture = real
     }
