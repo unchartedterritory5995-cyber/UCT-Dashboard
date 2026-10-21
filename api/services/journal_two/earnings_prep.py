@@ -340,11 +340,21 @@ def reporting_soon(user_id: str, *, today: date | None = None,
 
 # ── the draft ──────────────────────────────────────────────────────────────────────────
 
+class UnknownWindow(tuple):
+    """The window a caller could NOT read in time (fix F1b, review I-2): nothing listed, `partial` true, and
+    marked, so a cell built from it says the calendar was not read (UNREADABLE), never that it has no date."""
+
+
+def unknown_window() -> "UnknownWindow":
+    return UnknownWindow(({}, {}, True, _now_iso()))
+
+
 def _report_cells(sym: str, today: date, intel: dict | None,
                   window_read: tuple | None = None) -> tuple[dict, dict, str | None]:
     """(date cell, timing cell, the date as a string or None). `window_read` is `_window(today)`'s answer when
     the caller already holds it (the draft route reads it under the widgets' bound, fix F1b ruling R65)."""
     window, timing, _partial, as_of = window_read if window_read is not None else _window(today)
+    unread = isinstance(window_read, UnknownWindow)       # the calendar was not read: say so, never "no date"
     if sym in window:
         day = window[sym]
         date_cell = _cell(day, SRC_CALENDAR, as_of)
@@ -352,9 +362,10 @@ def _report_cells(sym: str, today: date, intel: dict | None,
         nrd = ((intel or {}).get("summary") or {}).get("next_report_date") or (intel or {}).get("next_report_date")
         day = str(nrd)[:10] if nrd else None
         date_cell = (_cell(day, SRC_EARNINGS, _iso_from_epoch(((intel or {}).get("meta") or {}).get("retrieved_at")))
-                     if day else _missing(SRC_CALENDAR, MISSING_DATE))
+                     if day else _missing(SRC_CALENDAR, UNREADABLE if unread else MISSING_DATE))
     t = timing.get(sym) or (_timing_from_calendar_cache(sym, day) if day else None)
-    timing_cell = _cell(t, SRC_CALENDAR, as_of) if t else _missing(SRC_CALENDAR, MISSING_TIMING)
+    timing_cell = (_cell(t, SRC_CALENDAR, as_of) if t
+                   else _missing(SRC_CALENDAR, UNREADABLE if unread else MISSING_TIMING))
     return date_cell, timing_cell, day
 
 

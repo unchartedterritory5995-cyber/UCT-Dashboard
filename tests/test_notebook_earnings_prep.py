@@ -554,6 +554,28 @@ def test_r65_a_cold_draft_never_waits_for_the_walk_and_labels_the_date_honestly(
     assert seen["walks"] == 1
 
 
+def test_r65_i2_a_cold_draft_with_no_earnings_date_says_the_calendar_was_not_read(client, app, gate_on,
+                                                                                  monkeypatch, stores):
+    """Fix F1b (review I-2): with the window unread AND no date in the earnings record, the frozen date cell is
+    UNREADABLE (the calendar was not read), never MISSING_DATE ("no report date on the UCT calendar")."""
+    from api.services.journal_two import earnings_prep
+    from api.services.journal_two import notebook_widgets as nw
+    _today(monkeypatch)
+    _full_market(monkeypatch, stores)
+    _intel(monkeypatch, {"ticker": "NVDA", "quarters": []})              # an earnings record with no next date
+    monkeypatch.setattr(nw, "EARNINGS_WINDOW_BUDGET_S", 0.1)
+    _slow_walk(monkeypatch, {"NVDA": "2026-10-05"}, 1.5)
+    as_user(app, A)
+    report = client.post("/api/j2/earnings-prep/NVDA/draft").json()["report"]
+    assert report["date"] == {"value": None, "source": earnings_prep.SRC_CALENDAR, "asOf": None,
+                              "missing": earnings_prep.UNREADABLE}
+    assert report["timing"]["missing"] == earnings_prep.UNREADABLE
+    _walks_done()
+    # control: a READ window that does not list the name is the honest "no date" sentence
+    report = client.post("/api/j2/earnings-prep/CRM/draft").json()["report"]
+    assert report["date"]["missing"] == earnings_prep.MISSING_DATE
+
+
 # ── the draft: every cell sourced, every missing one labelled ──────────────────────────
 
 def _assert_cell(c):

@@ -76,7 +76,7 @@ def _bounded_window(today) -> tuple:
     (nothing read, `partial` true) when it could not be read in time. Never a walk on this thread."""
     from api.services.journal_two import notebook_widgets
     read = notebook_widgets.earnings_window_for(today)
-    return read if read is not None else ({}, {}, True, prep._now_iso())
+    return read if read is not None else prep.unknown_window()
 
 
 @router.post("/{symbol}/draft")
