@@ -21,6 +21,8 @@ export const loadFailedText = (symbol) => `Couldn't load ${symbol} right now.`
 
 /** R58 (UX I-14): how long the mouse rests on a chip before its card opens. */
 export const HOVER_INTENT_MS = 300
+/** After an edit or a caret move, how long a mouseover is not read as a hover (a chip redrawn under the mouse). */
+export const EDIT_QUIET_MS = 800
 /** A desktop pointer: one that hovers and is precise. There a click places the caret and a hover opens the card. */
 const finePointer = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches === true
 
@@ -33,6 +35,8 @@ export function insertPosAfterBlock(doc, pos) {
 export default function TickerCardPopover({ editor }) {
   const [card, setCard] = useState(null) // { seq, symbol, anchor, status: 'loading'|'ok'|'error', payload }
   const seqRef = useRef(0)
+  const cardRef = useRef(null)
+  cardRef.current = card
 
   useEffect(() => {
     if (!editor) return undefined
@@ -52,16 +56,25 @@ export default function TickerCardPopover({ editor }) {
       if (!d.symbol || d.via === 'mouse' || (!d.via && finePointer())) return
       openFor(d.symbol, d.rect, d.pos)
     }
+    // F2 fix round 1 (review I-1): a hover becomes an open only if nothing else happened first. A press (the click
+    // that places the caret), an edit or a caret move cancels a pending hover; and a chip redrawn under a resting
+    // mouse while the member types (the browser sends it a fresh mouseover) starts nothing for EDIT_QUIET_MS.
     let hoverTimer = null
+    let editedAt = 0
+    const cancel = () => clearTimeout(hoverTimer)
+    const onEdit = () => { editedAt = Date.now(); cancel() }
     const chipOf = (t) => (t?.closest ? t.closest('.tickerChip') : null)
     const onOver = (e) => {
       const el = chipOf(e.target)
-      if (!el || !finePointer() || !editor.isEditable) return
+      if (!el || !finePointer() || !editor.isEditable || Date.now() - editedAt < EDIT_QUIET_MS) return
+      const sym = el.getAttribute('data-symbol')
+      // Review m-9: the card already open for this symbol is not opened (and fetched) again.
+      if (cardRef.current?.symbol === sym) return
       clearTimeout(hoverTimer)
       hoverTimer = setTimeout(() => {
         let pos = null
         try { pos = editor.view.posAtDOM(el, 0) } catch { pos = null }
-        openFor(el.getAttribute('data-symbol'), el.getBoundingClientRect(), pos)
+        openFor(sym, el.getBoundingClientRect(), pos)
       }, HOVER_INTENT_MS)
     }
     const onOut = (e) => {
@@ -75,6 +88,7 @@ export default function TickerCardPopover({ editor }) {
       dom?.removeEventListener(TICKER_CARD_EVENT, onOpen)
       dom?.removeEventListener('mouseover', onOver)
       dom?.removeEventListener('mouseout', onOut)
+      dom?.removeEventListener('mousedown', cancel)
       dom = null
     }
     const attach = () => {
@@ -87,12 +101,17 @@ export default function TickerCardPopover({ editor }) {
       dom.addEventListener(TICKER_CARD_EVENT, onOpen)
       dom.addEventListener('mouseover', onOver)
       dom.addEventListener('mouseout', onOut)
+      dom.addEventListener('mousedown', cancel)
     }
     attach()
     editor.on('mount', attach)
     editor.on('create', attach)
     editor.on('unmount', detach)
+    editor.on('update', onEdit)
+    editor.on('selectionUpdate', onEdit)
     return () => {
+      editor.off('update', onEdit)
+      editor.off('selectionUpdate', onEdit)
       editor.off('mount', attach)
       editor.off('create', attach)
       editor.off('unmount', detach)

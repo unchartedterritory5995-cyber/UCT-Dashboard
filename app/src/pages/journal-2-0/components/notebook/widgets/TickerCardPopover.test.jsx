@@ -8,6 +8,11 @@ import { TICKER_CARD_EVENT } from '../../../lib/tickerChip'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
 import TickerCardPopover from './TickerCardPopover'
 import TickerCardSlot from './TickerCardSlot'
+// jsdom has no Range layout; ProseMirror's mousedown measures the text under the pointer.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+}
 
 const PAYLOAD = {
   asOf: '2026-10-20T13:14:00Z', source: 'mixed', symbol: 'NVDA', price: 187.4, changePct: 1.8,
@@ -245,6 +250,59 @@ describe('TickerCardPopover: hover intent and the click', () => {
     expect(screen.getByText('Loading NVDA…')).toBeInTheDocument()
     vi.useRealTimers()
     expect(await screen.findByText('Your history')).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('review I-1: mouseover, then a mouse click inside the hover window, opens nothing, and the editor keeps focus', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    editor.view.dom.focus()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOver(chip)                              // a real browser sends this before every click
+    act(() => { vi.advanceTimersByTime(150) })
+    // jsdom has no hit testing; ProseMirror's own mousedown asks for it.
+    const hadHit = document.elementFromPoint
+    document.elementFromPoint = () => chip
+    try { fireEvent.mouseDown(chip) } finally { document.elementFromPoint = hadHit }
+    click(chip, 'mouse')
+    act(() => { vi.advanceTimersByTime(600) })
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    expect(screen.queryByText('Insert chart')).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(editor.view.dom)
+  })
+
+  it('review I-1: an edit or a caret move cancels a pending hover, and a chip redrawn while typing starts none', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(100) })
+    act(() => { editor.commands.insertContentAt(1, 'x') })          // the member types
+    fireEvent.mouseOver(editor.view.dom.querySelector('.tickerChip'))  // the redrawn chip under the resting mouse
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(screen.queryByText('Loading NVDA…')).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('review m-9: hovering the chip whose card is already open does not fetch it again', async () => {
+    desktop(true)
+    ok()
+    render(<TickerCardPopover editor={editor} />)
+    const chip = await chipEl()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(300) })
+    vi.useRealTimers()
+    expect(await screen.findByText('Your history')).toBeInTheDocument()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.mouseOut(chip, { relatedTarget: editor.view.dom })
+    fireEvent.mouseOver(chip)
+    act(() => { vi.advanceTimersByTime(600) })
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
