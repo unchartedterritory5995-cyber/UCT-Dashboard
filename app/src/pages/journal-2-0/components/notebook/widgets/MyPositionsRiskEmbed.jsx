@@ -11,6 +11,8 @@ const PRICE_BASIS = {
 }
 /** An option row's stop cells (F1: options carry no stop). */
 export const OPTION_STOP = 'Not applicable to options'
+/** An option row's P&L and size come from the stored broker value (F1); before a sync stores one they are unknown. */
+export const OPTION_NO_MARK = 'No broker mark stored for this option yet'
 
 /** Where a member sets a stop. The Journal reads only the tab (it has no per-position param). */
 export const SET_STOP_HREF = '/journal?j2tab=positions'
@@ -59,8 +61,10 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
                         ? r?.side && <span className={s.side}>{r.side}</span>
                         : r?.side === 'short' && <span className={s.side}>short</span>}
                     </td>
-                    <td>{numCell(r?.sizePct, (v) => fmtPctPlain(v), sizeReason)}</td>
-                    <td className={toneOf(r?.openPnl)}>{numCell(r?.openPnl, fmtMoneySigned, 'No price available right now')}</td>
+                    <td>{numCell(r?.sizePct, (v) => fmtPctPlain(v), r?.kind === 'option' && hasAccount ? OPTION_NO_MARK : sizeReason)}</td>
+                    <td className={toneOf(r?.openPnl)}>
+                      {numCell(r?.openPnl, fmtMoneySigned, r?.kind === 'option' ? OPTION_NO_MARK : 'No price available right now')}
+                    </td>
                     {r?.kind === 'option' ? (
                       <>
                         <td><span className={s.none}>{OPTION_STOP}</span></td>

@@ -111,6 +111,22 @@ describe('option rows (kind: "option")', () => {
   })
 })
 
+describe('review m-4: an option with no stored broker mark', () => {
+  it('says so for its P&L and size, never "No price available right now"', () => {
+    render(<MyPositionsRiskEmbed attrs={attrs('myPositionsRisk', { source: 'broker', accountSize: 50000, rows: [
+      { symbol: 'CRWV Oct 16 $110C', side: 'Long Call', kind: 'option', sizePct: null, openPnl: null,
+        stopPrice: null, distToStopPct: null, noStop: null },
+      { symbol: 'NVDA', side: 'long', kind: 'stock', sizePct: null, openPnl: null, stopPrice: 170, distToStopPct: 6, noStop: false },
+    ] })} />)
+    const opt = screen.getByText('CRWV Oct 16 $110C').closest('tr')
+    expect(within(opt).getAllByRole('button', { name: 'n/a: No broker mark stored for this option yet' })).toHaveLength(2)
+    expect(within(opt).queryByRole('button', { name: 'n/a: No price available right now' })).toBeNull()
+    // Control: a stock row keeps the live-price reason.
+    const stock = screen.getByText('NVDA').closest('tr')
+    expect(within(stock).getAllByRole('button', { name: 'n/a: No price available right now' })).toHaveLength(2)
+  })
+})
+
 describe('timingUnknown on a reaction row', () => {
   it('shows the note, never a number', () => {
     render(<MyEarningsReactionsEmbed attrs={attrs('myEarningsReactions', { source: 'market', rows: [
