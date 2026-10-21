@@ -138,6 +138,8 @@ describe('fetchWidgetPayload', () => {
     expect(got.payload.asOf).toBe('2026-10-20T13:14:00Z')
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toBe('/api/j2/notebook-widgets/tickerCard?symbol=NVDA')
+    // F3 item 5: a read, said as a literal GET (doorEnumeration reads the method through the signal spread).
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ method: 'GET', credentials: 'include' })
   })
 
   it('passes month, definitionId and tradeId, the server SETTING_KEYS, and still nothing else', async () => {

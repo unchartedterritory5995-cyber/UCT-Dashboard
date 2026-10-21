@@ -60,8 +60,10 @@ export async function fetchWidgetPayload(kind, params = {}) {
       if (typeof v === 'string' && v) q.set(k, v)
     }
     const qs = q.toString()
+    // A READ: it writes no note. The literal method is what lets offline/doorEnumeration.test.js see that
+    // through the spread (a spread with no method beside it is UNRESOLVED-METHOD there).
     const res = await fetch(`${WIDGETS_URL}/${encodeURIComponent(String(kind))}${qs ? `?${qs}` : ''}`, {
-      credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}),
+      method: 'GET', credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}),
     })
     if (res.status === 404) return { ok: false, reason: 'unavailable' }
     if (res.status === 400) {
