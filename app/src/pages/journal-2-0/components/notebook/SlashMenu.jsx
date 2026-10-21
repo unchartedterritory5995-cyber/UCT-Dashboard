@@ -485,6 +485,9 @@ const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
  *  goes in where the command was, mapped through anything the member typed meanwhile. A failed fetch
  *  inserts nothing and says so. Resolves `{ok, message}` for the palette's own status line. */
 const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
+// F2 cleanup: a lazy chunk that cannot load (lost after a deploy) is said, never silent; offline is offline.
+const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === false ? { ok: false, reason: 'offline' }
+  : { ok: false, message: "This widget couldn't load. Reload the page to try again." })
 // R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing.
 const inflight = new Set()
 function snapshotCommand(kind, params) {
@@ -501,13 +504,12 @@ function snapshotCommand(kind, params) {
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
     editor.on('transaction', track)
     try {
-      // A Task 16 kind fetches and builds through its lazily loaded capture module; a lost chunk is a failed fetch.
-      // A snapshot kind's fetch is lazy too (Task 16D: first-open bytes); a chunk that cannot load answers as
-      // fetchWidgetPayload itself would for a request that cannot be made: offline when the browser says so.
+      // A Task 16 kind fetches and builds through its lazily loaded capture module; a snapshot kind's fetch is lazy too
+      // (Task 16D: first-open bytes). A chunk that cannot load answers `lost()`: offline when the browser says so, else
+      // the reload sentence.
       const res = kind.capture
-        ? await kind.capture(params).catch(() => ({ ok: false, reason: 'failed' }))
-        : await widgetsFetch().then((m) => m.fetchWidgetPayload(kind.id, params),
-          () => ({ ok: false, reason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed' }))
+        ? await kind.capture(params).catch(lost)
+        : await widgetsFetch().then((m) => m.fetchWidgetPayload(kind.id, params), lost)
       if (!res.ok) {
         if (editor.isDestroyed) return { ok: false, message: null }
         // A capture may name its own sentence (a news feed not built yet); otherwise offline vs failed.
@@ -519,8 +521,10 @@ function snapshotCommand(kind, params) {
       }
       // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
       // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
-      return await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
-        () => ({ ok: false, message: null }))
+      const landed = await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
+        lost)
+      if (landed.message) editor.storage?.uctJournalWidgets?.notify?.(landed.message, 'error')
+      return landed
     } finally {
       editor.off('transaction', track)
       inflight.delete(key)
