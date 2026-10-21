@@ -1376,10 +1376,32 @@ def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
     assert () is not pnp.SCALAR_ITEMS and () != pnp.SCALAR_ITEMS
 
 
-def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id():
-    """Derived, not restated: the keys a positions row carries (both kinds) minus positionId."""
-    import inspect
+def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeypatch):
+    """Derived, not restated (fix F1b, review M-7): the keys of a stock row AND an option row as
+    `myPositionsRisk` actually BUILDS them, less positionId, are exactly the allowlist -- so a key the
+    builder adds and the allowlist misses (or one the allowlist names and no row carries) reds here."""
+    from datetime import datetime, timezone
     from api.services.journal_two import notebook_widgets as nw
-    src = inspect.getsource(nw._option_row)
-    for k in pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"]:
-        assert f'"{k}"' in src, k
+    import api.routers.live_prices as lp
+    import api.services.journal_two.options as op
+    import api.services.journal_two.positions as ps
+    import api.services.portfolio_heat as ph
+    stock = {"id": "p1", "symbol": "NVDA", "side": "Long", "shares": 10, "entryPrice": 100.0,
+             "stopPrice": 95.0, "source": "manual"}
+    option = {"id": "st-1", "underlying": "CRWV", "strategyType": "long_call", "netEntry": 1200.0,
+              "brokerCurrentValue": 1500.0, "source": "broker", "status": "open",
+              "legs": [{"side": "buy", "contractType": "call", "strike": 110.0, "expiration": "2026-10-16",
+                        "qty": 2, "entryPrice": 6.0}]}
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [stock])
+    monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [option] if status == "open" else [])
+    monkeypatch.setattr(ph, "portfolio_heat", lambda user_id, *a, **k: {"ok": True, "per_position": [
+        {"symbol": "NVDA", "side": "Long", "dist_to_stop_pct": 5.0, "stop_price": 95.0, "placeholder_stop": False}]})
+    monkeypatch.setattr(nw, "_account_size", lambda user_id: 50000.0)
+    monkeypatch.setattr(nw, "_accounts_by_id", lambda user_id: {})
+    monkeypatch.setattr(lp, "get_live_prices", lambda tickers="": {"NVDA": {"price": 110.0}})
+    rows = nw.build("myPositionsRisk", "u1", {}, now=datetime(2026, 10, 20, 15, 0, tzinfo=timezone.utc))["rows"]
+    assert sorted(r["kind"] for r in rows) == ["option", "stock"]           # control: both kinds were built
+    allowed = set(pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"])
+    for row in rows:
+        assert set(row) - {"positionId"} == allowed, (row["kind"], set(row) ^ (allowed | {"positionId"}))
+        assert "positionId" in row and "positionId" not in allowed
