@@ -326,10 +326,18 @@ def test_admin_review_lists_drafts_by_lane_and_acts(admin_client, store):
     f = admin_client.post("/api/study/admin/review/si_spot2",
                           json={"action": "fix", "field": "lesson_text", "after": "fixed", "reason": "voice"}).json()
     assert f["item"]["lesson_text"] == "fixed" and f["trust"]["clean_count"] == 0
+    # the gallery: ?status=any lists the approved item beside the drafts, and a grade sticks
+    g = admin_client.post("/api/study/admin/review/si_spot1", json={"action": "grade", "after": "good"})
+    assert g.status_code == 200 and g.json()["item"]["reveal_json"]["example_grade"] == "good"
+    assert g.json()["item"]["review_status"] == "approved"
+    assert admin_client.post("/api/study/admin/review/si_spot1", json={"action": "grade", "after": "meh"}).status_code == 400
+    ids_any = {d["id"] for d in admin_client.get("/api/study/admin/review?type=spot&status=any").json()["drafts"]}
+    assert {"si_spot1", "si_spot2"} <= ids_any
+    assert "si_spot1" not in {d["id"] for d in admin_client.get("/api/study/admin/review?type=spot").json()["drafts"]}
     assert admin_client.post("/api/study/admin/review/si_recall1", json={"action": "bless"}).status_code == 400
     assert admin_client.post("/api/study/admin/review/nope", json={"action": "approve"}).status_code == 400
     ex = admin_client.get("/api/study/admin/corrections/export").json()
-    assert [c["action"] for c in ex["corrections"]] == ["approve", "fix"] and ex["next_since_id"] == 2
+    assert [c["action"] for c in ex["corrections"]] == ["approve", "fix", "grade"] and ex["next_since_id"] == 3
     t = admin_client.post("/api/study/admin/trust/spot", json={"state": "sampled"}).json()
     assert t["state"] == "sampled"
     assert admin_client.post("/api/study/admin/trust/spot", json={"state": "auto"}).status_code == 400

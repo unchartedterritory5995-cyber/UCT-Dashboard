@@ -404,6 +404,25 @@ def test_trust_asks_to_switch_at_twenty_clean_and_owner_flips_it(store):
     assert store.trust_state("size") == {**store.trust_state("size"), "clean_count": 0, "state": "manual"}
 
 
+def test_grade_marks_the_example_without_touching_the_status_and_any_lists_every_status(store):
+    """Owner 2026-10-21: okay / good / great on a chart example; bad is a reject.
+    A grade never changes review_status or the trust count, and is logged."""
+    store.upsert_items([_chart_item("si_g1"), _chart_item("si_g2", sym="AAPL")])
+    store.approve("si_g1", "owner")
+    out = store.review("si_g1", "grade", "owner", after="great")
+    assert out["item"]["reveal_json"]["example_grade"] == "great"
+    assert out["item"]["review_status"] == "approved"
+    assert store.trust_state("spot")["clean_count"] == 1          # untouched
+    with pytest.raises(ValueError):
+        store.review("si_g2", "grade", "owner", after="amazing")
+    log = [c for c in store.export_corrections() if c["item_id"] == "si_g1" and c["action"] == "grade"]
+    assert log and log[-1]["after_json"] == "great" and log[-1]["field"] == "reveal_json.example_grade"
+    # the queue lists drafts only; the gallery asks for every status
+    assert [d["id"] for d in store.list_drafts(item_type="spot")] == ["si_g2"]
+    assert {d["id"] for d in store.list_drafts(item_type="spot", status="any")} == {"si_g1", "si_g2"}
+    assert [d["id"] for d in store.list_drafts(item_type="spot", status="approved")] == ["si_g1"]
+
+
 def test_review_rejects_unknown_action_and_bad_fix_field(store):
     store.upsert_items([_item()])
     with pytest.raises(ValueError):
