@@ -499,3 +499,14 @@ def test_walkthrough_attempt_is_seen_on_the_wire_no_xp_no_score(paid_client, sto
     s = paid_client.post("/api/study/attempts", json={"item_id": "si_spot1", "answer": "yes",
                                                      "session_id": sess["session_id"]}).json()
     assert s["unscored"] is False and s["progress"]["xp_gained"] == 30 and s["score"] == 1.0
+
+
+def test_an_attempt_posted_in_the_drills_choice_shape_scores_right(paid_client, store):
+    """The member drills post {choice: <value>} (drills/types.js choiceAnswer).
+    End to end through /attempts: right choice -> correct, wrong -> not.
+    Seen live 2026-10-21: "Matching Low" chosen, scored "Not quite"."""
+    _seed(store)
+    ok = paid_client.post("/api/study/attempts", json={"item_id": "si_recall1", "answer": {"choice": "a"}}).json()
+    assert ok["correct"] is True and ok["score"] == 1.0
+    bad = paid_client.post("/api/study/attempts", json={"item_id": "si_spot2", "answer": {"choice": "yes"}}).json()
+    assert bad["correct"] is False

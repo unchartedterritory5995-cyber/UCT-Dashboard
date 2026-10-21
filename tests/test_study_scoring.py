@@ -174,3 +174,32 @@ def test_every_other_verdict_is_scored_by_default():
         v = sc.score(t, None, {"answer": "a"})
         assert v.unscored is False and isinstance(v.score, float), t
     assert sc.Verdict._field_defaults == {"unscored": False}
+
+
+# ── the member drills' real answer shape (2026-10-21) ─────────────────────────
+# app/src/pages/study/drills/types.js `choiceAnswer` posts {choice: <value>}.
+# Only {answer: <value>} was unwrapped, so every choice answer from the live app
+# scored wrong; seen live as "Not quite. The answer: Matching Low" for the
+# choice "Matching Low". These pin the shape the drills actually send.
+
+@pytest.mark.parametrize("item_type", ["recall", "regime", "spot", "scenario", "family", "grade",
+                                       "call_scan", "call_archive", "listen"])
+def test_the_drills_choice_shape_scores_like_the_bare_value(item_type):
+    right = sc.score(item_type, {"choice": "Matching Low"}, {"answer": "Matching Low"})
+    assert right.correct and right.score == 1.0, item_type
+    wrong = sc.score(item_type, {"choice": "Doji"}, {"answer": "Matching Low"})
+    assert not wrong.correct
+    assert sc.score(item_type, {"choice": "  matching   LOW "}, {"answer": "Matching Low"}).correct
+    assert not sc.score(item_type, {"choice": None}, {"answer": "Matching Low"}).correct
+
+
+def test_a_numeric_fill_in_and_the_call_drills_lowercase_choice_both_score():
+    assert sc.score("recall", {"choice": 42}, {"answer": "42"}).correct
+    assert sc.score("recall", {"choice": 42.0}, {"answer": 42}).correct
+    assert sc.score("call_scan", {"choice": "trigger"}, {"answer": "TRIGGER", "accept": ["watch"]}).correct
+    assert sc.score("call_scan", {"choice": "watch"}, {"answer": "TRIGGER", "accept": ["watch"]}).correct
+
+
+def test_a_two_field_dict_is_not_unwrapped():
+    # only a ONE-field {choice} / {answer} is a single chosen value
+    assert not sc.score("recall", {"choice": "Matching Low", "extra": 1}, {"answer": "Matching Low"}).correct
