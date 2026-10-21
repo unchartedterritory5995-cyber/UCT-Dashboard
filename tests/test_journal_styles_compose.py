@@ -506,7 +506,8 @@ def test_applies_only_enabled_kinds(db_path, monkeypatch):
     monkeypatch.setattr(nw, "build", _fake_build(calls))
     out = js.compose("u1", js.get_style("u1", "builtin:weekly_review"), ticker=None, conn=None, now=NOW)
     assert [n["attrs"]["widgetId"] for n in _slot_embeds(out["bodyJson"])] == ["myPnlStats", "myPositionsRisk"]
-    assert [c[0] for c in calls] == ["myPnlStats", "myPositionsRisk"]                 # wave 2 never read
+    assert sorted(c[0] for c in calls) == ["myPnlStats", "myPositionsRisk"]           # wave 2 never read
+    assert [n["attrs"]["params"]["kind"] for n in _slot_embeds(out["bodyJson"])] == ["myPnlStats", "myPositionsRisk"]
     assert out["skipped"] == []
     words = " ".join(_text(n) for n in out["bodyJson"]["content"])
     assert "{{block:" not in words and "couldn't load" not in words
@@ -595,7 +596,9 @@ def test_an_empty_note_switched_to_the_style_is_a_create_and_fills(db_path, monk
     assert [a["block"] for a in plan["add"]] == ["myPnlStats", "myPositionsRisk"]
     note, _ = js.apply_style_update("u1", n["id"], style_id="builtin:weekly_review", expected_updated_at=n["updatedAt"])
     assert [x["attrs"]["widgetId"] for x in _slot_embeds(note["bodyJson"])] == ["myPnlStats", "myPositionsRisk"]
-    assert [c[0] for c in calls] == ["myPnlStats", "myPositionsRisk"]                   # built once, by the write
+    # Audit I-4: concurrent slots, so the SET of builds (each once, by the write) and the PLACED order.
+    assert sorted(c[0] for c in calls) == ["myPnlStats", "myPositionsRisk"]
+    assert [x["attrs"]["params"]["kind"] for x in _slot_embeds(note["bodyJson"])] == ["myPnlStats", "myPositionsRisk"]
 
 
 def test_the_starter_styles_hold_their_slots_with_no_version_bump():
@@ -864,17 +867,24 @@ def test_apply_refills_each_slot(db_path, monkeypatch):
     monkeypatch.setattr(nw, "build", _fake_build(calls))
     _waves(monkeypatch, 1)                                                # wave 2 (myRulesCheck) off
     note, skipped = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
-    assert [c for c in calls] == [("myWatchlistToday", "u1", {"list": "flagged"}),
-                                  ("myPnlStats", "u1", {"from": "2026-10-01"})]
+    # Robustness audit I-4: slots build CONCURRENTLY, so the order build was CALLED is not a contract
+    # (it differed in 7/3000 runs on a fresh pool, 1361/3000 on a warm one). The contract is WHICH builds
+    # ran, and the ORDER the embeds were placed in (railed below, each embed holding its own kind's payload).
+    assert sorted(calls, key=repr) == sorted([("myWatchlistToday", "u1", {"list": "flagged"}),
+                                              ("myPnlStats", "u1", {"from": "2026-10-01"})], key=repr)
     embeds = _slot_embeds(note["bodyJson"])
     assert [e["attrs"]["widgetId"] for e in embeds] == ["myWatchlistToday", "myPnlStats"]
+    assert [e["attrs"]["params"]["kind"] for e in embeds] == ["myWatchlistToday", "myPnlStats"]
     assert all(e["attrs"]["params"]["rows"] == [{"n": 1}] for e in embeds)          # today's payload
     assert skipped == [] and "{{block:" not in _json.dumps(note["bodyJson"])
     # The control: wave 2 on, the third slot fills too.
     _waves(monkeypatch, 1, 2)
     calls.clear()
     note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today 2"})
-    assert [c[0] for c in calls] == ["myWatchlistToday", "myRulesCheck", "myPnlStats"]
+    assert sorted(c[0] for c in calls) == sorted(["myWatchlistToday", "myRulesCheck", "myPnlStats"])
+    placed = _slot_embeds(note["bodyJson"])
+    assert [e["attrs"]["widgetId"] for e in placed] == ["myWatchlistToday", "myRulesCheck", "myPnlStats"]
+    assert [e["attrs"]["params"]["kind"] for e in placed] == ["myWatchlistToday", "myRulesCheck", "myPnlStats"]
 
 
 def test_member_preset_round_trip_refills_slots_in_order(db_path, monkeypatch):
@@ -888,10 +898,13 @@ def test_member_preset_round_trip_refills_slots_in_order(db_path, monkeypatch):
     calls = []
     monkeypatch.setattr(nw, "build", _fake_build(calls))
     fresh, skipped = js.create_styled_note("u1", {"styleId": s["id"], "title": "next week"})
-    assert [e["attrs"]["widgetId"] for e in _slot_embeds(fresh["bodyJson"])] == _NOTE_ORDER
-    assert calls == [("myWatchlistToday", "u1", {"list": "flagged"}),
-                     ("myPnlStats", "u1", {"from": "2026-10-01", "to": "2026-10-09"}),
-                     ("myPositionsRisk", "u1", {})]
+    placed = _slot_embeds(fresh["bodyJson"])
+    assert [e["attrs"]["widgetId"] for e in placed] == _NOTE_ORDER
+    assert [e["attrs"]["params"]["kind"] for e in placed] == _NOTE_ORDER      # each slot holds its own build
+    # Audit I-4: the set of builds, never the order they were called in (the slots run concurrently).
+    assert sorted(calls, key=repr) == sorted([("myWatchlistToday", "u1", {"list": "flagged"}),
+                                              ("myPnlStats", "u1", {"from": "2026-10-01", "to": "2026-10-09"}),
+                                              ("myPositionsRisk", "u1", {})], key=repr)
     words = [_text(x) for x in fresh["bodyJson"]["content"]]
     assert "Names first." in words and "Then risk." in words and skipped == []
     dumped = _json.dumps(fresh["bodyJson"])
