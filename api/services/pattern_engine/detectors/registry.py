@@ -319,6 +319,11 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: a drawing (auto_structures.inside_day_draw_row); member_rows serves it only while it carries
 #: draw_round == MEMBER_INSIDE_DAY_ROUND beside a well-formed draw_inside_day, and
 #: member_inside_day_precedence keeps it to daily charts and drops it under an incumbent breakout line.
+#: draw:saucer / draw:ascending-base / draw:double-bottom / draw:ipo-base (lab base_shapes, 2026-10-20;
+#: api/services/pattern_engine/shape_draw.py) are deliberately in NEITHER set: admin-only, experimental,
+#: and only while AUTO_STRUCTURES_SHAPES_ENABLED is on. A shape is released by setting its
+#: auto_structures.MEMBER_<SHAPE>_ROUND literal to its blind-confirmed round AND adding its id here and to
+#: DISPLAY_TEAM_SET; until then member_rows drops it (fail closed). The IPO base stays experimental.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",

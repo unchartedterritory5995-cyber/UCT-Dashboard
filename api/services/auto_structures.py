@@ -106,7 +106,12 @@ def member_rows(rows) -> list:
     An inside-day drawing (draw:inside-day, lab id_draw_v2) passed its blind check as drawn by one
     round (MEMBER_INSIDE_DAY_ROUND), so a member gets one only while it carries that round's stamp
     beside a well-formed `draw_inside_day` (`_confirmed_inside_day`). Fail closed. On the member
-    path the route also applies `member_inside_day_precedence`."""
+    path the route also applies `member_inside_day_precedence`.
+
+    A named base-shape drawing (SHAPE_DRAW_IDS, lab base_shapes) reaches a member only while its row
+    carries the round its MEMBER_<SHAPE>_ROUND literal names beside a well-formed `draw_shape`
+    (`_confirmed_shape`). Every one of those literals is None today, so every such row is dropped
+    whatever else is true of it. Fail closed."""
     allowed = member_ids()
     kept = [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
@@ -117,6 +122,7 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
             and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
+            and ((r or {}).get("pattern_id") not in SHAPE_DRAW_IDS or _confirmed_shape(r))
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
                  or _pivot_only(r))]
     return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
@@ -331,6 +337,65 @@ def _confirmed_inside_day(row) -> bool:
         return False
     try:
         return int(d["start_t"]) < int(d["inside_t"]) <= int(d["end_t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+#: The named base-shape drawing rows (lab base_shapes, api/services/pattern_engine/shape_draw.py). A row of
+#: one of these ids is built ONLY beside a drawing (`shape_draw_rows`). Keep PatternOverlay.SHAPE_DRAW_IDS equal.
+SHAPE_DRAW_IDS = ("draw:saucer", "draw:ascending-base", "draw:double-bottom", "draw:ipo-base")
+#: The drawing round each shape's blind check confirmed for members -- None: NOT confirmed. Literals ON
+#: PURPOSE, never shape_draw's *_DRAW_ROUND constants: a member gets a shape only after its round passed the
+#: two pre-registered blind packets (lab base_shapes/PREREG.txt) and someone set the literal by hand. To
+#: release one: set its literal to the confirmed round AND add its id to registry.DISPLAY_TEAM_SET and
+#: DISPLAY_MEMBER_SET (member_rows also requires the trusted tier and the member set).
+MEMBER_SAUCER_ROUND = None
+MEMBER_ASCENDING_BASE_ROUND = None
+MEMBER_DOUBLE_BOTTOM_ROUND = None
+#: The IPO base is EXPERIMENTAL (base_catalog.EXPERIMENTAL_STRUCTURES): no lift measurement exists, so it
+#: stays admin-only whatever its drawing scores.
+MEMBER_IPO_BASE_ROUND = None
+#: The drawn labels the judges see.
+MEMBER_SHAPE_LABELS = ("pivot", "base low")
+
+
+def _member_shape_round(pid):
+    """The confirmed member round for one shape id (read PER CALL so a test can move one literal)."""
+    return {
+        "draw:saucer": MEMBER_SAUCER_ROUND,
+        "draw:ascending-base": MEMBER_ASCENDING_BASE_ROUND,
+        "draw:double-bottom": MEMBER_DOUBLE_BOTTOM_ROUND,
+        "draw:ipo-base": MEMBER_IPO_BASE_ROUND,
+    }.get(pid)
+
+
+def _confirmed_shape(row) -> bool:
+    """True when a named base-shape row is drawn by its shape's confirmed round: the shape's member literal
+    is an int (None = not confirmed: always False), not stale, `extras.draw_round` equals it, and
+    `draw_shape` is well formed -- the row's own shape, a finite pivot above a finite low, a start before
+    its end, the judged labels, and every mark a finite price. Anything else is False."""
+    r = row or {}
+    want = _member_shape_round(r.get("pattern_id"))
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    if ex.get("stale"):
+        return False
+    rnd = ex.get("draw_round")
+    # an int round equal to the literal: a None literal (not confirmed) can never be equalled
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_shape")
+    if not isinstance(d, dict) or "draw:" + str(d.get("shape")) != r.get("pattern_id"):
+        return False
+    if (d.get("label"), d.get("low_label")) != MEMBER_SHAPE_LABELS or d.get("draw_round") != rnd:
+        return False
+    if not (_finite(d.get("pivot")) and _finite(d.get("low")) and float(d["pivot"]) > float(d["low"])):
+        return False
+    marks = d.get("marks")
+    if not (isinstance(marks, list) and marks
+            and all(isinstance(m, dict) and m.get("t") is not None and _finite(m.get("price")) for m in marks)):
+        return False
+    try:
+        return int(d["start_t"]) < int(d["end_t"])
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -595,6 +660,77 @@ def base_draw_row(sym: str, bars: list):
         }
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
+
+
+def shapes_enabled() -> bool:
+    """Read PER CALL. AUTO_STRUCTURES_SHAPES_ENABLED (default OFF): when on, structures_for appends the named
+    base-shape drawing rows (shape_draw_rows). Off, structures_for is byte-identical to the code before them.
+    The rows are admin-only either way until a MEMBER_<SHAPE>_ROUND literal is set (member_rows)."""
+    return os.environ.get("AUTO_STRUCTURES_SHAPES_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: Shape id -> (shape_draw function name, display name).
+_SHAPE_FUNCS = (
+    ("draw:saucer", "saucer_drawing", "Saucer"),
+    ("draw:ascending-base", "ascending_base_drawing", "Ascending base"),
+    ("draw:double-bottom", "double_bottom_drawing", "Double bottom"),
+    ("draw:ipo-base", "ipo_base_drawing", "IPO base"),
+)
+
+
+def shape_draw_rows(sym: str, bars: list) -> list:
+    """The named base-shape drawing rows for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
+    first): one row per shape whose drawing fires there (lab base_shapes; display only). A forming session
+    (last_bar_forming) is dropped first: the lab drew finished sessions. The IPO base needs the series' first
+    stored bar: `bars` is the store's latest STRUCTURE_BARS, so it reaches back to the first stored bar only
+    when it holds fewer than that -- otherwise the ticker is too old to be a recent listing and no IPO base is
+    attempted. A failing shape costs that shape only. Never raises."""
+    out = []
+    try:
+        from api.services.pattern_engine import shape_draw
+        b = list(bars or [])
+        first_t = int(b[0]["t"]) if b and len(b) < STRUCTURE_BARS else None
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return []
+        sym = (sym or "").upper()
+        for pid, fn, name in _SHAPE_FUNCS:
+            try:
+                if pid == "draw:ipo-base":
+                    if first_t is None:
+                        continue
+                    d = shape_draw.ipo_base_drawing(b, len(b) - 1, first_t=first_t)
+                else:
+                    d = getattr(shape_draw, fn)(b, len(b) - 1)
+            except Exception:  # noqa: BLE001 -- a failing shape costs that shape only
+                _log.debug("[auto-structures] %s %s failed", sym, pid, exc_info=True)
+                continue
+            if d is None:
+                continue
+            out.append({
+                "id": f"{pid}:{sym}:{d['start_t']}:{d['end_t']}",
+                "sym": sym,
+                "tf": "D",
+                "pattern_id": pid,
+                "pattern_name": name,
+                "category": "base",
+                "direction": "bullish",
+                "start_t": d["start_t"],
+                "end_t": d["end_t"],
+                "geometry": {
+                    "shape": "shape_draw",
+                    "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
+                    "extras": {"draw_shape": d, "draw_round": d["draw_round"]},
+                },
+                "levels": {"entry": d["pivot"]},
+                "confidence": None,
+                "status": "forming",
+                **display_policy(pid),
+            })
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return []
+    return out
 
 
 def inside_day_draw_row(sym: str, bars: list):
@@ -977,6 +1113,9 @@ def structures_for(sym: str) -> list:
             idd = inside_day_draw_row(sym, bars)
             if idd is not None:
                 out.append(idd)
+            # the named base-shape drawings (lab base_shapes): admin-only rows, behind their own flag
+            if shapes_enabled():
+                out.extend(shape_draw_rows(sym, bars))
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []
