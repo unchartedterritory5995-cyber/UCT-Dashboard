@@ -264,7 +264,7 @@
   font: inherit;
   color: var(--text-bright);
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-sm);
   padding: 0 10px;
 }
