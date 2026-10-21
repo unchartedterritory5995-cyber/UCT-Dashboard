@@ -518,15 +518,35 @@ function snapshotCommand(kind, params) {
 
 /** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
  *  come from lib/notebookSets.js, loaded only here and only while wave 5 is on (first-open bytes); a
- *  preset inserts through snapshotCommand, the one snapshot insert. A chunk or read that fails offers nothing. */
-export async function mineItems(query) {
-  if (!widgetsWaveOn(5)) return []
-  try {
-    const m = await import('../../lib/notebookSets')
-    const doc = await m.loadSets()
-    return [...m.presetRows(query, doc, 'mine', snapshotCommand), ...m.chartSetRows(query, doc, 'mine')]
-  } catch { return [] }
+ *  preset inserts through snapshotCommand, the one snapshot insert.
+ *  ⛔ SYNCHRONOUS. Suggestion awaits items() before it draws anything, so a read here would hold the
+ *  whole menu. This answers what is already loaded and starts ONE background load when nothing is, or
+ *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update. */
+let mine = { m: null, doc: null, at: 0, failedAt: 0, loading: null }
+function loadMine() {
+  const now = Date.now()
+  if (mine.loading || now - mine.failedAt < 30000 || (mine.doc && now - mine.at < 60000)) return mine.loading
+  mine.loading = import('../../lib/notebookSets')
+    .then(async (m) => {
+      const doc = await m.loadSets({ fresh: true })
+      if (doc.failed) throw doc
+      Object.assign(mine, { m, doc, at: Date.now() })
+    })
+    .catch(() => { mine.failedAt = Date.now() })
+    .finally(() => { mine.loading = null })
+  return mine.loading
 }
+export function mineItems(query) {
+  if (!widgetsWaveOn(5)) return []
+  loadMine()
+  const { m } = mine
+  // The module's own copy wins: a save in this tab updates it at once.
+  const doc = m && (m.peekSets() || mine.doc)
+  return doc ? [...m.presetRows(query, doc, 'mine', snapshotCommand), ...m.chartSetRows(query, doc, 'mine')] : []
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __mineLoad = () => mine.loading || Promise.resolve()
+export const __resetMine = () => { mine = { m: null, doc: null, at: 0, failedAt: 0, loading: null } }
 
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
@@ -965,10 +985,8 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        // Wave 5 adds the member's own rows (mineItems), read as the menu opens; off, nothing is awaited.
-        items: ({ query, editor }) => (widgetsWaveOn(5)
-          ? mineItems(query).then((mine) => slashItems(query, editor, mine))
-          : slashItems(query, editor, [])),
+        // Wave 5 adds the member's own rows (mineItems): whatever is loaded, never awaited.
+        items: ({ query, editor }) => slashItems(query, editor, mineItems(query)),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.

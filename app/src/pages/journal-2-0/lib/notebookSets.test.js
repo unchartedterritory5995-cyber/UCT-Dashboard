@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import {
-  readSets, saveSets, chartSetNodes, presetParams, setRefusal, chartSetRows, presetRows, savePreset,
+  readSets, saveSets, chartSetNodes, presetParams, setRefusal, chartSetRows, presetRows, savePreset, BARE_ROWS,
   CHART_SETS_PREF, MAX_CHARTS_PER_SET, SETTINGS_KEYS, __resetSetsCache, READ_FAILED_REASON,
 } from './notebookSets'
 import { WIDGET_KINDS } from './notebookWidgets'
@@ -112,7 +112,7 @@ describe('chart sets insert ordinary chart embeds', () => {
     editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/set semis</p><p>tail</p>' })
     editor.storage.uctJournalWidgets = { ...(editor.storage.uctJournalWidgets || {}), chartSettings: settings }
     const [row] = chartSetRows('set semis', { sets: [SEMIS], presets: [] }, 'mine')
-    expect(row.title).toBe('Chart set — Semis')
+    expect(row.title).toBe('Set — Semis')
     let transactions = 0
     editor.on('transaction', () => { transactions += 1 })
     row.command({ editor, range: { from: 1, to: 1 + '/set semis'.length } })
@@ -133,11 +133,11 @@ describe('chart sets insert ordinary chart embeds', () => {
   it('/set matches a name case-insensitively by prefix, two regimes like /ticker', () => {
     const doc = { sets: [SEMIS, { id: 's_2', name: 'Software', charts: [{ symbol: 'NOW', tf: 'D' }] }], presets: [] }
     const titles = (q) => chartSetRows(q, doc, 'mine').map((r) => r.title)
-    expect(titles('set')).toEqual(['Chart set — Semis', 'Chart set — Software', 'Manage chart sets'])
-    expect(titles('se')).toEqual(['Chart set — Semis', 'Chart set — Software', 'Manage chart sets'])
+    expect(titles('set')).toEqual(['Set — Semis', 'Set — Software', 'Manage chart sets'])
+    expect(titles('se')).toEqual(['Set — Semis', 'Set — Software', 'Manage chart sets'])
     expect(titles('sets')).toEqual(['Manage chart sets'])
-    expect(titles('set SEM')).toEqual(['Chart set — Semis'])
-    expect(titles('set s')).toEqual(['Chart set — Semis', 'Chart set — Software'])
+    expect(titles('set SEM')).toEqual(['Set — Semis'])
+    expect(titles('set s')).toEqual(['Set — Semis', 'Set — Software'])
     // Prose after a near word, or a name that matches nothing, offers nothing (Enter stays a newline).
     expect(titles('set nothing here')).toEqual([])
     expect(titles('settle the trade')).toEqual([])
@@ -191,7 +191,7 @@ describe('presets store settings only', () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     const insert = vi.fn(() => 'the-command')
     const rows = presetRows('preset', { sets: [], presets: [PRESET] }, 'mine', insert)
-    expect(rows).toEqual([expect.objectContaining({ title: 'Flagged only', group: 'mine', command: 'the-command' })])
+    expect(rows).toEqual([expect.objectContaining({ title: 'Preset — Flagged only', group: 'mine', command: 'the-command' })])
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({ id: 'myWatchlistToday' }), { list: 'flagged', share: false })
     // A preset of a kind whose wave is off is not offered (control: on above, off here).
     __resetNotebookFlags()
@@ -206,5 +206,39 @@ describe('presets store settings only', () => {
     const value = JSON.parse(global.fetch.posts[0].value)
     expect(value.sets).toEqual([SEMIS])
     expect(value.presets).toEqual([expect.objectContaining({ name: 'Flagged only', kind: 'myWatchlistToday', params: { list: 'flagged', share: false } })])
+  })
+})
+
+describe('fix round 1', () => {
+  it('saveSets(updater) applies the edit to a FRESH read, so another tab\'s change is kept', async () => {
+    // This tab opened with only Semis; another tab has since added Software.
+    global.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [SEMIS, { id: 's_2', name: 'Software', charts: [{ symbol: 'NOW', tf: 'D' }] }], presets: [] }))
+    const seen = []
+    const res = await saveSets((fresh) => { seen.push(fresh.sets.map((x) => x.name)); return { sets: fresh.sets.filter((x) => x.id !== 's_1') } })
+    expect(res.ok).toBe(true)
+    expect(seen).toEqual([['Semis', 'Software']])
+    expect(JSON.parse(global.fetch.posts[0].value).sets.map((x) => x.name)).toEqual(['Software'])
+  })
+
+  it('a bare / shows at most 5 sets and 5 presets plus Manage; typing narrows to every match', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    const sets = Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, name: `Set${i}`, charts: [{ symbol: 'NVDA', tf: 'D' }] }))
+    const presets = Array.from({ length: 8 }, (_, i) => ({ ...PRESET, id: `p${i}`, name: `P${i}` }))
+    const doc = { sets, presets }
+    expect(BARE_ROWS).toBe(5)
+    expect(chartSetRows('', doc, 'mine').map((r) => r.title)).toEqual([...sets.slice(0, 5).map((x) => `Set — ${x.name}`), 'Manage chart sets'])
+    expect(presetRows('', doc, 'mine', () => null)).toHaveLength(5)
+    expect(chartSetRows('set', doc, 'mine')).toHaveLength(9)
+    expect(presetRows('preset', doc, 'mine', () => null)).toHaveLength(8)
+  })
+
+  it('saving under an existing name replaces that preset and says so; a new name says Saved', async () => {
+    global.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [], presets: [PRESET] }))
+    const again = await savePreset({ name: 'flagged ONLY', kind: 'myWatchlistToday', params: { list: 'watchlist' } })
+    expect(again).toMatchObject({ ok: true, replaced: true, message: 'Replaced the preset flagged ONLY.' })
+    expect(JSON.parse(global.fetch.posts[0].value).presets.map((p) => [p.name, p.params.list])).toEqual([['flagged ONLY', 'watchlist']])
+    __resetSetsCache()
+    global.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [], presets: [PRESET] }))
+    expect(await savePreset({ name: 'Weekly', kind: 'myPnlStats', params: {} })).toMatchObject({ ok: true, replaced: false, message: 'Saved as a preset.' })
   })
 })

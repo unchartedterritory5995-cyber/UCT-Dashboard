@@ -33,7 +33,7 @@ async function getJson(url) {
 
 const move = (list, i, by) => {
   const j = i + by
-  if (j < 0 || j >= list.length) return list
+  if (i < 0 || j < 0 || j >= list.length) return list
   const next = [...list]
   ;[next[i], next[j]] = [next[j], next[i]]
   return next
@@ -171,9 +171,13 @@ export default function SetsDialog({ onClose }) {
   useEffect(() => {
     alive.current = true
     loadSets({ fresh: true }).then((d) => { if (alive.current) setDoc(d) })
-    return () => { alive.current = false }
-  }, [])
+    // The back button closes the dialog rather than moving the page under it (Sheet keeps no history entry).
+    const back = () => onClose?.()
+    window.addEventListener('popstate', back)
+    return () => { alive.current = false; window.removeEventListener('popstate', back) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Every edit is an updater over a FRESH read (saveSets), so another tab's change is never dropped.
   const commit = async (next, done) => {
     setBusy(true)
     setMessage('')
@@ -188,9 +192,13 @@ export default function SetsDialog({ onClose }) {
     const set = { id: draft.id || newId('s'), name: draft.name.trim(), charts }
     const why = setRefusal(set)
     if (why) { setMessage(why); return }
-    const exists = doc.sets.some((s) => s.id === set.id)
-    if (!exists && doc.sets.length >= MAX_SETS) { setMessage(`You can keep up to ${MAX_SETS} chart sets.`); return }
-    commit({ sets: exists ? doc.sets.map((s) => (s.id === set.id ? set : s)) : [...doc.sets, set] }, () => setDraft(null))
+    if (!doc.sets.some((s) => s.id === set.id) && doc.sets.length >= MAX_SETS) {
+      setMessage(`You can keep up to ${MAX_SETS} chart sets.`)
+      return
+    }
+    commit((f) => ({
+      sets: f.sets.some((s) => s.id === set.id) ? f.sets.map((s) => (s.id === set.id ? set : s)) : [...f.sets, set],
+    }), () => setDraft(null))
   }
 
   const sets = doc?.sets || []
@@ -220,15 +228,15 @@ export default function SetsDialog({ onClose }) {
                     <>
                       <span className={styles.ask}>Delete {s.name}?</span>
                       <button type="button" className={styles.btn} disabled={busy}
-                        onClick={() => commit({ sets: sets.filter((x) => x.id !== s.id) }, () => setConfirming(null))}>Delete</button>
+                        onClick={() => commit((f) => ({ sets: f.sets.filter((x) => x.id !== s.id) }), () => setConfirming(null))}>Delete</button>
                       <button type="button" className={styles.btn} onClick={() => setConfirming(null)}>Keep</button>
                     </>
                   ) : (
                     <>
                       <IconButton icon="chevronUp" label={`Move ${s.name} up`} disabled={busy || i === 0}
-                        onClick={() => commit({ sets: move(sets, i, -1) })} />
+                        onClick={() => commit((f) => ({ sets: move(f.sets, f.sets.findIndex((x) => x.id === s.id), -1) }))} />
                       <IconButton icon="chevronDown" label={`Move ${s.name} down`} disabled={busy || i === sets.length - 1}
-                        onClick={() => commit({ sets: move(sets, i, 1) })} />
+                        onClick={() => commit((f) => ({ sets: move(f.sets, f.sets.findIndex((x) => x.id === s.id), 1) }))} />
                       <IconButton icon="edit" label={`Rename or edit ${s.name}`}
                         onClick={() => { setDraft({ ...s, charts: s.charts.map((c) => ({ ...c })) }); setMessage('') }} />
                       <IconButton icon="trash" label={`Delete ${s.name}`} onClick={() => setConfirming(s.id)} />
@@ -257,7 +265,7 @@ export default function SetsDialog({ onClose }) {
                       <>
                         <span className={styles.ask}>Delete {p.name}?</span>
                         <button type="button" className={styles.btn} disabled={busy}
-                          onClick={() => commit({ presets: presets.filter((x) => x.id !== p.id) }, () => setConfirming(null))}>Delete</button>
+                          onClick={() => commit((f) => ({ presets: f.presets.filter((x) => x.id !== p.id) }), () => setConfirming(null))}>Delete</button>
                         <button type="button" className={styles.btn} onClick={() => setConfirming(null)}>Keep</button>
                       </>
                     ) : (

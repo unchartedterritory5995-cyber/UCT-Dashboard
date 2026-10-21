@@ -145,18 +145,24 @@ export async function loadSets({ fresh = false } = {}) {
   return _cached
 }
 
+/** What is already loaded in this tab (a save updates it), or null. Never a request. */
+export const peekSets = () => _cached
+
 /** Tests only. */
 export function __resetSetsCache() { _cached = null }
 
 export const READ_FAILED_REASON = "Your saved sets couldn't be read just now, so nothing was saved. Try again."
 export const SAVE_FAILED_REASON = "Couldn't save just now. Your sets are unchanged."
 
-/** Save `next` (`{sets}` and/or `{presets}`): read the stored value, replace only the key(s) given, and
- *  post the WHOLE value (the endpoint replaces it). `{ok: true, doc}` or `{ok: false, reason}`. */
-export async function saveSets(next) {
+/** Save `next` (`{sets}` and/or `{presets}`), or an updater `(fresh) => next` applied to a FRESH read taken
+ *  just before the write (so an edit another tab made meanwhile is not dropped): read the stored value,
+ *  replace only the key(s) given, and post the WHOLE value (the endpoint replaces it).
+ *  `{ok: true, doc}` or `{ok: false, reason}`. */
+export async function saveSets(update) {
   const cur = await readRaw()
   if (!cur.ok) return { ok: false, reason: READ_FAILED_REASON }
   const stored = readSets(cur.raw)
+  const next = typeof update === 'function' ? update(stored) : update
   const merged = {
     v: 1,
     sets: Array.isArray(next?.sets) ? next.sets : stored.sets,
@@ -186,12 +192,14 @@ export async function savePreset({ name, kind, params }) {
   const clean = cleanName(name)
   if (!clean) return { ok: false, reason: 'Give the preset a name.' }
   if (!SNAPSHOT_IDS.has(kind)) return { ok: false, reason: 'This widget cannot be saved as a preset.' }
-  const cur = await loadSets({ fresh: true })
-  if (cur.failed) return { ok: false, reason: READ_FAILED_REASON }
-  const others = cur.presets.filter((p) => p.name.toLowerCase() !== clean.toLowerCase())
-  if (others.length >= MAX_PRESETS) return { ok: false, reason: `You can keep up to ${MAX_PRESETS} presets.` }
-  const preset = { id: newId('p'), name: clean, kind, params: presetParams({ params }) }
-  return saveSets({ presets: [...others, preset] })
+  // The same name replaces that preset, and says so. The list is read fresh inside the save.
+  let replaced = false
+  const res = await saveSets((fresh) => {
+    const others = fresh.presets.filter((p) => p.name.toLowerCase() !== clean.toLowerCase())
+    replaced = others.length < fresh.presets.length
+    return { presets: [...others, { id: newId('p'), name: clean, kind, params: presetParams({ params }) }] }
+  })
+  return res.ok ? { ...res, replaced, message: replaced ? `Replaced the preset ${clean}.` : 'Saved as a preset.' } : res
 }
 
 // ── The / menu rows (built here so the menu's first-open bytes stay put) ─────
@@ -205,7 +213,7 @@ export function matchSets(sets, q) {
 function setRow(set, group) {
   const n = set.charts.length
   return {
-    title: `Chart set — ${set.name}`, cmd: 'set', group,
+    title: `Set — ${set.name}`, cmd: 'set', group,
     description: `${n} chart${n === 1 ? '' : 's'}: ${set.charts.map((c) => c.symbol).slice(0, 4).join(' ')}${n > 4 ? ' …' : ''}`,
     command: ({ editor, range }) => {
       // ONE transaction: the typed command leaves and every chart goes in, in order.
@@ -230,13 +238,17 @@ const manageRow = (group) => ({
 /** `/set` lists the member's sets (and the door to manage them); `/set <name>` inserts the set whose
  *  name starts with it. Two regimes, like /ticker: a single token is a prefix of the command; once a
  *  space follows, only the exact command, and a name that matches nothing offers nothing. */
+/** A bare `/` shows at most this many sets and presets each; typing narrows to every match. */
+export const BARE_ROWS = 5
+
 export function chartSetRows(query, doc, group) {
   const raw = String(query || '').trim()
   const tokens = raw.split(/\s+/).filter(Boolean)
   const first = tokens[0]?.toLowerCase() || ''
   if (tokens.length <= 1) {
     const rows = []
-    if ('set'.startsWith(first)) rows.push(...doc.sets.map((s) => setRow(s, group)))
+    const sets = raw ? doc.sets : doc.sets.slice(0, BARE_ROWS)
+    if ('set'.startsWith(first)) rows.push(...sets.map((s) => setRow(s, group)))
     if ('sets'.startsWith(first)) rows.push(manageRow(group))
     return rows
   }
@@ -251,7 +263,8 @@ export function presetRows(query, doc, group, insert) {
   const tokens = raw.split(/\s+/).filter(Boolean)
   const first = tokens[0]?.toLowerCase() || ''
   let presets
-  if (tokens.length <= 1) presets = 'preset'.startsWith(first) || 'presets'.startsWith(first) ? doc.presets : []
+  if (!raw) presets = doc.presets.slice(0, BARE_ROWS)
+  else if (tokens.length <= 1) presets = 'preset'.startsWith(first) || 'presets'.startsWith(first) ? doc.presets : []
   else if (first === 'preset') presets = matchSets(doc.presets, raw.slice(first.length))
   else presets = []
   const byId = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
@@ -260,7 +273,7 @@ export function presetRows(query, doc, group, insert) {
     // A preset of a kind whose wave is off is kept, and not offered (the gate decides what is offered).
     if (!kind || !widgetsWaveOn(kind.wave)) return []
     return [{
-      title: p.name, cmd: 'preset', group,
+      title: `Preset — ${p.name}`, cmd: 'preset', group,
       description: `${kind.title} with your saved settings`,
       command: insert(kind, presetParams(p)),
     }]

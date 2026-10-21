@@ -122,4 +122,25 @@ describe('SetsDialog', () => {
     expect(lastValue().sets.map((s) => s.name)).toEqual(['Semis', 'Software'])
     expect(lastValue().presets).toEqual([])
   })
+
+  it('the back button closes the dialog', async () => {
+    install()
+    const onClose = vi.fn()
+    render(<SetsDialog onClose={onClose} />)
+    await screen.findByText('Semis')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('an edit is applied to a FRESH read: a set another tab added meanwhile is kept', async () => {
+    install()
+    render(<SetsDialog onClose={() => {}} />)
+    await screen.findByText('Semis')
+    // Another tab saves a third set after this dialog loaded.
+    stored = JSON.stringify({ v: 1, sets: [SEMIS, SOFTWARE, { id: 's_3', name: 'Banks', charts: [{ symbol: 'JPM', tf: 'D' }] }], presets: [PRESET] })
+    fireEvent.click(screen.getByLabelText('Delete Semis'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(lastValue().sets.map((x) => x.name)).toEqual(['Software', 'Banks'])
+  })
 })

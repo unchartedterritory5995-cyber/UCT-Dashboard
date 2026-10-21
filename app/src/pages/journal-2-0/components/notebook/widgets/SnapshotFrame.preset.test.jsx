@@ -47,4 +47,18 @@ describe('Save these settings as a preset', () => {
     expect(await screen.findByText('Give the preset a name.')).toBeInTheDocument()
     expect(global.fetch).not.toHaveBeenCalled()
   })
+
+  it('the same name replaces that preset and says so', async () => {
+    latchNotebookFlags({ notebook_widgets_w5_enabled: true })
+    global.fetch = vi.fn(async (url, init = {}) => (init.method === 'POST'
+      ? { ok: true, status: 200, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ [CHART_SETS_PREF]: JSON.stringify({ v: 1, sets: [],
+        presets: [{ id: 'p_1', name: 'Flagged only', kind: 'myWatchlistToday', params: { list: 'watchlist' } }] }) }) }))
+    const props = hook({ editable: true, onUpdateParams: vi.fn() })
+    render(<SnapshotFrame {...props}><span>rows</span></SnapshotFrame>)
+    fireEvent.click(screen.getByRole('button', { name: 'Save these settings as a preset' }))
+    fireEvent.change(screen.getByLabelText('Preset name'), { target: { value: 'Flagged only' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save preset' }))
+    expect(await screen.findByText('Replaced the preset Flagged only. Type /preset to use it.')).toBeInTheDocument()
+  })
 })

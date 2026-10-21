@@ -67,7 +67,7 @@ export default function SnapshotFrame({
     try { result = await onSavePreset(naming || '') } catch { result = { ok: false, reason: "Couldn't save just now." } }
     if (!mounted.current) return
     setBusy(false)
-    if (result?.ok) { setNaming(null); setMessage(`Saved as a preset. Type /preset to use it.`) } else setMessage(result?.reason || "Couldn't save just now.")
+    if (result?.ok) { setNaming(null); setMessage(`${result.message || 'Saved as a preset.'} Type /preset to use it.`) } else setMessage(result?.reason || "Couldn't save just now.")
   }
 
   const privateChip = account && !share
