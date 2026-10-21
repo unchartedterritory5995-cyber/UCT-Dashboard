@@ -64,6 +64,23 @@ describe('shortDay and screenName', () => {
     expect(shortDay('')).toBe('')
   })
 
+  // Fix F4 (D3, walk 2026-10-21): a manual date-only exit typed 2026-10-15 is stored at UTC midnight. The
+  // /recap row said "Oct 14"; a date-only value is a calendar date and is never shifted.
+  it('reads a DATE-ONLY entry (exact UTC midnight) as the day the member typed, in every spelling', () => {
+    expect(shortDay('2026-10-15T00:00:00Z')).toBe('Oct 15')
+    expect(shortDay('2026-10-15T00:00:00+00:00')).toBe('Oct 15')
+    expect(shortDay('2026-10-15T00:00:00.000Z')).toBe('Oct 15')
+    expect(shortDay('2026-10-15T00:00:00')).toBe('Oct 15')            // naive: read as UTC, as the server does
+    // ...while a real time one minute past midnight UTC is still 8:01 PM ET on the 14th.
+    expect(shortDay('2026-10-15T00:01:00Z')).toBe('Oct 14')
+  })
+
+  it('the /recap pick row titles a manual trade by the day it was typed', () => {
+    const rows = pickRows('recap', { trades: [trade(0, { symbol: 'MSFT', exitDate: '2026-10-15T00:00:00Z' })], screens: [] },
+      () => () => {})
+    expect(rows.map((r) => r.title)).toEqual(['Recap — MSFT long, Oct 15'])
+  })
+
   it('a screen with no name falls back to its id', () => {
     expect(screenName({ def_id: 'u:9', definition: { meta: {} } })).toBe('u:9')
   })

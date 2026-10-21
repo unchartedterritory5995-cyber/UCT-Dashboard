@@ -159,13 +159,21 @@ export async function loadPicks() {
   }
 }
 
-/** A stored trade date as "Oct 14", read on the ET calendar (a bare day as it is). '' when unreadable. */
+/** A stored trade date as "Oct 14", by the Journal's one trading-day rule (api timeutil.compute_trading_day_et):
+ *  a bare day as it is; a DATE-ONLY entry, stored at exact UTC midnight, as the day the member typed; a real
+ *  timestamp on the ET calendar. '' when unreadable.
+ *  Fix F4 (D3): this converted every timestamp, so a manual exit typed 2026-10-15 (stored 2026-10-15T00:00:00Z,
+ *  8 pm ET the evening before) read "Oct 14" on the /recap row. A naive stamp is read as UTC, as the server does. */
 export function shortDay(raw) {
-  const s = String(raw || '')
+  const s = String(raw || '').trim()
   let day = s.slice(0, 10)
   if (s.length > 10) {
-    const t = new Date(s)
-    if (!Number.isNaN(t.getTime())) day = t.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s) ? s : `${s}Z`
+    const t = new Date(zoned)
+    if (!Number.isNaN(t.getTime())) {
+      const dateOnly = t.getUTCHours() === 0 && t.getUTCMinutes() === 0 && t.getUTCSeconds() === 0
+      day = dateOnly ? t.toISOString().slice(0, 10) : t.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    }
   }
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
   return m && MONTHS[Number(m[2]) - 1] ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : ''

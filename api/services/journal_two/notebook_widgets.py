@@ -1396,20 +1396,17 @@ def _ymd_iso(ymd: Any) -> str:
 
 
 def _et_day_of(raw: Any) -> str | None:
-    """The ET calendar day of a stored trade date: a bare day as it is, a timestamp converted."""
+    """The trading day of a stored trade date, by the Journal's ONE rule (`timeutil.compute_trading_day_et`):
+    a bare day as it is, a DATE-ONLY entry (stored at exact UTC midnight) as the day the member typed, and
+    a real timestamp converted to its ET day.
+
+    Fix F4 (D3, walk 2026-10-21): this converted every timestamp, so a manual trade entered 2026-10-13 and
+    exited 2026-10-15 -- stored as `...T00:00:00Z`, which is 8 pm ET the evening BEFORE -- recapped as
+    Oct 12 / Oct 14. A date-only value is a calendar date and is never shifted."""
     if not raw:
         return None
-    s = str(raw)
-    if len(s) <= 10:
-        try:
-            return date.fromisoformat(s).isoformat()
-        except ValueError:
-            return None
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return s[:10]
-    return (dt.astimezone(_ET) if dt.tzinfo else dt).date().isoformat()
+    from api.services.journal_two.timeutil import compute_trading_day_et
+    return compute_trading_day_et(str(raw).strip())
 
 
 def _even_stride(items: list, cap: int) -> list:

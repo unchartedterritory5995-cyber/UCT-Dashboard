@@ -1242,6 +1242,47 @@ def test_trade_recap_long_hold_is_capped_at_120_bars_keeping_entry_and_exit(monk
     assert out["bars"][0]["t"] < "2025-06-02" and out["bars"][-1]["t"] > "2026-06-01"
 
 
+def test_f4_d3_trade_recap_reads_a_date_only_manual_trade_on_the_day_typed(monkeypatch):
+    # Fix F4 (D3, walk 2026-10-21): a manual trade entered 2026-10-13 and exited 2026-10-15 is stored at UTC
+    # midnight, which is 8 pm ET the evening before. The recap said "Oct 12" / "Oct 14". A date-only value is a
+    # calendar date (timeutil.compute_trading_day_et), never shifted; the bars window follows the same days.
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(
+        entryDate="2026-10-13T00:00:00Z", exitDate="2026-10-15T00:00:00+00:00")))
+    _patch_bars_before(monkeypatch, _sessions(20260801, 80))
+    out = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert (out["entryDate"], out["exitDate"]) == ("2026-10-13", "2026-10-15")
+    days = [b["t"] for b in out["bars"]]
+    assert "2026-10-13" in days and "2026-10-15" in days
+
+
+def test_f4_d3_trade_recap_still_reads_a_real_timestamp_on_the_et_calendar(monkeypatch):
+    # The control: a timed fill at 01:30 UTC on the 16th happened at 9:30 pm ET on the 15th.
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(
+        entryDate="2026-10-13T14:31:00Z", exitDate="2026-10-16T01:30:00Z")))
+    _patch_bars_before(monkeypatch, [])
+    out = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert (out["entryDate"], out["exitDate"]) == ("2026-10-13", "2026-10-15")
+
+
+def test_f4_d3_trade_recap_real_read_of_a_utc_midnight_manual_trade(monkeypatch, tmp_path):
+    # End to end through the real own-scoped read: the row stored the way a manual date-only entry is stored.
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    _patch_bars_before(monkeypatch, [])
+    c = auth_db.get_connection()
+    try:
+        c.execute(
+            "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date,"
+            " exit_price, exit_date, original_stop, setup, notes, pnl_dollar, pnl_percent, r_multiple,"
+            " hold_days, result, context_at_entry, created_at, mistake_tags, emotion_tags, fees)"
+            " VALUES ('t-msft', 'owner', 'p1', 'MSFT', 'Long', 10, 500, '2026-10-13T00:00:00Z', 490,"
+            " '2026-10-15T00:00:00Z', 480, '', '', -100, -0.02, -0.5, 2, 'Loss', '{}', '2026-10-15', '[]', '[]', 0)")
+        c.commit()
+    finally:
+        c.close()
+    out = nw.build("tradeRecap", "owner", {"tradeId": "t-msft"}, now=NOW)
+    assert (out["entryDate"], out["exitDate"]) == ("2026-10-13", "2026-10-15")
+
+
 def test_trade_recap_other_users_trade_refused(monkeypatch):
     calls = _patch_trade(monkeypatch, owned=(("owner", "t-1"), _recap_trade()))
     _patch_bars_before(monkeypatch, _sessions(20260601, 120))
