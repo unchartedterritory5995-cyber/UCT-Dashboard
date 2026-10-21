@@ -808,6 +808,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     )
   }
 
+  // Fix F4 (D1): a snapshot kind's frame header (title, Only you, as-of) owns its top-left corner, so the
+  // stylesheet lays this frame's toolbar out as its OWN row above the body instead of over it.
+  const snapshotEmbed = isSnapshotKind(attrs.widgetId)
   return (
     <NodeViewWrapper
       ref={wrapRef}
@@ -815,6 +818,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''} ${frozen ? styles.frozen : ''}`}
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
+      data-snapshot-embed={snapshotEmbed ? 'true' : undefined}
     >
       {editor?.isEditable !== false && !frozen && (
         // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside

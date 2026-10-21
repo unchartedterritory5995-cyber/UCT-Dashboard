@@ -162,6 +162,16 @@
   right: 8px;
   justify-content: flex-end;
 }
+/* Notebook widgets fix F4 (D1, walk 2026-10-21): a snapshot widget's frame header puts its TITLE in the
+   top-left corner, then the Only you / as-of chips. An absolute top-left toolbar covered it on hover at
+   1200 px ("‹ ⋯ More positions and risk") and, on the touch tier where the toolbar is always shown with
+   44 px controls, hid it outright at 820 and 390. Here the toolbar is a row IN FLOW above the body, so
+   the header always starts below it, at every width and on touch. On a computer the row is reserved
+   while the toolbar is invisible at rest, so hovering never moves the widget. Charts keep the overlay. */
+.frame[data-snapshot-embed] .toolbar {
+  position: static;
+  margin: 6px 8px 4px;
+}
 .frame:hover .toolbar,
 .frame:focus-within .toolbar,
 .selected .toolbar,
