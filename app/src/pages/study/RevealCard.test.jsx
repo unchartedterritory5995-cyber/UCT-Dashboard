@@ -90,3 +90,78 @@ describe('RevealCard', () => {
     expect(lessonHrefFor({})).toBeNull()
   })
 })
+
+// ── the six-part lesson + the feedback door (owner 2026-10-21) ───────────────
+import { FEEDBACK_KINDS, LESSON_PART_LABELS, feedbackUrl, lessonParts } from './revealCardHelpers'
+
+const PARTS = {
+  shape: 'Two bars. A green body that covers the red one.',
+  story: 'Sellers had the first session; buyers took it all back.',
+  where: 'Only after a decline.',
+  confirm: 'A close above the engulfing high.',
+  cancel: 'A close below its low.',
+  desk: 'Low is the stop, high is the trigger.',
+}
+
+describe('RevealCard lesson parts and feedback', () => {
+  it('renders the six parts with their headings in order, instead of the one paragraph', () => {
+    render(<RevealCard correct reveal={{ ...reveal, lesson_parts: PARTS, ref: '872a0a' }} item={{ id: 'si_872a0a87de98', type: 'recall' }} />)
+    const dl = screen.getByTestId('lesson-parts')
+    const labels = [...dl.querySelectorAll('dt')].map((d) => d.textContent)
+    expect(labels).toEqual(LESSON_PART_LABELS.map(([, l]) => l))
+    expect(dl).toHaveTextContent('Low is the stop, high is the trigger.')
+    expect(screen.queryByText(reveal.lesson)).not.toBeInTheDocument()
+    expect(screen.getByTestId('item-ref')).toHaveTextContent('ref 872a0a')
+  })
+
+  it('falls back to the paragraph when no parts are written, and a half-written set keeps what it has', () => {
+    render(<RevealCard correct reveal={reveal} item={{ id: 'x', type: 'spot' }} />)
+    expect(screen.getByText(reveal.lesson)).toBeInTheDocument()
+    expect(screen.queryByTestId('lesson-parts')).not.toBeInTheDocument()
+    expect(lessonParts({ lesson_parts: { shape: 'A', nope: 'B', desk: '  ' } })).toEqual([{ key: 'shape', label: 'The shape', text: 'A' }])
+    expect(lessonParts({})).toBeNull()
+  })
+
+  it('a member sends a kind and a note with the attempt, and never sees the verdict row', async () => {
+    const post = vi.fn(async () => ({ id: 1, applied: null }))
+    render(<RevealCard correct={false} reveal={reveal} item={{ id: 'si_872a0a87de98', type: 'recall' }} attemptId={77} post={post} />)
+    fireEvent.click(screen.getByTestId('feedback-open'))
+    expect(screen.queryByTestId('verdict-row')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Lesson unclear' }))
+    fireEvent.change(screen.getByLabelText('Your note'), { target: { value: 'the where part lost me' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByTestId('feedback-done')).toHaveTextContent('Thanks, noted.')
+    expect(post).toHaveBeenCalledWith(feedbackUrl('si_872a0a87de98'), {
+      method: 'POST', body: { kind: 'unclear_lesson', text: 'the where part lost me', attempt_id: 77 },
+    })
+    expect(FEEDBACK_KINDS.map(([k]) => k)).toContain('great')
+  })
+
+  it('a reviewer approves from the card and reads back that it is live', async () => {
+    const post = vi.fn(async () => ({ id: 2, applied: 'approve' }))
+    render(<RevealCard correct reveal={reveal} item={{ id: 'si_a' }} reviewer post={post} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review this one' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Approve' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByTestId('feedback-done')).toHaveTextContent('Approved. It is live.')
+    expect(post.mock.calls[0][1].body).toEqual({ kind: 'other', text: null, verdict: 'approve' })
+  })
+
+  it('a failed send says so and keeps the form', async () => {
+    const post = vi.fn(async () => { throw new Error('500') })
+    render(<RevealCard correct reveal={reveal} item={{ id: 'si_a' }} post={post} />)
+    fireEvent.click(screen.getByTestId('feedback-open'))
+    fireEvent.click(screen.getByRole('button', { name: 'Too hard' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not send that')
+    expect(screen.getByTestId('feedback-form')).toBeInTheDocument()
+  })
+
+  it('no door without an item id, and none when feedback is off', () => {
+    render(<RevealCard correct reveal={reveal} item={{ type: 'spot' }} />)
+    expect(screen.queryByTestId('feedback-open')).not.toBeInTheDocument()
+    render(<RevealCard correct reveal={reveal} item={{ id: 'si_b' }} feedback={false} />)
+    expect(screen.queryByTestId('feedback-open')).not.toBeInTheDocument()
+  })
+})

@@ -116,3 +116,128 @@
 }
 .continue:hover { background: var(--ut-gold-bright); }
 .continue:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+
+/* ── the six-part lesson (candle items carry lesson_parts) ───────────────── */
+.lessonParts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.part {
+  display: grid;
+  gap: 2px;
+}
+.partLabel {
+  margin: 0;
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.partText {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+.ref {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* ── the feedback door (owner 2026-10-21) ─────────────────────────────────── */
+.fbRow { display: flex; }
+.fbOpen {
+  min-height: var(--tap-min);
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.fbOpen:hover { color: var(--ut-gold); }
+.fb {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+}
+.fbChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fbChip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.fbChip:hover { border-color: var(--ut-gold); }
+.fbChipOn {
+  border-color: var(--ut-gold);
+  background: rgba(220, 187, 94, 0.14);
+  color: var(--ut-gold);
+}
+.fbV_reject.fbChipOn { border-color: var(--text-muted); color: var(--text-bright); background: rgba(255, 255, 255, 0.08); }
+.fbText {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg, #0f0f0f);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  resize: vertical;
+}
+.fbActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fbSend {
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.fbSend:disabled { opacity: 0.5; cursor: default; }
+.fbCancel {
+  min-height: var(--tap-min);
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.fbErr { color: var(--text-bright); font-size: var(--text-sm); }
+.fbDone {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
