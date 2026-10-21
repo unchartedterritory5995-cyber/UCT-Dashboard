@@ -50,6 +50,21 @@ def test_scan_finds_the_control_and_spaces_examples_per_symbol():
     assert len(job.scan({"SYN": bars, "SYN2": bars}, per_key=2, keys={"hammer"})) == 2
 
 
+def test_only_legible_patterns_are_kept():
+    """Owner 2026-10-20: a pattern made of tiny bars is useless as an example."""
+    bars = job._synthetic()
+    i = len(bars) - 1
+    assert job.legible(bars, i, 1)                       # the hammer's tail dwarfs the recent ranges
+    tiny = [dict(b) for b in bars]
+    last = tiny[i]
+    mid = (last["o"] + last["c"]) / 2
+    tiny[i] = {**last, "o": mid - 0.02, "c": mid + 0.02, "h": mid + 0.05, "l": mid - 0.05}
+    assert not job.legible(tiny, i, 1)
+    assert job.scan({"SYN": tiny}, per_key=1, keys={"doji", "spinning-top", "short-white"}) == []
+    assert job.scan({"SYN": tiny}, per_key=1, keys={"doji", "spinning-top", "short-white"}, require_legible=False)
+    assert not job.legible(bars, job.LEGIBLE_LOOKBACK - 1, 1)     # no history to compare against
+
+
 def test_scan_over_nothing_nameable_is_empty_and_the_control_is_not():
     flat = [{"t": 20240101 + i, "o": 100.0, "h": 100.0, "l": 100.0, "c": 100.0, "v": 0} for i in range(120)]
     assert job.scan({"FLAT": flat}, per_key=1) == []

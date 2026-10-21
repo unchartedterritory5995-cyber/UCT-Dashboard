@@ -201,3 +201,74 @@
   word-break: break-all; padding-top: 8px; border-top: 1px solid var(--border, #2a2c31);
 }
 .keys { font-size: 11px; color: var(--text-muted, #cfcac0); }
+
+/* ── Example gallery (owner 2026-10-21): every chart of one subject on one
+   screen, a grade row under each. ─────────────────────────────────────── */
+.galleryToggle {
+  align-self: flex-start;
+  margin: 2px 0 var(--space-sm);
+  padding: 6px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.galleryToggleOn { border-color: var(--ut-gold); color: var(--ut-gold); }
+.gallery { display: flex; flex-direction: column; gap: var(--space-md); min-width: 0; }
+.gBar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-sm) var(--space-lg); }
+.gHint { color: var(--text-muted); font-size: var(--text-xs); max-width: 60ch; }
+.gGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-md);
+  min-width: 0;
+}
+.gCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  min-width: 0;
+}
+.gCard[data-status="rejected"] { opacity: 0.55; }
+.gCard[data-grade="great"] { border-color: var(--ut-gold); box-shadow: 0 0 0 1px var(--ut-gold-dim); }
+.gHead { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); }
+.gSym { font-weight: 700; color: var(--text-bright); }
+.gDate { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.gStatus, .gGrade {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gGrade { margin-left: 0; color: var(--ut-gold); border-color: var(--ut-gold); }
+.gSt_approved { color: var(--ut-gold); border-color: var(--ut-gold); }
+.gSt_rejected { color: var(--loss, #df4646); border-color: var(--loss, #df4646); }
+.gChart { min-height: 210px; border-radius: var(--radius-md); overflow: hidden; }
+.gNoBars { display: grid; place-items: center; height: 210px; color: var(--text-muted); font-size: var(--text-sm); }
+.gGrades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.gBtn {
+  min-height: var(--tap-min);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.gBtn:disabled { opacity: 0.5; cursor: default; }
+.gBtnOn { border-color: var(--ut-gold); color: var(--ut-gold); background: var(--ut-gold-dim); }
+.gBad { color: var(--loss, #df4646); border-color: var(--loss, #df4646); }

@@ -339,8 +339,11 @@ def get_leaderboard(week: Optional[str] = None, user: dict = Depends(require_pai
 
 @router.get("/admin/review", dependencies=_ARMED)
 def admin_review(lane: Optional[str] = None, type: Optional[str] = None, skill: Optional[str] = None,
-                 limit: int = 150, _admin: dict = Depends(require_admin)):
-    drafts = study_store.list_drafts(lane=lane, item_type=type, skill=skill, limit=max(1, min(500, limit)))
+                 limit: int = 150, status: Optional[str] = None, _admin: dict = Depends(require_admin)):
+    """`status` (default drafts): "any" lists every status, for the example
+    gallery that grades approved and draft charts side by side."""
+    drafts = study_store.list_drafts(lane=lane, item_type=type, skill=skill, limit=max(1, min(500, limit)),
+                                     status=status)
     types = sorted({d["type"] for d in drafts})
     return {"drafts": drafts, "counts": study_store.draft_counts(), "skills": study_store.draft_skill_counts(),
             "trust": {t: study_store.trust_state(t) for t in types}}

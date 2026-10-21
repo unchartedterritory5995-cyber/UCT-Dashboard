@@ -3,8 +3,9 @@
 //
 // Holds the browser to:
 //   • flag OFF (default): nothing changes — the instant path answers, no NL-1 field is ever sent;
-//   • flag ON: every ordinary request goes to the model with the whole catalog and no routing; only EXACT
-//     Undo / Confirm / Cancel stay instant;
+//   • flag ON: every ordinary request goes to the model with its selected actions (the core first, the rest
+//     named — nl1/selection.js; the reroute is held by agentNl1SelectionPanel.test.jsx); only EXACT Undo / Confirm /
+//     Cancel stay instant;
 //   • a CORRECTION reverses the Agent's previous change through the existing Undo, then applies the new
 //     one; when that change was modified outside the Agent, nothing is undone and the new change is only
 //     PROPOSED (never silently);
@@ -117,7 +118,7 @@ describe('NL-1 flag OFF (the default): production behaviour is unchanged', () =>
 })
 
 describe('NL-1 flag ON: the model reads every ordinary request', () => {
-  it('"switch to weekly" goes to the model with the whole catalog, unrouted; the plan runs through the usual planner', async () => {
+  it('"switch to weekly" goes to the model with the core first and every other group named; the plan runs through the usual planner', async () => {
     await nl1On()
     const b = oneChart()
     const { say, transcript } = mount(b)
@@ -125,8 +126,11 @@ describe('NL-1 flag ON: the model reads every ordinary request', () => {
     await say('switch to weekly')
     await waitFor(() => expect(tf(b, 'L')).toBe('W'))
     expect(turns).toHaveLength(1)
-    expect(turns[0]).toMatchObject({ interpreter: 'nl1', routing: null })
+    expect(turns[0].interpreter).toBe('nl1')
     expect(turns[0].capabilities.length).toBeGreaterThan(30)
+    expect(turns[0].capabilities.length).toBeLessThanOrEqual(60)
+    expect(turns[0].routing.selected).toEqual(expect.arrayContaining(['charts', 'indicators', 'screener', 'agent']))
+    expect(turns[0].routing.groups.length).toBeGreaterThan(turns[0].routing.selected.length)
     expect(transcript()).toMatch(/Weekly/)
   })
 

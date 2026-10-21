@@ -13,11 +13,15 @@
 // browser takes the legacy path end to end and sends the legacy request.
 //
 // This module builds the NL-1 request. The SAME function is used by the panel (useAgent) and by the
-// eval capture (eval/capture.js), so what is measured is what would be sent.
+// eval capture (testing/capture.js), so what is measured is what would be sent. Which actions a request
+// carries is decided by nl1/selection.js (a fixed core + bounded additions, under the 60-action limit).
 
 import { buildContext, manifestFor, getCapability, isRef, MANIFEST_VERSION } from '../capabilities'
 import { planOps, collectTargets } from '../executor'
 import { serverServesNl1 } from '../agentClient'
+import { routingNames } from '../routing'
+import { correctTypos, lexiconFor } from '../nl/lexicon'
+import { selectNl1 } from './selection'
 
 export const NL1_KEY = 'uct.agent.nl1'
 export const INTERPRETER = 'nl1'
@@ -51,14 +55,29 @@ const MAX_ARGS_CHARS = 300
  * The NL-1 /api/agent/turn body (without conversationId / voice, which the panel adds).
  *   memory   the session memory (agent/memory.js); its last change is sent WITH its targets and
  *            arguments, so "make it 15 minutes instead" can be read as a correction of it
- *   pendingQuestion  { text, choices: [{ label, ref? }] } — a question UCT asked and is waiting on;
- *            a TYPED answer is read by the model with the question in front of it
+ *   pendingQuestion  { text, choices: [{ label, ref? }], groups? } — a question UCT asked and is waiting on;
+ *            a TYPED answer is read by the model with the question in front of it (`groups`: the action
+ *            groups of the request it came from, kept for the answer)
  *   pendingProposal  { ops } with real refs, as the legacy request sends it
- * Returns { body, refMap }.
+ *   need     action groups the model asked for (`need_groups`): the one bounded reroute
+ * Returns { body, refMap, selection } (selection: nl1/selection.js selectNl1's result).
  */
 export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = false, memory = null, epoch = null,
-  pendingQuestion = null, pendingProposal = null, isProtectedLayout = null }) {
-  const manifest = manifestFor({ ...capCtx, manageIndicators })
+  pendingQuestion = null, pendingProposal = null, isProtectedLayout = null, need = [], budget = undefined }) {
+  const full = manifestFor({ ...capCtx, manageIndicators })
+  const readings = new Map()          // the lexicon's typo readings, once per text (selection asks several times)
+  const selOpts = {
+    text, budget,
+    names: routingNames(host),
+    correct: (t) => {
+      if (!readings.has(t)) readings.set(t, (correctTypos(t, lexiconFor(host)) || []).map(v => v.text))
+      return readings.get(t)
+    },
+    pinActions: [...(pendingProposal?.ops || []).map(o => o.action), ...(memory?.lastChange?.(epoch)?.ops || []).map(o => o.action)],
+    pinGroups: pendingQuestion?.groups || [],
+  }
+  const selection = selectNl1(full, { ...selOpts, need })
+  const manifest = selection.manifest
   // context: every provider, never gated on the member's words (`nl1: true`; a provider that would
   // send its detail only for certain words sends it — compacted by the budget — instead)
   const { context, refMap } = buildContext(host, { ...capCtx, message: text, nl1: true })
@@ -85,9 +104,13 @@ export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = fa
   const pending = pendingProposal ? { ops: pendingProposal.ops.map(o => ({ ...o, target: back[o.target] || o.target })) } : null
   const reference = splitReference(ctx)
   return {
-    body: { message: text, context: ctx, capabilities: manifest, manifestVersion: MANIFEST_VERSION, routing: null, pending, interpreter: INTERPRETER,
+    body: { message: text, context: ctx, capabilities: manifest, manifestVersion: MANIFEST_VERSION, routing: selection.routing, pending, interpreter: INTERPRETER,
       ...(reference ? { reference } : {}) },
     refMap,
+    selection,
+    full,
+    /** The same request's selection with other needed groups (the eval capture's reroute table). */
+    reselect: (more) => selectNl1(full, { ...selOpts, need: more }),
   }
 }
 

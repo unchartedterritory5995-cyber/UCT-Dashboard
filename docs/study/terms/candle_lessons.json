@@ -1,0 +1,542 @@
+{
+  "version": "2026-10-20",
+  "owner_ruling": "2026-10-20: 'a thorough explanation will be important on these because a lot of people will not know them and will not know when to look for them' and 'make sure the user learns in a cool and fun way'. Every candle name gets the six parts below. The owner reviews each lesson in question form; a fix here is the owner's words.",
+  "sources": [
+    "api/services/screener/candle_catalog.py (the firm's grammar: the shape and the prior trend each name requires)",
+    "docs/superpowers/research/candles/05-trend-context-and-confirmation.md (which names need a trend, what confirms a bar the next session)",
+    "docs/superpowers/research/candles/01..04 (the per-pattern blocks)"
+  ],
+  "parts": ["shape", "story", "where", "confirm", "cancel", "desk"],
+  "part_titles": {"shape": "The shape", "story": "What happened in the auction", "where": "Where to look for it", "confirm": "What confirms it", "cancel": "What cancels it", "desk": "How the desk reads it"},
+  "voice": "Short sentences. No numbers (the grounding check reads facts only). No em-dashes, no rhetorical questions, no banned phrases. The bar is a place to watch, never a forecast (C18).",
+  "lessons": {
+    "hammer": {
+      "shape": "One bar with a small body parked near the top and a long tail hanging below it, at least twice the body. Little or no wick above.",
+      "story": "The session opened, sellers drove it down hard, and then buyers walked in and took the whole move back before the close. The tail is the part of the day the sellers could not keep. The close near the high is the part the buyers kept.",
+      "where": "Only after a decline. The exact same bar printed after an advance is a hanging man, and the prior trend is the only thing that separates the two names. Look for it where a pullback meets a level that matters: a prior low, a rising average, the bottom of a base. A hammer in the middle of nowhere is just a bar.",
+      "confirm": "The next session has to agree. A bar that opens above the hammer's body, or a green bar that closes above the hammer's high, says the buyers who showed up in the tail are still there.",
+      "cancel": "A close back below the hammer's low cancels it. The buyers who defended that tail were overrun, and the decline is still in charge.",
+      "desk": "A hammer is a question, not an answer. It marks the price where buyers proved they exist. Mark the low of that tail, then let the next bar tell you whether the higher low is real."
+    },
+    "hanging-man": {
+      "shape": "A hammer's exact shape: small body near the top, long tail below, almost no wick above.",
+      "story": "The difference is where it printed. After an advance, sellers were able to press the stock well below the open in the middle of the session. Buyers rescued the close, but the fact that the rescue was needed is the news. Inside an uptrend nobody should have been able to push it that far down.",
+      "where": "Only after an advance, and ideally after a stretched one: far above the rising averages, several up days in a row, a gap higher that morning. That is where a long tail under the body means the floor just creaked.",
+      "confirm": "This name needs confirmation more than almost any other. A next session that opens below the hanging man's body, or a red bar that closes under its low, confirms that the sellers who showed up mid-session came back.",
+      "cancel": "A close above the hanging man's high cancels it. The dip was absorbed, and the advance continues as if nothing happened.",
+      "desk": "In a leader that has run, a hanging man is a reason to tighten, not a reason to short. Note the low of the tail. If the stock closes under it, the trade has told you what it thinks."
+    },
+    "shooting-star": {
+      "shape": "A small body near the bottom of the bar with a long spike above it, at least twice the body. Little or no tail below.",
+      "story": "After an advance, buyers pushed to a new high during the session and sellers took every bit of that gain back by the close. The spike is the ground the buyers could not hold. The close near the low says who won the day.",
+      "where": "Only after an advance. The identical bar after a decline is an inverted hammer. Look for it at resistance: a prior high, the top of a range, a round number the stock has stalled at before, or a stock that is stretched far above its averages.",
+      "confirm": "A next session that opens below the star's body, or closes below its low, confirms the rejection. A gap down is the loudest version.",
+      "cancel": "A close above the star's high cancels it. The buyers came back and took the ground the spike had lost.",
+      "desk": "The high of the spike is the line. If a leader prints a shooting star into a level and then closes back above the spike within a session or two, the rejection failed and that is bullish information. If it cannot, the spike was the top for now."
+    },
+    "inverted-hammer": {
+      "shape": "A shooting star's shape: small body near the bottom, long wick above, almost nothing below.",
+      "story": "After a decline, buyers finally managed a real push off the lows during the session. They could not hold it into the close, so the wick is all that remains of the attempt. That attempt is the information: for the first time in a while, someone bought with force.",
+      "where": "Only after a decline, near a level where the decline could end: a prior low, a base bottom, a rising average on a bigger timeframe. On its own it is weaker than a hammer because the close gave the gains back.",
+      "confirm": "Wait for the next session. An open above the inverted hammer's body, or a green bar closing above its high, says the buyers who pushed came back and finished the job. The bigger the gap up, the stronger the confirmation.",
+      "cancel": "A close below the inverted hammer's low cancels it. The push was a one-off, and the decline resumes.",
+      "desk": "Treat it as a flag on the map. The wick marks how high buyers could reach. A close above that wick turns a flag into a higher low worth trading."
+    },
+    "umbrella": {
+      "shape": "Long lower tail, small body near the high: the hammer and hanging man geometry.",
+      "story": "The session sold off and was bought back. That much is true in any context. What is missing is the trend that would tell you whether this is a hammer at a low or a hanging man at a high. The chart before it is flat or unreadable, so the catalog prints the shape and refuses to guess.",
+      "where": "You will see it in choppy ranges and quiet tapes where there is no clear trend to lean on. It is still worth a look when the tail touches a level: a range floor, a prior close, a moving average.",
+      "confirm": "The same test as a hammer: an open above the body or a close above the high says buyers followed through.",
+      "cancel": "A close below the tail's low says the buying was not real.",
+      "desk": "An umbrella in a range is a level, not a signal. Note where the tail bottomed and watch whether the range respects it. The name will change to hammer or hanging man once the chart gives it a trend."
+    },
+    "inverted-umbrella": {
+      "shape": "Long upper wick, small body near the low: the shooting star and inverted hammer geometry.",
+      "story": "Buyers pushed during the session and the push was sold back by the close. Without a trend before it, the catalog cannot say whether that is a rejection at a top or a first attempt off a bottom, so it prints the shape.",
+      "where": "Choppy or sideways tapes. Pay attention when the wick reaches a known level: the top of a range or a prior high that has turned sellers away before.",
+      "confirm": "For a bearish reading, an open or close below the body. For a bullish reading, a close above the wick's high.",
+      "cancel": "Whichever side the next bar closes on cancels the other reading.",
+      "desk": "The wick marks the price where supply showed up. Mark it. If the stock cannot get back above it, that level is real resistance and the range is still a range."
+    },
+    "bullish-belt-hold": {
+      "shape": "A long green body that opened at its low and never traded under it. No tail at all, and a close near the high.",
+      "story": "After a decline, the stock opened and immediately ran. Sellers never got a single tick below the open. That is a day where one side showed up and the other side did not, which is the opposite of what a decline looks like.",
+      "where": "After a decline, especially after a few down days or a gap lower that failed to follow through. The open at the low is the tell: the overnight sellers were absorbed before the first print.",
+      "confirm": "A next session that holds above the belt hold's midpoint and closes higher confirms it. Volume above the recent average on the belt hold itself makes it worth more.",
+      "cancel": "A close back below the belt hold's open cancels it. The run was retraced and the buyers who started it are underwater.",
+      "desk": "A belt hold off a low is the kind of bar that starts a leg. The open of that bar becomes the line in the sand. Above it, the buyers are still in charge."
+    },
+    "bearish-belt-hold": {
+      "shape": "A long red body that opened at its high and fell all session. No wick above, close near the low.",
+      "story": "After an advance, the stock opened at the top and never saw a higher print. Buyers who had been driving the move were absent from the first minute, and sellers had the whole session to themselves.",
+      "where": "After an advance, most telling when it comes from a stretched position: far above the averages, after a run of up days, or on a gap up that immediately reversed.",
+      "confirm": "A next session that fails to recover the belt hold's midpoint and closes lower confirms it.",
+      "cancel": "A close back above the belt hold's open cancels it. The sellers were absorbed and the advance resumes.",
+      "desk": "In a leader, a bearish belt hold on heavy volume is a change of character. The open of that bar is the level. Until the stock reclaims it, assume the easy part of the move is over."
+    },
+    "white-marubozu": {
+      "shape": "A green bar that is almost all body. It opened near the low, closed near the high, and the wicks are tiny or missing.",
+      "story": "Buyers were in control from the open to the close and barely looked back. Every dip was bought immediately. It is the cleanest one-bar statement of buying conviction the catalog has.",
+      "where": "No trend is required for the name, but the location decides what it means. Out of a tight base or through a prior high it is a breakout bar. After a long run it can be the exhaustion day where the last buyers pile in.",
+      "confirm": "The next session holds inside or above the top half of the marubozu. A bar that gives back the whole body says the conviction was one day long.",
+      "cancel": "A close below the marubozu's low cancels it entirely.",
+      "desk": "The desk cares about the volume and the location more than the shape. A marubozu on big volume out of a base is a bar to respect. The same bar three weeks into a straight-up move is a bar to sell into."
+    },
+    "black-marubozu": {
+      "shape": "A red bar that is almost all body. It opened near the high, closed near the low, and the wicks are tiny or missing.",
+      "story": "Sellers had the whole session with no meaningful pushback. Nobody stepped in to buy the dip, not even into the close.",
+      "where": "No trend is required for the name. Through a support level it is a breakdown bar. After a long decline it can be the capitulation day where the last holders give up.",
+      "confirm": "The next session fails to recover the marubozu's midpoint. A gap down the next morning is the loudest version.",
+      "cancel": "A close back above the marubozu's high cancels it. The selling was absorbed.",
+      "desk": "A black marubozu on heavy volume in a leader is a change of character. Mark its high. The stock has to reclaim that high before it has earned the benefit of the doubt again. Late in a long decline, the same bar on a volume spike can be the capitulation that ends it, so read the location before the shape."
+    },
+    "dragonfly-doji": {
+      "shape": "Open and close together at the top of the bar with a long tail below and almost nothing above. A hammer with no body at all.",
+      "story": "The session sold off and every bit of it was bought back. Sellers had the morning and buyers had the afternoon, and the buyers won the argument so completely that the close landed almost exactly on the open.",
+      "where": "At the bottom of a pullback or a decline, into a level: a prior low, a rising average, the floor of a range. Its meaning flips with the trend. After an advance a dragonfly is a warning that sellers could reach that far down at all.",
+      "confirm": "After a decline, a next session that opens above the doji's close or closes above its high confirms the buyers. After an advance, a close below the tail confirms the sellers.",
+      "cancel": "The opposite close cancels either reading.",
+      "desk": "The tail is the information. Buyers proved they will pay at that low. Mark it, and treat a later undercut and reclaim of that tail as the kind of thing the desk looks for."
+    },
+    "gravestone-doji": {
+      "shape": "Open and close together at the bottom of the bar with a long spike above and almost nothing below. A shooting star with no body.",
+      "story": "The rally happened, and then went entirely unpaid. Buyers took it to a new high during the session and sellers brought it all the way back to the open. Nobody who bought during the day is winning.",
+      "where": "At the top of a move or into resistance: a prior high, the top of a range, a stretched run above the averages. Its meaning flips with the trend. After a decline, a gravestone can be a first push off a low that simply failed to hold.",
+      "confirm": "After an advance, a next session that opens below the doji's close or closes under its low confirms the rejection. After a decline, a close above the spike confirms the buyers.",
+      "cancel": "The opposite close cancels either reading.",
+      "desk": "The high of the spike is where supply showed up. If a leader cannot get back above it within a few sessions, that spike is the top of the range for now."
+    },
+    "long-legged-doji": {
+      "shape": "Open and close nearly level, sitting in the middle of a bar with long wicks both ways.",
+      "story": "A wide, genuinely two-sided fight that ended where it began. Buyers won part of the session, sellers won part of it, and neither side could keep anything by the close.",
+      "where": "At the end of a strong move in either direction, where the first real disagreement shows up. It also appears in the middle of ranges, where it means little.",
+      "confirm": "The next session picks a side. A close beyond the doji's high or low, in either direction, is the resolution the doji was waiting for.",
+      "cancel": "Another doji or a small inside bar keeps the question open. Nothing is cancelled, but nothing is decided either.",
+      "desk": "A long-legged doji after a straight run is the market pausing to think. The desk does not act on the doji. It acts on the bar that resolves it, in whichever direction it resolves."
+    },
+    "doji": {
+      "shape": "Open and close within a hair of each other. The session travelled and finished almost where it started.",
+      "story": "Indecision, not direction. For one session the buyers and sellers agreed on a price and disagreed about everything else. The wicks show the argument. The flat body shows the result.",
+      "where": "A doji means the most where it breaks a pattern: after several long bars in one direction, or at a level where the stock has turned before. A doji in a quiet range is just a quiet day.",
+      "confirm": "Wait a session or two. The bar that closes beyond the doji's range is the direction the market chose.",
+      "cancel": "Nothing to cancel. A doji is a pause, and a pause ends when the next decisive bar prints.",
+      "desk": "After a sharp run, a doji is the first sign the one-way traffic is over. It does not say which way the stock goes next. It says the easy part just ended."
+    },
+    "high-wave": {
+      "shape": "A small body with wicks several times its size, on a range far wider than the stock's normal day.",
+      "story": "Not a quiet day. A violent argument that resolved nothing. The stock swung widely in both directions and closed back near where it opened, with both sides exhausted.",
+      "where": "Around news, earnings and the end of big moves. A high wave at the top of a long advance is the crowd fighting over whether the move is done.",
+      "confirm": "The next session that closes outside the high wave's range picks the winner.",
+      "cancel": "Nothing to cancel. It is a pause with a lot of noise in it.",
+      "desk": "High wave bars make wide stops. If you are in the name, the range of that bar is the range the market now considers fair, and a tight stop inside it is asking to be hit."
+    },
+    "spinning-top": {
+      "shape": "A small body in the middle of the bar with wicks on both sides, on an ordinary range.",
+      "story": "Neither side finished the session in control. It is a doji with a little more body, and the same message: a pause.",
+      "where": "It matters after a run of large bars in one direction, where it shows the momentum fading. Inside a tight base, a string of spinning tops is the base getting quieter, which is what a base is supposed to do.",
+      "confirm": "The next decisive bar, in either direction.",
+      "cancel": "Nothing to cancel.",
+      "desk": "One spinning top is noise. Several in a row inside a narrowing range is a coil, and that is where the desk starts paying attention to the first bar that breaks out of it."
+    },
+    "long-white": {
+      "shape": "An ordinary green bar with a body much larger than the stock's recent average. No special shape, just size.",
+      "story": "A decisive session where buyers moved the price further than they usually do. Size is measured against this stock's own recent bodies, so the bar means the same thing on a cheap stock and an expensive one.",
+      "where": "Out of a base or through a prior high it is a breakout bar. The first long white bar after a quiet stretch is usually the one worth noticing.",
+      "confirm": "The next session holds the top half of the bar. Heavy volume on the bar itself makes it worth more.",
+      "cancel": "A close back below the long white bar's low cancels it. The buying was retraced.",
+      "desk": "The desk reads a long white bar on big volume as institutional buying, which is the only kind that lasts. The bar's low is the level. Above it, the buyers are winning."
+    },
+    "long-black": {
+      "shape": "An ordinary red bar with a body much larger than the stock's recent average.",
+      "story": "Decisive selling, no distinctive shape. Sellers moved the price further in one session than this stock normally moves.",
+      "where": "Through a support level it is a breakdown. After a long run it can be the first real distribution day. Inside a decline it is the trend doing its job.",
+      "confirm": "The next session fails to recover the bar's midpoint.",
+      "cancel": "A close back above the long black bar's high cancels it.",
+      "desk": "A long black bar on heavy volume in a leader is the market telling you something changed. The high of that bar is the line the stock has to reclaim."
+    },
+    "white-candle": {
+      "shape": "A normal green bar. It closed above its open with a body in line with the stock's recent average.",
+      "story": "Buyers won the session by an ordinary margin. Nothing structurally notable happened.",
+      "where": "Everywhere. Most up days are white candles. They matter as part of a sequence, not on their own: a string of them makes a trend, a single one makes a Tuesday.",
+      "confirm": "Nothing to confirm on its own.",
+      "cancel": "Nothing to cancel.",
+      "desk": "The desk does not trade a white candle. It trades where the candle sits: above a reclaimed level, out of a base, on the right side of the averages. Learn the plain bars so the special ones stand out."
+    },
+    "black-candle": {
+      "shape": "A normal red bar. It closed below its open with a body in line with the recent average.",
+      "story": "Sellers won the session by an ordinary margin. Nothing structurally notable happened.",
+      "where": "Everywhere. A black candle inside an uptrend is a normal pullback day. Several in a row make a pullback worth measuring.",
+      "confirm": "Nothing to confirm on its own.",
+      "cancel": "Nothing to cancel.",
+      "desk": "Ordinary red bars are how a leader rests. The desk watches whether the red bars shrink and the volume dries up as the pullback goes on, which is what a healthy rest looks like."
+    },
+    "short-white": {
+      "shape": "An up bar with a body well under the stock's recent average. A quiet session that happened to close green.",
+      "story": "Not much happened. The buyers edged it, but nobody pressed.",
+      "where": "Inside bases and tight ranges, where quiet is the point. A short white bar after a long run is the first sign the move is slowing.",
+      "confirm": "Nothing to confirm on its own.",
+      "cancel": "Nothing to cancel.",
+      "desk": "A run of short bars with shrinking volume is a stock going quiet, and quiet is where the desk looks for the next move to start."
+    },
+    "short-black": {
+      "shape": "A down bar with a body well under the recent average. A quiet session that happened to close red.",
+      "story": "Sellers edged it, but without conviction.",
+      "where": "Inside bases and pullbacks. A pullback made of short black bars on light volume is the kind that tends to be bought.",
+      "confirm": "Nothing to confirm on its own.",
+      "cancel": "Nothing to cancel.",
+      "desk": "Small red bars on low volume into a rising average are the picture of a pullback the desk likes. The size of the bars tells you the sellers are not serious."
+    },
+    "rising-three-methods": {
+      "shape": "Five bars. A long up bar, then three small bars that rest entirely inside its range, then another up bar closing above the first one's close.",
+      "story": "The stock made a big move, took three sessions to digest it without giving any of it back, and then resumed. A tight pause inside an uptrend that resolved the way it was leaning.",
+      "where": "Only inside an advance. The three small bars are the rest, and the best versions have them on lighter volume than the two big bars around them.",
+      "confirm": "The fifth bar is the confirmation: it has to close above the first bar's close. Before that bar prints you only have a flag-shaped pause.",
+      "cancel": "A close below the first long bar's low cancels it. The rest turned into a reversal.",
+      "desk": "This is a flag drawn with five candles. The desk trades the break of the pause bar's highs, with the stop under the low of the rest."
+    },
+    "falling-three-methods": {
+      "shape": "Five bars. A long down bar, three small bars fully inside its range, then a down bar closing below the first one's close.",
+      "story": "A pause in a downtrend that resolved lower. Buyers had three sessions to take the stock back and could not get it above the big red bar's high.",
+      "where": "Only inside a decline. It is the bear flag drawn with candles.",
+      "confirm": "The fifth bar closing below the first bar's close.",
+      "cancel": "A close above the first long bar's high cancels it. The pause became a bottom.",
+      "desk": "The desk does not buy inside a falling three methods. The rest was a chance for buyers to show up and they did not. Wait for the stock to reclaim the high of the pattern before thinking about a long."
+    },
+    "abandoned-baby-bullish": {
+      "shape": "Three bars. A down bar, then a doji stranded below everything around it with clear air on both sides, wicks included, then an up bar.",
+      "story": "The stock gapped down to a doji, nobody wanted it there, and the next session gapped back up over it. The middle bar is an island nobody will own. It is genuinely rare: expect zero or one across the whole market on a given day.",
+      "where": "Only after a decline, usually around a news shock or capitulation. The gaps on both sides are what make it special, and they are what make it rare.",
+      "confirm": "The third bar is already the confirmation. A close above the third bar's high adds to it.",
+      "cancel": "A close back into the island cancels it. The gap that abandoned the doji has been filled.",
+      "desk": "When you see one, the island is the low. The desk treats the gap above it as the level that cannot be filled without the pattern failing."
+    },
+    "abandoned-baby-bearish": {
+      "shape": "Three bars. An up bar, a doji stranded above its neighbours with air on both sides, wicks included, then a down bar.",
+      "story": "The stock gapped up to a doji and then gapped back down beneath it. The bearish mirror of the bullish version, and just as rare.",
+      "where": "Only after an advance, usually a stretched one. The island at the top is the last buyer.",
+      "confirm": "The third bar is the confirmation. A close below its low adds to it.",
+      "cancel": "A close back up into the island cancels it.",
+      "desk": "An island top in a leader is a bar to respect. The gap under the island is the level. The desk would not buy that stock back until it reclaims it."
+    },
+    "morning-doji-star": {
+      "shape": "A morning star whose middle bar is a true doji: a long down bar, a doji gapping below it, then an up bar that closes back above the midpoint of the first body.",
+      "story": "Selling, then total indecision, then buyers taking back more than half the damage. The doji in the middle says the pause was complete: for one session nobody could move it either way.",
+      "where": "Only after a decline, best at a level that matters: a base low, a prior low, a rising average on the weekly.",
+      "confirm": "The third bar is the confirmation. A fourth bar that holds above the doji adds weight.",
+      "cancel": "A close below the doji's low cancels it. The buyers who took back the damage were overrun.",
+      "desk": "The doji's low is the low of the pattern and the level to mark. A reclaim of the first bar's open turns a star into a reversal worth trading."
+    },
+    "evening-doji-star": {
+      "shape": "An evening star whose middle bar is a true doji: a long up bar, a doji gapping above it, then a down bar closing below the midpoint of the first body.",
+      "story": "Buying, then total indecision at the high, then sellers taking back more than half the gain.",
+      "where": "Only after an advance, especially a stretched one into resistance.",
+      "confirm": "The third bar is the confirmation. A fourth bar that fails to reclaim the doji adds weight.",
+      "cancel": "A close above the doji's high cancels it.",
+      "desk": "The doji's high is the high of the pattern. In a leader the desk reads this as the top of the current leg until that high is reclaimed."
+    },
+    "morning-star": {
+      "shape": "Three bars. A long down bar, a small body gapping below it, then an up bar closing back above the midpoint of that first body.",
+      "story": "Selling, a stall, then buyers taking back more than half the damage. The small middle bar is the moment the sellers ran out of follow-through. The third bar is the buyers noticing.",
+      "where": "Only after a decline. The best ones form at a level: a prior low, the bottom of a base, a rising average. The small bar in the middle sitting below the big red bar is the sign the panic was absorbed.",
+      "confirm": "The third bar closing above the first bar's midpoint is the confirmation. A close above the first bar's open is stronger.",
+      "cancel": "A close below the middle bar's low cancels it.",
+      "desk": "A morning star is a three-bar higher low. The desk marks the middle bar's low and treats a later hold above it as the bottom of the pullback."
+    },
+    "evening-star": {
+      "shape": "Three bars. A long up bar, a small body gapping above it, then a down bar closing back below the midpoint of that first body.",
+      "story": "Buying, a stall at the high, then sellers taking back more than half the gain. The small bar at the top is the last push running out of buyers.",
+      "where": "Only after an advance. It means the most when the first bar is a big one and the stock is stretched above its averages.",
+      "confirm": "The third bar closing below the first bar's midpoint. A close below the first bar's open is stronger.",
+      "cancel": "A close above the middle bar's high cancels it.",
+      "desk": "In a leader, an evening star on rising volume is the market changing its mind. The middle bar's high is the level. The desk would lighten up and wait for the stock to earn that high back."
+    },
+    "three-black-crows": {
+      "shape": "Three straight red bars, each opening inside the previous body and each closing near its low.",
+      "story": "Steady, orderly distribution. No panic, no gap, just three sessions in a row where sellers finished the day in control. Each bar opens a little higher than the last close, offers a brief hope, and then sells off into the close.",
+      "where": "Only after an advance, especially a mature one. Three red bars at the start of a decline mean something. Three red bars three weeks into a decline are just the trend.",
+      "confirm": "The third bar is the pattern. A fourth bar that cannot reclaim the third bar's open confirms it.",
+      "cancel": "A close back above the first crow's open cancels it. The whole sequence was retraced.",
+      "desk": "Three closes near the lows in a row is a leader telling you the buyers have stepped aside. The desk reads it as a trend change in progress, not a dip to buy."
+    },
+    "three-white-soldiers": {
+      "shape": "Three straight green bars, each opening inside the previous body and closing near its high, with none of the bodies shrinking away.",
+      "story": "Orderly accumulation rather than one panicked gap. Each session dips a little at the open, gets bought, and closes strong. The bodies stay full, which is what separates soldiers from an advance block.",
+      "where": "Only after a decline. Three soldiers off a base low are the picture of a bottom being built. The same three bars at the end of a long run are an advance block or deliberation, and the catalog names them differently.",
+      "confirm": "The third bar is the pattern. A fourth bar that holds above the third bar's open confirms it.",
+      "cancel": "A close back below the first soldier's open cancels it.",
+      "desk": "The desk likes soldiers out of a base on rising volume. The low of the first soldier is the natural stop, and the sequence is the kind of start a leader makes."
+    },
+    "identical-three-crows": {
+      "shape": "Three black crows where each bar opens right at the prior close. No overnight relief at all between them.",
+      "story": "Three sessions of selling with no bounce at any open. Buyers never even got the small morning lift the ordinary crows allow. It is the crows without mercy.",
+      "where": "Only after an advance. It is rarer than the ordinary crows because the opens have to land exactly on the closes.",
+      "confirm": "A fourth bar that fails to reclaim the third bar's open.",
+      "cancel": "A close back above the first crow's open.",
+      "desk": "Read it like the ordinary crows, only louder. A leader that cannot even bounce at the open for three days has lost its buyers."
+    },
+    "three-outside-up": {
+      "shape": "Three bars. A bullish engulfing two bars back, now confirmed by a third bar closing higher.",
+      "story": "The engulfing bar said the buyers were back. The third bar proved they stayed. The confirmation is what separates this from a bare engulfing: a two-bar turn is a claim, and the third bar is the receipt.",
+      "where": "Only after a decline. Look for it at a level that matters: the low of a base, a prior support, a rising average.",
+      "confirm": "The third bar is the confirmation. Nothing more is needed to name it.",
+      "cancel": "A close below the engulfing bar's low cancels it.",
+      "desk": "The engulfing bar's low is the stop. The third bar's close is the reason to care. The desk reads this as a higher low with a receipt."
+    },
+    "three-outside-down": {
+      "shape": "Three bars. A bearish engulfing two bars back, confirmed by a third bar closing lower.",
+      "story": "The engulfing bar said sellers took control. The third bar proved it was not a one-day event.",
+      "where": "Only after an advance, especially into resistance or far above the averages.",
+      "confirm": "The third bar is the confirmation.",
+      "cancel": "A close above the engulfing bar's high cancels it.",
+      "desk": "The engulfing bar's high is the level. Below it, the leader is in a pullback with a confirmed seller. The desk waits."
+    },
+    "three-inside-up": {
+      "shape": "Three bars. A bullish harami two bars back, now confirmed by a third bar closing above the mother bar's body.",
+      "story": "A long red bar, then a small bar inside it that said the selling stalled, then a third bar that took the price back above where the red bar opened. The stall became a turn.",
+      "where": "Only after a decline, at a level where a stall would mean something.",
+      "confirm": "The third bar closing above the mother bar's body is the confirmation.",
+      "cancel": "A close below the mother bar's low cancels it.",
+      "desk": "The mother bar's low is the stop. The desk reads the third bar as the first higher close of a new leg."
+    },
+    "three-inside-down": {
+      "shape": "Three bars. A bearish harami two bars back, confirmed by a third bar closing below the mother bar's body.",
+      "story": "A long green bar, a small bar inside it that said the buying stalled, then a third bar that took the price back below where the green bar opened.",
+      "where": "Only after an advance.",
+      "confirm": "The third bar closing below the mother bar's body.",
+      "cancel": "A close above the mother bar's high cancels it.",
+      "desk": "The mother bar's high is the level. A leader that prints this has made a lower close under a stalled buyer, and the desk treats that as a pullback until the high is reclaimed."
+    },
+    "tri-star": {
+      "shape": "Three dojis in a row.",
+      "story": "Three consecutive sessions that could not settle on a direction. Unusual enough to be worth a look, because markets rarely stay undecided that long without something happening next.",
+      "where": "No trend is required for the name. At the end of a long move in either direction it is the clearest pause the catalog has. In the middle of a dead range it means the range is dead.",
+      "confirm": "The first bar that closes outside the three-doji range picks the direction.",
+      "cancel": "Nothing to cancel. It resolves one way or the other.",
+      "desk": "Three dojis after a run is a coiled spring. The desk does not guess the direction. It trades the break, in whichever direction the break comes."
+    },
+    "two-crows": {
+      "shape": "Three bars. A long up bar, a red bar gapping above it, then a second red bar eating back into the first bar's body.",
+      "story": "The stock gapped up after a strong day, and then gave the gap away. The second red bar opens inside the first red bar and closes down into the green body. Buyers paid up for the gap and got nothing for it.",
+      "where": "Only after an advance. The gap is the tell: an eager open that sellers used.",
+      "confirm": "A fourth bar that closes below the long green bar's midpoint.",
+      "cancel": "A close back above the first red bar's high cancels it. The gap was defended after all.",
+      "desk": "A gap up that gets sold for two sessions is a leader meeting supply. The high of the gap bar is the level, and the desk would want it reclaimed before adding."
+    },
+    "upside-tasuki-gap": {
+      "shape": "Three bars. Two green bars with a gap between their bodies, then a red bar that opens inside the second green body and fails to close the gap.",
+      "story": "The stock gapped up, and the first pullback into that gap stopped short of filling it. The gap held. That is buyers defending the price they gapped to.",
+      "where": "Only inside an advance. It is a continuation shape: the gap is the breakout and the red bar is the test.",
+      "confirm": "A fourth bar that closes above the red bar's high. The gap stays open.",
+      "cancel": "A close that fills the gap cancels it. The level that was supposed to hold did not.",
+      "desk": "The bottom of the gap is the line. The desk reads an unfilled gap on a pullback as the market agreeing with the move, and the low of the red bar as a stop that makes sense."
+    },
+    "downside-tasuki-gap": {
+      "shape": "Three bars. Two red bars gapped apart, then a green bar that opens inside the second red body and cannot close the gap.",
+      "story": "The stock gapped down and the bounce could not fill the gap. Sellers held the price they gapped to.",
+      "where": "Only inside a decline.",
+      "confirm": "A fourth bar that closes below the green bar's low.",
+      "cancel": "A close that fills the gap cancels it.",
+      "desk": "A bounce that cannot fill a gap down is a weak bounce. The desk would not buy it until the gap is closed and the stock is back above the top of it."
+    },
+    "stick-sandwich": {
+      "shape": "Three bars. Two red bars that close at effectively the same price, with a green bar sandwiched between them.",
+      "story": "The same level got defended twice. The first red bar closed there, the green bar bounced, and the second red bar came all the way back down to the same close and stopped. Twice the sellers reached that price and twice it held.",
+      "where": "Only after a decline. The matching closes are the level.",
+      "confirm": "A fourth bar that closes above the green bar's high.",
+      "cancel": "A close below the matching closes cancels it. The floor broke on the third try.",
+      "desk": "Two closes at the same price is a line on the chart drawn by the market itself. The desk marks it and watches for the undercut and reclaim."
+    },
+    "advance-block": {
+      "shape": "Three green bars in a row whose progress is visibly tiring: the bodies shrink, or the upper wicks lengthen, from one bar to the next.",
+      "story": "The advance is still up, but it is working noticeably harder for every point. Each session the buyers push, and each session they keep less of it. Three white soldiers are three full bodies. An advance block is three bodies running out of fuel.",
+      "where": "Only after an advance, which is the whole difference from the soldiers. Look for it late in a run, far above the averages, where tired buying is the first sign of a top.",
+      "confirm": "A fourth bar that closes below the third bar's low confirms the stall turned into a reversal.",
+      "cancel": "A fourth green bar with a full body cancels it. The block was a pause, not a top.",
+      "desk": "Shrinking green bodies on a leader are a reason to stop adding and to tighten. The desk does not short an advance block. It stops buying it."
+    },
+    "deliberation": {
+      "shape": "Three green bars where the first two are long and the third collapses to a short body.",
+      "story": "The push ran out on the last bar. Two strong sessions, then a third that opened near the previous close and could barely add anything. The buyers are deliberating.",
+      "where": "Only after an advance. It is the sharper cousin of the advance block: the stall is all in the third bar.",
+      "confirm": "A fourth bar closing below the third bar's low.",
+      "cancel": "A fourth bar with a long green body cancels it.",
+      "desk": "A short bar after two long ones is the move catching its breath. The desk waits for the next bar before deciding whether it is a pause or a top."
+    },
+    "hikkake-bull-confirmed": {
+      "shape": "An inside bar, a session that broke down out of it with a lower high and a lower low, and now, within three sessions, a close back above the inside bar's high.",
+      "story": "The trap has sprung. The downside break pulled in sellers and shook out weak holders, and the close above the inside bar's high says they were all wrong. This is the state a hikkake trader acts on.",
+      "where": "No prior trend is required, which makes it one of the few patterns that works in any context. The best ones form in a leader's tight pullback, where the inside bar is the coil and the false break is the shakeout.",
+      "confirm": "The close above the inside bar's high is the confirmation. That is what the name means.",
+      "cancel": "A close back below the false break's low cancels it.",
+      "desk": "This is a shakeout with a receipt. The desk reads the false break's low as the stop and the inside bar's high as the trigger that just fired."
+    },
+    "hikkake-bear-confirmed": {
+      "shape": "An inside bar, a session that broke up out of it with a higher high and a higher low, and now, within three sessions, a close back below the inside bar's low.",
+      "story": "The upside break trapped buyers who chased it. The close under the inside bar's low says the breakout failed and the buyers are stuck.",
+      "where": "No prior trend is required. It is a failed breakout from a coil.",
+      "confirm": "The close below the inside bar's low is the confirmation.",
+      "cancel": "A close back above the false break's high cancels it.",
+      "desk": "A failed breakout from an inside bar is a name the desk would step away from. The false break's high is the level it would have to reclaim."
+    },
+    "hikkake-bull": {
+      "shape": "An inside bar, then a session breaking down out of it with a lower high and a lower low.",
+      "story": "Counter-intuitively, that is the bullish form. The downside break is the trap: it pulls in sellers and shakes out weak holders. The pattern is confirmed if the close retakes the inside bar's high within three sessions. Until then it is a setup, not a signal.",
+      "where": "No prior trend is required, which is rare in this catalog. Look for it where an inside bar sits in a tight pullback: the coil is the inside bar, the shakeout is the break.",
+      "confirm": "A close above the inside bar's high within three sessions. That turns this into the confirmed version.",
+      "cancel": "Three sessions with no reclaim, or a close well below the break bar's low, cancels it.",
+      "desk": "The break bar's low is the stop and the inside bar's high is the trigger. The desk does not buy the break down. It buys the reclaim."
+    },
+    "hikkake-bear": {
+      "shape": "An inside bar, then a session breaking up out of it with a higher high and a higher low.",
+      "story": "The upside break is the trap. It is confirmed if the close loses the inside bar's low within three sessions. Until then it is just a breakout that has not failed yet.",
+      "where": "No prior trend is required. Watch for it on breakouts from tight inside bars that do not follow through.",
+      "confirm": "A close below the inside bar's low within three sessions.",
+      "cancel": "Three sessions holding above the inside bar's low, or a close above the break bar's high, cancels it. The breakout was real.",
+      "desk": "The desk reads an inside-bar breakout that holds as a good thing. This name only applies if it fails. The inside bar's low is the line that decides which one you are looking at."
+    },
+    "kicking-bullish": {
+      "shape": "Two bars. A black marubozu, then a white marubozu gapping clear above it, with no overlap at all, wicks included.",
+      "story": "A complete overnight reversal of opinion. One session was all selling, the next opened above that whole bar and was all buying. Something changed between the close and the open, and the market did not wait to price it.",
+      "where": "No prior trend is required. The gap carries the signal. You see it around news: earnings, deals, upgrades.",
+      "confirm": "The white marubozu is the confirmation. A next bar that holds above the gap adds to it.",
+      "cancel": "A close back into the gap cancels it.",
+      "desk": "The gap is the level. A kicker that holds its gap is the kind of bar that starts a new leg, and the desk watches the gap's bottom as the line."
+    },
+    "kicking-bearish": {
+      "shape": "Two bars. A white marubozu, then a black marubozu gapping clear below it with no overlap.",
+      "story": "All buying one day, all selling the next, with a gap between them. A complete reversal of opinion overnight.",
+      "where": "No prior trend is required. Usually news-driven.",
+      "confirm": "The black marubozu is the confirmation. A next bar that stays below the gap adds to it.",
+      "cancel": "A close back up into the gap cancels it.",
+      "desk": "A bearish kicker in a leader is a changed story. The top of the gap is the level it would have to reclaim before the desk trusts it again."
+    },
+    "bullish-engulfing": {
+      "shape": "Two bars. A green bar whose body completely covers the previous red body, printed in a downtrend.",
+      "story": "Sellers had the first session. On the second, buyers opened lower and then took the price all the way through the top of the previous body. Everyone who sold the day before is now underwater.",
+      "where": "Only after a decline. The same geometry in an uptrend is a last engulfing top, and it behaves very differently. Look for it at a base low or a prior support where a decline could end.",
+      "confirm": "A next bar that closes above the engulfing bar's high. The three outside up is this pattern with that confirmation attached.",
+      "cancel": "A close below the engulfing bar's low cancels it.",
+      "desk": "The engulfing bar's low is the stop and its high is the trigger. The desk reads a bullish engulfing at a level, on volume, as a higher low in the making."
+    },
+    "bearish-engulfing": {
+      "shape": "Two bars. A red bar whose body completely covers the previous green body, printed in an uptrend.",
+      "story": "Buyers had the first session. On the second, sellers opened higher and then took the price all the way through the bottom of the previous body.",
+      "where": "Only after an advance. It means the most at resistance or when the stock is stretched.",
+      "confirm": "A next bar that closes below the engulfing bar's low. The three outside down is this pattern with that confirmation attached.",
+      "cancel": "A close above the engulfing bar's high cancels it.",
+      "desk": "In a leader, a bearish engulfing on heavy volume is a reason to lighten up. The high of that bar is the level."
+    },
+    "last-engulfing-top": {
+      "shape": "A bullish engulfing's exact geometry: a green body swallowing the previous red body. The difference is that it printed after an advance rather than after a decline.",
+      "story": "Same shape, different situation entirely. After a long run, a green bar that swallows a red one is the last gasp of buying rather than the start of a turn. The trend is part of the definition here.",
+      "where": "Only after an advance, especially a stretched one.",
+      "confirm": "A next bar that closes below the engulfing bar's low.",
+      "cancel": "A close above the engulfing bar's high cancels it. The buying was real after all.",
+      "desk": "The lesson here is the trend. A big green bar late in a run is not the same bar as a big green bar off a low. The desk asks where it printed before deciding what it means."
+    },
+    "last-engulfing-bottom": {
+      "shape": "A bearish engulfing's geometry, a red body swallowing the previous green body, printed after a decline instead of an advance.",
+      "story": "After a long decline, a red bar that swallows a green one can be the last seller rather than the start of a new leg down.",
+      "where": "Only after a decline.",
+      "confirm": "A next bar that closes above the engulfing bar's high.",
+      "cancel": "A close below the engulfing bar's low cancels it.",
+      "desk": "Late in a decline the desk watches for the selling to exhaust itself. A last engulfing bottom is a candidate for that, and the next bar decides."
+    },
+    "dark-cloud-cover": {
+      "shape": "Two bars. The second opens above the prior high and then closes back below the midpoint of the previous green body.",
+      "story": "A gap up that was sold all day. The open above the high invited the last buyers in, and the close under the midpoint tells them they were wrong.",
+      "where": "Only after an advance. The gap above the prior high is the tell.",
+      "confirm": "A next bar that closes below the dark cloud's low.",
+      "cancel": "A close back above the dark cloud's open cancels it.",
+      "desk": "In a leader this is supply showing up on a gap. The dark cloud's high is the level. The desk would want it reclaimed before trusting the move again."
+    },
+    "piercing-line": {
+      "shape": "Two bars. The second opens below the prior low and then closes back above the midpoint of the previous red body.",
+      "story": "A gap down that was bought all day. Sellers got their gap and buyers took more than half of it back. Closing at or under the midpoint instead makes it a thrusting line, which is a weaker thing.",
+      "where": "Only after a decline, at a level where the gap down looks like a flush rather than a breakdown.",
+      "confirm": "A next bar that closes above the piercing bar's high.",
+      "cancel": "A close below the piercing bar's low cancels it.",
+      "desk": "A gap down that gets bought through the midpoint is a shakeout. The desk marks the piercing bar's low and treats a close above the first bar's open as the reclaim."
+    },
+    "harami-cross": {
+      "shape": "A harami whose inside bar is a doji: a long bar, then a doji that sits entirely inside its body.",
+      "story": "The pause after a long bar was complete indecision. Not a small push back, not a small continuation, but a session that could not move at all.",
+      "where": "No trend is required for the name, but it means the most after a strong run in either direction, where a sudden full stop is a change in behaviour.",
+      "confirm": "The bar that closes outside the mother bar's range picks the direction.",
+      "cancel": "Nothing to cancel. It resolves.",
+      "desk": "A doji inside a big bar is a coil inside a move. The desk watches the mother bar's high and low as the two triggers."
+    },
+    "bullish-harami": {
+      "shape": "Two bars. A long red bar, then a small body sitting entirely inside it.",
+      "story": "The selling did not follow through. After a big red day, the next session could not even leave the previous bar's body. That is the sellers pausing, not the buyers winning yet.",
+      "where": "Only after a decline. Look for it at a level where a pause could become a bottom.",
+      "confirm": "A next bar that closes above the mother bar's body. The three inside up is this pattern with that confirmation attached.",
+      "cancel": "A close below the mother bar's low cancels it.",
+      "desk": "A harami is a question mark. The mother bar's high is the trigger and its low is the stop. The desk does nothing until one of them gives."
+    },
+    "bearish-harami": {
+      "shape": "Two bars. A long green bar, then a small body entirely inside it.",
+      "story": "The buying did not follow through. After a big green day, the next session stayed inside it.",
+      "where": "Only after an advance, especially after a big bar into resistance.",
+      "confirm": "A next bar that closes below the mother bar's body. The three inside down is this pattern with that confirmation attached.",
+      "cancel": "A close above the mother bar's high cancels it.",
+      "desk": "After a big up day, a tiny inside day is normal digestion as often as it is a top. The desk lets the mother bar's range decide and does not sell the inside bar itself."
+    },
+    "tweezer-top": {
+      "shape": "Two sessions rejected at effectively the same high.",
+      "story": "The market tried the same price twice and was turned away both times. Equality is measured with a small band, never exact ticks, so two highs a hair apart still count.",
+      "where": "Only after an advance. The matching highs are the level, and the best versions come at a prior resistance the stock has stalled at before.",
+      "confirm": "A next bar that closes below the lower of the two bars' lows.",
+      "cancel": "A close above the matching highs cancels it. The level broke on the third try.",
+      "desk": "Two highs at the same price is a line the market drew. The desk marks it. If a leader clears it, that is a breakout. If it keeps failing there, that is a range."
+    },
+    "tweezer-bottom": {
+      "shape": "Two sessions that found support at effectively the same low.",
+      "story": "Buyers defended the same price twice. The second test held where the first one did, which is how support gets proven.",
+      "where": "Only after a decline, at a level: a prior low, a base bottom, a rising average.",
+      "confirm": "A next bar that closes above the higher of the two bars' highs.",
+      "cancel": "A close below the matching lows cancels it.",
+      "desk": "Two lows at the same price is the market telling you where the buyers live. The desk treats an undercut of that level that quickly reclaims as one of its favourite looks."
+    },
+    "thrusting": {
+      "shape": "Two bars. The second opens below the prior low and closes back into the previous red body, but only to its midpoint or less.",
+      "story": "A piercing line that fell short. Buyers bought the gap down but could not get past halfway. The exact halfway case belongs here, not to piercing.",
+      "where": "Only after a decline. It is usually read as the decline pausing rather than ending.",
+      "confirm": "A next bar closing above the first red bar's open would turn the pause into a reversal.",
+      "cancel": "A close below the thrusting bar's low confirms the decline instead.",
+      "desk": "Halfway is not enough. The desk wants the gap down bought through the midpoint before it calls it a shakeout. A thrusting line is a bounce that needs more proof."
+    },
+    "on-neck": {
+      "shape": "Two bars. The second opens below the prior low and closes right back at that low.",
+      "story": "The bounce reached exactly the old floor and stopped. Buyers got the price back up to where the first bar ended and could not take it a tick further.",
+      "where": "Only after a decline. It is a weak bounce inside a downtrend.",
+      "confirm": "A next bar closing below the on-neck bar's low confirms the decline is continuing.",
+      "cancel": "A close above the first bar's midpoint cancels it and makes a bottom possible.",
+      "desk": "A bounce that stops exactly at the previous low is a bounce with no buyers behind it. The desk would not touch it until the stock gets back inside the first bar's body."
+    },
+    "matching-low": {
+      "shape": "Two red bars that close at effectively the same price.",
+      "story": "A floor that has now been tested twice on a closing basis. Two sessions of selling ended at the same number, which means someone is buying there at the close.",
+      "where": "No trend is required for the name, but it means the most after a decline, where a floor is the thing you are looking for.",
+      "confirm": "A next bar that closes above the second bar's high.",
+      "cancel": "A close below the matching closes cancels it.",
+      "desk": "Matching closes draw a level the desk can use. Mark it. The reclaim of the second bar's high is the first sign the floor is turning into a bottom."
+    },
+    "homing-pigeon": {
+      "shape": "Two red bars where the second sits entirely inside the first. A bullish harami built from two red bars.",
+      "story": "The selling shrank. The second day was still red, but it could not even leave the first day's body. Sellers are losing steam without buyers having shown up yet.",
+      "where": "Only after a decline.",
+      "confirm": "A next bar that closes above the first bar's high.",
+      "cancel": "A close below the first bar's low cancels it.",
+      "desk": "A shrinking red bar inside a big one is the kind of quiet the desk notices at the end of a pullback. The first bar's high is the reclaim to watch."
+    },
+    "separating-lines": {
+      "shape": "Two opposite-coloured bars that open at the same price.",
+      "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
+      "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend.",
+      "confirm": "The second bar closing in the trend's direction is the pattern. A third bar continuing adds to it.",
+      "cancel": "A close back through the shared open cancels it.",
+      "desk": "A red day that gets erased at the next open is a leader with buyers waiting. The desk reads the shared open as the level the market just defended."
+    }
+  }
+}

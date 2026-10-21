@@ -276,12 +276,38 @@ def test_candle_description_questions_never_name_the_answer(segments):
     assert "hammer" not in cut.lower() and cut and len(cut) < len(hammer.desc)
 
 
+def test_every_candle_name_has_a_full_six_part_lesson_and_every_item_carries_it(segments):
+    """Owner 2026-10-20: 'a thorough explanation will be important on these'.
+    docs/study/terms/candle_lessons.json has all six parts for all 66 names, in
+    the importer's voice, with no digits (grounding), and every candle item's
+    lesson_text is exactly those parts joined, with the parts in the reveal."""
+    lessons = gen_candles.load_lessons()
+    keys = {p.key for p in gen_candles.catalog()}
+    assert set(lessons) == keys
+    for key, parts in lessons.items():
+        for part in gen_candles.LESSON_PARTS:
+            text = parts[part]
+            assert text.strip() and not re.search(r"\d", text), (key, part)
+            assert si.voice_check(text, lesson=True) == [], (key, part)
+    by_key = {p.key: p for p in gen_candles.catalog()}
+    for it in segments["candles.catalog"] + segments["candles.chart"]:
+        p = by_key[it["reveal_json"]["key"]]
+        expected, parts = gen_candles.full_lesson(p, lessons)
+        assert parts and it["lesson_text"] == expected, it["id"]
+        assert it["reveal_json"]["lesson_parts"] == parts and it["lesson_origin"] == "source", it["id"]
+    assert len(set(it["lesson_text"] for it in segments["candles.chart"])) >= 60     # one lesson per name, not one for all
+
+
 def test_candle_chart_items_show_a_real_bar_found_by_the_catalog(segments):
     """Owner 2026-10-19 ("include images"): every example in
     docs/study/terms/candle_examples.json is a chart item cut at the named bar."""
     charts = segments["candles.chart"]
     examples = gen_candles.load_examples()
     assert examples and len(charts) == len([e for e in examples if e["key"] in {p.key for p in gen_candles.catalog()}])
+    # an example the owner approved survives every re-run of the finder (candle_examples_kept.json)
+    kept = json.loads(gen_candles.KEPT_PATH.read_text(encoding="utf-8"))["examples"]
+    ids = {it["id"] for it in charts}
+    assert kept and all(k["item_id"] in ids for k in kept), [k["item_id"] for k in kept if k["item_id"] not in ids]
     assert len({it["answer_json"]["answer"] for it in charts}) >= 55       # most of the 66 names have a chart
     assert len({it["sym"] for it in charts}) >= 12                            # not four stocks
     for it in charts:
@@ -448,6 +474,25 @@ def test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors(segm
         rules = {dedash(r) for r in p["rules"]}
         assert all(c in rules for c in wrong), it["id"]           # never another setup's mistake
         assert it["prompt_json"]["note"].startswith("The other three")
+
+
+def test_corrections_bulk_lists_are_one_verdict_per_id(tmp_path):
+    """<segment>.approved-<date>.json / .retired-<date>.json apply on regeneration
+    like per-item lines (the delegated bulk decisions of 2026-10-21)."""
+    from scripts.study import corrections
+    (tmp_path / "x.approved-2026-10-21.json").write_text(json.dumps({"why": "bulk ok", "ids": ["si_a", "si_b"]}), encoding="utf-8")
+    (tmp_path / "x.retired-2026-10-20.json").write_text(json.dumps({"why": "too small", "ids": ["si_c"]}), encoding="utf-8")
+    recs = corrections.load(tmp_path)
+    assert [(r["item_id"], r["verdict"], r["ts"]) for r in recs] == [
+        ("si_a", "approve", "2026-10-21"), ("si_b", "approve", "2026-10-21"), ("si_c", "reject", "2026-10-20")]
+    items = [{"id": i, "review_status": "draft", "prompt_json": {}, "answer_json": {}, "reveal_json": {}} for i in ("si_a", "si_c", "si_d")]
+    out = corrections.apply(items, recs)
+    assert [(i["id"], i["review_status"]) for i in out] == [("si_a", "approved"), ("si_d", "draft")]
+    assert out[0]["reviewed"]["by"] == "owner"
+    # the committed candle bulk lists resolve to real bank items
+    bank_ids = {it["id"] for it in gen_candles.generate()["candles.chart"]}
+    approved = json.loads((REPO / "docs" / "study" / "corrections" / "candles.chart.approved-2026-10-21.json").read_text(encoding="utf-8"))["ids"]
+    assert approved and set(approved) <= bank_ids
 
 
 def test_corrections_overlay_applies_a_prompt_field_fix():

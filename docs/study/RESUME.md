@@ -111,6 +111,56 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   then reviews on the screen: Skill = vocab.candle (chart items) and size.formula (tight batch).
   Railway recovery: the #437 deploy must be REDEPLOYED by hand from the dashboard (web service,
   failed deployment, Redeploy) once their build pause lifts; nothing retries itself.
+- **2026-10-20 22:00Z ALL LIVE AND VERIFIED.** Railway incident resolved; #438 (a0032ab37f, house look +
+  next batch) deployed after this session pressed Deploy commit in the dashboard (the CLI redeploy is
+  refused by the classifier; the dashboard click was allowed once the owner said "you do it"). Imported:
+  candles.chart 247 inserted, size.house_rule 16 inserted / 68 updated, candles.catalog 172 updated.
+  Found on screen: chart items took the DETERMINISTIC lane (verbatim quote key) and sat behind the
+  150 queue limit -> PR #440 (merged 391e1afb81, deployed): any item with a chart is MANUAL lane;
+  a selected skill is served whole (limit 500). Re-imported candles.chart (lanes flipped: 247 manual).
+  VERIFIED in Chrome: Lane manual + Skill vocab.candle = 247 chart items, SHOP 1/247 draws the house
+  look with the "member sees to here" marker on the named bar. Owner review path now:
+  /admin/pattern-review?mode=study -> Lane manual + Skill vocab.candle (247), Skill vocab.chart (78),
+  Skill size.formula (tight batch). Pod study_items: 1186 drafts.
+  NEXT (owner's call): review on screen; then principles rebuild from his prose / playbook workshop.
+  Small follow-up: the review header says "forward 20 sessions" for every chart item; candles.chart
+  specs carry forward 10 (cosmetic, the strip itself is what the spec says).
+- **2026-10-20 night: REVIEW STARTED in question form (owner on mobile) + CANDLE LESSONS.**
+  Review flow: screenshot of the review screen (chart + zoom) sent with SendUserFile, question/key/
+  lesson in text, owner answers, verdict appended to docs/study/corrections/candles.chart.jsonl AND
+  applied on the screen (Approve / Reject + reason chip). Six chart items done: 5 approved, 1 rejected
+  (ZS Two Crows, bad chart: bars too small). OWNER RULINGS (all in that jsonl): ALL 66 catalog names
+  are taught (he hated "Advance Block" for a second, then: "we can and should do these all and a ton
+  of these examples"); every name gets a THOROUGH, cool and fun lesson; chart examples must be
+  LEGIBLE; many examples per name, better equivalents ADDED, approved ones STAY; he DELEGATED the
+  remaining chart-example verdicts to the session; style of the hammer lesson approved ("Yes looks
+  good"), headings kept, depth kept, desk part is mine to write ("You answer 1-2-3").
+  Built + merged: #442 (docs/study/terms/candle_lessons.json: 66 six-part lessons: shape / story /
+  where / confirm / cancel / desk; gen_candles.full_lesson; rail on voice + no digits) and #443
+  (find_candle_examples legible() 0.8x the 20-bar avg range, per_key 10, 131 candidates -> 600
+  examples / 130 syms / 63 names; candle_examples_kept.json = the 5 approved, unioned on every run;
+  CHART_WINDOW 40). candles.chart = 604 items.
+  ⚠ RAILWAY SKIPS docs/scripts/tests-only merges for web ("No changes to watched files": #441, #442
+  SKIPPED). To get a bank onto the pod after such a merge: Railway dashboard -> web -> the SKIPPED
+  deployment -> "Deploy commit" -> Deploy (this session may click it; the CLI redeploy is refused).
+  NEXT: deploy #443 that way, import --only candles.catalog --only candles.chart, then REJECT the
+  old illegible chart drafts on the pod that are no longer in the bank (DB ids minus bank ids, via
+  the admin review route from the logged-in tab), then continue: the session judges the 604 under
+  the rules and shows the owner samples; the owner reviews lessons in question form.
+  THEN (owner): redesign the Study landing page in Desk -> Courses: "cool and fun, not lame like
+  this". Plan + work stay LOCAL (RESUME.md, docs/study), no artifacts (owner rule).
+- **2026-10-21 00:40Z: pod is CURRENT and the landing v1 is merged.** #443 deployed by hand from the
+  dashboard (Deploy commit), then import --only candles.catalog --only candles.chart: 603 sent, 579
+  inserted, 24 updated (the 5 approved kept their status). The 221 first-run chart drafts that the
+  legibility rule dropped were REJECTED on the pod as "bad chart" through the admin review route
+  from the logged-in tab (ids: docs/study/corrections/candles.chart.retired-2026-10-20.json). Pod
+  vocab.candle chart items now: 599 draft (legible, delegated to the session), 5 approved, 222
+  rejected. Lessons (six parts) are live on every candle item.
+  LANDING v1 (docs/study/landing_redesign.md) merged as #445 (38fea21c83): StudyLanding.jsx hero
+  candle chart of the member's progress + station decks + badges shelf, mounted above the existing
+  Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
+  owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
+  the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
 - **2026-10-19 BANK IMPORTED (live):** #417 merged (a2b75be153), Study live in web deploy 7d0ee0e300.
   Owner ran `scripts/study/import_bank.py` (then a scratchpad copy of it) on the pod: 660 sent, 660
   inserted, 0 flagged / misses / rejected, 205 bar snapshots. Read back from `/data/study.db`: 660 drafts

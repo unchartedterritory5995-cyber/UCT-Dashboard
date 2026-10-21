@@ -157,6 +157,41 @@ function refMapKind(refMap, op) {
   return hit?.kind || null
 }
 
+/**
+ * NL-1 HYBRID ACTION SELECTION (owner 2026-10-20) — what the request's action selection did, and the envelope the
+ * panel acts on. Pure. `item` = the captured request (body, selection, reroutes, catalog); `result` = the runner's
+ * row (envelope, need, rerouted); `catalog` = the item's catalog entry; `assemble` = nl1/selection.js assembleNl1.
+ *   firstCall     every action of some accepted plan was in the FIRST call's actions (null: the case plans nothing)
+ *   rerouted      the model asked for more groups and the one reroute was made
+ *   escalated     the panel turned an `apply` into a proposal: the member's words pointed at a group the final
+ *                 request could not carry (useAgent `wordsNotSent`) — `env` is returned so escalated
+ *   substitution  a CHANGE was planned although no accepted plan was fully visible to the call that planned it,
+ *                 and the change is not one of the accepted plans' action sets: a stand-in for an action it lacked
+ */
+export function selectionOutcome({ expect: e, item, result, catalog = null, assemble = null }) {
+  const env = result?.envelope || {}
+  const plans = [e?.ops, ...(e?.alt || [])].filter(p => Array.isArray(p) && p.length)
+  const first = new Set((item?.body?.capabilities || []).map(c => c.name))
+  const rr = result?.rerouted ? (item?.reroutes || {})[(result.need || []).join('+')] : null
+  let finalNames = first
+  if (rr && catalog && assemble) finalNames = new Set(assemble(catalog.manifest, catalog.core, rr.selected).manifest.map(c => c.name))
+  const visible = (names) => plans.some(p => p.every(o => names.has(o.a)))
+  const unsent = (rr ? rr.wordsNotSent : item?.selection?.wordsNotSent) || []
+  const escalated = env.disposition === 'apply' && unsent.length > 0
+  const ops = MUTATING.has(env.disposition) && Array.isArray(env.ops) ? env.ops : []
+  const changing = ops.filter(o => !getCapability(o.action)?.query)
+  const planned = [...new Set(ops.map(o => o.action))].sort().join(',')
+  const sameAs = (p) => [...new Set(p.map(o => o.a))].sort().join(',') === planned
+  const substitution = plans.length > 0 && changing.length > 0 && !visible(finalNames) && !plans.some(sameAs)
+  return {
+    firstCall: plans.length ? visible(first) : null,
+    rerouted: !!result?.rerouted,
+    escalated,
+    substitution,
+    env: escalated ? { ...env, disposition: 'propose' } : env,
+  }
+}
+
 /** Aggregate rows into the acceptance metrics (eval/ACCEPTANCE in docs/agent/nl-intent/NL1-EVAL.md). */
 export function aggregate(rows) {
   const n = rows.length
@@ -175,5 +210,20 @@ export function aggregate(rows) {
     unsafe: count(r => r.unsafe.length > 0),
     plannerRefused: count(r => r.execution.refused),
     failures: Object.fromEntries([...new Set(rows.map(r => r.interp))].filter(k => k !== 'correct').map(k => [k, count(r => r.interp === k)])),
+    // NL-1 hybrid action selection (reported; the acceptance gates are unchanged)
+    firstCallCoverage: pct(count(r => r.selection?.firstCall === true), count(r => r.selection && r.selection.firstCall !== null)),
+    rerouteRate: pct(count(r => r.selection?.rerouted), count(r => r.selection)),
+    substitutions: count(r => r.selection?.substitution),
+    escalated: count(r => r.selection?.escalated),
+    tokens: tokenMeans(rows),
   }
+}
+
+/** Mean tokens per request (input, cache read / write, output) and model calls, from the runner's usage. */
+function tokenMeans(rows) {
+  const us = rows.map(r => r.usage).filter(u => u && typeof u === 'object')
+  if (!us.length) return null
+  const mean = (k) => Math.round(us.reduce((s, u) => s + (Number(u[k]) || 0), 0) / us.length)
+  return { input: mean('input_tokens'), cacheRead: mean('cache_read_tokens'), cacheWrite: mean('cache_write_tokens'), output: mean('output_tokens'),
+    modelCalls: Math.round((us.reduce((s, u) => s + (Number(u.model_calls) || 0), 0) / us.length) * 100) / 100 }
 }

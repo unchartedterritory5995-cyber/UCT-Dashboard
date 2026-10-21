@@ -30,6 +30,11 @@ The sets total 842 turns, 405 of them sealed.
 
 ## 2. What is measured, and where
 
+**Since 2026-10-20 (hybrid action selection, [NL1-SELECTION.md](NL1-SELECTION.md)):**
+- NL-1 requests carry their selected actions (at most 60), and the runner replays the panel's one reroute.
+- Each set also reports first-call coverage, reroute rate, substitutions, escalations and tokens per request.
+- The gates below are unchanged.
+
 Interpretation and execution are scored **separately** (`app/src/agent/testing/score.js`):
 
 | | What | How |

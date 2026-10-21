@@ -31,7 +31,11 @@ VERDICTS = ("approve", "fix", "reject", "source_ruling")
 
 
 def load(directory: pathlib.Path = CORRECTIONS_DIR) -> list[dict]:
-    """Every record in every *.jsonl file, in file then line order."""
+    """Every record in every *.jsonl file, in file then line order, PLUS the
+    bulk lists: `<segment>.approved-<date>.json` and `<segment>.retired-<date>.json`
+    ({"why": ..., "ids": [...]}) are one approve / reject verdict per id, so a
+    delegated bulk decision (owner 2026-10-20: the session judges the candle
+    chart examples) is applied on regeneration exactly like a per-item line."""
     out: list[dict] = []
     if not directory.exists():
         return out
@@ -45,6 +49,15 @@ def load(directory: pathlib.Path = CORRECTIONS_DIR) -> list[dict]:
                 if rec.get("verdict") not in VERDICTS:
                     raise ValueError(f"{path.name}:{n}: bad verdict {rec.get('verdict')!r}")
                 out.append(rec)
+    for verdict, pattern in (("approve", "*.approved-*.json"), ("reject", "*.retired-*.json")):
+        for path in sorted(directory.glob(pattern)):
+            segment, _, rest = path.name.partition(f".{'approved' if verdict == 'approve' else 'retired'}-")
+            ts = rest[:-len(".json")]
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            for iid in doc.get("ids") or []:
+                out.append({"ts": ts, "item_id": iid, "segment": segment, "verdict": verdict,
+                            "owner_words": doc.get("why", ""), "reason": "bad chart" if verdict == "reject" else None,
+                            "bulk": path.name})
     return out
 
 

@@ -144,3 +144,21 @@ def test_member_route_drops_the_base_and_the_admin_route_keeps_it(monkeypatch, b
     # control: with no incumbent the member gets the base drawing
     monkeypatch.setattr(AS, "structures_for", lambda sym: json.loads(json.dumps([base])))
     assert _ids(_get(PAID_MEMBER).json()["structures"]) == ["bc:base"]
+
+
+def _stale(row, reason="broke_down"):
+    r = copy.deepcopy(row)
+    r["geometry"]["extras"].update({"stale": True, "stale_reason": reason})
+    return r
+
+
+def test_a_stale_incumbent_is_never_drawn_so_it_covers_nothing(base):
+    """The client drops a stale row (PatternOverlay.selectDrawable), so a stale flat_base / bc:flat-base
+    that would have covered the base must not drop the bc:base drawing: the chart would show neither."""
+    top = _bd(base)["pivot"]
+    for inc in (_flat_base_det(base, top), _flat_base_box(base, top)):
+        assert [r["pattern_id"] for r in AS.member_base_precedence([inc], [base])] == []
+        assert [r["pattern_id"] for r in AS.member_base_precedence([_stale(inc)], [base])] == ["bc:base"]
+        got = [r["pattern_id"] for r in AS.member_base_precedence([], [_stale(inc), base])]
+        want = [inc["pattern_id"], "bc:base"]  # the incumbent row itself is never dropped here
+        assert got == want
