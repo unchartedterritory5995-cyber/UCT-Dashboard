@@ -333,6 +333,7 @@ export default function CoursesSection() {
           sessionId={sessionParam}
           profile={profileRow}
           weekDots={dots}
+          reviewer={user?.role === 'admin'}
           onClose={finishDrill}
           onFinished={finishDrill}
           onKeepPractising={practise}

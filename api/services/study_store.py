@@ -33,6 +33,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import secrets
 import sqlite3
 import threading
@@ -62,6 +63,18 @@ REVIEW_ACTIONS = ("approve", "fix", "reject", "grade")
 #: the owner's grade on a chart EXAMPLE (owner 2026-10-21: "distinguish what is
 #: okay, good, and great, and bad"); "bad" is a reject, these three are kept
 EXAMPLE_GRADES = ("okay", "good", "great")
+#: What a member (or the owner) can say about an item from the reveal card or
+#: from Discord. `great` is praise the session reads as "keep this one";
+#: everything else names what is off. The words are fixed so the ingest can
+#: group them; the free text carries the rest.
+FEEDBACK_KINDS = ("wrong_answer", "bad_chart", "unclear_question", "unclear_lesson",
+                  "too_easy", "too_hard", "great", "other")
+FEEDBACK_ROLES = ("owner", "member")
+FEEDBACK_CHANNELS = ("site", "discord", "review")
+#: A verdict rides on OWNER feedback only: approve / reject apply at once
+#: through `review()`; fix is a note the next build answers (it names no field).
+FEEDBACK_VERDICTS = ("approve", "fix", "reject")
+FEEDBACK_TEXT_MAX = 2000
 TRUST_STATES = ("manual", "sampled")
 BANDS = ("learning", "practised", "proficient")
 
@@ -271,6 +284,34 @@ CREATE TABLE IF NOT EXISTS study_weekly_close (
   closed_at TEXT NOT NULL,
   rows_json TEXT NOT NULL
 );
+
+-- Feedback on an item from wherever it was met (owner 2026-10-21: "a system for
+-- reviewing in site or in the discord and giving feedback for the quiz and test
+-- so we can manually do this and ingest and update the information"). A member
+-- says what is off; the owner's note can also CARRY a verdict (approve / reject
+-- applied at once, fix = a note for the next build). The session exports the
+-- rows into docs/study/corrections (ingest_feedback.py) so a regeneration
+-- carries them; `handled_at` is the session's own "done" mark.
+CREATE TABLE IF NOT EXISTS study_feedback (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id      TEXT NOT NULL,
+  item_version INTEGER,
+  user_id      TEXT NOT NULL,
+  role         TEXT NOT NULL,                        -- owner | member
+  channel      TEXT NOT NULL,                        -- site | discord | review
+  kind         TEXT NOT NULL,                        -- FEEDBACK_KINDS
+  text         TEXT,
+  verdict      TEXT,                                 -- approve | fix | reject (owner only)
+  answer_json  TEXT,                                 -- what they answered, when known
+  correct      INTEGER,
+  attempt_id   INTEGER,
+  handled_at   TEXT,
+  handled_by   TEXT,
+  handled_note TEXT,
+  at           TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_study_feedback_item ON study_feedback(item_id, id);
+CREATE INDEX IF NOT EXISTS idx_study_feedback_open ON study_feedback(handled_at, id);
 """
 
 #: Columns added after the first schema shipped. `CREATE TABLE IF NOT EXISTS`
@@ -998,7 +1039,9 @@ def get_attempt(attempt_id: int) -> Optional[dict]:
     if not row:
         return None
     d = dict(row)
-    d["answer_json"] = _loads(d["answer_json"])
+    # a plain-string answer is stored as the bare string (see _dumps), so the
+    # raw value is the fallback or every recall answer reads back as None
+    d["answer_json"] = _loads(d["answer_json"], d["answer_json"])
     return d
 
 
@@ -1234,6 +1277,142 @@ def export_corrections(*, since_id: int = 0, limit: int = 5000) -> list[dict]:
         d["after_json"] = _loads(d["after_json"], d["after_json"])
         out.append(d)
     return out
+
+
+# ── Feedback (owner 2026-10-21: review in site / in Discord, ingest later) ─────
+
+_FEEDBACK_ITEM_COLS = ("type", "skill_id", "sym", "asof", "review_status", "prompt_json")
+
+
+def short_ref(item_id: str) -> str:
+    """The six characters a reveal card prints ("ref 872a0a") so a member can
+    name an item from Discord without copying the whole id."""
+    body = item_id[3:] if item_id.startswith("si_") else item_id
+    return body[:6]
+
+
+def find_item_by_ref(ref: str) -> Optional[dict]:
+    """The item a short ref (or a whole id) names, when exactly one does."""
+    # the first run of 4+ hex characters: "872a0a", "si_872a0a87de98",
+    # "ref 872a0a" (the label's own "ef" is too short to be taken for the ref)
+    runs = re.findall(r"[0-9a-f]{4,}", (ref or "").strip().lower())
+    key = runs[0] if runs else ""
+    if not key:
+        return None
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute("SELECT * FROM study_items WHERE id LIKE ? LIMIT 2", (f"si_{key}%",)).fetchall()
+    if len(rows) != 1:
+        return None
+    return _row_to_item(rows[0])
+
+
+def add_feedback(item_id: str, user_id: str, *, role: str, channel: str, kind: str,
+                 text: Optional[str] = None, verdict: Optional[str] = None, answer_json=None,
+                 correct: Optional[bool] = None, attempt_id: Optional[int] = None) -> dict:
+    """One feedback row. An OWNER verdict of approve / reject is applied to the
+    item right away through `review()` (so the site and Discord are review
+    doors, not just inboxes); `fix` is kept as a note. A member's verdict is
+    dropped, never applied."""
+    if role not in FEEDBACK_ROLES:
+        raise ValueError(f"role must be one of {FEEDBACK_ROLES}")
+    if channel not in FEEDBACK_CHANNELS:
+        raise ValueError(f"channel must be one of {FEEDBACK_CHANNELS}")
+    if kind not in FEEDBACK_KINDS:
+        raise ValueError(f"kind must be one of {FEEDBACK_KINDS}")
+    if verdict is not None and verdict not in FEEDBACK_VERDICTS:
+        raise ValueError(f"verdict must be one of {FEEDBACK_VERDICTS}")
+    if role != "owner":
+        verdict = None
+    text = (text or "").strip()[:FEEDBACK_TEXT_MAX] or None
+    stamp = _iso(_now_utc())
+    with _write() as c:
+        row = c.execute("SELECT id, version FROM study_items WHERE id=?", (item_id,)).fetchone()
+        if row is None:
+            raise ValueError(f"unknown item {item_id}")
+        cur = c.execute(
+            "INSERT INTO study_feedback (item_id, item_version, user_id, role, channel, kind, text, verdict, "
+            "answer_json, correct, attempt_id, at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (item_id, int(row["version"] or 1), user_id, role, channel, kind, text, verdict,
+             _dumps(answer_json) if answer_json is not None else None,
+             None if correct is None else int(bool(correct)), attempt_id, stamp))
+        fid = int(cur.lastrowid)
+    applied = None
+    if verdict in ("approve", "reject"):
+        reason = f"{kind}: {text}" if text else kind
+        review(item_id, verdict, user_id, reason=f"{channel} feedback #{fid} · {reason}")
+        applied = verdict
+    return {"feedback": get_feedback(fid), "applied": applied}
+
+
+def _feedback_row(r: sqlite3.Row) -> dict:
+    d = dict(r)
+    d["answer_json"] = _loads(d.get("answer_json"), d.get("answer_json"))
+    d["correct"] = None if d.get("correct") is None else bool(d["correct"])
+    if "prompt_json" in d:
+        p = _loads(d.pop("prompt_json"), {}) or {}
+        d["subject"] = p.get("subject")
+        d["q"] = p.get("q")
+    d["ref"] = short_ref(d["item_id"])
+    return d
+
+
+_FEEDBACK_SELECT = ("SELECT f.*, i.type, i.skill_id, i.sym, i.asof, i.review_status, i.prompt_json "
+                    "FROM study_feedback f LEFT JOIN study_items i ON i.id = f.item_id")
+
+
+def get_feedback(feedback_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        r = c.execute(_FEEDBACK_SELECT + " WHERE f.id=?", (int(feedback_id),)).fetchone()
+    return _feedback_row(r) if r else None
+
+
+def list_feedback(*, item_id: Optional[str] = None, unhandled_only: bool = False,
+                  since_id: int = 0, limit: int = 500) -> list[dict]:
+    """ADMIN: feedback rows newest first, with the item's ticker, date, subject
+    and question beside each so the list reads without opening the item."""
+    q = _FEEDBACK_SELECT + " WHERE f.id > ?"
+    args: list = [int(since_id)]
+    if item_id:
+        q += " AND f.item_id=?"
+        args.append(item_id)
+    if unhandled_only:
+        q += " AND f.handled_at IS NULL"
+    q += " ORDER BY f.id DESC LIMIT ?"
+    args.append(int(limit))
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(q, args).fetchall()
+    return [_feedback_row(r) for r in rows]
+
+
+def feedback_counts() -> dict:
+    """{item_id: open feedback rows} plus the totals the review screen shows."""
+    with contextlib.closing(_connect()) as c:
+        per = {r["item_id"]: int(r["n"]) for r in c.execute(
+            "SELECT item_id, COUNT(*) AS n FROM study_feedback WHERE handled_at IS NULL GROUP BY item_id")}
+        total = c.execute("SELECT COUNT(*) FROM study_feedback").fetchone()[0]
+    return {"open": per, "open_total": sum(per.values()), "total": int(total)}
+
+
+def handle_feedback(ids: Iterable[int], by_user: str, note: Optional[str] = None) -> int:
+    """Mark rows handled (the session acted on them, or the owner dismissed them)."""
+    ids = [int(i) for i in ids]
+    if not ids:
+        return 0
+    stamp = _iso(_now_utc())
+    with _write() as c:
+        cur = c.execute(
+            f"UPDATE study_feedback SET handled_at=?, handled_by=?, handled_note=? "
+            f"WHERE handled_at IS NULL AND id IN ({','.join('?' * len(ids))})",
+            (stamp, by_user, (note or "").strip()[:FEEDBACK_TEXT_MAX] or None, *ids))
+        return int(cur.rowcount)
+
+
+def export_feedback(*, since_id: int = 0, limit: int = 5000) -> list[dict]:
+    """Oldest first, for the ingest script (it keeps `next_since_id`)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(_FEEDBACK_SELECT + " WHERE f.id > ? ORDER BY f.id LIMIT ?",
+                         (int(since_id), int(limit))).fetchall()
+    return [_feedback_row(r) for r in rows]
 
 
 # ── Reminder claim row (one reminder per member per day) ──────────────────────
