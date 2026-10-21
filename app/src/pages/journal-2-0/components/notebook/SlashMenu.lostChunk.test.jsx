@@ -80,6 +80,26 @@ describe('a lost lazy chunk', () => {
     } finally { capture.breadth = ok }
   })
 
+  it('review m-3: offline at the insert step (a capture fetched, its insert chunk lost) says the offline sentence', async () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: true })
+    const ok = capture.breadth
+    capture.breadth = async () => {
+      Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => false })
+      return { ok: true, payload: { updated: '1:26 PM ET' } }
+    }
+    try {
+      const ed = mount('<p>/breadth</p>')
+      const item = snapshotWidgetItems('breadth').find((i) => i.title === 'Breadth heatmap')
+      expect((await item.command({ editor: ed, range: slashRange(ed) })).message)
+        .toBe("You're offline, so Breadth heatmap was not added.")
+      expect(screen.getByRole('status')).toHaveTextContent("You're offline, so Breadth heatmap was not added.")
+      expect(embeds(ed)).toHaveLength(0)
+    } finally {
+      capture.breadth = ok
+      Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => true })
+    }
+  })
+
   it('offline, the same lost chunk is said as offline, not as a reload', async () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => false })
