@@ -4,6 +4,8 @@ import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
 import { etDateTime, isoDayText } from '../captureStamp'
 import { widgetKind } from '../../../lib/notebookWidgets'
+import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
+import { savePreset, NAME_MAX } from '../../../lib/notebookSets'
 import {
   fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText,
 } from '../../../lib/notebookWidgetsFetch'
@@ -26,10 +28,11 @@ export const REFRESH_MESSAGE_MS = 4000
 
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
-  onRefresh, onShareChange, sourceLine, children,
+  onRefresh, onShareChange, onSavePreset, sourceLine, children,
 }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [naming, setNaming] = useState(null)   // the preset name being typed, or null when closed
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -54,6 +57,17 @@ export default function SnapshotFrame({
     if (!mounted.current) return
     setBusy(false)
     if (!result?.ok) setMessage(refreshFailureText(result?.reason))
+  }
+
+  // Task 17 (wave 5): this widget's SETTINGS saved under a name, listed under "My presets" in the / menu.
+  const savePresetNamed = async () => {
+    if (busy || typeof onSavePreset !== 'function') return
+    setBusy(true)
+    let result
+    try { result = await onSavePreset(naming || '') } catch { result = { ok: false, reason: "Couldn't save just now." } }
+    if (!mounted.current) return
+    setBusy(false)
+    if (result?.ok) { setNaming(null); setMessage(`Saved as a preset. Type /preset to use it.`) } else setMessage(result?.reason || "Couldn't save just now.")
   }
 
   const privateChip = account && !share
@@ -90,7 +104,22 @@ export default function SnapshotFrame({
             See it now
           </button>
         )}
+        {editable && onSavePreset && naming === null && (
+          <button type="button" className={styles.btn} onClick={() => { setNaming(''); setMessage('') }}>
+            Save these settings as a preset
+          </button>
+        )}
       </div>
+      {naming !== null && (
+        <form className={styles.presetForm} onSubmit={(e) => { e.preventDefault(); savePresetNamed() }}>
+          <input
+            className={styles.presetInput} value={naming} maxLength={NAME_MAX} aria-label="Preset name"
+            placeholder="Weekly review P&L" onChange={(e) => setNaming(e.target.value)}
+          />
+          <button type="submit" className={styles.btn} disabled={busy}>Save preset</button>
+          <button type="button" className={styles.btn} onClick={() => setNaming(null)}>Cancel</button>
+        </form>
+      )}
       {message && <p className={styles.message} role="status">{message}</p>}
       <div className={styles.body}>{children}</div>
       {sourceLine && <p className={styles.source}>{sourceLine}</p>}
@@ -125,6 +154,7 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     const write = writeRef.current
     if (typeof write === 'function') write({ ...paramsRef.current, share: value === true })
   }, [])
+  const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current }), [kind])
   return {
     title: meta?.title || kind,
     asOf: params.asOf,
@@ -133,6 +163,8 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     editable: canWrite,
     onRefresh: canWrite ? onRefresh : undefined,
     onShareChange: canWrite ? onShareChange : undefined,
+    // Only an editable snapshot offers it, and only while wave 5 is on.
+    onSavePreset: canWrite && meta && widgetsWaveOn(5) ? onSavePreset : undefined,
   }
 }
 

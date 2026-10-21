@@ -2887,6 +2887,11 @@ _PREFERENCE_KEYS = {
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
+    # Notebook widgets Task 17 (wave 5): the member's saved chart sets and widget presets, ONE JSON string
+    # {v:1, sets:[...], presets:[...]} written read-modify-write by `lib/notebookSets.js` saveSets (this
+    # endpoint replaces the whole value). The client bounds it (30 sets x 12 charts, 50 presets). Added in
+    # the same commit as its writer; the rail is tests/test_notebook_chart_sets_pref.py.
+    "notebook_chart_sets": _PREF_OPAQUE,
     # ⚰️ Notebook wave 6 lane E (#193, live 2026-09-26 01:18 CT) shipped the daily
     # note's template choice (`lib/dailyNote.js` DAILY_TEMPLATE_PREF, also read by
     # `note_personal_api.py`) WITHOUT this row: every choice answered 400 "Unknown

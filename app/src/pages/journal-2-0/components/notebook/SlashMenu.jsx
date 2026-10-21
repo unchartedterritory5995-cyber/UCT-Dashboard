@@ -349,6 +349,7 @@ export const SLASH_GROUPS = [
   { id: 'open', label: 'Before the open' },
   { id: 'plan', label: 'Planning a trade' },
   { id: 'review', label: 'Reviewing' },
+  { id: 'mine', label: 'My presets' },
   { id: 'basics', label: 'Basics' },
   { id: 'more', label: 'More' },
 ]
@@ -513,6 +514,18 @@ function snapshotCommand(kind, params) {
       .caretAfterWidgetEmbed().run()
     return { ok: true, message: null }
   }
+}
+
+/** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
+ *  come from lib/notebookSets.js, loaded only here and only while wave 5 is on (first-open bytes); a
+ *  preset inserts through snapshotCommand, the one snapshot insert. A chunk or read that fails offers nothing. */
+export async function mineItems(query) {
+  if (!widgetsWaveOn(5)) return []
+  try {
+    const m = await import('../../lib/notebookSets')
+    const doc = await m.loadSets()
+    return [...m.presetRows(query, doc, 'mine', snapshotCommand), ...m.chartSetRows(query, doc, 'mine')]
+  } catch { return [] }
 }
 
 export function snapshotWidgetItems(query) {
@@ -831,6 +844,37 @@ function vsItems(rest) {
   }))
 }
 
+/** The slash menu's rows for one query. `mine` is mineItems' answer (wave 5), empty otherwise: grouped
+ *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not. */
+export function slashItems(query, editor, mine = []) {
+  const q = (query || '').toLowerCase()
+  const widgets = widgetItems(query)
+  const factCaptures = factItems(query)
+  const consensusCaptures = consensusFactItems(query)
+  const planCaptures = planItems(query)
+  const snapshots = snapshotWidgetItems(query)
+  // Wave 6: an item may say where it is NOT offered (`available`) —
+  // today only columns, never inside a column (they do not nest). A
+  // table of contents is an ordinary block and is offered anywhere.
+  const here = blockItemsAvailable(editor)
+  if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures, ...mine])
+  // Widget/fact items match on their own tokenized rules (args after
+  // the type name would defeat a plain substring filter).
+  // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
+  // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
+  // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
+  // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
+  // A typed list is not grouped, so a snapshot item's own group is dropped (no label).
+  const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures,
+    ...snapshots.map(({ group, ...it }) => it), // eslint-disable-line no-unused-vars
+    ...mine.map(({ group, ...it }) => (it.cmd === 'preset' ? { ...it, group } : it))]
+  const cmd = q.trim().split(/\s+/)[0]
+  const blocks = rankedBlockItems(here, q)
+  const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
+  return [...exact, ...captures.filter((it) => it.cmd === cmd),
+    ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
+}
+
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
@@ -921,33 +965,10 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        items: ({ query, editor }) => {
-          const q = (query || '').toLowerCase()
-          const widgets = widgetItems(query)
-          const factCaptures = factItems(query)
-          const consensusCaptures = consensusFactItems(query)
-          const planCaptures = planItems(query)
-          const snapshots = snapshotWidgetItems(query)
-          // Wave 6: an item may say where it is NOT offered (`available`) —
-          // today only columns, never inside a column (they do not nest). A
-          // table of contents is an ordinary block and is offered anywhere.
-          const here = blockItemsAvailable(editor)
-          if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures])
-          // Widget/fact items match on their own tokenized rules (args after
-          // the type name would defeat a plain substring filter).
-          // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
-          // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
-          // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
-          // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
-          // A typed list is not grouped, so a snapshot item's own group is dropped (no label).
-          const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures,
-            ...snapshots.map(({ group, ...it }) => it)] // eslint-disable-line no-unused-vars
-          const cmd = q.trim().split(/\s+/)[0]
-          const blocks = rankedBlockItems(here, q)
-          const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
-          return [...exact, ...captures.filter((it) => it.cmd === cmd),
-            ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
-        },
+        // Wave 5 adds the member's own rows (mineItems), read as the menu opens; off, nothing is awaited.
+        items: ({ query, editor }) => (widgetsWaveOn(5)
+          ? mineItems(query).then((mine) => slashItems(query, editor, mine))
+          : slashItems(query, editor, [])),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.

@@ -247,3 +247,24 @@
     min-height: var(--tap-min);
   }
 }
+/* Task 17: the "Save these settings as a preset" name row. 44 px controls (--tap-min). */
+.presetForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.presetForm .btn,
+.presetInput {
+  min-height: var(--tap-min);
+}
+.presetInput {
+  flex: 1 1 160px;
+  min-width: 0;
+  font: inherit;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+}

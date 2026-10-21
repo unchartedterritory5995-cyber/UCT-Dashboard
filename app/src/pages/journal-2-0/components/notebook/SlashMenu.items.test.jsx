@@ -5,7 +5,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems,
-  snapshotWidgetItems, SlashList } from './SlashMenu'
+  snapshotWidgetItems, SlashList, mineItems, slashItems } from './SlashMenu'
+import { __resetSetsCache } from '../../lib/notebookSets'
 import { render, screen } from '@testing-library/react'
 import { CAPTURE_FLAG_KEY } from '../../../../widgets/captureRelease'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -741,5 +742,74 @@ describe('snapshot widget items (Task 8)', () => {
       // Control: a word that is neither the title nor the keyword offers nothing.
       expect(snapshotWidgetItems('marketcontextx')).toEqual([])
     } finally { localStorage.removeItem(CAPTURE_FLAG_KEY) }
+  })
+})
+
+// Notebook widgets Task 17: the member's chart sets and presets, under "My presets", wave 5 only.
+describe('chart sets and presets (Task 17)', () => {
+  const realFetch = global.fetch
+  const SEMIS = { id: 's_1', name: 'Semis', charts: [{ symbol: 'NVDA', tf: 'D' }, { symbol: 'AMD', tf: '60' }] }
+  const PRESET = { id: 'p_1', name: 'Flagged only', kind: 'myWatchlistToday', params: { list: 'flagged', share: false } }
+  const W5 = { notebook_widgets_w1_enabled: true, notebook_widgets_w5_enabled: true }
+  let editor
+  const prefs = (fn) => vi.fn(async (url, init = {}) => {
+    if (url === '/api/auth/preferences' && !init.method) {
+      return { ok: true, status: 200, json: async () => ({ notebook_chart_sets: JSON.stringify({ v: 1, sets: [SEMIS], presets: [PRESET] }) }) }
+    }
+    return fn(url, init)
+  })
+  beforeEach(() => { __resetSetsCache(); global.fetch = prefs(async () => ({ ok: false, status: 500, json: async () => ({}) })) })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); editor?.destroy(); editor = null })
+  const labelsOf = (items) => {
+    const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
+    const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    unmount()
+    return out
+  }
+
+  it('slash_set_absent_when_w5_off', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    expect(await mineItems('set')).toEqual([])
+    expect(await mineItems('set semis')).toEqual([])
+    expect(await mineItems('preset')).toEqual([])
+    expect(await mineItems('')).toEqual([])
+    // Off, the menu never reads the preference at all.
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(slashItems('set', null).map((i) => i.title)).not.toContain('Manage chart sets')
+    expect(labelsOf(slashItems('', null))).not.toContain('My presets')
+    // Control: the same queries answer once wave 5 is on.
+    __resetNotebookFlags()
+    latchNotebookFlags(W5)
+    expect((await mineItems('set')).map((i) => i.title)).toEqual(['Chart set — Semis', 'Manage chart sets'])
+    expect((await mineItems('set sem')).map((i) => i.title)).toEqual(['Chart set — Semis'])
+    expect(await mineItems('set nope')).toEqual([])
+  })
+
+  it('a bare / shows the member presets and sets under "My presets"', async () => {
+    latchNotebookFlags(W5)
+    const items = slashItems('', null, await mineItems(''))
+    expect(labelsOf(items)).toContain('My presets')
+    const mine = items.filter((i) => i.group === 'mine').map((i) => i.title)
+    expect(mine).toEqual(['Flagged only', 'Chart set — Semis', 'Manage chart sets'])
+  })
+
+  it('/preset lists presets under "My presets" and inserts with the normal fetch-and-freeze', async () => {
+    latchNotebookFlags(W5)
+    const typed = slashItems('preset', null, await mineItems('preset'))
+    expect(typed[0]).toMatchObject({ title: 'Flagged only', group: 'mine' })
+    expect(labelsOf(typed)).toContain('My presets')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', listLabel: 'Flagged', rows: [], truncated: 0,
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/preset</p>' })
+    await typed[0].command({ editor, range: { from: 1, to: 1 + '/preset'.length } })
+    // The settings ride the ONE snapshot fetch (Task 8's insert path); no share, no data.
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myWatchlistToday?list=flagged', expect.anything())
+    const embeds = []
+    editor.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') embeds.push(n) })
+    expect(embeds.map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
+    expect(embeds[0].attrs.params.share).toBe(false)
   })
 })
