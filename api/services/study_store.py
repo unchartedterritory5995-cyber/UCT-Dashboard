@@ -58,7 +58,10 @@ TRUST_ASK_AT = 20                 # §13.9 #3: 20-30 clean approvals, then ask
 TRUST_SAMPLE_RATE = 0.10          # §13.6: 10% sample once a type is trusted
 STATUS_DRAFT, STATUS_APPROVED, STATUS_RETIRED, STATUS_REJECTED = (
     "draft", "approved", "retired", "rejected")
-REVIEW_ACTIONS = ("approve", "fix", "reject")
+REVIEW_ACTIONS = ("approve", "fix", "reject", "grade")
+#: the owner's grade on a chart EXAMPLE (owner 2026-10-21: "distinguish what is
+#: okay, good, and great, and bad"); "bad" is a reject, these three are kept
+EXAMPLE_GRADES = ("okay", "good", "great")
 TRUST_STATES = ("manual", "sampled")
 BANDS = ("learning", "practised", "proficient")
 
@@ -581,13 +584,21 @@ def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[d
 
 
 def list_drafts(*, lane: Optional[str] = None, item_type: Optional[str] = None,
-                skill: Optional[str] = None, limit: int = 150) -> list[dict]:
+                skill: Optional[str] = None, limit: int = 150, status: Optional[str] = None) -> list[dict]:
     """ADMIN: draft items, oldest first, optionally by lane / type / skill. Full
     rows (the review card needs the key and the ticker). The skill filter is
     how a NEW segment (e.g. vocab.chart, imported after 400 older recall drafts)
-    reaches the reviewer inside the queue limit."""
-    q = "SELECT * FROM study_items WHERE review_status=?"
-    args: list = [STATUS_DRAFT]
+    reaches the reviewer inside the queue limit. `status`: None = drafts (the
+    queue), "any" = every status (the example gallery), else that status."""
+    if status and status != "any":
+        q = "SELECT * FROM study_items WHERE review_status=?"
+        args: list = [status]
+    elif status == "any":
+        q = "SELECT * FROM study_items WHERE 1=1"
+        args = []
+    else:
+        q = "SELECT * FROM study_items WHERE review_status=?"
+        args = [STATUS_DRAFT]
     if lane:
         q += " AND review_lane=?"
         args.append(lane)
@@ -1171,6 +1182,18 @@ def review(item_id: str, action: str, by_user: str, *, reason: Optional[str] = N
             c.execute("UPDATE study_items SET review_status=?, reviewed_by=?, reviewed_at=?, retired_at=? "
                       "WHERE id=?", (STATUS_REJECTED, by_user, stamp, stamp, item_id))
             _bump_trust(c, row["type"], False, stamp)
+        elif action == "grade":
+            # a grade on the EXAMPLE: merged into reveal_json.example_grade, the
+            # review status and the trust count untouched (it is not a verdict
+            # on the item's correctness, it ranks how well the chart teaches)
+            if after not in EXAMPLE_GRADES:
+                raise ValueError(f"grade must be one of {EXAMPLE_GRADES}")
+            reveal = _loads(row["reveal_json"], {}) or {}
+            before = _dumps(reveal.get("example_grade")) if reveal.get("example_grade") else None
+            reveal["example_grade"] = after
+            after_s = _dumps(after)
+            field = "reveal_json.example_grade"
+            c.execute("UPDATE study_items SET reveal_json=? WHERE id=?", (_dumps(reveal), item_id))
         else:  # fix
             if field not in ("answer_json", "lesson_text", "reveal_json", "prompt_json"):
                 raise ValueError("fix needs field in answer_json|lesson_text|reveal_json|prompt_json")

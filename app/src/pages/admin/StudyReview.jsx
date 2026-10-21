@@ -38,6 +38,7 @@ import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import styles from './StudyReview.module.css'
+import StudyGallery from './StudyGallery'
 
 export const REVIEW_URL = '/api/study/admin/review'
 export const TRUST_URL = '/api/study/admin/trust'
@@ -242,6 +243,7 @@ export default function StudyReview() {
   // hundreds of older ones (vocab.chart behind 374 recall drafts) never reaches
   // the limit. The skill filter is how the reviewer gets straight to it.
   const [skill, setSkill] = useState('')
+  const [gallery, setGallery] = useState(false)
   // one skill is a bounded set the owner works through in order, so the whole
   // skill is served (the route caps at 500); the unscoped queue stays at 150
   const key = reviewKey(lane, type, skill ? QUEUE_LIMIT_SKILL : QUEUE_LIMIT, skill)
@@ -566,6 +568,13 @@ export default function StudyReview() {
           {reviewed} of {drafts.length} reviewed this sitting · {countFor('', '')} drafts waiting
         </div>
 
+        {/* The example gallery (owner 2026-10-21): every chart of one subject on one
+            screen with a grade under each. Lives beside the queue, never replaces it. */}
+        <button type="button" className={`${styles.galleryToggle} ${gallery ? styles.galleryToggleOn : ''}`}
+          aria-pressed={gallery} onClick={() => setGallery((g) => !g)}>
+          {gallery ? 'Back to the queue' : 'Example gallery'}
+        </button>
+
         <div className={styles.list}>
           {drafts.length === 0 && <div className={styles.empty}>Nothing in this lane.</div>}
           {drafts.map((d) => {
@@ -588,7 +597,8 @@ export default function StudyReview() {
         </a>
       </div>
 
-      <div className={styles.card}>
+      {gallery && <StudyGallery skill={skill} />}
+      <div className={styles.card} hidden={gallery}>
         {!sel && <div className={styles.empty}>Nothing to review in this lane.</div>}
         {sel && (
           <>

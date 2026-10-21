@@ -300,6 +300,23 @@ describe('StudyReview card', () => {
     expect(reviewKey('', 'recall', 150, 'vocab.chart')).toBe('/api/study/admin/review?type=recall&skill=vocab.chart&limit=150')
   })
 
+  it('the example gallery shows every chart of one subject with a grade row, and a grade posts the grade action', async () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.click(screen.getByRole('button', { name: 'Example gallery' }))
+    expect(KEYS).toContain('/api/study/admin/review?status=any&limit=500')
+    const cards = screen.getAllByTestId('gallery-card')
+    expect(cards.length).toBe(2)                       // SPOT_A + SPOT_C share the subject (vcp); the recall item has no chart
+    expect(within(cards[0]).getByText('chart:NVDA')).toBeInTheDocument()
+    fireEvent.click(within(cards[0]).getByRole('button', { name: 'Good' }))
+    await waitFor(() => expect(postCalls(REVIEW_URL + '/si_a')).toHaveLength(1))
+    expect(postCalls(REVIEW_URL + '/si_a')[0].body).toEqual({ action: 'grade', after: 'good' })
+    fireEvent.click(within(cards[1]).getByRole('button', { name: 'Bad' }))
+    await waitFor(() => expect(postCalls(REVIEW_URL + '/si_c')).toHaveLength(1))
+    expect(postCalls(REVIEW_URL + '/si_c')[0].body).toEqual({ action: 'reject', reason: 'bad chart' })
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the queue' }))
+    expect(screen.queryAllByTestId('gallery-card')).toHaveLength(0)
+  })
+
   it('shows lane and type counts and the corrections export link', () => {
     renderWithProviders(<StudyReview />)
     const lane = screen.getByLabelText('Lane')
