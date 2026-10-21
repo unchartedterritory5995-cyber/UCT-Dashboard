@@ -264,6 +264,42 @@
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  /* R58 (UX I-13): a compact header, so the widget's body keeps the height. */
+  .frame {
+    padding: 8px;
+  }
+  .head {
+    gap: 4px 6px;
+  }
+  .title {
+    font-size: 13px;
+  }
+  .asOf {
+    font-size: 11px;
+  }
+  .chip {
+    padding: 0 5px;
+    font-size: 10px;
+  }
+  .spacer {
+    display: none;
+  }
+  .btn {
+    padding: 2px 8px;
+  }
+  /* ...and a table never scrolls sideways: its cells wrap inside the column instead. */
+  .tableWrap {
+    overflow-x: visible;
+  }
+  .table {
+    table-layout: fixed;
+  }
+  .table th,
+  .table td {
+    padding: 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 /* Touch tier (phone AND tablet): the two controls are finger targets. */
