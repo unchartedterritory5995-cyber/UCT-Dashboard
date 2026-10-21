@@ -1064,18 +1064,10 @@ def _my_pnl_calendar(user_id: str, params: dict, now: datetime) -> dict:
     read = _pnl_calendar_read(user_id, month, day_from, day_to)
     a = read["analytics"] if isinstance(read.get("analytics"), dict) else {}
     # Days, best and worst are analytics' own performance.byDay (the per-day NET P&L the equity curve
-    # is built from), never re-derived. byDay carries no per-day trade count today, so `trades` is
-    # null unless it does: an unknown, never a 0.
-    days = []
-    for d in ((a.get("performance") or {}).get("byDay")) or []:
-        if not isinstance(d, dict) or not d.get("date"):
-            continue
-        n = d.get("tradeCount")
-        days.append({
-            "day": str(d["date"]),
-            "pnl": _num(d.get("pnl")),
-            "trades": int(n) if isinstance(n, int) and not isinstance(n, bool) else None,
-        })
+    # is built from), never re-derived.
+    days = [{"day": str(d["date"]), "pnl": _num(d.get("pnl"))}
+            for d in ((a.get("performance") or {}).get("byDay")) or []
+            if isinstance(d, dict) and d.get("date")]
     priced = [d for d in days if d["pnl"] is not None]
     best = max(priced, key=lambda d: d["pnl"]) if priced else None
     worst = min(priced, key=lambda d: d["pnl"]) if priced else None
@@ -1096,51 +1088,79 @@ def _my_pnl_calendar(user_id: str, params: dict, now: datetime) -> dict:
 # -- mySetupEdge (wave 6) ------------------------------------------------------------
 
 SETUP_EDGE_EMPTY_SENTENCE = "No setups with closed trades yet."
+#: The most recent closed trades one edge read covers (a bound on a member with a long journal).
+SETUP_EDGE_TRADES_MAX = 5000
+#: Per-member cache of the edge read: the answer only moves when a trade closes.
+SETUP_EDGE_TTL_S = 300
+_SETUP_EDGE_CACHE = TTLCache(max_size=500)
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def _setup_perf_all_time(user_id: str, account_id: str | None) -> list[dict]:
-    """`personal_edge`'s setup-performance seam over ALL TIME, on a connection this closes.
+def _scoped_closed_trades(user_id: str) -> list[dict]:
+    """The member's most recent `SETUP_EDGE_TRADES_MAX` closed trades in the UNIFIED Compass scope
+    (`resolve_account_scope(..., UNIFIED_ACCOUNT_ID)`: the Compass-enabled accounts), oldest first.
 
-    ⛔ The default seam (`personal_edge._default_setup_perf_fn`) asks `_exec_get_aggregates` with no
-    `period`, which is the last 7 days, and opens a connection it never closes. A per-setup EDGE over
-    one week is nearly always "thin", so this widget asks the same reader for `period: all`.
-    Read-only: `_trades_in_range` and `resolve_account_scope` are SELECTs."""
+    The rows are `coach_data_assembler._trades_in_range`'s, the reader `personal_edge`'s default seam
+    goes through (`_exec_get_aggregates`), so the per-setup aggregate is the same one; only the window
+    differs. ⛔ The default seam asks for no `period` (the last 7 days, almost always "thin") and with
+    account None, which `resolve_account_scope` turns into `account_id IN (NULL)`: no trade at all.
+    The window here starts at the exit of the 5,000th most recent trade in scope, so the read is
+    bounded in SQL, then sliced to exactly the bound. Read-only: SELECTs on a connection this closes."""
     from api.services import auth_db
-    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import coach_data_assembler
+    from api.services.journal_two.coach_scope import resolve_account_scope
+    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
     conn = auth_db.get_connection()
     try:
-        out = cct._exec_get_aggregates(user_id=user_id, account_id=account_id,
-                                       args={"breakdown_by": "setup", "period": "all"}, conn=conn)
+        ids = resolve_account_scope(conn, user_id, UNIFIED_ACCOUNT_ID)
+        if not ids:
+            return []
+        marks = ",".join("?" * len(ids))
+        row = conn.execute(
+            f"SELECT exit_date FROM j2_trades WHERE user_id = ? AND account_id IN ({marks})"
+            " AND (analytics_excluded IS NULL OR analytics_excluded = 0)"
+            " ORDER BY exit_date DESC LIMIT 1 OFFSET ?",
+            [user_id, *ids, SETUP_EDGE_TRADES_MAX - 1]).fetchone()
+        start = _EPOCH
+        if row and row[0]:
+            try:
+                start = datetime.fromisoformat(str(row[0]).replace("Z", "+00:00"))
+            except ValueError:
+                start = _EPOCH
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            start -= timedelta(days=1)       # inclusive of the boundary day; the slice below is exact
+        end = datetime.now(timezone.utc) + timedelta(days=1)
+        trades = coach_data_assembler._trades_in_range(conn, user_id, UNIFIED_ACCOUNT_ID, start, end)
     finally:
         conn.close()
-    return out.get("breakdown") or []
+    return trades[-SETUP_EDGE_TRADES_MAX:]
 
 
-def _trade_sources(user_id: str) -> list:
-    """The distinct `source` values of the member's closed trades (one SELECT), for `_origin`."""
-    try:
-        from api.services import auth_db
-        conn = auth_db.get_connection()
-        try:
-            return [r[0] for r in conn.execute(
-                "SELECT DISTINCT source FROM j2_trades WHERE user_id = ?", (user_id,)).fetchall()]
-        finally:
-            conn.close()
-    except Exception as e:  # noqa: BLE001
-        _log.info("setup edge: trade source read failed: %s", e)
-        return []
+def _setup_edge_read(user_id: str) -> dict:
+    """{"edge": personal_edge's answer, "sources": [trade source, ...]} from ONE set of trades, so
+    the figures and the `source` label describe the same accounts. Cached per member."""
+    hit = _SETUP_EDGE_CACHE.get(user_id)
+    if isinstance(hit, dict):
+        return hit
+    from api.services import personal_edge
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
+    trades = _scoped_closed_trades(user_id)
+    edge = personal_edge.edge_for_setups(
+        user_id, UNIFIED_ACCOUNT_ID,
+        setup_perf_fn=lambda _u, _a: cct._breakdown_trades(trades, "setup")) or {}
+    out = {"edge": edge, "sources": [t.get("source") for t in trades]}
+    _SETUP_EDGE_CACHE.set(user_id, out, SETUP_EDGE_TTL_S)
+    return out
 
 
 def _my_setup_edge(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import personal_edge
-    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
-    # ⛔ UNIFIED, NOT None: `resolve_account_scope` turns account None into `account_id IN (NULL)`,
-    # which matches no trade, so the bare `edge_for_setups(user_id)` answers {} for every member.
-    edge = personal_edge.edge_for_setups(
-        user_id, UNIFIED_ACCOUNT_ID, setup_perf_fn=_setup_perf_all_time) or {}
+    read = _setup_edge_read(user_id)
     thin_below = personal_edge._MUTE_MIN_N
     rows = []
-    for setup, e in edge.items():
+    for setup, e in (read.get("edge") or {}).items():
         e = e if isinstance(e, dict) else {}
         n = e.get("n")
         n = int(n) if isinstance(n, (int, float)) and not isinstance(n, bool) else 0
@@ -1153,7 +1173,7 @@ def _my_setup_edge(user_id: str, params: dict, now: datetime) -> dict:
         })
     rows.sort(key=lambda r: (-r["n"], r["setup"]))
     shown, cut = rows[:ROW_CAP], max(0, len(rows) - ROW_CAP)
-    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": _origin(_trade_sources(user_id)), "rows": shown}
+    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": _origin(read.get("sources") or []), "rows": shown}
     if cut:
         out["truncated"] = cut
     if not rows:
@@ -1183,6 +1203,26 @@ def _screen_name(row: dict) -> str:
     meta = ((row.get("definition") or {}).get("meta") or {}) if isinstance(row.get("definition"), dict) else {}
     name = meta.get("name").strip() if isinstance(meta.get("name"), str) else ""
     return name or str(row.get("def_id") or "") or "Untitled screen"
+
+
+def _toolkit_user(user_id: str) -> dict:
+    """The user dict `entitlements.limits_for` reads, built the way the request's is: `id`, plus
+    `toolkit` ONLY when `users.toolkit` is set (`auth_service.validate_session` projects it that way).
+    A missing column (an older database) or a failed read is "no toolkit assigned", the default."""
+    user: dict[str, Any] = {"id": user_id}
+    try:
+        from api.services import auth_db
+        conn = auth_db.get_connection()
+        try:
+            row = conn.execute("SELECT toolkit FROM users WHERE id = ?", (user_id,)).fetchone()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001 -- an unreadable column falls back like an unset one
+        _log.info("screen today: toolkit read failed: %s", e)
+        return user
+    if row is not None and row[0] is not None:
+        user["toolkit"] = row[0]
+    return user
 
 
 def _receipt_closes(r: dict) -> bool:
@@ -1220,7 +1260,7 @@ def _my_screen_today(user_id: str, params: dict, now: datetime) -> dict:
     # The hit list exactly as `/api/scans/definition-results` reads it (its own join over screener_rows).
     from api.routers import scan_results
     tickers, cut = scan_results._hit_tickers(def_hash, tf, as_of, ROW_CAP)
-    kept, withheld = entitlements.apply_symbol_cap(list(tickers), entitlements.limits_for({"id": user_id}))
+    kept, withheld = entitlements.apply_symbol_cap(list(tickers), entitlements.limits_for(_toolkit_user(user_id)))
     prices: dict = {}
     if kept:
         try:
@@ -1243,7 +1283,10 @@ def _my_screen_today(user_id: str, params: dict, now: datetime) -> dict:
     }
     out["session"] = _ymd_iso(as_of)
     if cut:
-        out["truncated"] = max(1, receipt["answered"] - len(kept))
+        # The route's own word (`scan_results.py` `truncated`): the page is short of the hits. A
+        # boolean, because `_hit_tickers` knows THAT it cut, not how many; `answered` counts every
+        # symbol that ran (hits and non-hits), so it cannot stand in for a count.
+        out["truncated"] = True
     return out
 
 

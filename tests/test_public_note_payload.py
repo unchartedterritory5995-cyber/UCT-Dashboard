@@ -1143,7 +1143,7 @@ _WAVE6_ACCOUNT_PARAMS = {
                    "bars": [{"t": "2026-09-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5}],
                    "tradeId": "trade-secret-77", "accountNumber": "PRIVATE-ACCT-0042"},
     "myPnlCalendar": {"asOf": "2026-10-20T14:00:00Z", "source": "manual", "month": "2026-10",
-                      "days": [{"day": "2026-10-01", "pnl": 120.0, "trades": None}],
+                      "days": [{"day": "2026-10-01", "pnl": 120.0}],
                       "best": {"day": "2026-10-01", "pnl": 120.0}, "worst": {"day": "2026-10-01", "pnl": 120.0},
                       "accountNumber": "PRIVATE-ACCT-0042"},
     "mySetupEdge": {"asOf": "2026-10-20T14:00:00Z", "source": "mixed",

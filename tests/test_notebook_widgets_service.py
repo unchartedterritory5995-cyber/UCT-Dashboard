@@ -1281,9 +1281,9 @@ def test_pnl_calendar_days_best_worst_from_by_day(monkeypatch):
     out = nw.build("myPnlCalendar", "u1", {"month": "2026-10"}, now=NOW)
     assert calls == [("u1", "2026-10-01", "2026-10-31")]
     assert out["month"] == "2026-10" and out["source"] == "mixed"
-    assert out["days"] == [{"day": "2026-10-01", "pnl": 120.0, "trades": None},
-                           {"day": "2026-10-02", "pnl": -80.5, "trades": None},
-                           {"day": "2026-10-05", "pnl": 300.25, "trades": 3}]
+    assert out["days"] == [{"day": "2026-10-01", "pnl": 120.0}, {"day": "2026-10-02", "pnl": -80.5},
+                           {"day": "2026-10-05", "pnl": 300.25}]
+    assert all("trades" not in d for d in out["days"])        # R51: no per-day count is invented
     assert out["best"] == {"day": "2026-10-05", "pnl": 300.25}
     assert out["worst"] == {"day": "2026-10-02", "pnl": -80.5}
     assert "empty" not in out
@@ -1321,16 +1321,24 @@ def test_pnl_calendar_is_cached_per_member_and_month(monkeypatch):
 
 # -- wave 6: mySetupEdge -------------------------------------------------------------------
 
-def _patch_edge(monkeypatch, edge):
+@pytest.fixture(autouse=True)
+def _fresh_setup_edge_cache():
+    nw._SETUP_EDGE_CACHE.clear()
+    yield
+    nw._SETUP_EDGE_CACHE.clear()
+
+
+def _patch_edge(monkeypatch, edge, trades=({"setup": "Flag", "source": "manual", "result": "Win", "r_multiple": 1.0,
+                                         "pnl_dollar": 10.0, "pnl_percent": 0.01},)):
     import api.services.personal_edge as pe
     seen = []
 
     def fake(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=None):
-        seen.append((user_id, account_id, setup_perf_fn))
+        seen.append((user_id, account_id, setup_perf_fn(user_id, account_id) if setup_perf_fn else None))
         return edge
 
     monkeypatch.setattr(pe, "edge_for_setups", fake)
-    monkeypatch.setattr(nw, "_trade_sources", lambda user_id: ["manual"])
+    monkeypatch.setattr(nw, "_scoped_closed_trades", lambda user_id: [dict(t) for t in trades])
     return seen
 
 
@@ -1345,7 +1353,17 @@ def test_setup_edge_rows_from_edge_for_setups(monkeypatch):
     assert out["rows"] == [
         {"setup": "Flag", "n": 30, "expectancyR": 0.42, "winRate": 0.55, "thin": False},
         {"setup": "VCP", "n": 4, "expectancyR": -0.1, "winRate": None, "thin": True}]
-    assert seen[0][0] == "u1" and seen[0][1] == "_all_" and seen[0][2] is nw._setup_perf_all_time
+    user, account, perf = seen[0]
+    assert (user, account) == ("u1", "_all_")
+    assert [r["key"] for r in perf] == ["Flag"]                # the seam aggregates the SAME trades
+
+
+def test_setup_edge_is_cached_per_member(monkeypatch):
+    seen = _patch_edge(monkeypatch, {})
+    nw.build("mySetupEdge", "u1", {}, now=NOW)
+    nw.build("mySetupEdge", "u1", {}, now=NOW)
+    nw.build("mySetupEdge", "u2", {}, now=NOW)
+    assert [x[0] for x in seen] == ["u1", "u2"]
 
 
 def test_setup_edge_thin_below_25(monkeypatch):
@@ -1398,6 +1416,69 @@ def test_setup_edge_real_read_covers_every_account_and_all_time_and_never_writes
     assert tuple(_count(auth_db, t) for t in tables) == before
     assert [(r["setup"], r["n"], r["expectancyR"]) for r in out["rows"]] == [("Flag", 1, 2.0)]
     assert out["source"] == "manual"
+
+
+def _add_account(auth_db, user_id, acc_id, compass_enabled):
+    c = auth_db.get_connection()
+    try:
+        src = c.execute("SELECT * FROM j2_accounts WHERE user_id = ? LIMIT 1", (user_id,)).fetchone()
+        cols = list(src.keys())
+        vals = [acc_id if k == "id" else (f"acct {acc_id}" if k == "name" else
+                (compass_enabled if k == "compass_enabled" else src[k])) for k in cols]
+        c.execute(f"INSERT INTO j2_accounts ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})", vals)
+        c.commit()
+    finally:
+        c.close()
+
+
+def _sql(auth_db, stmt):
+    c = auth_db.get_connection()
+    try:
+        c.execute(stmt)
+        c.commit()
+    finally:
+        c.close()
+
+
+def test_setup_edge_source_and_figures_share_one_scope(monkeypatch, tmp_path):
+    """An account opted out of Compass is outside the edge figures, so its broker trades must not turn
+    the label "mixed" either: `source` comes from the SAME trades the edge aggregates."""
+    from datetime import timedelta
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    acc = accounts.get_or_migrate_default_account("u9")
+    acc_id = acc["id"] if isinstance(acc, dict) else acc
+    _add_account(auth_db, "u9", "acct-optout", 0)
+    when = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+    _insert_trade(auth_db, "u9", acc_id, "Flag", 1.0, when)
+    _insert_trade(auth_db, "u9", "acct-optout", "VCP", 3.0, when)
+    _sql(auth_db, "UPDATE j2_trades SET source = 'broker' WHERE account_id = 'acct-optout'")
+    out = nw.build("mySetupEdge", "u9", {}, now=NOW)
+    assert [r["setup"] for r in out["rows"]] == ["Flag"]
+    assert out["source"] == "manual"
+    # Control: with that account opted in, both its setup and its broker source arrive.
+    _sql(auth_db, "UPDATE j2_accounts SET compass_enabled = 1 WHERE id = 'acct-optout'")
+    nw._SETUP_EDGE_CACHE.clear()
+    out = nw.build("mySetupEdge", "u9", {}, now=NOW)
+    assert sorted(r["setup"] for r in out["rows"]) == ["Flag", "VCP"] and out["source"] == "mixed"
+
+
+def test_setup_edge_reads_at_most_the_most_recent_bound(monkeypatch, tmp_path):
+    from datetime import timedelta
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    acc = accounts.get_or_migrate_default_account("u9")
+    acc_id = acc["id"] if isinstance(acc, dict) else acc
+    base = datetime.now(timezone.utc)
+    # "Old" exits two hours before the 2nd most recent trade, on the SAME day: the SQL window
+    # (inclusive of the boundary day) still holds it, so only the exact slice can drop it.
+    for setup, ago in (("Old", timedelta(days=20, hours=2)), ("Flag", timedelta(days=20)),
+                       ("Flag", timedelta(days=10))):
+        _insert_trade(auth_db, "u9", acc_id, setup, 1.0, (base - ago).isoformat())
+    monkeypatch.setattr(nw, "SETUP_EDGE_TRADES_MAX", 2)
+    assert [t["setup"] for t in nw._scoped_closed_trades("u9")] == ["Flag", "Flag"]
+    out = nw.build("mySetupEdge", "u9", {}, now=NOW)
+    assert [(r["setup"], r["n"]) for r in out["rows"]] == [("Flag", 2)]
 
 
 # -- wave 6: myScreenToday -----------------------------------------------------------------
@@ -1475,7 +1556,47 @@ def test_screen_truncated_hits_say_so(monkeypatch):
     many = [f"S{i:02d}" for i in range(nw.ROW_CAP)]
     _patch_screen(monkeypatch, receipt=dict(_RECEIPT), tickers=many, truncated=True, prices={})
     out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
-    assert len(out["hits"]) == nw.ROW_CAP and out["truncated"] == 60 - nw.ROW_CAP
+    assert len(out["hits"]) == nw.ROW_CAP and out["truncated"] is True     # the route's boolean, no count
+    _patch_screen(monkeypatch, receipt=dict(_RECEIPT), tickers=many, truncated=False, prices={})
+    assert "truncated" not in nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+
+
+@pytest.fixture
+def narrow_toolkit(monkeypatch):
+    """A second toolkit through the module's own seam (a test fixture; TOOLKITS ships one entry)."""
+    import dataclasses
+    from types import MappingProxyType
+    import api.services.entitlements as ent
+    narrow = dataclasses.replace(ent.TOOLKITS[ent.DEFAULT_TOOLKIT], toolkit="narrow", max_symbols=1)
+    monkeypatch.setattr(ent, "TOOLKITS", MappingProxyType(
+        {ent.DEFAULT_TOOLKIT: ent.TOOLKITS[ent.DEFAULT_TOOLKIT], "narrow": narrow}))
+    return narrow
+
+
+def test_screen_rows_are_capped_by_the_members_real_toolkit(monkeypatch, tmp_path, narrow_toolkit):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    c = auth_db.get_connection()
+    try:
+        c.execute("INSERT INTO users (id, email, password_hash) VALUES ('owner', 'owner@t.test', 'x')")
+        c.execute("UPDATE users SET toolkit = 'narrow' WHERE id = 'owner'")
+        c.commit()
+    finally:
+        c.close()
+    _patch_screen(monkeypatch, receipt=dict(_RECEIPT))
+    out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+    assert [h["symbol"] for h in out["hits"]] == ["AAA"]
+    assert out["coverage"]["withheld"] == 1 and out["coverage"]["evaluated"] == 100
+    assert nw._toolkit_user("owner") == {"id": "owner", "toolkit": "narrow"}
+    # Control: the same member with no toolkit set gets the default (ungated) toolkit and both rows.
+    c = auth_db.get_connection()
+    try:
+        c.execute("UPDATE users SET toolkit = NULL WHERE id = 'owner'")
+        c.commit()
+    finally:
+        c.close()
+    out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+    assert [h["symbol"] for h in out["hits"]] == ["AAA", "BBB"] and out["coverage"]["withheld"] == 0
+    assert nw._toolkit_user("owner") == {"id": "owner"}
 
 
 def test_screen_not_yours_or_missing_is_refused_with_one_sentence(monkeypatch):
