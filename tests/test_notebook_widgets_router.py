@@ -101,3 +101,21 @@ def test_flag_read_per_request(monkeypatch, seen):
     assert c.get(URL + "tickerCard?symbol=AAPL").status_code == 200
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "0")
     assert c.get(URL + "tickerCard?symbol=AAPL").status_code == 404
+
+
+def test_wave6_trade_recap_not_yours_is_a_400_with_one_sentence(monkeypatch):
+    import api.services.journal_two.trades as tr
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W6_ENABLED", "1")
+    monkeypatch.setattr(tr, "get_trade_detail", lambda user_id, trade_id, conn=None: None)
+    c = _client()
+    a = c.get(URL + "tradeRecap?tradeId=someone-elses-trade")
+    b = c.get(URL + "tradeRecap?tradeId=bad%20id")
+    assert a.status_code == b.status_code == 400
+    assert a.json() == b.json() == {"detail": "Trade not found"}
+
+
+def test_wave6_kinds_404_when_w6_off(seen):
+    for kind in ("tradeRecap", "myPnlCalendar", "mySetupEdge", "myScreenToday",
+                 "roomBuzzOnMyNames", "myEarningsReactions"):
+        assert _client().get(URL + kind).status_code == 404, kind
+    assert seen == []

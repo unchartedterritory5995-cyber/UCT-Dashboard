@@ -489,6 +489,12 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial"),
     "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated"),
     "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated"),
+    # Wave 6. ⛔ NEVER `tradeId`: it names one of the member's trades, and the builder's own payload
+    # carries no id, so a shown recap needs none. The settings key stays home with the rest.
+    "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
+                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share"),
+    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share"),
+    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated"),
 }
 
 #: Row keys that never leave, whatever a builder one day adds.

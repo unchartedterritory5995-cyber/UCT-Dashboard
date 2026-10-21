@@ -1132,3 +1132,119 @@ def test_wave3_market_kind_is_neutral_even_with_share(mode, kind):
         assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
         assert "widgetEmbed" not in types_in(out)
         assert "987654" not in json.dumps(out) and "3.1" not in json.dumps(out)
+
+
+# ── Notebook widgets wave 6 (Task 19): the three account kinds follow the share switch ──
+
+_WAVE6_ACCOUNT_PARAMS = {
+    "tradeRecap": {"asOf": "2026-10-20T14:00:00Z", "source": "broker", "symbol": "NVDA", "side": "Long",
+                   "entryDate": "2026-09-01", "exitDate": "2026-09-10", "entryPrice": 100.0, "exitPrice": 110.0,
+                   "r": 2.0, "pnl": 995.0, "setup": "Flag", "holdDays": 9, "mistakes": ["fomo"],
+                   "bars": [{"t": "2026-09-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5}],
+                   "tradeId": "trade-secret-77", "accountNumber": "PRIVATE-ACCT-0042"},
+    "myPnlCalendar": {"asOf": "2026-10-20T14:00:00Z", "source": "manual", "month": "2026-10",
+                      "days": [{"day": "2026-10-01", "pnl": 120.0, "trades": None}],
+                      "best": {"day": "2026-10-01", "pnl": 120.0}, "worst": {"day": "2026-10-01", "pnl": 120.0},
+                      "accountNumber": "PRIVATE-ACCT-0042"},
+    "mySetupEdge": {"asOf": "2026-10-20T14:00:00Z", "source": "mixed",
+                    "rows": [{"setup": "Flag", "n": 30, "expectancyR": 0.42, "winRate": 0.55, "thin": False,
+                              "positionId": "pos-secret-6"}],
+                    "truncated": 2, "accountNumber": "PRIVATE-ACCT-0042"},
+}
+
+
+def _wave6(kind: str, share: Any = True) -> dict:
+    node = _widget(kind)
+    node["attrs"]["params"] = dict(copy.deepcopy(_WAVE6_ACCOUNT_PARAMS[kind]),
+                                   **({} if share is None else {"share": share}))
+    return node
+
+
+def test_wave6_account_kinds_have_their_embed_keys_and_never_trade_id():
+    for kind in _WAVE6_ACCOUNT_PARAMS:
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "member-optin", kind
+        assert "share" in pnp.EMBED_PARAM_KEYS[kind], kind
+        assert "tradeId" not in pnp.EMBED_PARAM_KEYS[kind] and "positionId" not in pnp.EMBED_PARAM_KEYS[kind]
+
+
+def test_wave6_embed_keys_are_the_ones_the_builders_emit():
+    from api.services.journal_two import notebook_widgets as nw
+    import inspect
+    emitted = {
+        "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
+                       "r", "pnl", "setup", "holdDays", "mistakes", "bars"),
+        "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty"),
+        "mySetupEdge": ("asOf", "source", "rows", "empty", "truncated"),
+    }
+    for kind, keys in emitted.items():
+        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"}, kind
+        src = inspect.getsource(nw._BUILDERS[kind])
+        for k in keys:
+            assert f'"{k}"' in src, (kind, k)              # every kept key is one the builder writes
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE6_ACCOUNT_PARAMS))
+def test_wave6_account_kind_neutral_without_share(mode, kind):
+    for share in (None, False, "true", 1):
+        out = reduce(doc(_wave6(kind, share)), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        blob = json.dumps(out)
+        for leak in ("NVDA", "995", "120.0", "Flag", "PRIVATE-ACCT-0042", "trade-secret-77"):
+            assert leak not in blob, (kind, mode, share, leak)
+
+
+@pytest.mark.parametrize("kind", sorted(_WAVE6_ACCOUNT_PARAMS))
+def test_wave6_account_kind_gallery_always_neutral(kind):
+    out = reduce(doc(_wave6(kind, True)), "gallery")
+    assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_trade_recap_shown_with_share_never_carries_the_trade_id(mode):
+    out = reduce(doc(_wave6("tradeRecap", True)), mode)
+    emb = find_embed(out)
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "tradeRecap"
+    assert params["symbol"] == "NVDA" and params["r"] == 2.0 and params["bars"][0]["t"] == "2026-09-01"
+    assert params["share"] is True
+    blob = json.dumps(out)
+    assert "tradeId" not in blob and "trade-secret-77" not in blob
+    assert "tradeRef" not in blob and "accountNumber" not in params
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_pnl_calendar_and_setup_edge_shown_with_share_keep_only_named_keys(mode):
+    cal = find_embed(reduce(doc(_wave6("myPnlCalendar", True)), mode))["attrs"]["params"]
+    assert cal["month"] == "2026-10" and cal["best"] == {"day": "2026-10-01", "pnl": 120.0}
+    assert "accountNumber" not in cal
+    out = reduce(doc(_wave6("mySetupEdge", True)), mode)
+    edge = find_embed(out)["attrs"]["params"]
+    assert edge["rows"][0]["setup"] == "Flag" and edge["truncated"] == 2
+    assert "accountNumber" not in edge and "pos-secret-6" not in json.dumps(out)
+
+
+_WAVE6_MARKET_PARAMS = {
+    "myScreenToday": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "name": "My screen",
+                      "hits": [{"symbol": "NVDA", "price": 987654, "changePct": 3.1}],
+                      "coverage": {"evaluated": 1, "answered": 1, "dropped": 0, "notComputable": 0, "withheld": 0},
+                      "definitionId": "u_0123456789ab"},
+    "roomBuzzOnMyNames": {"asOf": "2026-10-20T14:00:00Z", "source": "market",
+                          "rows": [{"symbol": "NVDA", "mentions": 987654, "people": 3}]},
+    "myEarningsReactions": {"asOf": "2026-10-20T14:00:00Z", "source": "market",
+                            "rows": [{"symbol": "NVDA", "day": "2026-10-15", "epsActual": 987654,
+                                      "nextDayPct": 3.1}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE6_MARKET_PARAMS))
+def test_wave6_market_kind_is_neutral_even_with_share(mode, kind):
+    for share in (None, False, True):
+        node = _widget(kind)
+        node["attrs"]["params"] = dict(_WAVE6_MARKET_PARAMS[kind], **({} if share is None else {"share": share}))
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "987654" not in json.dumps(out) and "u_0123456789ab" not in json.dumps(out)

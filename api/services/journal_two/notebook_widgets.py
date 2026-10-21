@@ -907,6 +907,550 @@ def _ticker_flow(user_id: str, params: dict, now: datetime) -> dict:
     return out
 
 
+# -- wave 6: shared helpers ----------------------------------------------------------
+
+_ET = ZoneInfo("America/New_York")
+
+
+def _ymd(day: str) -> int:
+    return int(str(day)[:10].replace("-", ""))
+
+
+def _ymd_iso(ymd: Any) -> str:
+    s = str(int(ymd))
+    return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+
+
+def _et_day_of(raw: Any) -> str | None:
+    """The ET calendar day of a stored trade date: a bare day as it is, a timestamp converted."""
+    if not raw:
+        return None
+    s = str(raw)
+    if len(s) <= 10:
+        try:
+            return date.fromisoformat(s).isoformat()
+        except ValueError:
+            return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return s[:10]
+    return (dt.astimezone(_ET) if dt.tzinfo else dt).date().isoformat()
+
+
+def _even_stride(items: list, cap: int) -> list:
+    """At most `cap` items by an even stride, first and last always kept (`_equity_points`' rule)."""
+    n = len(items)
+    if n <= cap:
+        return items
+    step = (n - 1) / (cap - 1)
+    return [items[round(i * step)] for i in range(cap)]
+
+
+# -- tradeRecap (wave 6) -------------------------------------------------------------
+
+#: A j2_trades id: uuid4 for every writer (`trades.create_trade_manual`, `bulk_insert_trades`). The
+#: shape check is permissive on purpose (word characters and hyphens); its job is to keep junk off the read.
+_TRADE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
+#: ONE sentence for a trade that does not exist, is not the member's, or is malformed, so an id cannot
+#: be probed for whether it belongs to somebody else.
+TRADE_NOT_FOUND = "Trade not found"
+RECAP_BARS_MAX = 120
+RECAP_PAD_SESSIONS = 20
+#: Daily bars read for one recap, ending ~2 months after the exit (covers the 20-session pad).
+_RECAP_BARS_READ = 600
+_RECAP_TAIL_DAYS = 45
+
+
+def _recap_bars(sym: str, entry_day: str | None, exit_day: str | None) -> list[dict]:
+    """Daily bars from the LOCAL bars cache (no network): entry-20 to exit+20 sessions, at most
+    `RECAP_BARS_MAX` (a longer hold is thinned by an even stride, entry and exit kept)."""
+    if not (sym and entry_day and exit_day):
+        return []
+    try:
+        from api.services import bars_sqlite
+        to_key = int((date.fromisoformat(exit_day) + timedelta(days=_RECAP_TAIL_DAYS)).strftime("%Y%m%d"))
+        bars = list(bars_sqlite.get_bars_before(sym, "D", _RECAP_BARS_READ, to_key) or [])
+    except Exception as e:  # noqa: BLE001 -- no bars is an empty chart, never a failed widget
+        _log.info("trade recap: bars read failed for %s: %s", sym, e)
+        return []
+    ent, ex = _ymd(entry_day), _ymd(exit_day)
+    first = next((i for i, b in enumerate(bars) if int(b[0]) >= ent), None)
+    last = next((i for i in range(len(bars) - 1, -1, -1) if int(bars[i][0]) <= ex), None)
+    if first is None or last is None or last < first:
+        return []
+    window = bars[max(0, first - RECAP_PAD_SESSIONS):last + RECAP_PAD_SESSIONS + 1]
+    return [{"t": _ymd_iso(b[0]), "o": _num(b[1]), "h": _num(b[2]), "l": _num(b[3]), "c": _num(b[4])}
+            for b in _even_stride(window, RECAP_BARS_MAX)]
+
+
+def _trade_recap(user_id: str, params: dict, now: datetime) -> dict:
+    trade_id = params.get("tradeId")
+    if not isinstance(trade_id, str) or not trade_id:
+        raise WidgetRequestError("tradeId is required")
+    if not _TRADE_ID_RE.match(trade_id):
+        raise WidgetRequestError(TRADE_NOT_FOUND)
+    from api.services.journal_two import trades
+    detail = trades.get_trade_detail(user_id, trade_id)      # OWN-SCOPED: user_id AND id, read-only
+    trade = (detail or {}).get("trade") if isinstance(detail, dict) else None
+    if not isinstance(trade, dict):
+        raise WidgetRequestError(TRADE_NOT_FOUND)
+    # R is the trade's OWN stored R, by analytics' `_effective_r_map` rule: the stop-based r_multiple
+    # when the trade carries one, else the stored excursion's true R. Never recomputed here.
+    r = _num(trade.get("rMultiple"))
+    if r is None:
+        r = _num(((detail or {}).get("excursion") or {}).get("trueR"))
+    sym = str(trade.get("symbol") or "").upper()
+    entry_day, exit_day = _et_day_of(trade.get("entryDate")), _et_day_of(trade.get("exitDate"))
+    hold = trade.get("holdDays")
+    return {
+        "asOf": _iso_utc(now),
+        "source": _origin([trade.get("source")]),
+        "symbol": sym,
+        "side": trade.get("side"),
+        "entryDate": entry_day,
+        "exitDate": exit_day,
+        "entryPrice": _num(trade.get("entryPrice")),
+        "exitPrice": _num(trade.get("exitPrice")),
+        "r": r,
+        "pnl": _num(trade.get("pnlDollarNet")),
+        "setup": trade.get("setup") or None,
+        "holdDays": int(hold) if isinstance(hold, (int, float)) and not isinstance(hold, bool) else None,
+        "mistakes": [str(m) for m in (trade.get("mistakeTags") or []) if m],
+        "bars": _recap_bars(sym, entry_day, exit_day),
+    }
+
+
+# -- myPnlCalendar (wave 6) ----------------------------------------------------------
+
+PNL_CALENDAR_EMPTY_SENTENCE = "No closed trades this month yet."
+_MONTH_RE = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
+#: Per-(member, month) cache of the calendar's analytics read: the heavy call, and the answer only
+#: moves when a trade closes.
+PNL_CALENDAR_TTL_S = 300
+_PNL_CALENDAR_CACHE = TTLCache(max_size=500)
+
+
+def _month_window(params: dict, now: datetime) -> tuple[str, str, str]:
+    raw = params.get("month")
+    if raw is None:
+        today = _today_et(now)
+        raw = f"{today.year:04d}-{today.month:02d}"
+    m = _MONTH_RE.match(raw) if isinstance(raw, str) else None
+    if not m:
+        raise WidgetRequestError("month must be YYYY-MM")
+    first = date(int(m.group(1)), int(m.group(2)), 1)
+    nxt = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
+    return raw, first.isoformat(), (nxt - timedelta(days=1)).isoformat()
+
+
+def _pnl_calendar_read(user_id: str, month: str, day_from: str, day_to: str) -> dict:
+    key = f"{user_id}::{month}"
+    hit = _PNL_CALENDAR_CACHE.get(key)
+    if isinstance(hit, dict):
+        return hit
+    from api.services.journal_two import analytics, trades
+    from api.services.journal_two.filters import FilterSpec
+    payload = analytics.get_analytics(user_id, date_from=day_from, date_to=day_to)
+    got = trades.list_trades_for_user(user_id, spec=FilterSpec(date_from=day_from, date_to=day_to))
+    rows = got[0] if isinstance(got, tuple) else got
+    out = {"analytics": payload, "source": _origin([(t or {}).get("source") for t in rows])}
+    _PNL_CALENDAR_CACHE.set(key, out, PNL_CALENDAR_TTL_S)
+    return out
+
+
+def _my_pnl_calendar(user_id: str, params: dict, now: datetime) -> dict:
+    month, day_from, day_to = _month_window(params, now)
+    read = _pnl_calendar_read(user_id, month, day_from, day_to)
+    a = read["analytics"] if isinstance(read.get("analytics"), dict) else {}
+    # Days, best and worst are analytics' own performance.byDay (the per-day NET P&L the equity curve
+    # is built from), never re-derived. byDay carries no per-day trade count today, so `trades` is
+    # null unless it does: an unknown, never a 0.
+    days = []
+    for d in ((a.get("performance") or {}).get("byDay")) or []:
+        if not isinstance(d, dict) or not d.get("date"):
+            continue
+        n = d.get("tradeCount")
+        days.append({
+            "day": str(d["date"]),
+            "pnl": _num(d.get("pnl")),
+            "trades": int(n) if isinstance(n, int) and not isinstance(n, bool) else None,
+        })
+    priced = [d for d in days if d["pnl"] is not None]
+    best = max(priced, key=lambda d: d["pnl"]) if priced else None
+    worst = min(priced, key=lambda d: d["pnl"]) if priced else None
+    out: dict[str, Any] = {
+        "asOf": _iso_utc(now),
+        "source": read.get("source") or "manual",
+        "month": month,
+        "days": days,
+        "best": {"day": best["day"], "pnl": best["pnl"]} if best else None,
+        "worst": {"day": worst["day"], "pnl": worst["pnl"]} if worst else None,
+    }
+    if not int(a.get("tradeCount") or 0) or not days:
+        out.update(days=[], best=None, worst=None)
+        out["empty"] = PNL_CALENDAR_EMPTY_SENTENCE
+    return out
+
+
+# -- mySetupEdge (wave 6) ------------------------------------------------------------
+
+SETUP_EDGE_EMPTY_SENTENCE = "No setups with closed trades yet."
+
+
+def _setup_perf_all_time(user_id: str, account_id: str | None) -> list[dict]:
+    """`personal_edge`'s setup-performance seam over ALL TIME, on a connection this closes.
+
+    ⛔ The default seam (`personal_edge._default_setup_perf_fn`) asks `_exec_get_aggregates` with no
+    `period`, which is the last 7 days, and opens a connection it never closes. A per-setup EDGE over
+    one week is nearly always "thin", so this widget asks the same reader for `period: all`.
+    Read-only: `_trades_in_range` and `resolve_account_scope` are SELECTs."""
+    from api.services import auth_db
+    from api.services.journal_two import coach_chat_tools as cct
+    conn = auth_db.get_connection()
+    try:
+        out = cct._exec_get_aggregates(user_id=user_id, account_id=account_id,
+                                       args={"breakdown_by": "setup", "period": "all"}, conn=conn)
+    finally:
+        conn.close()
+    return out.get("breakdown") or []
+
+
+def _trade_sources(user_id: str) -> list:
+    """The distinct `source` values of the member's closed trades (one SELECT), for `_origin`."""
+    try:
+        from api.services import auth_db
+        conn = auth_db.get_connection()
+        try:
+            return [r[0] for r in conn.execute(
+                "SELECT DISTINCT source FROM j2_trades WHERE user_id = ?", (user_id,)).fetchall()]
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        _log.info("setup edge: trade source read failed: %s", e)
+        return []
+
+
+def _my_setup_edge(user_id: str, params: dict, now: datetime) -> dict:
+    from api.services import personal_edge
+    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
+    # ⛔ UNIFIED, NOT None: `resolve_account_scope` turns account None into `account_id IN (NULL)`,
+    # which matches no trade, so the bare `edge_for_setups(user_id)` answers {} for every member.
+    edge = personal_edge.edge_for_setups(
+        user_id, UNIFIED_ACCOUNT_ID, setup_perf_fn=_setup_perf_all_time) or {}
+    thin_below = personal_edge._MUTE_MIN_N
+    rows = []
+    for setup, e in edge.items():
+        e = e if isinstance(e, dict) else {}
+        n = e.get("n")
+        n = int(n) if isinstance(n, (int, float)) and not isinstance(n, bool) else 0
+        rows.append({
+            "setup": str(setup),
+            "n": n,
+            "expectancyR": _num(e.get("avg_r")),
+            "winRate": _num(e.get("win_rate")),
+            "thin": n < thin_below,
+        })
+    rows.sort(key=lambda r: (-r["n"], r["setup"]))
+    shown, cut = rows[:ROW_CAP], max(0, len(rows) - ROW_CAP)
+    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": _origin(_trade_sources(user_id)), "rows": shown}
+    if cut:
+        out["truncated"] = cut
+    if not rows:
+        out["empty"] = SETUP_EDGE_EMPTY_SENTENCE
+    return out
+
+
+# -- myScreenToday (wave 6) ----------------------------------------------------------
+
+SCREEN_NOT_FOUND = "Screen not found"
+SCREEN_NOT_READY = "This screen's results are not ready yet."
+SCREEN_NOT_SCANNABLE = "This saved definition is not a screen."
+
+
+def _own_definition(user_id: str, def_id: str) -> dict | None:
+    """The member's OWN saved definition (`user_definitions.get` scopes by user_id), or None."""
+    from api.services import user_definitions
+    try:
+        row = user_definitions.get(user_id, def_id)
+    except ValueError:                 # not a user-namespace id: the same answer as not found
+        return None
+    return row if isinstance(row, dict) else None
+
+
+def _screen_name(row: dict) -> str:
+    """ScreensManager's `scanName`: the member's name for it, else its id, so a widget is never blank."""
+    meta = ((row.get("definition") or {}).get("meta") or {}) if isinstance(row.get("definition"), dict) else {}
+    name = meta.get("name").strip() if isinstance(meta.get("name"), str) else ""
+    return name or str(row.get("def_id") or "") or "Untitled screen"
+
+
+def _receipt_closes(r: dict) -> bool:
+    """`scan_evaluator._assert_coverage_closes`' first identity, as a check (the route may not import
+    the evaluator): every count a non-negative int and evaluated == answered + dropped + not_computable."""
+    vals = [r.get(k) for k in ("evaluated", "answered", "dropped", "not_computable")]
+    if not all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in vals):
+        return False
+    return vals[0] == vals[1] + vals[2] + vals[3]
+
+
+def _my_screen_today(user_id: str, params: dict, now: datetime) -> dict:
+    def_id = params.get("definitionId")
+    if not isinstance(def_id, str) or not def_id:
+        raise WidgetRequestError("definitionId is required")
+    row = _own_definition(user_id, def_id)
+    if row is None:
+        raise WidgetRequestError(SCREEN_NOT_FOUND)
+    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": "market", "name": _screen_name(row),
+                           "hits": [], "coverage": None}
+    from api.services import entitlements, scan_definition
+    from api.services.screener import scan_store
+    try:
+        def_hash = scan_definition.def_hash(row.get("definition"))
+    except (scan_definition.ScanRefused, ValueError, TypeError):
+        out["empty"] = SCREEN_NOT_SCANNABLE
+        return out
+    tf = scan_store.SCAN_JOIN_TF
+    # The latest SWEPT session (a coverage row, never a hits row: a zero-hit night writes no hits).
+    as_of = scan_store.latest_covered_as_of(def_hash, tf)
+    receipt = scan_store.coverage(def_hash, tf, as_of) if as_of is not None else None
+    if not isinstance(receipt, dict) or not _receipt_closes(receipt):
+        out["empty"] = SCREEN_NOT_READY           # nobody looked, or the arithmetic does not close
+        return out
+    # The hit list exactly as `/api/scans/definition-results` reads it (its own join over screener_rows).
+    from api.routers import scan_results
+    tickers, cut = scan_results._hit_tickers(def_hash, tf, as_of, ROW_CAP)
+    kept, withheld = entitlements.apply_symbol_cap(list(tickers), entitlements.limits_for({"id": user_id}))
+    prices: dict = {}
+    if kept:
+        try:
+            from api.routers import live_prices
+            got = live_prices.get_live_prices(tickers=",".join(kept))
+            prices = got if isinstance(got, dict) else {}
+        except Exception as e:  # noqa: BLE001
+            _log.info("screen today: live prices failed: %s", e)
+    for sym in kept:
+        q = prices.get(sym) if isinstance(prices.get(sym), dict) else {}
+        out["hits"].append({"symbol": sym, "price": _num(q.get("price")), "changePct": _num(q.get("change_pct"))})
+    # The four counts straight from the receipt, never collapsed; `withheld` BESIDE them, accumulated
+    # the way the route does it (the receipt's own, plus what this member's plan withheld here).
+    out["coverage"] = {
+        "evaluated": receipt["evaluated"],
+        "answered": receipt["answered"],
+        "dropped": receipt["dropped"],
+        "notComputable": receipt["not_computable"],
+        "withheld": int(receipt.get("withheld") or 0) + len(withheld),
+    }
+    out["session"] = _ymd_iso(as_of)
+    if cut:
+        out["truncated"] = max(1, receipt["answered"] - len(kept))
+    return out
+
+
+# -- roomBuzzOnMyNames (wave 6) ------------------------------------------------------
+
+BUZZ_EMPTY_SENTENCE = "The room hasn't mentioned your names today."
+BUZZ_NOT_SET_UP = "Room buzz isn't set up yet."
+#: Enough board rows that a member's names are not cut off by the room's busier ones.
+BUZZ_BOARD_LIMIT = 10_000
+
+
+def _buzz_channels() -> list[str] | None:
+    """The configured channels, or None when `BUZZ_CHANNELS` is unset (read now, never at import).
+    `buzz_ingest.channels()` falls back to a default channel; a widget says "not set up" instead."""
+    import os
+    if not os.environ.get("BUZZ_CHANNELS", "").strip():
+        return None
+    from api.services import buzz_ingest
+    return buzz_ingest.channels() or None
+
+
+def _buzz_window(now: datetime) -> tuple[int, int]:
+    """Today's ET session open (09:30) to now; before the open, or on a weekend, the previous
+    weekday's whole session (open to close). The open and close are buzz_boards' own constants."""
+    from api.services import buzz_boards
+    d = (now if now.tzinfo else now.replace(tzinfo=timezone.utc)).astimezone(_ET)
+    now_ts = int(d.timestamp())
+    open_today = d.replace(hour=buzz_boards.OPEN_H, minute=buzz_boards.OPEN_M, second=0, microsecond=0)
+    if d.weekday() < 5 and d >= open_today:
+        return int(open_today.timestamp()), now_ts
+    prev = d - timedelta(days=1)
+    while prev.weekday() >= 5:
+        prev -= timedelta(days=1)
+    start = prev.replace(hour=buzz_boards.OPEN_H, minute=buzz_boards.OPEN_M, second=0, microsecond=0)
+    end = prev.replace(hour=buzz_boards.CLOSE_H, minute=buzz_boards.CLOSE_M, second=0, microsecond=0)
+    return int(start.timestamp()), int(end.timestamp())
+
+
+def _room_buzz_on_my_names(user_id: str, params: dict, now: datetime) -> dict:
+    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": "market", "rows": []}
+    chans = _buzz_channels()
+    if not chans:
+        out["empty"] = BUZZ_NOT_SET_UP
+        return out
+    from api.services import buzz_store
+    from api.services.journal_two import earnings_prep
+    mine = set((earnings_prep._member_sets(user_id) or {}).keys())
+    start, end = _buzz_window(now)
+    board = buzz_store.board(start, end, chans, limit=BUZZ_BOARD_LIMIT) if mine else []
+    # ⛔ COUNTS ONLY. The store holds no message text; the row is rebuilt from three named keys so
+    # nothing else a board row ever grows can reach a widget.
+    rows = [{"symbol": str(r.get("ticker") or "").upper(), "mentions": int(r.get("mentions") or 0),
+             "people": int(r.get("people") or 0)}
+            for r in board or [] if isinstance(r, dict) and str(r.get("ticker") or "").upper() in mine]
+    out["rows"], cut = rows[:ROW_CAP], max(0, len(rows) - ROW_CAP)
+    if cut:
+        out["truncated"] = cut
+    if not rows:
+        out["empty"] = BUZZ_EMPTY_SENTENCE
+    return out
+
+
+# -- myEarningsReactions (wave 6) ----------------------------------------------------
+
+REACTIONS_WINDOW_DAYS = 7
+REACTIONS_EMPTY_SENTENCE = "None of your names reported in the last 7 days."
+#: ONE total wall-clock budget for the request's earnings reads, and the pool size (the
+#: `_implied_moves` pattern): a cold `get_year_earnings` walks up to four providers.
+REACTIONS_BUDGET_S = 6.0
+REACTIONS_WORKERS = 4
+#: The calendar walk is per DAY (cache, then Finnhub, then FMP); bounded and held an hour.
+REACTIONS_WINDOW_BUDGET_S = 8.0
+_REACTION_BARS = 15
+#: A reaction session more than this many calendar days after the report is a hole in the bars,
+#: not "the next session".
+_REACTION_MAX_GAP_DAYS = 5
+
+
+def _reported_window(today: date) -> tuple[dict[str, str], bool]:
+    """({SYM: report day}, partial) for today-7 .. today, through the same day walk the earnings
+    window (`earnings_prep._window`) uses, `calendar_alerts.collect_earnings_window`. Bounded by
+    `REACTIONS_WINDOW_BUDGET_S` and held in the shared cache (an hour; five minutes when partial)."""
+    from api.services.cache import cache
+    ck = f"notebook_widgets_reported_window::{today.isoformat()}::{REACTIONS_WINDOW_DAYS}"
+    hit = cache.get(ck)
+    if isinstance(hit, dict):
+        return dict(hit["window"]), bool(hit["partial"])
+
+    def read():
+        from api.services.calendar_alerts import collect_earnings_window
+        return collect_earnings_window(today - timedelta(days=REACTIONS_WINDOW_DAYS), REACTIONS_WINDOW_DAYS)
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        window, partial = pool.submit(read).result(timeout=REACTIONS_WINDOW_BUDGET_S)
+    except _FutTimeout:
+        _log.info("earnings reactions: calendar walk ran past %.1fs", REACTIONS_WINDOW_BUDGET_S)
+        return {}, True
+    except Exception as e:  # noqa: BLE001
+        _log.info("earnings reactions: calendar walk failed: %s", e)
+        return {}, True
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    window = {str(s).upper(): str(d)[:10] for s, d in (window or {}).items()}
+    cache.set(ck, {"window": window, "partial": bool(partial)}, ttl=300 if partial else 3600)
+    return window, bool(partial)
+
+
+_NO_FIGURES = {"epsActual": None, "epsEst": None, "revActual": None, "revEst": None}
+
+
+def _quarter_figures(sym: str, day: str) -> dict:
+    """EPS and revenue, actual and estimate, for the quarter reported on `day`: the row whose report
+    date IS `day`, else the fiscal quarter that date maps to (`_fiscal_q_from_report`, the module's own)."""
+    from api.services import earnings_estimates as ee
+    try:
+        fq, fy = ee._fiscal_q_from_report(day)
+        rows = ee.get_year_earnings(sym, fy) or []
+    except Exception as e:  # noqa: BLE001 -- one name's miss is null cells, not a dead widget
+        _log.info("earnings reactions: earnings read failed for %s: %s", sym, e)
+        return dict(_NO_FIGURES)
+    rows = [r for r in rows if isinstance(r, dict)]
+    row = next((r for r in rows if str(r.get("date") or "")[:10] == day), None)
+    if row is None:
+        row = next((r for r in rows if r.get("quarter") == fq and r.get("date")), None)
+    if row is None:
+        return dict(_NO_FIGURES)
+    return {"epsActual": _num(row.get("eps_actual")), "epsEst": _num(row.get("eps_estimate")),
+            "revActual": _num(row.get("revenue_actual")), "revEst": _num(row.get("revenue_estimate"))}
+
+
+def _reaction_figures(items: list[tuple[str, str]]) -> tuple[dict[str, dict], bool]:
+    """{SYM: figures} under ONE total budget in a small pool (`_implied_moves`' shape). A name not
+    finished when the budget runs out gets null figures and the second value is True."""
+    out: dict[str, dict] = {}
+    if not items:
+        return out, False
+    pool = ThreadPoolExecutor(max_workers=REACTIONS_WORKERS)
+    deadline = time.monotonic() + REACTIONS_BUDGET_S
+    late = False
+    try:
+        futs = {sym: pool.submit(_quarter_figures, sym, day) for sym, day in items}
+        for sym, fut in futs.items():
+            try:
+                out[sym] = fut.result(timeout=max(0.0, deadline - time.monotonic()))
+            except _FutTimeout:
+                out[sym] = dict(_NO_FIGURES)
+                late = True
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    return out, late
+
+
+def _next_day_pct(sym: str, day: str, timing: str | None, now: datetime) -> float | None:
+    """The reaction from LOCAL daily bars: the close of the first session to trade on the report
+    (the report day itself before the bell, else the session after it) against the close before it.
+    None when that session has not closed yet, or the bars do not hold it."""
+    try:
+        from api.services import bars_sqlite
+        bars = [(int(b[0]), _num(b[4])) for b in bars_sqlite.get_bars(sym, "D", _REACTION_BARS) or []]
+    except Exception as e:  # noqa: BLE001
+        _log.info("earnings reactions: bars read failed for %s: %s", sym, e)
+        return None
+    rep = _ymd(day)
+    after = [b for b in bars if (b[0] >= rep if timing == "bmo" else b[0] > rep)]
+    if not after:
+        return None
+    react_ymd, react_close = after[0]
+    react_day = date.fromisoformat(_ymd_iso(react_ymd))
+    if (react_day - date.fromisoformat(day)).days > _REACTION_MAX_GAP_DAYS:
+        return None
+    d_et = (now if now.tzinfo else now.replace(tzinfo=timezone.utc)).astimezone(_ET)
+    from api.services import buzz_boards
+    closed_at = d_et.replace(hour=buzz_boards.CLOSE_H, minute=buzz_boards.CLOSE_M, second=0, microsecond=0)
+    if react_day > d_et.date() or (react_day == d_et.date() and d_et < closed_at):
+        return None                                   # that session is still trading (or to come)
+    before = [b for b in bars if b[0] < react_ymd]
+    base = before[-1][1] if before else None
+    if not base or react_close is None:
+        return None
+    return round((react_close / base - 1.0) * 100.0, 2)
+
+
+def _my_earnings_reactions(user_id: str, params: dict, now: datetime) -> dict:
+    from api.services.journal_two import earnings_prep
+    today = _today_et(now)
+    mine = earnings_prep._member_sets(user_id) or {}
+    window, partial = _reported_window(today)
+    items = [(sym, window[sym]) for sym in mine if window.get(sym) and window[sym] <= today.isoformat()]
+    items.sort(key=lambda it: it[0])                       # newest report first, then by symbol
+    items.sort(key=lambda it: it[1], reverse=True)
+    shown, cut = items[:ROW_CAP], max(0, len(items) - ROW_CAP)
+    figures, late = _reaction_figures(shown)
+    rows = []
+    for sym, day in shown:
+        timing = earnings_prep._timing_from_calendar_cache(sym, day)
+        rows.append({"symbol": sym, "day": day, **(figures.get(sym) or dict(_NO_FIGURES)),
+                     "nextDayPct": _next_day_pct(sym, day, timing, now)})
+    out: dict[str, Any] = {"asOf": _iso_utc(now), "source": "market", "rows": rows,
+                           "partial": bool(partial) or late}
+    if cut:
+        out["truncated"] = cut
+    if not rows:
+        out["empty"] = REACTIONS_EMPTY_SENTENCE
+    return out
+
+
 # -- dispatch ------------------------------------------------------------------
 
 #: Kind -> builder(user_id, params, now). Later tasks add their kinds here.
@@ -920,6 +1464,12 @@ _BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     "tickerCard": _ticker_card,
     "marketOnMyNames": _market_on_my_names,
     "tickerFlow": _ticker_flow,
+    "tradeRecap": _trade_recap,
+    "myPnlCalendar": _my_pnl_calendar,
+    "mySetupEdge": _my_setup_edge,
+    "myScreenToday": _my_screen_today,
+    "roomBuzzOnMyNames": _room_buzz_on_my_names,
+    "myEarningsReactions": _my_earnings_reactions,
 }
 
 

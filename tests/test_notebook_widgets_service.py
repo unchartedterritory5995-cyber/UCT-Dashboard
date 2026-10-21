@@ -48,9 +48,16 @@ def test_unknown_kind_raises():
         nw.build("noSuchKind", "u1", {}, now=NOW)
 
 
-def test_kind_without_a_builder_yet_raises():
-    with pytest.raises(nw.WidgetRequestError):
-        nw.build("tradeRecap", "u1", {}, now=NOW)
+def test_kind_without_a_builder_yet_raises(monkeypatch):
+    builders = dict(nw._BUILDERS)
+    builders.pop("tradeRecap")
+    monkeypatch.setattr(nw, "_BUILDERS", builders)
+    with pytest.raises(nw.WidgetRequestError, match="not available yet"):
+        nw.build("tradeRecap", "u1", {"tradeId": "t1"}, now=NOW)
+
+
+def test_every_kind_has_a_builder():
+    assert set(nw._BUILDERS) == set(nw.KIND_WAVE)
 
 
 def test_kind_tables_are_complete():
@@ -1119,3 +1126,541 @@ def test_ticker_flow_bad_symbol_raises(monkeypatch):
         with pytest.raises(nw.WidgetRequestError):
             nw.build("tickerFlow", "u1", {"symbol": bad}, now=NOW)
     assert calls == []
+
+
+# -- wave 6: tradeRecap ----------------------------------------------------------------
+
+def _recap_trade(**over):
+    t = {"id": "t-1", "symbol": "NVDA", "side": "Long", "entryDate": "2026-09-01", "exitDate": "2026-09-10",
+         "entryPrice": 100.0, "exitPrice": 110.0, "rMultiple": 2.0, "pnlDollarNet": 995.0, "setup": "Flag",
+         "holdDays": 9, "mistakeTags": ["fomo"], "source": "broker", "positionId": "pos-secret"}
+    t.update(over)
+    return t
+
+
+def _patch_trade(monkeypatch, owned=None, excursion=None):
+    """`get_trade_detail` OWN-SCOPED the way the real one is: only `owned` (user_id, trade_id) answers."""
+    import api.services.journal_two.trades as tr
+    calls = []
+
+    def fake(user_id, trade_id, conn=None):
+        calls.append((user_id, trade_id))
+        if owned and (user_id, trade_id) == owned[0]:
+            return {"trade": owned[1], "tradeRef": "id:" + trade_id, "brokerActivities": [], "excursion": excursion}
+        return None
+
+    monkeypatch.setattr(tr, "get_trade_detail", fake)
+    return calls
+
+
+def _patch_bars_before(monkeypatch, bars):
+    import api.services.bars_sqlite as bs
+    calls = []
+
+    def fake(sym, tf, n, to_key):
+        calls.append((sym, tf, n, to_key))
+        return [b for b in bars if b[0] <= to_key][-n:]
+
+    monkeypatch.setattr(bs, "get_bars_before", fake)
+    return calls
+
+
+def _sessions(start_ymd, count):
+    """`count` weekday daily bars from `start_ymd` on, as (ymd, o, h, l, c, v)."""
+    from datetime import date, timedelta
+    d = date(start_ymd // 10000, start_ymd // 100 % 100, start_ymd % 100)
+    out = []
+    while len(out) < count:
+        if d.weekday() < 5:
+            ymd = int(d.strftime("%Y%m%d"))
+            out.append((ymd, 1.0, 2.0, 0.5, 1.5 + len(out), 100))
+        d += timedelta(days=1)
+    return out
+
+
+def test_trade_recap_payload_and_bars_window(monkeypatch):
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade()))
+    _patch_bars_before(monkeypatch, _sessions(20260601, 120))
+    out = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert out["source"] == "broker" and out["asOf"] == "2026-10-20T15:00:00Z"
+    assert (out["symbol"], out["side"], out["setup"], out["holdDays"]) == ("NVDA", "Long", "Flag", 9)
+    assert (out["entryDate"], out["exitDate"]) == ("2026-09-01", "2026-09-10")
+    assert (out["entryPrice"], out["exitPrice"], out["pnl"]) == (100.0, 110.0, 995.0)
+    assert out["r"] == 2.0 and out["mistakes"] == ["fomo"]
+    days = [b["t"] for b in out["bars"]]
+    entry_i, exit_i = days.index("2026-09-01"), days.index("2026-09-10")
+    assert entry_i == 20 and len(days) - 1 - exit_i == 20        # 20 sessions either side
+    assert len(out["bars"]) <= nw.RECAP_BARS_MAX
+    assert "positionId" not in json.dumps(out) and "pos-secret" not in json.dumps(out)
+    assert "tradeId" not in out
+
+
+def test_trade_recap_r_is_the_trades_own_stored_r_then_true_r_never_recomputed(monkeypatch):
+    _patch_bars_before(monkeypatch, [])
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(rMultiple=None)), excursion={"trueR": 1.25})
+    assert nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)["r"] == 1.25
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(rMultiple=-0.5)), excursion={"trueR": 1.25})
+    assert nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)["r"] == -0.5
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(rMultiple=None)), excursion=None)
+    out = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert out["r"] is None and out["bars"] == []
+
+
+def test_trade_recap_long_hold_is_capped_at_120_bars_keeping_entry_and_exit(monkeypatch):
+    _patch_trade(monkeypatch, owned=(("u1", "t-1"), _recap_trade(entryDate="2025-06-02", exitDate="2026-06-01")))
+    _patch_bars_before(monkeypatch, _sessions(20250101, 420))
+    out = nw.build("tradeRecap", "u1", {"tradeId": "t-1"}, now=NOW)
+    assert len(out["bars"]) == nw.RECAP_BARS_MAX
+    assert out["bars"][0]["t"] < "2025-06-02" and out["bars"][-1]["t"] > "2026-06-01"
+
+
+def test_trade_recap_other_users_trade_refused(monkeypatch):
+    calls = _patch_trade(monkeypatch, owned=(("owner", "t-1"), _recap_trade()))
+    _patch_bars_before(monkeypatch, _sessions(20260601, 120))
+    messages = []
+    for user, tid in (("intruder", "t-1"), ("owner", "t-missing"), ("owner", "bad id!"), ("owner", "x" * 80)):
+        with pytest.raises(nw.WidgetRequestError) as e:
+            nw.build("tradeRecap", user, {"tradeId": tid}, now=NOW)
+        messages.append(str(e.value))
+    assert set(messages) == {"Trade not found"}                  # one sentence: ids cannot be probed
+    assert ("intruder", "t-1") in calls                           # the read itself was own-scoped
+    assert ("owner", "bad id!") not in calls                      # a malformed id is never read
+    with pytest.raises(nw.WidgetRequestError, match="tradeId is required"):
+        nw.build("tradeRecap", "owner", {}, now=NOW)
+
+
+def test_trade_recap_real_read_is_own_scoped(monkeypatch, tmp_path):
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    _patch_bars_before(monkeypatch, [])
+    c = auth_db.get_connection()
+    try:
+        c.execute(
+            "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date,"
+            " exit_price, exit_date, original_stop, setup, notes, pnl_dollar, pnl_percent, r_multiple,"
+            " hold_days, result, context_at_entry, created_at, mistake_tags, emotion_tags, fees)"
+            " VALUES ('t-real', 'owner', 'p1', 'AMD', 'Long', 10, 50, '2026-09-01', 55, '2026-09-05', 48,"
+            " 'Flag', '', 50, 0.1, 2.5, 4, 'Win', '{}', '2026-09-05', ?, '[]', 0)", (json.dumps(["chased"]),))
+        c.commit()
+    finally:
+        c.close()
+    out = nw.build("tradeRecap", "owner", {"tradeId": "t-real"}, now=NOW)
+    assert out["symbol"] == "AMD" and out["r"] == 2.5 and out["mistakes"] == ["chased"]
+    with pytest.raises(nw.WidgetRequestError, match="^Trade not found$"):
+        nw.build("tradeRecap", "intruder", {"tradeId": "t-real"}, now=NOW)
+
+
+# -- wave 6: myPnlCalendar ---------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _fresh_pnl_calendar_cache():
+    nw._PNL_CALENDAR_CACHE.clear()
+    yield
+    nw._PNL_CALENDAR_CACHE.clear()
+
+
+def _patch_calendar(monkeypatch, by_day, trades=(), trade_count=None):
+    import api.services.journal_two.analytics as an
+    import api.services.journal_two.trades as tr
+    calls = []
+
+    def fake_an(user_id, *a, **k):
+        calls.append((user_id, k.get("date_from"), k.get("date_to")))
+        return {"tradeCount": len(by_day) if trade_count is None else trade_count,
+                "performance": {"byDay": list(by_day)}}
+
+    monkeypatch.setattr(an, "get_analytics", fake_an)
+    monkeypatch.setattr(tr, "list_trades_for_user", lambda user_id, *a, **k: (list(trades), len(trades)))
+    return calls
+
+
+def test_pnl_calendar_days_best_worst_from_by_day(monkeypatch):
+    calls = _patch_calendar(monkeypatch, [
+        {"date": "2026-10-01", "pnl": 120.0}, {"date": "2026-10-02", "pnl": -80.5},
+        {"date": "2026-10-05", "pnl": 300.25, "tradeCount": 3}],
+        trades=[{"source": "broker"}, {"source": None}])
+    out = nw.build("myPnlCalendar", "u1", {"month": "2026-10"}, now=NOW)
+    assert calls == [("u1", "2026-10-01", "2026-10-31")]
+    assert out["month"] == "2026-10" and out["source"] == "mixed"
+    assert out["days"] == [{"day": "2026-10-01", "pnl": 120.0, "trades": None},
+                           {"day": "2026-10-02", "pnl": -80.5, "trades": None},
+                           {"day": "2026-10-05", "pnl": 300.25, "trades": 3}]
+    assert out["best"] == {"day": "2026-10-05", "pnl": 300.25}
+    assert out["worst"] == {"day": "2026-10-02", "pnl": -80.5}
+    assert "empty" not in out
+
+
+def test_pnl_calendar_default_month_is_the_current_et_month(monkeypatch):
+    calls = _patch_calendar(monkeypatch, [])
+    late = datetime(2026, 11, 1, 2, 0, tzinfo=timezone.utc)       # still October 31 in New York
+    assert nw.build("myPnlCalendar", "u1", {}, now=late)["month"] == "2026-10"
+    assert calls[-1] == ("u1", "2026-10-01", "2026-10-31")
+
+
+def test_pnl_calendar_empty_month_sentence(monkeypatch):
+    _patch_calendar(monkeypatch, [], trade_count=0)
+    out = nw.build("myPnlCalendar", "u1", {"month": "2026-02"}, now=NOW)
+    assert out["empty"] == "No closed trades this month yet."
+    assert out["days"] == [] and out["best"] is None and out["worst"] is None
+
+
+def test_pnl_calendar_bad_month_raises(monkeypatch):
+    _patch_calendar(monkeypatch, [])
+    for bad in ("2026-13", "26-10", "2026/10", "october", "2026-1"):
+        with pytest.raises(nw.WidgetRequestError, match="month"):
+            nw.build("myPnlCalendar", "u1", {"month": bad}, now=NOW)
+
+
+def test_pnl_calendar_is_cached_per_member_and_month(monkeypatch):
+    calls = _patch_calendar(monkeypatch, [{"date": "2026-10-01", "pnl": 1.0}])
+    nw.build("myPnlCalendar", "u1", {"month": "2026-10"}, now=NOW)
+    nw.build("myPnlCalendar", "u1", {"month": "2026-10"}, now=NOW)
+    nw.build("myPnlCalendar", "u2", {"month": "2026-10"}, now=NOW)
+    nw.build("myPnlCalendar", "u1", {"month": "2026-09"}, now=NOW)
+    assert [c[0] for c in calls] == ["u1", "u2", "u1"]
+
+
+# -- wave 6: mySetupEdge -------------------------------------------------------------------
+
+def _patch_edge(monkeypatch, edge):
+    import api.services.personal_edge as pe
+    seen = []
+
+    def fake(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=None):
+        seen.append((user_id, account_id, setup_perf_fn))
+        return edge
+
+    monkeypatch.setattr(pe, "edge_for_setups", fake)
+    monkeypatch.setattr(nw, "_trade_sources", lambda user_id: ["manual"])
+    return seen
+
+
+def test_setup_edge_rows_from_edge_for_setups(monkeypatch):
+    seen = _patch_edge(monkeypatch, {
+        "Flag": {"n": 30, "avg_r": 0.42, "total_r": 12.6, "win_rate": 0.55, "verdict": "edge", "muted": False,
+                 "note": "x"},
+        "VCP": {"n": 4, "avg_r": -0.1, "total_r": -0.4, "win_rate": None, "verdict": "thin", "muted": False,
+                "note": "y"}})
+    out = nw.build("mySetupEdge", "u1", {}, now=NOW)
+    assert out["source"] == "manual"
+    assert out["rows"] == [
+        {"setup": "Flag", "n": 30, "expectancyR": 0.42, "winRate": 0.55, "thin": False},
+        {"setup": "VCP", "n": 4, "expectancyR": -0.1, "winRate": None, "thin": True}]
+    assert seen[0][0] == "u1" and seen[0][1] == "_all_" and seen[0][2] is nw._setup_perf_all_time
+
+
+def test_setup_edge_thin_below_25(monkeypatch):
+    import api.services.personal_edge as pe
+    assert pe._MUTE_MIN_N == 25
+    _patch_edge(monkeypatch, {f"S{n}": {"n": n, "avg_r": 0.1, "win_rate": 0.5} for n in (1, 24, 25, 26)})
+    rows = {r["setup"]: r["thin"] for r in nw.build("mySetupEdge", "u1", {}, now=NOW)["rows"]}
+    assert rows == {"S1": True, "S24": True, "S25": False, "S26": False}
+    monkeypatch.setattr(pe, "_MUTE_MIN_N", 10)                 # the constant is READ, never retyped
+    rows = {r["setup"]: r["thin"] for r in nw.build("mySetupEdge", "u1", {}, now=NOW)["rows"]}
+    assert rows == {"S1": True, "S24": False, "S25": False, "S26": False}
+
+
+def test_setup_edge_empty(monkeypatch):
+    _patch_edge(monkeypatch, {})
+    out = nw.build("mySetupEdge", "u1", {}, now=NOW)
+    assert out["rows"] == [] and out["empty"] == nw.SETUP_EDGE_EMPTY_SENTENCE
+
+
+def _insert_trade(auth_db, user_id, account_id, setup, r, exit_date):
+    c = auth_db.get_connection()
+    try:
+        c.execute(
+            "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date,"
+            " exit_price, exit_date, original_stop, setup, notes, pnl_dollar, pnl_percent, r_multiple,"
+            " hold_days, result, context_at_entry, created_at, account_id, mistake_tags, emotion_tags, fees)"
+            " VALUES (?, ?, 'p', 'AMD', 'Long', 10, 50, ?, 55, ?, 48, ?, '', 50, 0.1, ?, 4, 'Win', '{}', ?,"
+            " ?, '[]', '[]', 0)",
+            (f"t-{setup}-{exit_date}", user_id, exit_date, exit_date, setup, r, exit_date, account_id))
+        c.commit()
+    finally:
+        c.close()
+
+
+def test_setup_edge_real_read_covers_every_account_and_all_time_and_never_writes(monkeypatch, tmp_path):
+    from datetime import timedelta
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services import personal_edge as pe
+    from api.services.journal_two import accounts
+    acc = accounts.get_or_migrate_default_account("u9")        # setup only: this helper writes
+    acc_id = acc["id"] if isinstance(acc, dict) else acc
+    old = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+    _insert_trade(auth_db, "u9", acc_id, "Flag", 2.0, old)
+    # Control, measured: the bare call scopes to account None (`IN (NULL)`) and to the last 7 days,
+    # so it answers nothing for a member who plainly has a Flag trade.
+    assert pe.edge_for_setups("u9") == {}
+    tables = ("j2_accounts", "j2_trades", "j2_positions")
+    before = tuple(_count(auth_db, t) for t in tables)
+    out = nw.build("mySetupEdge", "u9", {}, now=NOW)
+    assert tuple(_count(auth_db, t) for t in tables) == before
+    assert [(r["setup"], r["n"], r["expectancyR"]) for r in out["rows"]] == [("Flag", 1, 2.0)]
+    assert out["source"] == "manual"
+
+
+# -- wave 6: myScreenToday -----------------------------------------------------------------
+
+_DEF = {"meta": {"name": "My breakout screen"}, "compute": {"kind": "ast", "fn": "sha256:abc"}}
+
+
+def _patch_screen(monkeypatch, *, owned=("owner", "u_0123456789ab"), receipt=None, latest=20261019,
+                  tickers=("AAA", "BBB"), truncated=False, prices=None, def_hash="sha256:abc"):
+    import api.services.user_definitions as ud
+    import api.services.scan_definition as sd
+    import api.services.screener.scan_store as ss
+    import api.routers.scan_results as sr
+    seen = {"get": [], "coverage": [], "hits": []}
+
+    def fake_get(user_id, def_id, version=None):
+        seen["get"].append((user_id, def_id))
+        if not ud.DEF_ID_RE.match(def_id):
+            raise ValueError("not a def id")
+        return {"def_id": def_id, "definition": _DEF} if (user_id, def_id) == owned else None
+
+    def fake_cov(h, tf, as_of):
+        seen["coverage"].append((h, tf, as_of))
+        return receipt
+
+    def fake_hits(h, tf, as_of, limit):
+        seen["hits"].append((h, tf, as_of, limit))
+        return list(tickers)[:limit], truncated
+
+    monkeypatch.setattr(ud, "get", fake_get)
+    monkeypatch.setattr(sd, "def_hash", lambda d: def_hash)
+    monkeypatch.setattr(ss, "latest_covered_as_of", lambda h, tf: latest)
+    monkeypatch.setattr(ss, "coverage", fake_cov)
+    monkeypatch.setattr(sr, "_hit_tickers", fake_hits)
+    _patch_prices(monkeypatch, prices if prices is not None else
+                  {"AAA": {"price": 10.0, "change_pct": 1.5}, "BBB": {"price": None}})
+    return seen
+
+
+_RECEIPT = {"as_of": 20261019, "evaluated": 100, "answered": 60, "dropped": 30, "not_computable": 10,
+            "dropped_symbols": ["X"]}
+
+
+def test_screen_today_hits_and_coverage(monkeypatch):
+    seen = _patch_screen(monkeypatch, receipt=dict(_RECEIPT))
+    out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+    assert out["source"] == "market" and out["name"] == "My breakout screen"
+    assert out["hits"] == [{"symbol": "AAA", "price": 10.0, "changePct": 1.5},
+                           {"symbol": "BBB", "price": None, "changePct": None}]
+    assert out["coverage"] == {"evaluated": 100, "answered": 60, "dropped": 30, "notComputable": 10, "withheld": 0}
+    assert seen["coverage"] == [("sha256:abc", "D", 20261019)]
+    assert seen["hits"] == [("sha256:abc", "D", 20261019, nw.ROW_CAP)]
+
+
+def test_screen_coverage_counts_close(monkeypatch):
+    broken = dict(_RECEIPT, answered=61)                        # 61 + 30 + 10 != 100
+    _patch_screen(monkeypatch, receipt=broken)
+    out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+    assert out["empty"] == "This screen's results are not ready yet."
+    assert out["hits"] == [] and out["coverage"] is None
+    # Never swept (no receipt, or no session at all): the same sentence, no invented counts.
+    for kw in ({"receipt": None}, {"receipt": dict(_RECEIPT), "latest": None}):
+        _patch_screen(monkeypatch, **kw)
+        out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+        assert out["empty"] == "This screen's results are not ready yet." and out["coverage"] is None
+
+
+def test_screen_withheld_comes_from_the_receipt_and_is_never_folded_in(monkeypatch):
+    _patch_screen(monkeypatch, receipt=dict(_RECEIPT, withheld=7))
+    cov = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)["coverage"]
+    assert cov["withheld"] == 7 and cov["evaluated"] == 100
+
+
+def test_screen_truncated_hits_say_so(monkeypatch):
+    many = [f"S{i:02d}" for i in range(nw.ROW_CAP)]
+    _patch_screen(monkeypatch, receipt=dict(_RECEIPT), tickers=many, truncated=True, prices={})
+    out = nw.build("myScreenToday", "owner", {"definitionId": "u_0123456789ab"}, now=NOW)
+    assert len(out["hits"]) == nw.ROW_CAP and out["truncated"] == 60 - nw.ROW_CAP
+
+
+def test_screen_not_yours_or_missing_is_refused_with_one_sentence(monkeypatch):
+    seen = _patch_screen(monkeypatch, receipt=dict(_RECEIPT))
+    messages = []
+    for user, did in (("intruder", "u_0123456789ab"), ("owner", "u_ffffffffffff"), ("owner", "bad id")):
+        with pytest.raises(nw.WidgetRequestError) as e:
+            nw.build("myScreenToday", user, {"definitionId": did}, now=NOW)
+        messages.append(str(e.value))
+    assert set(messages) == {"Screen not found"}
+    assert ("intruder", "u_0123456789ab") in seen["get"] and seen["coverage"] == []
+    with pytest.raises(nw.WidgetRequestError, match="definitionId is required"):
+        nw.build("myScreenToday", "owner", {}, now=NOW)
+
+
+# -- wave 6: roomBuzzOnMyNames -------------------------------------------------------------
+
+def _patch_buzz(monkeypatch, board_rows, names=("NVDA", "AMD", "TSLA"), channels="111,222"):
+    import api.services.buzz_store as bst
+    calls = []
+
+    def fake_board(start_ts, end_ts, chans, limit=10):
+        calls.append((start_ts, end_ts, list(chans), limit))
+        return [dict(r) for r in board_rows]
+
+    monkeypatch.setattr(bst, "board", fake_board)
+    _patch_names(monkeypatch, {s: ["watchlist"] for s in names})
+    if channels is None:
+        monkeypatch.delenv("BUZZ_CHANNELS", raising=False)
+    else:
+        monkeypatch.setenv("BUZZ_CHANNELS", channels)
+    return calls
+
+
+_BOARD = [{"ticker": "SPY", "people": 9, "mentions": 40}, {"ticker": "NVDA", "people": 5, "mentions": 12},
+          {"ticker": "AMD", "people": 2, "mentions": 3}]
+
+
+def test_buzz_rows_are_the_board_intersected_with_my_names(monkeypatch):
+    calls = _patch_buzz(monkeypatch, _BOARD)
+    out = nw.build("roomBuzzOnMyNames", "u1", {}, now=NOW)       # Tue 11:00 ET: since today's open
+    assert out["source"] == "market"
+    assert out["rows"] == [{"symbol": "NVDA", "mentions": 12, "people": 5},
+                           {"symbol": "AMD", "mentions": 3, "people": 2}]
+    start, end, chans, _limit = calls[0]
+    assert chans == ["111", "222"]
+    open_et = datetime(2026, 10, 20, 13, 30, tzinfo=timezone.utc)  # 09:30 EDT
+    assert start == int(open_et.timestamp()) and end == int(NOW.timestamp())
+
+
+def test_buzz_before_the_open_reads_the_previous_session(monkeypatch):
+    calls = _patch_buzz(monkeypatch, _BOARD)
+    early_monday = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)   # Mon 08:00 EDT
+    nw.build("roomBuzzOnMyNames", "u1", {}, now=early_monday)
+    start, end, _c, _l = calls[0]
+    assert start == int(datetime(2026, 10, 16, 13, 30, tzinfo=timezone.utc).timestamp())   # Fri 09:30
+    assert end == int(datetime(2026, 10, 16, 20, 0, tzinfo=timezone.utc).timestamp())     # Fri 16:00
+
+
+def test_buzz_never_returns_text(monkeypatch):
+    rows = [dict(r, text="secret words", content="more", message="msg", message_id="9", author="a")
+            for r in _BOARD]
+    _patch_buzz(monkeypatch, rows)
+    out = nw.build("roomBuzzOnMyNames", "u1", {}, now=NOW)
+
+    def keys(v):
+        if isinstance(v, dict):
+            for k, x in v.items():
+                yield k
+                yield from keys(x)
+        elif isinstance(v, list):
+            for x in v:
+                yield from keys(x)
+
+    assert not {"text", "content", "message"} & set(keys(out))
+    assert all(set(r) == {"symbol", "mentions", "people"} for r in out["rows"])
+    assert "secret words" not in json.dumps(out)
+
+
+def test_buzz_empty_and_not_set_up(monkeypatch):
+    _patch_buzz(monkeypatch, [{"ticker": "SPY", "people": 1, "mentions": 1}])
+    assert nw.build("roomBuzzOnMyNames", "u1", {}, now=NOW)["empty"] == "The room hasn't mentioned your names today."
+    calls = _patch_buzz(monkeypatch, _BOARD, channels=None)
+    out = nw.build("roomBuzzOnMyNames", "u1", {}, now=NOW)
+    assert out["empty"] == "Room buzz isn't set up yet." and out["rows"] == [] and calls == []
+
+
+# -- wave 6: myEarningsReactions -----------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _fresh_reported_window_cache():
+    from api.services.cache import cache
+    cache.delete_prefix("notebook_widgets_reported_window::")
+    yield
+    cache.delete_prefix("notebook_widgets_reported_window::")
+
+
+def _patch_reactions(monkeypatch, window, years=None, timing=None, closes=None, sleep_s=0.0):
+    import api.services.calendar_alerts as ca
+    import api.services.earnings_estimates as ee
+    import api.services.journal_two.earnings_prep as ep
+    import api.services.bars_sqlite as bs
+    seen = {"window": [], "year": []}
+
+    def fake_window(today, days):
+        seen["window"].append((today, days))
+        return dict(window), False
+
+    def fake_year(ticker, year, data_symbol=None, fresh=False):
+        seen["year"].append((ticker, year))
+        if sleep_s:
+            time.sleep(sleep_s)
+        return list((years or {}).get((ticker, year)) or [])
+
+    def fake_bars(sym, tf, n):
+        return [b for b in (closes or {}).get(sym, [])][-n:]
+
+    monkeypatch.setattr(ca, "collect_earnings_window", fake_window)
+    monkeypatch.setattr(ee, "get_year_earnings", fake_year)
+    monkeypatch.setattr(ep, "_timing_from_calendar_cache", lambda sym, day: (timing or {}).get(sym))
+    monkeypatch.setattr(bs, "get_bars", fake_bars)
+    return seen
+
+
+def _q(date, quarter, eps=1.1, eps_e=1.0, rev=5e9, rev_e=4.8e9):
+    return {"date": date, "quarter": quarter, "year": 2026, "eps_actual": eps, "eps_estimate": eps_e,
+            "revenue_actual": rev, "revenue_estimate": rev_e}
+
+
+def test_earnings_reactions_rows(monkeypatch):
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"], "AMD": ["flagged"], "TSLA": ["positions"]})
+    seen = _patch_reactions(
+        monkeypatch,
+        window={"NVDA": "2026-10-15", "AMD": "2026-10-14", "TSLA": "2026-10-27", "SPY": "2026-10-15"},
+        years={("NVDA", 2026): [_q("2026-07-20", 2), _q("2026-10-15", 3)],
+               ("AMD", 2026): [_q("2026-10-14", 3, eps=None, eps_e=0.9)]},
+        timing={"NVDA": "amc", "AMD": "bmo"},
+        closes={"NVDA": [(20261014, 0, 0, 0, 100.0, 0), (20261015, 0, 0, 0, 100.0, 0),
+                         (20261016, 0, 0, 0, 108.0, 0)],
+                "AMD": [(20261013, 0, 0, 0, 50.0, 0), (20261014, 0, 0, 0, 45.0, 0)]})
+    out = nw.build("myEarningsReactions", "u1", {}, now=NOW)
+    from datetime import date
+    assert seen["window"] == [(date(2026, 10, 13), 7)]
+    assert out["source"] == "market"
+    assert out["rows"] == [
+        {"symbol": "NVDA", "day": "2026-10-15", "epsActual": 1.1, "epsEst": 1.0, "revActual": 5e9,
+         "revEst": 4.8e9, "nextDayPct": 8.0},
+        {"symbol": "AMD", "day": "2026-10-14", "epsActual": None, "epsEst": 0.9, "revActual": 5e9,
+         "revEst": 4.8e9, "nextDayPct": -10.0}]
+
+
+def test_earnings_reactions_null_next_day_before_session(monkeypatch):
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"], "AMD": ["watchlist"]})
+    _patch_reactions(
+        monkeypatch, window={"NVDA": "2026-10-19", "AMD": "2026-10-20"},
+        years={}, timing={"NVDA": "amc", "AMD": "bmo"},
+        # NVDA reported Monday after the close; today's (Tuesday's) bar is still forming at 11:00 ET.
+        closes={"NVDA": [(20261016, 0, 0, 0, 100.0, 0), (20261019, 0, 0, 0, 101.0, 0),
+                         (20261020, 0, 0, 0, 107.0, 0)],
+                "AMD": [(20261019, 0, 0, 0, 50.0, 0), (20261020, 0, 0, 0, 55.0, 0)]})
+    rows = {r["symbol"]: r for r in nw.build("myEarningsReactions", "u1", {}, now=NOW)["rows"]}
+    assert rows["NVDA"]["nextDayPct"] is None and rows["AMD"]["nextDayPct"] is None
+    assert rows["NVDA"]["epsActual"] is None                     # no quarter found: null, never 0
+    after_close = datetime(2026, 10, 20, 20, 30, tzinfo=timezone.utc)   # 16:30 EDT
+    rows = {r["symbol"]: r for r in nw.build("myEarningsReactions", "u1", {}, now=after_close)["rows"]}
+    assert rows["NVDA"]["nextDayPct"] == round((107.0 / 101.0 - 1) * 100, 2)
+    assert rows["AMD"]["nextDayPct"] == 10.0
+
+
+def test_earnings_reactions_cold_calls_are_bounded(monkeypatch):
+    names = {f"N{i:02d}": ["watchlist"] for i in range(15)}
+    _patch_names(monkeypatch, names)
+    monkeypatch.setattr(nw, "REACTIONS_BUDGET_S", 0.3)
+    _patch_reactions(monkeypatch, window={s: "2026-10-15" for s in names}, sleep_s=2.0)
+    t0 = time.monotonic()
+    out = nw.build("myEarningsReactions", "u1", {}, now=NOW)
+    assert time.monotonic() - t0 < 1.5                          # one budget for the whole request
+    assert len(out["rows"]) == 15 and out["partial"] is True
+    assert all(r["epsActual"] is None for r in out["rows"])
+
+
+def test_earnings_reactions_window_is_cached_and_empty_says_so(monkeypatch):
+    _patch_names(monkeypatch, {"NVDA": ["watchlist"]})
+    seen = _patch_reactions(monkeypatch, window={"SPY": "2026-10-15"})
+    out = nw.build("myEarningsReactions", "u1", {}, now=NOW)
+    nw.build("myEarningsReactions", "u2", {}, now=NOW)
+    assert out["rows"] == [] and out["empty"] == nw.REACTIONS_EMPTY_SENTENCE
+    assert len(seen["window"]) == 1
