@@ -19,7 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
-import { isSnapshotKind, widgetKind } from '../../lib/notebookWidgets'
+import { isSnapshotKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -69,21 +69,7 @@ const EMBED_COMPONENTS = {
   // Notebook widgets (Task 7): the snapshot kinds, each rendered from its frozen params. ONE lazy
   // import serves them all (Task 16D, as R41 did for the captures): a kind costs a row, not a chunk
   // and its preload list, on the first open. Keyed by widget id in widgets/snapshotEmbeds.js.
-  myWatchlistToday: lazyLeaf(snapshotEmbeds, undefined, 'myWatchlistToday'),
-  myNamesReporting: lazyLeaf(snapshotEmbeds, undefined, 'myNamesReporting'),
-  tickerCard: lazyLeaf(snapshotEmbeds, undefined, 'tickerCard'),
-  myPnlStats: lazyLeaf(snapshotEmbeds, undefined, 'myPnlStats'),
-  myPositionsRisk: lazyLeaf(snapshotEmbeds, undefined, 'myPositionsRisk'),
-  myRulesCheck: lazyLeaf(snapshotEmbeds, undefined, 'myRulesCheck'),
-  myMistakes: lazyLeaf(snapshotEmbeds, undefined, 'myMistakes'),
-  marketOnMyNames: lazyLeaf(snapshotEmbeds, undefined, 'marketOnMyNames'),
-  tickerFlow: lazyLeaf(snapshotEmbeds, undefined, 'tickerFlow'),
-  tradeRecap: lazyLeaf(snapshotEmbeds, undefined, 'tradeRecap'),
-  myPnlCalendar: lazyLeaf(snapshotEmbeds, undefined, 'myPnlCalendar'),
-  mySetupEdge: lazyLeaf(snapshotEmbeds, undefined, 'mySetupEdge'),
-  myScreenToday: lazyLeaf(snapshotEmbeds, undefined, 'myScreenToday'),
-  roomBuzzOnMyNames: lazyLeaf(snapshotEmbeds, undefined, 'roomBuzzOnMyNames'),
-  myEarningsReactions: lazyLeaf(snapshotEmbeds, undefined, 'myEarningsReactions'),
+  ...Object.fromEntries(WIDGET_KINDS.map((k) => [k.id, lazyLeaf(snapshotEmbeds, undefined, k.id)])),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state
