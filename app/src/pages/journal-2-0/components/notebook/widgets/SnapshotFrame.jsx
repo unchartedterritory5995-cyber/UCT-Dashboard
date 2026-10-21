@@ -4,6 +4,7 @@ import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
 import { etDateTime, isoDayText } from '../captureStamp'
 import { widgetKind } from '../../../lib/notebookWidgets'
+import { widgetMeta } from '../../../../../widgets/registry'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import { savePreset, NAME_MAX } from '../../../lib/notebookSets'
 import {
@@ -33,8 +34,10 @@ export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
   onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
+  changeKeys = [], settings = {}, onChange,
 }) {
   const [busy, setBusy] = useState(false)
+  const [change, setChange] = useState(null)   // the settings being edited, or null when closed
   const [message, setMessage] = useState('')
   const [naming, setNaming] = useState(null)   // the preset name being typed, or null when closed
   // Spec §6 (final review M-10): offline, See it now is DISABLED with the reason as its title, and it is
@@ -71,6 +74,20 @@ export default function SnapshotFrame({
     if (!mounted.current) return
     setBusy(false)
     if (!result?.ok) setMessage(refreshFailureText(result?.reason))
+  }
+
+  // R58 (UX I-10): Change asks for this widget again with other settings (its request keys), through the same
+  // transaction See it now writes with; a refused setting shows the server's own sentence.
+  const submitChange = async () => {
+    if (busy || typeof onChange !== 'function') return
+    setBusy(true)
+    setMessage('')
+    let result
+    try { result = await onChange(change || {}) } catch { result = { ok: false, reason: 'failed' } }
+    if (!mounted.current) return
+    setBusy(false)
+    if (result?.ok) setChange(null)
+    else setMessage(result?.message || refreshFailureText(result?.reason))
   }
 
   // Task 17 (wave 5): this widget's SETTINGS saved under a name, listed under "My presets" in the / menu.
@@ -123,12 +140,38 @@ export default function SnapshotFrame({
             See it now
           </button>
         )}
+        {editable && onChange && changeKeys.length > 0 && change === null && (
+          <button type="button" className={styles.btn} onClick={() => { setChange({ ...settings }); setMessage('') }}>
+            Change
+          </button>
+        )}
         {editable && onSavePreset && naming === null && (
           <button type="button" className={styles.btn} onClick={() => { setNaming(''); setMessage('') }}>
             Save these settings as a preset
           </button>
         )}
       </div>
+      {change !== null && (
+        <form className={styles.presetForm} aria-label="Change this widget"
+          onSubmit={(e) => { e.preventDefault(); submitChange() }}>
+          {changeKeys.map((k) => {
+            const F = CHANGE_FIELDS[k]
+            const set = (v) => setChange((c) => ({ ...c, [k]: F.upper ? v.toUpperCase().replace(/\s+/g, '') : v }))
+            return F.options ? (
+              <select key={k} className={styles.presetInput} aria-label={F.label} value={change[k] || ''}
+                onChange={(e) => set(e.target.value)}>
+                <option value="">{F.label}</option>
+                {F.options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
+            ) : (
+              <input key={k} className={styles.presetInput} type={F.type || 'text'} aria-label={F.label}
+                placeholder={F.placeholder} value={change[k] || ''} onChange={(e) => set(e.target.value)} />
+            )
+          })}
+          <button type="submit" className={styles.btn} disabled={busy}>Show these</button>
+          <button type="button" className={styles.btn} onClick={() => setChange(null)}>Cancel</button>
+        </form>
+      )}
       {naming !== null && (
         <form className={styles.presetForm} onSubmit={(e) => { e.preventDefault(); savePresetNamed() }}>
           <input
@@ -148,6 +191,28 @@ export default function SnapshotFrame({
       {sourceLine && <p className={styles.source}>{sourceLine}</p>}
     </div>
   )
+}
+
+/** R58 (UX I-10): the settings a member can change, per request key: its label and its control. */
+const CHANGE_FIELDS = {
+  symbol: { label: 'Symbol', placeholder: 'NVDA', upper: true },
+  list: { label: 'List', options: [['watchlist', 'Watchlist'], ['flagged', 'Flagged']] },
+  from: { label: 'From', type: 'date' },
+  to: { label: 'To', type: 'date' },
+  month: { label: 'Month', type: 'month' },
+}
+
+/** The request keys a kind's Change edits, read from its registry paramsSchema: a frozen `range` is asked for with
+ *  from/to, a `listLabel` with list, a `month` with month, and a `symbol` with symbol (a trade recap's symbol is
+ *  its trade's, never a setting: its request key is the trade). A trade or a screen is chosen from the / menu. */
+export function changeKeysOf(kind) {
+  const keys = new Set((widgetMeta(kind)?.paramsSchema || []).map((f) => f.key))
+  return [
+    ...(keys.has('symbol') && !keys.has('tradeId') ? ['symbol'] : []),
+    ...(keys.has('listLabel') ? ['list'] : []),
+    ...(keys.has('range') ? ['from', 'to'] : []),
+    ...(keys.has('month') ? ['month'] : []),
+  ]
 }
 
 /** One snapshot write, written through to `ref` when the host took it (final review M-1, below). */
@@ -181,6 +246,19 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     }
     return got
   }, [kind])
+  // R58 (UX I-10): the same write as See it now, asked with the member's new settings, which are stored as the
+  // request keys (so a later See it now and a preset made from this widget keep them).
+  const onChange = useCallback(async (next) => {
+    const asked = {}
+    for (const [k, v] of Object.entries(next || {})) if (typeof v === 'string' && v.trim()) asked[k] = v.trim()
+    const got = await fetchWidgetPayload(kind, { ...requestParamsOf(paramsRef.current), ...asked })
+    if (got.ok) {
+      const write = writeRef.current
+      if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+      writeThrough(paramsRef, write, { ...refreshParams(paramsRef.current, got.payload), ...asked })
+    }
+    return got
+  }, [kind])
   const onShareChange = useCallback((value) => {
     const write = writeRef.current
     if (typeof write === 'function') writeThrough(paramsRef, write, { ...paramsRef.current, share: value === true })
@@ -198,6 +276,9 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     editable: canWrite,
     onRefresh: canWrite ? onRefresh : undefined,
     onShareChange: canWrite ? onShareChange : undefined,
+    changeKeys: changeKeysOf(kind),
+    settings: requestParamsOf(params),
+    onChange: canWrite ? onChange : undefined,
     // Only an editable snapshot offers it, and only while wave 5 is on.
     onSavePreset: canWrite && meta && widgetsWaveOn(5) ? onSavePreset : undefined,
   }

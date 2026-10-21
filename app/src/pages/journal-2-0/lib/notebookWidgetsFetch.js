@@ -41,7 +41,8 @@ export function requestParamsOf(params) {
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
 /** One widget payload. Never throws: `{ok: true, payload}` or `{ok: false, reason}` with
- *  reason `offline` (no request made), `unavailable` (a 404: unknown or gated off) or `failed`. */
+ *  reason `offline` (no request made), `unavailable` (a 404: unknown or gated off) or `failed`. A 400 (a setting
+ *  the server refuses, e.g. "month must be between ...") also carries the server's own sentence as `message`. */
 export async function fetchWidgetPayload(kind, params = {}) {
   if (isOffline()) return { ok: false, reason: 'offline' }
   try {
@@ -55,6 +56,10 @@ export async function fetchWidgetPayload(kind, params = {}) {
       credentials: 'include',
     })
     if (res.status === 404) return { ok: false, reason: 'unavailable' }
+    if (res.status === 400) {
+      const body = await res.json().catch(() => null)
+      return { ok: false, reason: 'failed', ...(typeof body?.detail === 'string' && body.detail ? { message: body.detail } : {}) }
+    }
     if (!res.ok) return { ok: false, reason: 'failed' }
     const payload = await res.json()
     if (!payload || typeof payload !== 'object' || typeof payload.asOf !== 'string') {
