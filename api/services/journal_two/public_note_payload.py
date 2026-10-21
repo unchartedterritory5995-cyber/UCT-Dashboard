@@ -512,9 +512,28 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
 #: extra all stay home); `SCALAR_ITEMS` names a list of scalars (a recap's mistake tags) and `PAIR_ITEMS` a
 #: list of scalar pairs (the equity curve's [day, value]). A structured param this table does not name is
 #: not published.
-SCALAR_ITEMS: tuple[str, ...] = ()
-PAIR_ITEMS: tuple[str, ...] = ("[day, value]",)
-EMBED_ROW_KEYS: dict[str, dict[str, tuple[str, ...]]] = {
+class _ItemShape:
+    """A list-item mode for EMBED_ROW_KEYS, told apart by IDENTITY (`is`), never by equality (fix F1b,
+    review M-6: `keys == ()` was true for ANY empty tuple, so an entry written `()` to mean "keep no keys"
+    would have passed every scalar item through). As a key list it names NO key, so a shape placed where a
+    dict's keys are read keeps nothing (fails closed)."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __iter__(self):
+        return iter(())
+
+    def __contains__(self, _key: object) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return self.name
+
+
+SCALAR_ITEMS = _ItemShape("SCALAR_ITEMS")
+PAIR_ITEMS = _ItemShape("PAIR_ITEMS")
+EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
     "myPnlStats": {"range": ("from", "to"), "equity": PAIR_ITEMS},
     "myPositionsRisk": {"rows": ("symbol", "side", "kind", "sizePct", "openPnl", "stopPrice", "distToStopPct",
                                  "noStop")},
@@ -530,14 +549,15 @@ def _scalar(v: Any) -> bool:
     return v is None or isinstance(v, (str, int, float, bool))
 
 
-def _allowed_item(item: Any, keys: tuple[str, ...]) -> Any:
-    """One list item through its allowlist, or `_DROP`."""
-    if keys == SCALAR_ITEMS:
+def _allowed_item(item: Any, keys: Any) -> Any:
+    """One list item through its allowlist, or `_DROP`. The two item shapes are matched by identity; any
+    other entry is a tuple of key names, and `()` keeps no key of a dict and drops a scalar (fails closed)."""
+    if keys is SCALAR_ITEMS:
         return item if _scalar(item) else _DROP
-    if keys == PAIR_ITEMS:
+    if keys is PAIR_ITEMS:
         ok = isinstance(item, (list, tuple)) and len(item) == 2 and all(_scalar(x) for x in item)
         return list(item) if ok else _DROP
-    if isinstance(item, dict):
+    if isinstance(item, dict) and isinstance(keys, tuple):
         return {k: item[k] for k in keys if k in item and _scalar(item[k])}
     return _DROP
 

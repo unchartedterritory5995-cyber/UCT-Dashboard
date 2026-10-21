@@ -1356,6 +1356,26 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
             assert "positionId" not in allowed and "tradeId" not in allowed and "definitionId" not in allowed
 
 
+def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
+    """Fix F1b (review M-6): the item shapes are matched by identity, so an EMBED_ROW_KEYS entry written `()`
+    to mean "keep no keys" keeps NOTHING -- it used to equal SCALAR_ITEMS and pass every scalar through."""
+    params = {"mistakes": ["fomo", "chased"], "bars": [{"t": "2026-09-01", "c": 1.5}],
+              "range": {"from": "2026-10-13", "to": "2026-10-20"}, "share": True}
+    # control: with the real table the member's figures are there
+    real = pnp.allowed_params("tradeRecap", params)
+    assert real["mistakes"] == ["fomo", "chased"] and real["bars"] == [{"t": "2026-09-01", "c": 1.5}]
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "tradeRecap", {"mistakes": (), "bars": ()})
+    out = pnp.allowed_params("tradeRecap", params)
+    assert out["mistakes"] == [] and out["bars"] == [{}], out
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": (), "equity": ()})
+    out = pnp.allowed_params("myPnlStats", {"range": params["range"], "equity": [["2026-10-13", 100.0]]})
+    assert out == {"range": {}, "equity": []}, out
+    # a shape placed where a dict's keys are read names no key either
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": pnp.SCALAR_ITEMS})
+    assert pnp.allowed_params("myPnlStats", {"range": params["range"]}) == {"range": {}}
+    assert () is not pnp.SCALAR_ITEMS and () != pnp.SCALAR_ITEMS
+
+
 def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id():
     """Derived, not restated: the keys a positions row carries (both kinds) minus positionId."""
     import inspect
