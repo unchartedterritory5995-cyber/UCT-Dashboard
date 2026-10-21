@@ -581,7 +581,10 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
         elif isinstance(v, dict):
             out[k] = {f: v[f] for f in rows[k] if f in v and _scalar(v[f])}
         elif isinstance(v, list):
-            out[k] = [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP]
+            # Review m7: a `()` entry names no key, so it publishes NO items -- never one `{}` per item, which
+            # would still tell a stranger how many rows (or bars) the member has.
+            out[k] = ([] if rows[k] == () else
+                      [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
     return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty

@@ -1415,7 +1415,7 @@ def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
     assert real["mistakes"] == ["fomo", "chased"] and real["bars"] == [{"t": "2026-09-01", "c": 1.5}]
     monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "tradeRecap", {"mistakes": (), "bars": ()})
     out = pnp.allowed_params("tradeRecap", params)
-    assert out["mistakes"] == [] and out["bars"] == [{}], out
+    assert out["mistakes"] == [] and out["bars"] == [], out          # review m7: no items, so no count either
     monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": (), "equity": ()})
     out = pnp.allowed_params("myPnlStats", {"range": params["range"], "equity": [["2026-10-13", 100.0]]})
     assert out == {"range": {}, "equity": []}, out
@@ -1423,6 +1423,10 @@ def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
     monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": pnp.SCALAR_ITEMS})
     assert pnp.allowed_params("myPnlStats", {"range": params["range"]}) == {"range": {}}
     assert () is not pnp.SCALAR_ITEMS and () != pnp.SCALAR_ITEMS
+    # review m7: a () entry on a many-row list publishes nothing a stranger could count
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "mySetupEdge", {"rows": ()})
+    rows = [{"setup": f"S{i}", "n": i} for i in range(7)]
+    assert pnp.allowed_params("mySetupEdge", {"rows": rows})["rows"] == []
 
 
 def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeypatch):
