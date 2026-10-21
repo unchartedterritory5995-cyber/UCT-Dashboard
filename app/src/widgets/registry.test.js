@@ -14,6 +14,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { UNRELEASED_CAPTURE_WIDGETS } from './captureRelease'
+import { WIDGET_KINDS } from '../pages/journal-2-0/lib/notebookWidgets'
 import {
   WIDGET_REGISTRY,
   WIDGET_IDS,
@@ -773,7 +774,11 @@ function journalEmbedIds() {
   // `lazyChunk(` and then `lazyLeaf(` (ruling D-I2: a view inside its own error boundary never
   // reloads the page); the three wrappers are NAMED, so any other form still parses to nothing
   // and the non-vacuity control below goes red.
-  return [...block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*(?:lazy|lazyChunk|lazyLeaf)\(/gm)].map(m => m[1])
+  const ids = [...block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*(?:lazy|lazyChunk|lazyLeaf)\(/gm)].map(m => m[1])
+  // F2 (bytes): the snapshot kinds are ONE spread over WIDGET_KINDS, each bound to the shared
+  // snapshotEmbeds chunk. Only this exact form counts as binding them; any other spelling binds nothing.
+  const spread = '...Object.fromEntries(WIDGET_KINDS.map((k) => [k.id, lazyLeaf(snapshotEmbeds, undefined, k.id)])),'
+  return block[1].includes(spread) ? [...ids, ...WIDGET_KINDS.map(k => k.id)] : ids
 }
 
 describe('widget registry — journal embed bindings', () => {
