@@ -920,6 +920,25 @@ def renamed_tag_list(existing: Any, from_tag: str, to_tag: str) -> list[str] | N
     return None if out == before else out
 
 
+def _imported_widgets_private(body: Any) -> Any:
+    """Ruling R60 (privacy audit M-2): consent does not travel in a file. Every widgetEmbed in an IMPORTED
+    body, at any depth, comes in with `params.share` False, so a note received from someone else (our JSON
+    export, a connector, the confirm route) is never already shared and never publishes the member's own
+    figures on the next See it now. In place; returns `body`."""
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if node.get("type") == "widgetEmbed" and isinstance(node.get("attrs"), dict):
+                params = node["attrs"].get("params")
+                if isinstance(params, dict):
+                    params["share"] = False
+            stack.extend(v for v in node.values() if isinstance(v, (dict, list)))
+        elif isinstance(node, list):
+            stack.extend(node)
+    return body
+
+
 def _validate_body_json(raw: Any) -> dict[str, Any]:
     if raw is None or raw == "":
         return {"type": "doc", "content": []}
@@ -1318,7 +1337,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             try:
                 if key is None:
                     raise NoteValidationError("importKey required on every note")
-                body_json = _validate_body_json(n.get("bodyJson"))
+                body_json = _imported_widgets_private(_validate_body_json(n.get("bodyJson")))
                 # ⛔ Wave 10 (10C): an imported note the editor cannot build lands in
                 # "Needs attention" with the sentence, never as a locked note.
                 _refuse_unbuildable(body_json)

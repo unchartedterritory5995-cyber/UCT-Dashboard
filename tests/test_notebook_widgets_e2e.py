@@ -643,3 +643,41 @@ def test_r59_the_reference_cache_is_per_key_and_expires():
     t[0] += public.REFERENCE_SET_TTL_S + 1
     assert public.cached_reference_set(("k", 1), compute("d"), now=lambda: t[0]) == {"d"}      # expired
     assert calls == ["a", "c", "d"]
+
+
+# -- ruling R60: an imported note never arrives already shared -------------------------------------
+
+def test_r60_import_forces_share_false_on_every_widget_at_any_depth(env, monkeypatch):
+    import json as _json
+    from api.services import auth_db
+    from api.services.journal_two import note_shares, notes
+    monkeypatch.setenv("J2_SHARE_LINKS_ENABLED", "1")
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash) VALUES ('u-imp', 'i@x.test', 'x')")
+        conn.commit()
+    finally:
+        conn.close()
+
+    def widget(eid):
+        return {"type": "widgetEmbed", "attrs": {
+            "v": 1, "widgetId": "myPositionsRisk", "mode": "snapshot", "capturedAt": "2026-10-20T14:00:00Z",
+            "embedId": eid, "params": {"asOf": "2026-10-20T14:00:00Z", "accountSize": 4242424, "share": True,
+                                       "rows": [{"symbol": "AAPL", "openPnl": 777.77}]}}}
+
+    body = {"type": "doc", "content": [widget("top"), {"type": "blockquote", "content": [widget("nested")]}]}
+    res = notes.import_confirm("u-imp", {"source": "uct-json", "notes": [
+        {"importKey": "uct:r60", "title": "From a friend", "bodyJson": body}]})
+    assert not res.get("failed"), res
+    conn = auth_db.get_connection()
+    try:
+        nid = conn.execute("SELECT id FROM j2_notes WHERE user_id = 'u-imp'").fetchone()[0]
+    finally:
+        conn.close()
+    stored = notes.get_note("u-imp", nid)["bodyJson"]
+    shares = [stored["content"][0]["attrs"]["params"]["share"],
+              stored["content"][1]["content"][0]["attrs"]["params"]["share"]]
+    assert shares == [False, False]
+    assert stored["content"][0]["attrs"]["params"]["accountSize"] == 4242424   # the rest of the file is kept
+    pub = _json.dumps(note_shares.resolve_share(note_shares.create_share("u-imp", nid)["token"]))
+    assert "4242424" not in pub and "777.77" not in pub and NEUTRAL_ACCOUNT in pub
