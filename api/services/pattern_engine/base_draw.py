@@ -18,16 +18,31 @@ The lab rule passed its pre-registered checks AS DRAWN here (lab/base_draw/PRERE
     boxes had a single comparison (reported, not gated);
   * two fresh blind AI-judge packets ("is this the base and its breakout level?").
 
-`base_drawing(bars, i)` reads bars[:i+1] only (no lookahead) and returns the drawing or None. It is a
-verbatim port of the lab's rule_bd.base_drawing (parity-railed in tests/test_base_draw_lab_parity.py);
-the constants are the lab's frozen PARAMS. Bars are {t, o, h, l, c, v} dicts, oldest first.
+`base_drawing(bars, i)` reads bars[:i+1] only (no lookahead) and returns the drawing or None. Bars are
+{t, o, h, l, c, v} dicts, oldest first.
+
+Two drawing rounds live here, chosen by `draw_round`:
+  * ROUND 1 -- the confirmed member drawing: a verbatim port of the lab's rule_bd.base_drawing
+    (parity-railed in tests/test_base_draw_lab_parity.py); the constants are the lab's frozen PARAMS.
+  * ROUND 2 (BASE_DRAW_ROUND) -- lab base_draw_v2. Round 1 put the pivot on the top CLUSTER of body
+    tops, so a base whose highest body stands alone -- a spike bar at the base's start, a single high
+    day inside it -- was drawn with its pivot UNDER that body, in the bar (blind judges, lab
+    base_metrics: "the pivot sits mid-body, well under the real left-side top"). Round 2 puts the
+    pivot on the HIGHEST body top of the drawn region (lip .. the bar before the as-of bar), the level
+    the team's own lines sit on (lab base_draw DEV: within 0.5 ATR of the base's highest body on 89%
+    of team charts, the highest wick 60%). Every gate then reads that pivot. Round 2 also withholds a
+    deep pullback straight after a parabolic run (PARABOLIC_RUN / PARABOLIC_DEPTH): a blow-off
+    unwinding is not a base.
+Members are served round 1 until round 2 passes its own blind check (auto_structures.MEMBER_BASE_ROUND).
 """
 from __future__ import annotations
 
 #: The base drawing round this code IS. A row drawn by `base_drawing` carries extras.draw_round =
 #: BASE_DRAW_ROUND; the member set serves only the confirmed round (auto_structures.MEMBER_BASE_ROUND,
 #: a literal). Bump it with every new base drawing.
-BASE_DRAW_ROUND = 1
+BASE_DRAW_ROUND = 2
+#: Every round this module can draw.
+DRAW_ROUNDS = (1, 2)
 #: The labels the judges saw.
 PIVOT_LABEL = "pivot"
 LOW_LABEL = "base low"
@@ -69,6 +84,18 @@ TREND_N = 200
 #: No high in the PEAK_BARS bars before the lip above pivot + PEAK_ATR ATR (not a shelf under a peak).
 PEAK_BARS = 30
 PEAK_ATR = 2.0
+
+# -- round 2 only (lab base_draw_v2/PREREG.txt; calibrated on DEV-dated bars only) --
+#: The run into the lip: the lip's high over the lowest low of the RUN_BARS bars before it ...
+RUN_BARS = 60
+#: ... at least this multiple is a PARABOLIC run ...
+PARABOLIC_RUN = 3.0
+#: ... and a base at least this deep (a fraction of the pivot) ...
+PARABOLIC_DEPTH = 0.30
+#: ... and SHORTER than this many sessions (7 weeks) straight after one is withheld: the run unwinding,
+#: not a base. On DEV a 3x run was followed by team-marked bases 22% deep / 20 bars and 49% deep / 115 bars;
+#: neither is withheld.
+PARABOLIC_MAX_LEN = 35
 
 
 def _f(b, k):
@@ -119,7 +146,7 @@ def _candidates(bars, i):
     return out
 
 
-def _evaluate(bars, i, a, k):
+def _evaluate(bars, i, a, k, rnd=1):
     b = bars
     C = _bt(b[k])
     j = i - 1
@@ -133,7 +160,11 @@ def _evaluate(bars, i, a, k):
     n = i - lip
     if n < MIN_LEN or n > LOOK:
         return None
-    piv = _cluster_top([_bt(b[m]) for m in range(lip, i)], CLUSTER * a)
+    if rnd == 1:
+        piv = _cluster_top([_bt(b[m]) for m in range(lip, i)], CLUSTER * a)
+    else:
+        # round 2: the pivot is the TOP of the drawn base -- its highest body, a spike bar at the lip included
+        piv = max(_bt(b[m]) for m in range(lip, i))
     t = [m for m in range(lip, i) if _bt(b[m]) >= piv - TOUCH * a]
     gs = _groups(t, GAP)
     if len(gs) < 2 or gs[-1][0] - gs[0][0] < MIN_TOUCH_SEP:
@@ -159,6 +190,13 @@ def _evaluate(bars, i, a, k):
         return None
     if (piv - low) / a > MAX_DEPTH_ATR:
         return None
+    if rnd != 1:
+        # round 2: a deep pullback straight after a parabolic run is a blow-off unwinding, not a base
+        r0 = max(0, lip - RUN_BARS)
+        floor = min(_f(b[m], "l") for m in range(r0, lip + 1))
+        if (floor > 0 and _f(b[lip], "h") / floor >= PARABOLIC_RUN and depth >= PARABOLIC_DEPTH
+                and n < PARABOLIC_MAX_LEN):
+            return None
     if i - 1 <= lip or max(_bt(b[m]) for m in range(max(lip + 1, i - RIGHT_BARS), i)) < piv - RIGHT_ATR * a:
         return None
     if i + 1 < TREND_N:
@@ -170,12 +208,16 @@ def _evaluate(bars, i, a, k):
             "close_minus_pivot_atr": (c - piv) / a}
 
 
-def base_drawing(bars: list, i: int):
+def base_drawing(bars: list, i: int, draw_round: int | None = None):
     """The base drawing at bar `i` from bars[:i+1] only, or None:
     {pivot, start_t (the lip), end_t (bar i), low, low_t, bars, atr (ATR(14) at bar i), label,
     low_label}.
-    Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer)."""
+    Of every valid candidate base, the one whose pivot is NEAREST the as-of close (ties: the longer).
+    `draw_round` picks the round (DRAW_ROUNDS); None is BASE_DRAW_ROUND, anything else draws nothing."""
     try:
+        rnd = BASE_DRAW_ROUND if draw_round is None else draw_round
+        if type(rnd) is not int or rnd not in DRAW_ROUNDS:
+            return None
         if not isinstance(i, int) or isinstance(i, bool) or i < MIN_LEN + 5 or i >= len(bars):
             return None
         b = bars[:i + 1]
@@ -184,7 +226,7 @@ def base_drawing(bars: list, i: int):
             return None
         seen, best = set(), None
         for k in _candidates(b, i):
-            d = _evaluate(b, i, a, k)
+            d = _evaluate(b, i, a, k, rnd)
             if d is None or (d["lip"], round(d["pivot"], 8)) in seen:
                 continue
             seen.add((d["lip"], round(d["pivot"], 8)))
