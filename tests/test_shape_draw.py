@@ -10,9 +10,13 @@ What is railed here:
   * the IPO base is experimental: outside RELATIONS / ALL_STRUCTURES / meta() / provenance(), refused when
     the window does not start on the series' first stored bar, when the listing is too old, too deep, or
     the base too short;
-  * the member gate fails closed: every MEMBER_<SHAPE>_ROUND literal is None, so a perfectly well-formed
-    row is dropped even with its id forced into the member set; with a literal set (monkeypatched), only
-    the matching round and a well-formed stamp pass;
+  * the member gate fails closed: only the double bottom's MEMBER_<SHAPE>_ROUND literal is set (round 2);
+    the saucer / ascending-base / IPO literals are None and their ids stay out of both display sets, so a
+    well-formed row of theirs is dropped even with its id forced into the member set; only the matching
+    round and a well-formed stamp pass;
+  * a double bottom whose first close above the pivot (after the second low) is more than
+    DB_BREAKOUT_MAX_AGE sessions old is marked stale (served, never drawn), failing closed on a missing
+    second-low mark or pivot; a served double bottom outranks bc:base (member_base_precedence);
   * structures_for is unchanged while AUTO_STRUCTURES_SHAPES_ENABLED is off, and only APPENDS the shape
     rows when it is on;
   * the backend's SHAPE_DRAW_IDS equal PatternOverlay's (one list, mirrored, pinned).
@@ -202,7 +206,15 @@ def test_shape_draw_rows_builds_one_row_per_firing_shape(complete):
     d = r["geometry"]["extras"]["draw_shape"]
     assert r["sym"] == "SYN" and r["levels"]["entry"] == d["pivot"]
     assert r["geometry"]["extras"]["draw_round"] == d["draw_round"] == 2
-    assert r["display_tier"] == "experimental"           # not in the team set: admin "show all" only
+    assert r["display_tier"] == "trusted"                 # released: in the team set
+    assert not r["geometry"]["extras"].get("stale")       # no close above the pivot yet: not stale
+    assert AS._confirmed_shape(r) is True
+
+
+def test_the_other_shapes_stay_experimental(complete):
+    rows = AS.shape_draw_rows("syn", series(W_PTS))
+    tiers = {r["pattern_id"]: r["display_tier"] for r in rows}
+    assert tiers == {"draw:double-bottom": "trusted", "draw:ipo-base": "experimental"}
 
 
 def test_a_short_history_is_a_listing_and_also_draws_an_ipo_base(complete):
@@ -234,18 +246,32 @@ def _row(pid="draw:double-bottom", rnd=2, **over):
             "geometry": {"extras": {"draw_shape": d, "draw_round": rnd}}}
 
 
-def test_every_member_literal_is_none_so_nothing_reaches_a_member():
+def test_only_the_double_bottom_literal_is_set():
     assert (AS.MEMBER_SAUCER_ROUND, AS.MEMBER_ASCENDING_BASE_ROUND, AS.MEMBER_DOUBLE_BOTTOM_ROUND,
-            AS.MEMBER_IPO_BASE_ROUND) == (None, None, None, None)
-    assert AS._confirmed_shape(_row()) is False
+            AS.MEMBER_IPO_BASE_ROUND) == (None, None, 2, None)
+    assert AS.MEMBER_DOUBLE_BOTTOM_ROUND == SD.DOUBLE_BOTTOM_DRAW_ROUND
+    assert AS._confirmed_shape(_row()) is True
 
 
-def test_member_rows_drops_a_well_formed_shape_row_even_inside_the_member_set(monkeypatch):
+def test_only_the_double_bottom_is_in_the_display_sets():
     from api.services.pattern_engine.detectors import registry
-    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET", registry.DISPLAY_MEMBER_SET | {"draw:double-bottom"})
-    assert AS.member_rows([_row()]) == []
-    monkeypatch.setattr(AS, "MEMBER_DOUBLE_BOTTOM_ROUND", 2)                 # control: the literal releases it
+    assert "draw:double-bottom" in registry.DISPLAY_TEAM_SET
+    assert "draw:double-bottom" in registry.DISPLAY_MEMBER_SET
+    for pid in ("draw:saucer", "draw:ascending-base", "draw:ipo-base"):
+        assert pid not in registry.DISPLAY_TEAM_SET and pid not in registry.DISPLAY_MEMBER_SET, pid
+
+
+def test_member_rows_serves_the_double_bottom_and_drops_the_unreleased_shapes(monkeypatch):
+    from api.services.pattern_engine.detectors import registry
     assert len(AS.member_rows([_row()])) == 1
+    # the other three stay dropped even forced into the member set: their literals are None
+    monkeypatch.setattr(registry, "DISPLAY_MEMBER_SET",
+                        registry.DISPLAY_MEMBER_SET | {"draw:saucer", "draw:ascending-base", "draw:ipo-base"})
+    for pid in ("draw:saucer", "draw:ascending-base", "draw:ipo-base"):
+        assert AS._confirmed_shape(_row(pid=pid, shape=pid[len("draw:"):])) is False, pid
+    # control: with its literal unset the double bottom is dropped too
+    monkeypatch.setattr(AS, "MEMBER_DOUBLE_BOTTOM_ROUND", None)
+    assert AS.member_rows([_row()]) == []
 
 
 @pytest.mark.parametrize("bad", [
@@ -270,6 +296,141 @@ def test_a_stale_shape_row_never_passes(monkeypatch):
     r = _row()
     r["geometry"]["extras"]["stale"] = True
     assert AS._confirmed_shape(r) is False
+
+
+# ------------------------------------------------------------------------------------------- stale breakout
+def _flat_bars(n=30, start=datetime.date(2024, 3, 1)):
+    out = []
+    for k in range(n):
+        t = int((start + datetime.timedelta(days=k)).strftime("%Y%m%d"))
+        out.append({"t": t, "o": 95.0, "h": 96.0, "l": 94.0, "c": 95.0, "v": 1_000_000})
+    return out
+
+
+LOW2_AT = 10
+
+
+def _db_drawing(bars, pivot=100.0, low2_at=LOW2_AT, marks=None):
+    if marks is None:
+        marks = [{"t": bars[2]["t"], "price": 90.0, "kind": "low1"},
+                 {"t": bars[low2_at]["t"], "price": 90.5, "kind": "low2"}]
+    return {"shape": "double-bottom", "draw_round": SD.DOUBLE_BOTTOM_DRAW_ROUND,
+            "start_t": bars[0]["t"], "end_t": bars[-1]["t"], "pivot": pivot, "low": 90.0,
+            "label": AS.MEMBER_SHAPE_LABELS[0], "low_label": AS.MEMBER_SHAPE_LABELS[1], "marks": marks}
+
+
+def _broke_out(bars, k):
+    """The first close above the 100.0 pivot after the second low lands on bar k (and stays above)."""
+    for x in bars[k:]:
+        x["c"] = 101.0
+    return bars
+
+
+def _rows_with(monkeypatch, bars, d):
+    monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    monkeypatch.setattr(SD, "double_bottom_drawing", lambda b, i, **kw: d)
+    for fn in ("saucer_drawing", "ascending_base_drawing", "ipo_base_drawing"):
+        monkeypatch.setattr(SD, fn, lambda *a, **kw: None)
+    rows = AS.shape_draw_rows("syn", bars)
+    assert [r["pattern_id"] for r in rows] == ["draw:double-bottom"]
+    return rows[0]
+
+
+def test_a_breakout_six_sessions_old_is_withheld(monkeypatch):
+    b = _broke_out(_flat_bars(), 30 - 1 - 6)
+    r = _rows_with(monkeypatch, b, _db_drawing(b))
+    ex = r["geometry"]["extras"]
+    assert ex.get("stale") is True and ex.get("stale_reason") == "breakout_age"
+    assert AS._confirmed_shape(r) is False
+    assert AS.member_rows([r]) == []
+
+
+def test_a_breakout_five_sessions_old_is_served(monkeypatch):
+    b = _broke_out(_flat_bars(), 30 - 1 - 5)
+    r = _rows_with(monkeypatch, b, _db_drawing(b))
+    assert not r["geometry"]["extras"].get("stale")
+    assert AS._confirmed_shape(r) is True
+    assert len(AS.member_rows([r])) == 1
+
+
+def test_no_breakout_yet_is_served(monkeypatch):
+    b = _flat_bars()
+    r = _rows_with(monkeypatch, b, _db_drawing(b))
+    assert not r["geometry"]["extras"].get("stale")
+
+
+def test_a_close_above_the_pivot_BEFORE_the_second_low_does_not_count(monkeypatch):
+    b = _flat_bars()
+    b[LOW2_AT - 3]["c"] = 101.0                          # the left side, before low2: not a breakout
+    assert AS._db_breakout_stale(b, _db_drawing(b)) is False
+
+
+@pytest.mark.parametrize("bad", ["no_low2", "no_pivot", "low2_off_series", "no_marks", "junk"])
+def test_a_missing_second_low_or_pivot_is_withheld(monkeypatch, bad):
+    b = _flat_bars()
+    d = _db_drawing(b)
+    if bad == "no_low2":
+        d["marks"] = [m for m in d["marks"] if m["kind"] != "low2"]
+    elif bad == "no_pivot":
+        d.pop("pivot")
+    elif bad == "low2_off_series":
+        d["marks"][1]["t"] = 19990101
+    elif bad == "no_marks":
+        d.pop("marks")
+    else:
+        d["marks"] = "junk"
+    assert AS._db_breakout_stale(b, d) is True
+    if bad != "no_pivot":                                # a row needs its pivot to be built at all
+        r = _rows_with(monkeypatch, b, d)
+        assert r["geometry"]["extras"].get("stale") is True
+        assert AS.member_rows([r]) == []
+
+
+def test_only_the_double_bottom_is_aged(monkeypatch):
+    """The stale-breakout withhold is the double bottom's condition: no other shape row is stamped by it."""
+    b = _broke_out(_flat_bars(), 5)
+    monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    d = {**_db_drawing(b), "shape": "saucer"}
+    monkeypatch.setattr(SD, "saucer_drawing", lambda bb, i, **kw: d)
+    for fn in ("double_bottom_drawing", "ascending_base_drawing", "ipo_base_drawing"):
+        monkeypatch.setattr(SD, fn, lambda *a, **kw: None)
+    rows = AS.shape_draw_rows("syn", b)
+    assert [r["pattern_id"] for r in rows] == ["draw:saucer"]
+    assert not rows[0]["geometry"]["extras"].get("stale")
+
+
+# ------------------------------------------------------------------------------------------- one pivot per base
+def _base_row(complete):
+    from tests.test_base_draw_member_drawing import _synth
+    row = AS.base_draw_row("SYN", _synth())
+    assert row is not None
+    return row
+
+
+def _db_over(base, price, overlap=True, stale=False):
+    bd = base["geometry"]["extras"]["draw_base"]
+    s, e = (bd["start_t"], bd["end_t"]) if overlap else (int(bd["start_t"]) - 900, int(bd["start_t"]) - 500)
+    ex = {"draw_shape": {"pivot": price}, "draw_round": 2}
+    if stale:
+        ex.update({"stale": True, "stale_reason": "breakout_age"})
+    return {"pattern_id": "draw:double-bottom", "start_t": s, "end_t": e, "levels": {"entry": price},
+            "geometry": {"shape": "shape_draw", "extras": ex}}
+
+
+def test_a_served_double_bottom_drops_the_base_drawing(complete):
+    assert "draw:double-bottom" in AS.BASE_INCUMBENT_IDS
+    base = _base_row(complete)
+    bd = base["geometry"]["extras"]["draw_base"]
+    p, a = bd["pivot"], bd["atr"]
+    near = _db_over(base, p + 0.5 * a, overlap=False)            # same breakout line, no span overlap
+    assert [r["pattern_id"] for r in AS.member_base_precedence([], [near, base])] == ["draw:double-bottom"]
+    covering = _db_over(base, p + 6 * a, overlap=True)           # far line, same base span
+    assert [r["pattern_id"] for r in AS.member_base_precedence([], [covering, base])] == ["draw:double-bottom"]
+    # controls: a double bottom elsewhere, or a stale one (never drawn), leaves the base drawing
+    far = _db_over(base, p + 6 * a, overlap=False)
+    assert [r["pattern_id"] for r in AS.member_base_precedence([], [far, base])] == ["draw:double-bottom", "bc:base"]
+    stale = _db_over(base, p, overlap=True, stale=True)
+    assert [r["pattern_id"] for r in AS.member_base_precedence([], [stale, base])] == ["draw:double-bottom", "bc:base"]
 
 
 # ------------------------------------------------------------------------------------------- structures_for

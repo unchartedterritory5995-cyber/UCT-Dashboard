@@ -49,7 +49,8 @@
 //   inside day and the bar it sits inside, a solid "trigger" line at the inside day's high extended
 //   past the last bar, and a dashed "stop" line at its low, and nothing else (`insideDayDrawing`).
 //   draw:saucer / draw:ascending-base / draw:double-bottom / draw:ipo-base (structures rows, lab
-//   base_shapes, ADMIN-ONLY until blind-confirmed): `draw_shape` (api/services/pattern_engine/
+//   base_shapes; the double bottom is member-released at round 2, the other three stay ADMIN-ONLY;
+//   a double bottom whose breakout is too old arrives `stale` and is skipped): `draw_shape` (api/services/pattern_engine/
 //   shape_draw.py) draws a light region over the base, a solid "pivot" line from the shape's own pivot
 //   point, a dashed "base low", a dot on each of the shape's points and, for the W and the staircase, a
 //   dotted path through them -- and nothing else (`shapeDrawing`).

@@ -110,8 +110,9 @@ def member_rows(rows) -> list:
 
     A named base-shape drawing (SHAPE_DRAW_IDS, lab base_shapes) reaches a member only while its row
     carries the round its MEMBER_<SHAPE>_ROUND literal names beside a well-formed `draw_shape`
-    (`_confirmed_shape`). Every one of those literals is None today, so every such row is dropped
-    whatever else is true of it. Fail closed."""
+    (`_confirmed_shape`) and is not stale. Only the double bottom's literal is set (round 2); the
+    saucer, ascending base and IPO base literals are None, so every such row is dropped whatever
+    else is true of it. Fail closed."""
     allowed = member_ids()
     kept = [r for r in rows or []
             if (r or {}).get("display_tier") == "trusted"
@@ -351,7 +352,10 @@ SHAPE_DRAW_IDS = ("draw:saucer", "draw:ascending-base", "draw:double-bottom", "d
 #: DISPLAY_MEMBER_SET (member_rows also requires the trusted tier and the member set).
 MEMBER_SAUCER_ROUND = None
 MEMBER_ASCENDING_BASE_ROUND = None
-MEMBER_DOUBLE_BOTTOM_ROUND = None
+#: The double bottom: drawing round 2 passed both pre-registered blind packets and an independent review,
+#: which released it with two conditions railed here -- a breakout older than DB_BREAKOUT_MAX_AGE sessions
+#: is withheld (`_db_breakout_stale`), and a served double bottom outranks bc:base (BASE_INCUMBENT_IDS).
+MEMBER_DOUBLE_BOTTOM_ROUND = 2
 #: The IPO base is EXPERIMENTAL (base_catalog.EXPERIMENTAL_STRUCTURES): no lift measurement exists, so it
 #: stays admin-only whatever its drawing scores.
 MEMBER_IPO_BASE_ROUND = None
@@ -490,7 +494,8 @@ def cup_tier_stamp(det: dict, bars: list) -> None:
 #: a chart never shows two or three different "pivot" / "breakout" lines for one base. Cup ids are
 #: listed now so a cup tier that reaches members later is covered the day it lands.
 BASE_INCUMBENT_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout",
-                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct"})
+                                "bc:cup-with-handle", "cup_handle", "cup_handle_uct",
+                                "draw:double-bottom"})
 #: A breakout level within this many ATR(14) of the base drawing's pivot is the same breakout line.
 BASE_PRECEDENCE_ATR = 1.0
 
@@ -678,13 +683,46 @@ _SHAPE_FUNCS = (
 )
 
 
+#: A double bottom whose first close above its pivot (after the second low) came MORE than this many sessions
+#: before the drawn bar is an old W that price already left: the row is marked stale (served, never drawn).
+DB_BREAKOUT_MAX_AGE = 5
+
+
+def _db_breakout_stale(bars, d) -> bool:
+    """True when the double-bottom drawing `d` over `bars` (the drawn bars, oldest first, the last one the
+    drawn bar) should be withheld as stale: the first close above `d["pivot"]` after the second-low mark came
+    more than DB_BREAKOUT_MAX_AGE sessions before the last bar. No close above the pivot yet is not stale.
+    Fails closed: a missing / unreadable second-low mark or pivot, or a second low not found among `bars`,
+    is stale. Never raises."""
+    try:
+        piv = d.get("pivot")
+        if not _finite(piv):
+            return True
+        low2 = [m for m in (d.get("marks") or []) if isinstance(m, dict) and m.get("kind") == "low2"]
+        if len(low2) != 1 or low2[0].get("t") is None:
+            return True
+        t2 = int(low2[0]["t"])
+        ts = [int(x["t"]) for x in bars]
+        if t2 not in ts:
+            return True
+        last = len(bars) - 1
+        for k in range(ts.index(t2) + 1, len(bars)):
+            if float(bars[k]["c"]) > float(piv):
+                return last - k > DB_BREAKOUT_MAX_AGE
+        return False
+    except Exception:  # noqa: BLE001 -- fail closed: an unreadable drawing is withheld
+        return True
+
+
 def shape_draw_rows(sym: str, bars: list) -> list:
     """The named base-shape drawing rows for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
     first): one row per shape whose drawing fires there (lab base_shapes; display only). A forming session
     (last_bar_forming) is dropped first: the lab drew finished sessions. The IPO base needs the series' first
     stored bar: `bars` is the store's latest STRUCTURE_BARS, so it reaches back to the first stored bar only
     when it holds fewer than that -- otherwise the ticker is too old to be a recent listing and no IPO base is
-    attempted. A failing shape costs that shape only. Never raises."""
+    attempted. A double bottom whose breakout is older than DB_BREAKOUT_MAX_AGE sessions is marked
+    `extras.stale` (`_db_breakout_stale`): served, never drawn. A failing shape costs that shape only.
+    Never raises."""
     out = []
     try:
         from api.services.pattern_engine import shape_draw
@@ -708,6 +746,10 @@ def shape_draw_rows(sym: str, bars: list) -> list:
                 continue
             if d is None:
                 continue
+            extras = {"draw_shape": d, "draw_round": d["draw_round"]}
+            if pid == "draw:double-bottom" and _db_breakout_stale(b, d):
+                extras["stale"] = True
+                extras["stale_reason"] = "breakout_age"
             out.append({
                 "id": f"{pid}:{sym}:{d['start_t']}:{d['end_t']}",
                 "sym": sym,
@@ -721,7 +763,7 @@ def shape_draw_rows(sym: str, bars: list) -> list:
                 "geometry": {
                     "shape": "shape_draw",
                     "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
-                    "extras": {"draw_shape": d, "draw_round": d["draw_round"]},
+                    "extras": extras,
                 },
                 "levels": {"entry": d["pivot"]},
                 "confidence": None,

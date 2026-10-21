@@ -253,6 +253,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "uct_flat_top_breakout",
     "bc:base",
     "draw:inside-day",
+    "draw:double-bottom",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -319,14 +320,19 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: a drawing (auto_structures.inside_day_draw_row); member_rows serves it only while it carries
 #: draw_round == MEMBER_INSIDE_DAY_ROUND beside a well-formed draw_inside_day, and
 #: member_inside_day_precedence keeps it to daily charts and drops it under an incumbent breakout line.
-#: draw:saucer / draw:ascending-base / draw:double-bottom / draw:ipo-base (lab base_shapes, 2026-10-20;
-#: api/services/pattern_engine/shape_draw.py) are deliberately in NEITHER set: admin-only, experimental,
-#: and only while AUTO_STRUCTURES_SHAPES_ENABLED is on. A shape is released by setting its
-#: auto_structures.MEMBER_<SHAPE>_ROUND literal to its blind-confirmed round AND adding its id here and to
-#: DISPLAY_TEAM_SET; until then member_rows drops it (fail closed). The IPO base stays experimental.
+#: draw:double-bottom (api/services/pattern_engine/shape_draw.py, drawing round 2) passed two fresh
+#: pre-registered blind packets, two judges each, AS DRAWN: A 2.46, 88% >= 2 and B 2.32, 76% >= 2. It
+#: reaches a member only while AUTO_STRUCTURES_SHAPES_ENABLED is on and its row carries draw_round ==
+#: auto_structures.MEMBER_DOUBLE_BOTTOM_ROUND beside a well-formed draw_shape, not stale (a breakout more
+#: than auto_structures.DB_BREAKOUT_MAX_AGE sessions old is stale); where it is served it outranks bc:base
+#: (member_base_precedence). draw:saucer / draw:ascending-base / draw:ipo-base are deliberately in
+#: NEITHER set: admin-only, experimental, and only while AUTO_STRUCTURES_SHAPES_ENABLED is on. A shape is
+#: released by setting its auto_structures.MEMBER_<SHAPE>_ROUND literal to its blind-confirmed round AND
+#: adding its id here and to DISPLAY_TEAM_SET; until then member_rows drops it (fail closed).
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
+    "draw:double-bottom",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp
