@@ -92,6 +92,50 @@ describe('ReportingSoon', () => {
     expect(contract('earnings-prep.draft')._contract.path.toUpperCase()).toBe('/API/J2/EARNINGS-PREP/EPNV/DRAFT')
   })
 
+  // Ruling R68 (F1b review I-1): a cold-cache answer (items: [] with partial: true) is "not checked yet", never "none".
+  it('R68: partial with no items says it could not check yet, and never says none report', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, items: [], partial: true }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByText("Couldn't check report dates just now. Trying again shortly.")).toBeInTheDocument()
+    expect(screen.queryByText(/None of your/)).toBeNull()
+    expect(screen.queryByText(/a name may be missing from this list/)).toBeNull()
+  })
+
+  it('R68 control: not partial with no items says none of your names report', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, items: [], partial: false }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByText(/None of your watchlist, flagged or open-position names report in the next 7 days\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+  })
+
+  it('R68: partial with items keeps the list and its caveat', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, partial: true }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' })).toBeInTheDocument()
+    expect(screen.getByText(/a name may be missing from this list/)).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+  })
+
+  it('R68: it asks again after ~10 s, and the later complete answer replaces the sentence', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => {
+      n += 1
+      return respond(200, n === 1 ? { ...SOON, items: [], partial: true } : SOON)
+    })
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByText("Couldn't check report dates just now. Trying again shortly.")).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' }, { timeout: 15000 })).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+    expect(n).toBe(2)
+    // A complete answer stops the asking.
+    await new Promise((r) => setTimeout(r, 300))
+    expect(n).toBe(2)
+  }, 20000)
+
   it('a name already prepped opens that note instead of drafting another', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const calls = stub([[/\/api\/j2\/earnings-prep\/soon$/, SOON]])

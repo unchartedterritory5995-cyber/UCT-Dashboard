@@ -10,6 +10,13 @@ import {
 import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
 import styles from './ReportingSoon.module.css'
 
+/** Ruling R68 (F1b review I-1): on a cold cache the server answers `items: []` with `partial: true` while its walk
+ *  of the calendar finishes in the background. That is "not checked yet", never "none": the box says so and asks
+ *  again every UNREAD_RETRY_MS, at most UNREAD_RETRIES times, then stops and offers Try again. */
+export const UNREAD_RETRY_MS = 10000
+export const UNREAD_RETRIES = 6
+const unreadEmpty = (d) => d?.partial === true && !(Array.isArray(d?.items) && d.items.length)
+
 function whenText(item) {
   const day = item.daysAway === 0 ? 'Today' : item.daysAway === 1 ? 'Tomorrow' : fmtShortDay(item.date)
   const t = timingLabel(item.timing)
@@ -28,9 +35,14 @@ function whenText(item) {
  */
 export default function ReportingSoon({ onOpenNote }) {
   const enabled = earningsPrepEnabled()
+  const triesRef = useRef(0)
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? SOON_URL : null, () => fetchReportingSoon(),
-    { revalidateOnFocus: false, shouldRetryOnError: false },
+    {
+      revalidateOnFocus: false, shouldRetryOnError: false,
+      onSuccess: (d) => { triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0 },
+      refreshInterval: (d) => (unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? UNREAD_RETRY_MS : 0),
+    },
   )
   const [busy, setBusy] = useState(null)
   const [message, setMessage] = useState('')
@@ -92,13 +104,21 @@ export default function ReportingSoon({ onOpenNote }) {
         <LoadFailed compact what="the earnings calendar for your names" error={error} onRetry={() => mutate()} />
       )}
       {!error && isLoading && <p className={styles.quiet} role="status">Checking the calendar…</p>}
-      {!error && data && items.length === 0 && (
+      {!error && data && items.length === 0 && !data.partial && (
         <p className={styles.quiet}>
           None of your watchlist, flagged or open-position names report in the next {days} days.
           A prep note is one click here once one does.
         </p>
       )}
-      {!error && data?.partial && (
+      {!error && unreadEmpty(data) && (triesRef.current <= UNREAD_RETRIES ? (
+        <p className={styles.quiet} role="status">Couldn&apos;t check report dates just now. Trying again shortly.</p>
+      ) : (
+        <p className={styles.quiet} role="status">
+          Couldn&apos;t check report dates just now.{' '}
+          <button type="button" className={styles.action} onClick={() => { triesRef.current = 0; mutate() }}>Try again</button>
+        </p>
+      ))}
+      {!error && data?.partial && items.length > 0 && (
         <p className={styles.note} role="note">
           Some calendar days could not be read just now, so a name may be missing from this list.
         </p>
