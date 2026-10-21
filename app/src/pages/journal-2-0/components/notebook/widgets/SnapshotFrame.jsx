@@ -101,6 +101,9 @@ export default function SnapshotFrame({
         <span className={styles.asOf}>{stamp ? `as of ${stamp}` : 'as of an unrecorded time'}</span>
         {offline && <span className={styles.chip} data-snapshot-offline="" title={OFFLINE_SENTENCE}>Offline</span>}
         <span className={styles.spacer} />
+        {/* R58 (UX I-8): a market widget never reaches a shared page (its numbers are the market's), and says so
+            where an account widget offers its switch. */}
+        {!account && <span className={styles.chip} data-snapshot-public="">Not shown on shared pages</span>}
         {editable && account && (
           <label className={styles.shareRow}>
             <Switch

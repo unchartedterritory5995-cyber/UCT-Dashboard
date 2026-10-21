@@ -56,6 +56,20 @@ describe('SnapshotFrame controls', () => {
     expect(screen.queryByText('Show on shared pages')).toBeNull()
   })
 
+  it('R58 I-8: a market kind says "Not shown on shared pages" where the switch would be, editable or not', () => {
+    const { unmount } = frame({ account: false })
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+    unmount()
+    frame({ account: false, editable: false })
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+  })
+
+  it('control: an account kind offers the switch and never the market chip', () => {
+    frame({ account: true })
+    expect(screen.getByText('Show on shared pages')).toBeInTheDocument()
+    expect(screen.queryByText('Not shown on shared pages')).toBeNull()
+  })
+
   it('an account kind gets the switch, and flipping it asks for the new value', () => {
     const onShareChange = vi.fn()
     frame({ account: true, share: false, onShareChange })
