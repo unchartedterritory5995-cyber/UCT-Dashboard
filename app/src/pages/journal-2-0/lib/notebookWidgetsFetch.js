@@ -6,7 +6,7 @@
 // import here puts every byte below back on the Notebook's first open.
 
 import { SETTINGS_KEYS } from './notebookSets'
-import { widgetKind } from './notebookWidgets'
+import { widgetKind, widgetEmbedNode } from './notebookWidgets'
 
 export const WIDGETS_URL = '/api/j2/notebook-widgets'
 
@@ -76,6 +76,17 @@ export function refreshParams(oldParams, payload) {
   }
   next.share = old.share === true
   return next
+}
+
+/** The slash / palette snapshot insert's last step (SlashMenu.snapshotCommand), here so it costs no first-open
+ *  bytes: the frozen widget goes in at `pos()` (the command's place, mapped through anything typed while the
+ *  fetch ran). Final review M-2: the fetch can take seconds, so a note destroyed or turned read-only meanwhile
+ *  gets nothing. Resolves the palette's `{ok, message}`. */
+export function landSnapshot(editor, kind, params, pos) {
+  if (editor.isDestroyed || !editor.isEditable) return { ok: false, message: null }
+  editor.chain().focus().insertContentAt(Math.min(pos(), editor.state.doc.content.size), widgetEmbedNode(kind, params))
+    .caretAfterWidgetEmbed().run()
+  return { ok: true, message: null }
 }
 
 /** The sentence a failed refresh shows. */

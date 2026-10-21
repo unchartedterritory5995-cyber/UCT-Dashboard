@@ -28,7 +28,7 @@ import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
-import { WIDGET_KINDS, CAPTURE_KINDS, widgetEmbedNode } from '../../lib/notebookWidgets'
+import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
 import styles from './SlashMenu.module.css'
@@ -500,9 +500,9 @@ function snapshotCommand(kind, params) {
       ? await kind.capture(params).catch(() => ({ ok: false, reason: 'failed' }))
       : await widgetsFetch().then((m) => m.fetchWidgetPayload(kind.id, params),
         () => ({ ok: false, reason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed' }))
-    editor.off('transaction', track)
-    if (editor.isDestroyed) return { ok: false, message: null }
     if (!res.ok) {
+      editor.off('transaction', track)
+      if (editor.isDestroyed) return { ok: false, message: null }
       // A capture may name its own sentence (a news feed not built yet); otherwise offline vs failed.
       const message = res.message || (res.reason === 'offline'
         ? `You're offline, so ${kind.title} was not added.`
@@ -510,10 +510,10 @@ function snapshotCommand(kind, params) {
       editor.storage?.uctJournalWidgets?.notify?.(message, 'error')
       return { ok: false, message }
     }
-    const at = Math.min(pos, editor.state.doc.content.size)
-    editor.chain().focus().insertContentAt(at, widgetEmbedNode(kind.id, { ...res.payload, ...params }))
-      .caretAfterWidgetEmbed().run()
-    return { ok: true, message: null }
+    // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
+    // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
+    return widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos),
+      () => ({ ok: false, message: null })).finally(() => editor.off('transaction', track))
   }
 }
 

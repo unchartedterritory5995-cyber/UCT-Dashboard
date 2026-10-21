@@ -736,6 +736,26 @@ describe('snapshot widget items (Task 8)', () => {
     expect(embeds(ed).map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
   })
 
+  it('a note that turned read-only while the fetch ran gets nothing (final review M-2)', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    ed.setEditable(false)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    const out = await pending
+    expect(global.fetch).toHaveBeenCalledTimes(1)                    // non-vacuity: the fetch did answer
+    expect(out).toEqual({ ok: false, message: null })
+    expect(embeds(ed)).toHaveLength(0)
+    // Control: the same answer lands while the note stays editable.
+    ed.setEditable(true)
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    ed.commands.setContent('<p>Plan /ticker NVDA</p>')
+    expect((await snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })).ok).toBe(true)
+    expect(embeds(ed)).toHaveLength(1)
+  })
+
   it('/market and /marketcontext both reach Market context once W4 is on and the capture switch releases it', () => {
     latchNotebookFlags({ notebook_widgets_w4_enabled: true })
     localStorage.setItem(CAPTURE_FLAG_KEY, '1')
