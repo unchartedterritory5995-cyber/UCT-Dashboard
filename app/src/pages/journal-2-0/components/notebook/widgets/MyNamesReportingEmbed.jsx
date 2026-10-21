@@ -1,13 +1,13 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import { fmtShortDay, sourceLabel, timingLabel } from '../../../lib/earningsPrepShared'
-import SnapshotFrame, { useSnapshotFrame, numCell, EARNINGS_UNREAD, snapshotStyles as s } from './SnapshotFrame'
+import SnapshotFrame, { useSnapshotFrame, numCell, safeKey, EARNINGS_UNREAD, snapshotStyles as s } from './SnapshotFrame'
 
 const fmtMove = (v) => `±${v.toFixed(1)}%`
 
 /** The report day as a date, never "Tomorrow": a snapshot is read long after it was taken. */
 function whenText(r) {
   const day = r?.day ? fmtShortDay(r.day) : 'Day unknown'
-  const t = timingLabel(r?.timing)
+  const t = timingLabel(safeKey(r?.timing))
   return t ? `${day}, ${t}` : `${day}, time not announced`
 }
 
@@ -46,7 +46,7 @@ export default function MyNamesReportingEmbed({ attrs, height = 260, editable = 
                     <td><span className={s.sym}>{r?.symbol || '?'}</span></td>
                     <td>{whenText(r)}</td>
                     <td>{numCell(r?.impliedMovePct, fmtMove, 'No options-implied move available')}</td>
-                    <td>{(Array.isArray(r?.sources) ? r.sources : []).map(sourceLabel).join(', ')}</td>
+                    <td>{(Array.isArray(r?.sources) ? r.sources : []).map((x) => sourceLabel(safeKey(x))).filter(Boolean).join(', ')}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,5 +1,5 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
-import SnapshotFrame, { useSnapshotFrame, numCell, NA, snapshotStyles as s } from './SnapshotFrame'
+import SnapshotFrame, { useSnapshotFrame, numCell, NA, own, snapshotStyles as s } from './SnapshotFrame'
 
 const NO_NET = 'The flow record for this name carries no net premium figure'
 const SIDE = { C: 'Call', P: 'Put' }
@@ -63,10 +63,10 @@ export default function TickerFlowEmbed({ attrs, height = 300, editable = false,
               <tbody>
                 {prints.map((c, i) => (
                   <tr key={`${c?.cp}-${c?.strike}-${c?.exp}-${i}`}>
-                    <td>{`${c?.strike ?? '?'} ${SIDE[c?.cp] || 'Option'}, ${c?.exp || 'no expiry'}`}</td>
+                    <td>{`${c?.strike ?? '?'} ${own(SIDE, c?.cp) || 'Option'}, ${c?.exp || 'no expiry'}`}</td>
                     <td>{numCell(c?.premium, fmtPremium, 'No premium on record for this contract')}</td>
                     <td>{numCell(c?.volume, (v) => v.toLocaleString('en-US'), 'No volume on record for this contract')}</td>
-                    <td>{DIRECTION[c?.direction] || <NA reason="No direction on record for this contract" />}</td>
+                    <td>{own(DIRECTION, c?.direction) || <NA reason="No direction on record for this contract" />}</td>
                   </tr>
                 ))}
               </tbody>

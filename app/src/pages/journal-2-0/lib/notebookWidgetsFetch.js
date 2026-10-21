@@ -30,7 +30,8 @@ export function requestParamsOf(params) {
   for (const k of REQUEST_KEYS) {
     if (typeof p[k] === 'string' && p[k]) out[k] = p[k]
   }
-  if (!out.list && LIST_FROM_LABEL[p.listLabel]) out.list = LIST_FROM_LABEL[p.listLabel]
+  // R60: only the map's own labels (a stored "__proto__" never reaches Object.prototype).
+  if (!out.list && typeof p.listLabel === 'string' && Object.hasOwn(LIST_FROM_LABEL, p.listLabel)) out.list = LIST_FROM_LABEL[p.listLabel]
   if (p.range && typeof p.range === 'object') {
     if (!out.from && typeof p.range.from === 'string' && p.range.from) out.from = p.range.from
     if (!out.to && typeof p.range.to === 'string' && p.range.to) out.to = p.range.to

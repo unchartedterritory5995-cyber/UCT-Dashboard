@@ -1,6 +1,6 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, NA, toneOf, fmtMoneySigned, fmtPrice, fmtPctPlain, accountSourceLine, snapshotStyles as s,
+  useSnapshotFrame, numCell, NA, own, toneOf, fmtMoneySigned, fmtPrice, fmtPctPlain, accountSourceLine, snapshotStyles as s,
 } from './SnapshotFrame'
 
 /** How open P&L and size were priced (F1 `priceBasis`), said only when the server sent no `sourceDetail`. */
@@ -29,7 +29,7 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
   const hasAccount = typeof p.accountSize === 'number' && Number.isFinite(p.accountSize)
   const sizeReason = hasAccount ? 'No price available right now' : 'No account size set in Journal'
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
-  const basis = p.sourceDetail ? null : PRICE_BASIS[p.priceBasis]
+  const basis = p.sourceDetail ? null : own(PRICE_BASIS, p.priceBasis)
   const sourceLine = [accountSourceLine(p), basis, extra].filter(Boolean).join(' · ') || null
   const usesDefault = p.accountSizeSource === 'default' && hasAccount
 

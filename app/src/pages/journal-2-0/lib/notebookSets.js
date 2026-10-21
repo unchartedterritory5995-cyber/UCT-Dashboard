@@ -57,7 +57,8 @@ export function presetParams(preset) {
   for (const k of SETTINGS_KEYS) {
     if (typeof p[k] === 'string' && p[k]) out[k] = p[k]
   }
-  if (!out.list && LIST_FROM_LABEL[p.listLabel]) out.list = LIST_FROM_LABEL[p.listLabel]
+  // R60: only the map's own labels (a stored "__proto__" never reaches Object.prototype).
+  if (!out.list && typeof p.listLabel === 'string' && Object.hasOwn(LIST_FROM_LABEL, p.listLabel)) out.list = LIST_FROM_LABEL[p.listLabel]
   out.share = false
   return out
 }

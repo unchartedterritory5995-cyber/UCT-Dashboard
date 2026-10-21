@@ -1,6 +1,6 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, NA, toneOf, fmtChangePct, snapshotStyles as s,
+  useSnapshotFrame, numCell, NA, own, toneOf, fmtChangePct, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const BASIS_LINES = { 'your names': 'Sector figure: the average of your names in that sector.' }
@@ -14,7 +14,7 @@ export default function MarketOnMyNamesEmbed({ attrs, height = 300, editable = f
   const frame = useSnapshotFrame('marketOnMyNames', attrs, { editable, onUpdateParams })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
-  const sourceLine = [BASIS_LINES[p.sectorBasis], extra].filter(Boolean).join(' ') || null
+  const sourceLine = [own(BASIS_LINES, p.sectorBasis), extra].filter(Boolean).join(' ') || null
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="market-on-my-names-embed">

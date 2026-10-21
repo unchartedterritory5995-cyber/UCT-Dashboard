@@ -314,6 +314,14 @@ export function numCell(value, fmt, reason) {
   return typeof value === 'number' && Number.isFinite(value) ? fmt(value) : <NA reason={reason} />
 }
 
+/** R60 (privacy audit M-6): a stored value used as a lookup key reads only the map's OWN entries. A crafted or
+ *  legacy note's "__proto__", "constructor" or "toString" would otherwise reach Object.prototype (an object as a
+ *  React child throws, and the embed drops to its error boundary). */
+export const own = (map, k) => (typeof k === 'string' && Object.hasOwn(map, k) ? map[k] : undefined)
+/** The same guard for a key handed to a shared helper whose map this module cannot see: the value, or undefined
+ *  when it names anything Object.prototype has (or `prototype` itself). */
+export const safeKey = (k) => (typeof k === 'string' && k !== 'prototype' && !(k in Object.prototype) ? k : undefined)
+
 /** The tone class for a signed figure. */
 export const toneOf = (v) => (typeof v === 'number' && v > 0 ? styles.up : typeof v === 'number' && v < 0 ? styles.dn : '')
 
@@ -331,6 +339,6 @@ const SOURCE_LINES = {
 }
 /** The provenance line for an account kind's params: none when the server sent its own `sourceDetail`, which the
  *  frame shows instead. */
-export const accountSourceLine = (p) => (p?.sourceDetail ? null : SOURCE_LINES[p?.source] || null)
+export const accountSourceLine = (p) => (p?.sourceDetail ? null : own(SOURCE_LINES, p?.source) || null)
 
 export { styles as snapshotStyles }

@@ -1,7 +1,7 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import UIcon from '../../../../../components/ui/UIcon'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, NA, toneOf, fmtMoneySigned, accountSourceLine, snapshotStyles as s,
+  useSnapshotFrame, numCell, NA, own, toneOf, fmtMoneySigned, accountSourceLine, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const NO_MISTAKES = 'No tagged mistakes yet.'
@@ -51,7 +51,7 @@ export default function MyMistakesEmbed({ attrs, height = 260, editable = false,
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const trend = TREND[r?.trend]
+                  const trend = own(TREND, r?.trend)
                   return (
                     <tr key={`${r?.mistake || 'row'}-${i}`}>
                       <td>{humanizeMistake(r?.mistake)}</td>
