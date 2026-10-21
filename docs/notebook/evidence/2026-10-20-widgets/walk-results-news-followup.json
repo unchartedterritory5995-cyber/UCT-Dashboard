@@ -1,0 +1,254 @@
+{
+ "tip": "8260a2265800e9ae8366b7c4972a38cc455527b3",
+ "base": "http://127.0.0.1:8231",
+ "data_dir": "C:\\data-widgets-walk",
+ "steps": [
+  {
+   "width": 1200,
+   "step": "1-slash-groups",
+   "kind": "",
+   "verdict": "PASS",
+   "observed": {
+    "groups": [
+     "Before the open",
+     "Planning a trade",
+     "Reviewing",
+     "Basics",
+     "More"
+    ],
+    "options": 62,
+    "first_titles": [
+     "My watchlist today",
+     "My names reporting",
+     "Market on my names",
+     "Room buzz on my names",
+     "My earnings reactions",
+     "Ticker card",
+     "Options flow on a ticker",
+     "Chart",
+     "MTF stack",
+     "Before / after",
+     "Price",
+     "Analyst Consensus",
+     "Trade plan",
+     "Journal style",
+     "Pre-entry checklist",
+     "Price stamps",
+     "Position sizing",
+     "My rules",
+     "Morning wire and exposure",
+     "Earnings for my names",
+     "My movers",
+     "Key levels from my plans",
+     "Post-trade review",
+     "Market context",
+     "My P&L and stats",
+     "My open positions and risk",
+     "My rules check",
+     "My recurring mistakes",
+     "My P&L calendar",
+     "My setup edge",
+     "Heading 1",
+     "Heading 2",
+     "Heading 3",
+     "Bullet list",
+     "Numbered list",
+     "Quote",
+     "Divider",
+     "Table",
+     "Checklist",
+     "Due date"
+    ]
+   },
+   "screenshot": "1200-1-slash-menu.png",
+   "layout": {
+    "innerWidth": 1200,
+    "scrollers": [
+     {
+      "cls": "document",
+      "sw": 1200,
+      "cw": 1200
+     },
+     {
+      "cls": "_main_uhpod_169 _mainNote_uhpod_189 ",
+      "sw": 826,
+      "cw": 826
+     },
+     {
+      "cls": "_main_6uhgd_19",
+      "sw": 1140,
+      "cw": 1140
+     }
+    ],
+    "sideways": []
+   }
+  },
+  {
+   "width": 1200,
+   "step": "2-insert",
+   "kind": "news",
+   "verdict": "FAIL",
+   "observed": {
+    "chosen": "News and catalysts — NVDA",
+    "toasts": [
+     "Adding News and catalysts…×",
+     "Adding News and catalysts…",
+     "No news feed for NVDA yet. Open NVDA on Charts to build it, then try again."
+    ],
+    "head": null,
+    "text": "",
+    "hasFrame": null,
+    "lock": null,
+    "publicChip": null,
+    "naTitles": null,
+    "titles_offered": null
+   },
+   "problems": [
+    "No news feed for NVDA yet. Open NVDA on Charts to build it, then try again."
+   ],
+   "layout": {
+    "innerWidth": 1200,
+    "scrollers": [
+     {
+      "cls": "document",
+      "sw": 1200,
+      "cw": 1200
+     },
+     {
+      "cls": "_main_uhpod_169 _mainNote_uhpod_189 ",
+      "sw": 826,
+      "cw": 826
+     },
+     {
+      "cls": "_main_6uhgd_19",
+      "sw": 1140,
+      "cw": 1140
+     }
+    ],
+    "sideways": []
+   },
+   "screenshot": "1200-2-news.png"
+  }
+ ],
+ "console_errors": [
+  {
+   "where": "1200-note",
+   "url": "http://127.0.0.1:8231/journal/notebook?note=243c1ce0d7b64febb89c185a65f4f540",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  }
+ ],
+ "page_errors": [],
+ "notes": [],
+ "seed": {
+  "watchlist": {
+   "status": 200,
+   "id": "ef109b67-193",
+   "items": {
+    "status": 200,
+    "body": "{'added': 3, 'watchlist': {'id': 'ef109b67-193', 'user_id': 'f7f87e33-74c2-46f4-b00e-87e3b712fa90', 'name': 'Walk list', 'description': 'browser walk', 'is_public': 0, 'is_flagged_list': 0, 'is_prebui"
+   }
+  },
+  "position": {
+   "status": 200,
+   "body": "{'id': 'eec0b18b-b9f1-4365-9a0e-e1ae9691f336', 'userId': 'f7f87e33-74c2-46f4-b00e-87e3b712fa90', 'accountId': '20ad9954-f389-4e52-9b49-8c64cf4781ec', 'symbol': 'NVDA', 'side': 'Long', 'entryDate': '20"
+  },
+  "trades": [
+   {
+    "status": 200,
+    "body": "{'id': '7e9c44a0-7bec-43a7-9af4-d49127c56c9e', 'userId': 'f7f87e33-74c2-46f4-b00e-87e3b712fa90', 'positionId': 'manual-0fa93bc7-c1b8-4317-bbe3-44140a86657b', 's"
+   },
+   {
+    "status": 200,
+    "body": "{'id': '4245637d-622e-46c9-aa59-98b5583a25fe', 'userId': 'f7f87e33-74c2-46f4-b00e-87e3b712fa90', 'positionId': 'manual-38cd09d5-ad27-4847-af9e-51acd395e22d', 's"
+   }
+  ],
+  "note": {
+   "status": 200
+  },
+  "screen": [
+   {
+    "status": 200,
+    "body": "{'def_id': 'u_96e29f2c95f5', 'version': 1, 'rev': 1, 'rev_bumped': False, 'migrated': 0, 'notified': 0, 'bindings_on_this_tree': 0, 'ast_hash': 'sha256:899284937c90c7f3dc4addd43a62858197fb7fc804b2d0b8421d76133222f088', 'repaint': {}, 'requirements': [], 'appended': True, 'semantics': 2}"
+   }
+  ]
+ },
+ "env": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W1_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W2_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W3_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W4_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W5_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W6_ENABLED": "1"
+ },
+ "launcher_pid": 38904,
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8231 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-widgets\\docs\\plans\\joystick\\sandbox-runs\\2026-10-21T06-58-59.md (identity 230e446b5115..., data dir C:\\data-widgets-walk)"
+ },
+ "member": "widgets-walk-r065930@local.dev",
+ "server_flags": {
+  "j2_share_links_enabled": true,
+  "notebook_earnings_prep_enabled": true,
+  "notebook_journal_styles_enabled": true,
+  "notebook_earnings_followup_enabled": false,
+  "notebook_widgets_w1_enabled": true,
+  "notebook_widgets_w2_enabled": true,
+  "notebook_widgets_w3_enabled": true,
+  "notebook_widgets_w4_enabled": true,
+  "notebook_widgets_w5_enabled": true,
+  "notebook_widgets_w6_enabled": true,
+  "paid_equiv": true
+ },
+ "news_api": {
+  "status": 200,
+  "secs": 0.01,
+  "body": "{\"symbol\":\"NVDA\",\"status\":\"none\",\"events\":[],\"generated_at\":1792583971}"
+ },
+ "http_errors": [
+  {
+   "where": "1200-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  }
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e0c59746-6fb2-414a-afc1-3a31f28bc246\\scratchpad\\walk\\news-followup\\sandbox-integrity.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e0c59746-6fb2-414a-afc1-3a31f28bc246\\scratchpad\\walk\\news-followup\\sandbox-integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-21 06:59:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-21 06:59:30",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-21 06:59:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
