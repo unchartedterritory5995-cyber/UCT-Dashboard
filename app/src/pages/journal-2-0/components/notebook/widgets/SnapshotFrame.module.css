@@ -127,9 +127,32 @@
   border-radius: var(--radius-sm);
   color: var(--text-dim);
 }
+/* R58 (UX I-3): n/a is a small button; pressing it shows the reason as text beside it. */
+.naBox {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: inherit;
+  gap: 2px 6px;
+}
 .na {
+  font: inherit;
   color: var(--text-dim);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dotted var(--text-dim);
+  padding: 0;
   cursor: help;
+}
+.na:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+.naWhy {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: normal;
+  text-align: left;
 }
 .up {
   color: var(--success-ink);

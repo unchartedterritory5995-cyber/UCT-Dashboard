@@ -1,7 +1,7 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import UIcon from '../../../../../components/ui/UIcon'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, toneOf, fmtMoneySigned, accountSourceLine, snapshotStyles as s,
+  useSnapshotFrame, numCell, NA, toneOf, fmtMoneySigned, accountSourceLine, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const NO_MISTAKES = 'No tagged mistakes yet.'
@@ -65,7 +65,7 @@ export default function MyMistakesEmbed({ attrs, height = 260, editable = false,
                             {' '}{trend.text}
                           </span>
                         ) : (
-                          <span className={s.na} title="Trend not available">n/a</span>
+                          <NA reason="Trend not available" />
                         )}
                       </td>
                     </tr>

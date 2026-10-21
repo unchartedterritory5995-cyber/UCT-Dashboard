@@ -2,7 +2,7 @@
 // Asserted by RENDERED TEXT: what a member reads is the thing under test.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
-import SnapshotFrame, { useSnapshotFrame } from './SnapshotFrame'
+import SnapshotFrame, { useSnapshotFrame, NA } from './SnapshotFrame'
 
 const ASOF = '2026-10-20T13:14:00Z'
 
@@ -119,6 +119,34 @@ describe('SnapshotFrame offline', () => {
     const btn = screen.getByRole('button', { name: 'See it now' })
     expect(btn).toBeEnabled()
     expect(btn).not.toHaveAttribute('title')
+    expect(screen.queryByText('Offline')).toBeNull()
+    expect(screen.queryByText("You're offline. This shows the saved snapshot.")).toBeNull()
+  })
+
+  it('R58 I-3: offline, the frame shows an Offline marker and the sentence as text, not only in a title', () => {
+    setOnline(false)
+    frame()
+    expect(screen.getByText('Offline')).toHaveAttribute('title', "You're offline. This shows the saved snapshot.")
+    expect(screen.getByText("You're offline. This shows the saved snapshot.").tagName).toBe('P')
+    setOnline(true)
+    act(() => { window.dispatchEvent(new Event('online')) })
+    expect(screen.queryByText('Offline')).toBeNull()
+  })
+})
+
+// R58 (UX I-3): an n/a's reason is reachable without hover: in the button's name, and as text once pressed.
+describe('NA', () => {
+  it('names its reason for a screen reader and shows it as text when pressed', () => {
+    render(<NA reason="No price available right now" />)
+    const btn = screen.getByRole('button', { name: 'n/a: No price available right now' })
+    expect(btn).toHaveTextContent('n/a')
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('No price available right now')).toBeNull()
+    fireEvent.click(btn)
+    expect(screen.getByText('No price available right now')).toBeInTheDocument()
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(btn)
+    expect(screen.queryByText('No price available right now')).toBeNull()
   })
 })
 

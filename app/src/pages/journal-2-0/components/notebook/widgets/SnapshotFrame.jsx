@@ -95,6 +95,7 @@ export default function SnapshotFrame({
           <span className={styles.chip}>Snapshot</span>
         )}
         <span className={styles.asOf}>{stamp ? `as of ${stamp}` : 'as of an unrecorded time'}</span>
+        {offline && <span className={styles.chip} data-snapshot-offline="" title={OFFLINE_SENTENCE}>Offline</span>}
         <span className={styles.spacer} />
         {editable && account && (
           <label className={styles.shareRow}>
@@ -131,6 +132,7 @@ export default function SnapshotFrame({
           <button type="button" className={styles.btn} onClick={() => setNaming(null)}>Cancel</button>
         </form>
       )}
+      {offline && !message && <p className={styles.note}>{OFFLINE_SENTENCE}</p>}
       {message && <p className={styles.message} role="status">{message}</p>}
       <div className={styles.body}>{children}</div>
       {sourceLine && <p className={styles.source}>{sourceLine}</p>}
@@ -189,9 +191,18 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
 
 // ── Cells ────────────────────────────────────────────────────────────────────
 
-/** An unknown figure: never 0, never blank. `title` says why it is unknown. */
+/** An unknown figure: never 0, never blank. R58 (UX I-3): the reason is reachable without a pointer that
+ *  hovers. A screen reader hears it in the control's name, and a tap or a click shows it as text beside the
+ *  n/a; `title` keeps the desktop hover. */
 export function NA({ reason }) {
-  return <span className={styles.na} title={reason}>n/a</span>
+  const [open, setOpen] = useState(false)
+  return (
+    <span className={styles.naBox}>
+      <button type="button" className={styles.na} title={reason} aria-label={`n/a: ${reason}`}
+        aria-expanded={open} onClick={() => setOpen(!open)}>n/a</button>
+      {open && <span className={styles.naWhy}>{reason}</span>}
+    </span>
+  )
 }
 
 /** `fmt(value)`, or n/a with `reason` when the value is not a finite number. */

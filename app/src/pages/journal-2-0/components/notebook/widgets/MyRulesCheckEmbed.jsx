@@ -1,6 +1,6 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import SnapshotFrame, {
-  useSnapshotFrame, accountSourceLine, fmtDay, snapshotStyles as s,
+  useSnapshotFrame, NA, accountSourceLine, fmtDay, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const NO_CHECKS = 'No rule checks in this range yet.'
@@ -47,7 +47,7 @@ export default function MyRulesCheckEmbed({ attrs, height = 260, editable = fals
                         <td>
                           {isCount(r?.kept) && isCount(r?.total)
                             ? `${r.kept} of ${r.total}`
-                            : <span className={s.na} title="No checks for this rule in this range">n/a</span>}
+                            : <NA reason="No checks for this rule in this range" />}
                         </td>
                       </tr>
                     ))}

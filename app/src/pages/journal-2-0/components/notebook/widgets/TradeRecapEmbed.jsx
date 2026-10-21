@@ -2,7 +2,7 @@ import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import { rMultiple } from '../../../../../lib/journal-2-0/format'
 import { humanizeMistake } from './MyMistakesEmbed'
 import SnapshotFrame, {
-  useSnapshotFrame, numCell, toneOf, fmtPrice, fmtMoneySigned, fmtDay, accountSourceLine, snapshotStyles as s,
+  useSnapshotFrame, numCell, NA, toneOf, fmtPrice, fmtMoneySigned, fmtDay, accountSourceLine, snapshotStyles as s,
 } from './SnapshotFrame'
 
 const VIEW_W = 300
@@ -70,7 +70,7 @@ export default function TradeRecapEmbed({ attrs, height = 300, editable = false,
           <Row label="P&L">
             <span className={toneOf(p.pnl)}>{numCell(p.pnl, fmtMoneySigned, 'No net P&L recorded for this trade')}</span>
           </Row>
-          <Row label="Setup">{p.setup || <span className={s.na} title="No setup tagged on this trade">n/a</span>}</Row>
+          <Row label="Setup">{p.setup || <NA reason="No setup tagged on this trade" />}</Row>
           <Row label="Hold">
             {numCell(p.holdDays, (v) => `${v} ${v === 1 ? 'day' : 'days'}`, 'Hold time not recorded')}
           </Row>
