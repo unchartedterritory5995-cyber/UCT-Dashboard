@@ -5,7 +5,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems,
-  snapshotWidgetItems, SlashList, mineItems, slashItems, __mineLoad, __resetMine } from './SlashMenu'
+  snapshotWidgetItems, SlashList, mineItems, slashItems, __mineLoad, __resetMine,
+  pickItems, __picksLoad, __resetPicks } from './SlashMenu'
 import { __resetSetsCache } from '../../lib/notebookSets'
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
 import { createElement } from 'react'
@@ -869,5 +870,116 @@ describe('chart sets and presets (Task 17)', () => {
       expect(menus()).toHaveLength(0)
       expect(document.body.textContent).not.toContain('Set — Semis')
     })
+  })
+})
+
+// Notebook widgets Task 20 (wave 6): the four kinds that need no choice insert directly; /recap and /screen list
+// the member's own trades and screens (pickItems: synchronous, one background load, never awaited).
+describe('wave 6 snapshot kinds (Task 20)', () => {
+  const realFetch = global.fetch
+  const W6 = { notebook_widgets_w6_enabled: true }
+  const TRADES = Array.from({ length: 7 }, (_, i) => ({ id: `tr-${i}`, symbol: 'NVDA', side: 'Long', exitDate: `2026-10-0${i + 1}` }))
+  const SCREENS = Array.from({ length: 6 }, (_, i) => ({ def_id: `u:${i}`, scannable: true, definition: { meta: { name: `Screen ${i}` } } }))
+  const routes = (url) => {
+    if (url === '/api/j2/trades?limit=10') return { trades: TRADES }
+    if (url === '/api/user-definitions') return { definitions: SCREENS }
+    return null
+  }
+  let editor
+  beforeEach(() => {
+    __resetPicks()
+    global.fetch = vi.fn(async (url) => {
+      const body = routes(url)
+      return body ? { ok: true, status: 200, json: async () => body } : { ok: false, status: 500, json: async () => ({}) }
+    })
+  })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); editor?.destroy(); editor = null })
+  const loaded = async (q) => { pickItems(q); await __picksLoad(); return pickItems(q) }
+  const DIRECT = ['My P&L calendar', 'My setup edge', 'Room buzz on my names', 'My earnings reactions']
+
+  it('wave 6 off: none of the six is offered and nothing is read', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w5_enabled: false })
+    const titles = snapshotWidgetItems('').map((i) => i.title)
+    for (const t of [...DIRECT, 'Trade recap', 'My screen today']) expect(titles).not.toContain(t)
+    for (const q of ['', 'recap', 'screen', 'recap nvda']) expect(pickItems(q)).toEqual([])
+    await __picksLoad()
+    expect(global.fetch).not.toHaveBeenCalled()
+    // Control: wave 1 is on, so its items still are.
+    expect(titles).toContain('My watchlist today')
+  })
+
+  it('wave 6 on: the four direct kinds insert from the bare menu; Trade recap and My screen today never insert bare', () => {
+    latchNotebookFlags(W6)
+    const items = snapshotWidgetItems('')
+    const titles = items.map((i) => i.title)
+    expect(titles).toEqual(expect.arrayContaining(DIRECT))
+    expect(titles).not.toContain('Trade recap')
+    expect(titles).not.toContain('My screen today')
+    const group = (t) => items.find((i) => i.title === t).group
+    expect([group('Room buzz on my names'), group('My earnings reactions')]).toEqual(['open', 'open'])
+    expect([group('My P&L calendar'), group('My setup edge')]).toEqual(['review', 'review'])
+    expect(snapshotWidgetItems('buzz').map((i) => i.title)).toEqual(['Room buzz on my names'])
+    expect(snapshotWidgetItems('edge').map((i) => i.title)).toEqual(['My setup edge'])
+  })
+
+  it('answers at once (nothing loaded yet), reads ONCE in the background, then lists the rows', async () => {
+    latchNotebookFlags(W6)
+    expect(pickItems('recap')).toEqual([])
+    for (const q of ['r', 're', 'rec', 'recap']) pickItems(q)
+    await __picksLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(2)       // the trades read and the screens read, once
+    expect(pickItems('recap').map((i) => i.title)[0]).toBe('Recap — NVDA long, Oct 1')
+    expect(pickItems('recap')).toHaveLength(7)
+    expect(pickItems('screen').map((i) => i.title)).toEqual(SCREENS.map((r) => `Screen — ${r.definition.meta.name}`))
+  })
+
+  it('a failed load backs off 30 s: no read on every keystroke', async () => {
+    latchNotebookFlags(W6)
+    global.fetch = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+    pickItems(''); await __picksLoad()
+    for (const q of ['r', 're', 'rec']) pickItems(q)
+    await __picksLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(2)       // one load = the two reads; no second load
+    expect(pickItems('recap')).toEqual([])
+  })
+
+  it('a bare / caps each at five, under Before the open and Reviewing', async () => {
+    latchNotebookFlags(W6)
+    const items = slashItems('', null, await loaded(''))
+    expect(items.filter((i) => i.cmd === 'recap')).toHaveLength(5)
+    expect(items.filter((i) => i.cmd === 'screen')).toHaveLength(5)
+    expect(new Set(items.filter((i) => i.cmd === 'recap').map((i) => i.group))).toEqual(new Set(['review']))
+    expect(new Set(items.filter((i) => i.cmd === 'screen').map((i) => i.group))).toEqual(new Set(['open']))
+  })
+
+  it('a recap row inserts Trade recap through the one fetch-and-freeze, with its tradeId', async () => {
+    latchNotebookFlags(W6)
+    const [row] = await loaded('recap')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'manual', symbol: 'NVDA', side: 'Long', exitDate: '2026-10-01', bars: [],
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/recap</p>' })
+    await row.command({ editor, range: { from: 1, to: 1 + '/recap'.length } })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/tradeRecap?tradeId=tr-0', expect.anything())
+    const embeds = []
+    editor.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') embeds.push(n) })
+    expect(embeds.map((n) => n.attrs.widgetId)).toEqual(['tradeRecap'])
+    expect(embeds[0].attrs.params).toMatchObject({ tradeId: 'tr-0', symbol: 'NVDA', share: false })
+    expect(embeds[0].attrs.searchText).toBe('[trade recap: NVDA Long · 2026-10-01]')
+  })
+
+  it('a screen row inserts My screen today with its definitionId', async () => {
+    latchNotebookFlags(W6)
+    const row = (await loaded('screen')).find((i) => i.title === 'Screen — Screen 2')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', name: 'Screen 2', hits: [], coverage: null, empty: 'x',
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/screen</p>' })
+    await row.command({ editor, range: { from: 1, to: 1 + '/screen'.length } })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myScreenToday?definitionId=u%3A2', expect.anything())
   })
 })

@@ -1,8 +1,9 @@
 // Notebook widgets client lib (Task 7): the kinds, the one fetch, the node builder, the refresh merge.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { WIDGET_KINDS, widgetEmbedNode } from './notebookWidgets'
+import { SETTINGS_KEYS } from './notebookSets'
 import {
-  fetchWidgetPayload, refreshParams, requestParamsOf,
+  fetchWidgetPayload, refreshParams, requestParamsOf, REQUEST_KEYS,
   OFFLINE_SENTENCE, REFRESH_FAILED_SENTENCE, refreshFailureText,
 } from './notebookWidgetsFetch'
 import { resolveEmbedRender } from './widgetEmbedCore'
@@ -21,19 +22,25 @@ afterEach(() => {
 })
 
 describe('WIDGET_KINDS', () => {
-  it('covers all nine kinds, in groups, with the account kinds marked', () => {
+  it('covers all fifteen kinds, in groups, with the account kinds marked', () => {
     expect(WIDGET_KINDS.map((k) => k.id)).toEqual([
-      'myWatchlistToday', 'myNamesReporting', 'marketOnMyNames', 'tickerCard', 'tickerFlow',
-      'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes',
+      'myWatchlistToday', 'myNamesReporting', 'marketOnMyNames',
+      'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions', 'tickerCard', 'tickerFlow',
+      'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge',
     ])
     for (const k of WIDGET_KINDS) {
       expect(['open', 'plan', 'review']).toContain(k.group)
       expect(typeof k.title).toBe('string')
-      expect(Array.isArray(k.keywords)).toBe(true)
+      // Wave 6 rows carry no keywords unless the title misses a word (first-open bytes); the title is matched.
+      expect(k.keywords === undefined || Array.isArray(k.keywords)).toBe(true)
       expect(Number.isInteger(k.wave)).toBe(true)
     }
     expect(WIDGET_KINDS.filter((k) => k.account).map((k) => k.id))
-      .toEqual(['myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes'])
+      .toEqual(['myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge'])
+    // The two that need a choice (a trade, a screen) are listed by the / menu, never inserted bare.
+    expect(WIDGET_KINDS.filter((k) => k.pick).map((k) => k.id)).toEqual(['myScreenToday', 'tradeRecap'])
+    expect(WIDGET_KINDS.filter((k) => k.wave === 6).map((k) => k.id).sort())
+      .toEqual(['myEarningsReactions', 'myPnlCalendar', 'myScreenToday', 'mySetupEdge', 'roomBuzzOnMyNames', 'tradeRecap'])
   })
 })
 
@@ -62,6 +69,12 @@ describe('refreshParams', () => {
 })
 
 describe('requestParamsOf', () => {
+  it('carries the wave-6 request keys (month, definitionId, tradeId) back to the endpoint', () => {
+    expect(requestParamsOf({ month: '2026-09', days: [] })).toEqual({ month: '2026-09' })
+    expect(requestParamsOf({ definitionId: 'u:abc', hits: [] })).toEqual({ definitionId: 'u:abc' })
+    expect(requestParamsOf({ tradeId: 'tr-1', symbol: 'NVDA' })).toEqual({ tradeId: 'tr-1', symbol: 'NVDA' })
+  })
+
   it('recovers the request from what the payload recorded', () => {
     expect(requestParamsOf({ listLabel: 'Flagged' })).toEqual({ list: 'flagged' })
     expect(requestParamsOf({ range: { from: '2026-10-13', to: '2026-10-17' } })).toEqual({ from: '2026-10-13', to: '2026-10-17' })
@@ -96,6 +109,24 @@ describe('fetchWidgetPayload', () => {
     expect(got.payload.asOf).toBe('2026-10-20T13:14:00Z')
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toBe('/api/j2/notebook-widgets/tickerCard?symbol=NVDA')
+  })
+
+  it('passes month, definitionId and tradeId, the server SETTING_KEYS, and still nothing else', async () => {
+    await fetchWidgetPayload('tradeRecap', { tradeId: 'tr-1', pnl: 5, share: true })
+    await fetchWidgetPayload('myPnlCalendar', { month: '2026-09', days: [] })
+    await fetchWidgetPayload('myScreenToday', { definitionId: 'u:abc', hits: [] })
+    expect(fetchSpy.mock.calls.map((c) => c[0])).toEqual([
+      '/api/j2/notebook-widgets/tradeRecap?tradeId=tr-1',
+      '/api/j2/notebook-widgets/myPnlCalendar?month=2026-09',
+      '/api/j2/notebook-widgets/myScreenToday?definitionId=u%3Aabc',
+    ])
+    // ONE list of request keys: the fetch reads the presets' SETTINGS_KEYS (the parity rail's client side).
+    expect(REQUEST_KEYS).toBe(SETTINGS_KEYS)
+  })
+
+  it('a refresh keeps the wave-6 request keys it was asked with', () => {
+    const next = refreshParams({ tradeId: 'tr-1', share: true }, { asOf: 'x', symbol: 'NVDA' })
+    expect(next).toMatchObject({ tradeId: 'tr-1', symbol: 'NVDA', share: true })
   })
 })
 

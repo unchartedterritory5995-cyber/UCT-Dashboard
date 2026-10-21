@@ -297,6 +297,9 @@ function _countOf(rows, noun) {
   const n = Array.isArray(rows) ? rows.length : 0
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
+/** Wave 6: a `[label: N nouns]` search line over the payload's `rows`. */
+const _countLine = (label, noun) => (p) => `[${label}: ${_countOf(p?.rows, noun)}]`
+const _ROWS = 'rows:j! truncated:n empty'
 
 const _SNAP_TYPE = { n: 'number', j: 'json', b: 'boolean', y: 'symbol' }
 /** One payload field from its short form (Task 16D: first-open bytes): `key` is a string, `key:t` has
@@ -949,7 +952,7 @@ const PANEL_MANIFESTS = {
     'range:j! kept:n total:n rules:j empty',
     (p) => `[my rules check: ${_rangeText(p)}]`),
   myMistakes: snapshotManifest('My recurring mistakes',
-    'rows:j! truncated:n empty', // rows: [{mistake, cost30d, countNow, countPrior, trend}]
+    _ROWS, // rows: [{mistake, cost30d, countNow, countPrior, trend}]
     (p) => `[my recurring mistakes: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
   // Wave 3 (Task 14): the two market kinds. Plain text is a kind, a COUNT or a symbol, and a day.
   marketOnMyNames: snapshotManifest('Market on my names',
@@ -961,6 +964,25 @@ const PANEL_MANIFESTS = {
     // ...); topPrints: [{cp, strike, exp, dte, premium, volume, direction}]
     'symbol:y! bullPremium:n bearPremium:n window topPrints:j empty',
     (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  // Wave 6 (Task 20). `tradeId` and `definitionId` are the request keys See it now re-asks with; a public page
+  // never shows them (EMBED_PARAM_KEYS). Plain text is a kind, a count, a month or a day, never a figure.
+  tradeRecap: snapshotManifest('Trade recap',
+    // bars: [{t, o, h, l, c}] daily, entry-20 to exit+20 sessions
+    'tradeId symbol:y! side entryDate exitDate entryPrice:n exitPrice:n r:n pnl:n setup holdDays:n mistakes:j bars:j',
+    (p) => `[trade recap: ${[p?.symbol, p?.side].join(' ')} · ${[p?.exitDate]}]`), // an array prints a missing value as ''
+  myPnlCalendar: snapshotManifest('My P&L calendar', 'month days:j! best:j worst:j empty', // days: [{day, pnl}]
+    (p) => `[my P&L calendar: ${[p?.month]}]`),
+  mySetupEdge: snapshotManifest('My setup edge', _ROWS, // rows: [{setup, n, expectancyR, winRate, thin}]
+    _countLine('my setup edge', 'setup')),
+  myScreenToday: snapshotManifest('My screen today',
+    // hits: [{symbol, price, changePct}]; coverage: the receipt's four counts plus withheld
+    'definitionId name hits:j! coverage:j session truncated:b empty',
+    (p) => `[my screen today: ${p?.name || 'screen'} · ${_countOf(p?.hits, 'hit')}]`),
+  roomBuzzOnMyNames: snapshotManifest('Room buzz on my names', _ROWS, // rows: [{symbol, mentions, people}]
+    _countLine('room buzz on my names', 'name')),
+  myEarningsReactions: snapshotManifest('My earnings reactions',
+    // rows: [{symbol, day, epsActual, epsEst, revActual, revEst, nextDayPct}]
+    'rows:j! partial:b truncated:n empty', _countLine('my earnings reactions', 'name')),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

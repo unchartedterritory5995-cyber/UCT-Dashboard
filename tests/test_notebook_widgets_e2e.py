@@ -343,3 +343,146 @@ def test_wave3_routes_are_dark_without_their_flag(wave3, monkeypatch):
     assert client.get(URL + "tickerFlow?symbol=NVDA").status_code == 404
     # control: wave 1 is still on
     assert client.get(URL + "myWatchlistToday").status_code == 200
+
+
+# -- wave 6 (Task 20) --------------------------------------------------------------------------
+
+WAVE6_ACCOUNT = ("tradeRecap", "myPnlCalendar", "mySetupEdge")
+WAVE6_MARKET = ("myScreenToday", "roomBuzzOnMyNames", "myEarningsReactions")
+SCREEN_ID = "u:screen-1"
+
+
+@pytest.fixture
+def wave6(env, monkeypatch):
+    """Wave 6 on, with its market seams patched: the recap's local bars, the saved screen and its sweep store,
+    the room-buzz board, and the earnings calendar walk and figures. The member's own data is the real services'."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W6_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_CHANNELS", "main-chat")
+    import api.routers.scan_results as scan_results
+    import api.services.bars_sqlite as bars
+    import api.services.buzz_store as buzz_store
+    import api.services.calendar_alerts as calendar_alerts
+    import api.services.earnings_estimates as estimates
+    import api.services.scan_definition as scan_definition
+    import api.services.screener.scan_store as scan_store
+    import api.services.user_definitions as user_definitions
+
+    def bars_before(sym, tf, n, to_key):
+        start = date.today() - timedelta(days=40)
+        return [(int((start + timedelta(days=i)).strftime("%Y%m%d")), 100.0, 101.0, 99.0, 100.0 + i, 0)
+                for i in range(40)]
+
+    monkeypatch.setattr(bars, "get_bars_before", bars_before)
+    screen = {"def_id": SCREEN_ID, "definition": {"meta": {"name": "Tight flags"}}}
+    monkeypatch.setattr(user_definitions, "get",
+                        lambda uid, def_id, version=None: screen if def_id == SCREEN_ID else None)
+    monkeypatch.setattr(scan_definition, "def_hash", lambda d: "hash-1")
+    monkeypatch.setattr(scan_store, "latest_covered_as_of", lambda h, tf: 20261019)
+    monkeypatch.setattr(scan_store, "coverage", lambda h, tf, as_of: {
+        "evaluated": 10, "answered": 9, "dropped": 0, "not_computable": 1, "withheld": 0})
+    monkeypatch.setattr(scan_results, "_hit_tickers", lambda h, tf, as_of, cap: (["NVDA"], False))
+    monkeypatch.setattr(buzz_store, "board", lambda start, end, chans, limit=10: [
+        {"ticker": "NVDA", "mentions": 5, "people": 3}, {"ticker": "ZZZZ", "mentions": 9, "people": 9}])
+    reported = (date.today() - timedelta(days=2)).isoformat()
+    monkeypatch.setattr(calendar_alerts, "collect_earnings_window", lambda start, days: ({"NVDA": reported}, False))
+    monkeypatch.setattr(estimates, "get_year_earnings", lambda sym, fy: [{
+        "date": reported, "quarter": 3, "eps_actual": 1.1, "eps_estimate": 1.0,
+        "revenue_actual": 3.5e10, "revenue_estimate": 3.4e10}])
+    from api.services.cache import cache
+    real_get = cache.get
+    # no reporting window held over from another test: that one key always misses
+    monkeypatch.setattr(cache, "get", lambda key, *a, **k: None if str(key).startswith(
+        "notebook_widgets_reported_window") else real_get(key, *a, **k))
+    return env
+
+
+def _wave6_member(uid):
+    ids = _seed_member(uid)
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        manual_id, exit_date = conn.execute(
+            "SELECT id, exit_date FROM j2_trades WHERE user_id = ? AND symbol = 'MSFT'", (uid,)).fetchone()
+    finally:
+        conn.close()
+    ids.update(manual_id=manual_id, month=str(exit_date)[:7])
+    return ids
+
+
+def _wave6_request(kind, ids):
+    """The request key a stored node carries for `kind` (the client merges it into params at insert)."""
+    return {"tradeRecap": {"tradeId": ids["manual_id"]}, "myPnlCalendar": {"month": ids["month"]},
+            "myScreenToday": {"definitionId": SCREEN_ID}}.get(kind, {})
+
+
+def test_wave6_kinds_build_and_reduce(wave6):
+    ids = _wave6_member("u-e2e6")
+    client = _client("u-e2e6")
+    payloads = {}
+    for kind in WAVE6_ACCOUNT + WAVE6_MARKET:
+        r = client.get(URL + kind, params=_wave6_request(kind, ids))
+        assert r.status_code == 200, (kind, r.status_code, r.text)
+        payloads[kind] = r.json()
+
+    # the seeds reached the payloads (an accidentally empty member would pass the privacy checks below)
+    recap = payloads["tradeRecap"]
+    assert recap["symbol"] == "MSFT" and recap["source"] == "manual" and recap["bars"], recap
+    assert "tradeId" not in recap
+    assert any(d["pnl"] is not None for d in payloads["myPnlCalendar"]["days"]), payloads["myPnlCalendar"]
+    screen = payloads["myScreenToday"]
+    assert screen["name"] == "Tight flags" and [h["symbol"] for h in screen["hits"]] == ["NVDA"]
+    assert screen["coverage"] == {"evaluated": 10, "answered": 9, "dropped": 0, "notComputable": 1, "withheld": 0}
+    assert [r["symbol"] for r in payloads["roomBuzzOnMyNames"]["rows"]] == ["NVDA"]      # the member's names only
+    reactions = payloads["myEarningsReactions"]["rows"]
+    assert [r["symbol"] for r in reactions] == ["NVDA"] and reactions[0]["epsActual"] == 1.1
+
+    for kind in WAVE6_ACCOUNT:
+        params = {**payloads[kind], **_wave6_request(kind, ids)}
+        assert params["asOf"] and params["source"] in {"broker", "manual", "mixed", "market"}
+        # neutral without the switch, and a non-boolean switch is not the switch
+        for share in (None, "true", False):
+            out = _reduce(_embed(kind, params, share=share))
+            assert _paragraph_texts(out) == [NEUTRAL_ACCOUNT], (kind, share)
+            assert not _embeds(out)
+        on = _reduce(_embed(kind, params, share=True))
+        assert len(_embeds(on)) == 1, kind
+        shown = json.dumps(on)
+        # the request key names one of the member's trades: it never leaves, nor does any trade or position id
+        assert "tradeId" not in shown, kind
+        for tid in ids["trade_ids"]:
+            assert tid not in shown, kind
+        assert ids["position_id"] not in shown
+    # the shown recap carries its figures
+    shown_recap = _embeds(_reduce(_embed("tradeRecap", {**recap, "tradeId": ids["manual_id"]}, share=True)))[0]
+    assert shown_recap["attrs"]["params"]["symbol"] == "MSFT"
+    assert shown_recap["attrs"]["params"]["pnl"] == recap["pnl"]
+
+    for kind in WAVE6_MARKET:
+        params = {**payloads[kind], **_wave6_request(kind, ids)}
+        assert params["asOf"] and params["source"] == "market"
+        for share in (None, False, True):
+            out = _reduce(_embed(kind, params, share=share))
+            assert _paragraph_texts(out) == [NEUTRAL_MARKET], (kind, share)
+            assert not _embeds(out)
+            assert SCREEN_ID not in json.dumps(out)
+
+
+def test_wave6_trade_recap_is_own_scoped(wave6):
+    ids = _wave6_member("u-e2e6a")
+    _wave6_member("u-e2e6b")
+    other = _client("u-e2e6b")
+    # one member's trade id is "Trade not found" to another, the same sentence as an id that does not exist
+    for tid in ids["trade_ids"] + ["no-such-trade"]:
+        r = other.get(URL + "tradeRecap", params={"tradeId": tid})
+        assert r.status_code == 400 and r.json()["detail"] == nw.TRADE_NOT_FOUND, (tid, r.text)
+    # control: the owner reads it
+    assert _client("u-e2e6a").get(URL + "tradeRecap", params={"tradeId": ids["manual_id"]}).status_code == 200
+
+
+def test_wave6_routes_are_dark_without_their_flag(wave6, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W6_ENABLED")
+    client = _client("u-dark6")
+    for kind in WAVE6_ACCOUNT + WAVE6_MARKET:
+        assert client.get(URL + kind).status_code == 404, kind
+    # control: wave 1 is still on
+    assert client.get(URL + "myWatchlistToday").status_code == 200

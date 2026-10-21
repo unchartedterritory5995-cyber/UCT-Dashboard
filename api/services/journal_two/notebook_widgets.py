@@ -77,6 +77,12 @@ KIND_TITLE: dict[str, str] = {
     "myPositionsRisk": "My open positions and risk",
     "myRulesCheck": "My rules check",
     "myMistakes": "My recurring mistakes",
+    "tradeRecap": "Trade recap",
+    "myPnlCalendar": "My P&L calendar",
+    "mySetupEdge": "My setup edge",
+    "myScreenToday": "My screen today",
+    "roomBuzzOnMyNames": "Room buzz on my names",
+    "myEarningsReactions": "My earnings reactions",
 }
 
 

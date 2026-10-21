@@ -609,7 +609,7 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
     start = src.index("export const WIDGET_KINDS")
     block = src[start:src.index("])", start)]
     client = dict(re.findall(r"\{ id: '(\w+)'.*?title: '([^']+)'", block, flags=re.S))
-    assert len(client) == 9                                                              # non-vacuity
+    assert len(client) == 15                                                             # non-vacuity
     assert nw.KIND_TITLE == client
     assert set(js.SNAPSHOT_SLOT_KINDS) <= set(nw.KIND_TITLE)
 

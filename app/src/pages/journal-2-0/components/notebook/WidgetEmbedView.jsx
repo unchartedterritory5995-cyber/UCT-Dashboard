@@ -78,6 +78,12 @@ const EMBED_COMPONENTS = {
   myMistakes: lazyLeaf(snapshotEmbeds, undefined, 'myMistakes'),
   marketOnMyNames: lazyLeaf(snapshotEmbeds, undefined, 'marketOnMyNames'),
   tickerFlow: lazyLeaf(snapshotEmbeds, undefined, 'tickerFlow'),
+  tradeRecap: lazyLeaf(snapshotEmbeds, undefined, 'tradeRecap'),
+  myPnlCalendar: lazyLeaf(snapshotEmbeds, undefined, 'myPnlCalendar'),
+  mySetupEdge: lazyLeaf(snapshotEmbeds, undefined, 'mySetupEdge'),
+  myScreenToday: lazyLeaf(snapshotEmbeds, undefined, 'myScreenToday'),
+  roomBuzzOnMyNames: lazyLeaf(snapshotEmbeds, undefined, 'roomBuzzOnMyNames'),
+  myEarningsReactions: lazyLeaf(snapshotEmbeds, undefined, 'myEarningsReactions'),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state

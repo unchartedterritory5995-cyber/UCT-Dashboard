@@ -9,9 +9,10 @@
 // merge live in notebookWidgetsFetch.js, which only lazy code imports (Task 16D: first-open bytes).
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 
-/** All nine kinds, in menu order. `group` is when a member reaches for it: before the open,
+/** All fifteen kinds, in menu order. `group` is when a member reaches for it: before the open,
  *  planning a trade, or reviewing. `account` kinds read the member's own account and stay off
- *  public pages unless the member switches `share` on. */
+ *  public pages unless the member switches `share` on. `pick`: the / menu lists the member's own
+ *  trades or screens to choose from (SlashMenu pickItems), so the kind is never inserted bare. */
 export const WIDGET_KINDS = Object.freeze([
   { id: 'myWatchlistToday', wave: 1, group: 'open', title: 'My watchlist today',
     description: 'Your names: price, move today, earnings soon',
@@ -22,6 +23,12 @@ export const WIDGET_KINDS = Object.freeze([
   { id: 'marketOnMyNames', wave: 3, group: 'open', title: 'Market on my names',
     description: 'Which of your names lead or lag their sector',
     keywords: ['sector', 'leading', 'lagging', 'relative strength'], account: false },
+  { id: 'myScreenToday', wave: 6, group: 'open', title: 'My screen today', pick: 1,
+    description: 'Hits from a saved screen' },
+  { id: 'roomBuzzOnMyNames', wave: 6, group: 'open', title: 'Room buzz on my names',
+    description: 'Your names in the room' },
+  { id: 'myEarningsReactions', wave: 6, group: 'open', title: 'My earnings reactions',
+    description: 'Results and the move after' },
   { id: 'tickerCard', wave: 1, group: 'plan', title: 'Ticker card',
     description: 'Price, levels, earnings date, your history',
     keywords: ['ticker', 'card', 'symbol', 'levels', 'history'], account: false },
@@ -40,6 +47,12 @@ export const WIDGET_KINDS = Object.freeze([
   { id: 'myMistakes', wave: 2, group: 'review', title: 'My recurring mistakes',
     description: 'What your mistakes cost, and the trend',
     keywords: ['mistakes', 'errors', 'cost', 'review'], account: true },
+  { id: 'tradeRecap', wave: 6, group: 'review', title: 'Trade recap', pick: 1, account: true,
+    description: 'Entry, exit, R and a chart' },
+  { id: 'myPnlCalendar', wave: 6, group: 'review', title: 'My P&L calendar', account: true,
+    description: 'Your P&L by day' },
+  { id: 'mySetupEdge', wave: 6, group: 'review', title: 'My setup edge', account: true,
+    description: 'Expectancy by setup' },
 ])
 
 /** Notebook widgets Task 16: existing /charts widget kinds the / menu inserts by fetch-and-freeze, through

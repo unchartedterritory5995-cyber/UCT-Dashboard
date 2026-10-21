@@ -167,6 +167,22 @@ const KIND_FIXTURES = {
     data: { asOf: '2026-10-20T14:00:00Z', source: 'manual', range: { from: '2026-10-13', to: '2026-10-17' }, kept: 3, total: 4, rules: [{ id: 'r' }] } },
   myMistakes: { settings: { tradeId: 't_9', month: '2026-10' },
     data: { asOf: '2026-10-20T14:00:00Z', source: 'mixed', rows: [{ tag: 'fomo', cost: -120 }] } },
+  // Wave 6 (Task 20): each builder reads at most one of month, definitionId, tradeId.
+  // The recap's payload names its `symbol`, a request key by name, so it rides along; the builder reads only tradeId.
+  tradeRecap: { settings: { tradeId: 'tr-1', symbol: 'NVDA' },
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'manual', symbol: 'NVDA', side: 'Long', exitDate: '2026-10-14',
+      entryPrice: 181, exitPrice: 196, r: 2.4, pnl: 765, setup: 'VCP', holdDays: 13, mistakes: [], bars: [{ t: 'x', c: 1 }] } },
+  myPnlCalendar: { settings: { month: '2026-09' },
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'broker', days: [{ day: '2026-09-02', pnl: 1 }], best: null, worst: null } },
+  mySetupEdge: { settings: {},
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'mixed', rows: [{ setup: 'VCP', n: 3, thin: true }] } },
+  myScreenToday: { settings: { definitionId: 'u:abc' },
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'market', name: 'Flags', hits: [{ symbol: 'NVDA' }],
+      coverage: { evaluated: 1, answered: 1, dropped: 0, notComputable: 0, withheld: 0 }, session: '2026-10-19' } },
+  roomBuzzOnMyNames: { settings: {},
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'NVDA', mentions: 3, people: 2 }] } },
+  myEarningsReactions: { settings: {},
+    data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'TSLA', nextDayPct: -4 }], partial: false } },
 }
 
 describe('presets store settings only', () => {

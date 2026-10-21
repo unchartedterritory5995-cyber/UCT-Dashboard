@@ -53,6 +53,8 @@ const IDS = [
   // Notebook widgets (Task 6): five capture-only snapshot kinds, frozen by a fetch at insert.
   'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
+  // Wave 6 (Task 20).
+  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
@@ -64,7 +66,8 @@ const IDS = [
 const G040_KINDS = ['screener', 'cot', 'modelbook']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
 const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
-  'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow']
+  'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
+  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // The ids a /charts board can hold — everything except the capture-only kinds.
@@ -90,6 +93,8 @@ describe('widget registry — metadata pins', () => {
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
+      tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
+      myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -111,6 +116,8 @@ describe('widget registry — metadata pins', () => {
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
+      tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
+      myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -132,6 +139,8 @@ describe('widget registry — metadata pins', () => {
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
+      tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
+      myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -174,6 +183,12 @@ describe('widget registry — metadata pins', () => {
       myMistakes: { w: 6, h: 8, minW: 3, minH: 4 },
       marketOnMyNames: { w: 6, h: 8, minW: 3, minH: 4 },
       tickerFlow: { w: 6, h: 8, minW: 3, minH: 4 },
+      tradeRecap: { w: 6, h: 8, minW: 3, minH: 4 },
+      myPnlCalendar: { w: 6, h: 8, minW: 3, minH: 4 },
+      mySetupEdge: { w: 6, h: 8, minW: 3, minH: 4 },
+      myScreenToday: { w: 6, h: 8, minW: 3, minH: 4 },
+      roomBuzzOnMyNames: { w: 6, h: 8, minW: 3, minH: 4 },
+      myEarningsReactions: { w: 6, h: 8, minW: 3, minH: 4 },
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -439,6 +454,36 @@ const CAPTURE_FIXTURES = {
     topPrints: [{ cp: 'C', strike: 200, exp: '11/20/2026', dte: 31, premium: 250000, volume: 900, direction: 'Bull' }],
     share: false,
   },
+  // Wave 6 (Task 20). The request keys (tradeId, definitionId) ride in params so See it now can re-ask.
+  tradeRecap: {
+    asOf: '2026-10-20T14:05:00Z', source: 'broker', tradeId: 'tr-9f1c', symbol: 'nvda', side: 'Long',
+    entryDate: '2026-10-01', exitDate: '2026-10-14', entryPrice: 181.25, exitPrice: 196.5, r: 2.4, pnl: 7654.32,
+    setup: 'Classic Flag/Pullback', holdDays: 13, mistakes: ['early_exit'],
+    bars: [{ t: '2026-10-01', o: 180, h: 183, l: 179, c: 182 }], share: false,
+  },
+  myPnlCalendar: {
+    asOf: '2026-10-20T14:05:00Z', source: 'manual', month: '2026-10',
+    days: [{ day: '2026-10-02', pnl: 4567.89 }, { day: '2026-10-03', pnl: -2345.67 }],
+    best: { day: '2026-10-02', pnl: 4567.89 }, worst: { day: '2026-10-03', pnl: -2345.67 }, share: false,
+  },
+  mySetupEdge: {
+    asOf: '2026-10-20T14:05:00Z', source: 'mixed', share: false,
+    rows: [{ setup: 'VCP', n: 31, expectancyR: 0.85, winRate: 0.58, thin: false },
+      { setup: 'Wedge Pop', n: 4, expectancyR: -0.4, winRate: 0.25, thin: true }],
+  },
+  myScreenToday: {
+    asOf: '2026-10-20T14:05:00Z', source: 'market', definitionId: 'u:abc123', name: 'Tight flags', session: '2026-10-19',
+    hits: [{ symbol: 'NVDA', price: 224.1, changePct: 3.0 }],
+    coverage: { evaluated: 3742, answered: 3699, dropped: 2, notComputable: 41, withheld: 0 }, truncated: true, share: false,
+  },
+  roomBuzzOnMyNames: {
+    asOf: '2026-10-20T14:05:00Z', source: 'market', share: false,
+    rows: [{ symbol: 'NVDA', mentions: 37, people: 23 }, { symbol: 'AMD', mentions: 6, people: 4 }],
+  },
+  myEarningsReactions: {
+    asOf: '2026-10-20T14:05:00Z', source: 'market', partial: false, share: false,
+    rows: [{ symbol: 'TSLA', day: '2026-10-15', epsActual: 0.73, epsEst: 0.68, revActual: 25100000000, revEst: 24800000000, nextDayPct: -4.6 }],
+  },
 }
 
 /** Notebook widgets (Task 6): the exact search lines, and a guard that no account figure leaks. */
@@ -452,6 +497,12 @@ const NOTEBOOK_WIDGET_LINES = {
   myMistakes: '[my recurring mistakes: 2]',
   marketOnMyNames: '[market on my names: 2 names · as of 2026-10-20]',
   tickerFlow: '[options flow: NVDA · as of 2026-10-20]',
+  tradeRecap: '[trade recap: NVDA Long · 2026-10-14]',
+  myPnlCalendar: '[my P&L calendar: 2026-10]',
+  mySetupEdge: '[my setup edge: 2 setups]',
+  myScreenToday: '[my screen today: Tight flags · 1 hit]',
+  roomBuzzOnMyNames: '[room buzz on my names: 2 names]',
+  myEarningsReactions: '[my earnings reactions: 1 name]',
 }
 
 describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
@@ -477,8 +528,12 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
   })
 
   it('NEVER carries an account figure in the search line', () => {
-    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900', '987654', '123456']
-    for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow']) {
+    const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900', '987654', '123456',
+      // wave 6: prices, R, P&L, day P&L, expectancy, counts of mentions and people, EPS, revenue, moves, and the request ids
+      '181', '196', '2.4', '7654', '4567', '2345', '0.85', '0.58', '37', '23', '0.73', '0.68', '251', '248', '4.6', '224',
+      'tr-9f1c', 'u:abc123', '3742', '3699']
+    for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
+      'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']) {
       const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
       for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)
     }
@@ -488,6 +543,8 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
     for (const id of NOTEBOOK_WIDGET_KINDS) {
       const line = paramsPlainText(id, {})
       expect(line, id).toMatch(/^\[[a-zA-Z &]+:.*\]$/)
+      // a missing value is left out of the search line, never written as the word "undefined"
+      expect(line, id).not.toMatch(/undefined|null/)
     }
   })
 

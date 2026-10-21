@@ -5,7 +5,7 @@
 // the note's normal save path) carrying the params AND a searchText derived from them. No fetch of
 // its own: the only request on this path is the widget payload GET the embed makes.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, cleanup } from '@testing-library/react'
 import { __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 
 vi.mock('@tiptap/react', async (orig) => ({ ...(await orig()), NodeViewWrapper: (props) => <div {...props} /> }))
@@ -30,6 +30,12 @@ vi.mock('./widgets/MyRulesCheckEmbed', stub('myRulesCheck'))
 vi.mock('./widgets/MyMistakesEmbed', stub('myMistakes'))
 vi.mock('./widgets/MarketOnMyNamesEmbed', stub('marketOnMyNames'))
 vi.mock('./widgets/TickerFlowEmbed', stub('tickerFlow'))
+vi.mock('./widgets/TradeRecapEmbed', stub('tradeRecap'))
+vi.mock('./widgets/MyPnlCalendarEmbed', stub('myPnlCalendar'))
+vi.mock('./widgets/MySetupEdgeEmbed', stub('mySetupEdge'))
+vi.mock('./widgets/MyScreenTodayEmbed', stub('myScreenToday'))
+vi.mock('./widgets/RoomBuzzOnMyNamesEmbed', stub('roomBuzzOnMyNames'))
+vi.mock('./widgets/MyEarningsReactionsEmbed', stub('myEarningsReactions'))
 
 import WidgetEmbedView from './WidgetEmbedView'
 import { kickSnapshotWarm } from '../../lib/embedArchive'
@@ -45,6 +51,12 @@ const PAYLOADS = {
   myMistakes: { asOf: '2026-10-20T13:14:00Z', source: 'manual', rows: [] },
   marketOnMyNames: { asOf: '2026-10-20T13:14:00Z', source: 'market', sectorBasis: 'your names', rows: [] },
   tickerFlow: { asOf: '2026-10-20T13:14:00Z', source: 'market', symbol: 'NVDA', topPrints: [] },
+  tradeRecap: { asOf: '2026-10-20T13:14:00Z', source: 'manual', tradeId: 'tr-1', symbol: 'NVDA', side: 'Long', bars: [] },
+  myPnlCalendar: { asOf: '2026-10-20T13:14:00Z', source: 'broker', month: '2026-10', days: [] },
+  mySetupEdge: { asOf: '2026-10-20T13:14:00Z', source: 'mixed', rows: [] },
+  myScreenToday: { asOf: '2026-10-20T13:14:00Z', source: 'market', definitionId: 'u:1', name: 'Flags', hits: [] },
+  roomBuzzOnMyNames: { asOf: '2026-10-20T13:14:00Z', source: 'market', rows: [] },
+  myEarningsReactions: { asOf: '2026-10-20T13:14:00Z', source: 'market', rows: [], partial: false },
 }
 const editor = (isEditable = true) => ({ isEditable, storage: { uctJournalWidgets: { noteId: 'note-1' } }, on() {}, off() {} })
 
@@ -71,7 +83,7 @@ afterEach(() => { __resetNotebookFlags(); vi.unstubAllGlobals() })
 
 const last = (name) => [...seen].reverse().find((s) => s.name === name)?.props
 
-describe('WidgetEmbedView -> the nine snapshot embeds', () => {
+describe('WidgetEmbedView -> the fifteen snapshot embeds', () => {
   for (const kind of Object.keys(PAYLOADS)) {
     it(`${kind} mounts its own embed with editable and onUpdateParams`, async () => {
       const { attrs } = widgetEmbedNode(kind, PAYLOADS[kind])
@@ -170,6 +182,28 @@ describe('WidgetEmbedView -> snapshot archive and privacy', () => {
   it('a private account widget is never armed for the archive', async () => {
     await mount('myPnlStats', PAYLOADS.myPnlStats)
     expect(kickSnapshotWarm).not.toHaveBeenCalled()
+  })
+
+  for (const kind of ['tradeRecap', 'myPnlCalendar', 'mySetupEdge']) {
+    it(`wave 6: ${kind} is an account kind, never armed while private and armed once shared`, async () => {
+      await mount(kind, PAYLOADS[kind])
+      expect(kickSnapshotWarm).not.toHaveBeenCalled()
+      cleanup()
+      await mount(kind, { ...PAYLOADS[kind], share: true })
+      expect(kickSnapshotWarm).toHaveBeenCalledTimes(1)
+    })
+  }
+
+  for (const kind of ['myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']) {
+    it(`wave 6: ${kind} is a market kind, armed as before`, async () => {
+      await mount(kind, PAYLOADS[kind])
+      expect(kickSnapshotWarm).toHaveBeenCalledTimes(1)
+    })
+  }
+
+  it('wave 6: the request keys ride in params (tradeId, definitionId), so See it now can re-ask', () => {
+    expect(widgetEmbedNode('tradeRecap', PAYLOADS.tradeRecap).attrs.params.tradeId).toBe('tr-1')
+    expect(widgetEmbedNode('myScreenToday', PAYLOADS.myScreenToday).attrs.params.definitionId).toBe('u:1')
   })
 
   it('a shared account widget is armed', async () => {

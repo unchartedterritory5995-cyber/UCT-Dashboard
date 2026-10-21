@@ -484,6 +484,7 @@ const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
  *  off a selected embed instead), nothing goes in until the fetch answers, then the frozen widget
  *  goes in where the command was, mapped through anything the member typed meanwhile. A failed fetch
  *  inserts nothing and says so. Resolves `{ok, message}` for the palette's own status line. */
+const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
 function snapshotCommand(kind, params) {
   return async ({ editor, range }) => {
     const chain = editor.chain().focus()
@@ -497,7 +498,7 @@ function snapshotCommand(kind, params) {
     // fetchWidgetPayload itself would for a request that cannot be made: offline when the browser says so.
     const res = kind.capture
       ? await kind.capture(params).catch(() => ({ ok: false, reason: 'failed' }))
-      : await import('../../lib/notebookWidgetsFetch').then((m) => m.fetchWidgetPayload(kind.id, params),
+      : await widgetsFetch().then((m) => m.fetchWidgetPayload(kind.id, params),
         () => ({ ok: false, reason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed' }))
     editor.off('transaction', track)
     if (editor.isDestroyed) return { ok: false, message: null }
@@ -516,37 +517,56 @@ function snapshotCommand(kind, params) {
   }
 }
 
+/** ONE background load per source, for the member's own rows (Task 17's pattern, shared by Task 20).
+ *  ⛔ SYNCHRONOUS. Suggestion awaits items() before it draws anything, so a read here would hold the
+ *  whole menu. `kick()` answers what is already loaded and starts ONE background load when nothing is, or
+ *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update. */
+function background(load) {
+  let s
+  const reset = () => { s = { v: null, at: 0, failedAt: 0, loading: null } }
+  reset()
+  const kick = () => {
+    const now = Date.now()
+    if (!s.loading && now - s.failedAt >= 30000 && !(s.v && now - s.at < 60000)) {
+      s.loading = load()
+        .then((v) => { s.v = v; s.at = Date.now() }, () => { s.failedAt = Date.now() })
+        .finally(() => { s.loading = null })
+    }
+    return s.v
+  }
+  return { kick, wait: () => s.loading || Promise.resolve(), reset }
+}
+
 /** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
  *  come from lib/notebookSets.js, loaded only here and only while wave 5 is on (first-open bytes); a
- *  preset inserts through snapshotCommand, the one snapshot insert.
- *  ⛔ SYNCHRONOUS. Suggestion awaits items() before it draws anything, so a read here would hold the
- *  whole menu. This answers what is already loaded and starts ONE background load when nothing is, or
- *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update. */
-let mine = { m: null, doc: null, at: 0, failedAt: 0, loading: null }
-function loadMine() {
-  const now = Date.now()
-  if (mine.loading || now - mine.failedAt < 30000 || (mine.doc && now - mine.at < 60000)) return mine.loading
-  mine.loading = import('../../lib/notebookSets')
-    .then(async (m) => {
-      const doc = await m.loadSets({ fresh: true })
-      if (doc.failed) throw doc
-      Object.assign(mine, { m, doc, at: Date.now() })
-    })
-    .catch(() => { mine.failedAt = Date.now() })
-    .finally(() => { mine.loading = null })
-  return mine.loading
-}
+ *  preset inserts through snapshotCommand, the one snapshot insert. */
+const mine = background(() => import('../../lib/notebookSets').then(async (m) => {
+  const doc = await m.loadSets({ fresh: true })
+  if (doc.failed) throw doc
+  return { m, doc }
+}))
 export function mineItems(query) {
   if (!widgetsWaveOn(5)) return []
-  loadMine()
-  const { m } = mine
+  const v = mine.kick()
   // The module's own copy wins: a save in this tab updates it at once.
-  const doc = m && (m.peekSets() || mine.doc)
-  return doc ? [...m.presetRows(query, doc, 'mine', snapshotCommand), ...m.chartSetRows(query, doc, 'mine')] : []
+  const doc = v && (v.m.peekSets() || v.doc)
+  return doc ? [...v.m.presetRows(query, doc, 'mine', snapshotCommand), ...v.m.chartSetRows(query, doc, 'mine')] : []
 }
 /** Tests only: the load in flight (or none), and a clean slate. */
-export const __mineLoad = () => mine.loading || Promise.resolve()
-export const __resetMine = () => { mine = { m: null, doc: null, at: 0, failedAt: 0, loading: null } }
+export const __mineLoad = () => mine.wait()
+export const __resetMine = () => mine.reset()
+
+/** Task 20 (wave 6): `/recap` lists the member's recent closed trades and `/screen` their saved screens, each
+ *  row inserting a Trade recap or My screen today through snapshotCommand. The rows live in the module the
+ *  snapshot insert already loads (lib/notebookWidgetsFetch.js), read only while wave 6 is on (first-open bytes). */
+const picks = background(() => widgetsFetch().then(async (m) => ({ m, doc: await m.loadPicks() })))
+export function pickItems(query) {
+  if (!widgetsWaveOn(6)) return []
+  const v = picks.kick()
+  return v ? v.m.pickRows(query, v.doc, snapshotCommand) : []
+}
+export const __picksLoad = () => picks.wait()
+export const __resetPicks = () => picks.reset()
 
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
@@ -556,7 +576,8 @@ export function snapshotWidgetItems(query) {
   const out = []
   for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
     // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
-    if (!widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
+    // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
+    if (kind.pick || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
     // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.
@@ -985,8 +1006,8 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        // Wave 5 adds the member's own rows (mineItems): whatever is loaded, never awaited.
-        items: ({ query, editor }) => slashItems(query, editor, mineItems(query)),
+        // Waves 5 and 6 add the member's own rows (mineItems, pickItems): whatever is loaded, never awaited.
+        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query), ...pickItems(query)]),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.
