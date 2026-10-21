@@ -62,7 +62,8 @@ def draw(fn, b, **kw):
 
 
 def ipo(b):
-    return draw(SD.ipo_base_drawing, b, first_t=b[0]["t"])
+    # first_t_shared=1: no other ticker starts on this first date, so it is a listing (round 3's backfill guard)
+    return draw(SD.ipo_base_drawing, b, first_t=b[0]["t"], first_t_shared=1)
 
 
 # ------------------------------------------------------------------------------------------- fires
@@ -150,7 +151,9 @@ def _wild(b, n=30):
     (SD.double_bottom_drawing, W_PTS, {}),
     (SD.ascending_base_drawing, ASC_PTS, {}),
     (SD.saucer_drawing, SAU_PTS, {}),
-    (SD.ipo_base_drawing, IPO_PTS, {"first_t": "FIRST"}),
+    (SD.ipo_base_drawing, IPO_PTS, {"first_t": "FIRST", "first_t_shared": 1}),
+    (SD.saucer_drawing, SAU_PTS, {"rnd": 2}),
+    (SD.ipo_base_drawing, IPO_PTS, {"first_t": "FIRST", "rnd": 1}),
 ])
 def test_no_lookahead(fn, pts, kw):
     b = series(pts)
@@ -197,6 +200,34 @@ def test_ipo_state_refuses_an_old_listing_and_a_short_base():
 @pytest.fixture
 def complete(monkeypatch):
     monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    # the store's first-date census: no other ticker starts on the synthetic series' first date (a listing)
+    monkeypatch.setattr(AS, "_ipo_first_t_shared", lambda first_t: 1)
+
+
+@pytest.mark.parametrize("shared", [None, 5, 30])
+def test_an_ipo_row_needs_the_census_to_call_the_first_bar_a_listing(complete, monkeypatch, shared):
+    monkeypatch.setattr(AS, "_ipo_first_t_shared", lambda first_t: shared)
+    assert all(r["pattern_id"] != "draw:ipo-base" for r in AS.shape_draw_rows("syn", series(IPO_PTS)))
+
+
+def test_the_first_date_census_counts_reuses_and_fails_closed(monkeypatch):
+    from api.services import bars_sqlite
+    calls = []
+
+    def census(since):
+        calls.append(since)
+        return {"AAA": 20250102, "BBB": 20250102, "CCC": 20250103}
+    monkeypatch.setattr(bars_sqlite, "recent_first_trade", census)
+    monkeypatch.setattr(AS, "_ipo_first_dates", {"at": 0.0, "by_date": None})
+    assert AS._ipo_first_t_shared(20250102) == 2 and AS._ipo_first_t_shared(20250103) == 1
+    assert AS._ipo_first_t_shared(20250104) is None             # a date the census never saw: unknown
+    assert calls == [AS.IPO_FIRST_DATES_SINCE]                    # one census, reused
+
+    def broken(since):
+        raise RuntimeError("store unreadable")
+    monkeypatch.setattr(bars_sqlite, "recent_first_trade", broken)
+    monkeypatch.setattr(AS, "_ipo_first_dates", {"at": 0.0, "by_date": None})
+    assert AS._ipo_first_t_shared(20250102) is None
 
 
 def test_shape_draw_rows_builds_one_row_per_firing_shape(complete):

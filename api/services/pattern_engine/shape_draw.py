@@ -21,8 +21,11 @@ from typing import Optional
 #: state functions' raw geometry (lab base_shapes pilot p0, never served): it drew the double bottom from a minor
 #: swing high mid-decline with lows a few bars apart, the saucer from an old high the stock had long since
 #: cleared (a trend, not a base), and the ascending base after it had already broken out and run. Round 2 adds
-#: the withholds below.
-SAUCER_DRAW_ROUND = 2
+#: the withholds below. Round 3 (saucer and IPO base only) adds a shape-quality gate on top of round 2; the
+#: earlier round of each stays callable (`rnd=`) so the lab can re-draw what it judged.
+SAUCER_DRAW_ROUND = 3
+#: The saucer rounds this module can still draw (`saucer_drawing(..., rnd=2)` is round 2 byte for byte).
+SAUCER_ROUNDS = (2, 3)
 ASCENDING_BASE_DRAW_ROUND = 2
 DOUBLE_BOTTOM_DRAW_ROUND = 2
 #: The labels the drawing shows.
@@ -280,16 +283,148 @@ SAUCER_RIGHT_SHARE = 0.6
 #: The lip follows an advance: the close at the lip at least this much above the low of the prior 120 bars.
 SAUCER_PRIOR_ADVANCE = 0.20
 
+# Round 3: a shape-quality gate. Round 2 put the pivot on the lip almost every time, but let through bases
+# that are not saucers at all: too deep, jagged (several big swings), driven by a single crash bar, W-shaped,
+# or whose right side already traded above the lip and fell back (a stale level).
+#: Lip to lowest low, at most this deep (a saucer is shallower than a cup).
+SAUCER_R3_MAX_DEPTH = 0.22
+#: The low sits between these shares of the span (narrower than round 2's: no late V, no early slide).
+SAUCER_R3_LOW_POS = (0.25, 0.75)
+#: A single bar falling more than this many median true ranges of the base (close-to-close or a gap from the
+#: prior close to the open) is a crash, not a rounding decline.
+SAUCER_R3_CRASH_TR = 3.0
+#: A quadratic fitted to the base's closes (lip to as-of) explains at least this share of their variance, opens
+#: upward, and bottoms inside SAUCER_R3_LOW_POS: the base is a bowl, not a range or a W.
+SAUCER_R3_MIN_FIT = 0.55
+#: Zigzag legs on the closes, counting only reversals of at least this share of the base's depth: a saucer is
+#: one leg down and one leg up (a small handle may add a third); a W or a choppy range has more.
+SAUCER_R3_SWING_SHARE = 0.35
+SAUCER_R3_MAX_LEGS = 3
 
-def saucer_drawing(bars, i, _why=None) -> Optional[dict]:
+
+def _median(xs):
+    s = sorted(xs)
+    m = len(s) // 2
+    return s[m] if len(s) % 2 else (s[m - 1] + s[m]) / 2.0
+
+
+def _median_tr(work, s, e):
+    """Median true range of work[s..e] (s >= 1), or None."""
+    trs = []
+    for k in range(max(1, s), e + 1):
+        h, lo, pc = float(work[k]["h"]), float(work[k]["l"]), float(work[k - 1]["c"])
+        trs.append(max(h, pc) - min(lo, pc))
+    m = _median(trs) if trs else 0.0
+    return m if m > 0 else None
+
+
+def _quad_fit(ys):
+    """(curvature, vertex share, r2) of a least-squares quadratic through ys over x in [0, 1], or None."""
+    n = len(ys)
+    if n < 5:
+        return None
+    xs = [k / (n - 1) for k in range(n)]
+    s = [sum(x ** p for x in xs) for p in range(5)]
+    t = [sum((x ** p) * y for x, y in zip(xs, ys)) for p in range(3)]
+    # normal equations for y = a + b x + c x^2, solved by Cramer's rule
+    m = [[s[0], s[1], s[2]], [s[1], s[2], s[3]], [s[2], s[3], s[4]]]
+
+    def det(a):
+        return (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0])
+                + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]))
+    d = det(m)
+    if d == 0:
+        return None
+    coef = []
+    for col in range(3):
+        mm = [row[:] for row in m]
+        for r in range(3):
+            mm[r][col] = t[r]
+        coef.append(det(mm) / d)
+    a, b, c = coef
+    mean = sum(ys) / n
+    ss_tot = sum((y - mean) ** 2 for y in ys)
+    if ss_tot <= 0:
+        return None
+    ss_res = sum((y - (a + b * x + c * x * x)) ** 2 for x, y in zip(xs, ys))
+    vertex = (-b / (2 * c)) if c != 0 else None
+    return c, vertex, 1.0 - ss_res / ss_tot
+
+
+def _zigzag_legs(ys, thresh):
+    """Number of legs in a close-only zigzag that reverses on a move of at least `thresh` (price units)."""
+    if len(ys) < 2 or thresh <= 0:
+        return 0
+    legs, direction, hi, lo, ext = 0, 0, ys[0], ys[0], ys[0]
+    for y in ys[1:]:
+        if direction == 0:
+            hi, lo = max(hi, y), min(lo, y)
+            if y - lo >= thresh:
+                direction, ext, legs = 1, y, 1
+            elif hi - y >= thresh:
+                direction, ext, legs = -1, y, 1
+        elif direction > 0:
+            if y > ext:
+                ext = y
+            elif ext - y >= thresh:
+                direction, ext, legs = -1, y, legs + 1
+        else:
+            if y < ext:
+                ext = y
+            elif y - ext >= thresh:
+                direction, ext, legs = 1, y, legs + 1
+    return legs
+
+
+def _saucer_r3_why(work, lip, lip_h, low_i, low, n):
+    """The round-3 reason a round-2 saucer is not a saucer, or None (it passes)."""
+    span = (n - 1) - lip
+    if (lip_h - low) / lip_h > SAUCER_R3_MAX_DEPTH:
+        return "r3_too_deep"
+    pos = (low_i - lip) / span if span else 0.0
+    if not (SAUCER_R3_LOW_POS[0] <= pos <= SAUCER_R3_LOW_POS[1]):
+        return "r3_low_off_center"
+    last = n - 1 - SAUCER_BREAK_BARS
+    if any(float(work[k]["h"]) > lip_h for k in range(lip + 1, last + 1)):
+        return "r3_poked_lip"
+    mtr = _median_tr(work, lip + 1, n - 1)
+    if mtr is None:
+        return "r3_no_range"
+    for k in range(lip + 1, last + 1):
+        pc = float(work[k - 1]["c"])
+        drop = max(pc - float(work[k]["c"]), pc - float(work[k]["o"]))
+        if drop > SAUCER_R3_CRASH_TR * mtr:
+            return "r3_crash_bar"
+    ys = [float(work[k]["c"]) for k in range(lip, n)]
+    fit = _quad_fit(ys)
+    if fit is None:
+        return "r3_no_fit"
+    c, vertex, r2 = fit
+    if c <= 0 or vertex is None or not (SAUCER_R3_LOW_POS[0] <= vertex <= SAUCER_R3_LOW_POS[1]):
+        return "r3_not_a_bowl"
+    if r2 < SAUCER_R3_MIN_FIT:
+        return "r3_poor_fit"
+    if _zigzag_legs(ys, SAUCER_R3_SWING_SHARE * (lip_h - low)) > SAUCER_R3_MAX_LEGS:
+        return "r3_jagged"
+    return None
+
+
+def saucer_drawing(bars, i, _why=None, rnd=None) -> Optional[dict]:
     """The IBD saucer as of bars[i], or None.
 
     The state's lip (its highest swing high 7 weeks to a year back) and low. The PIVOT is the lip -- the top a
     breakout must clear -- not the state's 10-bar high (which is a handle high only once there is a handle, and
     in round 1 sat wherever the last fortnight happened to peak). Withheld when the stock already closed above
     the lip (a trend that left the 'base' behind), when the low sits at either end (a slide, not a saucer),
-    when the right side has not come back into the upper part, or when no advance led into the lip."""
+    when the right side has not come back into the upper part, or when no advance led into the lip.
+
+    `rnd` (default SAUCER_DRAW_ROUND): 2 draws round 2 exactly; 3 additionally withholds a base that is not a
+    saucer (`_saucer_r3_why`): deeper than SAUCER_R3_MAX_DEPTH, low off-centre, a high above the lip before the
+    breakout bars (stale), a crash bar, a closes curve that is not a bowl, or too many big swings."""
     from api.services.screener import base_catalog as bc
+    rnd = SAUCER_DRAW_ROUND if rnd is None else rnd
+    if rnd not in SAUCER_ROUNDS:
+        raise ValueError("saucer round %r is not drawable" % (rnd,))
     ctx, work, atr = _context(bars, i)
     if ctx is None or atr is None:
         return _say(_why, "no_context")
@@ -321,28 +456,98 @@ def saucer_drawing(bars, i, _why=None) -> Optional[dict]:
     adv = bc._prior_advance(work, n - lip, look=120)
     if (adv or 0.0) < SAUCER_PRIOR_ADVANCE:
         return _say(_why, "no_advance")
+    if rnd >= 3:
+        r3 = _saucer_r3_why(work, lip, lip_h, low_i, low, n)
+        if r3 is not None:
+            return _say(_why, r3)
     rh = _hi(work, low_i, n - 2) if low_i < n - 2 else n - 1
     marks = [(lip, lip_h, "lip"), (low_i, low, "low"), (rh, float(work[rh]["h"]), "right_high")]
-    return _out("saucer", SAUCER_DRAW_ROUND, work, lip, lip_h, low, low_i, atr, marks,
+    return _out("saucer", rnd, work, lip, lip_h, low, low_i, atr, marks,
                 {"lip": lip_h, "state_pivot": round(float(st["pivot"]), 6), "pivot_from_t": int(work[lip]["t"]),
                  "path": False})
 
 
 # ---------------------------------------------------------------------------------------------- IPO base
-#: The IPO base drawing round (EXPERIMENTAL; base_catalog.IPO_BASE is outside the member structures).
-IPO_BASE_DRAW_ROUND = 1
+#: The IPO base drawing round (EXPERIMENTAL; base_catalog.IPO_BASE is outside the member structures). Round 1
+#: was the state's raw geometry plus two withholds; there is no round 2 (the lab's second programme judged
+#: round 1). Round 3 adds the gate in `_ipo_r3_why`.
+IPO_BASE_DRAW_ROUND = 3
+#: The IPO base rounds this module can still draw (`ipo_base_drawing(..., rnd=1)` is round 1 byte for byte).
+IPO_ROUNDS = (1, 3)
 #: The as-of close has come back at least this share of the way from the base low to the pivot.
 IPO_RIGHT_SHARE = 0.5
 
+# Round 3. Round 1 drew pivots on a lone listing-day spike wick, drew a later base rather than the first one,
+# drew thin / gappy series (often a flat line near an issue price), and took a store's backfilled history
+# start for a listing.
+#: Top to lowest low, at least this deep: a flat line a few percent wide is not a base.
+IPO_R3_MIN_DEPTH = 0.08
+#: Consecutive stored bars more than this many calendar days apart are a missing session (a long weekend with a
+#: holiday is four days)...
+IPO_R3_GAP_DAYS = 4
+#: ...and a series since the listing with more than this many such gaps is too thin to draw.
+IPO_R3_MAX_GAPS = 2
+#: Bars with no range (high == low) or no volume, at most this share of the series since the listing.
+IPO_R3_MAX_FLAT_SHARE = 0.05
+#: Median close x volume over the base, at least this many dollars a day.
+IPO_R3_MIN_DOLLAR_VOL = 1_000_000.0
+#: The base top standing more than this many median true ranges (of the base) above every other high in the
+#: base is a one-bar spike, not the top of a consolidation.
+IPO_R3_SPIKE_TR = 1.0
 
-def ipo_base_drawing(bars, i, first_t=None, _why=None) -> Optional[dict]:
+
+def _ymd_ordinal(t):
+    import datetime
+    s = "%08d" % int(t)
+    return datetime.date(int(s[:4]), int(s[4:6]), int(s[6:8])).toordinal()
+
+
+def _ipo_r3_why(work, top_i, top, low, n, first_t_shared):
+    """The round-3 reason a round-1 IPO base is not drawn, or None (it passes)."""
+    from api.services.screener import base_catalog as bc
+    if bc.ipo_listing_is_backfill(first_t_shared):
+        return "r3_backfill_listing"
+    if (top - low) / top < IPO_R3_MIN_DEPTH:
+        return "r3_too_shallow"
+    try:
+        days = [_ymd_ordinal(work[k]["t"]) for k in range(n)]
+    except (TypeError, ValueError):
+        return "r3_bad_dates"
+    if sum(1 for k in range(1, n) if days[k] - days[k - 1] > IPO_R3_GAP_DAYS) > IPO_R3_MAX_GAPS:
+        return "r3_gappy"
+    flat = sum(1 for k in range(n) if float(work[k]["h"]) <= float(work[k]["l"]) or not float(work[k]["v"] or 0))
+    if flat > IPO_R3_MAX_FLAT_SHARE * n:
+        return "r3_flat_bars"
+    if _median([float(work[k]["c"]) * float(work[k]["v"] or 0) for k in range(top_i, n)]) < IPO_R3_MIN_DOLLAR_VOL:
+        return "r3_illiquid"
+    mtr = _median_tr(work, max(1, top_i), n - 1)
+    if mtr is None:
+        return "r3_no_range"
+    others = [float(work[k]["h"]) for k in range(top_i, n) if k != top_i]
+    if not others or top - max(others) > IPO_R3_SPIKE_TR * mtr:
+        return "r3_spike_top"
+    if bc.ipo_earlier_base(work, top_i) is not None:
+        return "r3_later_base"
+    return None
+
+
+def ipo_base_drawing(bars, i, first_t=None, _why=None, rnd=None, first_t_shared=None) -> Optional[dict]:
     """The first base after a listing (base_catalog.ipo_base_state) as of bars[i], or None.
 
     `first_t` is the series' first stored bar; without it the listing age is the window's first bar, which is
     only the listing when the window holds the whole history (see the IPO Base note in base_catalog). The
     region runs from the post-listing high to the as-of bar, the pivot is that high. Withheld when the high is
-    an isolated spike or the right side has not come back into the upper half of the base."""
+    an isolated spike or the right side has not come back into the upper half of the base.
+
+    `rnd` (default IPO_BASE_DRAW_ROUND): 1 draws round 1 exactly; 3 additionally withholds (`_ipo_r3_why`) a
+    listing that is a store backfill boundary (`first_t_shared`, how many tickers in the store start on the
+    same first date; unknown fails closed), a base shallower than IPO_R3_MIN_DEPTH, a thin / gappy / flat /
+    illiquid series, a top that is a one-bar spike above every other high of the base, and a base preceded by
+    an earlier base since the listing (base_catalog.ipo_earlier_base)."""
     from api.services.screener import base_catalog as bc
+    rnd = IPO_BASE_DRAW_ROUND if rnd is None else rnd
+    if rnd not in IPO_ROUNDS:
+        raise ValueError("IPO base round %r is not drawable" % (rnd,))
     ctx, work, atr = _context(bars, i, min_bars=bc.IPO_MIN_BARS + 2)
     if ctx is None or atr is None:
         return _say(_why, "no_context")
@@ -361,6 +566,10 @@ def ipo_base_drawing(bars, i, first_t=None, _why=None) -> Optional[dict]:
     low = float(work[low_i]["l"])
     if float(work[-1]["c"]) < low + IPO_RIGHT_SHARE * (top - low):
         return _say(_why, "right_side_low")
+    if rnd >= 3:
+        r3 = _ipo_r3_why(work, top_i, top, low, n, first_t_shared)
+        if r3 is not None:
+            return _say(_why, r3)
     marks = [(0, float(work[0]["o"]), "listing"), (top_i, top, "base_top"), (low_i, low, "low")]
-    return _out("ipo-base", IPO_BASE_DRAW_ROUND, work, top_i, top, low, low_i, atr, marks,
+    return _out("ipo-base", rnd, work, top_i, top, low, low_i, atr, marks,
                 {"listing_t": int(st["listing_t"]), "pivot_from_t": int(work[top_i]["t"]), "path": False})

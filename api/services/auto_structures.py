@@ -887,13 +887,45 @@ def _db_breakout_stale(bars, d) -> bool:
         return True
 
 
+#: The IPO base's backfill guard counts first stored dates over tickers whose first daily bar is on/after this
+#: date (the store's deep history starts decades earlier for most names; a listing is recent by definition).
+IPO_FIRST_DATES_SINCE = 20190101
+#: How long one census of first stored dates is reused.
+IPO_FIRST_DATES_TTL_S = 6 * 3600
+_ipo_first_dates = {"at": 0.0, "by_date": None}
+_ipo_first_dates_lock = threading.Lock()
+
+
+def _ipo_first_t_shared(first_t):
+    """How many tickers in the bars store have their first stored daily bar on `first_t` (this series
+    included), or None when the census cannot be read. A date shared by many tickers is a store backfill
+    boundary, not a listing day (base_catalog.ipo_listing_is_backfill); None makes the IPO base drawing
+    withhold (fail closed). One indexed GROUP BY per IPO_FIRST_DATES_TTL_S, only ever asked for a series short
+    enough to be a recent listing. Never raises."""
+    try:
+        with _ipo_first_dates_lock:
+            now = time.time()
+            if _ipo_first_dates["by_date"] is None or now - _ipo_first_dates["at"] > IPO_FIRST_DATES_TTL_S:
+                from collections import Counter
+                from api.services import bars_sqlite
+                firsts = bars_sqlite.recent_first_trade(IPO_FIRST_DATES_SINCE) or {}
+                _ipo_first_dates["by_date"] = Counter(int(v) for v in firsts.values())
+                _ipo_first_dates["at"] = now
+            got = _ipo_first_dates["by_date"].get(int(first_t))
+        return int(got) if got else None
+    except Exception:  # noqa: BLE001 -- unknown fails closed in the drawing
+        _log.debug("[auto-structures] first-date census failed", exc_info=True)
+        return None
+
+
 def shape_draw_rows(sym: str, bars: list) -> list:
     """The named base-shape drawing rows for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest
     first): one row per shape whose drawing fires there (lab base_shapes; display only). A forming session
     (last_bar_forming) is dropped first: the lab drew finished sessions. The IPO base needs the series' first
     stored bar: `bars` is the store's latest STRUCTURE_BARS, so it reaches back to the first stored bar only
     when it holds fewer than that -- otherwise the ticker is too old to be a recent listing and no IPO base is
-    attempted. A double bottom whose breakout is older than DB_BREAKOUT_MAX_AGE sessions is marked
+    attempted -- and a first stored date shared by many tickers is a backfill boundary, not a listing
+    (`_ipo_first_t_shared`; unknown withholds). A double bottom whose breakout is older than DB_BREAKOUT_MAX_AGE sessions is marked
     `extras.stale` (`_db_breakout_stale`): served, never drawn. A failing shape costs that shape only.
     Never raises."""
     out = []
@@ -911,7 +943,8 @@ def shape_draw_rows(sym: str, bars: list) -> list:
                 if pid == "draw:ipo-base":
                     if first_t is None:
                         continue
-                    d = shape_draw.ipo_base_drawing(b, len(b) - 1, first_t=first_t)
+                    d = shape_draw.ipo_base_drawing(b, len(b) - 1, first_t=first_t,
+                                                    first_t_shared=_ipo_first_t_shared(first_t))
                 else:
                     d = getattr(shape_draw, fn)(b, len(b) - 1)
             except Exception:  # noqa: BLE001 -- a failing shape costs that shape only
