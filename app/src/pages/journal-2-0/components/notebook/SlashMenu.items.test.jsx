@@ -953,6 +953,40 @@ describe('wave 6 snapshot kinds (Task 20)', () => {
     expect(pickItems('screen').map((i) => i.title)).toEqual(SCREENS.map((r) => `Screen — ${r.definition.meta.name}`))
   })
 
+  it('the rows are keyed to the signed-in member: another member never sees them (final review M-3)', async () => {
+    latchNotebookFlags(W6)
+    const as = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    pickItems('recap', as('member-a')); await __picksLoad()
+    expect(pickItems('recap', as('member-a'))).toHaveLength(7)       // control: A's rows, loaded once
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    // Member B signs in in the same tab: nothing of A's, and B's own load starts.
+    const held = []
+    global.fetch = vi.fn((url) => new Promise((r) => { held.push(() => r({ ok: true, status: 200,
+      json: async () => (url === '/api/j2/trades?limit=10' ? { trades: [TRADES[0]] } : { definitions: [] }) })) }))
+    expect(pickItems('recap', as('member-b'))).toEqual([])
+    await vi.waitFor(() => expect(held).toHaveLength(2))
+    // A's tab state is not consulted again while B is signed in, and a load A started cannot land as B's.
+    expect(pickItems('recap', as('member-b'))).toEqual([])
+    held.forEach((go) => go()); await __picksLoad()
+    expect(pickItems('recap', as('member-b'))).toHaveLength(1)
+  })
+
+  it("a load the previous member started never lands as the next member's rows (final review M-3)", async () => {
+    latchNotebookFlags(W6)
+    const as = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    const held = []
+    global.fetch = vi.fn((url) => new Promise((r) => { held.push(() => r({ ok: true, status: 200, json: async () => routes(url) })) }))
+    expect(pickItems('recap', as('member-a'))).toEqual([])           // A's load starts, still in flight
+    await vi.waitFor(() => expect(held).toHaveLength(2))
+    expect(pickItems('recap', as('member-b'))).toEqual([])           // B signs in: a fresh slot, B's own load
+    await vi.waitFor(() => expect(held).toHaveLength(4))
+    held.slice(0, 2).forEach((go) => go())                           // A's answer arrives first
+    await new Promise((r) => setTimeout(r, 0))
+    expect(pickItems('recap', as('member-b'))).toEqual([])           // ...and is not B's
+    held.slice(2).forEach((go) => go()); await __picksLoad()
+    expect(pickItems('recap', as('member-b'))).toHaveLength(7)       // control: B's own load lands
+  })
+
   it('a failed load backs off 30 s: no read on every keystroke', async () => {
     latchNotebookFlags(W6)
     global.fetch = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))

@@ -519,20 +519,26 @@ function snapshotCommand(kind, params) {
 
 /** ONE background load per source, for the member's own rows (Task 17's pattern, shared by Task 20).
  *  ⛔ SYNCHRONOUS. Suggestion awaits items() before it draws anything, so a read here would hold the
- *  whole menu. `kick()` answers what is already loaded and starts ONE background load when nothing is, or
- *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update. */
+ *  whole menu. `kick(editor)` answers what is already loaded and starts ONE background load when nothing is, or
+ *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update.
+ *  Final review M-3: the rows are the signed-in member's own, so the cache is KEYED to the member id the
+ *  editor holds (`uid` in its storage, NoteEditorPage): a different id starts from nothing, and a load the
+ *  previous member started lands in the previous member's slot, never the new one. */
 function background(load) {
   let s
-  const reset = () => { s = { v: null, at: 0, failedAt: 0, loading: null } }
+  const reset = (uid) => { s = { v: null, at: 0, failedAt: 0, loading: null, uid } }
   reset()
-  const kick = () => {
+  const kick = (editor) => {
+    const uid = editor?.storage?.uctJournalWidgets?.uid
+    if (uid !== s.uid) reset(uid)
+    const t = s
     const now = Date.now()
-    if (!s.loading && now - s.failedAt >= 30000 && !(s.v && now - s.at < 60000)) {
-      s.loading = load()
-        .then((v) => { s.v = v; s.at = Date.now() }, () => { s.failedAt = Date.now() })
-        .finally(() => { s.loading = null })
+    if (!t.loading && now - t.failedAt >= 30000 && !(t.v && now - t.at < 60000)) {
+      t.loading = load()
+        .then((v) => { t.v = v; t.at = Date.now() }, () => { t.failedAt = Date.now() })
+        .finally(() => { t.loading = null })
     }
-    return s.v
+    return t.v
   }
   return { kick, wait: () => s.loading || Promise.resolve(), reset }
 }
@@ -545,9 +551,9 @@ const mine = background(() => import('../../lib/notebookSets').then(async (m) =>
   if (doc.failed) throw doc
   return { m, doc }
 }))
-export function mineItems(query) {
+export function mineItems(query, editor) {
   if (!widgetsWaveOn(5)) return []
-  const v = mine.kick()
+  const v = mine.kick(editor)
   // The module's own copy wins: a save in this tab updates it at once.
   const doc = v && (v.m.peekSets() || v.doc)
   return doc ? [...v.m.presetRows(query, doc, 'mine', snapshotCommand), ...v.m.chartSetRows(query, doc, 'mine')] : []
@@ -560,9 +566,9 @@ export const __resetMine = () => mine.reset()
  *  row inserting a Trade recap or My screen today through snapshotCommand. The rows live in the module the
  *  snapshot insert already loads (lib/notebookWidgetsFetch.js), read only while wave 6 is on (first-open bytes). */
 const picks = background(() => widgetsFetch().then(async (m) => ({ m, doc: await m.loadPicks() })))
-export function pickItems(query) {
+export function pickItems(query, editor) {
   if (!widgetsWaveOn(6)) return []
-  const v = picks.kick()
+  const v = picks.kick(editor)
   return v ? v.m.pickRows(query, v.doc, snapshotCommand) : []
 }
 export const __picksLoad = () => picks.wait()
@@ -1007,7 +1013,8 @@ export const SlashMenuExtension = Extension.create({
         allowSpaces: true,
         command: slashCommand,
         // Waves 5 and 6 add the member's own rows (mineItems, pickItems): whatever is loaded, never awaited.
-        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query), ...pickItems(query)]),
+        // M-3: the caches are keyed to the signed-in member the editor holds.
+        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query, editor), ...pickItems(query, editor)]),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.
