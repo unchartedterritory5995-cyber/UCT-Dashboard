@@ -15,12 +15,15 @@ export const TICKER_CARD_EVENT = 'uct:ticker-card'
 export const tickerChipKey = new PluginKey('tickerChip')
 const key = tickerChipKey
 
-/** Every `$SYM` in `text`. A sentence's closing period is not part of the symbol. */
+/** Every `$SYM` in `text`. A sentence's closing period is not part of the symbol.
+ *  ⛔ No lookbehind (iOS 16 is the floor, and it throws there): the "not after a word char or `$`" rule is a
+ *  consumed prefix, `^` or one such char, and the `$` is found inside the match (the prefix is never a `$`). */
 export function findTickerRanges(text) {
   const out = []
-  for (const m of String(text || '').matchAll(/(?<![\w$])\$([A-Z][A-Z.]{0,5})(?![\w$])/g)) {
+  for (const m of String(text || '').matchAll(/(?:^|[^\w$])\$([A-Z][A-Z.]{0,5})(?![\w$])/g)) {
     const symbol = m[1].replace(/\.+$/, '')
-    out.push({ from: m.index, to: m.index + 1 + symbol.length, symbol })
+    const from = m.index + m[0].indexOf('$')
+    out.push({ from, to: from + 1 + symbol.length, symbol })
   }
   return out
 }

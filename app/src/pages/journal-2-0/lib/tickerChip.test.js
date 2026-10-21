@@ -41,6 +41,51 @@ describe('findTickerRanges', () => {
   })
 })
 
+// F3: the matcher dropped its lookbehind (iOS 16 is the floor, and a lookbehind literal throws there at parse).
+// These pin that the rewrite matches exactly what the lookbehind form matched.
+describe('findTickerRanges without a lookbehind matches what the lookbehind form did', () => {
+  // The pre-F3 pattern, kept HERE as the oracle (a test file is outside noRegexLookbehind's product scan; the
+  // test runner's Node has lookbehind). Built from a string so the product rail's literal scan cannot mistake it.
+  const OLD = new RegExp('(?<![\\w$])\\$([A-Z][A-Z.]{0,5})(?![\\w$])', 'g')
+  const oldRanges = (t) => [...String(t || '').matchAll(OLD)].map((m) => {
+    const symbol = m[1].replace(/\.+$/, '')
+    return { from: m.index, to: m.index + 1 + symbol.length, symbol }
+  })
+
+  it.each([
+    ['x$NVDA', []], ['_$NVDA', []], ['9$NVDA', []], ['$$NVDA', []],
+    ['($NVDA)', [{ from: 1, to: 6, symbol: 'NVDA' }]],
+    ['-$NVDA', [{ from: 1, to: 6, symbol: 'NVDA' }]],
+    ['line\n$NVDA', [{ from: 5, to: 10, symbol: 'NVDA' }]],
+    ['$NVDA$AMD', []], ['$NVDAx', []], ['$NVDA_', []],
+    ['$AMD,$NVDA', [{ from: 0, to: 4, symbol: 'AMD' }, { from: 5, to: 10, symbol: 'NVDA' }]],
+    ['$A.$B', [{ from: 0, to: 2, symbol: 'A' }, { from: 3, to: 5, symbol: 'B' }]],
+    ['$BRK.B.', [{ from: 0, to: 6, symbol: 'BRK.B' }]],
+    ['', []], [null, []],
+  ])('prefix and $ rules: %j', (s, want) => {
+    expect(findTickerRanges(s)).toEqual(want)
+    expect(findTickerRanges(s)).toEqual(oldRanges(s))
+  })
+
+  it('every string of up to 5 chars over the rule-relevant alphabet gives the old answer', () => {
+    const alphabet = ['$', 'A', 'B', '.', 'a', '1', '_', ' ', '\n', '(']
+    let strings = ['']
+    let checked = 0
+    const diffs = []
+    for (let len = 1; len <= 5; len += 1) {
+      strings = strings.flatMap((s) => alphabet.map((c) => s + c))
+      for (const s of strings) {
+        checked += 1
+        const a = JSON.stringify(findTickerRanges(s))
+        if (a !== JSON.stringify(oldRanges(s))) diffs.push(s)
+      }
+    }
+    expect(checked).toBe(111110) // non-vacuity: every string was compared
+    expect(oldRanges('($AB $A')).toHaveLength(2) // and the oracle does find tickers in this alphabet
+    expect(diffs).toEqual([])
+  })
+})
+
 describe('TickerChipExtension', () => {
   it('decorates $NVDA, and the document, text and JSON are unchanged', () => {
     const content = docOf(para(text('Watching $NVDA up')))
@@ -63,6 +108,14 @@ describe('TickerChipExtension', () => {
       { type: 'codeBlock', content: [text('$TSLA')] },
     ))
     expect(chips(el)).toEqual([['AMD', '$AMD']])
+  })
+
+  it('the prefix rule reads the text, not the marks: a code-marked word char blocks, a code-marked "(" does not', () => {
+    const { el } = mount(docOf(
+      para(text('x', [{ type: 'code' }]), text('$AMD')),
+      para(text('(', [{ type: 'code' }]), text('$NVDA)')),
+    ))
+    expect(chips(el)).toEqual([['NVDA', '$NVDA']])
   })
 
   it('is absent with the W1 flag off', () => {
