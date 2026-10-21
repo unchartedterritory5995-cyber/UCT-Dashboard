@@ -39,6 +39,7 @@ import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import styles from './StudyReview.module.css'
 import StudyGallery from './StudyGallery'
+import StudyFeedbackPanel from './StudyFeedbackPanel'
 
 export const REVIEW_URL = '/api/study/admin/review'
 export const TRUST_URL = '/api/study/admin/trust'
@@ -244,6 +245,7 @@ export default function StudyReview() {
   // the limit. The skill filter is how the reviewer gets straight to it.
   const [skill, setSkill] = useState('')
   const [gallery, setGallery] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   // one skill is a bounded set the owner works through in order, so the whole
   // skill is served (the route caps at 500); the unscoped queue stays at 150
   const key = reviewKey(lane, type, skill ? QUEUE_LIMIT_SKILL : QUEUE_LIMIT, skill)
@@ -251,6 +253,9 @@ export default function StudyReview() {
   const drafts = data?.drafts || NO_ITEMS
   const counts = data?.counts || NO_OBJ
   const skills = data?.skills || NO_OBJ
+  const feedbackOpenTotal = Number(data?.feedback?.open_total) || 0
+  const feedbackOpenById = data?.feedback?.open || NO_OBJ
+  const queueIds = useMemo(() => new Set(drafts.map((d) => d.id)), [drafts])
 
   const [localStatus, setLocalStatus] = useState({})
   const [localTrust, setLocalTrust] = useState({})
@@ -571,8 +576,14 @@ export default function StudyReview() {
         {/* The example gallery (owner 2026-10-21): every chart of one subject on one
             screen with a grade under each. Lives beside the queue, never replaces it. */}
         <button type="button" className={`${styles.galleryToggle} ${gallery ? styles.galleryToggleOn : ''}`}
-          aria-pressed={gallery} onClick={() => setGallery((g) => !g)}>
+          aria-pressed={gallery} onClick={() => { setGallery((g) => !g); setFeedbackOpen(false) }}>
           {gallery ? 'Back to the queue' : 'Example gallery'}
+        </button>
+        {/* Feedback from the reveal card and from Discord (owner 2026-10-21). */}
+        <button type="button" className={`${styles.galleryToggle} ${feedbackOpen ? styles.galleryToggleOn : ''}`}
+          aria-pressed={feedbackOpen} data-testid="feedback-toggle"
+          onClick={() => { setFeedbackOpen((f) => !f); setGallery(false) }}>
+          {feedbackOpen ? 'Back to the queue' : `Feedback (${feedbackOpenTotal})`}
         </button>
 
         <div className={styles.list}>
@@ -586,7 +597,14 @@ export default function StudyReview() {
                 <span className={styles.rowSym}>{d.sym || d.type}</span>
                 <span className={styles.rowType}>{d.type} · {d.review_lane || 'manual'}</span>
                 <span className={styles.rowDate}>{d.asof || ''}</span>
-                <span className={st ? styles[`st_${st}`] : styles.stTodo}>{st ? STATUS_WORD[st] : 'to do'}</span>
+                <span className={st ? styles[`st_${st}`] : styles.stTodo}>
+                  {st ? STATUS_WORD[st] : 'to do'}
+                  {feedbackOpenById[d.id] > 0 && (
+                    <span className={styles.rowFb} title={`${feedbackOpenById[d.id]} feedback`} data-testid="row-feedback">
+                      {' '}· {feedbackOpenById[d.id]} note{feedbackOpenById[d.id] === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </span>
               </button>
             )
           })}
@@ -598,7 +616,11 @@ export default function StudyReview() {
       </div>
 
       {gallery && <StudyGallery skill={skill} />}
-      <div className={styles.card} hidden={gallery}>
+      {feedbackOpen && (
+        <StudyFeedbackPanel queueIds={queueIds}
+          onOpenItem={(id) => { setSelId(id); setStatus(null); setFeedbackOpen(false) }} />
+      )}
+      <div className={styles.card} hidden={gallery || feedbackOpen}>
         {!sel && <div className={styles.empty}>Nothing to review in this lane.</div>}
         {sel && (
           <>

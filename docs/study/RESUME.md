@@ -161,6 +161,56 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
   owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
   the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
+- **2026-10-21 05:05Z ALL LIVE: the feedback loop, `/study`, the audited lessons, every approved example on
+  the pod.** #453 deployed (6404d2d280, a 43-minute Railway build, then SUCCESS; review screen shows
+  "Feedback (0)", /api/study/admin/feedback answers). `/study` REGISTERED for the UT guild: the owner ran
+  `! powershell ... railway run --service web -- powershell -File C:\Users\pgosz\register_study.ps1`
+  (maps DISCORD_BOT_TOKEN -> DISCORD_CHART_BOT_TOKEN, checks app 1474900505917653142, registers per guild
+  882293203485720596; the session's own attempt was refused by the classifier as Credential Exploration;
+  no Railway service holds DISCORD_CHART_BOT_TOKEN, web holds DISCORD_BOT_TOKEN). Lesson audit merged
+  (#454 be777c11cf; a read-only agent graded 34 GREAT / 26 GOOD / 6 NEEDS WORK, every accuracy claim
+  verified against candle_catalog.py's d_* predicates; 48 parts rewritten; ruling logged in
+  candles.chart.jsonl), deployed by hand (Deploy commit on the SKIPPED record), imported
+  (candles.catalog 172 updated, candles.chart 603 updated; verified the new "where" text on the pod).
+  FOUND: upsert_items kept an existing DRAFT row draft even when the bank said approved (the pod sat at
+  180 approved against the bank's 603) -> store fix: a draft at the same version goes live when the bank
+  says approved (never downgrades, never past a reject, a higher version still resets);
+  tests/test_study_upsert_status.py 3. One-off pod sync ran (scratchpad pod_sync_approved.py over ssh):
+  430 drafts approved -> pod 609 approved (603 chart + 6 catalog), matching the bank. THE QUIZ NOW SERVES
+  EVERY APPROVED CANDLE EXAMPLE WITH THE AUDITED LESSONS. Owner review path from here: take the daily set
+  (Desk -> Courses), "Review this one" under each lesson (Approve / Needs fix / Reject + note), or
+  `/study ref:<six characters on the card> say:<note>` in Discord; the review screen's Feedback (n) panel
+  and `python -m scripts.study.ingest_feedback` carry it back into docs/study. Bullish engulfing lesson
+  verdict still pending from the owner (sent as text + IWM 2025-04-09 chart).
+- **2026-10-21 ~04:00Z: THE FEEDBACK LOOP (owner: "build a system for reviewing in site or in the
+  discord and giving feedback for the quiz and test so we can manually do this and ingest and update
+  the information"; also "make sure they are all great").** Branch feat/study-feedback, doc
+  docs/study/feedback_loop.md. Three doors into ONE table `study_feedback` (study_store: add_feedback /
+  list_feedback / feedback_counts / handle_feedback / export_feedback / find_item_by_ref / short_ref):
+  (1) the reveal card: "Something off?" chips (wrong answer / bad chart / question unclear / lesson
+  unclear / too easy / too hard / great example / other) + note, posted to
+  POST /api/study/items/{id}/feedback with the attempt attached; an ADMIN's card carries Approve /
+  Needs fix / Reject (approve + reject applied at once through review(), fix = a note); the card now
+  renders the SIX-PART lesson with headings (lesson_parts) and prints `ref 872a0a`;
+  (2) Discord `/study ref:872a0a say:... [verdict] [kind]` (admin-only: default_member_permissions 8
+  AND the administrator bit in the handler; private reply; study_feedback_reply in
+  api/routers/discord_interactions.py) -> OWNER MUST REGISTER IT ONCE:
+  `python tools/discord_chart_commands.py register` (local, bot token in .env);
+  (3) the review screen: "Feedback (n)" panel beside the gallery (StudyFeedbackPanel.jsx: list, Open,
+  Handled, Show handled, Export feedback), queue rows show "· n notes". Admin routes
+  GET/POST /api/study/admin/feedback[/handle|/export]. INGEST: save the export JSON under
+  docs/study/feedback/exports/, run `python -m scripts.study.ingest_feedback` -> owner approve/reject
+  rows become docs/study/corrections/feedback.jsonl (standard verdict records, idempotent by
+  feedback_id) + docs/study/feedback/REPORT.md (open rows grouped by item = the session's worklist).
+  Tests: test_study_feedback 20, test_discord_study_command 6 (+ lesson 7), test_study_ingest_feedback 4,
+  RevealCard 12, StudyReview 24, DrillPlayer 9, CoursesSection 14. Fixed on the way: get_attempt
+  read a plain-string answer back as None. ALSO 2026-10-21 ~02:30Z: the master deploy gate was RED
+  (another session's Trader Archive nav row left app/src/agent/contract/manifest.golden.json stale) ->
+  PR #452 regenerated the golden; #450 (gallery light rows) + #452 live, gallery verified (Hanging Man
+  14 examples). Hanging man lesson APPROVED by the owner ("good get it done"); bullish engulfing
+  lesson sent (IWM 2025-04-09), verdict pending. NEXT: merge + deploy this branch, register /study,
+  then the session's own quality pass over all 66 candle lessons ("make sure they are all great"),
+  then the owner reviews by taking the quiz / from Discord; the session ingests and fixes.
 - **2026-10-21 ~02:00Z: landing v1.1, bulk verdict lists, the EXAMPLE GALLERY; lesson walkthrough
   in progress.** Merged + live: #447 (corrections.load() reads `<segment>.approved-<date>.json` /
   `.retired-<date>.json` as per-id verdicts; candles.chart.approved-2026-10-21.json = 599 ids, so the
