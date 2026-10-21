@@ -33,6 +33,7 @@ import PathView, { PathViewSkeleton } from './PathView'
 import CurriculumLessons from './CurriculumLessons'
 import UIcon from '../../components/ui/UIcon'
 import StudyPanel from '../study/StudyPanel'
+import StudyLanding from '../study/StudyLanding'
 import SkillTrail from '../study/SkillTrail'
 import DrillPlayer from '../study/DrillPlayer'
 import PractiseSheet from '../study/PractiseSheet'
@@ -410,6 +411,18 @@ export default function CoursesSection() {
             )}
           </header>
 
+          {studyOn && (
+            /* The landing hero (docs/study/landing_redesign.md): the trail as a
+               chart, the station decks, the badges shelf. Pure props; the
+               action card below keeps the one primary button. */
+            <StudyLanding
+              curricula={curricula}
+              byId={skillRows}
+              badges={Array.isArray(studyProfile?.badges) ? studyProfile.badges : []}
+              onOpenUnit={openUnit}
+              onOpenTrail={openTrail}
+            />
+          )}
           {studyOn ? (
             <div className={cs.studyLayout}>
               <div className={cs.studyAside}>

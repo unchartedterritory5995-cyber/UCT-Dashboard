@@ -1,0 +1,199 @@
+/* Study landing hero (docs/study/landing_redesign.md). Tokens only. Gold is
+   mastery or the one primary action. Every motion is gated on
+   prefers-reduced-motion at the bottom of this file. */
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+  margin: 0 0 var(--space-lg);
+}
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(120% 90% at 10% 0%, var(--ut-gold-dim) 0%, transparent 55%),
+    linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-surface) 100%);
+  padding: var(--space-lg);
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.hero::before {
+  /* a faint price grid behind everything, so the card reads as a chart */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 100% 44px, 44px 100%;
+  opacity: 0.18;
+  pointer-events: none;
+}
+.heroText { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.headline {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-heading);
+  text-wrap: balance;
+}
+.tagline { margin: 0; color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5; max-width: 48ch; }
+
+.chart { position: relative; margin: 0; min-width: 0; }
+.svg { display: block; width: 100%; height: auto; max-height: 260px; overflow: visible; }
+.grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 6; }
+.floor { stroke: var(--border-accent); stroke-width: 1; }
+.axis { fill: var(--text-muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+.label { fill: var(--text); font-size: 11px; font-weight: 600; }
+
+.trail {
+  fill: none;
+  stroke: var(--ut-gold);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 7;
+  opacity: 0.85;
+  animation: trailDraw 14s linear infinite;
+}
+@keyframes trailDraw { to { stroke-dashoffset: -120; } }
+
+.wick { stroke: var(--ut-gold); stroke-width: 2; opacity: 0.9; }
+.body { stroke: var(--ut-gold); stroke-width: 2; }
+.mastered .body { fill: url(#study-gold); }
+.started .body { fill: var(--bg-surface); }
+.open .wick, .open .body { stroke: var(--border-accent); opacity: 0.9; }
+.open .body { fill: transparent; }
+.candle { transition: transform 200ms ease; transform-box: fill-box; transform-origin: center bottom; }
+
+.marker { animation: markerFloat 2.4s ease-in-out infinite; }
+@keyframes markerFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.markerText { fill: var(--ut-gold); font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+.markerArrow { fill: var(--ut-gold); filter: drop-shadow(0 0 6px var(--ut-gold-glow)); }
+
+/* tap targets over each candle (the SVG itself is decorative) */
+.hotspots { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
+.hotspots li { position: absolute; top: 0; bottom: 0; width: 0; }
+.hotspot {
+  position: absolute;
+  top: 10%;
+  bottom: 0;
+  left: -22px;
+  width: 44px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.hotspot:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.chartSkeleton { height: 200px; border-radius: var(--radius-lg); background: var(--bg-hover); opacity: 0.5; }
+
+/* ── decks ────────────────────────────────────────────────────────────── */
+.deck { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
+.deckHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-sm); }
+.deckTitle { margin: 0; font-size: 16px; font-weight: 650; color: var(--text-bright); }
+.deckSub { color: var(--text-muted); font-size: var(--text-xs); }
+.tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.strip {
+  display: flex;
+  overflow-x: auto;
+  gap: var(--space-sm);
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+}
+.strip .tileItem { flex: 0 0 200px; scroll-snap-align: start; }
+.tileItem { min-width: 0; }
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.tile:hover { transform: translateY(-2px); border-color: var(--border-accent); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.tile:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.tileRec { border-color: var(--ut-gold); box-shadow: 0 0 0 1px var(--ut-gold-dim), 0 0 18px var(--ut-gold-glow); animation: tilePulse 2.6s ease-in-out infinite; }
+@keyframes tilePulse { 0%, 100% { box-shadow: 0 0 0 1px var(--ut-gold-dim), 0 0 14px var(--ut-gold-glow); } 50% { box-shadow: 0 0 0 1px var(--ut-gold-dim), 0 0 26px var(--ut-gold-glow); } }
+.tileDone { background: linear-gradient(135deg, var(--ut-gold-dim), var(--bg-surface) 60%); }
+.tileText { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.tileTitle { font-size: var(--text-sm); font-weight: 650; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tileMeta { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.tileNum { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.tileTag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+
+/* ── badges ───────────────────────────────────────────────────────────── */
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px dashed var(--border-accent);
+  border-radius: var(--radius-xl);
+  min-width: 0;
+}
+.shelfTitle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ut-gold); }
+.shelfEmpty { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.badges { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-surface); }
+.badgeIcon { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 50%; background: var(--ut-gold-dim); }
+.badgeName { font-size: var(--text-sm); font-weight: 600; color: var(--text-bright); text-transform: capitalize; }
+
+/* ── layout tiers ─────────────────────────────────────────────────────── */
+@media (min-width: 1025px) {
+  .hero { grid-template-columns: 300px minmax(0, 1fr); align-items: center; padding: var(--space-xl); }
+  .headline { font-size: 34px; }
+}
+@media (max-width: 640px) {
+  .hero { padding: var(--space-md); }
+  .headline { font-size: 24px; }
+  .label { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trail, .marker, .tileRec { animation: none; }
+  .tile, .candle { transition: none; }
+  .tile:hover { transform: none; }
+}
