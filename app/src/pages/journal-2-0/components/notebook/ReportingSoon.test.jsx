@@ -16,7 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../lib/offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn(async () => {}) }))
 
-import ReportingSoon from './ReportingSoon'
+import ReportingSoon, { UNREAD_RETRIES } from './ReportingSoon'
 import TickerResearchWorkspace from './TickerResearchWorkspace'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -90,6 +90,108 @@ describe('ReportingSoon', () => {
     // the list and the draft are read from the routes the answers were recorded from
     expect(contract('earnings-prep.soon')._contract.path).toBe('/api/j2/earnings-prep/soon')
     expect(contract('earnings-prep.draft')._contract.path.toUpperCase()).toBe('/API/J2/EARNINGS-PREP/EPNV/DRAFT')
+  })
+
+  // Ruling R68 (F1b review I-1): a cold-cache answer (items: [] with partial: true) is "not checked yet", never "none".
+  it('R68: partial with no items says it could not check yet, and never says none report', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, items: [], partial: true }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByText("Couldn't check report dates just now. Trying again shortly.")).toBeInTheDocument()
+    expect(screen.queryByText(/None of your/)).toBeNull()
+    expect(screen.queryByText(/a name may be missing from this list/)).toBeNull()
+  })
+
+  it('R68 control: not partial with no items says none of your names report', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, items: [], partial: false }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByText(/None of your watchlist, flagged or open-position names report in the next 7 days\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+  })
+
+  it('R68: partial with items keeps the list and its caveat', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, partial: true }]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' })).toBeInTheDocument()
+    expect(screen.getByText(/a name may be missing from this list/)).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+  })
+
+  it('R68: it asks again, and the later complete answer replaces the sentence and stops the asking', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => {
+      n += 1
+      return respond(200, n === 1 ? { ...SOON, items: [], partial: true } : SOON)
+    })
+    render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={40} /></Providers>)
+    expect(await screen.findByText("Couldn't check report dates just now. Trying again shortly.")).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' })).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
+    const asked = n
+    await new Promise((r) => setTimeout(r, 400))                 // ten intervals: a complete answer asks no more
+    expect(n).toBe(asked)
+  })
+
+  it('review N-3: re-renders faster than the interval do not hold the retry back', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, { ...SOON, items: [], partial: true }) })
+    const onOpenNote = () => {}
+    const { rerender } = render(<Providers><ReportingSoon onOpenNote={onOpenNote} retryMs={120} /></Providers>)
+    await screen.findByText("Couldn't check report dates just now. Trying again shortly.")
+    // A parent re-rendering every 30 ms: a timer re-armed on every render would never reach 120 ms.
+    for (let i = 0; i < 12; i += 1) {
+      rerender(<Providers><ReportingSoon onOpenNote={onOpenNote} retryMs={120} /></Providers>)
+      await new Promise((r) => setTimeout(r, 30))
+    }
+    expect(n).toBeGreaterThanOrEqual(2)
+  })
+
+  it('review N-1: identical partial answers run out the retries, then Try again shows (never "none")', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    const SAME = { ...SOON, items: [], partial: true }              // byte-identical every time (a cached partial window)
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, SAME) })
+    render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={20} /></Providers>)
+    expect(await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.queryByText(/Trying again shortly/)).toBeNull()
+    expect(screen.getByText(/Couldn't check report dates just now\./)).toBeInTheDocument()
+    expect(screen.queryByText(/None of your/)).toBeNull()
+    expect(n).toBe(1 + UNREAD_RETRIES)                            // the first read and the bounded retries
+    await new Promise((r) => setTimeout(r, 200))
+    expect(n).toBe(1 + UNREAD_RETRIES)                            // ...and then it stops
+    // Try again asks once more, and says it is trying again.
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(n).toBeGreaterThan(1 + UNREAD_RETRIES))
+  })
+
+  // F3 (pollingSites rail): the retry rides useMobileSWR. A BEHAVIOUR rail, not the adoption rail: bare SWR also
+  // skips a hidden tab's ticks (measured: this case passes with `useSWR` swapped back in), so what proves the
+  // helper is used is src/hooks/pollingSites.rail.test.js. This pins the member-visible half: hidden asks nothing,
+  // shown again asks.
+  it('a hidden tab holds the retry, and showing the tab again lets it ask', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, { ...SOON, items: [], partial: true }) })
+    const setVisibility = (v) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+    try {
+      render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={30} /></Providers>)
+      await screen.findByText("Couldn't check report dates just now. Trying again shortly.")
+      setVisibility('hidden')
+      const held = n
+      await new Promise((r) => setTimeout(r, 300))               // ten intervals (five on a touch client)
+      expect(n).toBe(held)
+      setVisibility('visible')
+      await waitFor(() => expect(n).toBeGreaterThan(held))
+    } finally {
+      setVisibility('visible')
+    }
   })
 
   it('a name already prepped opens that note instead of drafting another', async () => {

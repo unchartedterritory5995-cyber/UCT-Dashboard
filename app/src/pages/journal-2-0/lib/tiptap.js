@@ -31,6 +31,7 @@ import { WidgetEmbed } from './widgetEmbedNode'
 import { Callout } from './calloutNode'
 import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
 import { NoteFind } from './noteFindExtension'
+import { TickerChipExtension } from './tickerChip'
 import { NoteLink } from './noteLinkNode'
 import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
 import { FinancialFact } from './financialFactNode'
@@ -319,6 +320,8 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // (see noteFindExtension.js's own header for why that's structural, not
     // a convention).
     NoteFind,
+    // Notebook widgets W1: the $TICKER chip -- a decoration too, never content (tickerChip.js). No keys.
+    TickerChipExtension,
     // Wave D: internal note-to-note links. Same "never remove" rule as
     // WidgetEmbed above -- TipTap drops unknown node types at parse time.
     NoteLink,

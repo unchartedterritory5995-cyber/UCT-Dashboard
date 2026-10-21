@@ -4,7 +4,21 @@
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
+import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems,
+  snapshotWidgetItems, SlashList, mineItems, slashItems, __mineLoad, __resetMine,
+  pickItems, __picksLoad, __resetPicks } from './SlashMenu'
+import { __resetSetsCache } from '../../lib/notebookSets'
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
+import { createElement, useState } from 'react'
+import Toast from '../Toast'
+import { EditorContent } from '@tiptap/react'
+import { CAPTURE_FLAG_KEY } from '../../../../widgets/captureRelease'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+// jsdom has no Range layout; an editor focus() scrolls the caret into view on the next frame.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+}
 import { buildExtensions } from '../../lib/tiptap'
 import { dateSuggestPluginKey } from '../../lib/dateSuggest'
 import { PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
@@ -335,22 +349,24 @@ describe('block entries (Wave 5)', () => {
 })
 
 // UX pass 2026-10-10: a bare `/` leads with the trading blocks, then the everyday basics, then
-// everything else. Filtering by typed text is unchanged; only the bare list is grouped.
-describe('bare slash menu groups (trading first)', () => {
+// everything else. Filtering by typed text is unchanged; only the bare list is grouped. Notebook widgets
+// Task 8 split Trading into the moments a member reaches for it; with no widget wave on, the trading
+// captures and blocks all sit in Planning a trade (and Transcript passage in Reviewing).
+describe('bare slash menu groups (planning first)', () => {
   const bare = () => groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems('')])
 
-  it('the first options are trading, the headings come after them', () => {
+  it('the first options are planning a trade, the headings come after them', () => {
     const items = bare()
     expect(items[0].title).toBe('Chart')
-    expect(items[0].group).toBe('trading')
+    expect(items[0].group).toBe('plan')
     const firstHeading = items.findIndex((i) => i.title === 'Heading 1')
-    const lastTrading = items.map((i) => i.group).lastIndexOf('trading')
-    expect(firstHeading).toBeGreaterThan(lastTrading)
+    const lastPlan = items.map((i) => i.group).lastIndexOf('plan')
+    expect(firstHeading).toBeGreaterThan(lastPlan)
   })
 
-  it('groups appear in order trading, basics, more and never interleave', () => {
+  it('groups appear in order plan, review, basics, more and never interleave', () => {
     const order = bare().map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
-    expect(order).toEqual(['trading', 'basics', 'more'])
+    expect(order).toEqual(['plan', 'review', 'basics', 'more'])
   })
 
   it('no block is lost or duplicated by grouping', () => {
@@ -364,7 +380,9 @@ describe('bare slash menu groups (trading first)', () => {
     const byTitle = (t) => ITEMS.find((i) => i.title === t)
     expect(blockItemGroup(byTitle('Heading 1'))).toBe('basics')
     expect(blockItemGroup(byTitle('Heading 4'))).toBe('more')
-    expect(blockItemGroup(byTitle('Trade-plan canvas'))).toBe('trading')
+    expect(blockItemGroup(byTitle('Trade-plan canvas'))).toBe('plan')
+    expect(blockItemGroup(byTitle('Transcript passage'))).toBe('review')
+    expect(blockItemGroup(byTitle('Journal style'))).toBe('plan')
   })
 })
 
@@ -493,7 +511,7 @@ describe('/plan (Tier 2 part A)', () => {
     const bare = groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems(''), ...hints])
     expect(bare.filter((i) => i.cmd === 'plan')).toHaveLength(1)
     expect(bare.filter((i) => i.title === 'Trade plan')).toHaveLength(1)
-    expect(bare.find((i) => i.cmd === 'plan').group).toBe('trading')
+    expect(bare.find((i) => i.cmd === 'plan').group).toBe('plan')
   })
   it('is OFF with the journal-styles switch: nothing is offered', () => {
     journalStylesEnabled.mockImplementation(() => false)
@@ -531,5 +549,687 @@ describe('/remind', () => {
     expect(editor.isActive('taskItem')).toBe(true)
     expect(editor.getAttributes('taskItem').checked).toBe(false)
     expect(dateSuggestPluginKey.getState(editor.state).active).toBe(true)
+  })
+})
+
+// Notebook widgets Task 8: the / menu grouped by moment, and the fetch-and-freeze snapshot items.
+describe('snapshot widget items (Task 8)', () => {
+  const WAVES_ON = { notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true, notebook_widgets_w3_enabled: true }
+  const realFetch = global.fetch
+  let editor
+  beforeEach(() => { global.fetch = vi.fn() })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); editor?.destroy(); editor = null })
+  const mount = (content) => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content })
+    return editor
+  }
+  // The range a slash command replaces: the trailing `/...` text of the first paragraph.
+  const slashRange = (ed) => {
+    const text = ed.state.doc.firstChild.textContent
+    const at = text.lastIndexOf('/')
+    return { from: 1 + at, to: 1 + text.length }
+  }
+  const embeds = (ed) => { const o = []; ed.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') o.push(n) }); return o }
+  const bare = () => groupedSlashItems(ITEMS, [...snapshotWidgetItems(''), ...widgetItems(''), ...factItems(''), ...consensusFactItems('')])
+
+  it('snapshot_items_absent_when_wave_off', () => {
+    expect(snapshotWidgetItems('')).toEqual([])
+    expect(snapshotWidgetItems('ticker NVDA')).toEqual([])
+    expect(snapshotWidgetItems('my')).toEqual([])
+    // Control: the same queries answer once the waves are on.
+    latchNotebookFlags(WAVES_ON)
+    expect(snapshotWidgetItems('').length).toBeGreaterThan(0)
+    expect(snapshotWidgetItems('ticker NVDA').map((i) => i.title)).toEqual(['Ticker card — NVDA'])
+  })
+
+  it('wave 2 on: My rules check and My recurring mistakes appear under Reviewing; wave 2 off: neither', () => {
+    latchNotebookFlags({ notebook_widgets_w2_enabled: true })
+    const on = snapshotWidgetItems('')
+    const mine = on.filter((i) => ['My rules check', 'My recurring mistakes'].includes(i.title))
+    expect(mine.map((i) => i.title).sort()).toEqual(['My recurring mistakes', 'My rules check'])
+    expect(mine.every((i) => i.group === 'review')).toBe(true)
+    const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
+    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    expect(labels).toContain('Reviewing')
+    expect(screen.getByText('My rules check')).toBeInTheDocument()
+    expect(screen.getByText('My recurring mistakes')).toBeInTheDocument()
+    // Control: with wave 2 off (wave 1 on) neither is offered, but wave 1's Reviewing items still are.
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    const off = snapshotWidgetItems('').map((i) => i.title)
+    expect(off).not.toContain('My rules check')
+    expect(off).not.toContain('My recurring mistakes')
+    expect(off).toContain('My P&L and stats')
+  })
+
+  it('wave 3 on: Market on my names under Before the open, /flow NVDA under Planning a trade; wave 3 off: neither', () => {
+    latchNotebookFlags({ notebook_widgets_w3_enabled: true })
+    const on = snapshotWidgetItems('')
+    const names = on.find((i) => i.title === 'Market on my names')
+    const flow = on.find((i) => i.title === 'Options flow on a ticker')
+    expect(names.group).toBe('open')
+    expect(flow.group).toBe('plan')
+    expect(flow.description).toBe('Type a symbol — e.g. /flow NVDA')
+    expect(snapshotWidgetItems('flow NVDA').map((i) => i.title)).toEqual(['Options flow on a ticker — NVDA'])
+    expect(snapshotWidgetItems('flow nvda!')).toEqual([])
+    const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
+    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    expect(labels).toEqual(expect.arrayContaining(['Before the open', 'Planning a trade']))
+    expect(screen.getByText('Market on my names')).toBeInTheDocument()
+    expect(screen.getByText('Options flow on a ticker')).toBeInTheDocument()
+    // Control: with wave 3 off (waves 1 and 2 on) neither is offered, but wave 1's items still are.
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true })
+    const off = snapshotWidgetItems('').map((i) => i.title)
+    expect(off).not.toContain('Market on my names')
+    expect(off).not.toContain('Options flow on a ticker')
+    expect(snapshotWidgetItems('flow NVDA')).toEqual([])
+    expect(off).toContain('My watchlist today')
+  })
+
+  it('a wave turns on only its own kinds', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    const t = snapshotWidgetItems('').map((i) => i.title)
+    expect(t).toEqual(expect.arrayContaining(['My watchlist today', 'Ticker card', 'My P&L and stats']))
+    expect(t).not.toContain('My rules check')          // wave 2
+    expect(t).not.toContain('Market on my names')      // wave 3
+  })
+
+  it('bare_slash_groups_in_order: the menu shows the five moment labels in order', () => {
+    latchNotebookFlags(WAVES_ON)
+    const items = bare()
+    const order = items.map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
+    expect(order).toEqual(['open', 'plan', 'review', 'basics', 'more'])
+    const { container } = render(<SlashList items={items} command={() => {}} />)
+    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    expect(labels).toEqual(['Before the open', 'Planning a trade', 'Reviewing', 'Basics', 'More'])
+    expect(screen.getByText('My watchlist today')).toBeInTheDocument()
+    expect(screen.getByText('Ticker card')).toBeInTheDocument()
+    expect(screen.getByText('My P&L and stats')).toBeInTheDocument()
+    expect(screen.queryByText('Trading')).toBeNull()
+  })
+
+  it('with every wave off, the bare list keeps its old order, under Planning a trade first', () => {
+    const items = bare()
+    expect(items[0].title).toBe('Chart')
+    expect(items[0].group).toBe('plan')
+    expect(items.some((i) => i.group === 'open')).toBe(false)
+    expect(items.some((i) => i.group === 'trading')).toBe(false)
+    render(<SlashList items={items} command={() => {}} />)
+    expect(screen.getByText('Planning a trade')).toBeInTheDocument()
+    expect(screen.queryByText('Before the open')).toBeNull()
+  })
+
+  it('ticker_bare_completes: /ti offers Ticker card and completes the text to /ticker ', () => {
+    latchNotebookFlags(WAVES_ON)
+    // 'ti' also answers kinds whose words contain it ("reporting"), like any block; one item completes.
+    const items = snapshotWidgetItems('ti').filter((i) => i.cmd === 'ticker')
+    expect(items.map((i) => i.title)).toEqual(['Ticker card'])
+    expect(items[0].description).toBe('Type a symbol — e.g. /ticker NVDA')
+    const ed = mount('<p>/ti</p>')
+    items[0].command({ editor: ed, range: slashRange(ed) })
+    expect(ed.state.doc.textContent).toBe('/ticker ')
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('ticker_bad_symbol_offers_nothing: prose after /ticker offers nothing, so Enter stays a newline', () => {
+    latchNotebookFlags(WAVES_ON)
+    expect(snapshotWidgetItems('ticker looks great')).toEqual([])
+    expect(snapshotWidgetItems('ticker 123')).toEqual([])
+    expect(snapshotWidgetItems('tick NVDA')).toEqual([])   // prefix + args never matches
+    expect(snapshotWidgetItems('tickers')).toEqual([])
+    expect(snapshotWidgetItems('ticker $nvda').map((i) => i.title)).toEqual(['Ticker card — NVDA'])
+  })
+
+  it('failed_fetch_inserts_nothing: the typed command leaves, nothing goes in, and the note says so', async () => {
+    latchNotebookFlags(WAVES_ON)
+    global.fetch.mockResolvedValue({ ok: false, status: 500 })
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    const notify = vi.fn()
+    ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), notify }
+    await snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(embeds(ed)).toHaveLength(0)
+    expect(ed.state.doc.textContent).toBe('Plan ')
+    expect(notify).toHaveBeenCalledWith('Ticker card could not be loaded just now, so nothing was added.', 'error')
+  })
+
+  // The note's own toast, driven by the editor's `notify` exactly as NoteEditorPage wires it.
+  const withToast = (ed) => {
+    const set = { current: null }
+    function Host() {
+      const [t, setT] = useState(null)
+      set.current = setT
+      return <Toast message={t?.message} tone={t?.tone} onDismiss={() => setT(null)} />
+    }
+    render(<Host />)
+    ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}),
+      notify: (message, tone) => act(() => set.current({ message, tone })) }
+  }
+
+  it('R58 I-2: "Adding Ticker card…" shows the moment the command runs, then "Ticker card added."', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+    expect(embeds(ed)).toHaveLength(0)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await pending
+    expect(embeds(ed)).toHaveLength(1)
+    expect(screen.getByRole('status')).toHaveTextContent('Ticker card added.')
+  })
+
+  it('review I-3: "Adding …" stays up through a slow fetch, a second Enter says it again, and the result replaces it', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const pending = item.command({ editor: ed, range: slashRange(ed) })
+      act(() => { vi.advanceTimersByTime(10000) })
+      expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+      // The member gives up waiting and asks again: refused, and said again.
+      ed.storage.uctJournalWidgets.notify(null)
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(await item.command({ editor: ed, range: null })).toEqual({ ok: false, message: 'Adding Ticker card…' })
+      expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+      answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      await pending
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card added.')
+      // The result sentence is an ordinary toast: it goes after 4 s.
+      act(() => { vi.advanceTimersByTime(4000) })
+      expect(screen.queryByRole('status')).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('review note: a fetch that never answers is given up after 15 s, says the failed sentence and frees the guard', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let aborted = false
+    global.fetch.mockImplementation((url, init) => new Promise((_, reject) => {
+      init?.signal?.addEventListener('abort', () => { aborted = true; reject(new DOMException('aborted', 'AbortError')) })
+    }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const pending = item.command({ editor: ed, range: slashRange(ed) })
+      await act(async () => { await Promise.resolve() })
+      act(() => { vi.advanceTimersByTime(14999) })
+      expect(aborted).toBe(false)
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(await pending).toEqual({ ok: false, message: 'Ticker card could not be loaded just now, so nothing was added.' })
+      expect(aborted).toBe(true)
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card could not be loaded just now, so nothing was added.')
+      // The guard let go: the same command runs again (and answers this time).
+      global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      expect((await item.command({ editor: ed, range: null })).ok).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('review N-2: an insert that throws replaces the busy toast with the failed sentence', async () => {
+    latchNotebookFlags(WAVES_ON)
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const chain = ed.chain.bind(ed)
+    let calls = 0
+    // The second chain is the insert's: make its insertContentAt refuse the node.
+    ed.chain = () => {
+      calls += 1
+      const c = chain()
+      if (calls > 1) c.insertContentAt = () => { throw new Error('the schema refused the node') }
+      return c
+    }
+    try {
+      const out = await snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+      expect(out).toEqual({ ok: false, message: 'Ticker card could not be loaded just now, so nothing was added.' })
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card could not be loaded just now, so nothing was added.')
+      expect(screen.getByRole('status')).not.toHaveTextContent('Adding')
+      expect(embeds(ed)).toHaveLength(0)
+    } finally { ed.chain = chain }
+  })
+
+  it('review I-3: a note that turns read-only mid-fetch takes the busy toast down (it never sticks)', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+    ed.setEditable(false)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await pending
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('review m-1: the same widget asked for in another note while the first fetches is that note’s own insert', async () => {
+    latchNotebookFlags(WAVES_ON)
+    const answers = []
+    global.fetch.mockImplementation(() => new Promise((r) => { answers.push(r) }))
+    const a = mount('<p>Plan /ticker NVDA</p>')
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const b = new Editor({ element: el, extensions: buildExtensions(), content: '<p>Other /ticker NVDA</p>' })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const first = item.command({ editor: a, range: slashRange(a) })
+      const second = item.command({ editor: b, range: slashRange(b) })
+      await waitFor(() => expect(answers).toHaveLength(2))
+      for (const r of answers) r({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      expect((await first).ok).toBe(true)
+      expect((await second).ok).toBe(true)
+      expect(embeds(a)).toHaveLength(1)
+      expect(embeds(b)).toHaveLength(1)
+    } finally { b.destroy(); el.remove() }
+  })
+
+  it('R58 I-2: a second identical command while the first fetches inserts nothing; after it lands, one more does', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    const item = snapshotWidgetItems('ticker NVDA')[0]
+    const first = item.command({ editor: ed, range: slashRange(ed) })
+    ed.commands.insertContentAt(ed.state.doc.content.size - 1, '/ticker NVDA')
+    const second = await item.command({ editor: ed, range: slashRange(ed) })
+    expect(second).toEqual({ ok: false, message: 'Adding Ticker card…' })
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await first
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(embeds(ed)).toHaveLength(1)
+    // Control: the guard lets go once the first insert has landed.
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    expect((await item.command({ editor: ed, range: null })).ok).toBe(true)
+    expect(embeds(ed)).toHaveLength(2)
+  })
+
+  it('insert_places_widgetEmbed_with_frozen_params at the command position, even if the member typed meanwhile', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p><p>tail</p>')
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    // Nothing goes in until the fetch answers; the member types at the start of the note meanwhile.
+    expect(embeds(ed)).toHaveLength(0)
+    ed.chain().insertContentAt(1, 'Wait ').run()
+    answer({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA', price: 181.5, changePct: 1.2,
+    }) })
+    await pending
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/tickerCard?symbol=NVDA', expect.anything())
+    const [node] = embeds(ed)
+    expect(node).toBeTruthy()
+    expect(node.attrs.widgetId).toBe('tickerCard')
+    expect(node.attrs.mode).toBe('snapshot')
+    expect(node.attrs.capturedAt).toBe('2026-10-20T14:00:00Z')
+    expect(node.attrs.params).toMatchObject({ symbol: 'NVDA', price: 181.5, changePct: 1.2 })
+    // Placed where the command was typed: right after the typed-into first paragraph, and "tail" stays last.
+    const texts = []
+    ed.state.doc.forEach((n) => texts.push(n.type.name === 'widgetEmbed' ? '[embed]' : n.textContent))
+    expect(texts[0].trim()).toBe('Wait Plan')
+    expect(texts[1]).toBe('[embed]')
+    expect(texts[texts.length - 1]).toBe('tail')
+  })
+
+  it('a no-symbol kind inserts directly from the bare menu', async () => {
+    latchNotebookFlags(WAVES_ON)
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', listLabel: 'Watchlist', rows: [], truncated: 0,
+    }) })
+    const item = snapshotWidgetItems('').find((i) => i.title === 'My watchlist today')
+    expect(item.group).toBe('open')
+    const ed = mount('<p>/my</p>')
+    await item.command({ editor: ed, range: slashRange(ed) })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myWatchlistToday', expect.anything())
+    expect(embeds(ed).map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
+  })
+
+  it('a note that turned read-only while the fetch ran gets nothing (final review M-2)', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    ed.setEditable(false)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    const out = await pending
+    expect(global.fetch).toHaveBeenCalledTimes(1)                    // non-vacuity: the fetch did answer
+    expect(out).toEqual({ ok: false, message: null })
+    expect(embeds(ed)).toHaveLength(0)
+    // Control: the same answer lands while the note stays editable.
+    ed.setEditable(true)
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    ed.commands.setContent('<p>Plan /ticker NVDA</p>')
+    expect((await snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })).ok).toBe(true)
+    expect(embeds(ed)).toHaveLength(1)
+  })
+
+  it('R58 I-11: each near-duplicate pair reads differently in the menu: the snapshot refreshes, the capture is frozen', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w3_enabled: true,
+      notebook_widgets_w4_enabled: true, notebook_widgets_w6_enabled: true })
+    localStorage.setItem(CAPTURE_FLAG_KEY, '1')
+    try {
+      render(<SlashList items={snapshotWidgetItems('')} command={() => {}} />)
+      const hint = (title) => screen.getByText(title).closest('button').textContent
+      expect(hint('My watchlist today')).toContain('refreshes')
+      expect(hint('Watchlist snapshot')).toContain('as on Charts, frozen')
+      expect(hint('Market on my names')).toContain('refreshes')
+      expect(hint('Market context')).toContain("The Morning Wire's market read, frozen")
+      expect(hint('Scan results')).toContain('as on Charts, frozen')
+    } finally { localStorage.removeItem(CAPTURE_FLAG_KEY) }
+  })
+
+  it('/market and /marketcontext both reach Market context once W4 is on and the capture switch releases it', () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: true })
+    localStorage.setItem(CAPTURE_FLAG_KEY, '1')
+    try {
+      expect(snapshotWidgetItems('market').map((i) => i.title)).toEqual(['Market context'])
+      expect(snapshotWidgetItems('marketcontext').map((i) => i.title)).toEqual(['Market context'])
+      // Control: a word that is neither the title nor the keyword offers nothing.
+      expect(snapshotWidgetItems('marketcontextx')).toEqual([])
+    } finally { localStorage.removeItem(CAPTURE_FLAG_KEY) }
+  })
+})
+
+// Notebook widgets Task 17: the member's chart sets and presets, under "My presets", wave 5 only.
+// mineItems is SYNCHRONOUS (fix round 1): it answers what is loaded and starts one background load.
+describe('chart sets and presets (Task 17)', () => {
+  const realFetch = global.fetch
+  const SEMIS = { id: 's_1', name: 'Semis', charts: [{ symbol: 'NVDA', tf: 'D' }, { symbol: 'AMD', tf: '60' }] }
+  const PRESET = { id: 'p_1', name: 'Flagged only', kind: 'myWatchlistToday', params: { list: 'flagged', share: false } }
+  const W5 = { notebook_widgets_w1_enabled: true, notebook_widgets_w5_enabled: true }
+  const PREFS = { notebook_chart_sets: JSON.stringify({ v: 1, sets: [SEMIS], presets: [PRESET] }) }
+  let editor
+  const prefsFetch = () => vi.fn(async (url, init = {}) => (url === '/api/auth/preferences' && !init.method
+    ? { ok: true, status: 200, json: async () => PREFS }
+    : { ok: false, status: 500, json: async () => ({}) }))
+  beforeEach(() => { __resetSetsCache(); __resetMine(); global.fetch = prefsFetch() })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); editor?.destroy(); editor = null })
+  const loaded = async (q) => { mineItems(q); await __mineLoad(); return mineItems(q) }
+  const labelsOf = (items) => {
+    const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
+    const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    unmount()
+    return out
+  }
+
+  it('slash_set_absent_when_w5_off', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    for (const q of ['set', 'set semis', 'preset', '']) expect(mineItems(q)).toEqual([])
+    await __mineLoad()
+    // Off, the menu never reads the preference at all.
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(slashItems('set', null).map((i) => i.title)).not.toContain('Manage chart sets')
+    expect(labelsOf(slashItems('', null))).not.toContain('My presets')
+    // Control: the same queries answer once wave 5 is on and the background load has landed.
+    __resetNotebookFlags()
+    latchNotebookFlags(W5)
+    expect((await loaded('set')).map((i) => i.title)).toEqual(['Set — Semis', 'Manage chart sets'])
+    expect(mineItems('set sem').map((i) => i.title)).toEqual(['Set — Semis'])
+    expect(mineItems('set nope')).toEqual([])
+  })
+
+  it('answers at once, loads ONCE in the background, and backs off 30 s after a failure', async () => {
+    latchNotebookFlags(W5)
+    expect(mineItems('')).toEqual([])           // nothing loaded yet: no wait, no rows
+    for (const q of ['s', 'se', 'set']) mineItems(q)
+    await __mineLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(1)  // ONE shared read for every keystroke
+    expect(mineItems('').length).toBe(3)
+    // A failing endpoint is not asked again on every keystroke.
+    __resetSetsCache(); __resetMine()
+    global.fetch = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+    mineItems(''); await __mineLoad()
+    for (const q of ['s', 'se', 'set']) mineItems(q)
+    await __mineLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("R60 (privacy M-5): a read member A started never shows in member B's menu on the same browser", async () => {
+    latchNotebookFlags(W5)
+    const prefsOf = (name) => ({ notebook_chart_sets: JSON.stringify({ v: 1, presets: [],
+      sets: [{ id: 's_1', name, charts: [{ symbol: 'NVDA', tf: 'D' }] }] }) })
+    let answerA
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { answerA = r }))
+      .mockImplementationOnce(async () => ({ ok: true, status: 200, json: async () => prefsOf('B set') }))
+    const asMember = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    mineItems('set', asMember('A'))                  // A's read starts and is still in flight...
+    mineItems('set', asMember('B'))                  // ...when B signs in on the same tab
+    await __mineLoad()
+    answerA({ ok: true, status: 200, json: async () => prefsOf('A set') })
+    await new Promise((r) => setTimeout(r, 0))
+    const titles = mineItems('set', asMember('B')).map((i) => i.title)
+    expect(global.fetch).toHaveBeenCalledTimes(2)    // non-vacuity: both reads ran, and A's did land
+    expect(titles).toContain('Set — B set')
+    expect(titles).not.toContain('Set — A set')
+    render(<SlashList items={mineItems('set', asMember('B'))} command={() => {}} />)
+    expect(screen.getByText('Set — B set')).toBeInTheDocument()
+    expect(screen.queryByText('Set — A set')).toBeNull()
+  })
+
+  it('a bare / shows the member presets and sets under "My presets"', async () => {
+    latchNotebookFlags(W5)
+    const items = slashItems('', null, await loaded(''))
+    expect(labelsOf(items)).toContain('My presets')
+    expect(items.filter((i) => i.group === 'mine').map((i) => i.title))
+      .toEqual(['Preset — Flagged only', 'Set — Semis', 'Manage chart sets'])
+  })
+
+  it('/preset lists presets under "My presets" and inserts with the normal fetch-and-freeze', async () => {
+    latchNotebookFlags(W5)
+    const typed = slashItems('preset', null, await loaded('preset'))
+    expect(typed[0]).toMatchObject({ title: 'Preset — Flagged only', group: 'mine' })
+    expect(labelsOf(typed)).toContain('My presets')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', listLabel: 'Flagged', rows: [], truncated: 0,
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/preset</p>' })
+    await typed[0].command({ editor, range: { from: 1, to: 1 + '/preset'.length } })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myWatchlistToday?list=flagged', expect.anything())
+    const embeds = []
+    editor.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') embeds.push(n) })
+    expect(embeds.map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
+    expect(embeds[0].attrs.params.share).toBe(false)
+  })
+
+  // Through the REAL SlashMenuExtension and Suggestion: the read must never hold the menu.
+  describe('the rendered menu while the read is pending', () => {
+    let release
+    beforeEach(() => {
+      global.fetch = vi.fn((url) => (url === '/api/auth/preferences'
+        ? new Promise((resolve) => { release = () => resolve({ ok: true, status: 200, json: async () => PREFS }) })
+        : Promise.resolve({ ok: false, status: 500, json: async () => ({}) })))
+    })
+    afterEach(() => { cleanup(); document.querySelectorAll('#uct-slash-menu').forEach((n) => n.parentElement?.remove()) })
+    const menus = () => [...document.querySelectorAll('#uct-slash-menu')].filter((n) => n.parentElement?.style.display !== 'none')
+    const pressKey = (k) => editor.view.someProp('handleKeyDown', (f) => f(editor.view, new KeyboardEvent('keydown', { key: k })))
+    async function typeSlash() {
+      const el = document.createElement('div')
+      document.body.appendChild(el)
+      editor = new Editor({ element: el, extensions: buildExtensions(),
+        content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }] } })
+      render(createElement(EditorContent, { editor }))
+      editor.commands.focus('end', { scrollIntoView: false })
+      await act(async () => { editor.commands.insertContent('/') })
+    }
+
+    it('a bare / renders Basics immediately while the preference read is pending', async () => {
+      latchNotebookFlags(W5)
+      await typeSlash()
+      await waitFor(() => expect(menus()).toHaveLength(1))
+      expect(menus()[0].parentElement.textContent).toContain('Basics')
+      expect(screen.getByText('Heading 1')).toBeInTheDocument()
+      expect(release).toBeTypeOf('function')   // control: the read really is still pending
+      expect(menus()[0].parentElement.textContent).not.toContain('My presets')
+    })
+
+    it('a read that lands after Escape mounts no popup', async () => {
+      latchNotebookFlags(W5)
+      await typeSlash()
+      await waitFor(() => expect(menus()).toHaveLength(1))
+      await act(async () => { pressKey('Escape') })
+      expect(menus()).toHaveLength(0)
+      await act(async () => { release(); await __mineLoad() })
+      expect(menus()).toHaveLength(0)
+      expect(document.body.textContent).not.toContain('Set — Semis')
+    })
+  })
+})
+
+// Notebook widgets Task 20 (wave 6): the four kinds that need no choice insert directly; /recap and /screen list
+// the member's own trades and screens (pickItems: synchronous, one background load, never awaited).
+describe('wave 6 snapshot kinds (Task 20)', () => {
+  const realFetch = global.fetch
+  const W6 = { notebook_widgets_w6_enabled: true }
+  const TRADES = Array.from({ length: 7 }, (_, i) => ({ id: `tr-${i}`, symbol: 'NVDA', side: 'Long', exitDate: `2026-10-0${i + 1}` }))
+  const SCREENS = Array.from({ length: 6 }, (_, i) => ({ def_id: `u:${i}`, scannable: true, definition: { meta: { name: `Screen ${i}` } } }))
+  const routes = (url) => {
+    if (url === '/api/j2/trades?limit=10') return { trades: TRADES }
+    if (url === '/api/user-definitions') return { definitions: SCREENS }
+    return null
+  }
+  let editor
+  beforeEach(() => {
+    __resetPicks()
+    global.fetch = vi.fn(async (url) => {
+      const body = routes(url)
+      return body ? { ok: true, status: 200, json: async () => body } : { ok: false, status: 500, json: async () => ({}) }
+    })
+  })
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); editor?.destroy(); editor = null })
+  const loaded = async (q) => { pickItems(q); await __picksLoad(); return pickItems(q) }
+  const DIRECT = ['My P&L calendar', 'My setup edge', 'Room buzz on my names', 'My earnings reactions']
+
+  it('wave 6 off: none of the six is offered and nothing is read', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w5_enabled: false })
+    const titles = snapshotWidgetItems('').map((i) => i.title)
+    for (const t of [...DIRECT, 'Trade recap', 'My screen today']) expect(titles).not.toContain(t)
+    for (const q of ['', 'recap', 'screen', 'recap nvda']) expect(pickItems(q)).toEqual([])
+    await __picksLoad()
+    expect(global.fetch).not.toHaveBeenCalled()
+    // Control: wave 1 is on, so its items still are.
+    expect(titles).toContain('My watchlist today')
+  })
+
+  it('wave 6 on: the four direct kinds insert from the bare menu; Trade recap and My screen today never insert bare', () => {
+    latchNotebookFlags(W6)
+    const items = snapshotWidgetItems('')
+    const titles = items.map((i) => i.title)
+    expect(titles).toEqual(expect.arrayContaining(DIRECT))
+    expect(titles).not.toContain('Trade recap')
+    expect(titles).not.toContain('My screen today')
+    const group = (t) => items.find((i) => i.title === t).group
+    expect([group('Room buzz on my names'), group('My earnings reactions')]).toEqual(['open', 'open'])
+    expect([group('My P&L calendar'), group('My setup edge')]).toEqual(['review', 'review'])
+    expect(snapshotWidgetItems('buzz').map((i) => i.title)).toEqual(['Room buzz on my names'])
+    expect(snapshotWidgetItems('edge').map((i) => i.title)).toEqual(['My setup edge'])
+  })
+
+  it('answers at once (nothing loaded yet), reads ONCE in the background, then lists the rows', async () => {
+    latchNotebookFlags(W6)
+    expect(pickItems('recap')).toEqual([])
+    for (const q of ['r', 're', 'rec', 'recap']) pickItems(q)
+    await __picksLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(2)       // the trades read and the screens read, once
+    expect(pickItems('recap').map((i) => i.title)[0]).toBe('Recap — NVDA long, Oct 1')
+    expect(pickItems('recap')).toHaveLength(7)
+    expect(pickItems('screen').map((i) => i.title)).toEqual(SCREENS.map((r) => `Screen — ${r.definition.meta.name}`))
+  })
+
+  it('the rows are keyed to the signed-in member: another member never sees them (final review M-3)', async () => {
+    latchNotebookFlags(W6)
+    const as = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    pickItems('recap', as('member-a')); await __picksLoad()
+    expect(pickItems('recap', as('member-a'))).toHaveLength(7)       // control: A's rows, loaded once
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    // Member B signs in in the same tab: nothing of A's, and B's own load starts.
+    const held = []
+    global.fetch = vi.fn((url) => new Promise((r) => { held.push(() => r({ ok: true, status: 200,
+      json: async () => (url === '/api/j2/trades?limit=10' ? { trades: [TRADES[0]] } : { definitions: [] }) })) }))
+    expect(pickItems('recap', as('member-b'))).toEqual([])
+    await vi.waitFor(() => expect(held).toHaveLength(2))
+    // A's tab state is not consulted again while B is signed in, and a load A started cannot land as B's.
+    expect(pickItems('recap', as('member-b'))).toEqual([])
+    held.forEach((go) => go()); await __picksLoad()
+    expect(pickItems('recap', as('member-b'))).toHaveLength(1)
+  })
+
+  it("a load the previous member started never lands as the next member's rows (final review M-3)", async () => {
+    latchNotebookFlags(W6)
+    const as = (uid) => ({ storage: { uctJournalWidgets: { uid } } })
+    const held = []
+    global.fetch = vi.fn((url) => new Promise((r) => { held.push(() => r({ ok: true, status: 200, json: async () => routes(url) })) }))
+    expect(pickItems('recap', as('member-a'))).toEqual([])           // A's load starts, still in flight
+    await vi.waitFor(() => expect(held).toHaveLength(2))
+    expect(pickItems('recap', as('member-b'))).toEqual([])           // B signs in: a fresh slot, B's own load
+    await vi.waitFor(() => expect(held).toHaveLength(4))
+    held.slice(0, 2).forEach((go) => go())                           // A's answer arrives first
+    await new Promise((r) => setTimeout(r, 0))
+    expect(pickItems('recap', as('member-b'))).toEqual([])           // ...and is not B's
+    held.slice(2).forEach((go) => go()); await __picksLoad()
+    expect(pickItems('recap', as('member-b'))).toHaveLength(7)       // control: B's own load lands
+  })
+
+  it('a failed load backs off 30 s: no read on every keystroke', async () => {
+    latchNotebookFlags(W6)
+    global.fetch = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+    pickItems(''); await __picksLoad()
+    for (const q of ['r', 're', 'rec']) pickItems(q)
+    await __picksLoad()
+    expect(global.fetch).toHaveBeenCalledTimes(2)       // one load = the two reads; no second load
+    expect(pickItems('recap')).toEqual([])
+  })
+
+  it('a bare / caps each at five, under Before the open and Reviewing', async () => {
+    latchNotebookFlags(W6)
+    const items = slashItems('', null, await loaded(''))
+    expect(items.filter((i) => i.cmd === 'recap')).toHaveLength(5)
+    expect(items.filter((i) => i.cmd === 'screen')).toHaveLength(5)
+    expect(new Set(items.filter((i) => i.cmd === 'recap').map((i) => i.group))).toEqual(new Set(['review']))
+    expect(new Set(items.filter((i) => i.cmd === 'screen').map((i) => i.group))).toEqual(new Set(['open']))
+  })
+
+  it('a recap row inserts Trade recap through the one fetch-and-freeze, with its tradeId', async () => {
+    latchNotebookFlags(W6)
+    const [row] = await loaded('recap')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'manual', symbol: 'NVDA', side: 'Long', exitDate: '2026-10-01', bars: [],
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/recap</p>' })
+    await row.command({ editor, range: { from: 1, to: 1 + '/recap'.length } })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/tradeRecap?tradeId=tr-0', expect.anything())
+    const embeds = []
+    editor.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') embeds.push(n) })
+    expect(embeds.map((n) => n.attrs.widgetId)).toEqual(['tradeRecap'])
+    expect(embeds[0].attrs.params).toMatchObject({ tradeId: 'tr-0', symbol: 'NVDA', share: false })
+    expect(embeds[0].attrs.searchText).toBe('[trade recap: NVDA Long · 2026-10-01]')
+  })
+
+  it('a screen row inserts My screen today with its definitionId', async () => {
+    latchNotebookFlags(W6)
+    const row = (await loaded('screen')).find((i) => i.title === 'Screen — Screen 2')
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({
+      asOf: '2026-10-20T14:00:00Z', source: 'market', name: 'Screen 2', hits: [], coverage: null, empty: 'x',
+    }) }))
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/screen</p>' })
+    await row.command({ editor, range: { from: 1, to: 1 + '/screen'.length } })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myScreenToday?definitionId=u%3A2', expect.anything())
   })
 })

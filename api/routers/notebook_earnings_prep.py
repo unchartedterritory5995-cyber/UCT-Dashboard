@@ -14,6 +14,8 @@ The rules (the template gallery's, `notebook_template_gallery.py`):
   * NO NOTE IS WRITTEN HERE. The draft returns facts; the member's click creates the note
     through the client's one create door (`createNoteViaApi`), so this router can never
     create a note on its own (decision R5).
+  * THE LIST NEVER WALKS ON ITS REQUEST THREAD: it reads the window through
+    `notebook_widgets.earnings_window_for` (bounded, one shared walk), fix F1b review I-1.
   * THE CAP: 20 drafts a member an ET day (`NOTEBOOK_EARNINGS_PREP_DAILY_CAP`, read per call),
     durable in `daily_usage_counters`, so a deploy never resets it. A draft that fails is
     given back. The list is not counted: it is one cached calendar walk and DB reads.
@@ -59,7 +61,22 @@ def _usage(day: str, user: dict) -> dict[str, Any]:
 
 @router.get("/soon")
 def reporting_soon(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return prep.reporting_soon(str(user["id"]))
+    """⛔ NEVER THE CALENDAR WALK ON THIS REQUEST THREAD (fix F1b, review I-1). A cold cache used to
+    walk up to 8 days x two vendors x a 10 s timeout here, once per concurrent request. The window is
+    read through the notebook widgets' bounded, single-flighted reader instead (the same pool and walk
+    table the widgets use): a cached window answers
+    at once, a miss joins ONE shared walk and waits at most its budget, and a window that could not be
+    read in time answers the route's partial form (no items, `partial: true`), never "none report"."""
+    today = prep._today_et()
+    return prep.reporting_soon(str(user["id"]), today=today, window_read=_bounded_window(today))
+
+
+def _bounded_window(today) -> tuple:
+    """The calendar window through the widgets' bounded, single-flighted reader, or the UNKNOWN window
+    (nothing read, `partial` true) when it could not be read in time. Never a walk on this thread."""
+    from api.services.journal_two import notebook_widgets
+    read = notebook_widgets.earnings_window_for(today)
+    return read if read is not None else prep.unknown_window()
 
 
 @router.post("/{symbol}/draft")
@@ -74,7 +91,13 @@ def draft_prep(symbol: str, user: dict = Depends(require_paid)) -> dict[str, Any
     if daily_counters.take(day, [charge]) is not None:
         raise HTTPException(status_code=429, detail=prep.cap_sentence())
     try:
-        out = prep.draft(str(user["id"]), sym)
+        # ⛔ Fix F1b (ruling R65, H14): the draft never walks the calendar on this thread either. A window
+        # not read in time is the unknown window: the date then comes from the earnings record (labelled),
+        # or is the labelled missing cell, exactly as for a name the window does not list.
+        today_d = prep._today_et()
+        # Inside `_safe` (review m1): a window read that ever raised is the unknown window, never a 500.
+        window = prep._safe(_bounded_window, today_d, fallback=prep.unknown_window())
+        out = prep.draft(str(user["id"]), sym, today=today_d, window_read=window)
     except Exception:
         daily_counters.give_back(day, [daily_counters.Charge(prep.DAILY_SCOPE, str(user["id"]), 1)])
         raise

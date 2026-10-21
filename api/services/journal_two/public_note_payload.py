@@ -92,6 +92,8 @@ from __future__ import annotations
 import copy
 import json
 import re
+import threading
+import time
 import unicodedata
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote, urlsplit
@@ -214,6 +216,12 @@ def _email_in_href(href: Any) -> str | None:
 #: links by the owner's L3). Adjacent ones collapse to one.
 NEUTRAL_LINE = "A market-data item is not shown on public pages."
 
+#: The neutral line for a member's own ACCOUNT figures (Notebook widgets, Task 5): P&L, open
+#: positions, rules and mistakes. Different words from NEUTRAL_LINE on purpose: the reason a
+#: stranger does not see it is the member's privacy, not a vendor licence. Adjacent runs of the
+#: SAME line collapse to one; a market line beside an account line stays two.
+ACCOUNT_NEUTRAL_LINE = "A private account item is not shown on public pages."
+
 #: What a noteLink becomes (ruling D-B7): no id and no title leaves.
 LINKED_NOTE_TEXT = "linked note"
 
@@ -283,6 +291,25 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeReview"): "private",
     # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
     ("widgetEmbed", "moodCheckIn"): "private",
+    # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
+    # account kinds to "member-optin"; until then they are the neutral private line.
+    ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
+    ("widgetEmbed", "myNamesReporting"): "mixed",    # earnings windows over the member's names
+    ("widgetEmbed", "tickerCard"): "mixed",          # one ticker's prices, earnings and the member's history
+    # "member-optin": an ACCOUNT figure. Neutral on every public page unless the member switched
+    # `params.share` on in the editor, and then only the keys EMBED_PARAM_KEYS names (never positionId).
+    ("widgetEmbed", "myPnlStats"): "member-optin",        # the member's own P&L and stats
+    ("widgetEmbed", "myPositionsRisk"): "member-optin",   # the member's own open positions and risk
+    ("widgetEmbed", "myRulesCheck"): "member-optin",      # later waves, declared now so a stored node fails closed
+    ("widgetEmbed", "myMistakes"): "member-optin",
+    ("widgetEmbed", "tradeRecap"): "member-optin",
+    ("widgetEmbed", "myPnlCalendar"): "member-optin",
+    ("widgetEmbed", "mySetupEdge"): "member-optin",
+    ("widgetEmbed", "marketOnMyNames"): "mixed",
+    ("widgetEmbed", "tickerFlow"): "mixed",
+    ("widgetEmbed", "myScreenToday"): "mixed",
+    ("widgetEmbed", "roomBuzzOnMyNames"): "mixed",
+    ("widgetEmbed", "myEarningsReactions"): "mixed",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",
@@ -307,6 +334,9 @@ VENDOR_VERDICT: dict[str, str] = {
     "mixed": NEUTRAL,      # not attributable to an approved vendor alone (L3 as sent)
     "document": NEUTRAL,   # D-B4, unchanged
     "private": NEUTRAL,    # member-private, not a vendor question at all
+    # An account figure the MEMBER may switch on (`params.share is True`). Any caller that asks the
+    # table and ignores the switch gets NEUTRAL: fails closed. `_market_data` is what reads the switch.
+    "member-optin": NEUTRAL,
 }
 
 
@@ -455,7 +485,107 @@ def attr_decision(row: str, mode: str) -> str:
     return decision["gallery"] if mode == "example" else decision[mode]
 EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
+    # Account kinds: kept ONLY when the member switched `share` on. `truncated`/`partial` are the
+    # builders' own honesty flags. NEVER `positionId`: every row passes EMBED_ROW_KEYS (R60).
+    # `tooLarge` + `empty` (the too-large sentence), `truncated` (rows the cap dropped) and
+    # `mistakesTruncated` (tags past MISTAKES_MAX) are the CAP's honesty flags (notebook_widgets.cap_payload),
+    # kept for every kind the cap can set them on, so a stranger reads the sentence and the "+n more" the
+    # member does (fix F1b, review M-4). Railed against the cap's real output.
+    "myPnlStats": ("asOf", "source", "range", "netPnl", "winRate", "avgR", "tradeCount", "equity", "empty", "share",
+                   "truncated", "tooLarge"),
+    "myPositionsRisk": ("asOf", "source", "accountSize", "accountSizeSource", "rows", "empty", "share", "truncated", "partial",
+                        "tooLarge"),
+    "myRulesCheck": ("asOf", "source", "range", "kept", "total", "rules", "empty", "share", "truncated", "tooLarge"),
+    "myMistakes": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
+    # Wave 6. ⛔ NEVER `tradeId`: it names one of the member's trades, and the builder's own payload
+    # carries no id, so a shown recap needs none. The settings key stays home with the rest.
+    "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
+                   "r", "pnl", "setup", "holdDays", "mistakes", "bars", "share",
+                   "empty", "truncated", "tooLarge", "mistakesTruncated"),
+    "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
+    "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
 }
+
+#: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
+#: object kept by EMBED_PARAM_KEYS goes through this table: a dict item keeps ONLY the keys named here, and
+#: only their scalar values (a nested id, an unknown key, a key a builder adds later or an imported row's
+#: extra all stay home); `SCALAR_ITEMS` names a list of scalars (a recap's mistake tags) and `PAIR_ITEMS` a
+#: list of scalar pairs (the equity curve's [day, value]). A structured param this table does not name is
+#: not published.
+class _ItemShape:
+    """A list-item mode for EMBED_ROW_KEYS, told apart by IDENTITY (`is`), never by equality (fix F1b,
+    review M-6: `keys == ()` was true for ANY empty tuple, so an entry written `()` to mean "keep no keys"
+    would have passed every scalar item through). As a key list it names NO key, so a shape placed where a
+    dict's keys are read keeps nothing (fails closed)."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __iter__(self):
+        return iter(())
+
+    def __contains__(self, _key: object) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return self.name
+
+
+SCALAR_ITEMS = _ItemShape("SCALAR_ITEMS")
+PAIR_ITEMS = _ItemShape("PAIR_ITEMS")
+EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
+    "myPnlStats": {"range": ("from", "to"), "equity": PAIR_ITEMS},
+    "myPositionsRisk": {"rows": ("symbol", "side", "kind", "sizePct", "openPnl", "stopPrice", "distToStopPct",
+                                 "noStop")},
+    "myRulesCheck": {"range": ("from", "to"), "rules": ("rule", "kept", "total")},
+    "myMistakes": {"rows": ("mistake", "cost30d", "countNow", "countPrior", "trend")},
+    "tradeRecap": {"bars": ("t", "o", "h", "l", "c"), "mistakes": SCALAR_ITEMS},
+    "myPnlCalendar": {"days": ("day", "pnl"), "best": ("day", "pnl"), "worst": ("day", "pnl")},
+    "mySetupEdge": {"rows": ("setup", "n", "expectancyR", "winRate", "thin")},
+}
+
+
+def _scalar(v: Any) -> bool:
+    return v is None or isinstance(v, (str, int, float, bool))
+
+
+def _allowed_item(item: Any, keys: Any) -> Any:
+    """One list item through its allowlist, or `_DROP`. The two item shapes are matched by identity; any
+    other entry is a tuple of key names, and `()` keeps no key of a dict and drops a scalar (fails closed)."""
+    if keys is SCALAR_ITEMS:
+        return item if _scalar(item) else _DROP
+    if keys is PAIR_ITEMS:
+        ok = isinstance(item, (list, tuple)) and len(item) == 2 and all(_scalar(x) for x in item)
+        return list(item) if ok else _DROP
+    if isinstance(item, dict) and isinstance(keys, tuple):
+        return {k: item[k] for k in keys if k in item and _scalar(item[k])}
+    return _DROP
+
+
+_DROP = object()
+
+
+def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
+    """`params` reduced to what a stranger may read for this shown widget: the EMBED_PARAM_KEYS names, each
+    structured value through EMBED_ROW_KEYS (ruling R60). Scalars pass as they are."""
+    rows = EMBED_ROW_KEYS.get(widget_id, {}) if isinstance(widget_id, str) else {}
+    out: dict[str, Any] = {}
+    for k in EMBED_PARAM_KEYS.get(widget_id, ()) if isinstance(widget_id, str) else ():
+        if k not in params:
+            continue
+        v = params[k]
+        if _scalar(v):
+            out[k] = v
+        elif k not in rows:
+            continue                                     # a structure nobody vetted stays home
+        elif isinstance(v, dict):
+            out[k] = {f: v[f] for f in rows[k] if f in v and _scalar(v[f])}
+        elif isinstance(v, list):
+            # Review m7: a `()` entry names no key, so it publishes NO items -- never one `{}` per item, which
+            # would still tell a stranger how many rows (or bars) the member has.
+            out[k] = ([] if rows[k] == () else
+                      [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
+    return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
 #: paragraph rather than becoming a document the editor refuses to read.
@@ -1163,13 +1293,32 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
     return node
 
 
-def _neutral() -> dict:
-    return {"type": "paragraph", "content": [{"type": "text", "text": NEUTRAL_LINE}]}
+def _neutral(line: str = NEUTRAL_LINE) -> dict:
+    return {"type": "paragraph", "content": [{"type": "text", "text": line}]}
 
 
-def _is_neutral(node: Any) -> bool:
-    return (isinstance(node, dict) and node.get("type") == "paragraph"
-            and node.get("content") == [{"type": "text", "text": NEUTRAL_LINE}])
+def _neutral_line_of(node: Any) -> str | None:
+    """Which neutral line this node is (market or account), or None when it is neither."""
+    if isinstance(node, dict) and node.get("type") == "paragraph":
+        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE):
+            if node.get("content") == [{"type": "text", "text": line}]:
+                return line
+    return None
+
+
+def _is_neutral(node: Any, line: str | None = None) -> bool:
+    """A neutral line. With `line`, exactly that one; without, either."""
+    found = _neutral_line_of(node)
+    return found is not None and (line is None or found == line)
+
+
+def _is_account_kind(widget_id: Any) -> bool:
+    return MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "member-optin"
+
+
+def _neutral_for_embed(widget_id: Any) -> dict:
+    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
+    return _neutral(ACCOUNT_NEUTRAL_LINE if _is_account_kind(widget_id) else NEUTRAL_LINE)
 
 
 def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
@@ -1255,11 +1404,16 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     if t == "widgetEmbed":
         widget_id = attrs.get("widgetId")
-        if market_data_verdict("widgetEmbed", widget_id) != SHOWN:
-            return [_neutral()]
-        kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
         params = attrs.get("params") if isinstance(attrs.get("params"), dict) else {}
-        kept["params"] = {k: params[k] for k in EMBED_PARAM_KEYS.get(widget_id, ()) if k in params}
+        if _is_account_kind(widget_id):
+            # The member's switch, read BEFORE the vendor verdict (which is NEUTRAL for this vendor).
+            # Only a real boolean True shows: "true", 1 and everything else are the neutral line.
+            if params.get("share") is not True:
+                return [_neutral_for_embed(widget_id)]
+        elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
+            return [_neutral_for_embed(widget_id)]
+        kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
+        kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1298,7 +1452,8 @@ def _reduce_children(children: Any, ctx: _Ctx) -> list:
             ctx.path.pop()
         placed = None
         for reduced in produced:
-            if _is_neutral(reduced) and out and _is_neutral(out[-1]):
+            line = _neutral_line_of(reduced)
+            if line is not None and out and _neutral_line_of(out[-1]) == line:
                 placed = len(out) - 1 if placed is None else placed
                 continue                             # ONE neutral line for a run of them
             placed = len(out) if placed is None else placed
@@ -1371,8 +1526,8 @@ def _example_neutral(node: dict, ctx: _Ctx) -> list:
         widget_id = attrs.get("widgetId")
         if widget_id in trader_blocks.BLOCK_IDS:
             return _reset_block(attrs, ctx)
-        if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "private":
-            ctx.note("dropped", widget_id)
+        if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) in ("private", "member-optin"):
+            ctx.note("dropped", widget_id)           # an account kind is dropped in an example, as private was
             return []
         ctx.note("market_data", widget_id)
         return [_neutral()]
@@ -1397,7 +1552,12 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         ctx.note("dropped", t)
         return []
     if action == "neutral":
-        return _example_neutral(node, ctx) if ctx.example else [_neutral()]
+        if ctx.example:
+            return _example_neutral(node, ctx)
+        if t == "widgetEmbed":                       # gallery: the line is chosen by the kind, same helper
+            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+            return [_neutral_for_embed(attrs.get("widgetId"))]
+        return [_neutral()]
     if action == "market-data":
         return _market_data(node, ctx)
     if action == "linked-note":
@@ -1557,6 +1717,76 @@ def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: s
     }
 
 
+def referenced_images(payload: Any, attachment_base: str) -> frozenset[str]:
+    """Ruling R59: the `"<sub>/<filename>"` set of THIS note's attachments that a REDUCED public payload
+    references, from whatever attribute carries them (image and figure `src`, a card's image, the hero, a
+    widget's `fallback.url`, and any image-bearing attribute added later), because it reads every string the
+    payload holds rather than a list of attribute names. The public image proxies serve only this set, so a
+    file the page stopped naming (a widget switched back to private, an image deleted from a shared note)
+    is the same not-found as a file that never existed."""
+    if not attachment_base:
+        return frozenset()
+    text = json.dumps(payload, ensure_ascii=False)
+    pattern = re.escape(attachment_base) + r"(inline|hero)/([^\"\\/?#\s]+)"
+    return frozenset(f"{m.group(1)}/{m.group(2)}" for m in re.finditer(pattern, text))
+
+
+#: How long one note revision's reference set is reused (R59): a page's images are fetched in a burst.
+REFERENCE_SET_TTL_S = 60.0
+_REF_SETS: dict[tuple, tuple[float, frozenset[str]]] = {}
+_REF_SETS_MAX = 500
+_REF_LOCK = threading.Lock()
+#: Fix F1b (review M-2): ONE computation per cold key. A page's images arrive as a burst, and each miss is a
+#: full `public_note` reduction plus `public_facts`; the burst now waits on the first request's answer. A
+#: waiter holds a request thread, so at most `REFERENCE_SET_WAITERS` wait, each at most
+#: `REFERENCE_SET_WAIT_S`; any other computes its own (the old behaviour, never a refusal).
+REFERENCE_SET_WAITERS = 16
+REFERENCE_SET_WAIT_S = 10.0
+_REF_FLIGHT: Any = None
+
+
+def _reference_flight() -> Any:
+    """The reference sets' single-flight table (notebook_widgets.SingleFlight, created on first use)."""
+    global _REF_FLIGHT
+    with _REF_LOCK:
+        if _REF_FLIGHT is None:
+            from api.services.journal_two.notebook_widgets import SingleFlight
+            _REF_FLIGHT = SingleFlight(REFERENCE_SET_WAITERS, name="public reference set")
+        return _REF_FLIGHT
+
+
+def cached_reference_set(key: tuple, compute: Callable[[], frozenset[str]], *,
+                         now: Callable[[], float] | None = None) -> frozenset[str]:
+    """`compute()`'s set, held `REFERENCE_SET_TTL_S` per `key`. The caller's key names the note AND its
+    revision (`updated_at`), so a write that drops an image is never answered from the old set. Bounded:
+    past `_REF_SETS_MAX` keys the oldest entries go. Per process.
+
+    Concurrent misses for one key compute it ONCE (review M-2): the first runs `compute` on its own thread
+    (it reads through the request's own sqlite connection, which is bound to that thread, so never a pool)
+    and the rest take its answer."""
+    t = (now or time.monotonic)()
+    with _REF_LOCK:
+        hit = _REF_SETS.get(key)
+        if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
+            return hit[1]
+
+    def fill() -> frozenset[str]:
+        with _REF_LOCK:     # review m4: a caller that missed above but became a leader after the last one stored
+            hit = _REF_SETS.get(key)
+            if hit is not None and t - hit[0] < REFERENCE_SET_TTL_S:
+                return hit[1]
+        got = frozenset(compute())
+        with _REF_LOCK:
+            _REF_SETS[key] = (t, got)
+            if len(_REF_SETS) > _REF_SETS_MAX:
+                for k, _v in sorted(_REF_SETS.items(), key=lambda kv: kv[1][0])[:len(_REF_SETS) - _REF_SETS_MAX]:
+                    _REF_SETS.pop(k, None)
+        return got
+
+    ok, got = _reference_flight().run_here(key, fill, REFERENCE_SET_WAIT_S)
+    return got if ok else fill()
+
+
 def read_public_note(conn: Any, owner_id: str, note_id: str) -> dict[str, Any] | None:
     """The columns a public copy is built from, when the note may be served at all: owned
     by `owner_id`, neither trashed nor archived. None otherwise, and None for a body that
@@ -1614,13 +1844,13 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
-    "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
+    "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
     "PUBLIC_ATTR_POLICY", "ATTR_POLICY_BY_MODE", "PUBLIC_FONT_SIZE_BOUNDS", "safe_font_family", "safe_font_size",
     "SHOWN", "NEUTRAL", "MODES", "BASE_MODES", "EXAMPLE_OVERRIDES", "EXAMPLE_IMAGE_ATTRS", "node_action",
     "attr_decision", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
-    "read_public_note", "walk_types",
+    "read_public_note", "walk_types", "referenced_images", "cached_reference_set", "REFERENCE_SET_TTL_S",
 ]

@@ -1,0 +1,13 @@
+// Notebook widgets Task 16: the ONE module the Notebook's / menu loads when a capture-kind command runs
+// (lib/notebookWidgets.js CAPTURE_KINDS). Keyed by widget id; each answers `{ok, payload}` or
+// `{ok: false, reason}` and never throws. A kind added here costs the Notebook's first open nothing.
+export { slashCapture as calendar } from './calendarCapture'
+export { slashCapture as news } from './newsCapture'
+export { slashCapture as fundamentals } from './fundamentalsCapture'
+export { slashCapture as breadth } from './breadthCapture'
+export { slashCapture as indexes } from './indexesCapture'
+export { slashCapture as marketcontext } from './marketcontextCapture'
+export { slashCapture as alerts } from './alertsCapture'
+export { slashCapture as scanner } from './scannerCapture'
+export { slashCapture as watchlist } from './watchlistCapture'
+export { slashCapture as themes } from './themesCapture'

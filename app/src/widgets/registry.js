@@ -285,6 +285,60 @@ export function registerPanel(id, manifest) {
   return { ...manifest, menus: { ...manifest.menus, terminal: manifest.menus.terminal === true } }
 }
 
+/** The `YYYY-MM-DD` of a payload's own `asOf` (ISO UTC), as ` · as of <day>`; '' when it has none. */
+function _asOfDay(p) {
+  const day = typeof p?.asOf === 'string' ? p.asOf.slice(0, 10) : ''
+  return _isIsoDay(day) ? ` · as of ${day}` : ''
+}
+/** A frozen `range` as `<from> to <to>`, or `no range` when either end is missing. */
+const _rangeText = (p) => (p?.range?.from && p?.range?.to ? `${p.range.from} to ${p.range.to}` : 'no range')
+/** `N name(s)` from a frozen rows array; a missing array reads as zero, never as a blank. */
+function _countOf(rows, noun) {
+  const n = Array.isArray(rows) ? rows.length : 0
+  return `${n} ${noun}${n === 1 ? '' : 's'}`
+}
+/** Wave 6: a `[label: N nouns]` search line over the payload's `rows` (`l`: the lowercased label). */
+const _countLine = (noun) => (p, l) => `[${l}: ${_countOf(p?.rows, noun)}]`
+const _ROWS = 'rows:j! truncated:n'
+
+const _SNAP_TYPE = { n: 'number', j: 'json', b: 'boolean', y: 'symbol' }
+/** One payload field from its short form (Task 16D: first-open bytes): `key` is a string, `key:t` has
+ *  type t (n number, j json, b boolean, y symbol), and a trailing `!` makes it required. A field that
+ *  needs more (an enum's options) is written out as the object itself. */
+function _snapField(f) {
+  if (typeof f !== 'string') return f
+  const [key, t = ''] = f.split(':')
+  return t.endsWith('!') ? { key, type: _SNAP_TYPE[t[0]], required: true } : { key, type: _SNAP_TYPE[t] || 'string' }
+}
+
+/** A Notebook snapshot widget's manifest (Task 6): one shape, so each entry costs its payload keys
+ *  and its search line only. Capture-only, in no menu, never live; `reconstructable` is true when the
+ *  frozen payload carries its own `asOf`, because the embed host re-renders from params alone.
+ *  `payloadSchema` is a space-separated list of short fields, or an array of them (see _snapField). */
+// F2 (R58): what every snapshot payload may carry (fix-f1-report.md: the empty / failed / too-large sentence,
+// the unread earnings calendar, the source sentence, the positions' price basis, the recap's clipped mistakes),
+// and the request keys a member's Change writes. Kept at insert, so the frame can render them.
+const _SNAP_COMMON = 'empty partial:b failed:b tooLarge:b earningsUnknown:b sourceDetail priceBasis mistakesTruncated:n list from to'.split(' ')
+function snapshotManifest(label, payloadSchema, plainText) {
+  return {
+    labels: { header: label, menu: label, tab: label },
+    defaults: { w: 6, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'asOf', type: 'string', required: true },    // ISO UTC, stamped by the server
+      { key: 'source', type: 'string' },                   // broker | manual | mixed | market
+      ...[...(typeof payloadSchema === 'string' ? payloadSchema.split(' ') : payloadSchema), ..._SNAP_COMMON].map(_snapField),
+      { key: 'share', type: 'boolean', default: false },   // the member's publish switch (an editor transaction)
+    ],
+    plainText: (p) => plainText(p, label.toLowerCase()),
+    reconstructable: (p) => typeof p?.asOf === 'string',
+    liveCapable: false,
+  }
+}
+
 /** A trader block's manifest (Notebook P2): one shape, so each entry costs its params and words only.
  *  ⛔ Rendered by blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), never the embed host: not reconstructable,
  *  never live, so resolveEmbedRender's archive and live paths can never pick a block up. */
@@ -870,6 +924,69 @@ const PANEL_MANIFESTS = {
     reconstructable: (p) => Number.isInteger(p?.year) && typeof p?.symbol === 'string' && p.symbol !== '',
     liveCapable: false,
   },
+  // ── Notebook widgets (Task 6): five SNAPSHOT kinds. ⛔ CAPTURE-ONLY and not blocks: each is
+  // fetched once by its own slash item (GET /api/j2/notebook-widgets/{kind}), frozen into the
+  // note's params, and rendered by the journal embed host from those params. Never a workspace
+  // widget, never in a menu, never live. The keys mirror the server payloads in
+  // api/services/journal_two/notebook_widgets.py; `share` is the member's own publish switch.
+  // ⛔ plainText feeds search and AI context, so it names the kind, a COUNT and a DAY and nothing
+  // else: no price, no P&L, no account size, no row.
+  myWatchlistToday: snapshotManifest('My watchlist today',
+    'listLabel rows:j! truncated:n', // rows: [{symbol, price, changePct, earningsDay}]
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  myNamesReporting: snapshotManifest('My names reporting',
+    'rows:j! truncated:n', // rows: [{symbol, day, timing, daysAway, sources, impliedMovePct}]
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerCard: snapshotManifest('Ticker card',
+    'symbol:y! price:n changePct:n ma10:n ma50:n earningsDay impliedMovePct:n history:j', // history: {trades, winRate, netPnl} or null
+    (p, l) => `[${l}: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  myPnlStats: snapshotManifest('My P&L and stats',
+    'range:j! netPnl:n winRate:n avgR:n tradeCount:n equity:j', // range: {from, to}; equity: [[day, value], ...]
+    (p) => `[my P&L and stats: ${_rangeText(p)}]`),
+  myPositionsRisk: snapshotManifest('My open positions and risk', [
+    'accountSize:n',
+    { key: 'accountSizeSource', type: 'enum', options: ['member', 'default'] },
+    'rows:j!', // [{positionId, symbol, side, sizePct, openPnl, stopPrice, distToStopPct, noStop}]
+    'truncated:n',
+  ], (p, l) => `[${l}: ${_countOf(p?.rows, 'position')}${_asOfDay(p)}]`),
+  // Wave 2 (Task 13): the two review kinds. Plain text is a kind, a range or a COUNT, never a figure.
+  myRulesCheck: snapshotManifest('My rules check',
+    // range: {from, to}; kept: the authoritative headline (null = nothing checked); rules: [{rule, kept, total}],
+    // a breakdown, not the headline
+    'range:j! kept:n total:n rules:j',
+    (p, l) => `[${l}: ${_rangeText(p)}]`),
+  myMistakes: snapshotManifest('My recurring mistakes',
+    _ROWS, // rows: [{mistake, cost30d, countNow, countPrior, trend}]
+    (p, l) => `[${l}: ${Array.isArray(p?.rows) ? p.rows.length : 0}]`),
+  // Wave 3 (Task 14): the two market kinds. Plain text is a kind, a COUNT or a symbol, and a day.
+  marketOnMyNames: snapshotManifest('Market on my names',
+    // sectorBasis: how sectorRet5d was made ('your names'); rows: [{symbol, ret5d, sector, sectorRet5d, vsSector}]
+    'sectorBasis rows:j! truncated:n',
+    (p, l) => `[${l}: ${_countOf(p?.rows, 'name')}${_asOfDay(p)}]`),
+  tickerFlow: snapshotManifest('Options flow on a ticker',
+    // bullPremium: the page's own net.bull, never re-summed; window: the served rung (Today, Last 5 sessions,
+    // ...); topPrints: [{cp, strike, exp, dte, premium, volume, direction}]
+    'symbol:y! bullPremium:n bearPremium:n window topPrints:j',
+    (p) => `[options flow: ${p?.symbol || 'ticker'}${_asOfDay(p)}]`),
+  // Wave 6 (Task 20). `tradeId` and `definitionId` are the request keys See it now re-asks with; a public page
+  // never shows them (EMBED_PARAM_KEYS). Plain text is a kind, a count, a month or a day, never a figure.
+  tradeRecap: snapshotManifest('Trade recap',
+    // bars: [{t, o, h, l, c}] daily, entry-20 to exit+20 sessions
+    'tradeId symbol:y! side entryDate exitDate entryPrice:n exitPrice:n r:n pnl:n setup holdDays:n mistakes:j bars:j',
+    (p, l) => `[${l}: ${[p?.symbol, p?.side].join(' ')} · ${[p?.exitDate]}]`), // an array prints a missing value as ''
+  myPnlCalendar: snapshotManifest('My P&L calendar', 'month days:j! best:j worst:j', // days: [{day, pnl}]
+    (p) => `[my P&L calendar: ${[p?.month]}]`),
+  mySetupEdge: snapshotManifest('My setup edge', _ROWS, // rows: [{setup, n, expectancyR, winRate, thin}]
+    _countLine('setup')),
+  myScreenToday: snapshotManifest('My screen today',
+    // hits: [{symbol, price, changePct}]; coverage: the receipt's four counts plus withheld
+    'definitionId name hits:j! coverage:j session truncated:b',
+    (p, l) => `[${l}: ${p?.name || 'screen'} · ${_countOf(p?.hits, 'hit')}]`),
+  roomBuzzOnMyNames: snapshotManifest('Room buzz on my names', _ROWS, // rows: [{symbol, mentions, people}]
+    _countLine('name')),
+  myEarningsReactions: snapshotManifest('My earnings reactions',
+    // rows: [{symbol, day, epsActual, epsEst, revActual, revEst, nextDayPct}]
+    'rows:j! truncated:n', _countLine('name')),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

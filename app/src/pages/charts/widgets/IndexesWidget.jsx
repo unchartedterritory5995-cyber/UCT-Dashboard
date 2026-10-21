@@ -24,6 +24,7 @@ import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalT
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import { INDEX_SYMBOLS, INDEX_LABELS, chgDirection, rowsFromSnapshot } from './indexesModel'
+import { INDEXES_URL, indexesUpdated, buildIndexesCapture } from './captures/indexesCapture'
 import styles from './IndexesWidget.module.css'
 
 // ⭐ The fetcher stamps the moment the payload LANDED. `/api/snapshot` carries
@@ -34,16 +35,7 @@ import styles from './IndexesWidget.module.css'
 // payload it describes, so it can never end up attached to a different one.
 const fetcher = (url) => fetchSnapshot(url)
 
-const SNAPSHOT_URL = '/api/snapshot'
-
-/** ET wall-clock 'h:mm AM/PM' for a fetch instant, or null. */
-function fmtEtTime(ms) {
-  try {
-    return new Date(ms).toLocaleTimeString('en-US', {
-      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
-    })
-  } catch { return null }
-}
+const SNAPSHOT_URL = INDEXES_URL
 
 export default function IndexesWidget({
   opts, onOptsChange,
@@ -81,7 +73,7 @@ export default function IndexesWidget({
 
   const updated = frozen
     ? (frozen.updated || null)
-    : (data?._fetchedAt ? `${fmtEtTime(data._fetchedAt)} ET` : null)
+    : indexesUpdated(data)
 
   const [journalMsg, setJournalMsg] = useJournalToast()
   const [captureMenu, setCaptureMenu] = useState(null)
@@ -89,11 +81,11 @@ export default function IndexesWidget({
   // Freeze exactly what the widget shows right now — shared by the one-click
   // default send AND the destination picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildCapture = useCallback(() => ({
-    hiddenSymbols: Array.isArray(opts?.hiddenSymbols) ? opts.hiddenSymbols : [],
-    rows,
-    updated,
-  }), [opts, rows, updated])
+  // (captures/indexesCapture.js: the same builder the Notebook's /indexes insert uses.)
+  const buildCapture = useCallback(
+    () => buildIndexesCapture({ rows, updated }, { hiddenSymbols: opts?.hiddenSymbols }),
+    [opts, rows, updated],
+  )
 
   return (
     <div className={styles.root}>

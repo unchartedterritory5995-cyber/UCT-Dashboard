@@ -79,10 +79,24 @@ export const BLOCK_KINDS = Object.freeze([
 const TF_WORDS = { D: 'Daily', W: 'Weekly', 60: '1 hour', 15: '15 minutes', 5: '5 minutes' }
 export const tfWord = (tf) => TF_WORDS[tf] || String(tf)
 
+// Notebook widgets Task 15: the snapshot widget slots a starter style holds (journal_styles.SNAPSHOT_SLOT_KINDS),
+// by the titles of WIDGET_KINDS in notebookWidgets.js. NOT in BLOCK_KINDS: the style editor never offers one (a
+// kind's release wave gates its menu entry); this only names a slot a style already holds. ⛔ Railed against the
+// server's KIND_TITLE by tests/test_journal_styles_store.py through Node.
+export const SNAPSHOT_BLOCK_LABELS = Object.freeze({
+  myWatchlistToday: 'My watchlist today',
+  myNamesReporting: 'My names reporting',
+  myPnlStats: 'My P&L and stats',
+  myPositionsRisk: 'My open positions and risk',
+  myRulesCheck: 'My rules check',
+  myMistakes: 'My recurring mistakes',
+})
+
 /** A block's member-facing name; an id this bundle does not know reads as a newer-version block. */
 export function blockLabel(id) {
   const k = BLOCK_KINDS.find((b) => b.id === id)
-  return k ? k.label : `A block from a newer version (${id})`
+  if (k) return k.label
+  return SNAPSHOT_BLOCK_LABELS[id] || `A block from a newer version (${id})`
 }
 
 /** The node's searchText for a block id (the server builder writes the same line). */

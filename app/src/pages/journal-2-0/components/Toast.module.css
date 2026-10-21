@@ -28,6 +28,7 @@
   border-left-color: var(--loss);
 }
 
+.tone_busy,
 .tone_info {
   border-left-color: var(--ut-gold);
 }

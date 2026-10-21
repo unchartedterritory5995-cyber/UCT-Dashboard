@@ -1,0 +1,737 @@
+{
+ "base": "http://127.0.0.1:8231",
+ "data_dir": "C:\\data-widgets-walk",
+ "items": [
+  {
+   "width": 1200,
+   "item": "D1-myPositionsRisk",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My open positions and risk",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 483,
+     "bottom": 507,
+     "left": 427,
+     "right": 621
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 449,
+      "bottom": 469,
+      "left": 423,
+      "right": 445,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 449,
+      "bottom": 469,
+      "left": 449,
+      "right": 511,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "1200-rewalk-D1-myPositionsRisk.png"
+  },
+  {
+   "width": 1200,
+   "item": "D1-myPnlStats",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My P&L and stats",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 484,
+     "bottom": 508,
+     "left": 427,
+     "right": 552
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 449,
+      "bottom": 469,
+      "left": 423,
+      "right": 445,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 449,
+      "bottom": 469,
+      "left": 449,
+      "right": 511,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "1200-rewalk-D1-myPnlStats.png"
+  },
+  {
+   "width": 1200,
+   "item": "D1-myWatchlistToday",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My watchlist today",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 485,
+     "bottom": 509,
+     "left": 427,
+     "right": 562
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 449,
+      "bottom": 469,
+      "left": 423,
+      "right": 445,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 449,
+      "bottom": 469,
+      "left": 449,
+      "right": 511,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "1200-rewalk-D1-myWatchlistToday.png"
+  },
+  {
+   "width": 1200,
+   "item": "D2-calendar",
+   "verdict": "PASS",
+   "problems": [],
+   "inserted_text": "‹\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n(Abbott Laboratories)\n—\n-0.7%\n+0.3%\nT\nT\n(AT&T Inc.)\n—\n+6.6%\n+2.0%\nN\nNEE\n(NextEra Energy, Inc.)\n—\n+3.3%\n-11%\nT\nTMO\n(Thermo Fisher Scientific Inc.)\n—\n+4.4%\n+1.8%\nC\nCME\n(CME Group Inc.)\n—\n+1.3%\n+1.6%\nD\nDHR\n(Danaher Corporation)\n—\n+9.9%\n+0.1%\nE\nELV\n(Elevance Health, Inc.)\n—\n+50%\n+6.0%\nM\nMCO\n(Moody's Corporation)\n—\n-2.6%\n-1.8%\nP\nPM\n(Philip Morris International Inc.)\n—\n+2.6%\n-91%\nL\nLAD\n(Lithia Motors, Inc.)\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n(Tesla, Inc.)\n—\n0.44\n$27.8B\nM\nMETA\n(Meta Platforms, Inc.)\n—\n4.98\n$63.2B\nI\nIBM\n(International Business Machines Corporation)\n—\n2.88\n$16.9B\nL\nLRCX\n(Lam Research Corporation)\n—\n2.17\n$8.1B\nT\nTXN\n(Texas Instruments Incorporated)\n—\n2.40\n$5.9B\nT\nTCBI\n(Texas Capital Ban",
+   "reloaded_text": "‹\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n(Abbott Laboratories)\n—\n-0.7%\n+0.3%\nT\nT\n(AT&T Inc.)\n—\n+6.6%\n+2.0%\nN\nNEE\n(NextEra Energy, Inc.)\n—\n+3.3%\n-11%\nT\nTMO\n(Thermo Fisher Scientific Inc.)\n—\n+4.4%\n+1.8%\nC\nCME\n(CME Group Inc.)\n—\n+1.3%\n+1.6%\nD\nDHR\n(Danaher Corporation)\n—\n+9.9%\n+0.1%\nE\nELV\n(Elevance Health, Inc.)\n—\n+50%\n+6.0%\nM\nMCO\n(Moody's Corporation)\n—\n-2.6%\n-1.8%\nP\nPM\n(Philip Morris International Inc.)\n—\n+2.6%\n-91%\nL\nLAD\n(Lithia Motors, Inc.)\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n(Tesla, Inc.)\n—\n0.44\n$27.8B\nM\nMETA\n(Meta Platforms, Inc.)\n—\n4.98\n$63.2B\nI\nIBM\n(International Business Machines Corporation)\n—\n2.88\n$16.9B\nL\nLRCX\n(Lam Research Corporation)\n—\n2.17\n$8.1B\nT\nTXN\n(Texas Instruments Incorporated)\n—\n2.40\n$5.9B\nT\nTCBI\n(Texas Capital Ban",
+   "screenshot": "1200-rewalk-D2-calendar.png",
+   "reload_screenshot": "1200-rewalk-D2-calendar-reloaded.png"
+  },
+  {
+   "width": 1200,
+   "item": "D3-tradeRecap",
+   "verdict": "PASS",
+   "problems": [],
+   "pick_row": "Recap — MSFT long, Oct 15",
+   "text": "‹\nMore\nTrade recap\nOnly you\nas of Oct 21, 2026, 8:23 AM ET\nShow on shared pages\nSee it now\nSave these settings as a preset\n\nMSFTlong\n\nEntry\n$500.00 on Oct 13, 2026\nExit\n$490.00 on Oct 15, 2026\nR\n-0.8R\nP&L\n-$100.00\nSetup\nVCP\nHold\n2 days\nMistakes\nNone tagged\n\nYour trade in the Journal. Fills: your manual entries. Chart: daily bars.",
+   "screenshot": "1200-rewalk-D3-tradeRecap.png"
+  },
+  {
+   "width": 1200,
+   "item": "O2-ticker-card",
+   "verdict": "PASS",
+   "problems": [],
+   "history": "Your history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expec",
+   "text": "NVDA\nSnapshot\nas of Oct 21, 2026, 8:24 AM ET\nNot shown on shared pages\nLast\n$220.73 +1.97%\n10-day / 50-day\n$223.83 / $222.92\nEarnings\nNone this week\nYour history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expected move: options market. History: your trades in the Journal.\n\nInsert chart\nInsert card",
+   "screenshot": "1200-rewalk-O2-ticker-card.png"
+  },
+  {
+   "width": 1200,
+   "item": "smoke-insert-see-it-now",
+   "verdict": "PASS",
+   "problems": [],
+   "requests": [
+    "http://127.0.0.1:8231/api/j2/notebook-widgets/myNamesReporting"
+   ],
+   "head": "My names reporting\nSnapshot\nas of Oct 21, 2026, 8:24 AM ET\nNot shown on shared pages\nSee it now\nSave these settings as a preset",
+   "screenshot": "1200-rewalk-smoke-myNamesReporting.png"
+  },
+  {
+   "width": 820,
+   "item": "D1-myPositionsRisk",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My open positions and risk",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 610,
+     "bottom": 634,
+     "left": 367,
+     "right": 561
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 552,
+      "bottom": 596,
+      "left": 363,
+      "right": 407,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 552,
+      "bottom": 596,
+      "left": 411,
+      "right": 455,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 552,
+      "bottom": 596,
+      "left": 459,
+      "right": 522,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "820-rewalk-D1-myPositionsRisk.png"
+  },
+  {
+   "width": 820,
+   "item": "D1-myPnlStats",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My P&L and stats",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 610,
+     "bottom": 634,
+     "left": 367,
+     "right": 492
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 552,
+      "bottom": 596,
+      "left": 363,
+      "right": 407,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 552,
+      "bottom": 596,
+      "left": 411,
+      "right": 455,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 552,
+      "bottom": 596,
+      "left": 459,
+      "right": 522,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "820-rewalk-D1-myPnlStats.png"
+  },
+  {
+   "width": 820,
+   "item": "D1-myWatchlistToday",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My watchlist today",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 610,
+     "bottom": 634,
+     "left": 367,
+     "right": 502
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 552,
+      "bottom": 596,
+      "left": 363,
+      "right": 407,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 552,
+      "bottom": 596,
+      "left": 411,
+      "right": 455,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 552,
+      "bottom": 596,
+      "left": 459,
+      "right": 522,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "820-rewalk-D1-myWatchlistToday.png"
+  },
+  {
+   "width": 820,
+   "item": "D2-calendar",
+   "verdict": "PASS",
+   "problems": [],
+   "inserted_text": "‹\n⋯\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n(Abbott Laboratories)\n—\n-0.7%\n+0.3%\nT\nT\n(AT&T Inc.)\n—\n+6.6%\n+2.0%\nN\nNEE\n(NextEra Energy, Inc.)\n—\n+3.3%\n-11%\nT\nTMO\n(Thermo Fisher Scientific Inc.)\n—\n+4.4%\n+1.8%\nC\nCME\n(CME Group Inc.)\n—\n+1.3%\n+1.6%\nD\nDHR\n(Danaher Corporation)\n—\n+9.9%\n+0.1%\nE\nELV\n(Elevance Health, Inc.)\n—\n+50%\n+6.0%\nM\nMCO\n(Moody's Corporation)\n—\n-2.6%\n-1.8%\nP\nPM\n(Philip Morris International Inc.)\n—\n+2.6%\n-91%\nL\nLAD\n(Lithia Motors, Inc.)\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n(Tesla, Inc.)\n—\n0.44\n$27.8B\nM\nMETA\n(Meta Platforms, Inc.)\n—\n4.98\n$63.2B\nI\nIBM\n(International Business Machines Corporation)\n—\n2.88\n$16.9B\nL\nLRCX\n(Lam Research Corporation)\n—\n2.17\n$8.1B\nT\nTXN\n(Texas Instruments Incorporated)\n—\n2.40\n$5.9B\nT\nTCBI\n(Texas Capital B",
+   "reloaded_text": "‹\n⋯\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n(Abbott Laboratories)\n—\n-0.7%\n+0.3%\nT\nT\n(AT&T Inc.)\n—\n+6.6%\n+2.0%\nN\nNEE\n(NextEra Energy, Inc.)\n—\n+3.3%\n-11%\nT\nTMO\n(Thermo Fisher Scientific Inc.)\n—\n+4.4%\n+1.8%\nC\nCME\n(CME Group Inc.)\n—\n+1.3%\n+1.6%\nD\nDHR\n(Danaher Corporation)\n—\n+9.9%\n+0.1%\nE\nELV\n(Elevance Health, Inc.)\n—\n+50%\n+6.0%\nM\nMCO\n(Moody's Corporation)\n—\n-2.6%\n-1.8%\nP\nPM\n(Philip Morris International Inc.)\n—\n+2.6%\n-91%\nL\nLAD\n(Lithia Motors, Inc.)\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n(Tesla, Inc.)\n—\n0.44\n$27.8B\nM\nMETA\n(Meta Platforms, Inc.)\n—\n4.98\n$63.2B\nI\nIBM\n(International Business Machines Corporation)\n—\n2.88\n$16.9B\nL\nLRCX\n(Lam Research Corporation)\n—\n2.17\n$8.1B\nT\nTXN\n(Texas Instruments Incorporated)\n—\n2.40\n$5.9B\nT\nTCBI\n(Texas Capital B",
+   "screenshot": "820-rewalk-D2-calendar.png",
+   "reload_screenshot": "820-rewalk-D2-calendar-reloaded.png"
+  },
+  {
+   "width": 820,
+   "item": "D3-tradeRecap",
+   "verdict": "PASS",
+   "problems": [],
+   "pick_row": "Recap — MSFT long, Oct 15",
+   "text": "‹\n⋯\nMore\nTrade recap\nOnly you\nas of Oct 21, 2026, 8:25 AM ET\nShow on shared pages\nSee it now\nSave these settings as a preset\n\nMSFTlong\n\nEntry\n$500.00 on Oct 13, 2026\nExit\n$490.00 on Oct 15, 2026\nR\n-0.8R\nP&L\n-$100.00\nSetup\nVCP\nHold\n2 days\nMistakes\nNone tagged\n\nYour trade in the Journal. Fills: your manual entries. Chart: daily bars.",
+   "screenshot": "820-rewalk-D3-tradeRecap.png"
+  },
+  {
+   "width": 820,
+   "item": "O2-ticker-card",
+   "verdict": "PASS",
+   "problems": [],
+   "history": "Your history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expec",
+   "text": "NVDA\nSnapshot\nas of Oct 21, 2026, 8:25 AM ET\nNot shown on shared pages\nLast\n$220.65 +1.93%\n10-day / 50-day\n$223.83 / $222.92\nEarnings\nNone this week\nYour history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expected move: options market. History: your trades in the Journal.\n\nInsert chart\nInsert card",
+   "screenshot": "820-rewalk-O2-ticker-card.png"
+  },
+  {
+   "width": 390,
+   "item": "D1-myPositionsRisk",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My open positions and risk",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 523,
+     "bottom": 545,
+     "left": 49,
+     "right": 229
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 467,
+      "bottom": 511,
+      "left": 49,
+      "right": 93,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 467,
+      "bottom": 511,
+      "left": 97,
+      "right": 141,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 467,
+      "bottom": 511,
+      "left": 145,
+      "right": 208,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "390-rewalk-D1-myPositionsRisk.png"
+  },
+  {
+   "width": 390,
+   "item": "D1-myPnlStats",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My P&L and stats",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 552,
+     "bottom": 574,
+     "left": 49,
+     "right": 165
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 496,
+      "bottom": 540,
+      "left": 49,
+      "right": 93,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 496,
+      "bottom": 540,
+      "left": 97,
+      "right": 141,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 496,
+      "bottom": 540,
+      "left": 145,
+      "right": 208,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "390-rewalk-D1-myPnlStats.png"
+  },
+  {
+   "width": 390,
+   "item": "D1-myWatchlistToday",
+   "verdict": "PASS",
+   "problems": [],
+   "measure": {
+    "title": "My watchlist today",
+    "titleClipped": false,
+    "titleRect": {
+     "top": 552,
+     "bottom": 574,
+     "left": 49,
+     "right": 174
+    },
+    "toolbar": [
+     {
+      "text": "‹",
+      "top": 496,
+      "bottom": 540,
+      "left": 49,
+      "right": 93,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "⋯",
+      "top": 496,
+      "bottom": 540,
+      "left": 97,
+      "right": 141,
+      "overTitle": false,
+      "overHead": false
+     },
+     {
+      "text": "More",
+      "top": 496,
+      "bottom": 540,
+      "left": 145,
+      "right": 208,
+      "overTitle": false,
+      "overHead": false
+     }
+    ],
+    "toolbarAboveHead": true,
+    "titleUncovered": true,
+    "titlePointsOnTop": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "screenshot": "390-rewalk-D1-myWatchlistToday.png"
+  },
+  {
+   "width": 390,
+   "item": "D2-calendar",
+   "verdict": "PASS",
+   "problems": [],
+   "inserted_text": "‹\n⋯\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n—\n-0.7%\n+0.3%\nT\nT\n—\n+6.6%\n+2.0%\nN\nNEE\n—\n+3.3%\n-11%\nT\nTMO\n—\n+4.4%\n+1.8%\nC\nCME\n—\n+1.3%\n+1.6%\nD\nDHR\n—\n+9.9%\n+0.1%\nE\nELV\n—\n+50%\n+6.0%\nM\nMCO\n—\n-2.6%\n-1.8%\nP\nPM\n—\n+2.6%\n-91%\nL\nLAD\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n—\n0.44\n$27.8B\nM\nMETA\n—\n4.98\n$63.2B\nI\nIBM\n—\n2.88\n$16.9B\nL\nLRCX\n—\n2.17\n$8.1B\nT\nTXN\n—\n2.40\n$5.9B\nT\nTCBI\n—\n1.94\n$338M\nC\nCACI\n—\n6.45\n$2.5B\nL\nLUV\n—\n0.61\n$8.3B\nM\nMEDP\n—\n4.45\n$709M\nC\nCCI\n—\n1.16\n$1.0B\nShow all 145\nTIME TBD\n12",
+   "reloaded_text": "‹\n⋯\nMore\n‹\nOct 21\nTODAY\n›\nECONOMIC EVENTS\n(0)\nNo events at this impact level.\nPre-Market Earnings\n(34)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nA\nABT\n—\n-0.7%\n+0.3%\nT\nT\n—\n+6.6%\n+2.0%\nN\nNEE\n—\n+3.3%\n-11%\nT\nTMO\n—\n+4.4%\n+1.8%\nC\nCME\n—\n+1.3%\n+1.6%\nD\nDHR\n—\n+9.9%\n+0.1%\nE\nELV\n—\n+50%\n+6.0%\nM\nMCO\n—\n-2.6%\n-1.8%\nP\nPM\n—\n+2.6%\n-91%\nL\nLAD\n—\n+6.6%\n+2.4%\nShow all 34\nAfter-Hours Earnings\n(145)\n▾\nImpl.\nMove\nEPS\n(est)\nREV\n(est)\nT\nTSLA\n—\n0.44\n$27.8B\nM\nMETA\n—\n4.98\n$63.2B\nI\nIBM\n—\n2.88\n$16.9B\nL\nLRCX\n—\n2.17\n$8.1B\nT\nTXN\n—\n2.40\n$5.9B\nT\nTCBI\n—\n1.94\n$338M\nC\nCACI\n—\n6.45\n$2.5B\nL\nLUV\n—\n0.61\n$8.3B\nM\nMEDP\n—\n4.45\n$709M\nC\nCCI\n—\n1.16\n$1.0B\nShow all 145\nTIME TBD\n12",
+   "screenshot": "390-rewalk-D2-calendar.png",
+   "reload_screenshot": "390-rewalk-D2-calendar-reloaded.png"
+  },
+  {
+   "width": 390,
+   "item": "D3-tradeRecap",
+   "verdict": "PASS",
+   "problems": [],
+   "pick_row": "Recap — MSFT long, Oct 15",
+   "text": "‹\n⋯\nMore\nTrade recap\nOnly you\nas of Oct 21, 2026, 8:25 AM ET\nShow on shared pages\nSee it now\nSave these settings as a preset\n\nMSFTlong\n\nEntry\n$500.00 on Oct 13, 2026\nExit\n$490.00 on Oct 15, 2026\nR\n-0.8R\nP&L\n-$100.00\nSetup\nVCP\nHold\n2 days\nMistakes\nNone tagged\n\nYour trade in the Journal. Fills: your manual entries. Chart: daily bars.",
+   "screenshot": "390-rewalk-D3-tradeRecap.png"
+  },
+  {
+   "width": 390,
+   "item": "O2-ticker-card",
+   "verdict": "PASS",
+   "problems": [],
+   "history": "Your history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expec",
+   "text": "NVDA\nSnapshot\nas of Oct 21, 2026, 8:26 AM ET\nNot shown on shared pages\nLast\n$220.60 +1.91%\n10-day / 50-day\n$223.83 / $222.92\nEarnings\nNone this week\nYour history \nOnly you\nNo closed trades · 1 open position · 2 notes\n\nPrice: live market data, delayed. Averages: daily bars. Earnings dates: UCT calendar. Expected move: options market. History: your trades in the Journal.\n\nInsert chart\nInsert card",
+   "screenshot": "390-rewalk-O2-ticker-card.png"
+  }
+ ],
+ "console_errors": [
+  {
+   "where": "1200-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "where": "1200-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "where": "820-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "where": "820-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "where": "390-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "where": "390-note",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  }
+ ],
+ "page_errors": [],
+ "http_errors": [
+  {
+   "where": "1200-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  },
+  {
+   "where": "1200-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  },
+  {
+   "where": "820-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  },
+  {
+   "where": "820-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  },
+  {
+   "where": "390-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  },
+  {
+   "where": "390-note",
+   "status": 503,
+   "url": "http://127.0.0.1:8231/api/j2/broker/sync?background=1"
+  }
+ ],
+ "tip": "d046f607fabee63386198bcde12541ec45d88a0e",
+ "env": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_JOURNAL_STYLES_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W1_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W2_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W3_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W4_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W5_ENABLED": "1",
+  "NOTEBOOK_WIDGETS_W6_ENABLED": "1"
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8231 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-widgets\\docs\\plans\\joystick\\sandbox-runs\\2026-10-21T07-22-27.md (identity 58720152f01a..., data dir C:\\data-widgets-walk)"
+ },
+ "member": "rewalk-r072300@local.dev",
+ "seed": {
+  "watchlist": 200,
+  "position": 200,
+  "trade": 200,
+  "note": 200
+ },
+ "prewarm_reached": true,
+ "stop": "graceful (rc 0)",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-widgets\\docs\\notebook\\evidence\\2026-10-20-widgets\\sandbox-integrity-rewalk.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-widgets\\docs\\notebook\\evidence\\2026-10-20-widgets\\sandbox-integrity-rewalk.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-21 07:22:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-21 07:22:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-21 07:24:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-21 07:26:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "observations": {
+  "O4": "Outside D1 scope: on the calendar capture embed (not a snapshot frame) at 820 and 390 the embed toolbar still sits over the calendar's own day header (\"< Oct 21 TODAY >\"); at 1200 it does not. Screenshots 390-rewalk-D2-calendar.png, 390-rewalk-D2-calendar-reloaded.png, 820-rewalk-D2-calendar.png.",
+  "O2_count": "The NVDA card counts 2 notes: the seeded note and the walk note itself, which had $NVDA typed into it."
+ }
+}

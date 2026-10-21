@@ -381,7 +381,9 @@ export function outcomeKnowableAtCapture(attrs) {
   return asOf < capturedDay
 }
 
-export function resolveEmbedRender(attrs) {
+/** `today` is the ET session day the embed is being viewed on (late-bound: `etTodayIso()` unless a
+ *  caller, a test, names one). It matters for ONE case only, below. */
+export function resolveEmbedRender(attrs, { today } = {}) {
   const meta = widgetMeta(attrs?.widgetId)
   const hasImage = !!attrs?.fallback?.url
   if (!meta) return { kind: hasImage ? 'image' : 'placeholder', reason: 'unknown-widget' }
@@ -391,7 +393,18 @@ export function resolveEmbedRender(attrs) {
   // G-063: the knowability gate sits BEFORE reconstruction, because
   // reconstruction is exactly the mechanism that would substitute later truth.
   if (!outcomeKnowableAtCapture(attrs)) {
-    return { kind: hasImage ? 'image' : 'placeholder', reason: 'captured-before-outcome' }
+    if (hasImage) return { kind: 'image', reason: 'captured-before-outcome' }
+    // Notebook widgets fix F4 (D2, walk 2026-10-21): a capture with NO archive yet, viewed on the SAME ET
+    // day it was captured, is still the view the member captured -- nothing later has become true. Both
+    // doors (the /calendar insert and the /charts Send to Journal, one builder) store the day and never its
+    // rows, so this render is the only way to show it; and because it is `live`, the embed's self-archive
+    // freezes it into `fallback` while it is still that day. From then on the image branch above answers.
+    // A day later with no archive still falls to the placeholder: the gate's fail-safe is unchanged.
+    const capturedDay = etDayOf(attrs?.capturedAt)
+    if (capturedDay && capturedDay === (today ?? etTodayIso()) && isReconstructable(attrs.widgetId, attrs.params)) {
+      return { kind: 'live', reason: 'captured-today-archiving' }
+    }
+    return { kind: 'placeholder', reason: 'captured-before-outcome' }
   }
   if (isReconstructable(attrs.widgetId, attrs.params)) return { kind: 'live', reason: 'reconstructable' }
   return { kind: hasImage ? 'image' : 'placeholder', reason: 'image-only' }

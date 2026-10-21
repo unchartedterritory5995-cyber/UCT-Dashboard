@@ -226,6 +226,7 @@ from api.routers import fundamentals as fundamentals_router
 from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
 from api.routers import portfolio_heat as portfolio_heat_router
+from api.routers import notebook_widgets as notebook_widgets_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
 from api.routers import expected_move as expected_move_router
@@ -10213,6 +10214,7 @@ from api.routers import marketcap_pit as marketcap_pit_router  # noqa: E402 -- b
 app.include_router(marketcap_pit_router.router)  # Market Cap V1 PIT member API; dark unless MCAP_PIT_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
+app.include_router(notebook_widgets_router.router)  # GET /api/j2/notebook-widgets/{kind}, dark per wave
 app.include_router(filings_router.router, dependencies=_OPEN_READS)
 app.include_router(research_router.router, dependencies=_OPEN_READS)
 # TERM-049: the per-ticker history join (Research > History), dark behind TICKER_HISTORY_ENABLED.

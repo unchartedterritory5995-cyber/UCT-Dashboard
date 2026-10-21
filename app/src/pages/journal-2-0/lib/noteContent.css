@@ -535,3 +535,15 @@ mark.uct-hl-blue { background-color: var(--info-border); }
     min-width: var(--tap-min);
   }
 }
+
+/* Notebook widgets W1: the $TICKER chip (lib/tickerChip.js), a decoration on the member's own text. The
+   vertical padding widens the press area to the 44px floor without moving the line. */
+.ProseMirror .tickerChip {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+}
+@media (max-width: 1024px) {
+  .ProseMirror .tickerChip { padding-block: calc((var(--tap-min) - 1.4em) / 2); }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import useSWR from 'swr'
+import useMobileSWR from '../../../../hooks/useMobileSWR'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import {
@@ -9,6 +9,13 @@ import {
 } from '../../lib/earningsPrep'
 import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
 import styles from './ReportingSoon.module.css'
+
+/** Ruling R68 (F1b review I-1): on a cold cache the server answers `items: []` with `partial: true` while its walk
+ *  of the calendar finishes in the background. That is "not checked yet", never "none": the box says so and asks
+ *  again every UNREAD_RETRY_MS, at most UNREAD_RETRIES times, then stops and offers Try again. */
+export const UNREAD_RETRY_MS = 10000
+export const UNREAD_RETRIES = 6
+const unreadEmpty = (d) => d?.partial === true && !(Array.isArray(d?.items) && d.items.length)
 
 function whenText(item) {
   const day = item.daysAway === 0 ? 'Today' : item.daysAway === 1 ? 'Tomorrow' : fmtShortDay(item.date)
@@ -26,11 +33,30 @@ function whenText(item) {
  *
  * A name already prepped in the last three weeks offers Open instead of a second draft.
  */
-export default function ReportingSoon({ onOpenNote }) {
+export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS }) {
   const enabled = earningsPrepEnabled()
-  const { data, error, isLoading, mutate } = useSWR(
+  // Review N-1: the count is STATE, so the box follows it even when every retry answers the same bytes (SWR does
+  // not re-render for an unchanged payload). The ref mirrors it for SWR's refreshInterval.
+  const [tries, setTries] = useState(0)
+  const triesRef = useRef(0)
+  // Review N-3: the interval is a NUMBER held in state and changed only by an answer, so an unrelated re-render
+  // never re-arms SWR's refresh timer (a function given inline was a new identity on every render).
+  const [refreshInterval, setRefreshInterval] = useState(0)
+  // F3 (pollingSites rail): the bounded retry rides the repo's opt-in polling helper, not a bare useSWR
+  // refreshInterval. It stops the timer while the tab is hidden and doubles the wait on a touch client (Research
+  // Home renders on phones); revalidateOnFocus stays false as before. The cap is the count above, not the clock,
+  // so a held or slowed retry still stops after UNREAD_RETRIES answers.
+  const { data, error, isLoading, mutate } = useMobileSWR(
     enabled ? SOON_URL : null, () => fetchReportingSoon(),
-    { revalidateOnFocus: false, shouldRetryOnError: false },
+    {
+      revalidateOnFocus: false, shouldRetryOnError: false,
+      onSuccess: (d) => {
+        triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0
+        setTries(triesRef.current)
+        setRefreshInterval(unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? retryMs : 0)
+      },
+      refreshInterval,
+    },
   )
   const [busy, setBusy] = useState(null)
   const [message, setMessage] = useState('')
@@ -92,13 +118,21 @@ export default function ReportingSoon({ onOpenNote }) {
         <LoadFailed compact what="the earnings calendar for your names" error={error} onRetry={() => mutate()} />
       )}
       {!error && isLoading && <p className={styles.quiet} role="status">Checking the calendar…</p>}
-      {!error && data && items.length === 0 && (
+      {!error && data && items.length === 0 && !data.partial && (
         <p className={styles.quiet}>
           None of your watchlist, flagged or open-position names report in the next {days} days.
           A prep note is one click here once one does.
         </p>
       )}
-      {!error && data?.partial && (
+      {!error && unreadEmpty(data) && (tries <= UNREAD_RETRIES ? (
+        <p className={styles.quiet} role="status">Couldn&apos;t check report dates just now. Trying again shortly.</p>
+      ) : (
+        <p className={styles.quiet} role="status">
+          Couldn&apos;t check report dates just now.{' '}
+          <button type="button" className={styles.action} onClick={() => { triesRef.current = 0; setTries(0); mutate() }}>Try again</button>
+        </p>
+      ))}
+      {!error && data?.partial && items.length > 0 && (
         <p className={styles.note} role="note">
           Some calendar days could not be read just now, so a name may be missing from this list.
         </p>

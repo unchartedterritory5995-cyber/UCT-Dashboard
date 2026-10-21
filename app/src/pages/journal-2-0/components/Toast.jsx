@@ -1,14 +1,15 @@
-/** Simple toast primitive — single in-flight toast, auto-dismiss 4s. */
+/** Simple toast primitive — single in-flight toast, auto-dismiss 4s. A `busy` toast (work still running, e.g. the
+ *  Notebook's "Adding …") stays until the sentence that replaces it. */
 
 import { useEffect } from 'react'
 import styles from './Toast.module.css'
 
 export default function Toast({ message, tone = 'info', onDismiss }) {
   useEffect(() => {
-    if (!message) return
+    if (!message || tone === 'busy') return
     const t = setTimeout(() => onDismiss?.(), 4000)
     return () => clearTimeout(t)
-  }, [message, onDismiss])
+  }, [message, tone, onDismiss])
 
   if (!message) return null
 

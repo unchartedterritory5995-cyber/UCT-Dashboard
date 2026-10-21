@@ -917,3 +917,544 @@ def test_never_the_authors_identity(published):
     blob = json.dumps(published)
     for leak in (OWNER, "Pat Member", "member@example.com"):
         assert leak not in blob, leak
+
+
+# ── Notebook widgets (Task 5): account kinds are neutral unless the member switches them on ──
+
+ACCOUNT_LINE = pnp.ACCOUNT_NEUTRAL_LINE
+
+
+def _pnl(share: Any = True) -> dict:
+    node = _widget("myPnlStats")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "range": "30d", "netPnl": 1234.5,
+        "winRate": 0.55, "avgR": 0.4, "tradeCount": 12, "equity": [1, 2, 3], "empty": False,
+        "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+def _positions(share: Any = True) -> dict:
+    node = _widget("myPositionsRisk")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "accountSize": 50000,
+        "rows": [{"symbol": "AAPL", "positionId": "pos-secret-1", "riskPct": 1.0},
+                 {"symbol": "MSFT", "positionId": "pos-secret-2", "riskPct": 0.5}],
+        "truncated": 3, "empty": False, "share": share}
+    return node
+
+
+def test_account_neutral_line_is_the_exact_words_and_exported():
+    assert ACCOUNT_LINE == "A private account item is not shown on public pages."
+    assert "ACCOUNT_NEUTRAL_LINE" in pnp.__all__
+    assert ACCOUNT_LINE != NEUTRAL
+
+
+def test_member_optin_vendor_fails_closed():
+    assert pnp.VENDOR_VERDICT["member-optin"] == pnp.NEUTRAL
+    for kind in ("myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
+                 "tradeRecap", "myPnlCalendar", "mySetupEdge"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "member-optin", kind
+        assert pnp.market_data_verdict("widgetEmbed", kind) == pnp.NEUTRAL, kind
+    for kind in ("tickerCard", "myWatchlistToday", "myNamesReporting", "marketOnMyNames", "tickerFlow",
+                 "myScreenToday", "roomBuzzOnMyNames", "myEarningsReactions"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "mixed", kind
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_account_kind_neutral_without_share(mode, make):
+    for share in (None, False):
+        node = make(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "1234.5" not in json.dumps(out) and "PRIVATE-ACCT-0042" not in json.dumps(out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_account_kind_shown_with_share(mode):
+    out = reduce(doc(_pnl(True)), mode)
+    emb = find_embed(out)
+    assert emb["attrs"]["widgetId"] == "myPnlStats"
+    params = emb["attrs"]["params"]
+    assert params["netPnl"] == 1234.5 and params["share"] is True
+    assert "accountNumber" not in params          # only the named keys survive
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_positions_shown_strips_position_id(mode):
+    out = reduce(doc(_positions(True)), mode)
+    emb = find_embed(out)
+    rows = emb["attrs"]["params"]["rows"]
+    assert [r["symbol"] for r in rows] == ["AAPL", "MSFT"]
+    assert emb["attrs"]["params"]["truncated"] == 3
+    assert "positionId" not in json.dumps(out)
+    assert "pos-secret" not in json.dumps(out)
+
+
+def find_embed(d: dict) -> dict:
+    found = find(d, "widgetEmbed")
+    assert len(found) == 1, d
+    return found[0]
+
+
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_account_kind_gallery_always_neutral(make):
+    out = reduce(doc(make(True)), "gallery")
+    assert texts_in(out) == [ACCOUNT_LINE]
+    assert "widgetEmbed" not in types_in(out)
+    assert "positionId" not in json.dumps(out)
+
+
+@pytest.mark.parametrize("make", [_pnl, _positions])
+def test_share_switched_off_hides_again(make):
+    on = reduce(doc(make(True)), "share")
+    assert "widgetEmbed" in types_in(on)
+    off = reduce(doc(make(False)), "share")
+    assert texts_in(off) == [ACCOUNT_LINE]
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("bad", ["true", 1, "True", [True], {"v": True}])
+def test_share_truthy_string_is_not_true(mode, bad):
+    out = reduce(doc(_pnl(bad)), mode)
+    assert texts_in(out) == [ACCOUNT_LINE], (bad, out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+@pytest.mark.parametrize("kind", ["myWatchlistToday", "myNamesReporting", "tickerCard"])
+def test_market_widget_kinds_neutral(mode, kind):
+    out = reduce(doc(_widget(kind)), mode)
+    assert texts_in(out) == [NEUTRAL]
+
+
+def test_adjacent_mixed_neutral_lines_collapse_per_line():
+    two_account = reduce(doc(_pnl(False), _positions(False)), "share")
+    assert texts_in(two_account) == [ACCOUNT_LINE]
+    mixed = reduce(doc(_widget("tickerCard"), _pnl(False)), "share")
+    assert texts_in(mixed) == [NEUTRAL, ACCOUNT_LINE]
+    mixed2 = reduce(doc(_pnl(False), _widget("tickerCard"), _widget("chart")), "share")
+    assert texts_in(mixed2) == [ACCOUNT_LINE, NEUTRAL]
+    gallery = reduce(doc(_pnl(True), _positions(True)), "gallery")
+    assert texts_in(gallery) == [ACCOUNT_LINE]
+
+
+def test_nested_account_kind_in_a_container_follows_the_same_rule():
+    body = doc({"type": "blockquote", "content": [_pnl(False)]})
+    assert texts_in(reduce(body, "share")) == [ACCOUNT_LINE]
+    body = doc({"type": "blockquote", "content": [_positions(True)]})
+    assert "positionId" not in json.dumps(reduce(body, "publish"))
+
+
+# ── Task 12: myRulesCheck and myMistakes follow the same share switch ──
+
+def _rules_check(share: Any = True) -> dict:
+    node = _widget("myRulesCheck")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "manual", "range": {"from": "2026-10-19", "to": "2026-10-20"},
+        "rules": [{"rule": "Volume dried up", "kept": 2, "total": 3}], "empty": None,
+        "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+def _mistakes(share: Any = True) -> dict:
+    node = _widget("myMistakes")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker",
+        "rows": [{"mistake": "fomo", "cost30d": -300.0, "countNow": 4, "countPrior": 2, "trend": "more",
+                  "positionId": "pos-secret-9"}],
+        "empty": None, "accountNumber": "PRIVATE-ACCT-0042", "share": share}
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("make", [_rules_check, _mistakes])
+def test_wave2_account_kind_neutral_without_share(mode, make):
+    for share in (None, False, "true", 1):
+        node = make(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        blob = json.dumps(out)
+        for leak in ("Volume dried up", "fomo", "-300", "PRIVATE-ACCT-0042"):
+            assert leak not in blob, (mode, share, leak)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_rules_check_shown_with_share_keeps_only_the_named_keys(mode):
+    emb = find_embed(reduce(doc(_rules_check(True)), mode))
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "myRulesCheck"
+    assert params["rules"] == [{"rule": "Volume dried up", "kept": 2, "total": 3}]
+    assert params["range"] == {"from": "2026-10-19", "to": "2026-10-20"} and params["share"] is True
+    assert "accountNumber" not in params
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_mistakes_shown_with_share_keeps_only_the_named_keys_and_no_position_id(mode):
+    out = reduce(doc(_mistakes(True)), mode)
+    emb = find_embed(out)
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "myMistakes"
+    assert params["rows"][0]["mistake"] == "fomo" and params["rows"][0]["trend"] == "more"
+    assert "accountNumber" not in params
+    assert "positionId" not in json.dumps(out) and "pos-secret-9" not in json.dumps(out)
+
+
+def test_wave2_param_keys_are_the_ones_the_builders_emit():
+    assert pnp.EMBED_PARAM_KEYS["myRulesCheck"] == ("asOf", "source", "range", "kept", "total", "rules", "empty", "share",
+                                                    "truncated", "tooLarge")
+    assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge")
+
+
+def _cap_honesty_keys(kind: str) -> set[str]:
+    """The keys notebook_widgets.cap_payload ITSELF adds to a `kind` payload, read off its real output (fix
+    F1b, review M-4): the too-large form, a trimmed list, and (for a kind that publishes `mistakes`) a
+    mistake list past MISTAKES_MAX. Derived from the cap, never restated."""
+    from api.services.journal_two import notebook_widgets as nw
+    base = {"asOf": "2026-10-20T14:00:00Z", "source": "manual"}
+    added: set[str] = set()
+    big = nw.cap_payload({**base, "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+    added |= set(big) - set(base) - {"blob"}
+    key = nw.LIST_KEY[kind]
+    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind)
+    added |= set(trimmed) - set(base) - {key}
+    if "mistakes" in pnp.EMBED_ROW_KEYS.get(kind, {}):
+        clipped = nw.cap_payload({**base, "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 3)]}, kind)
+        added |= set(clipped) - set(base) - {"mistakes"}
+    return added
+
+
+def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        added = _cap_honesty_keys(kind)
+        assert {"tooLarge", "empty", "truncated"} <= added, (kind, added)     # control: the fixtures hit the cap
+        assert added <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, added - set(pnp.EMBED_PARAM_KEYS[kind]))
+    assert "mistakesTruncated" in _cap_honesty_keys("tradeRecap")
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
+    """A shown account widget whose data hit the cap is published WITH its sentence, never as a blank frame."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        node = _widget(kind)
+        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                  "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
+        node["attrs"]["params"] = dict(payload, share=True)
+        params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+        assert params.get("tooLarge") is True and params.get("empty") == nw.TOO_LARGE_SENTENCE, (kind, params)
+    node = _widget("tradeRecap")
+    node["attrs"]["params"] = dict(nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+                                                   "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 5)]},
+                                                  "tradeRecap"), share=True)
+    params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
+    assert params["mistakesTruncated"] == 5 and len(params["mistakes"]) == nw.MISTAKES_MAX
+
+
+# ── Notebook widgets wave 3 (Task 14): the two market kinds stay neutral, switch or no switch ──
+
+_WAVE3_PARAMS = {
+    "marketOnMyNames": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "sectorBasis": "your names",
+                        "rows": [{"symbol": "NVDA", "ret5d": 4.2, "sector": "Technology",
+                                  "sectorRet5d": 1.1, "vsSector": 3.1}]},
+    "tickerFlow": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "symbol": "NVDA",
+                   "bullPremium": 987654, "bearPremium": 12345, "window": "Today",
+                   "topPrints": [{"cp": "C", "strike": 200.0, "exp": "11/20/2026", "premium": 987654}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE3_PARAMS))
+def test_wave3_market_kind_is_neutral_even_with_share(mode, kind):
+    for share in (None, False, True):
+        node = _widget(kind)
+        node["attrs"]["params"] = dict(_WAVE3_PARAMS[kind], **({} if share is None else {"share": share}))
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "987654" not in json.dumps(out) and "3.1" not in json.dumps(out)
+
+
+# ── Notebook widgets wave 6 (Task 19): the three account kinds follow the share switch ──
+
+_WAVE6_ACCOUNT_PARAMS = {
+    "tradeRecap": {"asOf": "2026-10-20T14:00:00Z", "source": "broker", "symbol": "NVDA", "side": "Long",
+                   "entryDate": "2026-09-01", "exitDate": "2026-09-10", "entryPrice": 100.0, "exitPrice": 110.0,
+                   "r": 2.0, "pnl": 995.0, "setup": "Flag", "holdDays": 9, "mistakes": ["fomo"],
+                   "bars": [{"t": "2026-09-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5}],
+                   "tradeId": "trade-secret-77", "accountNumber": "PRIVATE-ACCT-0042"},
+    "myPnlCalendar": {"asOf": "2026-10-20T14:00:00Z", "source": "manual", "month": "2026-10",
+                      "days": [{"day": "2026-10-01", "pnl": 120.0}],
+                      "best": {"day": "2026-10-01", "pnl": 120.0}, "worst": {"day": "2026-10-01", "pnl": 120.0},
+                      "accountNumber": "PRIVATE-ACCT-0042"},
+    "mySetupEdge": {"asOf": "2026-10-20T14:00:00Z", "source": "mixed",
+                    "rows": [{"setup": "Flag", "n": 30, "expectancyR": 0.42, "winRate": 0.55, "thin": False,
+                              "positionId": "pos-secret-6"}],
+                    "truncated": 2, "accountNumber": "PRIVATE-ACCT-0042"},
+}
+
+
+def _wave6(kind: str, share: Any = True) -> dict:
+    node = _widget(kind)
+    node["attrs"]["params"] = dict(copy.deepcopy(_WAVE6_ACCOUNT_PARAMS[kind]),
+                                   **({} if share is None else {"share": share}))
+    return node
+
+
+def test_wave6_account_kinds_have_their_embed_keys_and_never_trade_id():
+    for kind in _WAVE6_ACCOUNT_PARAMS:
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", kind)] == "member-optin", kind
+        assert "share" in pnp.EMBED_PARAM_KEYS[kind], kind
+        assert "tradeId" not in pnp.EMBED_PARAM_KEYS[kind] and "positionId" not in pnp.EMBED_PARAM_KEYS[kind]
+
+
+def test_wave6_embed_keys_are_the_ones_the_builders_emit():
+    from api.services.journal_two import notebook_widgets as nw
+    import inspect
+    emitted = {
+        "tradeRecap": ("asOf", "source", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice",
+                       "r", "pnl", "setup", "holdDays", "mistakes", "bars"),
+        "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty"),
+        "mySetupEdge": ("asOf", "source", "rows", "empty", "truncated"),
+    }
+    for kind, keys in emitted.items():
+        assert set(pnp.EMBED_PARAM_KEYS[kind]) == set(keys) | {"share"} | _cap_honesty_keys(kind), kind
+        src = inspect.getsource(nw._BUILDERS[kind])
+        for k in keys:
+            assert f'"{k}"' in src, (kind, k)              # every kept key is one the builder writes
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE6_ACCOUNT_PARAMS))
+def test_wave6_account_kind_neutral_without_share(mode, kind):
+    for share in (None, False, "true", 1):
+        out = reduce(doc(_wave6(kind, share)), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        blob = json.dumps(out)
+        for leak in ("NVDA", "995", "120.0", "Flag", "PRIVATE-ACCT-0042", "trade-secret-77"):
+            assert leak not in blob, (kind, mode, share, leak)
+
+
+@pytest.mark.parametrize("kind", sorted(_WAVE6_ACCOUNT_PARAMS))
+def test_wave6_account_kind_gallery_always_neutral(kind):
+    out = reduce(doc(_wave6(kind, True)), "gallery")
+    assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_trade_recap_shown_with_share_never_carries_the_trade_id(mode):
+    out = reduce(doc(_wave6("tradeRecap", True)), mode)
+    emb = find_embed(out)
+    params = emb["attrs"]["params"]
+    assert emb["attrs"]["widgetId"] == "tradeRecap"
+    assert params["symbol"] == "NVDA" and params["r"] == 2.0 and params["bars"][0]["t"] == "2026-09-01"
+    assert params["share"] is True
+    blob = json.dumps(out)
+    assert "tradeId" not in blob and "trade-secret-77" not in blob
+    assert "tradeRef" not in blob and "accountNumber" not in params
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_pnl_calendar_and_setup_edge_shown_with_share_keep_only_named_keys(mode):
+    cal = find_embed(reduce(doc(_wave6("myPnlCalendar", True)), mode))["attrs"]["params"]
+    assert cal["month"] == "2026-10" and cal["best"] == {"day": "2026-10-01", "pnl": 120.0}
+    assert "accountNumber" not in cal
+    out = reduce(doc(_wave6("mySetupEdge", True)), mode)
+    edge = find_embed(out)["attrs"]["params"]
+    assert edge["rows"][0]["setup"] == "Flag" and edge["truncated"] == 2
+    assert "accountNumber" not in edge and "pos-secret-6" not in json.dumps(out)
+
+
+_WAVE6_MARKET_PARAMS = {
+    "myScreenToday": {"asOf": "2026-10-20T14:00:00Z", "source": "market", "name": "My screen",
+                      "hits": [{"symbol": "NVDA", "price": 987654, "changePct": 3.1}],
+                      "coverage": {"evaluated": 1, "answered": 1, "dropped": 0, "notComputable": 0, "withheld": 0},
+                      "definitionId": "u_0123456789ab"},
+    "roomBuzzOnMyNames": {"asOf": "2026-10-20T14:00:00Z", "source": "market",
+                          "rows": [{"symbol": "NVDA", "mentions": 987654, "people": 3}]},
+    "myEarningsReactions": {"asOf": "2026-10-20T14:00:00Z", "source": "market",
+                            "rows": [{"symbol": "NVDA", "day": "2026-10-15", "epsActual": 987654,
+                                      "nextDayPct": 3.1}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_WAVE6_MARKET_PARAMS))
+def test_wave6_market_kind_is_neutral_even_with_share(mode, kind):
+    for share in (None, False, True):
+        node = _widget(kind)
+        node["attrs"]["params"] = dict(_WAVE6_MARKET_PARAMS[kind], **({} if share is None else {"share": share}))
+        out = reduce(doc(node), mode)
+        assert texts_in(out) == [NEUTRAL], (kind, mode, share, out)
+        assert "widgetEmbed" not in types_in(out)
+        assert "987654" not in json.dumps(out) and "u_0123456789ab" not in json.dumps(out)
+
+
+# ── Ruling R60: a shown account widget publishes its rows through a per-kind row allowlist ──
+
+_SECRET = {"positionId": "SECRET-pos", "nested": {"positionId": "SECRET-nested", "tradeId": "SECRET-trade"},
+           "extraKey": "<b>SECRET-extra</b>", "accountNumber": "SECRET-acct"}
+
+_R60_PARAMS = {
+    "myPositionsRisk": {"rows": [{"symbol": "AAPL", "side": "Long", "kind": "stock", "sizePct": 2.0, "openPnl": 77.7,
+                                  "stopPrice": 95.0, "distToStopPct": 5.0, "noStop": False, **_SECRET}]},
+    "myMistakes": {"rows": [{"mistake": "fomo", "cost30d": -10.0, "countNow": 2, "countPrior": 1, "trend": "more",
+                             **_SECRET}]},
+    "mySetupEdge": {"rows": [{"setup": "Flag", "n": 30, "expectancyR": 0.4, "winRate": 0.5, "thin": False,
+                              **_SECRET}]},
+    "myRulesCheck": {"range": {"from": "2026-10-13", "to": "2026-10-20", **_SECRET},
+                     "rules": [{"rule": "Wait for the open", "kept": 3, "total": 4, **_SECRET}]},
+    "myPnlCalendar": {"days": [{"day": "2026-10-01", "pnl": 120.0, **_SECRET}],
+                      "best": {"day": "2026-10-01", "pnl": 120.0, **_SECRET},
+                      "worst": {"day": "2026-10-01", "pnl": 120.0, **_SECRET}},
+    "tradeRecap": {"bars": [{"t": "2026-09-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5, **_SECRET}],
+                   "mistakes": ["fomo", {"positionId": "SECRET-in-a-list"}, ["SECRET-list"]]},
+    "myPnlStats": {"range": {"from": "2026-10-13", "to": "2026-10-20", **_SECRET},
+                   "equity": [["2026-10-13", 100.0], ["2026-10-14", {"tradeId": "SECRET-eq"}], {"positionId": "SECRET-x"}]},
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("kind", sorted(_R60_PARAMS))
+def test_r60_rows_keep_only_their_allowlisted_scalar_keys(kind, mode):
+    node = _widget(kind)
+    node["attrs"]["params"] = dict(copy.deepcopy(_R60_PARAMS[kind]), asOf="2026-10-20T14:00:00Z", share=True)
+    out = reduce(doc(node), mode)
+    blob = json.dumps(out)
+    assert "SECRET" not in blob, (kind, mode, blob)
+    params = find_embed(out)["attrs"]["params"]
+    for key, allowed in pnp.EMBED_ROW_KEYS[kind].items():
+        val = params.get(key)
+        items = val if isinstance(val, list) else [val]
+        for item in items:
+            if isinstance(item, dict):
+                assert set(item) <= set(allowed), (kind, key, item)
+                assert item, (kind, key)                           # control: the allowed figures survived
+    # control: the figure the member chose to share is there
+    assert any(str(x) in blob for x in ("77.7", "fomo", "Flag", "Wait for the open", "120.0", "1.5", "100.0"))
+
+
+def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
+    """A list or object kept by EMBED_PARAM_KEYS without an EMBED_ROW_KEYS entry would be silently dropped
+    from a shown widget; the table must name every one the account builders write."""
+    structured = {"myPnlStats": {"range", "equity"}, "myPositionsRisk": {"rows"}, "myRulesCheck": {"range", "rules"},
+                  "myMistakes": {"rows"}, "tradeRecap": {"bars", "mistakes"},
+                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"}}
+    from api.services.journal_two import notebook_widgets as nw
+    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
+    for kind, keys in structured.items():
+        assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
+        assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind
+        for allowed in pnp.EMBED_ROW_KEYS[kind].values():
+            assert "positionId" not in allowed and "tradeId" not in allowed and "definitionId" not in allowed
+
+
+#: Ruling R64: what the client now STORES in a widget's params at insert, beside the frozen payload -- the F1
+#: payload honesty/provenance keys and every request key (notebook_widgets.SETTING_KEYS, `range`, and the
+#: identifiers a list, screen, account, trade, note or folder is named by).
+_R64_STORED = {
+    "empty": "SENTENCE-empty", "failed": True, "sourceDetail": "SECRET-sourceDetail", "priceBasis": "broker",
+    "earningsUnknown": True, "timingUnknown": True, "nextDayNote": "SECRET-nextDayNote", "tooLarge": True,
+    "mistakesTruncated": 3,
+    "list": "SECRET-list", "from": "1999-01-01", "to": "1999-12-31", "symbol": "ZZQQ", "month": "1999-07",
+    "range": {"from": "1999-01-01", "to": "1999-12-31"}, "definitionId": "u_0123456789ab", "tradeId": "SECRET-trade",
+    "accountId": "SECRET-acct", "positionId": "SECRET-pos", "listId": "SECRET-listid", "watchKey": "SECRET-watch",
+    "scanKey": "SECRET-scan", "noteId": "SECRET-note", "folderId": "SECRET-folder", "setupId": "SECRET-setup",
+}
+#: Never on a public page for ANY account kind: request keys with no payload meaning, provenance, identifiers.
+_R64_NEVER = {"list", "from", "to", "definitionId", "tradeId", "accountId", "positionId", "listId", "watchKey",
+              "scanKey", "noteId", "folderId", "setupId", "sourceDetail", "priceBasis", "nextDayNote", "failed",
+              "earningsUnknown", "timingUnknown"}
+
+
+def test_r64_the_never_keys_are_in_no_account_allowlist():
+    from api.services.journal_two import notebook_widgets as nw
+    assert set(nw.SETTING_KEYS) - {"symbol", "month"} <= _R64_NEVER         # control: every request key is covered
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        assert not set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER, (kind, set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through_the_allowlist(mode):
+    """Every account kind with EVERY stored key set: share off is the neutral line and nothing else; share on
+    publishes only that kind's EMBED_PARAM_KEYS, so a request key or sourceDetail/priceBasis reaches a stranger
+    only where the member-optin table already names that exact key."""
+    from api.services.journal_two import notebook_widgets as nw
+    for kind in sorted(nw.ACCOUNT_KINDS):
+        for share in (None, False, True):
+            node = _widget(kind)
+            node["attrs"]["params"] = dict(copy.deepcopy(_R64_STORED), asOf="2026-10-20T14:00:00Z",
+                                           **({} if share is None else {"share": share}))
+            out = reduce(doc(node), mode)
+            blob = json.dumps(out)
+            if share is not True:
+                assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out), (kind, share)
+                assert "SECRET" not in blob and "1999" not in blob and "ZZQQ" not in blob, (kind, share)
+                continue
+            params = find_embed(out)["attrs"]["params"]
+            assert set(params) <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, set(params) - set(pnp.EMBED_PARAM_KEYS[kind]))
+            assert not set(params) & _R64_NEVER, kind
+            assert "SECRET" not in blob, (kind, blob)
+            assert params["asOf"] == "2026-10-20T14:00:00Z" and params["share"] is True    # control: shown
+
+
+def test_m6_an_empty_tuple_entry_keeps_no_keys_it_fails_closed(monkeypatch):
+    """Fix F1b (review M-6): the item shapes are matched by identity, so an EMBED_ROW_KEYS entry written `()`
+    to mean "keep no keys" keeps NOTHING -- it used to equal SCALAR_ITEMS and pass every scalar through."""
+    params = {"mistakes": ["fomo", "chased"], "bars": [{"t": "2026-09-01", "c": 1.5}],
+              "range": {"from": "2026-10-13", "to": "2026-10-20"}, "share": True}
+    # control: with the real table the member's figures are there
+    real = pnp.allowed_params("tradeRecap", params)
+    assert real["mistakes"] == ["fomo", "chased"] and real["bars"] == [{"t": "2026-09-01", "c": 1.5}]
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "tradeRecap", {"mistakes": (), "bars": ()})
+    out = pnp.allowed_params("tradeRecap", params)
+    assert out["mistakes"] == [] and out["bars"] == [], out          # review m7: no items, so no count either
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": (), "equity": ()})
+    out = pnp.allowed_params("myPnlStats", {"range": params["range"], "equity": [["2026-10-13", 100.0]]})
+    assert out == {"range": {}, "equity": []}, out
+    # a shape placed where a dict's keys are read names no key either
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "myPnlStats", {"range": pnp.SCALAR_ITEMS})
+    assert pnp.allowed_params("myPnlStats", {"range": params["range"]}) == {"range": {}}
+    assert () is not pnp.SCALAR_ITEMS and () != pnp.SCALAR_ITEMS
+    # review m7: a () entry on a many-row list publishes nothing a stranger could count
+    monkeypatch.setitem(pnp.EMBED_ROW_KEYS, "mySetupEdge", {"rows": ()})
+    rows = [{"setup": f"S{i}", "n": i} for i in range(7)]
+    assert pnp.allowed_params("mySetupEdge", {"rows": rows})["rows"] == []
+
+
+def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeypatch):
+    """Derived, not restated (fix F1b, review M-7): the keys of a stock row AND an option row as
+    `myPositionsRisk` actually BUILDS them, less positionId, are exactly the allowlist -- so a key the
+    builder adds and the allowlist misses (or one the allowlist names and no row carries) reds here."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import notebook_widgets as nw
+    import api.routers.live_prices as lp
+    import api.services.journal_two.options as op
+    import api.services.journal_two.positions as ps
+    import api.services.portfolio_heat as ph
+    stock = {"id": "p1", "symbol": "NVDA", "side": "Long", "shares": 10, "entryPrice": 100.0,
+             "stopPrice": 95.0, "source": "manual"}
+    option = {"id": "st-1", "underlying": "CRWV", "strategyType": "long_call", "netEntry": 1200.0,
+              "brokerCurrentValue": 1500.0, "source": "broker", "status": "open",
+              "legs": [{"side": "buy", "contractType": "call", "strike": 110.0, "expiration": "2026-10-16",
+                        "qty": 2, "entryPrice": 6.0}]}
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [stock])
+    monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [option] if status == "open" else [])
+    monkeypatch.setattr(ph, "portfolio_heat", lambda user_id, *a, **k: {"ok": True, "per_position": [
+        {"symbol": "NVDA", "side": "Long", "dist_to_stop_pct": 5.0, "stop_price": 95.0, "placeholder_stop": False}]})
+    monkeypatch.setattr(nw, "_account_size", lambda user_id: 50000.0)
+    monkeypatch.setattr(nw, "_accounts_by_id", lambda user_id: {})
+    monkeypatch.setattr(lp, "get_live_prices", lambda tickers="": {"NVDA": {"price": 110.0}})
+    rows = nw.build("myPositionsRisk", "u1", {}, now=datetime(2026, 10, 20, 15, 0, tzinfo=timezone.utc))["rows"]
+    assert sorted(r["kind"] for r in rows) == ["option", "stock"]           # control: both kinds were built
+    allowed = set(pnp.EMBED_ROW_KEYS["myPositionsRisk"]["rows"])
+    for row in rows:
+        assert set(row) - {"positionId"} == allowed, (row["kind"], set(row) ^ (allowed | {"positionId"}))
+        assert "positionId" in row and "positionId" not in allowed

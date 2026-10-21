@@ -371,6 +371,14 @@ def _png(att_root, user_id: str, note_id: str, sub: str = "inline", name: str = 
     return name
 
 
+def _reference_pic(user_id: str, note_id: str, name: str = "pic.png") -> None:
+    """Ruling R59: a public image proxy serves only an image the reduced page REFERENCES, so a note whose
+    picture a door must serve names it in its body (its own attachment, as the editor stores it)."""
+    from api.services.journal_two import notes
+    notes.update_note(user_id, note_id, {"bodyJson": {"type": "doc", "content": [
+        {"type": "image", "attrs": {"src": f"/api/j2/notes/attachments/{user_id}/{note_id}/inline/{name}"}}]}})
+
+
 @pytest.fixture
 def world(db_path, att_root, gates_on):
     """Member A: a shared AND published note with an image on disk, and a published folder
@@ -379,11 +387,13 @@ def world(db_path, att_root, gates_on):
     from api.services.journal_two import note_publish, note_shares, notes
     na = _note(A, "Alpha shared note")
     _png(att_root, A, na["id"])
+    _reference_pic(A, na["id"])
     tok = note_shares.create_share(A, na["id"])["token"]
     a_pub = note_publish.publish_note(A, na["id"])["slug"]
     fa = notes.create_folder(A, "Alpha published folder")
     member = _note(A, "Alpha folder member", folderId=fa["id"])
     _png(att_root, A, member["id"])
+    _reference_pic(A, member["id"])
     a_folder_pub = note_publish.publish_folder(A, fa["id"])["slug"]
     nb = _note(B, "Bravo own note")
     fb = notes.create_folder(B, "Bravo folder")
@@ -1097,6 +1107,7 @@ def states(db_path, att_root, gates_on):
     for name in ("live", "revoked", "expired", "trashed", "archived"):
         n = _note(A, f"state {name}")
         _png(att_root, A, n["id"])
+        _reference_pic(A, n["id"])
         out[name] = (n["id"], note_shares.create_share(A, n["id"])["token"])
     note_shares.revoke_share(A, out["revoked"][0])
     _expire_share(out["expired"][1])
@@ -1130,6 +1141,7 @@ def pub_states(db_path, att_root, gates_on):
     for name in ("live", "revoked", "expired", "trashed", "archived"):
         n = _note(A, f"pub state {name}")
         _png(att_root, A, n["id"])
+        _reference_pic(A, n["id"])
         out[name] = (n["id"], note_publish.publish_note(A, n["id"])["slug"])
     note_publish.revoke(A, out["revoked"][1])
     _expire_publication(out["expired"][1])

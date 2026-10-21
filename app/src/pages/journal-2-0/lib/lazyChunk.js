@@ -92,7 +92,12 @@ export default function lazyChunk(load, waitMs = RETRY_WAIT_MS) {
  * working note: the reload replaces the editor, and offline (Wave Q1's default) it lands on the
  * browser's offline page. A stale chunk here costs the member a leaf fallback until they reload.
  * `tabs/NotebookTab.lazyViews.test.js` allows it only where the enclosing boundary is visible.
+ *
+ * `pick` (Notebook widgets Task 16D): the view is the module's NAMED export `pick`, so several views
+ * can share ONE chunk (one lazy import, one preload list on the first open). The retry accepts a
+ * module only when it carries that export, exactly as a plain view must carry a default.
  */
-export function lazyLeaf(load, waitMs = RETRY_WAIT_MS) {
-  return lazy(() => importWithOneRetry(load, waitMs))
+export function lazyLeaf(load, waitMs = RETRY_WAIT_MS, pick) {
+  if (!pick) return lazy(() => importWithOneRetry(load, waitMs))
+  return lazy(() => importWithOneRetry(load, waitMs, (mod) => !!mod?.[pick]).then((mod) => ({ default: mod[pick] })))
 }

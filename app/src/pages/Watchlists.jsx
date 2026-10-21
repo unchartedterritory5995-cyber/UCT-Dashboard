@@ -79,6 +79,7 @@ import { RVOL_TOOLTIP, formatRvol } from '../lib/volumeCurve'
 import { watchlistRvol } from './watchlist/watchlistRvol'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { buildWatchlistCapture } from './charts/widgets/captures/watchlistCapture'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { menuThemeVars } from '../utils/dividerColor'
@@ -1450,19 +1451,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Freeze exactly what this list shows right now — shared by the one-click
   // default send AND the destination-picker, so both paths capture the
   // identical payload rather than re-deriving it a second time at Send.
-  const buildListCapture = useCallback((watchKey, watchName, items) => {
-    const rows = items.map((it) => {
-      const sym = typeof it === 'string' ? it : it.sym
-      const q = prices[sym]
-      return {
-        sym,
-        ...(typeof it === 'object' && it.notes ? { note: it.notes } : {}),
-        ...(Number.isFinite(q?.price) ? { price: q.price } : {}),
-        ...(Number.isFinite(q?.change_pct) ? { chgPct: q.change_pct } : {}),
-      }
-    })
-    return { watchKey, watchName, symbols: rows.map((r) => r.sym), rows }
-  }, [prices])
+  // (captures/watchlistCapture.js: the same builder the Notebook's /watchlist insert uses.)
+  const buildListCapture = useCallback(
+    (watchKey, watchName, items) => buildWatchlistCapture({ watchKey, watchName, items }, { prices }),
+    [prices],
+  )
   const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('watchlist', buildListCapture(watchKey, watchName, items), { label: watchName }))

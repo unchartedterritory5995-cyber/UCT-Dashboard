@@ -286,3 +286,107 @@ def test_no_earlier_route_in_the_real_app_matches_a_concrete_url_of_ours():
                     shadowed.append(f"{method} {path} <- {rt.path} ({rt.endpoint.__module__})")
                 break
     assert not shadowed, shadowed
+
+
+# ── final review I-1: a dark widget is never named by a served style ─────────────────────────
+
+def _waves(monkeypatch, *on):
+    for w in range(1, 7):
+        if w in on:
+            monkeypatch.setenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", "1")
+        else:
+            monkeypatch.delenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", raising=False)
+
+
+def _slot_names(style) -> set:
+    """Every snapshot slot kind a served style mentions: as a block, or as a {{block:<kind>}} placeholder
+    anywhere in its outline."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js
+    found = {b["block"] for b in style.get("blocks") or [] if b.get("block") in js.SNAPSHOT_SLOT_KINDS}
+    text = _json.dumps(style.get("outlineBodyJson") or {})
+    found |= {k for k in js.SNAPSHOT_SLOT_KINDS if "{{block:%s}}" % k in text}
+    return found
+
+
+def _served(client) -> list:
+    """Every style the client can be shown: the listing, and each one read in full."""
+    listing = client.get("/api/j2/journal-styles").json()["styles"]
+    return listing + [client.get(f"/api/j2/journal-styles/{s['id']}").json()["style"] for s in listing]
+
+
+def test_with_every_wave_off_no_served_style_names_a_slot(client, monkeypatch):
+    from api.services.journal_two import journal_styles as js
+    _waves(monkeypatch)
+    _as(client)
+    # control: the STORED built-ins do hold slots, so an empty answer below is the filter, not the fixture
+    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS)
+    # a member style holding a slot (as a W1-on "Save as style" would have made it), its placeholder nested
+    _waves(monkeypatch, 1, 2)
+    made = client.post("/api/j2/journal-styles", json={
+        "name": "Mine", "kindId": "weekly_review",
+        "blocks": [{"block": "myPnlStats", "enabled": True, "settings": {}}],
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "blockquote", "content": [{"type": "paragraph",
+                                                "content": [{"type": "text", "text": "{{block:myPnlStats}}"}]}]}]}})
+    assert made.status_code == 200, made.text
+    assert _slot_names(made.json()["style"]) == {"myPnlStats"}          # control: visible while its wave is on
+    _waves(monkeypatch)
+    served = _served(client)
+    assert len(served) > 2
+    assert all(_slot_names(s) == set() for s in served), [(s["id"], _slot_names(s)) for s in served]
+    # the duplicate path (StylesManager reads the style in full, then posts its blocks and outline)
+    weekly = client.get("/api/j2/journal-styles/builtin:weekly_review").json()["style"]
+    dup = client.post("/api/j2/journal-styles", json={"name": "Copy", "kindId": weekly["kindId"],
+                                                      "blocks": weekly["blocks"],
+                                                      "outlineBodyJson": weekly["outlineBodyJson"]})
+    assert dup.status_code == 200 and _slot_names(dup.json()["style"]) == set()
+
+
+def test_with_w2_on_only_the_w2_kinds_are_served(client, monkeypatch):
+    from api.services.journal_two.notebook_widgets import KIND_WAVE
+    w2 = {k for k, w in KIND_WAVE.items() if w == 2}
+    _waves(monkeypatch, 2)
+    _as(client)
+    names = set().union(*(_slot_names(s) for s in _served(client)))
+    assert names == {"myRulesCheck", "myMistakes"} == (w2 & names)
+
+
+def test_a_save_keeps_a_slot_hidden_from_the_client(client, monkeypatch):
+    """The stored style is never changed by the filter: a member saving a style the client was shown without
+    its dark slot keeps the slot, and it is served again once its wave is on."""
+    from api.services.journal_two import journal_styles as js
+    _waves(monkeypatch, 1)
+    _as(client)
+    sid = client.post("/api/j2/journal-styles", json={
+        "name": "Mine", "kindId": "weekly_review",
+        "blocks": [{"block": "myPnlStats", "enabled": True, "settings": {}}]}).json()["style"]["id"]
+    _waves(monkeypatch)
+    shown = client.get(f"/api/j2/journal-styles/{sid}").json()["style"]
+    assert shown["blocks"] == []
+    client.put(f"/api/j2/journal-styles/{sid}", json={"name": "Renamed", "blocks": shown["blocks"]})
+    assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myPnlStats"]
+    _waves(monkeypatch, 1)
+    assert _slot_names(client.get(f"/api/j2/journal-styles/{sid}").json()["style"]) == {"myPnlStats"}
+
+
+
+def test_a_save_keeps_a_hidden_slot_at_the_index_it_was_stored_at(client, monkeypatch):
+    """F1 cleanup queue: a slot hidden while its wave is off used to be APPENDED on save, so saving once moved
+    it to the end of the style for good. It keeps its stored index."""
+    from api.services.journal_two import journal_styles as js
+    _waves(monkeypatch, 1, 2)
+    _as(client)
+    blocks = [{"block": b, "enabled": True, "settings": {}} for b in ("myRules", "myPnlStats", "myMistakes")]
+    sid = client.post("/api/j2/journal-styles", json={"name": "Mine", "kindId": "weekly_review",
+                                                      "blocks": blocks}).json()["style"]["id"]
+    _waves(monkeypatch, 2)                                          # wave 1 off: myPnlStats is hidden
+    shown = client.get(f"/api/j2/journal-styles/{sid}").json()["style"]
+    assert [b["block"] for b in shown["blocks"]] == ["myRules", "myMistakes"]
+    r = client.put(f"/api/j2/journal-styles/{sid}", json={"blocks": shown["blocks"]})
+    assert r.status_code == 200, r.text
+    assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myRules", "myPnlStats", "myMistakes"]
+    # the member reorders what they can see: the hidden slot keeps its stored index among them
+    r = client.put(f"/api/j2/journal-styles/{sid}", json={"blocks": list(reversed(shown["blocks"]))})
+    assert r.status_code == 200, r.text
+    assert [b["block"] for b in js.get_style("u1", sid)["blocks"]] == ["myMistakes", "myPnlStats", "myRules"]

@@ -14,7 +14,7 @@ import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
-  parseVsSlashArgs, chartPlanEnabled, VS_BROAD, VS_KEYWORDS,
+  parseVsSlashArgs, chartPlanEnabled, VS_BROAD, VS_KEYWORDS, parseDayToken,
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
@@ -28,9 +28,12 @@ import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
+import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { captureEnabled } from '../../../../widgets/captureRelease'
 import styles from './SlashMenu.module.css'
 
-// Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
+// Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
 // switch (R-P2-1). Words and defaults are the registry's, already first-open; registry.test.js S20
 // pins them to journalBlocks.js, which is NOT first-open (SlashMenu.blocks.test.jsx proves agreement).
 // No params: buildWidgetEmbedAttrs -> normalizeParams fills every registry default.
@@ -39,7 +42,7 @@ const traderItem = (id, more) => ({
   description: 'A trader block',
   keywords: ['block', 'trading'],
   available: journalStylesEnabled,
-  trading: true,
+  trader: true,
   command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertWidgetEmbed(id).run(),
   ...more,
 })
@@ -338,11 +341,15 @@ export const ITEMS = [
   }),
 ]
 
-// A bare `/` offers three groups, trading first: this is a trading notebook, and the chart, price
-// and plan blocks are what a member reaches for most (UX pass 2026-10-10). Typing narrows the list
-// exactly as before; the groups only order and label it. A block item not named here is "more".
+// A bare `/` offers the moments a member reaches for something (Notebook widgets Task 8): before the
+// open, planning a trade, reviewing, then the everyday basics and everything else (UX pass 2026-10-10
+// put trading first; this splits it by moment). Typing narrows the list exactly as before; the groups
+// only order and label it. A block item not named here is "more".
 export const SLASH_GROUPS = [
-  { id: 'trading', label: 'Trading' },
+  { id: 'open', label: 'Before the open' },
+  { id: 'plan', label: 'Planning a trade' },
+  { id: 'review', label: 'Reviewing' },
+  { id: 'mine', label: 'My presets' },
   { id: 'basics', label: 'Basics' },
   { id: 'more', label: 'More' },
 ]
@@ -350,22 +357,21 @@ const BASICS = new Set([
   'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Reminder', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
-const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage', 'Journal style'])
+const MOMENT_BLOCKS = { 'Trade-plan canvas': 'plan', 'Journal style': 'plan', 'Transcript passage': 'review' }
 
-/** Which group a block item belongs to. Widget and fact captures are always trading. */
+/** Which group a block item belongs to. Trader blocks plan a trade; so do the chart and fact captures. */
 export function blockItemGroup(item) {
-  if (item.trading || TRADING_BLOCKS.has(item.title)) return 'trading'
-  return BASICS.has(item.title) ? 'basics' : 'more'
+  if (item.trader) return 'plan'
+  return MOMENT_BLOCKS[item.title] || (BASICS.has(item.title) ? 'basics' : 'more')
 }
 
-/** The bare-`/` list: trading, then basics, then more, each item tagged with its group. */
+/** The bare-`/` list in SLASH_GROUPS order, each item tagged with its group. In each group the
+ *  captures come first, then the blocks. A capture without its own group (chart, price, plan...)
+ *  plans a trade; a snapshot widget item carries its kind's group. */
 export function groupedSlashItems(blocks, captures) {
-  const tag = (it, group) => ({ ...it, group })
-  const trading = [...captures.map((it) => tag(it, 'trading')),
-    ...blocks.filter((it) => blockItemGroup(it) === 'trading').map((it) => tag(it, 'trading'))]
-  const basics = blocks.filter((it) => blockItemGroup(it) === 'basics').map((it) => tag(it, 'basics'))
-  const more = blocks.filter((it) => blockItemGroup(it) === 'more').map((it) => tag(it, 'more'))
-  return [...trading, ...basics, ...more]
+  const tagged = [...captures.map((it) => ({ ...it, group: it.group || 'plan' })),
+    ...blocks.map((it) => ({ ...it, group: blockItemGroup(it) }))]
+  return SLASH_GROUPS.flatMap((g) => tagged.filter((it) => it.group === g.id))
 }
 
 /** Does a block item answer the typed query (its title, or one of its keywords)? */
@@ -466,6 +472,168 @@ export function factItems(query) {
       }
     },
   }]
+}
+
+// ── Notebook widgets Task 8: the fetch-and-freeze snapshot items, one per kind whose wave is on (the
+// gate decides what is OFFERED, never whether a stored widget renders). ONE builder for the / menu and
+// the widget palette. A kind that reads a symbol takes the /price matching: a bare prefix completes to
+// `/ticker `, a valid symbol inserts, anything else offers nothing so Enter stays a newline.
+const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
+
+/** The command for one snapshot: the typed range leaves at once (a palette has none, so it steps
+ *  off a selected embed instead), "Adding …" shows at once and nothing goes in until the fetch answers, then the frozen widget
+ *  goes in where the command was, mapped through anything the member typed meanwhile. A failed fetch
+ *  inserts nothing and says so. Resolves `{ok, message}` for the palette's own status line. */
+const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
+// F2 cleanup: a lazy chunk that cannot load (lost after a deploy) is said, never silent; offline is offline.
+const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === false ? { ok: false, reason: 'offline' }
+  : { ok: false, message: "This widget couldn't load. Reload the page to try again." })
+// R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing. Per editor
+// (review m-1): the same widget asked for in another note is that note's own insert.
+const inflight = new WeakMap()
+function snapshotCommand(kind, params) {
+  return async ({ editor, range }) => {
+    const chain = editor.chain().focus()
+    ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
+    const key = kind.id + JSON.stringify(params)
+    const adding = `Adding ${kind.title}…`
+    const offline = `You're offline, so ${kind.title} was not added.`
+    const failed = `${kind.title} could not be loaded just now, so nothing was added.`
+    // Review I-3: "Adding …" is a busy toast (it stays until the result replaces it), and a second Enter says it again.
+    const say = (m, tone = 'error') => editor.storage?.uctJournalWidgets?.notify?.(m, tone)
+    say(adding, 'busy')
+    const busy = inflight.get(editor) || new Set()
+    inflight.set(editor, busy)
+    if (busy.has(key)) return { ok: false, message: adding }
+    busy.add(key)
+    // Where the typed command was (its range's start once deleted); the palette's caret otherwise.
+    let pos = range ? range.from : editor.state.selection.from
+    const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
+    editor.on('transaction', track)
+    try {
+      // A Task 16 kind fetches and builds through its lazily loaded capture module; a snapshot kind's fetch is lazy too
+      // (Task 16D: first-open bytes). A chunk that cannot load answers `lost()`: offline when the browser says so, else
+      // the reload sentence.
+      const res = kind.capture
+        ? await kind.capture(params).catch(lost)
+        : await widgetsFetch().then((m) => m.fetchWidgetPayload(kind.id, params), lost)
+      if (!res.ok) {
+        if (editor.isDestroyed) return { ok: false, message: null }
+        // A capture may name its own sentence (a news feed not built yet); otherwise offline vs failed.
+        const message = res.message || (res.reason === 'offline'
+          ? offline
+          : failed)
+        say(message)
+        return { ok: false, message }
+      }
+      // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
+      // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
+      // Review N-2: a throw inside the insert says the failed sentence (it replaces the busy toast, never strands it).
+      const landed = await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
+        lost).catch(() => ({ ok: false, message: failed }))
+      // Review m-3: the insert's chunk lost while offline is said as offline (lost() names no sentence for it).
+      if (landed.reason) landed.message = offline
+      if (landed.message) say(landed.message)
+      return landed
+    } finally {
+      editor.off('transaction', track)
+      busy.delete(key)
+    }
+  }
+}
+
+/** ONE background load per source, for the member's own rows (Task 17's pattern, shared by Task 20).
+ *  ⛔ SYNCHRONOUS. Suggestion awaits items() before it draws anything, so a read here would hold the
+ *  whole menu. `kick(editor)` answers what is already loaded and starts ONE background load when nothing is, or
+ *  it is over 60 s old; a failed load waits 30 s before the next. The rows show on the next update.
+ *  Final review M-3: the rows are the signed-in member's own, so the cache is KEYED to the member id the
+ *  editor holds (`uid` in its storage, NoteEditorPage): a different id starts from nothing, and a load the
+ *  previous member started lands in the previous member's slot, never the new one. */
+function background(load) {
+  let s
+  const reset = (uid) => { s = { v: null, at: 0, failedAt: 0, loading: null, uid } }
+  reset()
+  const kick = (editor) => {
+    const uid = editor?.storage?.uctJournalWidgets?.uid
+    if (uid !== s.uid) reset(uid)
+    const t = s
+    const now = Date.now()
+    if (!t.loading && now - t.failedAt >= 30000 && !(t.v && now - t.at < 60000)) {
+      t.loading = load(uid)
+        .then((v) => { t.v = v; t.at = Date.now() }, () => { t.failedAt = Date.now() })
+        .finally(() => { t.loading = null })
+    }
+    return t.v
+  }
+  return { kick, wait: () => s.loading || Promise.resolve(), reset }
+}
+
+/** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
+ *  come from lib/notebookSets.js, loaded only here and only while wave 5 is on (first-open bytes); a
+ *  preset inserts through snapshotCommand, the one snapshot insert. */
+const mine = background((uid) => import('../../lib/notebookSets').then(async (m) => {
+  const doc = await m.loadSets({ fresh: true, uid })
+  if (doc.failed) throw doc
+  return { m, doc }
+}))
+export function mineItems(query, editor) {
+  if (!widgetsWaveOn(5)) return []
+  const v = mine.kick(editor)
+  // The module's own copy wins (a save in this tab updates it at once), and only while it is this member's (R60).
+  const doc = v && (v.m.peekSets(editor?.storage?.uctJournalWidgets?.uid) || v.doc)
+  return doc ? [...v.m.presetRows(query, doc, 'mine', snapshotCommand), ...v.m.chartSetRows(query, doc, 'mine')] : []
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __mineLoad = () => mine.wait()
+export const __resetMine = () => mine.reset()
+
+/** Task 20 (wave 6): `/recap` lists the member's recent closed trades and `/screen` their saved screens, each
+ *  row inserting a Trade recap or My screen today through snapshotCommand. The rows live in the module the
+ *  snapshot insert already loads (lib/notebookWidgetsFetch.js), read only while wave 6 is on (first-open bytes). */
+const picks = background(() => widgetsFetch().then(async (m) => ({ m, doc: await m.loadPicks() })))
+export function pickItems(query, editor) {
+  if (!widgetsWaveOn(6)) return []
+  const v = picks.kick(editor)
+  return v ? v.m.pickRows(query, v.doc, snapshotCommand) : []
+}
+export const __picksLoad = () => picks.wait()
+export const __resetPicks = () => picks.reset()
+
+export function snapshotWidgetItems(query) {
+  const raw = String(query || '').trim()
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
+  const out = []
+  for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
+    // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
+    // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
+    if (kind.pick || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
+    const item = { title: kind.title, description: kind.description, group: kind.group }
+    const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
+    // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.
+    if (kind.day && !singleToken) {
+      const date = first === kind.id && tokens.length === 2 && parseDayToken(tokens[1])
+      if (date) out.push({ ...item, cmd: first, title: `${kind.title} — ${fmtDayTitle(date)}`, command: snapshotCommand(kind, { date }) })
+      continue
+    }
+    if (!cmd) {
+      if (blockItemMatches(kind, raw.toLowerCase())) out.push({ ...item, command: snapshotCommand(kind, {}) })
+      continue
+    }
+    if (singleToken ? !cmd.startsWith(first) : first !== cmd) continue
+    const rest = singleToken ? '' : raw.slice(first.length).trim()
+    if (!rest) {
+      out.push({ ...item, cmd, description: `Type a symbol — e.g. /${cmd} NVDA`,
+        command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).insertContent(`/${cmd} `).run() } })
+      continue
+    }
+    const sym = rest.replace(/^\$/, '')
+    if (!FACT_SYMBOL_RE.test(sym)) continue
+    const symbol = sym.toUpperCase()
+    out.push({ ...item, cmd, title: `${kind.title} — ${symbol}`, command: snapshotCommand(kind, { symbol }) })
+  }
+  return out
 }
 
 // ── Tier 2 part A, item 9: /plan NVDA makes a Trade plan note for NVDA (the member's default
@@ -748,7 +916,38 @@ function vsItems(rest) {
   }))
 }
 
-const SlashList = forwardRef((props, ref) => {
+/** The slash menu's rows for one query. `mine` is mineItems' answer (wave 5), empty otherwise: grouped
+ *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not. */
+export function slashItems(query, editor, mine = []) {
+  const q = (query || '').toLowerCase()
+  const widgets = widgetItems(query)
+  const factCaptures = factItems(query)
+  const consensusCaptures = consensusFactItems(query)
+  const planCaptures = planItems(query)
+  const snapshots = snapshotWidgetItems(query)
+  // Wave 6: an item may say where it is NOT offered (`available`) —
+  // today only columns, never inside a column (they do not nest). A
+  // table of contents is an ordinary block and is offered anywhere.
+  const here = blockItemsAvailable(editor)
+  if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures, ...mine])
+  // Widget/fact items match on their own tokenized rules (args after
+  // the type name would defeat a plain substring filter).
+  // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
+  // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
+  // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
+  // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
+  // A typed list is not grouped, so a snapshot item's own group is dropped (no label).
+  const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures,
+    ...snapshots.map(({ group, ...it }) => it), // eslint-disable-line no-unused-vars
+    ...mine.map(({ group, ...it }) => (it.cmd === 'preset' ? { ...it, group } : it))]
+  const cmd = q.trim().split(/\s+/)[0]
+  const blocks = rankedBlockItems(here, q)
+  const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
+  return [...exact, ...captures.filter((it) => it.cmd === cmd),
+    ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
+}
+
+export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
   const menuId = props.menuId || 'uct-slash-menu'
@@ -838,30 +1037,9 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        items: ({ query, editor }) => {
-          const q = (query || '').toLowerCase()
-          const widgets = widgetItems(query)
-          const factCaptures = factItems(query)
-          const consensusCaptures = consensusFactItems(query)
-          const planCaptures = planItems(query)
-          // Wave 6: an item may say where it is NOT offered (`available`) —
-          // today only columns, never inside a column (they do not nest). A
-          // table of contents is an ordinary block and is offered anywhere.
-          const here = blockItemsAvailable(editor)
-          if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures])
-          // Widget/fact items match on their own tokenized rules (args after
-          // the type name would defeat a plain substring filter).
-          // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
-          // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
-          // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
-          // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
-          const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures]
-          const cmd = q.trim().split(/\s+/)[0]
-          const blocks = rankedBlockItems(here, q)
-          const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
-          return [...exact, ...captures.filter((it) => it.cmd === cmd),
-            ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
-        },
+        // Waves 5 and 6 add the member's own rows (mineItems, pickItems): whatever is loaded, never awaited.
+        // M-3: the caches are keyed to the signed-in member the editor holds.
+        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query, editor), ...pickItems(query, editor)]),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.

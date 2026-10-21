@@ -16,20 +16,15 @@ import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from './ScannerResults.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { fmtScanTime, scanPerfOverride, buildScanCapture } from './captures/scannerCapture'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the table
 // read as "Loading…" forever. A failure with nothing to stand on now says so and points at the
 // footer's Refresh; SWR keeps the last good scan through a failed 30 s poll. 402 stays absent.
 const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
-// Backend `as_of` (ISO, ET-clock offset) → "1:26 PM" in market (ET) time.
-function fmtScanTime(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleTimeString('en-US',
-      { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
-  } catch { return '' }
-}
+// Backend `as_of` -> "1:26 PM" ET (fmtScanTime) and the gainers period map (GAINERS_PERIOD) live in
+// captures/scannerCapture.js, beside the builder the Notebook's /scanner insert shares with this door.
 
 // The scanner keeps its OWN column layouts, independent of the watchlist widgets
 // (which share the global WL_COLS_LS key) AND independent PER SCAN — each preset
@@ -61,12 +56,6 @@ const SCAN_DEFAULT_COLS = {
   'top-gainers-30d': gainersDefaultCols('perf30d'),
   'top-gainers-60d': gainersDefaultCols('perf60d'),
   'top-gainers-90d': gainersDefaultCols('perf90d'),
-}
-// Gainers scanKey → the perfData period its server-computed N-day return maps to.
-const GAINERS_PERIOD = {
-  'top-gainers-30d': '30d',
-  'top-gainers-60d': '60d',
-  'top-gainers-90d': '90d',
 }
 
 // One-time migration: the IPO scan's default column changed from RVOL to IPO Date
@@ -228,20 +217,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // result. Feed those into the table's perf data so the 30/60/90-Day column shows a
   // value for the WHOLE list (the /api/watchlist-performance batch caps at 100 + can
   // time out) and stays live via the ref close vs the streaming price.
-  const perfOverride = useMemo(() => {
-    const period = GAINERS_PERIOD[scanKey]
-    if (!period) return null
-    const rows = data?.results || []
-    let out = null
-    for (const r of rows) {
-      if (!r) continue
-      const entry = {}
-      if (r.change_nd != null) entry[period] = r.change_nd
-      if (r.ref_close != null) entry.refs = { [period]: r.ref_close }
-      if (entry[period] != null || entry.refs) (out ||= {})[r.sym] = entry
-    }
-    return out
-  }, [data, scanKey])
+  const perfOverride = useMemo(() => scanPerfOverride(data, scanKey), [data, scanKey])
 
   // ── Wave R (R-1a): freeze the scan the member is looking at ──────────────────
   // A scanner capture is a FULL-LIST FREEZE, not a query the note can re-run. The
@@ -256,24 +232,10 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // destination picker, so both freeze the identical payload — never re-derived at
   // Send time, or a 30s poll landing while the member types a comment would freeze
   // a different list than the one they were looking at when they opened the menu.
-  const buildScanCapture = useCallback(() => {
-    const period = GAINERS_PERIOD[scanKey] || null
-    return {
-      scanKey,
-      scanName: scanName || null,
-      asOf: data?.as_of ? `${fmtScanTime(data.as_of)} ET` : null,
-      rows: symbols.map((sym) => {
-        const live = doorPrices[sym] || {}
-        const nd = period != null ? perfOverride?.[sym]?.[period] : null
-        return {
-          sym,
-          price: Number.isFinite(Number(live.price)) ? Number(live.price) : null,
-          chgPct: Number.isFinite(Number(live.change_pct)) ? Number(live.change_pct) : null,
-          ...(nd != null ? { extraValue: `${Number(nd) > 0 ? '+' : ''}${Number(nd).toFixed(1)}% ${period}` } : {}),
-        }
-      }),
-    }
-  }, [scanKey, scanName, data, symbols, doorPrices, perfOverride])
+  const doorCapture = useCallback(
+    () => buildScanCapture({ scanKey, scanName, data, prices: doorPrices }),
+    [scanKey, scanName, data, doorPrices],
+  )
 
   const doorLabel = scanName || 'Scan'
   // ⛔ The door is absent, not disabled, while the scan holds nothing: an empty
@@ -289,7 +251,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         className={styles.doorBtn}
         onClick={async () => {
           setJournalMsg('sending…')
-          setJournalMsg(await sendCaptureToJournal('scanner', buildScanCapture(), { label: doorLabel }))
+          setJournalMsg(await sendCaptureToJournal('scanner', doorCapture(), { label: doorLabel }))
         }}
         title="Send this scan to Journal"
         aria-label="Send this scan to Journal"
@@ -298,7 +260,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         type="button"
         className={styles.doorBtn}
         onClick={(e) => setCaptureMenu({
-          anchor: { x: e.clientX, y: e.clientY }, capture: buildScanCapture(),
+          anchor: { x: e.clientX, y: e.clientY }, capture: doorCapture(),
         })}
         title="Send to Journal — choose where"
         aria-label="Send to Journal — choose where"

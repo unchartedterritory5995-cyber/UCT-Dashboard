@@ -547,6 +547,22 @@ def resolve_member(slug: str, pid: str, conn: sqlite3.Connection | None = None) 
             conn.close()
 
 
+def _image_references(conn: sqlite3.Connection, slug: str, pid: str | None, owner_id: str, note_id: str,
+                      base: str) -> frozenset[str]:
+    """Ruling R59: the images the publication's reduced page for this note references right now, cached
+    per (slug, pid, note, revision) for `public.REFERENCE_SET_TTL_S`. The page's note links rewrite hrefs
+    only, so the set is computed without them."""
+    rev = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
+                       (note_id, owner_id)).fetchone()
+    key = ("publish", slug, pid, note_id, rev[0] if rev else None)
+
+    def compute() -> frozenset[str]:
+        payload = _payload_note(conn, owner_id, note_id, base)
+        return public.referenced_images(payload, base) if payload else frozenset()
+
+    return public.cached_reference_set(key, compute)
+
+
 def resolve_attachment(slug: str, sub: str, filename: str, pid: str | None = None,
                        conn: sqlite3.Connection | None = None):
     """A publication's image: `inline`/`hero` only ('file' attachments never leave), from the
@@ -563,6 +579,7 @@ def resolve_attachment(slug: str, sub: str, filename: str, pid: str | None = Non
             if row["kind"] != "note":
                 return None
             note_id = row["target_id"]
+            base = f"{PUBLISHED_API}/{slug}/att/"
         else:
             if row["kind"] != "folder":
                 return None
@@ -570,6 +587,10 @@ def resolve_attachment(slug: str, sub: str, filename: str, pid: str | None = Non
             if member is None:
                 return None
             note_id = member["id"]
+            base = f"{PUBLISHED_API}/{slug}/n/{pid}/att/"
+        # Ruling R59: only an image the CURRENT reduced page references (the same not-found otherwise).
+        if f"{sub}/{filename}" not in _image_references(conn, slug, pid, row["user_id"], note_id, base):
+            return None
         return notes_service.serve_note_image_path(row["user_id"], note_id, sub, filename)
     finally:
         if owned:

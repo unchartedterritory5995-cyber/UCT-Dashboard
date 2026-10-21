@@ -1228,7 +1228,10 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
     return {
         "kindId": style["kindId"],
         "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
-        "blocks": [b for b in (style.get("blocks") or [])
+        # Task 18 (R50): a snapshot slot ships with empty settings. A ticker, a list or a date range is the
+        # author's; the copy is a scaffold, filled with each adopter's own defaults when they make a note.
+        "blocks": [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
+                   for b in (style.get("blocks") or [])
                    if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
         "properties": props,
         "droppedProperties": dropped,
@@ -2435,7 +2438,9 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
             (row["id"], user_id, style["id"], version, now))
     if commit:
         conn.commit()
-    return {"style": js.get_style(user_id, style["id"], conn),
+    # Final review I-1 / cleanup: the style as the CLIENT is shown it (a dark slot is hidden), like every
+    # journal-styles route answer.
+    return {"style": js.served_style(js.get_style(user_id, style["id"], conn)),
             "notify": bool(notify),
             "credit": f"Based on {_author_label(row)}'s {row['title']}"}
 
@@ -2673,7 +2678,7 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             "UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
             " WHERE user_id = ? AND style_id = ?", (plan["toVersion"], user_id, style_id))
         conn.commit()
-        return js.get_style(user_id, style_id, conn)
+        return js.served_style(js.get_style(user_id, style_id, conn))     # a dark slot stays hidden
     except Exception:
         if conn.in_transaction:
             conn.rollback()

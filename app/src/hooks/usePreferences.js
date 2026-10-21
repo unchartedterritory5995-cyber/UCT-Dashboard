@@ -35,6 +35,9 @@ const DEFAULTS = {
 }
 
 const PREFS_URL = '/api/auth/preferences'
+// Notebook widgets Task 16: a slash capture reads the preferences the way this hook serves them
+// (DEFAULTS underneath), outside React. One authority for the URL and the defaults.
+export { DEFAULTS as PREFERENCE_DEFAULTS, PREFS_URL }
 
 /** The one pref whose value is a structured document several writers edit at
  *  once, and therefore the one that gets a merge rule of its own below. */

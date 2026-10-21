@@ -147,7 +147,8 @@ describe('NoteEditorPage widget palette', () => {
     const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
     fireEvent.click(within(row).getByRole('button', { name: 'Insert widget' }))
-    const panel = screen.getByRole('dialog', { name: 'Insert widget' })
+    // F3 (R45 fallback): the palette is a lazy chunk, so its first open lands a tick after the click.
+    const panel = await screen.findByRole('dialog', { name: 'Insert widget' })
     expect(within(panel).getByText('Chart')).toBeInTheDocument()
     fireEvent.click(within(panel).getByLabelText('Close insert panel'))
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()

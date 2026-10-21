@@ -193,4 +193,31 @@ describe('lazyLeaf (a view inside its OWN error boundary)', () => {
     await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1))
     expect(screen.queryByText('leaf fallback')).toBeNull()
   })
+
+  // Notebook widgets Task 16D: several views share ONE chunk, each its module's named export `pick`.
+  it('pick: the named export renders, and a failed fetch still gets its one in-place retry', async () => {
+    const load = vi.fn()
+      .mockRejectedValueOnce(chunkError())
+      .mockResolvedValueOnce({ tickerCard: () => <p>ticker card</p>, myMistakes: () => <p>mistakes</p> })
+    render(inLeaf(lazyLeaf(load, 0, 'tickerCard')))
+    expect(await screen.findByText('ticker card')).toBeTruthy()
+    expect(screen.queryByText('mistakes')).toBeNull()
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
+
+  it('pick: the specifier retry accepts the shared chunk only when it carries that export', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true, value: { ...realLocation, origin: ORIGIN, reload: vi.fn(), href: `${ORIGIN}/journal/notebook` },
+    })
+    const load = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockResolvedValue({ tickerCard: () => <p>ticker card</p> })
+    render(inLeaf(lazyLeaf(load, 0, 'tickerCard')))
+    expect(await screen.findByText('ticker card')).toBeTruthy()
+    // CONTROL: the same chunk without the export keeps the original failure (the leaf's fallback).
+    chunkRetry.importUrl = vi.fn().mockResolvedValue({ myMistakes: () => null })
+    render(inLeaf(lazyLeaf(vi.fn().mockRejectedValue(chromeError()), 0, 'tickerFlow')))
+    expect(await screen.findByText('leaf fallback')).toBeTruthy()
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
 })

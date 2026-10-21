@@ -1,0 +1,140 @@
+/* Notebook widgets (Task 17): the Chart sets dialog. Real tokens only (tokens.css). Every control is at
+   least 44 px tall and wide (--tap-min), on every screen: the dialog is a touch surface first. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-bright);
+  font-size: 14px;
+}
+.hint,
+.empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.message {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.heading {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.list,
+.charts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.row,
+.chartRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.count,
+.ask {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.spacer {
+  flex: 1 1 auto;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.editor,
+.startFrom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.input,
+.select {
+  font: inherit;
+  color: var(--text-bright);
+  background: var(--bg-surface, transparent);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-sm);
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+.chartRow .input {
+  flex: 1 1 110px;
+  min-width: 0;
+}
+.btn,
+.primary,
+.icon {
+  font: inherit;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.btn,
+.icon {
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border-accent);
+}
+.icon {
+  padding: 0;
+}
+.primary {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+  border: 1px solid var(--accent);
+}
+.btn:hover:not(:disabled),
+.icon:hover:not(:disabled),
+.primary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.btn:disabled,
+.icon:disabled,
+.primary:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.btn:focus-visible,
+.icon:focus-visible,
+.primary:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+}

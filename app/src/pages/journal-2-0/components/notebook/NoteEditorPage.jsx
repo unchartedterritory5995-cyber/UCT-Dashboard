@@ -57,7 +57,6 @@ import {
 } from '../../lib/offline/serverChange'
 import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
-import WidgetPalette from './WidgetPalette'
 // Wave 8 seam S8-3: the share controls (lane 8B) and the export group (lane 8C)
 // live in their own files so neither lane edits this one.
 import NoteShareControls from './NoteShareControls'
@@ -131,6 +130,7 @@ import {
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChunk'
+import whenIdle from '../../lib/whenIdle'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
@@ -141,6 +141,8 @@ import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import TickerCardSlot from './widgets/TickerCardSlot'
 // Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
 // also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
 // imports below, and the chip itself is lazy.
@@ -190,6 +192,12 @@ const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
 const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
+// Notebook widgets F3 (ruling R45's fallback lever): the widget palette is its own chunk, off the first open.
+// The editor warms it once idle (`warmWidgetPalette` below), so the toolbar's palette opens without a wait and
+// still opens offline once that warm has landed. A failed warm costs nothing: the open asks again (lazyChunk).
+const loadWidgetPalette = () => import('./WidgetPalette')
+const WidgetPalette = lazyChunk(loadWidgetPalette)
+const warmWidgetPalette = () => whenIdle(() => { loadWidgetPalette().catch(() => {}) })
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -1157,6 +1165,7 @@ export default function NoteEditorPage({
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  useEffect(warmWidgetPalette, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
@@ -2896,6 +2905,8 @@ export default function NoteEditorPage({
         // viewing a note must never write to it). FingerprintPanel.viewing.test.jsx reads it
         // within 120 characters of the assignment, so it stays first.
         openedAt: Date.now(),
+        // Final review M-3: the signed-in member, which keys the slash menu's own-rows caches.
+        uid: user?.id,
         // P2a Task 10 (lib/blocks/priceStampsRun.js): the note's ticker, read live when a stamp runs (a
         // bare-word line names it), off the ref that holds this render's note.
         noteTicker: () => canvasNoteRef.current?.ticker,
@@ -5508,7 +5519,9 @@ export default function NoteEditorPage({
           header wraps to (review finding: a fixed viewport offset here
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
-        <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+        <Suspense fallback={null}>
+          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+        </Suspense>
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
       {editor && !locked && !isCanvas && (
@@ -5740,6 +5753,8 @@ export default function NoteEditorPage({
         {smartChipsEnabled() && (
           <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>
         )}
+        {/* Notebook widgets W1: the $TICKER chip's card, a lazy chunk (widgets/TickerCardSlot.jsx). */}
+        {widgetsWaveOn(1) && <TickerCardSlot editor={editor} />}
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer}

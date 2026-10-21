@@ -200,20 +200,37 @@ def _window(today: date) -> tuple[dict[str, str], dict[str, str], bool, str]:
     the shared app cache for an hour (five minutes when a day could not be read), so a
     member reloading Home does not re-walk the window.
     """
+    got = cached_window(today)
+    if got is not None:
+        return got
+    from api.services.cache import cache
+    from api.services.calendar_alerts import collect_earnings_window
+    window, partial = collect_earnings_window(today, WINDOW_DAYS)
+    hit = {"window": dict(window), "partial": bool(partial), "asOf": _now_iso()}
+    cache.set(cache_key_for_window(today), hit, ttl=300 if partial else 3600)
+    return _window_answer(hit)
+
+
+def cache_key_for_window(today: date) -> str:
+    """The ONE spelling of the window's cache key (`_window` writes it, `cached_window` reads it)."""
+    return f"notebook_earnings_prep_window::{today.isoformat()}::{WINDOW_DAYS}"
+
+
+def _window_answer(hit: dict) -> tuple[dict[str, str], dict[str, str], bool, str]:
+    window = dict(hit["window"])
+    timing = {s: t for s, d in window.items() if (t := _timing_from_calendar_cache(s, d))}
+    return window, timing, bool(hit["partial"]), hit["asOf"]
+
+
+def cached_window(today: date) -> tuple[dict[str, str], dict[str, str], bool, str] | None:
+    """`_window`'s answer when it costs NO walk (the shared cache holds it, or the local sandbox file
+    names the calendar), else None. Notebook widgets read this on the request thread and send only a
+    miss to their bounded pool (fix F1, C-1)."""
     if sandbox_calendar_active():
         return _sandbox_window()
     from api.services.cache import cache
-    ck = f"notebook_earnings_prep_window::{today.isoformat()}::{WINDOW_DAYS}"
-    hit = cache.get(ck)
-    if isinstance(hit, dict):
-        window = dict(hit["window"])
-    else:
-        from api.services.calendar_alerts import collect_earnings_window
-        window, partial = collect_earnings_window(today, WINDOW_DAYS)
-        hit = {"window": dict(window), "partial": bool(partial), "asOf": _now_iso()}
-        cache.set(ck, hit, ttl=300 if partial else 3600)
-    timing = {s: t for s, d in window.items() if (t := _timing_from_calendar_cache(s, d))}
-    return window, timing, bool(hit["partial"]), hit["asOf"]
+    hit = cache.get(cache_key_for_window(today))
+    return _window_answer(hit) if isinstance(hit, dict) else None
 
 
 def _timing_from_calendar_cache(sym: str, day: str) -> str | None:
@@ -278,11 +295,15 @@ def _existing_prep_notes(user_id: str, since: str) -> dict[str, dict[str, Any]]:
     return out
 
 
-def reporting_soon(user_id: str, *, today: date | None = None) -> dict[str, Any]:
-    """The member's own names reporting from today through `WINDOW_DAYS` days out."""
+def reporting_soon(user_id: str, *, today: date | None = None,
+                   window_read: tuple | None = None) -> dict[str, Any]:
+    """The member's own names reporting from today through `WINDOW_DAYS` days out.
+
+    `window_read` is `_window(today)`'s answer when the caller already holds it (the notebook widgets
+    read it under their own budget, fix F1 C-1), so this never walks the calendar on their behalf."""
     today = today or _today_et()
     mine = _member_sets(user_id)
-    window, timing, partial, as_of = _window(today)
+    window, timing, partial, as_of = window_read if window_read is not None else _window(today)
     try:
         existing = _existing_prep_notes(user_id, (today - timedelta(days=21)).isoformat())
     except Exception as e:  # noqa: BLE001 -- the Open link is a convenience, never the list
@@ -319,9 +340,21 @@ def reporting_soon(user_id: str, *, today: date | None = None) -> dict[str, Any]
 
 # ── the draft ──────────────────────────────────────────────────────────────────────────
 
-def _report_cells(sym: str, today: date, intel: dict | None) -> tuple[dict, dict, str | None]:
-    """(date cell, timing cell, the date as a string or None)."""
-    window, timing, _partial, as_of = _window(today)
+class UnknownWindow(tuple):
+    """The window a caller could NOT read in time (fix F1b, review I-2): nothing listed, `partial` true, and
+    marked, so a cell built from it says the calendar was not read (UNREADABLE), never that it has no date."""
+
+
+def unknown_window() -> "UnknownWindow":
+    return UnknownWindow(({}, {}, True, _now_iso()))
+
+
+def _report_cells(sym: str, today: date, intel: dict | None,
+                  window_read: tuple | None = None) -> tuple[dict, dict, str | None]:
+    """(date cell, timing cell, the date as a string or None). `window_read` is `_window(today)`'s answer when
+    the caller already holds it (the draft route reads it under the widgets' bound, fix F1b ruling R65)."""
+    window, timing, _partial, as_of = window_read if window_read is not None else _window(today)
+    unread = isinstance(window_read, UnknownWindow)       # the calendar was not read: say so, never "no date"
     if sym in window:
         day = window[sym]
         date_cell = _cell(day, SRC_CALENDAR, as_of)
@@ -329,9 +362,10 @@ def _report_cells(sym: str, today: date, intel: dict | None) -> tuple[dict, dict
         nrd = ((intel or {}).get("summary") or {}).get("next_report_date") or (intel or {}).get("next_report_date")
         day = str(nrd)[:10] if nrd else None
         date_cell = (_cell(day, SRC_EARNINGS, _iso_from_epoch(((intel or {}).get("meta") or {}).get("retrieved_at")))
-                     if day else _missing(SRC_CALENDAR, MISSING_DATE))
+                     if day else _missing(SRC_CALENDAR, UNREADABLE if unread else MISSING_DATE))
     t = timing.get(sym) or (_timing_from_calendar_cache(sym, day) if day else None)
-    timing_cell = _cell(t, SRC_CALENDAR, as_of) if t else _missing(SRC_CALENDAR, MISSING_TIMING)
+    timing_cell = (_cell(t, SRC_CALENDAR, as_of) if t
+                   else _missing(SRC_CALENDAR, UNREADABLE if unread else MISSING_TIMING))
     return date_cell, timing_cell, day
 
 
@@ -498,11 +532,13 @@ def _safe(fn, *args, fallback=None):
         return fallback
 
 
-def draft(user_id: str, symbol: str, *, today: date | None = None) -> dict[str, Any]:
+def draft(user_id: str, symbol: str, *, today: date | None = None,
+          window_read: tuple | None = None) -> dict[str, Any]:
     """Every fact a prep note on `symbol` opens with, read NOW and returned as cells.
 
     Never raises for a source: each one that fails or answers nothing becomes a missing
-    cell with its sentence, so a draft always comes back whole."""
+    cell with its sentence, so a draft always comes back whole. `window_read` is the calendar window the
+    caller already read (the route reads it bounded, fix F1b ruling R65), so this never walks it then."""
     sym = clean_symbol(symbol)
     today = today or _today_et()
     read_at = _now_iso()
@@ -515,7 +551,7 @@ def draft(user_id: str, symbol: str, *, today: date | None = None) -> dict[str, 
     intel = _safe(_intel, sym)
     implied = _safe(_implied_rows, sym, fallback=[])
     date_cell, timing_cell, day = _safe(
-        _report_cells, sym, today, intel,
+        _report_cells, sym, today, intel, window_read,
         fallback=(_missing(SRC_CALENDAR, UNREADABLE), _missing(SRC_CALENDAR, UNREADABLE), None))
     street = _safe(_street_cells, intel, day) or {
         "quarter": None, "eps": _missing(SRC_EARNINGS, UNREADABLE), "revenue": _missing(SRC_EARNINGS, UNREADABLE),

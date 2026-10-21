@@ -245,19 +245,41 @@ def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[st
         row = _live_share_row(conn, token)
         if not row:
             return None
-        # ⛔ Never notes.get_note here: its lazy first_image_url backfill would make a
-        # stranger's GET write the owner's row (F-READ-WRITES).
-        note = public.read_public_note(conn, row["user_id"], row["note_id"])
-        if not note:
-            return None
-        return public.public_note(
-            note, mode="share", owner_id=row["user_id"], note_id=row["note_id"],
-            attachment_base=SHARED_ATTACHMENT_BASE.format(token=token),
-            facts=public.public_facts(conn, row["user_id"], row["note_id"]),
-        )
+        return _share_payload(conn, token, row)
     finally:
         if owned:
             conn.close()
+
+
+def _share_payload(conn: sqlite3.Connection, token: str, row: sqlite3.Row) -> dict[str, Any] | None:
+    # ⛔ Never notes.get_note here: its lazy first_image_url backfill would make a
+    # stranger's GET write the owner's row (F-READ-WRITES).
+    note = public.read_public_note(conn, row["user_id"], row["note_id"])
+    if not note:
+        return None
+    return public.public_note(
+        note, mode="share", owner_id=row["user_id"], note_id=row["note_id"],
+        attachment_base=SHARED_ATTACHMENT_BASE.format(token=token),
+        facts=public.public_facts(conn, row["user_id"], row["note_id"]),
+    )
+
+
+def _note_revision(conn: sqlite3.Connection, owner_id: str, note_id: str) -> Any:
+    got = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
+                       (note_id, owner_id)).fetchone()
+    return got[0] if got else None
+
+
+def share_image_references(conn: sqlite3.Connection, token: str, row: sqlite3.Row) -> frozenset[str]:
+    """Ruling R59: the images THIS share's reduced page references right now, cached per (token, note,
+    revision) for `public.REFERENCE_SET_TTL_S`."""
+    key = ("share", token, row["note_id"], _note_revision(conn, row["user_id"], row["note_id"]))
+
+    def compute() -> frozenset[str]:
+        payload = _share_payload(conn, token, row)
+        return public.referenced_images(payload, SHARED_ATTACHMENT_BASE.format(token=token)) if payload else frozenset()
+
+    return public.cached_reference_set(key, compute)
 
 
 def resolve_share_attachment(token: str, sub: str, filename: str,
@@ -277,6 +299,10 @@ def resolve_share_attachment(token: str, sub: str, filename: str,
     try:
         row = _live_share_row(conn, token)
         if not row:
+            return None
+        # Ruling R59: only an image the CURRENT reduced page references. A file the page stopped naming
+        # (a widget switched back to private, an image deleted) gets the same not-found as a missing one.
+        if f"{sub}/{filename}" not in share_image_references(conn, token, row):
             return None
         return notes_service.serve_note_image_path(row["user_id"], row["note_id"], sub, filename)
     finally:

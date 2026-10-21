@@ -20,14 +20,13 @@ import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { buildNewsCapture, newsCaptureSettings } from './captures/newsCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import {
-  mergeNewsWidgetSettings, newsWidgetStyleVars, newsDefaultsForTheme,
-} from './newsWidgetSettings'
+import { newsWidgetStyleVars } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
 import { fmtDate, fmtMove } from '../../../utils/feedFormat'
 
@@ -154,7 +153,7 @@ export default function NewsWidget({
   const { prefs } = usePreferences()
   const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(placedTheme)),
+    () => newsCaptureSettings(opts?.settings, placedTheme),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -275,7 +274,8 @@ export default function NewsWidget({
             door keeps the auto, the gear drops to a 2px gap when the door
             renders. */}
         {journalDoor && !readOnly && sym && events?.length > 0 && (() => {
-          const buildNewsCapture = () => ({ symbol: sym, filter, company, settings, events })
+          // ONE builder with the Notebook's /news insert (captures/newsCapture.js).
+          const newsCapture = () => buildNewsCapture({ symbol: sym, events, company }, { filter, settings })
           return (
             <>
               <button
@@ -283,7 +283,7 @@ export default function NewsWidget({
                 className={styles.gearBtn}
                 onClick={async () => {
                   setJournalMsg('sending…')
-                  setJournalMsg(await sendCaptureToJournal('news', buildNewsCapture(), { label: `${sym} news` }))
+                  setJournalMsg(await sendCaptureToJournal('news', newsCapture(), { label: `${sym} news` }))
                 }}
                 title="Send this feed to Journal"
                 aria-label="Send this feed to Journal"
@@ -291,7 +291,7 @@ export default function NewsWidget({
               <button
                 type="button"
                 className={styles.gearBtn}
-                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildNewsCapture() })}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: newsCapture() })}
                 title="Send to Journal — choose where"
                 aria-label="Send to Journal — choose where"
               ><UIcon name="chevronDown" size={13} /></button>

@@ -5,7 +5,7 @@ import {
   retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
   EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
-import { widgetMeta, isTraderBlock } from '../../../../widgets/registry'
+import { widgetMeta, isTraderBlock, paramsPlainText } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { peekDrawings } from '../../../../components/chart/drawingsStore'
 import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
@@ -19,6 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
+import { isSnapshotKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -46,6 +47,7 @@ const ARCHIVE_MAX_RETRIES = 5
 // throws and the embed falls back to its archived image.
 // ⚠️ A registry entry flipped reconstructable WITHOUT a binding here degrades
 // to its archive (never crashes) — flip both together.
+const snapshotEmbeds = () => import('./widgets/snapshotEmbeds')
 const EMBED_COMPONENTS = {
   chart: lazyLeaf(() => import('./ChartEmbed')),
   calendar: lazyLeaf(() => import('./CalendarEmbed')),
@@ -64,6 +66,10 @@ const EMBED_COMPONENTS = {
   screener: lazyLeaf(() => import('./ScreenerEmbed')),
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
+  // Notebook widgets (Task 7): the snapshot kinds, each rendered from its frozen params. ONE lazy
+  // import serves them all (Task 16D, as R41 did for the captures): a kind costs a row, not a chunk
+  // and its preload list, on the first open. Keyed by widget id in widgets/snapshotEmbeds.js.
+  ...Object.fromEntries(WIDGET_KINDS.map((k) => [k.id, lazyLeaf(snapshotEmbeds, undefined, k.id)])),
 }
 
 // Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state
@@ -253,6 +259,30 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     if (rearm && landed) setArchiveEpoch((n) => n + 1)
     return landed
   }, [setEmbedParams])
+
+  // Notebook widgets (Task 7): See it now and the share switch hand back a WHOLE params object (a
+  // refresh replaces the payload, so a key the new payload no longer carries must go, which a merge
+  // would keep). ONE updateAttributes: the params, the searchText derived from them, and
+  // `fallback: null` because the archived image shows the old numbers (or the old privacy chip). A
+  // refresh that moves `asOf` moves `capturedAt` with it in the same write. No request of its own.
+  // ⛔ Writability is read LIVE, at write time, from the editor itself (never the captured
+  // `embedEditable`): a refresh that resolves after the note turned read-only, or inside a share
+  // view, writes nothing.
+  const editorRef = useRef(editor)
+  editorRef.current = editor
+  const updateSnapshotParams = useCallback((next) => {
+    const ed = editorRef.current
+    if (ed?.isEditable === false || ed?.storage?.uctJournalWidgets?.shareView) return false
+    if (typeof updateAttributes !== 'function') return false
+    if (!next || typeof next !== 'object' || Array.isArray(next)) return false
+    const cur = attrsRef.current
+    const write = { params: next, searchText: paramsPlainText(cur.widgetId, next), fallback: null }
+    if (typeof next.asOf === 'string' && next.asOf && next.asOf !== cur.params?.asOf) write.capturedAt = next.asOf
+    archivedOnceRef.current = false
+    updateAttributes(write)
+    setArchiveEpoch((n) => n + 1)
+    return true
+  }, [updateAttributes])
 
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
@@ -555,7 +585,13 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // live component is actually mounting.
   // !peek: the aftermath view must never become the permanent archive PNG.
   // !shareView: a public reader never uploads anything.
+  // Notebook widgets (fix round 1): public pages render an embed from its archived image only
+  // (shareView keeps every embed on `fallback`; ReadOnlyNote stamps it). So an ACCOUNT snapshot kind
+  // may be archived only while the member has it shared: never while private, and switching share
+  // off clears `fallback` in the same write (updateSnapshotParams) and does not re-archive.
+  const archiveAllowed = (attrsNow) => widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true
   const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek && !shareView
+    && archiveAllowed(attrs)
   useEffect(() => {
     if (!needsArchive || archivedOnceRef.current) return undefined
     archivedOnceRef.current = true
@@ -605,6 +641,12 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
         const blob = await captureElementPng(bodyRef.current)
         if (!blob) return
         const up = await storeFallbackImage(noteId, blob)
+        // The capture and upload are async: a member who switched an account widget's share OFF
+        // meanwhile must not get the image stamped back on.
+        if (!archiveAllowed(attrsRef.current)) {
+          archivedOnceRef.current = false
+          return
+        }
         updateAttributes?.({ fallback: { url: up.url, w: up.width || null, h: up.height || null } })
       } catch (e) {
         // Best-effort: the embed stays live; the next editing session retries.
@@ -759,12 +801,16 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
+            {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>
     )
   }
 
+  // Fix F4 (D1): a snapshot kind's frame header (title, Only you, as-of) owns its top-left corner, so the
+  // stylesheet lays this frame's toolbar out as its OWN row above the body instead of over it.
+  const snapshotEmbed = isSnapshotKind(attrs.widgetId)
   return (
     <NodeViewWrapper
       ref={wrapRef}
@@ -772,6 +818,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''} ${frozen ? styles.frozen : ''}`}
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
+      data-snapshot-embed={snapshotEmbed ? 'true' : undefined}
     >
       {editor?.isEditable !== false && !frozen && (
         // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside
