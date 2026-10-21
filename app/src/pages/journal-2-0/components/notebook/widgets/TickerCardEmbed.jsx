@@ -27,7 +27,11 @@ export default function TickerCardEmbed({ attrs, height = 240, editable = false,
 
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="ticker-card-embed">
-      <SnapshotFrame {...frame} title={sym} sourceLine={frame.sourceDetail ? null : 'Market data, and your own trades in this name.'}>
+      {/* F1b: the card says `partial` whenever the earnings calendar was not read; it gets the partial line. */}
+      <SnapshotFrame {...frame} title={sym} sourceLine={[
+        frame.sourceDetail ? '' : 'Market data, and your own trades in this name.',
+        p.partial === true ? 'Some figures could not be read in time.' : '',
+      ].filter(Boolean).join(' ') || null}>
         <dl className={s.dl}>
           <Row label="Last">
             {numCell(p.price, fmtPrice, NO_PRICE)}{' '}

@@ -127,6 +127,27 @@ describe('review m-4: an option with no stored broker mark', () => {
   })
 })
 
+describe('F1b payload shapes', () => {
+  it('empty positions with sourceDetail: null render no source or detail line', () => {
+    const { container } = render(<MyPositionsRiskEmbed attrs={attrs('myPositionsRisk', { source: 'broker', rows: [],
+      sourceDetail: null, empty: 'No open positions.' })} />)
+    expect(screen.getByText('No open positions.')).toBeInTheDocument()
+    expect(screen.queryByText(/Source:/)).toBeNull()
+    expect(container.textContent).not.toMatch(/Positions:|null/)
+  })
+
+  it('a ticker card with partial: true (calendar unread) shows the partial line beside n/a', () => {
+    render(<TickerCardEmbed attrs={attrs('tickerCard', { source: 'market', symbol: 'NVDA', earningsUnknown: true, partial: true })} />)
+    expect(screen.getByText(/Some figures could not be read in time\./)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'n/a: The earnings calendar could not be read just now' })).toBeInTheDocument()
+  })
+
+  it('control: a complete ticker card has no partial line', () => {
+    render(<TickerCardEmbed attrs={attrs('tickerCard', { source: 'market', symbol: 'NVDA', earningsUnknown: false })} />)
+    expect(screen.queryByText(/Some figures could not be read in time/)).toBeNull()
+  })
+})
+
 describe('timingUnknown on a reaction row', () => {
   it('shows the note, never a number', () => {
     render(<MyEarningsReactionsEmbed attrs={attrs('myEarningsReactions', { source: 'market', rows: [

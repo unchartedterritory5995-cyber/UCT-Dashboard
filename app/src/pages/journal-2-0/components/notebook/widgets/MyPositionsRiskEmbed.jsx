@@ -32,7 +32,8 @@ export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = f
   const sizeReason = hasAccount ? 'No price available right now' : 'No account size set in Journal'
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const basis = p.sourceDetail ? null : own(PRICE_BASIS, p.priceBasis)
-  const sourceLine = [accountSourceLine(p), basis, extra].filter(Boolean).join(' · ') || null
+  // F1b: with no open positions there is nothing to source (the server sends `sourceDetail: null`), so no line.
+  const sourceLine = rows.length ? [accountSourceLine(p), basis, extra].filter(Boolean).join(' · ') || null : null
   const usesDefault = p.accountSizeSource === 'default' && hasAccount
 
   return (
