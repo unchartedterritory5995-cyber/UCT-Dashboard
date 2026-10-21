@@ -217,9 +217,12 @@ export default function WidgetPalette({ editor, onClose }) {
             ) : null
           })}
           {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
+          {/* R58 (UX I-12): with wave 4 on (its kinds are the "More" rows) news, breadth and the calendar are listed
+              above, so the footnote names only what still comes in from its own page. */}
           <div className={styles.footNote}>
-            Widgets with live data (news, breadth, calendar…) come in from their
-            own page — use the journal button beside each widget&apos;s gear.
+            {snapshots.some((it) => it.group === 'more')
+              ? "Most widgets fill in from your own data when you insert them. A few (Screener, COT, Model Book) still come in from their own page, with the journal button beside the widget's gear."
+              : "Widgets with live data (news, breadth, calendar…) come in from their own page — use the journal button beside each widget's gear."}
           </div>
         </div>
       )}
