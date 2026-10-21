@@ -76,10 +76,15 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(regime, "get_current_regime", lambda *a, **k: {"regime": "uptrend"})
     soon = {"items": [{"symbol": "NVDA", "date": "2026-10-21", "daysAway": 1, "timing": "amc",
                        "sources": ["watchlist"]}], "partial": False}
-    monkeypatch.setattr(ep, "reporting_soon", lambda user_id, today=None: soon)
+    monkeypatch.setattr(ep, "reporting_soon", lambda user_id, today=None, window_read=None: soon)
     monkeypatch.setattr(ep, "_window", lambda today: ({"NVDA": "2026-10-21"}, {"NVDA": "amc"}, False, None))
     # the ticker card's history is cached per (member, symbol) at module level
     monkeypatch.setattr(nw, "_HISTORY_CACHE", type(nw._HISTORY_CACHE)(max_size=10))
+    # Fix F1 (C-1): a fresh pool and walk table, and no window cached by an earlier test.
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-e2e"))
+    monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+    from api.services.cache import cache
+    cache.delete_prefix("notebook_earnings_prep_window::")
     return auth_db
 
 

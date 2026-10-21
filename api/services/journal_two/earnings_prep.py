@@ -200,20 +200,37 @@ def _window(today: date) -> tuple[dict[str, str], dict[str, str], bool, str]:
     the shared app cache for an hour (five minutes when a day could not be read), so a
     member reloading Home does not re-walk the window.
     """
+    got = cached_window(today)
+    if got is not None:
+        return got
+    from api.services.cache import cache
+    from api.services.calendar_alerts import collect_earnings_window
+    window, partial = collect_earnings_window(today, WINDOW_DAYS)
+    hit = {"window": dict(window), "partial": bool(partial), "asOf": _now_iso()}
+    cache.set(cache_key_for_window(today), hit, ttl=300 if partial else 3600)
+    return _window_answer(hit)
+
+
+def cache_key_for_window(today: date) -> str:
+    """The ONE spelling of the window's cache key (`_window` writes it, `cached_window` reads it)."""
+    return f"notebook_earnings_prep_window::{today.isoformat()}::{WINDOW_DAYS}"
+
+
+def _window_answer(hit: dict) -> tuple[dict[str, str], dict[str, str], bool, str]:
+    window = dict(hit["window"])
+    timing = {s: t for s, d in window.items() if (t := _timing_from_calendar_cache(s, d))}
+    return window, timing, bool(hit["partial"]), hit["asOf"]
+
+
+def cached_window(today: date) -> tuple[dict[str, str], dict[str, str], bool, str] | None:
+    """`_window`'s answer when it costs NO walk (the shared cache holds it, or the local sandbox file
+    names the calendar), else None. Notebook widgets read this on the request thread and send only a
+    miss to their bounded pool (fix F1, C-1)."""
     if sandbox_calendar_active():
         return _sandbox_window()
     from api.services.cache import cache
-    ck = f"notebook_earnings_prep_window::{today.isoformat()}::{WINDOW_DAYS}"
-    hit = cache.get(ck)
-    if isinstance(hit, dict):
-        window = dict(hit["window"])
-    else:
-        from api.services.calendar_alerts import collect_earnings_window
-        window, partial = collect_earnings_window(today, WINDOW_DAYS)
-        hit = {"window": dict(window), "partial": bool(partial), "asOf": _now_iso()}
-        cache.set(ck, hit, ttl=300 if partial else 3600)
-    timing = {s: t for s, d in window.items() if (t := _timing_from_calendar_cache(s, d))}
-    return window, timing, bool(hit["partial"]), hit["asOf"]
+    hit = cache.get(cache_key_for_window(today))
+    return _window_answer(hit) if isinstance(hit, dict) else None
 
 
 def _timing_from_calendar_cache(sym: str, day: str) -> str | None:
@@ -278,11 +295,15 @@ def _existing_prep_notes(user_id: str, since: str) -> dict[str, dict[str, Any]]:
     return out
 
 
-def reporting_soon(user_id: str, *, today: date | None = None) -> dict[str, Any]:
-    """The member's own names reporting from today through `WINDOW_DAYS` days out."""
+def reporting_soon(user_id: str, *, today: date | None = None,
+                   window_read: tuple | None = None) -> dict[str, Any]:
+    """The member's own names reporting from today through `WINDOW_DAYS` days out.
+
+    `window_read` is `_window(today)`'s answer when the caller already holds it (the notebook widgets
+    read it under their own budget, fix F1 C-1), so this never walks the calendar on their behalf."""
     today = today or _today_et()
     mine = _member_sets(user_id)
-    window, timing, partial, as_of = _window(today)
+    window, timing, partial, as_of = window_read if window_read is not None else _window(today)
     try:
         existing = _existing_prep_notes(user_id, (today - timedelta(days=21)).isoformat())
     except Exception as e:  # noqa: BLE001 -- the Open link is a convenience, never the list

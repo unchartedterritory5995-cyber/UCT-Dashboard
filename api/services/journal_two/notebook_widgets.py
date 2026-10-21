@@ -175,6 +175,64 @@ def _one_bounded(fn: Callable, budget_s: float) -> tuple[bool, Any]:
         return False, None
 
 
+class SingleFlight:
+    """Fix F1 (C-1, I-1): ONE shared walk per key on the module pool, however many requests miss at once.
+
+    `run(key, fn, budget_s)` joins the walk already in flight for `key`, or starts `fn` on `_POOL` (looked
+    up at call time). The caller waits at most `budget_s`; past it, or when the pool is saturated, it gets
+    (False, None) and the walk carries on. ⛔ `fn` must store its own answer in the cache: the job that
+    finishes after every request has answered still warms the next one.
+
+    Waiting holds a REQUEST thread (the anyio pool), so at most `waiters` requests wait on walks at once;
+    the rest answer their partial form AT ONCE, the way a saturated widget pool does. Per process."""
+
+    def __init__(self, waiters: int):
+        self._lock = threading.Lock()
+        self._inflight: dict[str, Future] = {}
+        self._waiters = threading.BoundedSemaphore(waiters)
+
+    def _forget(self, key: str, fut: Future) -> None:
+        with self._lock:
+            if self._inflight.get(key) is fut:
+                del self._inflight[key]
+
+    def inflight(self) -> int:
+        with self._lock:
+            return len(self._inflight)
+
+    def run(self, key: str, fn: Callable[[], Any], budget_s: float) -> tuple[bool, Any]:
+        started = False
+        with self._lock:
+            fut = self._inflight.get(key)
+            if fut is None or fut.done():
+                fut = _POOL.try_submit(fn)
+                if fut is None:
+                    _log.info("widget walk %s skipped: the widget pool is saturated", key)
+                    return False, None
+                self._inflight[key] = fut
+                started = True
+        if started:          # outside the lock: a job already done runs the callback in this thread
+            fut.add_done_callback(lambda f, k=key: self._forget(k, f))
+        if not self._waiters.acquire(blocking=False):
+            return False, None
+        try:
+            return True, fut.result(timeout=budget_s)
+        except _FutTimeout:
+            _log.info("widget walk %s ran past %.1fs", key, budget_s)
+            return False, None
+        except Exception as e:  # noqa: BLE001
+            _log.info("widget walk %s failed: %s", key, e)
+            return False, None
+        finally:
+            self._waiters.release()
+
+
+#: How many requests may wait on a calendar walk at once (the rest answer partial at once).
+WALK_WAITERS = 8
+#: The calendar walks' single-flight table. Looked up at call time, so a test can swap in a fresh one.
+_WALKS = SingleFlight(WALK_WAITERS)
+
+
 def notebook_widgets_wave_on(wave: int) -> bool:
     """Is release wave `wave` on, read from the environment NOW (never at import)."""
     from api.services import notebook_flags
@@ -230,6 +288,33 @@ def cap_payload(payload: dict) -> dict:
     return out
 
 
+# -- the earnings window (tickerCard, myWatchlistToday, myNamesReporting) ------
+
+#: ONE wait, per request, on the shared earnings-calendar walk (fix F1, C-1).
+EARNINGS_WINDOW_BUDGET_S = 6.0
+
+
+def _earnings_window(now: datetime) -> tuple | None:
+    """`earnings_prep._window(today)`'s answer, or None when it could not be read in time.
+
+    A cached window answers at once on the request thread. A miss joins ONE shared walk on the module
+    pool (`_WALKS`) and waits at most `EARNINGS_WINDOW_BUDGET_S`; the walk stores its own answer in the
+    cache (inside `_window`), so a walk that outlives every request still warms the next one. Never
+    the walk on a request thread: it is up to 8 day lookups, each two vendors with 10 s timeouts."""
+    from api.services.journal_two import earnings_prep
+    today = _today_et(now)
+    try:
+        got = earnings_prep.cached_window(today)
+    except Exception as e:  # noqa: BLE001 -- an unreadable cache is a miss
+        _log.info("earnings window: cache read failed: %s", e)
+        got = None
+    if got is not None:
+        return got
+    ok, got = _WALKS.run(f"earnings_prep_window::{today.isoformat()}",
+                         lambda: earnings_prep._window(today), EARNINGS_WINDOW_BUDGET_S)
+    return got if ok and isinstance(got, tuple) and len(got) == 4 else None
+
+
 # -- myWatchlistToday ----------------------------------------------------------
 
 _LIST_LABELS = {"watchlist": "Watchlist", "flagged": "Flagged"}
@@ -270,6 +355,7 @@ def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
 
     prices: dict = {}
     earnings: dict[str, str] = {}
+    earnings_unknown = False
     if shown:
         try:
             from api.routers import live_prices
@@ -277,14 +363,18 @@ def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
             prices = got if isinstance(got, dict) else {}
         except Exception as e:  # noqa: BLE001 -- no price is "n/a", never a failed widget
             _log.info("watchlist today: live prices failed: %s", e)
-        try:
-            from api.services.journal_two import earnings_prep
-            soon = earnings_prep.reporting_soon(user_id, today=_today_et(now))
-            for it in (soon or {}).get("items") or []:
-                if it.get("symbol") and it.get("date"):
-                    earnings[str(it["symbol"]).upper()] = str(it["date"])
-        except Exception as e:  # noqa: BLE001
-            _log.info("watchlist today: earnings window failed: %s", e)
+        read = _earnings_window(now)
+        earnings_unknown = read is None or bool(read[2])
+        if read is not None:
+            try:
+                from api.services.journal_two import earnings_prep
+                soon = earnings_prep.reporting_soon(user_id, today=_today_et(now), window_read=read)
+                for it in (soon or {}).get("items") or []:
+                    if it.get("symbol") and it.get("date"):
+                        earnings[str(it["symbol"]).upper()] = str(it["date"])
+            except Exception as e:  # noqa: BLE001
+                _log.info("watchlist today: earnings window failed: %s", e)
+                earnings_unknown = True
 
     rows = []
     for sym in shown:
@@ -300,7 +390,12 @@ def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
         "source": "market",
         "listLabel": _LIST_LABELS[chosen],
         "rows": rows,
+        # True: the earnings calendar was not (fully) read, so a row's null earningsDay is unknown.
+        # False: a null earningsDay means no report this week.
+        "earningsUnknown": earnings_unknown,
     }
+    if earnings_unknown and shown:
+        out["partial"] = True
     if cut:
         out["truncated"] = cut
     return out
@@ -337,7 +432,12 @@ def _implied_moves(items: list[dict]) -> tuple[dict[str, float | None], bool]:
 
 def _my_names_reporting(user_id: str, params: dict, now: datetime) -> dict:
     from api.services.journal_two import earnings_prep
-    soon = earnings_prep.reporting_soon(user_id, today=_today_et(now)) or {}
+    read = _earnings_window(now)
+    if read is None:
+        # The calendar could not be read in time: the partial form, never "none of your names report".
+        return {"asOf": _iso_utc(now), "source": "market", "rows": [], "partial": True,
+                "earningsUnknown": True}
+    soon = earnings_prep.reporting_soon(user_id, today=_today_et(now), window_read=read) or {}
     items = list(soon.get("items") or [])
     shown, cut = items[:ROW_CAP], max(0, len(items) - ROW_CAP)
     moves, timed_out = _implied_moves(shown)
@@ -357,6 +457,7 @@ def _my_names_reporting(user_id: str, params: dict, now: datetime) -> dict:
         "source": "market",
         "rows": rows,
         "partial": bool(soon.get("partial")) or timed_out,
+        "earningsUnknown": bool(soon.get("partial")),
     }
     if cut:
         out["truncated"] = cut
@@ -629,23 +730,27 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
         _log.info("ticker card: bars read failed for %s: %s", sym, e)
 
     earnings_day = implied = None
-    try:
-        from api.services.journal_two import earnings_prep
-        window, timing, _partial, _as_of = earnings_prep._window(_today_et(now))
-        earnings_day = window.get(sym)
-        if earnings_day:
-            moves, _late = _implied_moves(
-                [{"symbol": sym, "date": earnings_day, "timing": timing.get(sym)}])
-            implied = moves.get(sym)
-    except Exception as e:  # noqa: BLE001
-        _log.info("ticker card: earnings window failed for %s: %s", sym, e)
+    read = _earnings_window(now)           # bounded and single-flighted (fix F1, C-1)
+    earnings_unknown = read is None
+    if read is not None:
+        try:
+            window, timing, window_partial, _as_of = read
+            earnings_day = window.get(sym)
+            earnings_unknown = bool(window_partial) and not earnings_day
+            if earnings_day:
+                moves, _late = _implied_moves(
+                    [{"symbol": sym, "date": earnings_day, "timing": timing.get(sym)}])
+                implied = moves.get(sym)
+        except Exception as e:  # noqa: BLE001
+            _log.info("ticker card: earnings window failed for %s: %s", sym, e)
+            earnings_day, earnings_unknown = None, True
 
     fig = _symbol_history_figures(user_id, sym)
     history = (
         {"trades": fig["tradeCount"], "winRate": fig["winRate"], "netPnl": fig["netPnl"]}
         if fig["tradeCount"] else None
     )
-    return {
+    out = {
         "asOf": _iso_utc(now),
         "source": "mixed",
         "symbol": sym,
@@ -656,7 +761,12 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
         "earningsDay": earnings_day,
         "impliedMovePct": implied,
         "history": history,
+        # True: the calendar was not read, so a null earningsDay is unknown. False: no report this week.
+        "earningsUnknown": earnings_unknown,
     }
+    if read is None:
+        out["partial"] = True
+    return out
 
 
 # -- myRulesCheck --------------------------------------------------------------------

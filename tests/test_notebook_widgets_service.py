@@ -21,6 +21,12 @@ def _fresh_widget_pool(monkeypatch):
     (a fake vendor that sleeps past the budget) keeps its permit until it ends. A fresh pool per test keeps
     one test's stragglers from saturating the next test's reads."""
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test"))
+    # Fix F1 (C-1): the calendar walks' single-flight table and the window cache are module state too.
+    monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+    from api.services.cache import cache
+    cache.delete_prefix("notebook_earnings_prep_window::")
+    yield
+    cache.delete_prefix("notebook_earnings_prep_window::")
 
 
 def _patch_sets(monkeypatch, watchlist=(), flagged=()):
@@ -47,8 +53,10 @@ def _patch_reporting(monkeypatch, items, partial=False):
     import api.services.journal_two.earnings_prep as ep
     monkeypatch.setattr(
         ep, "reporting_soon",
-        lambda user_id, today=None: {"items": items, "partial": partial},
+        lambda user_id, today=None, window_read=None: {"items": items, "partial": partial},
     )
+    # The builders read the window first, under their own budget (fix F1, C-1): never the real walk.
+    monkeypatch.setattr(ep, "_window", lambda today: ({}, {}, partial, "x"))
 
 
 def test_unknown_kind_raises():
@@ -222,11 +230,12 @@ def test_reporting_soon_gets_today_in_et_from_now(monkeypatch):
     import api.services.journal_two.earnings_prep as ep
     seen = []
 
-    def fake(user_id, today=None):
+    def fake(user_id, today=None, window_read=None):
         seen.append(today)
         return {"items": [], "partial": False}
 
     monkeypatch.setattr(ep, "reporting_soon", fake)
+    monkeypatch.setattr(ep, "_window", lambda today: ({}, {}, False, "x"))
     _patch_sets(monkeypatch, watchlist=["AAPL"])
     _patch_prices(monkeypatch, {})
     late_utc = datetime(2026, 10, 21, 2, 30, tzinfo=timezone.utc)  # still Oct 20 in ET
@@ -1835,6 +1844,12 @@ def test_saturated_pool_names_reporting_answers_partial_at_once(monkeypatch):
     items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo", "sources": ["watchlist"]}
              for s in ("AAA", "BBB")]
     _patch_reporting(monkeypatch, items)
+    # The window is cached (a cache hit needs no pool), so this exercises the implied-move reads; a
+    # saturated pool on a window MISS is test_c1_a_saturated_pool_answers_the_card_at_once.
+    from datetime import date
+    import api.services.journal_two.earnings_prep as ep
+    from api.services.cache import cache
+    cache.set(ep.cache_key_for_window(date(2026, 10, 20)), {"window": {}, "partial": False, "asOf": "x"}, ttl=60)
     import api.services.earnings_enrichment as ee
     calls = []
     monkeypatch.setattr(ee, "get_implied_move", lambda *a, **k: calls.append(a) or {"pct": 5.0})
@@ -1882,3 +1897,131 @@ def test_a_request_with_more_names_than_its_share_still_gets_every_answer(monkey
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert out["partial"] is False and all(r["impliedMovePct"] == 2.0 for r in out["rows"])
 
+
+
+# -- fix F1, C-1: the earnings-calendar walk is bounded, single-flighted and cached from the pool --------
+
+def _patch_slow_walk(monkeypatch, *, walk_s, window=None):
+    """The REAL earnings_prep._window over a slow calendar walk (it caches its own answer), with a count."""
+    import threading
+    import api.services.calendar_alerts as ca
+    import api.services.journal_two.earnings_prep as ep
+    seen = {"walks": 0}
+    lock = threading.Lock()
+
+    def fake_walk(start, days):
+        with lock:
+            seen["walks"] += 1
+        time.sleep(walk_s)
+        return dict(window or {"NVDA": "2026-10-22"}), False
+
+    monkeypatch.setattr(ca, "collect_earnings_window", fake_walk)
+    monkeypatch.setattr(ep, "_timing_from_calendar_cache", lambda sym, day: "amc")
+    return seen
+
+
+def _wait_walks_done(timeout=5.0):
+    t0 = time.monotonic()
+    while nw._WALKS.inflight() and time.monotonic() - t0 < timeout:
+        time.sleep(0.02)
+    assert nw._WALKS.inflight() == 0
+
+
+def _card_seams(monkeypatch):
+    import api.services.bars_sqlite as bs
+    import api.services.earnings_enrichment as ee
+    monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: [])
+    monkeypatch.setattr(ee, "get_implied_move", lambda sym, d=None, t=None: {"pct": 4.0})
+    _patch_pnl(monkeypatch, _analytics(trade_count=0, days=[]), [])
+    _patch_prices(monkeypatch, {})
+
+
+def test_c1_concurrent_cold_cards_share_one_walk(monkeypatch):
+    import threading
+    _card_seams(monkeypatch)
+    seen = _patch_slow_walk(monkeypatch, walk_s=0.4)
+    outs, errs = [], []
+
+    def one():
+        try:
+            outs.append(nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW))
+        except Exception as e:  # noqa: BLE001
+            errs.append(e)
+
+    ts = [threading.Thread(target=one) for _ in range(24)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join(10)
+    _wait_walks_done()
+    assert errs == [] and len(outs) == 24
+    assert seen["walks"] == 1                                 # one shared walk, never one per request
+    known = [o for o in outs if o["earningsDay"] == "2026-10-22"]
+    unknown = [o for o in outs if o["earningsDay"] is None]
+    assert known and len(known) + len(unknown) == 24
+    assert len(known) <= nw.WALK_WAITERS                      # at most WALK_WAITERS requests waited
+    assert all(o["earningsUnknown"] is True and o["partial"] is True for o in unknown)
+    assert all(o["earningsUnknown"] is False and "partial" not in o for o in known)
+    t0 = time.monotonic()
+    after = nw.build("tickerCard", "u2", {"symbol": "NVDA"}, now=NOW)
+    assert time.monotonic() - t0 < 0.2 and after["earningsDay"] == "2026-10-22" and seen["walks"] == 1
+
+
+def test_c1_a_walk_past_its_budget_answers_partial_and_still_fills_the_cache(monkeypatch):
+    _card_seams(monkeypatch)
+    monkeypatch.setattr(nw, "EARNINGS_WINDOW_BUDGET_S", 0.1)
+    seen = _patch_slow_walk(monkeypatch, walk_s=0.5)
+    t0 = time.monotonic()
+    first = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert time.monotonic() - t0 < 0.4                       # the request never waits for the straggler
+    assert first["earningsDay"] is None and first["earningsUnknown"] is True and first["partial"] is True
+    _wait_walks_done()
+    second = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert second["earningsDay"] == "2026-10-22" and second["earningsUnknown"] is False
+    assert seen["walks"] == 1                                 # the straggler's own answer was cached
+
+
+def test_c1_names_reporting_and_watchlist_answer_partial_when_the_window_is_late(monkeypatch):
+    _patch_sets(monkeypatch, watchlist=["NVDA", "AMD"])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 1.0, "change_pct": 0.5}})
+    monkeypatch.setattr(nw, "EARNINGS_WINDOW_BUDGET_S", 0.05)
+    _patch_slow_walk(monkeypatch, walk_s=0.4)
+    names = nw.build("myNamesReporting", "u1", {}, now=NOW)
+    assert names["rows"] == [] and names["partial"] is True and names["earningsUnknown"] is True
+    assert "empty" not in names                               # never "none of your names report"
+    watch = nw.build("myWatchlistToday", "u1", {}, now=NOW)
+    assert [r["earningsDay"] for r in watch["rows"]] == [None, None]
+    assert watch["earningsUnknown"] is True and watch["partial"] is True
+    assert watch["rows"][1]["price"] == 1.0                  # the rest of the widget still answers
+    _wait_walks_done()
+    watch = nw.build("myWatchlistToday", "u1", {}, now=NOW)  # warmed by the late walk
+    assert watch["earningsUnknown"] is False and "partial" not in watch
+    assert {r["symbol"]: r["earningsDay"] for r in watch["rows"]} == {"AMD": None, "NVDA": "2026-10-22"}
+
+
+def test_c1_a_saturated_pool_answers_the_card_at_once(monkeypatch):
+    _card_seams(monkeypatch)
+    seen = _patch_slow_walk(monkeypatch, walk_s=5.0)
+    _saturate(monkeypatch)
+    t0 = time.monotonic()
+    out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert time.monotonic() - t0 < 0.3 and seen["walks"] == 0
+    assert out["earningsUnknown"] is True and out["partial"] is True and out["price"] is None
+
+
+def test_c1_the_builders_never_walk_on_the_request_thread(monkeypatch):
+    """Each wave-1 builder that needs the window reads it through _earnings_window (bounded), never by
+    calling earnings_prep._window or reporting_soon without the window it already read."""
+    import ast
+    import inspect
+    src = inspect.getsource(nw)
+    tree = ast.parse(src)
+    for fn in ("_ticker_card", "_my_watchlist_today", "_my_names_reporting"):
+        node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == fn)
+        calls = [c for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)]
+        assert not [c for c in calls if c.func.attr == "_window"], fn
+        for c in calls:
+            if c.func.attr == "reporting_soon":
+                assert "window_read" in {k.arg for k in c.keywords}, fn
+        assert any(isinstance(c, ast.Call) and getattr(c.func, "id", None) == "_earnings_window"
+                   for c in ast.walk(node)), fn
