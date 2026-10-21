@@ -42,6 +42,9 @@ _TRUTHY = ("1", "true", "yes", "on")
 STRUCTURE_BARS = 600
 
 _CACHE: dict = {}
+#: Per symbol, beside _CACHE: (ts, withheld base boxes, the bars both were built from). Read only by
+#: with_warnings (AUTO_STRUCTURES_WARNINGS_ENABLED); never served on its own.
+_WITHHELD_CACHE: dict = {}
 _DRAWN_CACHE: dict = {}
 _CACHE_TTL_S = 600
 
@@ -945,6 +948,39 @@ def _daily_bars(sym: str) -> list:
     return [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows]
 
 
+def build_structures(sym: str, bars: list) -> tuple:
+    """(served, withheld) structures rows for `bars` ({t,o,h,l,c,v}, oldest first): `served` is exactly
+    what structures_for serves; `withheld` is the base boxes a display round marked stale (extras.stale),
+    which structures_for never serves. Only the warnings layer (with_warnings) reads `withheld`. Never
+    raises a box failure: one bad box drops that box only."""
+    out: list = []
+    withheld: list = []
+    from api.services.screener import base_catalog
+    if len(bars) >= 10:
+        for box in base_catalog.current_base_structures(bars) or []:
+            try:
+                det = box_to_detection(sym, box, bars)
+            except Exception:  # noqa: BLE001 -- one bad box drops that box only
+                continue
+            # A stale box (extras.stale, e.g. a failed cup breakout) is not
+            # served: dropping it here keeps the overlay unchanged.
+            if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                withheld.append(det)
+                continue
+            # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
+            cup_tier_stamp(det, bars)
+            out.append(det)
+        # the shape-agnostic base drawing (lab base_draw): its own row, after every box
+        bd = base_draw_row(sym, bars)
+        if bd is not None:
+            out.append(bd)
+        # the inside-day drawing (lab id_draw_v2): its own row, after the base drawing
+        idd = inside_day_draw_row(sym, bars)
+        if idd is not None:
+            out.append(idd)
+    return out, withheld
+
+
 def structures_for(sym: str) -> list:
     """Current base boxes for the latest daily bars of `sym`. Never raises."""
     sym = (sym or "").upper()
@@ -953,35 +989,90 @@ def structures_for(sym: str) -> list:
     if hit and now - hit[0] < _CACHE_TTL_S:
         return hit[1]
     out: list = []
+    withheld: list = []
+    bars: list = []
     try:
-        from api.services.screener import base_catalog
         bars = _daily_bars(sym)
-        if len(bars) >= 10:
-            for box in base_catalog.current_base_structures(bars) or []:
-                try:
-                    det = box_to_detection(sym, box, bars)
-                except Exception:  # noqa: BLE001 -- one bad box drops that box only
-                    continue
-                # A stale box (extras.stale, e.g. a failed cup breakout) is not
-                # served: dropping it here keeps the overlay unchanged.
-                if (det.get("geometry") or {}).get("extras", {}).get("stale"):
-                    continue
-                # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
-                cup_tier_stamp(det, bars)
-                out.append(det)
-            # the shape-agnostic base drawing (lab base_draw): its own row, after every box
-            bd = base_draw_row(sym, bars)
-            if bd is not None:
-                out.append(bd)
-            # the inside-day drawing (lab id_draw_v2): its own row, after the base drawing
-            idd = inside_day_draw_row(sym, bars)
-            if idd is not None:
-                out.append(idd)
+        out, withheld = build_structures(sym, bars)
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
-        out = []
+        out, withheld = [], []
     _CACHE[sym] = (now, out)
+    _WITHHELD_CACHE[sym] = (now, withheld, bars)
     return out
+
+
+#: The base-warning round members may be shown (pattern_engine.base_warnings.WARNINGS_ROUND). A literal
+#: ON PURPOSE, and None: members get NO warning until a blind check of the warnings passes (lab
+#: base_warnings) and this is changed by hand to that round. Admins see warnings with the flag on.
+MEMBER_WARNINGS_ROUND = None
+
+
+def _member_warning_round_ok() -> bool:
+    from api.services.pattern_engine import base_warnings
+    rnd = MEMBER_WARNINGS_ROUND
+    return type(rnd) is int and rnd == base_warnings.WARNINGS_ROUND
+
+
+def stamp_warnings(served: list, withheld: list, bars: list, i: int, include_withheld: bool = True) -> list:
+    """`served` with extras.warning stamped (pattern_engine.base_warnings.warning_at as of bar i, which
+    reads bars[:i+1] only), plus -- when `include_withheld` -- each withheld base box whose own warning is
+    a FAULT (base_warnings.FAULT_CODES), still `stale`, appended after the served rows. Returns NEW rows:
+    nothing passed in is modified (structures_for's cache is shared by every viewer). A row with no
+    warning is the same object it was. Never raises: on any failure the served rows come back untouched."""
+    try:
+        from api.services.pattern_engine import base_warnings as bw
+        if not isinstance(i, int) or i < 0 or not bars:
+            return list(served or [])
+        stage = None
+        if any(bw.is_base_row(r) for r in list(served or []) + list(withheld or [])):
+            stage = bw.stage_at(bars, i)
+        out = []
+        for r in served or []:
+            w = bw.warning_at(bars, i, r, stage=stage)
+            out.append(_with_warning(r, w) if w else r)
+        if include_withheld:
+            for r in withheld or []:
+                w = bw.warning_at(bars, i, r, stage=stage)
+                if w and w["code"] in bw.FAULT_CODES:
+                    out.append(_with_warning(r, w))
+        return out
+    except Exception:  # noqa: BLE001 -- a warning layer never breaks a read
+        _log.debug("[auto-structures] warnings failed", exc_info=True)
+        return list(served or [])
+
+
+def _with_warning(row: dict, warning: dict) -> dict:
+    ex = dict((row.get("geometry") or {}).get("extras") or {})
+    ex["warning"] = dict(warning)
+    return {**row, "geometry": {**(row.get("geometry") or {}), "extras": ex}}
+
+
+def with_warnings(sym: str, rows: list, member: bool = False) -> list:
+    """The structures `rows` (structures_for's answer for `sym`) with base warnings, or `rows` itself.
+
+    Gate (read per call): AUTO_STRUCTURES_WARNINGS_ENABLED off => `rows` unchanged (the same list), so
+    every payload is byte-identical to before. A member additionally needs MEMBER_WARNINGS_ROUND to equal
+    the stamped round (it is None today => members never get one), and a member is never served a
+    withheld box. Warnings are as of the newest COMPLETED session (base_warnings.last_complete_index;
+    an unreadable session clock drops the last bar). Never raises."""
+    try:
+        from api.services.pattern_engine import base_warnings as bw
+        if not bw.enabled():
+            return rows
+        if member and not _member_warning_round_ok():
+            return rows
+        hit = _WITHHELD_CACHE.get((sym or "").upper())
+        if not hit:
+            return rows
+        _ts, withheld, bars = hit
+        i = bw.last_complete_index(bars)
+        if i is None:
+            return rows
+        return stamp_warnings(rows, withheld, bars, i, include_withheld=not member)
+    except Exception:  # noqa: BLE001 -- a warning layer never breaks a read
+        _log.debug("[auto-structures] with_warnings %s failed", sym, exc_info=True)
+        return rows
 
 
 def last_bar_forming(last_t, now=None) -> bool:

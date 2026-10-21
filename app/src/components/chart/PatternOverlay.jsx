@@ -49,6 +49,14 @@
 //   inside day and the bar it sits inside, a solid "trigger" line at the inside day's high extended
 //   past the last bar, and a dashed "stop" line at its low, and nothing else (`insideDayDrawing`).
 //
+// ⭐ BASE WARNINGS (AUTO_STRUCTURES_WARNINGS_ENABLED, server-gated; members only when its member round
+//   is confirmed): a structures base row may carry `extras.warning` = {code, text, round}
+//   (api/services/pattern_engine/base_warnings.py: failed_breakout, too_deep, late_stage). It draws as
+//   a small amber caution tag at the drawing's top-right (`baseWarning` / `warningAnchor`). A base box
+//   the display rounds withheld (`stale`) draws ONLY when it carries a FAULT warning (failed_breakout /
+//   too_deep) -- the server sends such a row only with the flag on (`warningView`). Every row without a
+//   warning renders exactly as before.
+//
 // ⭐ uct_trendline_break (internal, experimental => admins only) carries its tested FALLING line
 //   in `extras.trendline` = {t1, p1, t2, p2, t_end, p_end, drawn_asof_t} (real bar times; the
 //   line is linear in price over bar index). `geometry.secondary` draws horizontals only, so
@@ -234,6 +242,51 @@ export function flaggingView(d) {
   return { ...d, flag_tier: FLAGGING_TIER, draw_entry: false, geometry: { ...g, extras } }
 }
 
+/** The warning codes the server stamps (base_warnings.CODES) and the FAULT ones that may revive a
+ *  withheld base box (base_warnings.FAULT_CODES). */
+export const BASE_WARNING_CODES = ['failed_breakout', 'too_deep', 'late_stage']
+export const BASE_FAULT_CODES = ['failed_breakout', 'too_deep']
+
+/**
+ * The caution tag a base row carries: `extras.warning` = {code, text}, or null for any row without a
+ * well-formed warning of a known code. Pure — exported for tests.
+ */
+export function baseWarning(d) {
+  const w = d?.geometry?.extras?.warning
+  if (!w || typeof w !== 'object' || !BASE_WARNING_CODES.includes(w.code)) return null
+  if (typeof w.text !== 'string' || !w.text.trim()) return null
+  return { code: w.code, text: w.text.trim() }
+}
+
+/**
+ * A withheld (stale) base box the server sent BACK because its warning is a fault: returned drawable
+ * (not stale), or null for every other row. Pure — exported for tests.
+ */
+export function warningView(d) {
+  if (!d?.geometry?.extras?.stale) return null
+  const w = baseWarning(d)
+  if (!w || !BASE_FAULT_CODES.includes(w.code)) return null
+  return { ...d, geometry: { ...d.geometry, extras: { ...d.geometry.extras, stale: false } } }
+}
+
+/**
+ * Where the caution tag sits: the drawing's top-right corner -- {t, price} of its latest time and
+ * highest price (a bc:base from its own drawing), or null when unknown. Pure — exported for tests.
+ */
+export function warningAnchor(d) {
+  const base = baseDrawing(d)
+  if (base) return { t: base.end_t, price: base.pivot }
+  const ex = d?.geometry?.extras || {}
+  const pts = (Array.isArray(ex.draw_anchors) && ex.draw_anchors.length ? ex.draw_anchors : d?.geometry?.anchors) || []
+  const ok = pts.filter((p) => p && p.t != null && Number.isFinite(Number(p.price)))
+  if (!ok.length) return null
+  const t = ok.reduce((a, p) => (Number(p.t) > Number(a) ? p.t : a), ok[0].t)
+  let price = Math.max(...ok.map((p) => Number(p.price)))
+  const pv = Number(ex.draw_pivot?.price)
+  if (Number.isFinite(pv)) price = Math.max(price, pv)
+  return { t, price }
+}
+
 /**
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
@@ -244,7 +297,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
   const levels = []
   for (const row of detections || []) {
     if (!row) continue
-    const d = flaggingView(row) || row
+    const d = flaggingView(row) || warningView(row) || row
     if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
     if (d.geometry?.extras?.stale) continue
@@ -430,6 +483,11 @@ export default function PatternOverlay({
           : NaN
         const anchors = d?.geometry?.anchors || []
         const tlBreak = trendlineBreakLine(d)
+        // A base warning (late-stage / failed breakout / too deep): a small caution tag on the drawing.
+        const warn = baseWarning(d)
+        const warnAt = warn ? warningAnchor(d) : null
+        const warnX = warnAt ? tToX(warnAt.t) : null
+        const warnY = warnAt ? priceToY(warnAt.price) : null
         return (
           <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
@@ -676,6 +734,20 @@ export default function PatternOverlay({
                 extendRight={40}
               />
             )}
+            {warn && warnX != null && warnY != null && (() => {
+              const w = Math.max(28, warn.text.length * 5.6 + 22)
+              const x = Math.max(2, Math.min(warnX - w, size.width - w - 2))
+              const y = Math.max(2, warnY - 22)
+              return (
+                <g data-role="base-warning" data-warning={warn.code} style={{ pointerEvents: 'none' }}>
+                  <title>{warn.text}</title>
+                  <rect x={x} y={y} width={w} height={16} rx={3}
+                    fill="rgba(40,28,4,0.86)" stroke="#e0a526" strokeWidth={1} />
+                  <text x={x + 6} y={y + 12} fill="#e0a526" fontSize={10} fontWeight={700}>!</text>
+                  <text x={x + 14} y={y + 12} fill="#f3d58a" fontSize={10}>{warn.text}</text>
+                </g>
+              )
+            })()}
           </g>
         )
       })}
