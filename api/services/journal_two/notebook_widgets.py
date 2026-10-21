@@ -750,6 +750,51 @@ def _open_strategies(user_id: str) -> list[dict]:
         return []
 
 
+def _mark_clock(now: datetime) -> tuple[bool, str | None]:
+    """(session closed, last closed session ET date): the two inputs `prefer_broker_marks` takes, read the
+    way the client's `useMarkPreferenceContext` reads them. Closed = not a trading day, or outside
+    04:00-20:00 ET (not open, not premarket, not extended hours). The session calendar is
+    `flow_card_ops`' (NYSE holidays, 16:00 close); a failed read is "open", which keeps live prices."""
+    try:
+        from api.services import flow_card_ops
+        ts = (now if now.tzinfo else now.replace(tzinfo=timezone.utc)).timestamp()
+        et = (now if now.tzinfo else now.replace(tzinfo=timezone.utc)).astimezone(_ET)
+        minutes = et.hour * 60 + et.minute
+        closed = not flow_card_ops._is_session(et.date()) or not (4 * 60 <= minutes < 20 * 60)
+        return closed, flow_card_ops.last_closed_session(ts).isoformat()
+    except Exception as e:  # noqa: BLE001
+        _log.info("positions risk: session clock failed: %s", e)
+        return False, None
+
+
+def _accounts_by_id(user_id: str) -> dict[str, dict]:
+    """The member's accounts by id (a SELECT; never the migrating default-account read)."""
+    try:
+        from api.services.journal_two import accounts as j2_accounts
+        return {a["id"]: a for a in (j2_accounts.list_accounts(user_id) or []) if isinstance(a, dict) and a.get("id")}
+    except Exception as e:  # noqa: BLE001 -- no account means "prefer live", the intraday answer
+        _log.info("positions risk: accounts read failed: %s", e)
+        return {}
+
+
+def _position_price(p: dict, live: float | None, prefer_broker: bool) -> tuple[float | None, str | None]:
+    """(price, "live" | "broker" | None): `calculations.js` `currentPriceFor`, the Open Positions table's rule.
+    After the close (`prefer_broker_marks`) the broker's own mark wins; otherwise the live price, with the
+    broker mark only when there is no live one. Either way a preference, never a restriction."""
+    broker = _num(p.get("brokerPrice"))
+    if prefer_broker and broker is not None:
+        return broker, "broker"
+    if live is not None:
+        return live, "live"
+    return (broker, "broker") if broker is not None else (None, None)
+
+
+def _price_basis(bases: list) -> str | None:
+    """"live", "broker" or "mixed" over the rows that were priced; None when none was."""
+    got = {b for b in bases if b}
+    return None if not got else (got.pop() if len(got) == 1 else "mixed")
+
+
 def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import portfolio_heat
     from api.services.journal_two import accounts as j2_accounts
@@ -797,11 +842,19 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
         except Exception as e:  # noqa: BLE001
             _log.info("positions risk: live prices failed: %s", e)
 
-    rows = []
+    # Fix F1 (audit I-6): after the close a broker position is valued at the broker's own mark, as the
+    # Open Positions table does (`prefer_broker_marks`, per account); `priceBasis` says which was used.
+    from api.services.journal_two.broker import composition
+    closed, last_closed = _mark_clock(now)
+    accounts_by_id = _accounts_by_id(user_id) if shown else {}
+    rows, bases = [], []
     for p, h in zip(shown, joined):
         sym = str(p.get("symbol") or "").upper()
         quote = prices.get(sym) if isinstance(prices.get(sym), dict) else {}
-        price = _num(quote.get("price"))
+        acc = accounts_by_id.get(p.get("accountId"))
+        prefer = bool(acc) and composition.prefer_broker_marks(acc, closed, last_closed)
+        price, basis = _position_price(p, _num(quote.get("price")), prefer)
+        bases.append(basis)
         qty, entry = _num(p.get("shares")), _num(p.get("entryPrice"))
         sign = -1.0 if str(p.get("side") or "").lower() == "short" else 1.0
         open_pnl = (
@@ -827,12 +880,15 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
             "noStop": no_stop,
         })
     rows += [_option_row(st, account) for st in opt_shown]
+    # An option row's value is the stored broker mark (`_option_row`).
+    bases += ["broker" for st in opt_shown if _num(st.get("brokerCurrentValue")) is not None]
     out: dict[str, Any] = {
         "asOf": _iso_utc(now),
         "source": _origin([p.get("source") for p in open_positions] + [st.get("source") for st in strategies]),
         "accountSize": account,
         "accountSizeSource": "default" if is_default else "member",
         "rows": rows,
+        "priceBasis": _price_basis(bases),
     }
     if cut:
         out["truncated"] = cut

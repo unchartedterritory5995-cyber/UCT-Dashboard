@@ -2220,3 +2220,67 @@ def test_i5_options_share_the_row_cap(monkeypatch):
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
     assert len(out["rows"]) == nw.ROW_CAP and out["truncated"] == 3
     assert [r["kind"] for r in out["rows"]].count("option") == 2
+
+
+# -- fix F1, I-6: after the close a broker position is valued at the broker's mark; priceBasis says so --
+
+SUNDAY = datetime(2026, 10, 18, 15, 0, tzinfo=timezone.utc)          # closed; last closed session Fri 10-16
+SYNCED_AFTER_FRIDAY_CLOSE = "2026-10-16T21:05:00Z"                   # 17:05 ET, after that close
+
+
+def _patch_accounts(monkeypatch, synced_at=SYNCED_AFTER_FRIDAY_CLOSE):
+    import api.services.journal_two.accounts as ac
+    monkeypatch.setattr(ac, "list_accounts", lambda user_id, *a, **k: [
+        {"id": "a1", "brokerBalanceSyncedAt": synced_at}])
+
+
+def _broker_pos(**over):
+    p = {**_pos(source="broker"), "accountId": "a1", "brokerPrice": 108.0}
+    p.update(over)
+    return p
+
+
+def test_i6_after_the_close_the_broker_mark_wins(monkeypatch):
+    _patch_positions(monkeypatch, [_broker_pos()], [_heat_row()])
+    _patch_accounts(monkeypatch)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=SUNDAY)
+    assert out["rows"][0]["openPnl"] == 80.0 and out["rows"][0]["sizePct"] == 2.16
+    assert out["priceBasis"] == "broker"
+
+
+def test_i6_before_the_close_the_live_price_wins(monkeypatch):
+    _patch_positions(monkeypatch, [_broker_pos()], [_heat_row()])
+    _patch_accounts(monkeypatch)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)                  # Tuesday 11:00 ET
+    assert out["rows"][0]["openPnl"] == 100.0 and out["priceBasis"] == "live"
+
+
+def test_i6_a_stale_sync_keeps_live_prices_even_after_the_close(monkeypatch):
+    """prefer_broker_marks' second condition: marks synced BEFORE the last close are a day stale."""
+    _patch_positions(monkeypatch, [_broker_pos()], [_heat_row()])
+    _patch_accounts(monkeypatch, synced_at="2026-10-16T07:40:00Z")      # 03:40 ET Friday, pre-close
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u1", {}, now=SUNDAY)
+    assert out["rows"][0]["openPnl"] == 100.0 and out["priceBasis"] == "live"
+
+
+def test_i6_no_live_price_falls_back_to_the_broker_mark_and_mixed_is_named(monkeypatch):
+    _patch_positions(monkeypatch, [_broker_pos(), _pos(sym="AMD", pid="p2")],
+                     [_heat_row(), _heat_row(sym="AMD")])
+    _patch_accounts(monkeypatch)
+    _patch_prices(monkeypatch, {"AMD": {"price": 101.0}})               # no live NVDA quote intraday
+    out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    rows = {r["symbol"]: r for r in out["rows"]}
+    assert rows["NVDA"]["openPnl"] == 80.0 and rows["AMD"]["openPnl"] == 10.0
+    assert out["priceBasis"] == "mixed"
+
+
+def test_i6_nothing_priced_has_no_basis_and_options_count_as_broker(monkeypatch):
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()])
+    _patch_prices(monkeypatch, {})
+    assert nw.build("myPositionsRisk", "u1", {}, now=NOW)["priceBasis"] is None
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()], strategies=[_strategy()])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    assert nw.build("myPositionsRisk", "u1", {}, now=NOW)["priceBasis"] == "mixed"
