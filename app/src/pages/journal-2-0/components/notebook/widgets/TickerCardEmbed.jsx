@@ -19,9 +19,9 @@ function Row({ label, children }) {
 }
 
 /** Notebook widgets: the ticker card. Rendered from `attrs.params` only. */
-export default function TickerCardEmbed({ attrs, height = 240, editable = false, onUpdateParams }) {
+export default function TickerCardEmbed({ attrs, height = 240, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('tickerCard', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('tickerCard', attrs, { editable, onUpdateParams, uid })
   const sym = p.symbol || 'Ticker'
   const h = p.history && typeof p.history === 'object' ? p.history : null
 

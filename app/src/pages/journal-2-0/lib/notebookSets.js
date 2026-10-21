@@ -139,21 +139,29 @@ async function readRaw() {
   }
 }
 
-/** The member's sets and presets. Cached for the tab after the first read (a save updates it), keyed by the member
- *  (`uid`; omitted, the member already held). A failed read answers the empty value and caches nothing, so the next
- *  menu open asks again. */
-export async function loadSets({ fresh = false, uid = _uid } = {}) {
+/** F2 fix round 1 (review I-2): the cache is touched only by a caller that names its member. A different member
+ *  takes the cache over empty; a call with no member reads and writes the server and never touches the cache, so
+ *  it can neither read another member's entries nor leave its own under another member's name. */
+const ownCache = (uid) => {
+  if (!uid) return false
   if (uid !== _uid) { _cached = null; _uid = uid }
-  if (_cached && !fresh) return _cached
+  return true
+}
+
+/** The member's sets and presets. Cached for the tab after the first read (a save updates it), for member `uid`
+ *  only. A failed read answers the empty value and caches nothing, so the next menu open asks again. */
+export async function loadSets({ fresh = false, uid } = {}) {
+  const mine = ownCache(uid)
+  if (mine && _cached && !fresh) return _cached
   const r = await readRaw()
   if (!r.ok) return { ...EMPTY_DOC, failed: true }
   const doc = readSets(r.raw)
-  if (uid === _uid) _cached = doc
+  if (mine && uid === _uid) _cached = doc
   return doc
 }
 
 /** What is already loaded in this tab for member `uid` (a save updates it), or null. Never a request. */
-export const peekSets = (uid) => (uid === _uid ? _cached : null)
+export const peekSets = (uid) => (uid && uid === _uid ? _cached : null)
 
 /** Tests only. */
 export function __resetSetsCache() { _cached = null; _uid = undefined }
@@ -165,8 +173,8 @@ export const SAVE_FAILED_REASON = "Couldn't save just now. Your sets are unchang
  *  just before the write (so an edit another tab made meanwhile is not dropped): read the stored value,
  *  replace only the key(s) given, and post the WHOLE value (the endpoint replaces it).
  *  `{ok: true, doc}` or `{ok: false, reason}`. */
-export async function saveSets(update) {
-  const owner = _uid
+export async function saveSets(update, { uid } = {}) {
+  const mine = ownCache(uid)
   const cur = await readRaw()
   if (!cur.ok) return { ok: false, reason: READ_FAILED_REASON }
   const stored = readSets(cur.raw)
@@ -190,13 +198,13 @@ export async function saveSets(update) {
   } catch {
     return { ok: false, reason: SAVE_FAILED_REASON }
   }
-  if (owner === _uid) _cached = doc
+  if (mine && uid === _uid) _cached = doc
   try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value) } catch { /* the cache is a convenience */ }
   return { ok: true, doc }
 }
 
 /** Save one widget's settings as a named preset (the SnapshotFrame door). */
-export async function savePreset({ name, kind, params }) {
+export async function savePreset({ name, kind, params, uid }) {
   const clean = cleanName(name)
   if (!clean) return { ok: false, reason: 'Give the preset a name.' }
   if (!SNAPSHOT_IDS.has(kind)) return { ok: false, reason: 'This widget cannot be saved as a preset.' }
@@ -206,7 +214,7 @@ export async function savePreset({ name, kind, params }) {
     const others = fresh.presets.filter((p) => p.name.toLowerCase() !== clean.toLowerCase())
     replaced = others.length < fresh.presets.length
     return { presets: [...others, { id: newId('p'), name: clean, kind, params: presetParams({ params }) }] }
-  })
+  }, { uid })
   return res.ok ? { ...res, replaced, message: replaced ? `Replaced the preset ${clean}.` : 'Saved as a preset.' } : res
 }
 

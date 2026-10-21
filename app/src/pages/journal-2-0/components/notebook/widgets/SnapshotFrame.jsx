@@ -220,7 +220,7 @@ const writeThrough = (ref, write, next) => { if (write(next) !== false) ref.curr
 
 /** The frame's props for one stored snapshot: title, as-of, privacy, and the two doors wired to
  *  the host's `onUpdateParams`. With no host callback (or a read-only note) there are no doors. */
-export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams } = {}) {
+export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams, uid } = {}) {
   const params = attrs?.params || {}
   const meta = widgetKind(kind)
   const canWrite = editable === true && typeof onUpdateParams === 'function'
@@ -263,7 +263,7 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     const write = writeRef.current
     if (typeof write === 'function') writeThrough(paramsRef, write, { ...paramsRef.current, share: value === true })
   }, [])
-  const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current }), [kind])
+  const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current, uid }), [kind, uid])
   return {
     title: meta?.title || kind,
     asOf: params.asOf,

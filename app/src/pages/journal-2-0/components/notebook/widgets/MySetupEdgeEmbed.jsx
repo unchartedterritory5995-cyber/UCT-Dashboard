@@ -11,9 +11,9 @@ const NO_SETUPS = 'No setups with closed trades yet.'
  * ⛔ A thin sample is LABELLED, never dropped: the server marks it (`thin`, under personal_edge's mute floor) and
  * the row says "Thin sample" in words beside the count.
  */
-export default function MySetupEdgeEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function MySetupEdgeEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('mySetupEdge', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('mySetupEdge', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const sourceLine = [accountSourceLine(p), extra].filter(Boolean).join(' · ') || null

@@ -8,9 +8,9 @@ const count = (v) => String(v)
  * ⛔ COUNTS ONLY: the store holds no message text and the payload carries none, so a row is a symbol, how many
  * mentions and how many people.
  */
-export default function RoomBuzzOnMyNamesEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function RoomBuzzOnMyNamesEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('roomBuzzOnMyNames', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('roomBuzzOnMyNames', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const notes = ['Mentions in the room since the session open, your names only.',
     Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''].filter(Boolean).join(' ')

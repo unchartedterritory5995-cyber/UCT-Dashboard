@@ -278,6 +278,31 @@ describe('the sets cache is keyed by member', () => {
     expect(peekSets('A')).toBeNull()
   })
 
+  it("review I-2: A loads, A signs out, B saves: A's cache never holds a B entry", async () => {
+    global.fetch = vi.fn(async () => reply(docOf('A set')))
+    await loadSets({ uid: 'A' })
+    expect(peekSets('A').sets[0].name).toBe('A set')
+    // B, on the same tab, saves with its own member id (SetsDialog / savePreset pass the editor's uid).
+    global.fetch = vi.fn(async (url, init = {}) => (init.method === 'POST'
+      ? { ok: true, status: 200, json: async () => ({}) } : reply(docOf('B set'))))
+    expect((await saveSets((f) => ({ sets: f.sets }), { uid: 'B' })).ok).toBe(true)
+    expect(peekSets('A')).toBeNull()
+    expect(peekSets('B').sets[0].name).toBe('B set')
+    // ...and a uid-less save never lands in anyone's cache.
+    __resetSetsCache()
+    global.fetch = vi.fn(async () => reply(docOf('A set')))
+    await loadSets({ uid: 'A' })
+    global.fetch = vi.fn(async (url, init = {}) => (init.method === 'POST'
+      ? { ok: true, status: 200, json: async () => ({}) } : reply(docOf('B set'))))
+    expect((await savePreset({ name: 'Theirs', kind: 'myWatchlistToday', params: {} })).ok).toBe(true)
+    expect(peekSets('A').sets[0].name).toBe('A set')
+    expect(peekSets('A').presets).toEqual([])
+    // A uid-less read neither answers from nor fills the cache.
+    expect((await loadSets()).sets[0].name).toBe('B set')
+    expect(peekSets('A').sets[0].name).toBe('A set')
+    expect(peekSets(undefined)).toBeNull()
+  })
+
   it('control: the same member keeps its cache, and a cached read is not asked again', async () => {
     global.fetch = vi.fn(async () => reply(docOf('Mine')))
     await loadSets({ uid: 'A' })

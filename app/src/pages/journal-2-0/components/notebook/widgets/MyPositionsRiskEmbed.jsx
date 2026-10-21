@@ -22,9 +22,9 @@ export const SET_STOP_HREF = '/journal?j2tab=positions'
  * live price, and the column says so. ⛔ A placeholder stop (`noStop: true`) is "No stop set" with
  * the way to set one; it is never drawn as a 0% distance.
  */
-export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = false, onUpdateParams }) {
+export default function MyPositionsRiskEmbed({ attrs, height = 320, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myPositionsRisk', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myPositionsRisk', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const hasAccount = typeof p.accountSize === 'number' && Number.isFinite(p.accountSize)
   const sizeReason = hasAccount ? 'No price available right now' : 'No account size set in Journal'

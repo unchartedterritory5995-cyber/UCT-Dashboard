@@ -35,9 +35,9 @@ function cellText(c) {
 const mark = (c) => (!c.traded ? '' : !(typeof c.pnl === 'number') ? '?' : c.pnl > 0 ? '+' : c.pnl < 0 ? '−' : '0')
 
 /** Notebook widgets: My P&L calendar. Rendered from `attrs.params` only. */
-export default function MyPnlCalendarEmbed({ attrs, height = 280, editable = false, onUpdateParams }) {
+export default function MyPnlCalendarEmbed({ attrs, height = 280, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myPnlCalendar', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myPnlCalendar', attrs, { editable, onUpdateParams, uid })
   const title = monthTitle(p.month)
   const cells = monthCells(p.month, p.days)
   const noTrades = typeof p.empty === 'string' && p.empty

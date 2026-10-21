@@ -47,9 +47,9 @@ export function recapChart(bars, entryDate, exitDate) {
  * Notebook widgets: Trade recap. Rendered from `attrs.params` only.
  * ⛔ `tradeId` is the request key See it now re-asks with; it is never drawn (and never leaves on a public page).
  */
-export default function TradeRecapEmbed({ attrs, height = 300, editable = false, onUpdateParams }) {
+export default function TradeRecapEmbed({ attrs, height = 300, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('tradeRecap', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('tradeRecap', attrs, { editable, onUpdateParams, uid })
   const chart = recapChart(p.bars, p.entryDate, p.exitDate)
   const mistakes = (Array.isArray(p.mistakes) ? p.mistakes : []).map(humanizeMistake)
   const dayOf = (d) => (d ? ` on ${fmtDay(d)}` : '')

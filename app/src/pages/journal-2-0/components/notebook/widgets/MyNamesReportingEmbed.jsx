@@ -12,9 +12,9 @@ function whenText(r) {
 }
 
 /** Notebook widgets: My names reporting. Rendered from `attrs.params` only. */
-export default function MyNamesReportingEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function MyNamesReportingEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myNamesReporting', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myNamesReporting', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const notes = [
     'Only names on your watchlists or in your positions.',

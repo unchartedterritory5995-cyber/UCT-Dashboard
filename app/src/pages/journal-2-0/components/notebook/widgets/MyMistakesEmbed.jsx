@@ -27,9 +27,9 @@ const TREND = {
  * Notebook widgets: My recurring mistakes. Rendered from `attrs.params` only.
  * ⛔ `cost30d` is money, so it reads like the P&L widget's figures; an unknown cost is n/a, never $0.
  */
-export default function MyMistakesEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function MyMistakesEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myMistakes', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myMistakes', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const sourceLine = [accountSourceLine(p), extra].filter(Boolean).join(' · ') || null

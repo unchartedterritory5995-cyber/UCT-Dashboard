@@ -14,9 +14,9 @@ const isCount = (v) => typeof v === 'number' && Number.isFinite(v)
  * breakdown and are never summed into the headline. Null counts mean "nothing to count": the empty
  * sentence, never "Kept 0 of 0".
  */
-export default function MyRulesCheckEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function MyRulesCheckEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myRulesCheck', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myRulesCheck', attrs, { editable, onUpdateParams, uid })
   const from = fmtDay(p.range?.from)
   const to = fmtDay(p.range?.to)
   const rules = Array.isArray(p.rules) ? p.rules : []

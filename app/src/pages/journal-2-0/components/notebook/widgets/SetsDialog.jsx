@@ -160,7 +160,7 @@ function StartFrom({ onPick }) {
   )
 }
 
-export default function SetsDialog({ onClose }) {
+export default function SetsDialog({ onClose, uid }) {
   const [doc, setDoc] = useState(null)       // null = loading; {failed} = could not read
   const [draft, setDraft] = useState(null)   // the set being edited, or null
   const [confirming, setConfirming] = useState(null) // id of the set or preset asked to delete
@@ -170,7 +170,7 @@ export default function SetsDialog({ onClose }) {
 
   useEffect(() => {
     alive.current = true
-    loadSets({ fresh: true }).then((d) => { if (alive.current) setDoc(d) })
+    loadSets({ fresh: true, uid }).then((d) => { if (alive.current) setDoc(d) })
     // The back button closes the dialog rather than moving the page under it (Sheet keeps no history entry).
     const back = () => onClose?.()
     window.addEventListener('popstate', back)
@@ -181,7 +181,7 @@ export default function SetsDialog({ onClose }) {
   const commit = async (next, done) => {
     setBusy(true)
     setMessage('')
-    const res = await saveSets(next)
+    const res = await saveSets(next, { uid })
     if (!alive.current) return
     setBusy(false)
     if (res.ok) { setDoc(res.doc); done?.() } else setMessage(res.reason)
@@ -285,7 +285,7 @@ export default function SetsDialog({ onClose }) {
 let _open = null
 
 /** Mount the dialog on its own root (one at a time) and unmount it on close. */
-export function openSetsDialog() {
+export function openSetsDialog({ editor } = {}) {
   if (_open) return _open
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -297,6 +297,7 @@ export function openSetsDialog() {
     setTimeout(() => { root.unmount(); host.remove() }, 0)
   }
   _open = close
-  root.render(createElement(SetsDialog, { onClose: close }))
+  // The signed-in member, so the dialog's reads and saves are cached for that member only (R60).
+  root.render(createElement(SetsDialog, { onClose: close, uid: editor?.storage?.uctJournalWidgets?.uid }))
   return close
 }

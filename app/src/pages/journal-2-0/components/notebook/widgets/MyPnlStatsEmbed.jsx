@@ -28,9 +28,9 @@ export function equityPoints(equity) {
  *
  * ⛔ A range with no closed trades shows the server's `empty` sentence, never a row of $0s.
  */
-export default function MyPnlStatsEmbed({ attrs, height = 260, editable = false, onUpdateParams }) {
+export default function MyPnlStatsEmbed({ attrs, height = 260, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myPnlStats', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myPnlStats', attrs, { editable, onUpdateParams, uid })
   const from = fmtDay(p.range?.from)
   const to = fmtDay(p.range?.to)
   const points = equityPoints(p.equity)

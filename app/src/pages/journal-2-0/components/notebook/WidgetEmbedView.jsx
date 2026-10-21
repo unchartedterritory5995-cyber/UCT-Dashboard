@@ -801,7 +801,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
-            {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams } : {})}
+            {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

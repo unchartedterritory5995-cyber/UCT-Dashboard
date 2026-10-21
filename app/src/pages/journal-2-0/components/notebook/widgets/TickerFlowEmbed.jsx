@@ -27,9 +27,9 @@ function Row({ label, children }) {
  * Notebook widgets: Options flow on a ticker (wave 3). Rendered from `attrs.params` only.
  * The direction is a word (Bullish, Bearish), so colour is never the only signal.
  */
-export default function TickerFlowEmbed({ attrs, height = 300, editable = false, onUpdateParams }) {
+export default function TickerFlowEmbed({ attrs, height = 300, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('tickerFlow', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('tickerFlow', attrs, { editable, onUpdateParams, uid })
   const sym = p.symbol || 'Ticker'
   const prints = Array.isArray(p.topPrints) ? p.topPrints : []
 

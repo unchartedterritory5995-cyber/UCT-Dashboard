@@ -5,9 +5,9 @@ import SnapshotFrame, {
 } from './SnapshotFrame'
 
 /** Notebook widgets: My watchlist today. Rendered from `attrs.params` only. */
-export default function MyWatchlistTodayEmbed({ attrs, height = 300, editable = false, onUpdateParams }) {
+export default function MyWatchlistTodayEmbed({ attrs, height = 300, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myWatchlistToday', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myWatchlistToday', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const list = p.listLabel ? `From your ${p.listLabel} list.` : ''
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''

@@ -9,9 +9,9 @@ const BASIS_LINES = { 'your names': 'Sector figure: the average of your names in
  * Notebook widgets: Market on my names (wave 3). Rendered from `attrs.params` only.
  * Each figure is a signed percent, so a lagging name reads as lagging without its colour.
  */
-export default function MarketOnMyNamesEmbed({ attrs, height = 300, editable = false, onUpdateParams }) {
+export default function MarketOnMyNamesEmbed({ attrs, height = 300, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('marketOnMyNames', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('marketOnMyNames', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const sourceLine = [own(BASIS_LINES, p.sectorBasis), extra].filter(Boolean).join(' ') || null

@@ -17,9 +17,9 @@ export function receiptOf(c) {
  * ⛔ The four counts are never collapsed: zero hits beside a receipt reads as what it is (CoverageLine), never as
  * a quiet market. `definitionId` is the request key See it now re-asks with; it is never drawn.
  */
-export default function MyScreenTodayEmbed({ attrs, height = 300, editable = false, onUpdateParams }) {
+export default function MyScreenTodayEmbed({ attrs, height = 300, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myScreenToday', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myScreenToday', attrs, { editable, onUpdateParams, uid })
   const hits = Array.isArray(p.hits) ? p.hits : []
   const receipt = receiptOf(p.coverage)
   const notReady = !receipt && typeof p.empty === 'string' && p.empty

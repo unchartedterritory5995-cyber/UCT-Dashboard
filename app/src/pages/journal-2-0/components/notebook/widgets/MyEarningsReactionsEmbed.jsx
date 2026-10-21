@@ -27,9 +27,9 @@ function versus(actual, est, fmt, what) {
  * Notebook widgets: My earnings reactions. Rendered from `attrs.params` only.
  * ⛔ The next-day move is null until that session closes; it shows n/a with that reason, never 0%.
  */
-export default function MyEarningsReactionsEmbed({ attrs, height = 280, editable = false, onUpdateParams }) {
+export default function MyEarningsReactionsEmbed({ attrs, height = 280, editable = false, onUpdateParams, uid }) {
   const p = attrs?.params || {}
-  const frame = useSnapshotFrame('myEarningsReactions', attrs, { editable, onUpdateParams })
+  const frame = useSnapshotFrame('myEarningsReactions', attrs, { editable, onUpdateParams, uid })
   const rows = Array.isArray(p.rows) ? p.rows : []
   const notes = ['Your names that reported in the last 7 days.',
     p.partial === true ? 'Some figures could not be read in time.' : '',
