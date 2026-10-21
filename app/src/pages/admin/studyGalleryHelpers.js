@@ -9,7 +9,8 @@ export function galleryKey(skill) {
   const p = new URLSearchParams()
   if (skill) p.set('skill', skill)
   p.set('status', 'any')
-  p.set('limit', '500')
+  p.set('light', '1')
+  p.set('limit', '5000')
   return `${REVIEW_URL}?${p.toString()}`
 }
 

@@ -303,7 +303,7 @@ describe('StudyReview card', () => {
   it('the example gallery shows every chart of one subject with a grade row, and a grade posts the grade action', async () => {
     renderWithProviders(<StudyReview />)
     fireEvent.click(screen.getByRole('button', { name: 'Example gallery' }))
-    expect(KEYS).toContain('/api/study/admin/review?status=any&limit=500')
+    expect(KEYS).toContain('/api/study/admin/review?status=any&light=1&limit=5000')
     const cards = screen.getAllByTestId('gallery-card')
     expect(cards.length).toBe(2)                       // SPOT_A + SPOT_C share the subject (vcp); the recall item has no chart
     expect(within(cards[0]).getByText('chart:NVDA')).toBeInTheDocument()
