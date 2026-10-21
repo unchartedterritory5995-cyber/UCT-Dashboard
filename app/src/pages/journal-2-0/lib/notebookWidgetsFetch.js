@@ -41,11 +41,18 @@ export function requestParamsOf(params) {
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
+/** F2 fix round 1 (review note): a widget request that has not answered in this long is given up as failed, so a
+ *  stalled fetch can never hold the / menu's in-flight guard (or a See it now) open. The server bounds itself at 6 s
+ *  per read; this is the client's own ceiling. */
+export const FETCH_TIMEOUT_MS = 15000
+
 /** One widget payload. Never throws: `{ok: true, payload}` or `{ok: false, reason}` with
  *  reason `offline` (no request made), `unavailable` (a 404: unknown or gated off) or `failed`. A 400 (a setting
  *  the server refuses, e.g. "month must be between ...") also carries the server's own sentence as `message`. */
 export async function fetchWidgetPayload(kind, params = {}) {
   if (isOffline()) return { ok: false, reason: 'offline' }
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : null
   try {
     const q = new URLSearchParams()
     for (const k of REQUEST_KEYS) {
@@ -54,7 +61,7 @@ export async function fetchWidgetPayload(kind, params = {}) {
     }
     const qs = q.toString()
     const res = await fetch(`${WIDGETS_URL}/${encodeURIComponent(String(kind))}${qs ? `?${qs}` : ''}`, {
-      credentials: 'include',
+      credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}),
     })
     if (res.status === 404) return { ok: false, reason: 'unavailable' }
     if (res.status === 400) {
@@ -69,6 +76,8 @@ export async function fetchWidgetPayload(kind, params = {}) {
     return { ok: true, payload }
   } catch {
     return { ok: false, reason: isOffline() ? 'offline' : 'failed' }
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 

@@ -750,6 +750,31 @@ describe('snapshot widget items (Task 8)', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it('review note: a fetch that never answers is given up after 15 s, says the failed sentence and frees the guard', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let aborted = false
+    global.fetch.mockImplementation((url, init) => new Promise((_, reject) => {
+      init?.signal?.addEventListener('abort', () => { aborted = true; reject(new DOMException('aborted', 'AbortError')) })
+    }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const pending = item.command({ editor: ed, range: slashRange(ed) })
+      await act(async () => { await Promise.resolve() })
+      act(() => { vi.advanceTimersByTime(14999) })
+      expect(aborted).toBe(false)
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(await pending).toEqual({ ok: false, message: 'Ticker card could not be loaded just now, so nothing was added.' })
+      expect(aborted).toBe(true)
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card could not be loaded just now, so nothing was added.')
+      // The guard let go: the same command runs again (and answers this time).
+      global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      expect((await item.command({ editor: ed, range: null })).ok).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+
   it('review I-3: a note that turns read-only mid-fetch takes the busy toast down (it never sticks)', async () => {
     latchNotebookFlags(WAVES_ON)
     let answer
