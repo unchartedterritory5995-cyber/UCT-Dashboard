@@ -29,8 +29,8 @@ router = APIRouter(
     tags=["journal-2-0", "notebook-widgets"],
 )
 
-#: The query params that pass through to the builder's `params`, when present.
-PASS_PARAMS = ("symbol", "list", "from", "to", "month", "definitionId", "tradeId")
+#: The query params that pass through to the builder's `params`, when present (the service owns the list).
+PASS_PARAMS = widgets.SETTING_KEYS
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:

@@ -89,7 +89,8 @@ BLOCK_KINDS: tuple[dict, ...] = (
 #: shared with journalBlocks.js): a kind's release wave gates its menu entry, so the editor never offers
 #: one; a style gains a slot from a built-in outline or from "Save as style" on a note that holds one.
 #: A built-in slot has no settings, so build() uses the kind's defaults (this week, the member's own lists).
-#: A slot id has no catalog row, so `_clean_blocks` keeps any settings a style holds verbatim, and
+#: Task 18 (R50): a member slot keeps the builder's request keys and nothing else (`_clean_blocks` reduces it
+#: through notebook_widgets.settings_of, so no payload figure is ever stored in a style), and
 #: `_build_widget_slot` passes them through to build() as params (it reads only the applier's own account).
 SNAPSHOT_SLOT_KINDS: tuple[str, ...] = (
     "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
@@ -327,7 +328,11 @@ def _clean_blocks(raw: Any) -> list[dict]:
         if not isinstance(settings, dict):
             raise StyleValidationError("A block's settings must be an object.")
         kind = _BLOCK_BY_ID.get(bid)
-        if kind is None:
+        if bid in SNAPSHOT_SLOT_KINDS:
+            # Task 18 (R50): a snapshot slot keeps the builder's request keys only; anything else (a frozen
+            # payload's figures, rows, the share switch) is dropped here, the ONE reduction every write takes.
+            clean = _nw.settings_of(settings)
+        elif kind is None:
             if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
                 raise StyleValidationError("That block's settings are too large.")
             clean = settings                                     # a newer version's block: kept verbatim
@@ -725,10 +730,14 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
                     if isinstance(bid, str) and BLOCK_ID_RE.match(bid) and bid not in seen and bid in KNOWN_BLOCKS:
                         seen.add(bid)
                         params = (node.get("attrs") or {}).get("params") or {}
-                        # A snapshot slot (Task 15) has no catalog row and no settings: its payload is the
-                        # member's own data, so it leaves the outline and never travels in the style.
-                        spec = {s["key"]: s for s in (_BLOCK_BY_ID.get(bid) or {}).get("settings", ())}
-                        settings = {k: params[k] for k in spec if params.get(k) in spec[k]["options"]}
+                        if bid in SNAPSHOT_SLOT_KINDS:
+                            # Task 18 (R50): a snapshot slot's params ARE its frozen payload, the member's own
+                            # data. It leaves the outline; `_clean_blocks` (via create_style) keeps only the
+                            # builder's request keys from it as the slot's settings.
+                            settings = params if isinstance(params, dict) else {}
+                        else:
+                            spec = {s["key"]: s for s in (_BLOCK_BY_ID.get(bid) or {}).get("settings", ())}
+                            settings = {k: params[k] for k in spec if params.get(k) in spec[k]["options"]}
                         blocks.append({"block": bid, "enabled": True, "settings": settings})
                         if top:
                             out.append(_ph(bid))

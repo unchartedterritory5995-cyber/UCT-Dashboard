@@ -143,6 +143,28 @@ def cap_payload(payload: dict) -> dict:
 
 _LIST_LABELS = {"watchlist": "Watchlist", "flagged": "Flagged"}
 
+#: The request keys a builder reads from `params` (R4). The router passes exactly these through, and a member
+#: style's snapshot slot (Task 18) keeps exactly these as its settings. The client's SETTINGS_KEYS in
+#: notebookSets.js is pinned to this tuple by test_journal_styles_compose.
+SETTING_KEYS: tuple[str, ...] = ("symbol", "list", "from", "to", "month", "definitionId", "tradeId")
+_SETTING_MAX_CHARS = 64
+
+
+def settings_of(params: Any) -> dict:
+    """The builder settings inside a widget's stored params (which hold the frozen PAYLOAD): each
+    SETTING_KEYS entry that is non-empty text, and nothing else, so no figure, row or `share` switch
+    survives. `list` is recovered from the payload's `listLabel` (which list is a setting), as the client's
+    presetParams does. A date range is NOT recovered from the payload's `range`: when none was asked for,
+    those dates were the day's default, and keeping them would freeze one week forever."""
+    p = params if isinstance(params, dict) else {}
+    out = {k: p[k] for k in SETTING_KEYS
+           if isinstance(p.get(k), str) and p[k] and len(p[k]) <= _SETTING_MAX_CHARS}
+    if "list" not in out:
+        by_label = {label: key for key, label in _LIST_LABELS.items()}
+        if p.get("listLabel") in by_label:
+            out["list"] = by_label[p["listLabel"]]
+    return out
+
 
 def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import calendar_personalization

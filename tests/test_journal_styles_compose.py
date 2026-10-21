@@ -741,3 +741,148 @@ def test_save_as_style_on_a_note_holding_a_snapshot_widget(db_path):
     assert full["blocks"] == [{"block": "myMistakes", "enabled": True, "settings": {}}]
     stored = _json.dumps(full.get("outlineBodyJson"))
     assert "SECRET-CHASE" not in stored and "{{block:myMistakes}}" in stored
+
+
+# ── Notebook widgets Task 18 (C18, ruling R50): member note presets with live slots ────────────────────
+# "Save as style" on a note turns each snapshot widget into a {{block:<kind>}} slot at its place, keeping only
+# the builder's request keys (R4) as the block's settings. Applying the style refills every slot through the
+# Task 15 server path. A gallery copy ships every slot's settings empty.
+
+def _snap(kind, payload):
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": kind, "embedId": "e-" + kind, "mode": "snapshot", "params": payload,
+        "capturedAt": payload.get("asOf"), "annotations": [], "caption": None,
+        "layout": {"width": "full", "height": None}, "fallback": None}}
+
+
+# The frozen payloads a member's note holds: settings keys beside the member's own figures.
+_WATCH = {"kind": "myWatchlistToday", "asOf": "2026-10-11T14:30:00Z", "source": "market",
+          "listLabel": "Flagged", "rows": [{"symbol": "SECRETSYM", "pct": 4.2}], "share": True}
+_PNL = {"kind": "myPnlStats", "asOf": "2026-10-11T14:30:00Z", "source": "broker",
+        "from": "2026-10-01", "to": "2026-10-09", "netPnl": 51234.5, "accountSize": 250000,
+        "range": {"from": "2026-10-01", "to": "2026-10-09"}, "rows": [{"n": 7}], "share": False}
+_RISK = {"kind": "myPositionsRisk", "asOf": "2026-10-11T14:30:00Z", "source": "mixed",
+         "positions": [{"symbol": "SECRETPOS", "risk": 812.0}], "accountSize": 250000}
+_NOTE_ORDER = ["myWatchlistToday", "myPnlStats", "myPositionsRisk"]
+
+
+def _note_with_widgets(notes, js):
+    body = {"type": "doc", "content": [
+        js._h("My week"), js._p("Names first."), _snap("myWatchlistToday", _WATCH),
+        js._h("The numbers"), _snap("myPnlStats", _PNL), js._p("Then risk."), _snap("myPositionsRisk", _RISK)]}
+    return notes.create_note("u1", {"title": "wk", "bodyJson": body})
+
+
+def test_slots_hold_settings_not_data(db_path):
+    """Every snapshot widget becomes a slot at its place; the slot keeps the builder's request keys and
+    nothing else (the list is recovered from listLabel, like the client's presetParams). No figure, row or
+    share switch reaches the saved style, through Save as style or through a hand-made style."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js, notes
+    n = _note_with_widgets(notes, js)
+    s = js.create_style_from_note("u1", n["id"], "My week", "weekly_review")
+    full = js.get_style("u1", s["id"], full=True)
+    assert full["blocks"] == [
+        {"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}},
+        {"block": "myPnlStats", "enabled": True, "settings": {"from": "2026-10-01", "to": "2026-10-09"}},
+        {"block": "myPositionsRisk", "enabled": True, "settings": {}}]
+    holders = [js._placeholder_kind(x) for x in full["outlineBodyJson"]["content"]]
+    assert [h for h in holders if h] == _NOTE_ORDER                       # each slot at its own place
+    stored = _json.dumps(full)
+    for word in ("netPnl", "rows", "positions", "accountSize", "share", "SECRETSYM", "SECRETPOS", "51234.5"):
+        assert word not in stored, word
+    # The same reduction on a style a client writes by hand: data in a slot's settings never lands.
+    hand = js.create_style("u1", {"name": "Hand", "kindId": "weekly_review", "blocks": [
+        {"block": "myPnlStats", "enabled": True, "settings": dict(_PNL)}]})
+    got = js.get_style("u1", hand["id"], full=True)["blocks"]
+    assert got == [{"block": "myPnlStats", "enabled": True, "settings": {"from": "2026-10-01", "to": "2026-10-09"}}]
+
+
+def test_apply_refills_each_slot(db_path, monkeypatch):
+    """Applying a member style fills each slot through notebook_widgets.build, with the slot's settings as
+    params and the applier's own id; the node holds today's payload. A kind whose wave is off is skipped
+    with no sentence (Task 15's behaviour), whatever the style was saved with."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Mine", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [
+                                   js._h("Week"), js._ph("myWatchlistToday"), js._ph("myRulesCheck"),
+                                   js._ph("myPnlStats")]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}},
+                                          {"block": "myRulesCheck", "enabled": True, "settings": {}},
+                                          {"block": "myPnlStats", "enabled": True, "settings": {"from": "2026-10-01"}}]})
+    calls = []
+    monkeypatch.setattr(nw, "build", _fake_build(calls))
+    _waves(monkeypatch, 1)                                                # wave 2 (myRulesCheck) off
+    note, skipped = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
+    assert [c for c in calls] == [("myWatchlistToday", "u1", {"list": "flagged"}),
+                                  ("myPnlStats", "u1", {"from": "2026-10-01"})]
+    embeds = _slot_embeds(note["bodyJson"])
+    assert [e["attrs"]["widgetId"] for e in embeds] == ["myWatchlistToday", "myPnlStats"]
+    assert all(e["attrs"]["params"]["rows"] == [{"n": 1}] for e in embeds)          # today's payload
+    assert skipped == [] and "{{block:" not in _json.dumps(note["bodyJson"])
+    # The control: wave 2 on, the third slot fills too.
+    _waves(monkeypatch, 1, 2)
+    calls.clear()
+    note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today 2"})
+    assert [c[0] for c in calls] == ["myWatchlistToday", "myRulesCheck", "myPnlStats"]
+
+
+def test_member_preset_round_trip_refills_slots_in_order(db_path, monkeypatch):
+    """A note with widgets -> Save as style -> apply to a new note: the same kinds, in the same order, each
+    built fresh with the settings it was saved with; none of the old figures comes back."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js, notes, notebook_widgets as nw
+    n = _note_with_widgets(notes, js)
+    s = js.create_style_from_note("u1", n["id"], "My week", "weekly_review")
+    _waves(monkeypatch, 1)
+    calls = []
+    monkeypatch.setattr(nw, "build", _fake_build(calls))
+    fresh, skipped = js.create_styled_note("u1", {"styleId": s["id"], "title": "next week"})
+    assert [e["attrs"]["widgetId"] for e in _slot_embeds(fresh["bodyJson"])] == _NOTE_ORDER
+    assert calls == [("myWatchlistToday", "u1", {"list": "flagged"}),
+                     ("myPnlStats", "u1", {"from": "2026-10-01", "to": "2026-10-09"}),
+                     ("myPositionsRisk", "u1", {})]
+    words = [_text(x) for x in fresh["bodyJson"]["content"]]
+    assert "Names first." in words and "Then risk." in words and skipped == []
+    dumped = _json.dumps(fresh["bodyJson"])
+    assert "SECRETSYM" not in dumped and "51234.5" not in dumped and "SECRETPOS" not in dumped
+
+
+def test_gallery_publish_empties_slots(conn, lib_on, monkeypatch):
+    """A member style shared to the gallery ships every slot with empty settings: a ticker or a list is the
+    author's, a template is a scaffold. The author's own style keeps its settings."""
+    import json as _json
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    from api.services.journal_two import template_gallery as gallery
+    monkeypatch.setattr(nw, "build", lambda *a, **k: pytest.fail("the gallery must never build a widget"))
+    s = js.create_style("author", {"name": "My week", "kindId": "weekly_review",
+                                   "outlineBodyJson": {"type": "doc", "content": [
+                                       js._h("Week"), js._ph("myWatchlistToday"), js._ph("myPnlStats")]},
+                                   "blocks": [{"block": "myWatchlistToday", "enabled": True,
+                                               "settings": {"list": "flagged"}},
+                                              {"block": "myPnlStats", "enabled": True,
+                                               "settings": {"from": "2026-10-01", "to": "2026-10-09"}}]}, conn)
+    item = gallery.publish_style("author", s["id"], title="My week", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    got = gallery.get_item("admin", item["id"], is_admin=True, conn=conn)
+    assert got["payload"]["blocks"] == [{"block": "myWatchlistToday", "enabled": True, "settings": {}},
+                                        {"block": "myPnlStats", "enabled": True, "settings": {}}]
+    stored = _json.dumps(got["payload"])
+    assert "flagged" not in stored and "2026-10-01" not in stored
+    mine = js.get_style("author", s["id"], conn, full=True)["blocks"]        # the author's copy is untouched
+    assert [b["settings"] for b in mine] == [{"list": "flagged"}, {"from": "2026-10-01", "to": "2026-10-09"}]
+
+
+def test_the_slot_setting_keys_match_the_client_settings_keys():
+    """One list of request keys: the server's (notebook_widgets.SETTING_KEYS, which the router passes
+    through) and the client's SETTINGS_KEYS in notebookSets.js, read from the file, never restated."""
+    import re
+    from pathlib import Path
+    from api.routers import notebook_widgets as router
+    from api.services.journal_two import notebook_widgets as nw
+    src = Path("app/src/pages/journal-2-0/lib/notebookSets.js").read_text(encoding="utf-8")
+    m = re.search(r"export const SETTINGS_KEYS = Object\.freeze\(\[([^\]]*)\]\)", src)
+    client = re.findall(r"'(\w+)'", m.group(1))
+    assert len(client) == 7                                                          # non-vacuity
+    assert tuple(client) == nw.SETTING_KEYS == router.PASS_PARAMS

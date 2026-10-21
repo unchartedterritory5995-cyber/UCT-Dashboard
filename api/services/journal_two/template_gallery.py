@@ -1228,7 +1228,10 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
     return {
         "kindId": style["kindId"],
         "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
-        "blocks": [b for b in (style.get("blocks") or [])
+        # Task 18 (R50): a snapshot slot ships with empty settings. A ticker, a list or a date range is the
+        # author's; the copy is a scaffold, filled with each adopter's own defaults when they make a note.
+        "blocks": [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
+                   for b in (style.get("blocks") or [])
                    if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
         "properties": props,
         "droppedProperties": dropped,
