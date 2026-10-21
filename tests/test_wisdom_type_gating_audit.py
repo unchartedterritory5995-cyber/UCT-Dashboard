@@ -81,7 +81,9 @@ DECLARED_DOORS = {
     # panel exists. It calls ONLY team_history.enabled() (WISDOM_TICKER_HISTORY_ENABLED and
     # WISDOM_ARCHIVE_ENABLED, per call) and never reads a record: the rows come from the paid
     # route in api/routers/wisdom_archive.py. Railed below by test_the_auth_me_switch_door_reads_no_record.
-    "api/routers/auth.py": ("archive.team_history", "MEMBER", "WISDOM_TICKER_HISTORY_ENABLED"),
+    # 2026-10-20: it also tells the client whether the nav's Trader Archive entry exists,
+    # through core.flags.archive_enabled() alone (the archive routes' own 404 gate). Flag only.
+    "api/routers/auth.py": ("archive.team_history + core.flags", "MEMBER", "WISDOM_TICKER_HISTORY_ENABLED"),
 }
 
 
@@ -162,6 +164,21 @@ def test_the_auth_me_switch_door_reads_no_record(monkeypatch):
         monkeypatch.setenv("WISDOM_TICKER_HISTORY_ENABLED", hist_on)
         monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
         assert auth._wisdom_ticker_history_enabled() is want
+
+
+def test_the_auth_me_archive_nav_switch_reads_no_record(monkeypatch):
+    """The nav's Trader Archive entry switch: WISDOM_ARCHIVE_ENABLED alone (the archive routes'
+    own 404 gate, wisdom_archive._require_enabled), never a store read."""
+    from api.routers import auth
+
+    monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
+    for archive_on, want in (("1", True), ("0", False)):
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
+        assert auth._wisdom_archive_enabled() is want
+    monkeypatch.delenv("WISDOM_ARCHIVE_ENABLED", raising=False)
+    assert auth._wisdom_archive_enabled() is False                # unset = dark
+    src = (REPO / "api" / "routers" / "auth.py").read_text(encoding="utf-8")
+    assert '"wisdom_archive_enabled": _wisdom_archive_enabled(),' in src
 
 
 def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):

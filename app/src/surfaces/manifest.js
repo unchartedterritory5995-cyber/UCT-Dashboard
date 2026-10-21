@@ -70,7 +70,9 @@ export const MANIFEST = [
   // null, as it is for every other reachable-but-unlisted surface above.
   { path: "/open-flow", pathKind: "literal", element: "OpenFlow", kind: "surface", order: null },
   { path: "/portfolio-heat", pathKind: "literal", element: "PortfolioHeat", kind: "surface", order: null },
-  // 2026-10-15: the TSDR trader archive page (paid members). Not a sidebar entry.
+  // 2026-10-15: the TSDR trader archive page (paid members). 2026-10-20: a sidebar + More-sheet
+  // entry ("Trader Archive", dark behind WISDOM_ARCHIVE_ENABLED). `order` stays null: telemetry
+  // has not measured it, and a nav row is not a rank (/formulas/reference is the precedent).
   { path: "/trader-archive", pathKind: "literal", element: "TraderArchive", kind: "surface", order: null },
   { path: "/traders", pathKind: "literal", element: "Traders", kind: "surface", order: null },
   // ⚰️ ADDED 2026-09-29 (TERM-037). App.jsx moved /provenance-demo inside <Layout/> on

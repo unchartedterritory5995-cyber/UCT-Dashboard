@@ -4,12 +4,14 @@ import { vi } from 'vitest'
 
 let mockPlan = 'pro'
 let mockRole = null
+let mockArchiveOn = false
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 1, display_name: 'Pat', role: mockRole },
     plan: mockPlan,
     // AuthContext is the single source for paid access (admin counts as paid).
     isPaid: mockRole === 'admin' || (!!mockPlan && mockPlan !== 'free'),
+    wisdomArchiveEnabled: mockArchiveOn,
   }),
 }))
 vi.mock('swr', () => ({ default: () => ({ data: null }) }))
@@ -27,7 +29,7 @@ function renderSheet(props = {}) {
   )
 }
 
-beforeEach(() => { mockPlan = 'pro'; mockRole = null; mockTerminalNavPath = '/terminal' })
+beforeEach(() => { mockPlan = 'pro'; mockRole = null; mockArchiveOn = false; mockTerminalNavPath = '/terminal' })
 
 test('renders the full directory for a paid user', () => {
   renderSheet()
@@ -100,4 +102,31 @@ test('V19: UCT Terminal opens the terminal for everyone else', () => {
   renderSheetAndWatch()
   fireEvent.click(screen.getByText('UCT Terminal'))
   expect(screen.getByTestId('where').textContent).toBe('/terminal')
+})
+
+// Trader Archive: paid like its siblings, DARK with the archive (mirrors the NavBar gate).
+test('Trader Archive: a paid member with the archive on opens its Today view', () => {
+  mockArchiveOn = true
+  function Where() { const l = useLocation(); return <span data-testid="where">{l.pathname + l.search}</span> }
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <MoreSheet open onClose={vi.fn()} />
+      <Routes><Route path="*" element={<Where />} /></Routes>
+    </MemoryRouter>,
+  )
+  fireEvent.click(screen.getByText('Trader Archive'))
+  expect(screen.getByTestId('where').textContent).toBe('/trader-archive?view=today')
+})
+
+test('Trader Archive: a free member with the archive on sees it locked to upgrade', () => {
+  mockArchiveOn = true
+  mockPlan = 'free'
+  renderSheet()
+  expect(screen.getByRole('button', { name: 'Trader Archive — unlock with Pro' })).toBeInTheDocument()
+})
+
+test('Trader Archive: hidden while the archive flag is off', () => {
+  renderSheet()
+  expect(screen.getByText('Model Book')).toBeInTheDocument()   // control: the section rendered
+  expect(screen.queryByText('Trader Archive')).toBeNull()
 })

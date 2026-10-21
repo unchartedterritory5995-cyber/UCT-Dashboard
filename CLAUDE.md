@@ -57,8 +57,8 @@ node tools/nav_manifest.mjs            # this table, plus the route diff
 node tools/nav_manifest.mjs --self-check
 ```
 
-Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:19`
-on **2026-10-02**. Regenerate after any change to that array.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:21`
+on **2026-10-20**. Regenerate after any change to that array.
 
 ⭐ **UCT Terminal (TERMINAL-NEXT, 2026-10-02, cohort-gated).** The entry's `to` is still
 `/calendar`. For a member the `terminal-next` cohort admits (`TERMINAL_NEXT_ENABLED` + a
@@ -71,7 +71,7 @@ gets the measurement it requires for a new NavBar route. Code: `app/src/pages/te
 
 | label | route |
 |---|---|
-| UCT Terminal | `/calendar` |
+| UCT Terminal | `/terminal` |
 | Charts | `/charts` |
 | Morning Wire | `/morning-wire` |
 | Dashboard | `/dashboard` |
@@ -84,6 +84,7 @@ gets the measurement it requires for a new NavBar route. Code: `app/src/pages/te
 | Live Flow | `/live-massive` |
 | Catalysts History | `/catalysts/history` |
 | Model Book | `/model-book` |
+| Trader Archive | `/trader-archive` |
 | Formula Reference | `/formulas/reference` |
 | The Desk | `/desk` |
 | Journal | `/journal` |
@@ -91,9 +92,14 @@ gets the measurement it requires for a new NavBar route. Code: `app/src/pages/te
 | Community | `/community` |
 | Support | `/support` |
 
-**19 entries** (was 18 — `/portfolio-heat` added 2026-09-21, A14 CP1: a real member
+**20 entries** (was 19 — `/trader-archive` added 2026-10-20: the TSDR trader archive,
+paid-gated the normal way and DARK with the archive itself — NavBar and MoreSheet render
+the row only while `/api/auth/me` carries `wisdom_archive_enabled`, the same
+`flags.archive_enabled()` reader as the archive routes' 404 gate; the row opens
+`?view=today`. Was 18 before `/portfolio-heat`, added 2026-09-21, A14 CP1: a real member
 door on `portfolio_heat.py`'s already-computed risk numbers, paid-gated the normal
-way per G1's "no free tier, only paid" answer). Every one resolves to a
+way per G1's "no free tier, only paid" answer). The UCT Terminal row reads `/terminal`
+since its graduation (2026-10-07). Every one resolves to a
 registered route (`navWithoutRoute = 0` against 92 routes in `App.jsx`, 2026-10-02) — so the
 **phantom-entry defect this section used to commit is currently absent**, and the
 generator is what keeps saying so.

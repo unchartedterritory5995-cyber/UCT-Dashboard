@@ -15,8 +15,8 @@ test('no free tier: every nav entry, the Morning Wire included, is locked to upg
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /morning wire — unlock with pro/i })).toHaveAttribute('href', '/subscribe')
   // DERIVED, not a hand-picked sample: every declared item that renders.
-  // (/community is dark-launched and renders nothing until enabled.)
-  const rendered = NAV_ITEMS.filter((i) => i.to !== '/community')
+  // (/community and /trader-archive are dark-launched and render nothing until enabled.)
+  const rendered = NAV_ITEMS.filter((i) => i.to !== '/community' && i.to !== '/trader-archive')
   expect(rendered.length).toBeGreaterThan(5)
   for (const item of rendered) {
     const link = screen.getByRole('link', { name: `${item.label} — unlock with Pro` })
@@ -129,6 +129,62 @@ test('V19: a kept-calendar member on /terminal still sees the entry lit', async 
     expect(link.className).toMatch(/active/)
   } finally {
     window.history.pushState({}, '', '/')
+    vi.unstubAllGlobals()
+  }
+})
+
+// ── Trader Archive: paid like every row, and DARK with the archive itself ────────────────
+// The row follows the auth payload's `wisdom_archive_enabled` (WISDOM_ARCHIVE_ENABLED, the
+// archive routes' own 404 gate), so the nav never links to a switched-off page.
+function stubArchive({ plan, archiveOn }) {
+  vi.stubGlobal('fetch', vi.fn((url) => {
+    const u = String(url)
+    const body = u.startsWith('/api/auth/me')
+      ? { user: { id: 1, email: 'p@local', role: 'member', email_verified: true }, plan,
+          ...(archiveOn === undefined ? {} : { wisdom_archive_enabled: archiveOn }) }
+      : {}
+    return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(body) })
+  }))
+}
+
+function renderNav() {
+  renderWithProviders(<SWRConfig value={{ provider: () => new Map() }}><NavBar /></SWRConfig>)
+}
+
+test('Trader Archive: a paid member with the archive on gets the row, opening its Today view', async () => {
+  stubArchive({ plan: 'pro', archiveOn: true })
+  try {
+    renderNav()
+    const link = await screen.findByRole('link', { name: /^trader archive$/i })
+    expect(link).toHaveAttribute('href', '/trader-archive?view=today')
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('Trader Archive: a free member with the archive on sees it LOCKED to upgrade, like its siblings', async () => {
+  stubArchive({ plan: 'free', archiveOn: true })
+  try {
+    renderNav()
+    const link = await screen.findByRole('link', { name: 'Trader Archive — unlock with Pro' })
+    expect(link).toHaveAttribute('href', '/subscribe')
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test.each([
+  ['off', false],
+  ['absent from the payload', undefined],
+])('Trader Archive: no row at all while the archive flag is %s (paid member)', async (_l, archiveOn) => {
+  stubArchive({ plan: 'pro', archiveOn })
+  try {
+    renderNav()
+    // Control: the paid render has landed (a sibling paid row is an unlocked link) ...
+    await screen.findByRole('link', { name: /^model book$/i })
+    // ... and the archive row is absent, locked or not.
+    expect(screen.queryByRole('link', { name: /trader archive/i })).toBeNull()
+  } finally {
     vi.unstubAllGlobals()
   }
 })
