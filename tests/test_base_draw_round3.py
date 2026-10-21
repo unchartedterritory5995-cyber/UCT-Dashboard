@@ -121,19 +121,45 @@ def test_round_three_is_round_two_wherever_round_two_draws():
     assert both >= 50 and only3 >= 5, (both, only3)
 
 
+def _base_then_shelf():
+    """A base whose body tops reach 100 for 40 sessions, then ONE bar whose WICK reaches 110 (its body stays
+    under the base top, so round 2's base is intact), then a lower shelf topping at 97 for 30 sessions, the
+    close at 96.9: round 2 draws the 100 base, and a shelf candidate at 97 -- NEARER the close -- also exists."""
+    bars, t, p = [], 20240101, 55.0
+
+    def add(o, c, pad, h=None):
+        nonlocal t
+        bars.append({"t": t, "o": o, "h": h if h else max(o, c) + pad, "l": min(o, c) - pad, "c": c, "v": 1e6})
+        t += 1
+
+    for _ in range(220):
+        add(p, p + 0.2, 0.6)
+        p += 0.2
+    for top, low, n in ((100.0, 92.0, 40), (None, None, 0), (97.0, 90.0, 30)):
+        if top is None:
+            add(p, 98.0, 0.5, h=110.0)
+            p = 98.0
+            continue
+        for k in range(n):
+            c = low + (top - low) * (0.5 + 0.5 * math.cos(2 * math.pi * (k % 12) / 12.0))
+            add(p, c, 0.5)
+            p = c
+    add(p, 96.9, 0.4)
+    return bars
+
+
 def test_a_round_two_drawing_wins_over_a_nearer_shelf():
     """Round 3 runs the shelf pass only when round 2 draws nothing: a shelf candidate never replaces a
     round-2 drawing, even one whose pivot is farther from the close."""
-    for s in range(SW.SERIES):
-        bars = SW.series(s)
-        for i in range(220, len(bars), 2):
-            b = bars[:i + 1]
-            if BD.base_drawing(b, i, draw_round=2) is None:
-                continue
-            a = BD._atr(b, i)
-            shelf = BD._pick(b, i, a, BD._candidates(b, i), 3, True)
-            assert shelf is None or BD.base_drawing(b, i, draw_round=3)["start_t"] == b[
-                BD._pick(b, i, a, BD._candidates(b, i), 2, False)["lip"]]["t"]
+    b = _base_then_shelf()
+    i = len(b) - 1
+    d2 = _draw(b, 2)
+    shelf = BD._pick(b, i, BD._atr(b, i), BD._candidates(b, i), 3, True)
+    # the fixture really has both, and the shelf really is nearer the close
+    assert d2 is not None and d2["pivot"] == pytest.approx(100.0)
+    assert shelf is not None and shelf["pivot"] == pytest.approx(97.0)
+    assert abs(shelf["close_minus_pivot_atr"]) < abs(b[i]["c"] - d2["pivot"]) / d2["atr"]
+    assert _draw(b, 3) == d2
 
 
 def test_rounds_one_and_two_never_draw_a_shelf():
