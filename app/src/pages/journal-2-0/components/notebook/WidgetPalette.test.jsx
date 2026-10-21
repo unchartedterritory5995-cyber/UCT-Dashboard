@@ -312,6 +312,20 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     expect(embeds().map((n) => n.attrs.widgetId)).toEqual(['myWatchlistToday'])
   })
 
+  it('R58 I-2: says "Adding …" while the fetch runs, and a second click adds nothing', async () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    render(<WidgetPalette editor={mount()} />)
+    fireEvent.click(screen.getByText('My watchlist today'))
+    expect(await screen.findByText('Adding My watchlist today…')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('My watchlist today'))
+    answer(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))
+    expect(await screen.findByText('My watchlist today inserted')).toBeInTheDocument()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(embeds()).toHaveLength(1)
+  })
+
   it('a failed fetch inserts nothing and says nothing was inserted', async () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     global.fetch.mockResolvedValue({ ok: false, status: 500 })

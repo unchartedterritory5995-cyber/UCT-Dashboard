@@ -81,11 +81,13 @@ export function refreshParams(oldParams, payload) {
 /** The slash / palette snapshot insert's last step (SlashMenu.snapshotCommand), here so it costs no first-open
  *  bytes: the frozen widget goes in at `pos()` (the command's place, mapped through anything typed while the
  *  fetch ran). Final review M-2: the fetch can take seconds, so a note destroyed or turned read-only meanwhile
- *  gets nothing. Resolves the palette's `{ok, message}`. */
-export function landSnapshot(editor, kind, params, pos) {
+ *  gets nothing. Resolves the palette's `{ok, message}`; `title` names the widget in the success sentence. */
+export function landSnapshot(editor, kind, params, pos, title) {
   if (editor.isDestroyed || !editor.isEditable) return { ok: false, message: null }
   editor.chain().focus().insertContentAt(Math.min(pos(), editor.state.doc.content.size), widgetEmbedNode(kind, params))
     .caretAfterWidgetEmbed().run()
+  // R58 (UX I-2): the success sentence replaces the menu's "Adding …".
+  if (title) editor.storage?.uctJournalWidgets?.notify?.(`${title} added.`, 'info')
   return { ok: true, message: null }
 }
 

@@ -127,7 +127,7 @@ export default function WidgetPalette({ editor, onClose }) {
 
   const runSnapshot = async (item) => {
     if (!item || !editor) return
-    setInserted(null)
+    setInserted(`Adding ${item.title}…`)
     const res = await item.command({ editor, range: null })
     setInserted(res?.ok ? `${item.title} inserted` : res?.message || null)
     if (res?.ok && snapCmd) { setSym(''); symRef.current?.focus() }

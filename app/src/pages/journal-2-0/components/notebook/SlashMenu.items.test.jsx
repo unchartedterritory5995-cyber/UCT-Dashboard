@@ -9,7 +9,8 @@ import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSl
   pickItems, __picksLoad, __resetPicks } from './SlashMenu'
 import { __resetSetsCache } from '../../lib/notebookSets'
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
-import { createElement } from 'react'
+import { createElement, useState } from 'react'
+import Toast from '../Toast'
 import { EditorContent } from '@tiptap/react'
 import { CAPTURE_FLAG_KEY } from '../../../../widgets/captureRelease'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -693,6 +694,54 @@ describe('snapshot widget items (Task 8)', () => {
     expect(embeds(ed)).toHaveLength(0)
     expect(ed.state.doc.textContent).toBe('Plan ')
     expect(notify).toHaveBeenCalledWith('Ticker card could not be loaded just now, so nothing was added.', 'error')
+  })
+
+  // The note's own toast, driven by the editor's `notify` exactly as NoteEditorPage wires it.
+  const withToast = (ed) => {
+    const set = { current: null }
+    function Host() {
+      const [t, setT] = useState(null)
+      set.current = setT
+      return <Toast message={t?.message} tone={t?.tone} onDismiss={() => setT(null)} />
+    }
+    render(<Host />)
+    ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}),
+      notify: (message, tone) => act(() => set.current({ message, tone })) }
+  }
+
+  it('R58 I-2: "Adding Ticker card…" shows the moment the command runs, then "Ticker card added."', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+    expect(embeds(ed)).toHaveLength(0)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await pending
+    expect(embeds(ed)).toHaveLength(1)
+    expect(screen.getByRole('status')).toHaveTextContent('Ticker card added.')
+  })
+
+  it('R58 I-2: a second identical command while the first fetches inserts nothing; after it lands, one more does', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    const item = snapshotWidgetItems('ticker NVDA')[0]
+    const first = item.command({ editor: ed, range: slashRange(ed) })
+    ed.commands.insertContentAt(ed.state.doc.content.size - 1, '/ticker NVDA')
+    const second = await item.command({ editor: ed, range: slashRange(ed) })
+    expect(second).toEqual({ ok: false, message: 'Adding Ticker card…' })
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await first
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(embeds(ed)).toHaveLength(1)
+    // Control: the guard lets go once the first insert has landed.
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    expect((await item.command({ editor: ed, range: null })).ok).toBe(true)
+    expect(embeds(ed)).toHaveLength(2)
   })
 
   it('insert_places_widgetEmbed_with_frozen_params at the command position, even if the member typed meanwhile', async () => {
