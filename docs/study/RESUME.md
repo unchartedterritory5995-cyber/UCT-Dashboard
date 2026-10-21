@@ -161,6 +161,27 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
   owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
   the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
+- **2026-10-21 05:05Z ALL LIVE: the feedback loop, `/study`, the audited lessons, every approved example on
+  the pod.** #453 deployed (6404d2d280, a 43-minute Railway build, then SUCCESS; review screen shows
+  "Feedback (0)", /api/study/admin/feedback answers). `/study` REGISTERED for the UT guild: the owner ran
+  `! powershell ... railway run --service web -- powershell -File C:\Users\pgosz\register_study.ps1`
+  (maps DISCORD_BOT_TOKEN -> DISCORD_CHART_BOT_TOKEN, checks app 1474900505917653142, registers per guild
+  882293203485720596; the session's own attempt was refused by the classifier as Credential Exploration;
+  no Railway service holds DISCORD_CHART_BOT_TOKEN, web holds DISCORD_BOT_TOKEN). Lesson audit merged
+  (#454 be777c11cf; a read-only agent graded 34 GREAT / 26 GOOD / 6 NEEDS WORK, every accuracy claim
+  verified against candle_catalog.py's d_* predicates; 48 parts rewritten; ruling logged in
+  candles.chart.jsonl), deployed by hand (Deploy commit on the SKIPPED record), imported
+  (candles.catalog 172 updated, candles.chart 603 updated; verified the new "where" text on the pod).
+  FOUND: upsert_items kept an existing DRAFT row draft even when the bank said approved (the pod sat at
+  180 approved against the bank's 603) -> store fix: a draft at the same version goes live when the bank
+  says approved (never downgrades, never past a reject, a higher version still resets);
+  tests/test_study_upsert_status.py 3. One-off pod sync ran (scratchpad pod_sync_approved.py over ssh):
+  430 drafts approved -> pod 609 approved (603 chart + 6 catalog), matching the bank. THE QUIZ NOW SERVES
+  EVERY APPROVED CANDLE EXAMPLE WITH THE AUDITED LESSONS. Owner review path from here: take the daily set
+  (Desk -> Courses), "Review this one" under each lesson (Approve / Needs fix / Reject + note), or
+  `/study ref:<six characters on the card> say:<note>` in Discord; the review screen's Feedback (n) panel
+  and `python -m scripts.study.ingest_feedback` carry it back into docs/study. Bullish engulfing lesson
+  verdict still pending from the owner (sent as text + IWM 2025-04-09 chart).
 - **2026-10-21 ~04:00Z: THE FEEDBACK LOOP (owner: "build a system for reviewing in site or in the
   discord and giving feedback for the quiz and test so we can manually do this and ingest and update
   the information"; also "make sure they are all great").** Branch feat/study-feedback, doc

@@ -476,14 +476,28 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 inserted += 1
             else:
                 new_status = row["review_status"]
+                reviewed = None
                 if version > int(row["version"] or 1):
                     new_status = STATUS_DRAFT
+                elif status == STATUS_APPROVED and row["review_status"] == STATUS_DRAFT:
+                    # The save file carries the owner's approval (corrections.py
+                    # `approve` -> review_status approved); a draft row at the same
+                    # version is only the pod lagging the bank, so it goes live.
+                    # Never the other way (approved stays approved at the same
+                    # version) and never past a reject (that verdict was given
+                    # on the pod, and the bank's retired list is what clears it).
+                    new_status = STATUS_APPROVED
+                    reviewed = ((it.get("reviewed") or {}).get("by") if isinstance(it.get("reviewed"), dict)
+                                else None) or "owner (bank)"
                 sets = ", ".join(f"{k}=?" for k in _ITEM_CONTENT_FIELDS)
                 c.execute(
                     f"UPDATE study_items SET {sets}, version=?, review_status=? WHERE id=?",
                     (*[vals[k] for k in _ITEM_CONTENT_FIELDS],
                      max(version, int(row["version"] or 1)), new_status, iid),
                 )
+                if reviewed:
+                    c.execute("UPDATE study_items SET reviewed_by=?, reviewed_at=? WHERE id=?",
+                              (reviewed, stamp, iid))
                 updated += 1
             ids.append(iid)
     return {"inserted": inserted, "updated": updated, "ids": ids}
