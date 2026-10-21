@@ -25,7 +25,9 @@ URL = "/api/j2/notebook-widgets/"
 WAVE1 = ("myWatchlistToday", "myNamesReporting", "tickerCard", "myPnlStats", "myPositionsRisk")
 WAVE2 = ("myRulesCheck", "myMistakes")
 ACCOUNT = ("myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
-QUERY = {"tickerCard": "?symbol=NVDA", "myPnlStats": "?from=2020-01-01&to=2099-12-31"}
+# A wide range inside the R60 bounds (1990-01-01 .. today + 1 year): every seeded trade is in it.
+QUERY = {"tickerCard": "?symbol=NVDA",
+         "myPnlStats": f"?from=2020-01-01&to={(date.today() + timedelta(days=30)).isoformat()}"}
 NEUTRAL_ACCOUNT = public.ACCOUNT_NEUTRAL_LINE
 NEUTRAL_MARKET = public.NEUTRAL_LINE
 

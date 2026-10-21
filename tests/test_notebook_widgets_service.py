@@ -2310,3 +2310,44 @@ def test_r60_no_request_regex_is_used_with_match():
     bad = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
            and n.func.attr in ("match", "search") and getattr(n.func.value, "id", "").endswith("_RE")]
     assert bad == []
+
+
+# -- ruling R60: a date outside 1990-01-01 .. today + 1 year is a 400 sentence, never a 500 ----------
+
+def test_r60_out_of_range_dates_are_a_request_error(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(), [])
+    _patch_rules(monkeypatch, [], {})
+    for kind in ("myPnlStats", "myRulesCheck"):
+        for key in ("from", "to"):
+            for bad in ("0001-01-01", "9999-12-31", "1989-12-31", "2027-10-21"):
+                params = {"from": "2026-10-01", "to": "2026-10-20", key: bad}
+                with pytest.raises(nw.WidgetRequestError, match="between 1990-01-01 and 2027-10-20"):
+                    nw.build(kind, "u1", params, now=NOW)
+        # control: the bounds themselves are inside
+        nw.build(kind, "u1", {"from": "1990-01-01", "to": "2027-10-20"}, now=NOW)
+    for bad in ("0001-01", "9999-12", "1989-12", "2027-11"):
+        with pytest.raises(nw.WidgetRequestError, match="month must be between 1990-01 and 2027-10"):
+            nw.build("myPnlCalendar", "u1", {"month": bad}, now=NOW)
+
+
+def test_r60_out_of_range_dates_answer_400_through_the_route(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    import api.routers.notebook_widgets as nwr
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.limiter import limiter
+    limiter.reset()
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W1_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W6_ENABLED", "1")
+    app = FastAPI()
+    app.include_router(nwr.router)
+    user = {"id": "u1", "email": "u1@x.test", "role": "member", "plan": "pro"}
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_current_user_with_plan] = lambda: user
+    client = TestClient(app, raise_server_exceptions=False)
+    for url in ("myPnlStats?from=0001-01-01", "myPnlStats?to=9999-12-31", "myPnlStats?to=0001-01-01",
+                "myPnlCalendar?month=9999-12"):
+        r = client.get("/api/j2/notebook-widgets/" + url)
+        assert r.status_code == 400, (url, r.status_code, r.text)
+        assert "between" in r.json()["detail"]
+    limiter.reset()

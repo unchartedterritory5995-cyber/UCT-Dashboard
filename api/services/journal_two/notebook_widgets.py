@@ -547,20 +547,36 @@ def _origin(sources: list) -> str:
     return "manual"
 
 
-def _iso_day(raw: Any, label: str) -> str:
+#: Ruling R60: the earliest day a widget reads. A date outside EARLIEST_DAY .. today + 1 year is a 400
+#: sentence, never a 500 (`0001-01-01` overflowed analytics' `date_from - 1 day`).
+EARLIEST_DAY = date(1990, 1, 1)
+
+
+def _latest_day(today: date) -> date:
     try:
-        return date.fromisoformat(str(raw)).isoformat()
+        return today.replace(year=today.year + 1)
+    except ValueError:                                   # 29 February
+        return today.replace(year=today.year + 1, day=28)
+
+
+def _iso_day(raw: Any, label: str, today: date) -> str:
+    try:
+        d = date.fromisoformat(str(raw))
     except (TypeError, ValueError):
         raise WidgetRequestError(f"{label} must be an ISO day (YYYY-MM-DD)") from None
+    if not EARLIEST_DAY <= d <= _latest_day(today):
+        raise WidgetRequestError(
+            f"{label} must be between {EARLIEST_DAY.isoformat()} and {_latest_day(today).isoformat()}")
+    return d.isoformat()
 
 
 def _week_range(params: dict, now: datetime) -> tuple[str, str]:
     """(from, to) ISO days: `params` when given, else Monday of this ET week through today.
     The one spelling of the default range, shared by every account kind that takes one."""
     today = _today_et(now)
-    day_to = _iso_day(params["to"], "to") if params.get("to") else today.isoformat()
+    day_to = _iso_day(params["to"], "to", today) if params.get("to") else today.isoformat()
     day_from = (
-        _iso_day(params["from"], "from") if params.get("from")
+        _iso_day(params["from"], "from", today) if params.get("from")
         else (date.fromisoformat(day_to) - timedelta(days=date.fromisoformat(day_to).weekday())).isoformat()
     )
     if day_from > day_to:
@@ -1439,6 +1455,10 @@ def _month_window(params: dict, now: datetime) -> tuple[str, str, str]:
     if not m:
         raise WidgetRequestError("month must be YYYY-MM")
     first = date(int(m.group(1)), int(m.group(2)), 1)
+    latest = _latest_day(_today_et(now))
+    if not EARLIEST_DAY <= first <= latest:                # R60: 9999-12 overflowed `date(10000, 1, 1)`
+        raise WidgetRequestError(
+            f"month must be between {EARLIEST_DAY.isoformat()[:7]} and {latest.isoformat()[:7]}")
     nxt = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
     return raw, first.isoformat(), (nxt - timedelta(days=1)).isoformat()
 
