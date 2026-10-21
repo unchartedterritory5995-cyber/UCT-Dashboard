@@ -249,13 +249,26 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   // R58 (UX I-10): the same write as See it now, asked with the member's new settings, which are stored as the
   // request keys (so a later See it now and a preset made from this widget keep them).
   const onChange = useCallback(async (next) => {
+    // Review m-5: a field the member emptied is CLEARED (left out of the request and of the stored keys, so the
+    // server's default applies), never silently re-asked with its old value.
     const asked = {}
-    for (const [k, v] of Object.entries(next || {})) if (typeof v === 'string' && v.trim()) asked[k] = v.trim()
-    const got = await fetchWidgetPayload(kind, { ...requestParamsOf(paramsRef.current), ...asked })
+    const cleared = []
+    for (const k of changeKeysOf(kind)) {
+      const v = next?.[k]
+      if (typeof v === 'string' && v.trim()) asked[k] = v.trim()
+      else cleared.push(k)
+    }
+    const req = { ...requestParamsOf(paramsRef.current), ...asked }
+    for (const k of cleared) delete req[k]
+    const got = await fetchWidgetPayload(kind, req)
     if (got.ok) {
       const write = writeRef.current
       if (typeof write !== 'function') return { ok: false, reason: 'failed' }
-      writeThrough(paramsRef, write, { ...refreshParams(paramsRef.current, got.payload), ...asked })
+      const merged = { ...refreshParams(paramsRef.current, got.payload), ...asked }
+      for (const k of cleared) delete merged[k]
+      // ...and the server's own spelling of the symbol wins over the member's typing.
+      if (typeof got.payload?.symbol === 'string' && got.payload.symbol) merged.symbol = got.payload.symbol
+      writeThrough(paramsRef, write, merged)
     }
     return got
   }, [kind])

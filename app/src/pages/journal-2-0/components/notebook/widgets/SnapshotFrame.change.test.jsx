@@ -105,6 +105,37 @@ describe('Change', () => {
     expect(gets).toEqual(['/api/j2/notebook-widgets/tickerCard?symbol=AMD'])
   })
 
+  it('review m-5: emptying a field clears that setting, so the server default applies and it is not stored', async () => {
+    const gets = []
+    global.fetch = vi.fn(async (url) => {
+      gets.push(String(url))
+      return { ok: true, status: 200, json: async () => ({ ...STATS, range: { from: '2026-10-19', to: '2026-10-23' } }) }
+    })
+    const writes = []
+    render(<Host Embed={MyPnlStatsEmbed} kind="myPnlStats" payload={{ ...STATS, from: '2026-09-01', to: '2026-09-30' }} writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    await waitFor(() => expect(writes).toHaveLength(1))
+    expect(gets).toEqual(['/api/j2/notebook-widgets/myPnlStats'])
+    expect(writes[0]).not.toHaveProperty('from')
+    expect(writes[0]).not.toHaveProperty('to')
+    expect(await screen.findByText('Oct 19, 2026 to Oct 23, 2026')).toBeInTheDocument()
+  })
+
+  it("review m-5: the server's spelling of the symbol is the one stored", async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ asOf: ASOF, source: 'market', symbol: 'BRK.B' }) }))
+    const writes = []
+    render(<Host Embed={TickerCardEmbed} kind="tickerCard" payload={{ asOf: ASOF, source: 'market', symbol: 'NVDA' }} writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    fireEvent.change(screen.getByLabelText('Symbol'), { target: { value: 'brk-b' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    await waitFor(() => expect(writes).toHaveLength(1))
+    expect(writes[0].symbol).toBe('BRK.B')
+    expect(await screen.findByText('BRK.B')).toBeInTheDocument()
+  })
+
   it('control: a read-only widget, or a kind with no setting, offers no Change', () => {
     const { unmount } = render(<MyPnlStatsEmbed attrs={widgetEmbedNode('myPnlStats', STATS).attrs} />)
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull()
