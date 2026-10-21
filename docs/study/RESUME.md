@@ -178,6 +178,34 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (house-chart, item feedback). Doc: docs/study/feedback_loop.md. NEXT for the owner once
   deployed: open Review hub, read the lessons, Approve / Needs fix each; leave screen notes as he
   goes; the session ingests them.
+- **2026-10-21 ~17:00Z: METHOD DRAFTS AUDITED (owner: "whatever you suggest honestly" -> tighten
+  first, then review station by station in the Review hub).** Three read-only agents graded all
+  511 auditable bank drafts against their own sources; verdict files + summaries + the build
+  scripts are committed in docs/study/audits/2026-10-21/ (auditA recall, auditB regime+size,
+  auditC charts+walkthroughs; one jsonl line per item, counts verified). Result: keep 29, fix 185,
+  cut 280, hold 17 (bottoms, need a price check). Held by earlier rulings and not audited:
+  recall.principles 34, recall.playbooks 29. So about 214 reach the owner instead of 574.
+  Per segment: size.house_rule 14 keep / 42 fix / 22 cut (no math errors in all 84; fixes = full
+  lessons from each item's own numbers, the "A+ gets 1.5%" invention removed, the sizing_rule.md
+  line "a tight stop never licenses a monster position" on big positions); regime.bottoms 31 cut
+  (trivia) / 17 hold (bottomsCatalog.js is unreliable: signpost dates on a Sunday 2023-01-15 and a
+  Saturday 2003-03-15, four self-contradictions; every fact needs a check on real index bars);
+  recall.bible 19 fix / 13 cut (the bible contradicts itself: "3 out of 4 stocks follow the market"
+  vs "determines 75% of a stock's outcome"; it reads like a compiled O'Neil/Minervini base, not the
+  owner's writing); recall.concepts 5 fix / 17 cut (12 duplicate vocab.chart); recall.glossary 52
+  fix / 2 cut (the AI brief contradicts the firm: Wedge Drop is a RISING wedge per
+  setupPlaybooks.js, distribution days 5-6 per the bible, exposure rating, HVC, heat); spot.fixtures
+  39 fix / 93 cut, family.fixtures 5 fix / 37 cut (detectors disagree with the owner's setup cards
+  for six setups: Launchpad positives lack the MA stack, 5 of 6 close under the 200-day, verified;
+  Go Signal is a different setup; Kicker, Oops, HVE, Slingshot, Gap Support partly off-card);
+  vocab.chart 8 keep / 21 fix / 49 cut (the example finder never checks the other words: 16
+  distractors true on the bar, one MSFT chart carries 7 answers); walk.method 7 keep / 2 fix / 16
+  cut (model jargon, THE LOOP, contradictions with his ladder and heat ruling). OWNER RULINGS
+  NEEDED: (1) setup definition = his card or the detector (recommend the card); (2) is the
+  methodology bible a Study source at all; (3) sizing: 20% vs 25% cap, the drawdown ladder, may his
+  30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
+  status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
+  import once Railway is back; the hub then shows the survivors by station; sizing first.
 - **2026-10-21 15:10Z: THE WALKTHROUGH FOUND A SCORING BUG; fix merged, waiting on a Railway outage.**
   Owner asked to see everything ("show me everything here and now so we can go through it all ... layout and
   visual and effects and interactive and learning"). Six screens shown (landing, question, reveal, admin
