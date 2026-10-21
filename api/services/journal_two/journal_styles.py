@@ -550,7 +550,11 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             o = _clean_outline(patch["outlineBodyJson"])
             cleaned["outlineBodyJson"] = json.dumps(o) if o else None
         if "blocks" in patch:
-            cleaned["blocks"] = json.dumps(_clean_blocks(patch["blocks"]))
+            sent = _clean_blocks(patch["blocks"])
+            # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped.
+            have = {b["block"] for b in sent}
+            sent += [b for b in _hidden_slots(r["blocks_json"]) if b["block"] not in have]
+            cleaned["blocks"] = json.dumps(sent)
         if "properties" in patch:
             cleaned["properties"] = json.dumps(_clean_properties(user_id, patch["properties"], conn))
         def effective(col: str) -> Any:
@@ -811,6 +815,46 @@ def _slot_wave_off(block_id: str) -> bool:
     if block_id not in SNAPSHOT_SLOT_KINDS:
         return False
     return not _nw.notebook_widgets_wave_on(_nw.KIND_WAVE[block_id])
+
+
+def served_style(style: Any) -> Any:
+    """Final review I-1: a style as the CLIENT is shown it. Every snapshot slot block whose wave is off
+    is dropped, and so is its `{{block:<kind>}}` outline placeholder (at any depth), so the live style
+    editor never names a dark widget: a dark surface is indistinguishable from none. Read per call.
+    The STORED style is untouched (a copy is returned); `update_style` keeps a hidden slot on save."""
+    if not isinstance(style, dict):
+        return style
+    out = dict(style)
+    blocks = style.get("blocks")
+    if isinstance(blocks, list):
+        out["blocks"] = [b for b in blocks
+                         if not (isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"]))]
+
+    def strip(content: list) -> list:
+        kept = []
+        for node in content:
+            kind = _placeholder_kind(node)
+            if kind is not None and _slot_wave_off(kind):
+                continue
+            if isinstance(node, dict) and isinstance(node.get("content"), list):
+                node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
+            kept.append(node)
+        return kept
+
+    body = style.get("outlineBodyJson")
+    if isinstance(body, dict) and isinstance(body.get("content"), list):
+        out["outlineBodyJson"] = {**body, "content": strip(body["content"])}
+    return out
+
+
+def _hidden_slots(blocks_json: Any) -> list[dict]:
+    """The stored slot blocks `served_style` hides right now (their wave is off): a client never saw them,
+    so a save cannot have meant to remove them."""
+    try:
+        stored = json.loads(blocks_json or "[]")
+    except (TypeError, ValueError):
+        return []
+    return [b for b in stored if isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"])]
 
 
 def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:

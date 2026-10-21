@@ -144,7 +144,7 @@ def _optional_text(body: dict, key: str) -> str | None:
 
 @router.get("/journal-styles")
 def list_styles_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"kinds": nk.list_kinds(user["id"]), "styles": js.list_styles(user["id"]),
+    return {"kinds": nk.list_kinds(user["id"]), "styles": [js.served_style(s) for s in js.list_styles(user["id"])],
             "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
 
 
@@ -159,8 +159,8 @@ def create_style_endpoint(body: dict = Depends(paid_body), user: dict = Depends(
                                           left_out=left)
             # `leftOut` (review M-4, additive): each widget that did not become a block, so the confirmation
             # names it rather than dropping it silently.
-            return {"style": _found(s), "leftOut": left}
-        return {"style": js.create_style(user["id"], body)}
+            return {"style": js.served_style(_found(s)), "leftOut": left}
+        return {"style": js.served_style(js.create_style(user["id"], body))}
     except (js.StyleValidationError, nk.KindValidationError) as e:
         raise _bad(e)
 
@@ -224,14 +224,14 @@ def install_starter_pack_endpoint(pack: str, user: dict = Depends(require_paid))
 
 @router.get("/journal-styles/{style_id}")
 def get_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"style": _found(js.get_style(user["id"], style_id))}
+    return {"style": js.served_style(_found(js.get_style(user["id"], style_id)))}
 
 
 @router.put("/journal-styles/{style_id}")
 def update_style_endpoint(style_id: str, body: dict = Depends(paid_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
-        return {"style": _found(js.update_style(user["id"], style_id, body))}
+        return {"style": js.served_style(_found(js.update_style(user["id"], style_id, body)))}
     except js.StyleValidationError as e:
         raise _bad(e)
 
@@ -239,7 +239,7 @@ def update_style_endpoint(style_id: str, body: dict = Depends(paid_body),
 @router.delete("/journal-styles/{style_id}")
 def delete_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
-        return {"ok": True, "style": _found(js.delete_style(user["id"], style_id))}
+        return {"ok": True, "style": js.served_style(_found(js.delete_style(user["id"], style_id)))}
     except js.StyleValidationError as e:
         raise _bad(e)
 
@@ -247,14 +247,14 @@ def delete_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> 
 @router.post("/journal-styles/{style_id}/restore")
 def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
-        return {"style": _found(js.restore_style(user["id"], style_id))}
+        return {"style": js.served_style(_found(js.restore_style(user["id"], style_id)))}
     except js.StyleValidationError as e:
         raise _bad(e)
 
 
 @router.post("/journal-styles/{style_id}/default")
 def default_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"style": _found(js.set_default(user["id"], style_id))}
+    return {"style": js.served_style(_found(js.set_default(user["id"], style_id)))}
 
 
 # ── trader blocks (P2a) ──────────────────────────────────────────────────────────────
