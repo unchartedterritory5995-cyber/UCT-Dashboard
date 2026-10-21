@@ -24,7 +24,8 @@
     "/community",
     "/support",
     "/settings",
-    "/terminal"
+    "/terminal",
+    "/trader-archive"
   ],
   "rows": [
     {
@@ -3869,6 +3870,189 @@
         },
         "seen_card_displayed": false
       }
+    },
+    {
+      "route": "/trader-archive",
+      "pending": {
+        "first": {
+          "path": "/trader-archive",
+          "vh": 800,
+          "vw": 1200,
+          "main": {
+            "scrollHeight": 800,
+            "clientHeight": 800,
+            "range": 0
+          },
+          "doc_range": 0,
+          "slot": {
+            "display": "block",
+            "height": 66
+          },
+          "card_present": true,
+          "card_displayed": true,
+          "card_box": {
+            "top": 12,
+            "bottom": 78,
+            "height": 66,
+            "left": 80,
+            "right": 1152
+          },
+          "got_it_hit": {
+            "in_viewport": true,
+            "inside_card": true
+          },
+          "cluster_displayed": true,
+          "root": {
+            "tag": "DIV",
+            "cls": "_page_10sfz_1",
+            "position": "static",
+            "top": 78,
+            "bottom": 340,
+            "height": 262,
+            "left": 60,
+            "right": 1200
+          },
+          "key": null
+        },
+        "second": {
+          "path": "/trader-archive",
+          "vh": 800,
+          "vw": 1200,
+          "main": {
+            "scrollHeight": 800,
+            "clientHeight": 800,
+            "range": 0
+          },
+          "doc_range": 0,
+          "slot": {
+            "display": "block",
+            "height": 66
+          },
+          "card_present": true,
+          "card_displayed": true,
+          "card_box": {
+            "top": 12,
+            "bottom": 78,
+            "height": 66,
+            "left": 80,
+            "right": 1152
+          },
+          "got_it_hit": {
+            "in_viewport": true,
+            "inside_card": true
+          },
+          "cluster_displayed": true,
+          "root": {
+            "tag": "DIV",
+            "cls": "_page_10sfz_1",
+            "position": "static",
+            "top": 78,
+            "bottom": 340,
+            "height": 262,
+            "left": 60,
+            "right": 1200
+          },
+          "key": null
+        },
+        "page_errors": [],
+        "screenshot": "trader-archive-pending.png"
+      },
+      "seen": {
+        "first": {
+          "path": "/trader-archive",
+          "vh": 800,
+          "vw": 1200,
+          "main": {
+            "scrollHeight": 800,
+            "clientHeight": 800,
+            "range": 0
+          },
+          "doc_range": 0,
+          "slot": {
+            "display": "block",
+            "height": 0
+          },
+          "card_present": false,
+          "card_displayed": false,
+          "card_box": null,
+          "got_it_hit": null,
+          "cluster_displayed": true,
+          "root": {
+            "tag": "DIV",
+            "cls": "_page_10sfz_1",
+            "position": "static",
+            "top": 0,
+            "bottom": 262,
+            "height": 262,
+            "left": 60,
+            "right": 1200
+          },
+          "key": "1"
+        },
+        "second": {
+          "path": "/trader-archive",
+          "vh": 800,
+          "vw": 1200,
+          "main": {
+            "scrollHeight": 800,
+            "clientHeight": 800,
+            "range": 0
+          },
+          "doc_range": 0,
+          "slot": {
+            "display": "block",
+            "height": 0
+          },
+          "card_present": false,
+          "card_displayed": false,
+          "card_box": null,
+          "got_it_hit": null,
+          "cluster_displayed": true,
+          "root": {
+            "tag": "DIV",
+            "cls": "_page_10sfz_1",
+            "position": "static",
+            "top": 0,
+            "bottom": 262,
+            "height": 262,
+            "left": 60,
+            "right": 1200
+          },
+          "key": "1"
+        },
+        "page_errors": [],
+        "screenshot": "trader-archive-seen.png"
+      },
+      "class": {
+        "verdict": "ordinary",
+        "why": null,
+        "pending_range": [
+          0,
+          0
+        ],
+        "seen_range": [
+          0,
+          0
+        ],
+        "growth": 0,
+        "stable": true,
+        "pending_root_bottom": [
+          340,
+          340
+        ],
+        "seen_root_bottom": [
+          262,
+          262
+        ],
+        "vh": 800,
+        "card_displayed": true,
+        "card_height": 66,
+        "got_it_hit": {
+          "in_viewport": true,
+          "inside_card": true
+        },
+        "seen_card_displayed": false
+      }
     }
   ],
   "control": {
@@ -4062,5 +4246,5 @@
     "why": ""
   },
   "not_run": null,
-  "provenance": "COMPOSITE (2026-10-07). Every row except /terminal is the original pre-fix measurement routes-before-a0c32d2e2.json, unchanged, with its controls. The /terminal row is copied verbatim from routes-nav-terminal-c941080f0.json (tip c941080f0, TERMINAL_NEXT_ENABLED=1, the shell measured, path stayed /terminal). That later run cannot re-measure the already-locked routes because the shipped F5 fix hides the card on them (they read INCONCLUSIVE), so its own positive control could not pass; its /terminal reading is valid on its own terms (card on screen, pending scroll 78/78 vs dismissed 0/0). Re-measure every route on a build with VIEWPORT_LOCKED_ROUTES emptied to replace this composite."
+  "provenance": "COMPOSITE (2026-10-07). Every row except /terminal is the original pre-fix measurement routes-before-a0c32d2e2.json, unchanged, with its controls. The /terminal row is copied verbatim from routes-nav-terminal-c941080f0.json (tip c941080f0, TERMINAL_NEXT_ENABLED=1, the shell measured, path stayed /terminal). That later run cannot re-measure the already-locked routes because the shipped F5 fix hides the card on them (they read INCONCLUSIVE), so its own positive control could not pass; its /terminal reading is valid on its own terms (card on screen, pending scroll 78/78 vs dismissed 0/0). Re-measure every route on a build with VIEWPORT_LOCKED_ROUTES emptied to replace this composite. 2026-10-20: the /trader-archive row is copied verbatim from routes-nav-trader-archive.json (tip 4f85af3559, WISDOM_ARCHIVE_ENABLED=1, sandbox C:\\data-archivenav with no archive rows): card on screen, ordinary (pending range 0/0, root bottom 340 <= 800). That run's /settings negative control held (ordinary); its /charts positive control read INCONCLUSIVE for the reason above (the shipped fix hides the card there)."
 }
