@@ -1005,7 +1005,9 @@ def _ticker_card(user_id: str, params: dict, now: datetime) -> dict:
         # True: the calendar was not read, so a null earningsDay is unknown. False: no report this week.
         "earningsUnknown": earnings_unknown,
     }
-    if read is None:
+    # ONE rule for `partial` (fix F1b, review M-1), as myWatchlistToday: set whenever earningsUnknown is
+    # true, so a calendar day that failed to load reads "partial" on the card as it does on the watchlist.
+    if earnings_unknown:
         out["partial"] = True
     return out
 

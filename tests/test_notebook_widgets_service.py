@@ -2382,6 +2382,29 @@ def test_ux_i4_none_this_week_versus_unknown(monkeypatch):
     assert out["earningsUnknown"] is True
 
 
+def test_m1_partial_follows_earnings_unknown_on_the_card_and_the_watchlist(monkeypatch):
+    """Fix F1b (review M-1): ONE rule. A window with a day it could not read and no date for the name sets
+    `partial` on tickerCard exactly as it does on myWatchlistToday; a full window sets it on neither."""
+    _card_seams(monkeypatch)
+    _patch_sets(monkeypatch, watchlist=["NVDA"])
+    import api.services.journal_two.earnings_prep as ep
+    from api.services.cache import cache
+    for window_partial in (True, False):
+        monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+        cache.delete_prefix("notebook_earnings_prep_window::")
+        monkeypatch.setattr(ep, "_window", lambda today, p=window_partial: ({"AMD": "2026-10-22"}, {}, p, "x"))
+        card = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+        watch = nw.build("myWatchlistToday", "u1", {}, now=NOW)
+        assert card["earningsUnknown"] is watch["earningsUnknown"] is window_partial
+        assert ("partial" in card) is ("partial" in watch) is window_partial, (window_partial, card, watch)
+        assert card.get("partial") is watch.get("partial")
+    # a date the partial walk DID read is known, so the card is not partial (a different name's day failed)
+    monkeypatch.setattr(ep, "_window", lambda today: ({"NVDA": "2026-10-22"}, {}, True, "x"))
+    cache.delete_prefix("notebook_earnings_prep_window::")
+    card = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
+    assert card["earningsUnknown"] is False and "partial" not in card
+
+
 # -- UX audit I-6 / I-7 (R58): every payload says where its data came from --------------------------
 
 def test_ux_i6_every_kind_has_a_plain_source_sentence():
