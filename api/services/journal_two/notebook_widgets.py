@@ -1923,6 +1923,58 @@ def _my_earnings_reactions(user_id: str, params: dict, now: datetime) -> dict:
     return out
 
 
+# -- sourceDetail (UX audit I-6 / I-7, ruling R58) ---------------------------------------------
+
+#: Where a member's own rows came from, by the payload's `source` (`_origin`'s verdict over what was read).
+_FILLS = {"broker": "Fills: your linked broker.", "manual": "Fills: your manual entries.",
+          "mixed": "Fills: your linked broker and your manual entries."}
+_POSITIONS = {"broker": "Positions: your linked broker.", "manual": "Positions: your manual entries.",
+              "mixed": "Positions: your linked broker and your manual entries."}
+#: How open P&L and size were priced, by `priceBasis` (`_position_price`'s per-row choice).
+_MARKS = {"live": "Open P&L and size: live market data, delayed.",
+          "broker": "Open P&L and size: your broker's marks.",
+          "mixed": "Open P&L and size: live market data and your broker's marks."}
+_LIVE_PRICES = "Prices: live market data, delayed."
+_CALENDAR = "Earnings dates: UCT calendar."
+_IMPLIED = "Expected move: options market."
+#: Kind -> its fixed market sentence. The account kinds are composed from what was read (below).
+_MARKET_DETAIL = {
+    "myWatchlistToday": f"{_LIVE_PRICES} {_CALENDAR}",
+    "myNamesReporting": f"{_CALENDAR} {_IMPLIED}",
+    "tickerCard": (f"Price: live market data, delayed. Averages: daily bars. {_CALENDAR} {_IMPLIED} "
+                   "History: your trades in the Journal."),
+    "marketOnMyNames": "Returns: daily bars. Sectors: UCT theme map.",
+    "tickerFlow": "Options flow: UCT options tape.",
+    "myScreenToday": f"Hits: your saved screen's last nightly run. {_LIVE_PRICES}",
+    "roomBuzzOnMyNames": "Mentions: the UCT Discord room.",
+    "myEarningsReactions": "Report dates: UCT calendar. Results vs estimates: company reports. Move: daily bars.",
+}
+_JOURNAL_DETAIL = {
+    "myPnlStats": "Your trades in the Journal.",
+    "myPnlCalendar": "Your trades in the Journal.",
+    "myRulesCheck": "Your trades and rule checks in the Journal.",
+    "myMistakes": "Your tagged trades in the Journal.",
+    "mySetupEdge": "Your closed trades in the Journal.",
+    "tradeRecap": "Your trade in the Journal.",
+}
+
+
+def source_detail(kind: str, payload: dict) -> str:
+    """One short plain sentence naming where this payload's data came from (ruling R58, UX I-6 / I-7),
+    derived from what the builder actually read: the broker vs manual verdict in `source`, and for open
+    positions the `priceBasis` the rows were priced at."""
+    src = payload.get("source")
+    if kind == "myPositionsRisk":
+        parts = [_POSITIONS.get(src, "Positions: your Journal."), _MARKS.get(payload.get("priceBasis"), "")]
+        return " ".join(p for p in parts if p)
+    if kind in _JOURNAL_DETAIL:
+        parts = [_JOURNAL_DETAIL[kind], _FILLS.get(src, "")]
+        if kind == "tradeRecap":
+            parts.append("Chart: daily bars.")
+        return " ".join(p for p in parts if p)
+    return _MARKET_DETAIL.get(kind, "")
+
+
 # -- dispatch ------------------------------------------------------------------
 
 #: Kind -> builder(user_id, params, now). Later tasks add their kinds here.
@@ -1956,4 +2008,5 @@ def build(kind: str, user_id: str, params: dict, *, now: datetime | None = None)
     if params is not None and not isinstance(params, dict):
         raise WidgetRequestError("params must be an object")
     payload = builder(user_id, params or {}, now or datetime.now(timezone.utc))
+    payload["sourceDetail"] = source_detail(kind, payload)
     return cap_payload(payload, kind)

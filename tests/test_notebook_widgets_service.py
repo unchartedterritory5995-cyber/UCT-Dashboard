@@ -2380,3 +2380,42 @@ def test_ux_i4_none_this_week_versus_unknown(monkeypatch):
     monkeypatch.setattr(ep, "_window", lambda today: ({"AMD": "2026-10-22"}, {}, True, "x"))
     out = nw.build("tickerCard", "u1", {"symbol": "NVDA"}, now=NOW)
     assert out["earningsUnknown"] is True
+
+
+# -- UX audit I-6 / I-7 (R58): every payload says where its data came from --------------------------
+
+def test_ux_i6_every_kind_has_a_plain_source_sentence():
+    for kind in nw.KIND_WAVE:
+        for src in ("broker", "manual", "mixed", "market"):
+            got = nw.source_detail(kind, {"source": src, "priceBasis": "live"})
+            assert isinstance(got, str) and got.endswith(".") and got.strip() == got, (kind, src)
+            assert "  " not in got and "\n" not in got, (kind, src)
+
+
+def test_ux_i6_positions_source_names_the_broker_and_the_price_it_used(monkeypatch):
+    _patch_positions(monkeypatch, [_broker_pos()], [_heat_row()])
+    _patch_accounts(monkeypatch)
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    intraday = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert intraday["sourceDetail"] == ("Positions: your linked broker. "
+                                        "Open P&L and size: live market data, delayed.")
+    closed = nw.build("myPositionsRisk", "u1", {}, now=SUNDAY)
+    assert closed["sourceDetail"] == "Positions: your linked broker. Open P&L and size: your broker's marks."
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()])
+    _patch_prices(monkeypatch, {})
+    unpriced = nw.build("myPositionsRisk", "u1", {}, now=NOW)
+    assert unpriced["sourceDetail"] == "Positions: your manual entries."   # nothing priced: no price claim
+
+
+def test_ux_i6_pnl_stats_names_where_the_fills_came_from(monkeypatch):
+    _patch_pnl(monkeypatch, _analytics(), [{"source": "broker"}, {"source": None}])
+    out = nw.build("myPnlStats", "u1", {}, now=NOW)
+    assert out["source"] == "mixed"
+    assert out["sourceDetail"] == "Your trades in the Journal. Fills: your linked broker and your manual entries."
+
+
+def test_ux_i6_ticker_flow_names_the_tape(monkeypatch):
+    _patch_flow(monkeypatch, _flow_payload([]))
+    assert nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)["sourceDetail"] == "Options flow: UCT options tape."
+    _patch_flow(monkeypatch, None)                                       # failed reads still say the source
+    assert nw.build("tickerFlow", "u1", {"symbol": "NVDA"}, now=NOW)["sourceDetail"] == "Options flow: UCT options tape."
