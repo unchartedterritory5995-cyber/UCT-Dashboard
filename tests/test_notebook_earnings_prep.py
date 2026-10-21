@@ -519,16 +519,39 @@ def test_i1_concurrent_cold_soon_requests_share_one_walk_and_never_wait_for_it(a
     assert seen["walks"] == 1
 
 
-def test_i1_the_soon_route_reads_the_window_through_the_bounded_reader():
-    """AST rail: the route reaches the window ONLY through notebook_widgets.earnings_window_for and hands it on
-    as `window_read`, so `reporting_soon` can never fall back to its own walk on this thread."""
+def test_i1_r65_both_routes_read_the_window_through_the_bounded_reader():
+    """AST rail: the router reaches the window ONLY through notebook_widgets.earnings_window_for and hands it
+    on as `window_read` to BOTH service entry points (`reporting_soon`, `draft`), so neither can fall back to
+    its own walk on a request thread (fix F1b, review I-1 and ruling R65)."""
     tree = ast.parse(ROUTER.read_text(encoding="utf-8"))
-    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "reporting_soon")
-    calls = [c for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)]
+    calls = [c for c in ast.walk(tree) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)]
     assert any(c.func.attr == "earnings_window_for" for c in calls)
-    assert not [c for c in calls if c.func.attr == "_window"]
-    soon = [c for c in calls if c.func.attr == "reporting_soon"]
-    assert soon and all("window_read" in {k.arg for k in c.keywords} for c in soon)
+    assert not [c for c in calls if c.func.attr in ("_window", "collect_earnings_window")]
+    for entry in ("reporting_soon", "draft"):
+        made = [c for c in calls if c.func.attr == entry and getattr(c.func.value, "id", None) == "prep"]
+        assert made and all("window_read" in {k.arg for k in c.keywords} for c in made), entry
+
+
+def test_r65_a_cold_draft_never_waits_for_the_walk_and_labels_the_date_honestly(client, app, gate_on,
+                                                                                monkeypatch, stores):
+    from api.services.journal_two import earnings_prep
+    from api.services.journal_two import notebook_widgets as nw
+    _today(monkeypatch)
+    _full_market(monkeypatch, stores)
+    monkeypatch.setattr(nw, "EARNINGS_WINDOW_BUDGET_S", 0.1)
+    seen = _slow_walk(monkeypatch, {"NVDA": "2026-10-05"}, 1.5)
+    as_user(app, A)
+    t0 = time.monotonic()
+    r = client.post("/api/j2/earnings-prep/NVDA/draft")
+    assert r.status_code == 200 and time.monotonic() - t0 < 1.2         # never waited for the 1.5 s walk
+    cell = r.json()["report"]["date"]
+    assert cell["source"] != earnings_prep.SRC_CALENDAR                   # not a calendar claim it never read
+    assert cell["value"] is None or cell["source"] == earnings_prep.SRC_EARNINGS
+    assert seen["walks"] == 1 and seen["threads"][0].startswith("nb-widget")
+    _walks_done()
+    cell = client.post("/api/j2/earnings-prep/NVDA/draft").json()["report"]["date"]   # warmed by the late walk
+    assert cell == {**cell, "value": "2026-10-05", "source": earnings_prep.SRC_CALENDAR}
+    assert seen["walks"] == 1
 
 
 # ── the draft: every cell sourced, every missing one labelled ──────────────────────────

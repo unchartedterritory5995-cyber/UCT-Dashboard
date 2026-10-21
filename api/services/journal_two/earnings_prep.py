@@ -340,9 +340,11 @@ def reporting_soon(user_id: str, *, today: date | None = None,
 
 # ── the draft ──────────────────────────────────────────────────────────────────────────
 
-def _report_cells(sym: str, today: date, intel: dict | None) -> tuple[dict, dict, str | None]:
-    """(date cell, timing cell, the date as a string or None)."""
-    window, timing, _partial, as_of = _window(today)
+def _report_cells(sym: str, today: date, intel: dict | None,
+                  window_read: tuple | None = None) -> tuple[dict, dict, str | None]:
+    """(date cell, timing cell, the date as a string or None). `window_read` is `_window(today)`'s answer when
+    the caller already holds it (the draft route reads it under the widgets' bound, fix F1b ruling R65)."""
+    window, timing, _partial, as_of = window_read if window_read is not None else _window(today)
     if sym in window:
         day = window[sym]
         date_cell = _cell(day, SRC_CALENDAR, as_of)
@@ -519,11 +521,13 @@ def _safe(fn, *args, fallback=None):
         return fallback
 
 
-def draft(user_id: str, symbol: str, *, today: date | None = None) -> dict[str, Any]:
+def draft(user_id: str, symbol: str, *, today: date | None = None,
+          window_read: tuple | None = None) -> dict[str, Any]:
     """Every fact a prep note on `symbol` opens with, read NOW and returned as cells.
 
     Never raises for a source: each one that fails or answers nothing becomes a missing
-    cell with its sentence, so a draft always comes back whole."""
+    cell with its sentence, so a draft always comes back whole. `window_read` is the calendar window the
+    caller already read (the route reads it bounded, fix F1b ruling R65), so this never walks it then."""
     sym = clean_symbol(symbol)
     today = today or _today_et()
     read_at = _now_iso()
@@ -536,7 +540,7 @@ def draft(user_id: str, symbol: str, *, today: date | None = None) -> dict[str, 
     intel = _safe(_intel, sym)
     implied = _safe(_implied_rows, sym, fallback=[])
     date_cell, timing_cell, day = _safe(
-        _report_cells, sym, today, intel,
+        _report_cells, sym, today, intel, window_read,
         fallback=(_missing(SRC_CALENDAR, UNREADABLE), _missing(SRC_CALENDAR, UNREADABLE), None))
     street = _safe(_street_cells, intel, day) or {
         "quarter": None, "eps": _missing(SRC_EARNINGS, UNREADABLE), "revenue": _missing(SRC_EARNINGS, UNREADABLE),
