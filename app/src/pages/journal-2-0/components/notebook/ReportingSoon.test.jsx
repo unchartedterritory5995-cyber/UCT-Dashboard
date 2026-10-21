@@ -16,7 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../lib/offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn(async () => {}) }))
 
-import ReportingSoon from './ReportingSoon'
+import ReportingSoon, { UNREAD_RETRIES } from './ReportingSoon'
 import TickerResearchWorkspace from './TickerResearchWorkspace'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -119,22 +119,39 @@ describe('ReportingSoon', () => {
     expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
   })
 
-  it('R68: it asks again after ~10 s, and the later complete answer replaces the sentence', async () => {
+  it('R68: it asks again, and the later complete answer replaces the sentence and stops the asking', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     let n = 0
     global.fetch = vi.fn(() => {
       n += 1
       return respond(200, n === 1 ? { ...SOON, items: [], partial: true } : SOON)
     })
-    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={40} /></Providers>)
     expect(await screen.findByText("Couldn't check report dates just now. Trying again shortly.")).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' }, { timeout: 15000 })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Create prep note for EPNV' })).toBeInTheDocument()
     expect(screen.queryByText(/Couldn't check report dates/)).toBeNull()
-    expect(n).toBe(2)
-    // A complete answer stops the asking.
-    await new Promise((r) => setTimeout(r, 300))
-    expect(n).toBe(2)
-  }, 20000)
+    const asked = n
+    await new Promise((r) => setTimeout(r, 400))                 // ten intervals: a complete answer asks no more
+    expect(n).toBe(asked)
+  })
+
+  it('review N-1: identical partial answers run out the retries, then Try again shows (never "none")', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    const SAME = { ...SOON, items: [], partial: true }              // byte-identical every time (a cached partial window)
+    let n = 0
+    global.fetch = vi.fn(() => { n += 1; return respond(200, SAME) })
+    render(<Providers><ReportingSoon onOpenNote={() => {}} retryMs={20} /></Providers>)
+    expect(await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.queryByText(/Trying again shortly/)).toBeNull()
+    expect(screen.getByText(/Couldn't check report dates just now\./)).toBeInTheDocument()
+    expect(screen.queryByText(/None of your/)).toBeNull()
+    expect(n).toBe(1 + UNREAD_RETRIES)                            // the first read and the bounded retries
+    await new Promise((r) => setTimeout(r, 200))
+    expect(n).toBe(1 + UNREAD_RETRIES)                            // ...and then it stops
+    // Try again asks once more, and says it is trying again.
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(n).toBeGreaterThan(1 + UNREAD_RETRIES))
+  })
 
   it('a name already prepped opens that note instead of drafting another', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })

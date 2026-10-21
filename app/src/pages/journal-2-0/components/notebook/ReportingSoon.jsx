@@ -33,15 +33,18 @@ function whenText(item) {
  *
  * A name already prepped in the last three weeks offers Open instead of a second draft.
  */
-export default function ReportingSoon({ onOpenNote }) {
+export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS }) {
   const enabled = earningsPrepEnabled()
+  // Review N-1: the count is STATE, so the box follows it even when every retry answers the same bytes (SWR does
+  // not re-render for an unchanged payload). The ref mirrors it for SWR's refreshInterval.
+  const [tries, setTries] = useState(0)
   const triesRef = useRef(0)
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? SOON_URL : null, () => fetchReportingSoon(),
     {
       revalidateOnFocus: false, shouldRetryOnError: false,
-      onSuccess: (d) => { triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0 },
-      refreshInterval: (d) => (unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? UNREAD_RETRY_MS : 0),
+      onSuccess: (d) => { triesRef.current = unreadEmpty(d) ? triesRef.current + 1 : 0; setTries(triesRef.current) },
+      refreshInterval: (d) => (unreadEmpty(d) && triesRef.current <= UNREAD_RETRIES ? retryMs : 0),
     },
   )
   const [busy, setBusy] = useState(null)
@@ -110,12 +113,12 @@ export default function ReportingSoon({ onOpenNote }) {
           A prep note is one click here once one does.
         </p>
       )}
-      {!error && unreadEmpty(data) && (triesRef.current <= UNREAD_RETRIES ? (
+      {!error && unreadEmpty(data) && (tries <= UNREAD_RETRIES ? (
         <p className={styles.quiet} role="status">Couldn&apos;t check report dates just now. Trying again shortly.</p>
       ) : (
         <p className={styles.quiet} role="status">
           Couldn&apos;t check report dates just now.{' '}
-          <button type="button" className={styles.action} onClick={() => { triesRef.current = 0; mutate() }}>Try again</button>
+          <button type="button" className={styles.action} onClick={() => { triesRef.current = 0; setTries(0); mutate() }}>Try again</button>
         </p>
       ))}
       {!error && data?.partial && items.length > 0 && (
