@@ -496,9 +496,11 @@ function snapshotCommand(kind, params) {
     ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
     const key = kind.id + JSON.stringify(params)
     const adding = `Adding ${kind.title}…`
+    // Review I-3: "Adding …" is a busy toast (it stays until the result replaces it), and a second Enter says it again.
+    const say = (m, tone = 'error') => editor.storage?.uctJournalWidgets?.notify?.(m, tone)
+    say(adding, 'busy')
     if (inflight.has(key)) return { ok: false, message: adding }
     inflight.add(key)
-    editor.storage?.uctJournalWidgets?.notify?.(adding, 'info')
     // Where the typed command was (its range's start once deleted); the palette's caret otherwise.
     let pos = range ? range.from : editor.state.selection.from
     const track = ({ transaction }) => { pos = transaction.mapping.map(pos) }
@@ -516,14 +518,14 @@ function snapshotCommand(kind, params) {
         const message = res.message || (res.reason === 'offline'
           ? `You're offline, so ${kind.title} was not added.`
           : `${kind.title} could not be loaded just now, so nothing was added.`)
-        editor.storage?.uctJournalWidgets?.notify?.(message, 'error')
+        say(message)
         return { ok: false, message }
       }
       // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
       // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
       const landed = await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
         lost)
-      if (landed.message) editor.storage?.uctJournalWidgets?.notify?.(landed.message, 'error')
+      if (landed.message) say(landed.message)
       return landed
     } finally {
       editor.off('transaction', track)

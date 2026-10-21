@@ -724,6 +724,46 @@ describe('snapshot widget items (Task 8)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Ticker card added.')
   })
 
+  it('review I-3: "Adding …" stays up through a slow fetch, a second Enter says it again, and the result replaces it', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const item = snapshotWidgetItems('ticker NVDA')[0]
+      const pending = item.command({ editor: ed, range: slashRange(ed) })
+      act(() => { vi.advanceTimersByTime(10000) })
+      expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+      // The member gives up waiting and asks again: refused, and said again.
+      ed.storage.uctJournalWidgets.notify(null)
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(await item.command({ editor: ed, range: null })).toEqual({ ok: false, message: 'Adding Ticker card…' })
+      expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+      answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+      await pending
+      expect(screen.getByRole('status')).toHaveTextContent('Ticker card added.')
+      // The result sentence is an ordinary toast: it goes after 4 s.
+      act(() => { vi.advanceTimersByTime(4000) })
+      expect(screen.queryByRole('status')).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('review I-3: a note that turns read-only mid-fetch takes the busy toast down (it never sticks)', async () => {
+    latchNotebookFlags(WAVES_ON)
+    let answer
+    global.fetch.mockReturnValue(new Promise((r) => { answer = r }))
+    const ed = mount('<p>Plan /ticker NVDA</p>')
+    withToast(ed)
+    const pending = snapshotWidgetItems('ticker NVDA')[0].command({ editor: ed, range: slashRange(ed) })
+    expect(screen.getByRole('status')).toHaveTextContent('Adding Ticker card…')
+    ed.setEditable(false)
+    answer({ ok: true, status: 200, json: async () => ({ asOf: '2026-10-20T14:00:00Z', source: 'market', symbol: 'NVDA' }) })
+    await pending
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('R58 I-2: a second identical command while the first fetches inserts nothing; after it lands, one more does', async () => {
     latchNotebookFlags(WAVES_ON)
     let answer

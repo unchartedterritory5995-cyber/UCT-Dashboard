@@ -89,7 +89,12 @@ export function refreshParams(oldParams, payload) {
  *  fetch ran). Final review M-2: the fetch can take seconds, so a note destroyed or turned read-only meanwhile
  *  gets nothing. Resolves the palette's `{ok, message}`; `title` names the widget in the success sentence. */
 export function landSnapshot(editor, kind, params, pos, title) {
-  if (editor.isDestroyed || !editor.isEditable) return { ok: false, message: null }
+  if (editor.isDestroyed) return { ok: false, message: null }
+  if (!editor.isEditable) {
+    // The note turned read-only while the fetch ran: nothing goes in, and the busy "Adding …" toast is taken down.
+    editor.storage?.uctJournalWidgets?.notify?.(null)
+    return { ok: false, message: null }
+  }
   editor.chain().focus().insertContentAt(Math.min(pos(), editor.state.doc.content.size), widgetEmbedNode(kind, params))
     .caretAfterWidgetEmbed().run()
   // R58 (UX I-2): the success sentence replaces the menu's "Adding …".
