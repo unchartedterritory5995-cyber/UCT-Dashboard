@@ -14,6 +14,8 @@ The rules (the template gallery's, `notebook_template_gallery.py`):
   * NO NOTE IS WRITTEN HERE. The draft returns facts; the member's click creates the note
     through the client's one create door (`createNoteViaApi`), so this router can never
     create a note on its own (decision R5).
+  * THE LIST NEVER WALKS ON ITS REQUEST THREAD: it reads the window through
+    `notebook_widgets.earnings_window_for` (bounded, one shared walk), fix F1b review I-1.
   * THE CAP: 20 drafts a member an ET day (`NOTEBOOK_EARNINGS_PREP_DAILY_CAP`, read per call),
     durable in `daily_usage_counters`, so a deploy never resets it. A draft that fails is
     given back. The list is not counted: it is one cached calendar walk and DB reads.
@@ -59,7 +61,18 @@ def _usage(day: str, user: dict) -> dict[str, Any]:
 
 @router.get("/soon")
 def reporting_soon(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return prep.reporting_soon(str(user["id"]))
+    """⛔ NEVER THE CALENDAR WALK ON THIS REQUEST THREAD (fix F1b, review I-1). A cold cache used to
+    walk up to 8 days x two vendors x a 10 s timeout here, once per concurrent request. The window is
+    read through the notebook widgets' bounded, single-flighted reader instead (the same pool and walk
+    table the widgets use): a cached window answers
+    at once, a miss joins ONE shared walk and waits at most its budget, and a window that could not be
+    read in time answers the route's partial form (no items, `partial: true`), never "none report"."""
+    from api.services.journal_two import notebook_widgets
+    today = prep._today_et()
+    read = notebook_widgets.earnings_window_for(today)
+    if read is None:
+        read = ({}, {}, True, prep._now_iso())
+    return prep.reporting_soon(str(user["id"]), today=today, window_read=read)
 
 
 @router.post("/{symbol}/draft")

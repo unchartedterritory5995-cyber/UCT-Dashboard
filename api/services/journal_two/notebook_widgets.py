@@ -366,8 +366,14 @@ def _earnings_window(now: datetime) -> tuple | None:
     pool (`_WALKS`) and waits at most `EARNINGS_WINDOW_BUDGET_S`; the walk stores its own answer in the
     cache (inside `_window`), so a walk that outlives every request still warms the next one. Never
     the walk on a request thread: it is up to 8 day lookups, each two vendors with 10 s timeouts."""
+    return earnings_window_for(_today_et(now))
+
+
+def earnings_window_for(today: date) -> tuple | None:
+    """`_earnings_window` for an ET calendar day the caller already holds. The Earnings prep route's
+    GET /soon reads the window through here too (fix F1b, review I-1), so it never walks the calendar
+    on its request thread either, and it shares the one walk (`_WALKS`) with every widget."""
     from api.services.journal_two import earnings_prep
-    today = _today_et(now)
     try:
         got = earnings_prep.cached_window(today)
     except Exception as e:  # noqa: BLE001 -- an unreadable cache is a miss

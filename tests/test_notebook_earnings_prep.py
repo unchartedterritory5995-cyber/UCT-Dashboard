@@ -27,6 +27,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -420,6 +422,113 @@ def test_a_partial_window_is_reported_not_hidden(client, app, gate_on, monkeypat
     as_user(app, A)
     body = client.get("/api/j2/earnings-prep/soon").json()
     assert body["items"] == [] and body["partial"] is True and body["watched"] == 1
+
+
+# ── fix F1b, review I-1: GET /soon never walks the calendar on its request thread ─────────
+
+SOON_KEYS = {"windowDays", "today", "items", "partial", "source", "asOf", "watched"}
+
+
+@pytest.fixture(autouse=True)
+def _fresh_walks(monkeypatch):
+    """The window walk runs on the shared bounded pool and its single-flight table (module state): a fresh
+    pair per test, so one test's deliberately slow walk never saturates the next test's reads."""
+    from api.services.journal_two import notebook_widgets as nw
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test"))
+    monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
+
+
+def _slow_walk(monkeypatch, window: dict, walk_s: float) -> dict:
+    """A slow calendar walk under the REAL earnings_prep._window (which caches its own answer), counting
+    walks and the thread each ran on."""
+    from api.services import calendar_alerts
+    seen = {"walks": 0, "threads": []}
+    lock = threading.Lock()
+
+    def fake(today, days):
+        with lock:
+            seen["walks"] += 1
+            seen["threads"].append(threading.current_thread().name)
+        time.sleep(walk_s)
+        return dict(window), False
+    monkeypatch.setattr(calendar_alerts, "collect_earnings_window", fake)
+    return seen
+
+
+def _walks_done(timeout: float = 5.0) -> None:
+    from api.services.journal_two import notebook_widgets as nw
+    t0 = time.monotonic()
+    while nw._WALKS.inflight() and time.monotonic() - t0 < timeout:
+        time.sleep(0.02)
+    assert nw._WALKS.inflight() == 0
+
+
+def test_i1_a_cold_soon_walks_on_the_pool_never_on_its_request_thread(client, app, gate_on, monkeypatch):
+    _today(monkeypatch)
+    _sets(monkeypatch, {A: {"watchlist": {"NVDA"}}})
+    seen = _slow_walk(monkeypatch, {"NVDA": "2026-10-05"}, 0.05)
+    from api.services.journal_two import earnings_prep
+    real = earnings_prep.reporting_soon
+    request_threads: list[str] = []
+
+    def spy(*a, **k):
+        request_threads.append(threading.current_thread().name)
+        return real(*a, **k)
+    monkeypatch.setattr(earnings_prep, "reporting_soon", spy)
+    as_user(app, A)
+    body = client.get("/api/j2/earnings-prep/soon").json()
+    assert set(body) == SOON_KEYS                                     # the warm contract, unchanged
+    assert [i["symbol"] for i in body["items"]] == ["NVDA"] and body["partial"] is False
+    assert seen["walks"] == 1 and seen["threads"][0].startswith("nb-widget")
+    assert request_threads and not request_threads[0].startswith("nb-widget")   # control: two threads
+    assert seen["threads"][0] != request_threads[0]
+
+
+def test_i1_concurrent_cold_soon_requests_share_one_walk_and_never_wait_for_it(app, gate_on, monkeypatch):
+    from api.services.journal_two import notebook_widgets as nw
+    _today(monkeypatch)
+    _sets(monkeypatch, {A: {"watchlist": {"NVDA"}}})
+    monkeypatch.setattr(nw, "EARNINGS_WINDOW_BUDGET_S", 0.1)
+    seen = _slow_walk(monkeypatch, {"NVDA": "2026-10-05"}, 1.5)
+    as_user(app, A)
+    results, errs = [], []
+
+    def one():
+        try:
+            c = TestClient(app)
+            t0 = time.monotonic()
+            r = c.get("/api/j2/earnings-prep/soon")
+            results.append((time.monotonic() - t0, r.status_code, r.json()))
+        except Exception as e:  # noqa: BLE001
+            errs.append(e)
+
+    ts = [threading.Thread(target=one) for _ in range(12)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join(15)
+    assert errs == [] and len(results) == 12
+    assert seen["walks"] == 1                                         # one shared walk, never one per request
+    for elapsed, code, body in results:
+        assert code == 200 and elapsed < 1.2, (elapsed, code)         # never waited for the 1.5 s walk
+        assert set(body) == SOON_KEYS
+        assert body["items"] == [] and body["partial"] is True and body["watched"] == 1   # unknown, not "none"
+    _walks_done()
+    body = TestClient(app).get("/api/j2/earnings-prep/soon").json()  # warmed by the walk that outlived them
+    assert [i["symbol"] for i in body["items"]] == ["NVDA"] and body["partial"] is False
+    assert seen["walks"] == 1
+
+
+def test_i1_the_soon_route_reads_the_window_through_the_bounded_reader():
+    """AST rail: the route reaches the window ONLY through notebook_widgets.earnings_window_for and hands it on
+    as `window_read`, so `reporting_soon` can never fall back to its own walk on this thread."""
+    tree = ast.parse(ROUTER.read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "reporting_soon")
+    calls = [c for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)]
+    assert any(c.func.attr == "earnings_window_for" for c in calls)
+    assert not [c for c in calls if c.func.attr == "_window"]
+    soon = [c for c in calls if c.func.attr == "reporting_soon"]
+    assert soon and all("window_read" in {k.arg for k in c.keywords} for c in soon)
 
 
 # ── the draft: every cell sourced, every missing one labelled ──────────────────────────
