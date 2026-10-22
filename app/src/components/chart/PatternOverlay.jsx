@@ -270,6 +270,27 @@ export function shapeDrawing(d) {
   }
 }
 
+// The shelf-pivot row (auto_structures.SHELF_PIVOT_ID): ONE purple horizontal level.
+export const SHELF_PIVOT_ID = 'draw:shelf-pivot'
+export const SHELF_PIVOT_COLOR = '#7b2cbf'
+
+/**
+ * The ONE level a draw:shelf-pivot structures row draws: `extras.draw_shelf` = {price, start_t, end_t, label,
+ * cleared, tooltip}. The line runs from the first bar that reached the level to the last bar (and a little
+ * past it); the label reads "Shelf pivot 15.70", plus " (cleared)" when the close is above the line, and sits
+ * to the RIGHT of the line's end so it never covers the latest candles. Returns null for any other row or a
+ * malformed stamp. Pure — exported for tests.
+ */
+export function shelfPivotDrawing(d) {
+  if (d?.pattern_id !== SHELF_PIVOT_ID) return null
+  const x = d?.geometry?.extras?.draw_shelf
+  if (!x || typeof x !== 'object') return null
+  const price = Number(x.price)
+  if (!Number.isFinite(price) || x.start_t == null || x.end_t == null) return null
+  const label = `${x.label || 'Shelf pivot'} ${price.toFixed(2)}${x.cleared ? ' (cleared)' : ''}`
+  return { price, start_t: x.start_t, end_t: x.end_t, label, tooltip: typeof x.tooltip === 'string' ? x.tooltip : '' }
+}
+
 /**
  * The sloped line a uct_trendline_break detection draws, as a `single_trendline` sub-detection
  * (anchors: first high, second high, value on the break bar), or null when the row is another
@@ -484,7 +505,9 @@ export default function PatternOverlay({
         const insideDay = insideDayDrawing(d)
         // A named base shape (draw:<shape>) is its own geometry: region + pivot + low + its points.
         const shapeDraw = shapeDrawing(d)
-        const Renderer = (flatTop || base || insideDay || shapeDraw) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
+        // The shelf pivot (draw:shelf-pivot) is its own geometry: one labelled level, nothing else.
+        const shelf = shelfPivotDrawing(d)
+        const Renderer = (flatTop || base || insideDay || shapeDraw || shelf) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
         // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
@@ -494,7 +517,7 @@ export default function PatternOverlay({
         // the stop to start at the TAG bar (the detector's own stop secondary runs from the
         // 10-session high, far left) — same price, same label, display only.
         const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
-        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay && !shapeDraw ? d.geometry.secondary : [])
+        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay && !shapeDraw && !shelf ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
           .map((sec) => (drawStop && sec?.role === 'stop'
             ? {
@@ -673,6 +696,25 @@ export default function PatternOverlay({
                     { extendRight: 40, dashed: false, role: 'shape-pivot' })}
                   {level('shape-low', shapeDraw.low, shapeDraw.lowLabel, shapeDraw.start_t,
                     { dashed: true, role: 'shape-low' })}
+                </g>
+              )
+            })()}
+            {shelf && (() => {
+              const x1 = tToX(shelf.start_t)
+              const x2 = tToX(shelf.end_t)
+              const y = priceToY(shelf.price)
+              if (x1 == null || x2 == null || y == null) return null
+              const xEnd = Math.max(x1, x2) + 40
+              return (
+                <g data-role="shelf-pivot" data-shape="shelf-pivot" onClick={() => onDetectionClick?.(d)}
+                  style={{ cursor: 'pointer', pointerEvents: 'auto' }}>
+                  {shelf.tooltip && <title>{shelf.tooltip}</title>}
+                  <line x1={Math.min(x1, x2)} y1={y} x2={xEnd} y2={y} stroke={SHELF_PIVOT_COLOR}
+                    strokeWidth={1.75} />
+                  <text data-role="shelf-pivot-label" x={xEnd + 4} y={y + 3} fontSize="10" fontWeight="600"
+                    fill={SHELF_PIVOT_COLOR} textAnchor="start" style={{ pointerEvents: 'none' }}>
+                    {shelf.label}
+                  </text>
                 </g>
               )
             })()}

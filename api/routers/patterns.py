@@ -849,6 +849,12 @@ def get_detections(
                 boxes = auto_structures.member_inside_day_precedence(rows, boxes, tf)
                 # base metrics (AUTO_STRUCTURES_METRICS_ENABLED + MEMBER_METRICS_ROUND): off = unchanged
                 boxes = auto_structures.with_metrics(sym, boxes, member=True)
+                # the shelf pivot (dark: AUTO_STRUCTURES_SHELF_ENABLED + MEMBER_SHELF_PIVOT_ROUND + the member
+                # set): daily charts only, and hidden whenever the chart already serves any drawing
+                if (tf or "D").upper() == "D":
+                    shelf = auto_structures.shelf_pivot_row(sym, member=True, chart_served=list(rows) + list(boxes))
+                    if shelf is not None:
+                        boxes = list(boxes) + auto_structures.member_rows([shelf])
                 if boxes:
                     mout["structures"] = boxes
                 drawn = auto_structures.drawn_for(sym)
@@ -864,6 +870,12 @@ def get_detections(
             # admin_base_rows: a bc:base row that only carries the member round's drawing is not an admin row
             out["structures"] = auto_structures.with_metrics(
                 sym, auto_structures.admin_base_rows(auto_structures.structures_for(sym)))
+            # the shelf pivot (dark, AUTO_STRUCTURES_SHELF_ENABLED): daily charts only; computed against the
+            # drawings the MEMBER path serves, and hidden whenever there is any
+            if (tf or "D").upper() == "D":
+                shelf = auto_structures.shelf_pivot_row(sym)
+                if shelf is not None:
+                    out["structures"] = list(out["structures"]) + [shelf]
             # The learned auto-drawer (display-only; same gate as the base boxes):
             # trendlines + levels on the DAILY series, so D/W/M only.
             if (tf or "D").upper() in ("D", "W", "M"):

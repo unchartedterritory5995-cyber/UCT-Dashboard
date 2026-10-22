@@ -182,6 +182,7 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
             and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
             and ((r or {}).get("pattern_id") not in SHAPE_DRAW_IDS or _confirmed_shape(r))
+            and ((r or {}).get("pattern_id") != SHELF_PIVOT_ID or _confirmed_shelf(r))
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
                  or _pivot_only(r))]
     return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
@@ -1305,37 +1306,314 @@ def structures_for(sym: str) -> list:
         return hit[1]
     out: list = []
     try:
-        from api.services.screener import base_catalog
-        bars = _daily_bars(sym)
-        if len(bars) >= 10:
-            for box in base_catalog.current_base_structures(bars) or []:
-                try:
-                    det = box_to_detection(sym, box, bars)
-                except Exception:  # noqa: BLE001 -- one bad box drops that box only
-                    continue
-                # A stale box (extras.stale, e.g. a failed cup breakout) is not
-                # served: dropping it here keeps the overlay unchanged.
-                if (det.get("geometry") or {}).get("extras", {}).get("stale"):
-                    continue
-                # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
-                cup_tier_stamp(det, bars)
-                out.append(det)
-            # the shape-agnostic base drawing (lab base_draw): its own row, after every box
-            bd = base_draw_row(sym, bars)
-            if bd is not None:
-                out.append(bd)
-            # the inside-day drawing (lab id_draw_v2): its own row, after the base drawing
-            idd = inside_day_draw_row(sym, bars)
-            if idd is not None:
-                out.append(idd)
-            # the named base-shape drawings (lab base_shapes): admin-only rows, behind their own flag
-            if shapes_enabled():
-                out.extend(shape_draw_rows(sym, bars))
+        out = _structure_rows(sym, _daily_bars(sym))
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []
     _CACHE[sym] = (now, out)
     return out
+
+
+def _structure_rows(sym: str, bars: list) -> list:
+    """The structures rows for daily `bars` ({t,o,h,l,c,v}, oldest first): structures_for's body, uncached.
+    May raise (structures_for turns that into no rows)."""
+    out: list = []
+    from api.services.screener import base_catalog
+    if len(bars) >= 10:
+        for box in base_catalog.current_base_structures(bars) or []:
+            try:
+                det = box_to_detection(sym, box, bars)
+            except Exception:  # noqa: BLE001 -- one bad box drops that box only
+                continue
+            # A stale box (extras.stale, e.g. a failed cup breakout) is not
+            # served: dropping it here keeps the overlay unchanged.
+            if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                continue
+            # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
+            cup_tier_stamp(det, bars)
+            out.append(det)
+        # the shape-agnostic base drawing (lab base_draw): its own row, after every box
+        bd = base_draw_row(sym, bars)
+        if bd is not None:
+            out.append(bd)
+        # the inside-day drawing (lab id_draw_v2): its own row, after the base drawing
+        idd = inside_day_draw_row(sym, bars)
+        if idd is not None:
+            out.append(idd)
+        # the named base-shape drawings (lab base_shapes): admin-only rows, behind their own flag
+        if shapes_enabled():
+            out.extend(shape_draw_rows(sym, bars))
+    return out
+
+
+# ================================================================ shelf pivot (dark)
+#: The shelf-pivot row id (api/services/pattern_engine/shelf_pivot.py).
+SHELF_PIVOT_ID = "draw:shelf-pivot"
+#: The shelf-pivot drawing round a member may be served -- None: NOT released. A literal ON PURPOSE, never
+#: shelf_pivot.SHELF_PIVOT_ROUND: a member gets the line only while this equals that frozen constant ("r4")
+#: AND the id is in registry.DISPLAY_MEMBER_SET and the trusted set it must sit in (member_rows). Fail closed.
+MEMBER_SHELF_PIVOT_ROUND = None
+#: The frame the drawing round was judged on; outside it there is no line.
+SHELF_WINDOW = 600
+SHELF_MIN_BARS = 261
+SHELF_MIN_CLOSE = 5.0
+SHELF_MIN_DOLLAR_VOLUME = 20e6
+#: The label and the hover text (no trade instruction in either).
+SHELF_LABEL = "Shelf pivot"
+SHELF_CLEARED = "(cleared)"
+SHELF_TOOLTIP = ("Price has stalled at this level several times since {date} and is trading near it now. "
+                 "A level to watch, not a signal.")
+#: One computed answer per (ticker, last completed session).
+_SHELF_CACHE: dict = {}
+_SHELF_LOCK = threading.Lock()
+_SCAN_UNIVERSE: list = []
+
+
+def shelf_enabled() -> bool:
+    """AUTO_STRUCTURES_SHELF_ENABLED, read PER CALL; unset means OFF. Off, nothing below runs and every
+    payload is exactly what it was before the shelf pivot existed. The kill switch is this flag."""
+    return os.environ.get("AUTO_STRUCTURES_SHELF_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def _member_shelf_ok() -> bool:
+    from api.services.pattern_engine import shelf_pivot
+    rnd = MEMBER_SHELF_PIVOT_ROUND
+    return type(rnd) is str and rnd == shelf_pivot.SHELF_PIVOT_ROUND
+
+
+def _confirmed_shelf(row) -> bool:
+    """True when a shelf-pivot row is drawn by the member round: MEMBER_SHELF_PIVOT_ROUND equals the frozen
+    round and equals the row's own stamp, beside a well-formed draw_shelf. Anything else is False."""
+    if not _member_shelf_ok():
+        return False
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    d = ex.get("draw_shelf")
+    if ex.get("draw_round") != MEMBER_SHELF_PIVOT_ROUND or not isinstance(d, dict):
+        return False
+    return _finite(d.get("price")) and type(d.get("start_t")) is int and type(d.get("end_t")) is int \
+        and d["start_t"] < d["end_t"]
+
+
+def _row_lines(r):
+    """The prices a row draws and its span (start_t, end_t) -- the member path's view of a served row."""
+    ex = (r.get("geometry") or {}).get("extras") or {}
+    pid = r.get("pattern_id")
+    if pid == BASE_DRAW_ID:
+        vals = [ex["draw_base"]["pivot"]]
+        span = (int(ex["draw_base"]["start_t"]), int(ex["draw_base"]["end_t"]))
+    elif pid in SHAPE_DRAW_IDS:
+        vals = [ex["draw_shape"]["pivot"]]
+        span = (int(ex["draw_shape"]["start_t"]), int(ex["draw_shape"]["end_t"]))
+    elif pid == INSIDE_DAY_DRAW_ID:
+        vals = [ex["draw_inside_day"]["trigger"]]
+        span = (int(ex["draw_inside_day"]["start_t"]), int(ex["draw_inside_day"]["end_t"]))
+    else:
+        vals = _row_levels(r)
+        span = _row_span(r)
+    return [float(v) for v in vals if _finite(v)], span
+
+
+def _scan_universe() -> frozenset:
+    if not _SCAN_UNIVERSE:
+        import json
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cap_universe.json")
+        with open(path, encoding="utf-8") as fh:
+            _SCAN_UNIVERSE.append(frozenset(json.load(fh)))
+    return _SCAN_UNIVERSE[0]
+
+
+def shelf_member_facts(sym: str, bars: list):
+    """(served, lines) for daily `bars` (completed sessions, oldest first, the last one the as-of bar): the
+    drawings the member path serves on that chart -- [(pattern_id, [drawn prices], (start_t, end_t) or None)] --
+    and every detector line on it, served or withheld -- [(pattern_id, price, withheld)]. The member detectors
+    run on the bars as the daily scan runs them; the structures go through member_rows and the member
+    precedences exactly as the route applies them. RAISES on any failure (the caller draws nothing)."""
+    from api.services.pattern_engine import detect_all
+    from api.services.pattern_engine.primitives.context import build_context
+    from api.services.pattern_engine.detectors import registry as reg
+    from api.services.pattern_engine.detectors.uct import flat_base as _fb  # noqa: F401 -- registers
+    from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as _ft  # noqa: F401
+    from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as _pb  # noqa: F401
+    from api.services.pattern_engine.detectors.classical import bull_flag as _bf  # noqa: F401
+    from api.services.screener import base_catalog
+    sym = (sym or "").upper()
+    bd = list(bars)
+    det_ids = sorted(i for i in member_ids() if not i.startswith(("bc:", "draw:")))
+    for pid in det_ids:
+        reg.get_detector(pid)   # KeyError: a member detector is not loaded -> no line
+    in_universe = sym in _scan_universe()
+    ctx = build_context(bd[-reg.SCAN_BASE_DEPTH:], sym=sym)
+    raw = detect_all(bd, ctx, pattern_ids=det_ids, base_depth=reg.SCAN_BASE_DEPTH, sym=sym)
+    lines = []
+    dets_ok = []
+    for d in raw:
+        d = {**d, "sym": sym, "tf": "D"}
+        d = {**d, **reg.row_display_policy(d)}
+        ls, _span = _row_lines(d)
+        ex = (d.get("geometry") or {}).get("extras") or {}
+        if float(d.get("confidence") or 0) < 50.0:
+            why = "min_conf"
+        elif d.get("status") in ("completed", "failed", "expired"):
+            why = "status"
+        elif not member_rows([d]):
+            why = "stale" if ex.get("stale") else "tier"
+        else:
+            why = None
+        if not in_universe and why is None:
+            why = "not_in_scan_universe"
+        for p in ls:
+            lines.append((d["pattern_id"], p, why is not None))
+        if why is None:
+            dets_ok.append(d)
+    for box in base_catalog.current_base_structures(bd) or []:
+        try:
+            det = box_to_detection(sym, box, bd)
+        except Exception:  # noqa: BLE001 -- the member path skips a box it cannot build
+            continue
+        ex = det["geometry"]["extras"]
+        if not ex.get("stale") and det["pattern_id"] in reg.DISPLAY_MEMBER_SET:
+            continue   # judged with the structures below
+        for p in (ex.get("pivot"), ex.get("top")):
+            if _finite(p):
+                lines.append((det["pattern_id"], float(p), True))
+    st = _structure_rows(sym, bd)
+    served_st = member_rows(st)
+    after_cup = member_cup_precedence(served_st)
+    after_base = member_base_precedence(dets_ok, after_cup)
+    after_id = member_inside_day_precedence(dets_ok, after_base, "D")
+    final_ids = {id(x) for x in after_id}
+    for r in st:
+        pid = r["pattern_id"]
+        ls, _span = _row_lines(r)
+        if id(r) in final_ids:
+            why = None
+        elif not any(x is r or (x.get("id") == r.get("id") and x.get("pattern_id") == pid) for x in served_st):
+            why = "member_rows"
+        else:
+            why = "precedence"
+        if pid == CUP_ID and why in (None, "precedence") and any(x.get("pattern_id") == pid for x in after_id):
+            continue   # served in member form below
+        for p in ls:
+            lines.append((pid, p, why is not None))
+    for r in after_id:
+        if r.get("pattern_id") == CUP_ID:
+            for p in _row_lines(r)[0]:
+                lines.append((CUP_ID, p, False))
+    served = []
+    for r in dets_ok + list(after_id):
+        ls, span = _row_lines(r)
+        served.append((r["pattern_id"], ls, span))
+    return served, lines
+
+
+def _shelf_bars(sym: str):
+    """The SHELF_WINDOW daily bars ending at the newest COMPLETED session ({t,o,h,l,c,v}, oldest first), or None
+    when the session clock is unknown (fail closed: a forming bar is never drawn on)."""
+    from api.services import bars_sqlite, barspack
+    done = barspack._last_complete_session_ymd()
+    if done is None:
+        return None
+    rows = bars_sqlite.get_bars(sym, "D", SHELF_WINDOW + 1) or []
+    rows = [r for r in rows if int(r[0]) <= int(done)][-SHELF_WINDOW:]
+    return [{"t": int(r[0]), "o": float(r[1]), "h": float(r[2]), "l": float(r[3]), "c": float(r[4]),
+             "v": float(r[5] or 0)} for r in rows]
+
+
+def shelf_in_frame(bars) -> bool:
+    """The judged frame (the sampling rule of every judged and held-out chart): >= SHELF_MIN_BARS daily bars, and
+    on the as-of session close > SHELF_MIN_CLOSE and close x volume >= SHELF_MIN_DOLLAR_VOLUME."""
+    if len(bars or []) < SHELF_MIN_BARS:
+        return False
+    last = bars[-1]
+    return last["c"] > SHELF_MIN_CLOSE and last["c"] * last["v"] >= SHELF_MIN_DOLLAR_VOLUME
+
+
+def _shelf_date(t: int) -> str:
+    import datetime
+    d = datetime.date(int(t) // 10000, int(t) // 100 % 100, int(t) % 100)
+    return f"{d.strftime('%b')} {d.day}, {d.year}"
+
+
+def shelf_compute(sym: str, bars: list):
+    """The shelf-pivot row for completed daily `bars`, or None: outside the judged frame, any served drawing on
+    the chart (v1: co-display was never judged), or no shelf. RAISES on a failure (the caller draws nothing)."""
+    from api.services.pattern_engine import shelf_pivot
+    if not shelf_in_frame(bars):
+        return None
+    served, lines = shelf_member_facts(sym, bars)
+    if served:
+        return None
+    rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in bars]
+    res = shelf_pivot.evaluate(rows, served, lines)
+    pk = res.get("pick")
+    if not pk:
+        return None
+    return shelf_row(sym, pk, res["score"], res["atr"])
+
+
+def shelf_row(sym: str, pk: dict, score, atr) -> dict:
+    from api.services.pattern_engine import shelf_pivot
+    sym = (sym or "").upper()
+    price = round(float(pk["P"]), 4)
+    start_t, end_t = int(pk["disp_left_t"]), int(pk["asof_t"])
+    cleared = float(pk["close"]) > float(pk["P"])
+    d = {
+        "price": price, "start_t": start_t, "end_t": end_t, "span_start_t": int(pk["left_t"]),
+        "label": SHELF_LABEL, "cleared": cleared,
+        "tooltip": SHELF_TOOLTIP.format(date=_shelf_date(start_t)),
+        "touch_groups": int(pk["touch_groups"]), "atr": float(atr), "score": float(score),
+    }
+    return {
+        "id": f"{SHELF_PIVOT_ID}:{sym}:{start_t}:{end_t}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": SHELF_PIVOT_ID,
+        "pattern_name": SHELF_LABEL,
+        "category": "level",
+        "direction": "neutral",
+        "start_t": start_t,
+        "end_t": end_t,
+        "geometry": {
+            "shape": "shelf_pivot",
+            "anchors": [{"t": start_t, "price": price}, {"t": end_t, "price": price}],
+            "extras": {"draw_shelf": d, "draw_round": shelf_pivot.SHELF_PIVOT_ROUND},
+        },
+        "levels": {},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(SHELF_PIVOT_ID),
+    }
+
+
+def shelf_pivot_row(sym: str, *, member: bool = False, chart_served=()):
+    """The shelf-pivot row for `sym`'s daily chart, or None. Gated: AUTO_STRUCTURES_SHELF_ENABLED (default
+    off; nothing runs while it is off) and, for a member, MEMBER_SHELF_PIVOT_ROUND equal to the frozen round
+    (member_rows also requires the member set). `chart_served`: the drawings the caller's chart already
+    serves -- any one hides the line (v1). One computed answer per (ticker, last completed session). Any
+    failure -> None. Never raises."""
+    try:
+        if not shelf_enabled():
+            return None
+        if member and not _member_shelf_ok():
+            return None
+        if chart_served:
+            return None
+        sym = (sym or "").upper()
+        bars = _shelf_bars(sym)
+        if not bars:
+            return None
+        key = int(bars[-1]["t"])
+        with _SHELF_LOCK:
+            hit = _SHELF_CACHE.get(sym)
+        if hit and hit[0] == key:
+            return hit[1]
+        row = shelf_compute(sym, bars)
+        with _SHELF_LOCK:
+            _SHELF_CACHE[sym] = (key, row)
+        return row
+    except Exception as e:  # noqa: BLE001 -- any failure draws no line
+        _log.debug("[shelf-pivot] %s failed: %s", sym, e)
+        return None
 
 
 def last_bar_forming(last_t, now=None) -> bool:
