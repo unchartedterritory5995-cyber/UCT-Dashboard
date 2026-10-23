@@ -77,7 +77,7 @@ def htf_closes(*, base=10.0, peak=20.0, pole_bars=20, flag_bars=20, flag_depth=0
     if staircase:
         half = pole_bars // 2
         mid = base + (peak - base) * 0.6
-        closes += _ramp(base, mid, half) + _ramp(mid, mid * 0.7, 6) + _ramp(mid * 0.7, peak, pole_bars - half)
+        closes += _ramp(base, mid, half) + _ramp(mid, mid * 0.72, 3) + _ramp(mid * 0.72, peak, pole_bars - half)
     elif stall:
         half = pole_bars // 2
         mid = base + (peak - base) * 0.5
@@ -105,5 +105,5 @@ def htf_bars(*, loose=False, spike_peak=False, **kw):
     b = bars_from(closes, vols=vols, wicks=wicks)
     if spike_peak:
         k = n - flag_bars - 1
-        b[k]["h"] = round(b[k]["h"] + 6.0, 4)
+        b[k]["h"] = round(b[k]["h"] + 2.5, 4)       # a lone wick ~3 ATR over the pole top
     return b

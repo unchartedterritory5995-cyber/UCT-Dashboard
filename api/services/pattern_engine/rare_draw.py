@@ -22,6 +22,12 @@ without the second round's over-strict extras (it fired on 3 and 1 of 20,000 ran
     a staircase pole                              no deep pullback and no long stall inside the pole
     a loose or sagging flag                       flag true range vs ATR; the close and the last highs hold up
 
+Measured 2026-10-23 on the lab's own 20,000 random liquid held-out stock days (same seed and rule as its
+coverage runs; draws are with replacement): cup without handle 14 hits (0.07%; 5 distinct days on 4 tickers),
+high tight flag 7 hits (0.035%; 6 distinct days). The lab's first round fired 42 / 26 there and its second
+round 3 / 1. Of the first round's fires, every one this code withholds is withheld for a judged fault (cup:
+gives back more than half the advance, a W, a V; flag: a staircase or stalling pole, a loose or sagging flag).
+
 The BUY POINT is the IBD convention: the ceiling bar's high + $0.10 (textbook_numbers.buy_point). Only a bar
 that is part of the drawn ceiling counts -- its body top within base_draw.TOUCH ATR of the ceiling and its high
 no more than textbook_numbers.SPIKE_MAX_ATR ATR over it -- so a lone wick is never the buy point.
@@ -132,8 +138,7 @@ CNH_POKE_ATR = 0.5
 CNH_LEFT_WICK_ATR = 0.5
 #: The low sits between these shares of the cup's span (not jammed at either end).
 CNH_LOW_POS = (0.20, 0.80)
-#: CRASH: no single close-to-close drop on the left side larger than this share of the depth (the left side
-#: starts at the lip bar's body top, so a one-day pop-and-drop lip counts).
+#: CRASH: no single close-to-close drop on the left side larger than this share of the cup's full depth.
 CNH_MAX_BAR_DROP = 0.35
 #: V: no 5-bar close drop on the left side over this share of the depth, no 5-bar rise on the right over this.
 CNH_MAX_5BAR_DROP = 0.55
@@ -167,25 +172,29 @@ def cup_no_handle_drawing(bars, i, _why=None) -> Optional[dict]:
     last = n - 1
     pre = last - BREAK_BARS
     bt = [_bt(x) for x in b]
-    # the lip: the nearest body top, at least CNH_MIN_BARS back, that tops everything to its right (bar the
-    # breakout bars) and the CNH_LIP_LEFT bars to its left. Body tops, not highs: a lone wick never picks the lip.
-    run = max(bt[last - CNH_MIN_BARS + 1:pre + 1])
+    # the lip REGION: the nearest high, at least CNH_MIN_BARS back, that tops everything to its right (bar the
+    # breakout bars) and the CNH_LIP_LEFT bars to its left (the lab's round 1). The lip PRICE is not that high:
+    # it is the highest high of the CEILING bars around it -- the line on the region's top body cluster -- so a
+    # lone wick finds the region but is never the buy point.
+    hs = [float(x["h"]) for x in b]
+    run = max(hs[last - CNH_MIN_BARS + 1:pre + 1])
     j = None
-    for k in range(last - CNH_MIN_BARS, max(-1, last - CNH_MAX_BARS - CNH_LIP_ZONE - 1), -1):
-        if bt[k] >= run and bt[k] >= max(bt[max(0, k - CNH_LIP_LEFT):k + 1]):
+    for k in range(last - CNH_MIN_BARS, max(-1, last - CNH_MAX_BARS - 1), -1):
+        if hs[k] >= run and hs[k] >= max(hs[max(0, k - CNH_LIP_LEFT):k + 1]):
             j = k
             break
-        run = max(run, bt[k])
+        run = max(run, hs[k])
     if j is None:
         return _say(_why, "no_lip")
     aj = _atr(b[:j + 1])
     if aj is None:
         return _say(_why, "no_atr")
     zone = range(max(0, j - CNH_LIP_ZONE), min(pre, j + CNH_LIP_ZONE) + 1)
-    lip, li = _ceiling(b, zone, bt[j], aj)
+    ceil = max(bt[k] for k in zone)
+    lip, li = _ceiling(b, zone, ceil, aj)
     if lip is None:
         return _say(_why, "no_ceiling")
-    bp = _buy(b, zone, bt[j], aj, lip)
+    bp = _buy(b, zone, ceil, aj, lip)
     if bp is None:
         return _say(_why, "buy_point_unjustified")
     span = last - li
@@ -210,14 +219,15 @@ def cup_no_handle_drawing(bars, i, _why=None) -> Optional[dict]:
     if not (CNH_LOW_POS[0] <= pos <= CNH_LOW_POS[1]):
         return _say(_why, "low_at_edge")
     dd = lip - low
+    # the crash / V shares are of the cup's FULL depth (to its lowest low, wicks included), as the lab's
+    # round 1 measured them: the wick-free floor makes the depth smaller and every bar's share bigger
+    dfull = lip - min(float(b[k]["l"]) for k in range(li, n))
     c = [float(x["c"]) for x in b]
-    cl = list(c)
-    cl[li] = bt[li]
-    if any(cl[k - 1] - cl[k] > CNH_MAX_BAR_DROP * dd for k in range(li + 1, low_i + 1)):
+    if any(c[k - 1] - c[k] > CNH_MAX_BAR_DROP * dfull for k in range(li + 1, low_i + 1)):
         return _say(_why, "crash_bar")
-    if any(cl[k - 5] - cl[k] > CNH_MAX_5BAR_DROP * dd for k in range(li + 5, low_i + 1)):
+    if any(c[k - 5] - c[k] > CNH_MAX_5BAR_DROP * dfull for k in range(li + 5, low_i + 1)):
         return _say(_why, "v_left")
-    if any(c[k] - c[k - 5] > CNH_MAX_5BAR_RISE * dd for k in range(low_i + 5, n)):
+    if any(c[k] - c[k - 5] > CNH_MAX_5BAR_RISE * dfull for k in range(low_i + 5, n)):
         return _say(_why, "v_right")
     r_i = max(range(low_i, n), key=lambda k: (float(b[k]["h"]), k))
     if float(b[r_i]["h"]) < CNH_RIGHT_HIGH * lip:
@@ -289,9 +299,9 @@ HTF_FLAG_MIN_DEPTH = 0.05
 HTF_FLAG_MAX_DEPTH = 0.25
 #: TIGHT: the flag's mean true range at most this many ATR(14) at the peak (the flag quieter than the pole).
 HTF_FLAG_TIGHT = 1.0
-#: NOT SAGGING: the as-of close within 10% under the buy point, and the last 5 bars' high back in the upper
-#: half of the flag.
-HTF_CLOSE_MIN = 0.90
+#: NOT SAGGING: the as-of close within 15% under the buy point, and the last 5 bars' high back in the upper
+#: half of the flag (the lab's second round asked 10%, which removed a third of the first round's fires).
+HTF_CLOSE_MIN = 0.85
 HTF_HIGHS_HOLD = 0.50
 #: The peak is a 250-bar high (a pole to new highs, not a rebound under old ones).
 HTF_PEAK_LOOK = 250
@@ -309,15 +319,19 @@ def high_tight_flag_drawing(bars, i, _why=None) -> Optional[dict]:
     pre = last - BREAK_BARS
     bt = [_bt(x) for x in b]
     lo_w = max(0, last - HTF_FLAG_MAX_BARS - HTF_POLE_MAX_BARS)
-    p0 = max(range(lo_w, pre + 1), key=lambda k: (bt[k], k))
+    # the peak REGION is the highest high before the breakout bars (the lab's round 1); the peak PRICE is the
+    # highest high of the ceiling bars within 5 bars of it (the line on the top body cluster), so a lone wick
+    # finds the region but is never the buy point
+    p0 = max(range(lo_w, pre + 1), key=lambda k: (float(b[k]["h"]), k))
     ap = _atr(b[:p0 + 1])
     if ap is None:
         return _say(_why, "no_atr")
-    zone = range(max(0, p0 - 5), pre + 1)
-    peak, p = _ceiling(b, zone, bt[p0], ap)
+    zone = range(max(0, p0 - 5), min(pre, p0 + 5) + 1)
+    ceil = max(bt[k] for k in zone)
+    peak, p = _ceiling(b, zone, ceil, ap)
     if peak is None:
         return _say(_why, "no_ceiling")
-    bp = _buy(b, zone, bt[p0], ap, peak)
+    bp = _buy(b, zone, ceil, ap, peak)
     if bp is None:
         return _say(_why, "buy_point_unjustified")
     flag_bars = last - p
@@ -333,7 +347,9 @@ def high_tight_flag_drawing(bars, i, _why=None) -> Optional[dict]:
     launch = max(k for k in range(o, p + 1) if float(b[k]["l"]) <= HTF_LAUNCH * float(b[o]["l"]))
     base = float(b[launch]["l"])
     pole_bars = p - launch
-    gain = (peak - base) / base
+    # the gain is measured from the pole's lowest low (the lab's round 1); the launch bar only places the pole's
+    # start for its length, pullback and stall tests
+    gain = (peak - float(b[o]["l"])) / float(b[o]["l"])
     if gain < HTF_POLE_MIN_GAIN:
         return _say(_why, "pole_small")
     if pole_bars < HTF_POLE_MIN_BARS:

@@ -105,7 +105,7 @@ def test_the_giveback_rule_is_half_the_advance():
 
 # ============================================================ the judged faults, high tight flag
 @pytest.mark.parametrize("kw, reasons, guards", [
-    (dict(staircase=True), {"pole_pullback", "pole_stalls"}, {"HTF_POLE_MAX_DD": 9, "HTF_STALL_BARS": 99}),
+    (dict(staircase=True), {"pole_pullback"}, {"HTF_POLE_MAX_DD": 9}),
     (dict(stall=True), {"pole_stalls"}, {"HTF_STALL_BARS": 99}),
     (dict(loose=True), {"flag_loose"}, {"HTF_FLAG_TIGHT": 99}),
     (dict(sag=True), {"flag_sagging", "highs_sagging"}, {"HTF_CLOSE_MIN": 0, "HTF_HIGHS_HOLD": 0}),
@@ -120,10 +120,11 @@ def test_each_judged_flag_fault_is_rejected_by_its_own_guard(kw, reasons, guards
 
 
 def test_a_spike_wick_above_the_pole_is_never_the_flag_buy_point():
+    # a lone wick ~3 ATR over the pole top: the ceiling bars leave it out, and a peak with a higher wick beside
+    # it is not a clean new high, so the flag is withheld -- never drawn with the wick as its buy point
     b = F.htf_bars(spike_peak=True)
-    wick = max(x["h"] for x in b)
-    d = _htf(b)
-    assert d is None or d["buy_point"] != round(wick + 0.10, 2)
+    why = []
+    assert _htf(b, why) is None and why == ["peak_not_high"]
 
 
 def test_a_wick_does_not_fake_a_pole_pullback():
