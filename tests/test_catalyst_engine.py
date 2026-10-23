@@ -175,3 +175,13 @@ def test_hide_c_min_move_pct_env(monkeypatch):
     assert engine._hide_c_min_move_pct() == 3.5
     monkeypatch.setenv("CATALYST_HIDE_C_MIN_MOVE_PCT", "junk")
     assert engine._hide_c_min_move_pct() == 5.0
+
+
+def test_the_market_date_has_one_home(monkeypatch):
+    """M-2: engine, sources and the voice reader all key on catalyst.store.today_market_date, so a
+    second copy of now(ET).date() cannot drift from the store's key."""
+    from api.services.catalyst import sources
+    monkeypatch.setattr(store, "today_market_date", lambda: "2031-01-02")
+    assert engine._today_market_date() == "2031-01-02"
+    assert sources._today_market_date() == "2031-01-02"
+

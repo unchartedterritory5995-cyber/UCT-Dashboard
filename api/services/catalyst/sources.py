@@ -62,7 +62,9 @@ _BARE_TICKER_DENY = {"USA", "SA", "NV", "AG", "SE", "CO", "PLC", "LTD",
 
 
 def _today_market_date() -> str:
-    return dt.datetime.now(_ET).date().isoformat()
+    # One home for the store's date key (catalyst.store has no vendor import).
+    from api.services.catalyst import store
+    return store.today_market_date()
 
 
 def _now_et() -> dt.datetime:
