@@ -218,7 +218,12 @@ FAMILIES: dict[str, Family] = {
          "/api/options/vol",
          # The terminal's per-ticker reads: MOVE (the intelligence + catalyst services for
          # one name), the sector comparator lookup, and GRADE (grade_ticker, cached per symbol).
-         "/api/terminal/move", "/api/terminal/compare-target", "/api/terminal/grade"),
+         "/api/terminal/move", "/api/terminal/compare-target", "/api/terminal/grade",
+         # The TSDR trader archive's member reads (per-ticker team calls and history, setup
+         # playbooks, the CHK check, rhymes, lazily loaded post thumbnails) and UCT20's one
+         # batched team-calls read: cached archive reads behind the research sections, the
+         # chart's pattern side panel and the Trader Archive page, one per view or click.
+         "/api/wisdom"),
     ),
     "screener": Family(
         TIER_STANDARD,
@@ -251,10 +256,14 @@ FAMILIES: dict[str, Family] = {
     ),
     "community-content": Family(
         TIER_STANDARD,
-        "Community, The Desk, education, Model Book, support status and the "
+        "Community, The Desk, education, Study, Model Book, support status and the "
         "Discord ops routes (the interactions endpoint is exempt below).",
         ("/api/community", "/api/desk", "/api/education", "/api/modelbook",
-         "/api/support", "/api/discord"),
+         "/api/support", "/api/discord",
+         # Study, the drills: SWR reads deduped 15-60 s with no polling, and one POST per
+         # answer, step or session start. Its owner review screens (/api/study/admin) mount
+         # one subject's examples at a time; /api/study/import carries PUSH_SECRET (exempt).
+         "/api/study"),
     ),
     "options-analytics": Family(
         TIER_STANDARD,
@@ -310,13 +319,17 @@ FAMILIES: dict[str, Family] = {
         "and are exempt; this bounds a human admin or an unauthenticated prober.",
         ("/api/admin", "/api/debug", "/api/company-news-ops", "/api/flow-gap-fill",
          "/api/instruments/what-else-open",   # TERM-093 owner-desk capture, admin-only
-         "/api/flow-backup", "/api/watchdog", "/api/theme-engine"),
+         "/api/flow-backup", "/api/watchdog", "/api/theme-engine",
+         # TAS's require_admin status read (the tape itself is under /api/stream).
+         "/api/time-and-sales"),
     ),
     "internal": Family(
         TIER_STANDARD,
         "Engine pushes and internal bridges. Their callers carry PUSH_SECRET and "
         "are exempt; the ceiling bounds anyone guessing at the secret.",
-        ("/api/push", "/api/internal"),
+        ("/api/push", "/api/internal",
+         # The TSDR lessons transcript worker's two require_push_secret routes.
+         "/api/tsdr-lessons"),
     ),
     "docs": Family(
         TIER_STANDARD,
