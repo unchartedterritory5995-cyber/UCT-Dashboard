@@ -148,3 +148,12 @@ def test_quiet_cases_stay_quiet():
            '    conn.execute("SELECT account_size_set FROM j2_accounts")\n'
            '    return {"accountSize": n}\n')
     assert raw_reads(src, "api/services/planted.py") == []
+
+
+def test_the_client_unset_size_is_the_servers():
+    """app/src/constants/accountSizeDefault.json is the client's one copy (chart calculator default,
+    Journal surfaces); it must equal voice_position_sizing.UNSET_ACCOUNT_SIZE."""
+    import json
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    path = REPO / "app" / "src" / "constants" / "accountSizeDefault.json"
+    assert json.loads(path.read_text(encoding="utf-8"))["unsetAccountSize"] == UNSET_ACCOUNT_SIZE

@@ -29,6 +29,7 @@ import {
   currentPriceFor,
 } from '../../../../lib/journal-2-0'
 import TodayNoSync from './TodayNoSync'
+import { resolvedAccountSize } from '../../../../lib/accountSize'
 
 export default function TodayMarketLead({
   account, settings, overview, onLogTrade, onLogPosition,
@@ -41,7 +42,7 @@ export default function TodayMarketLead({
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { prices, isStreaming } = useRealtimePrices(symbols)
 
-  const accountSize = settings?.accountSize ?? 0
+  const accountSize = resolvedAccountSize(settings)   // the server's answer, never a re-derived one
   const isBroker = account?.balanceSource === 'broker'
   // Closed session + a sync covering that close ⇒ the broker's marks win.
   const preferBrokerMarks = useBrokerMarkPreference(account)
