@@ -257,6 +257,8 @@ def get_ipo_last_1y() -> dict:
     # TERM-047: every recent listing that is not an exchange-traded product lands
     # in exactly one bucket; one under the tradability floor was ANSWERED.
     from api.services.coverage_receipt import Tally
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()   # empty with DEAL_STATUS_ENABLED off
     tally = Tally()
     results = []
     for sym, first_ts in ipos.items():
@@ -275,6 +277,8 @@ def get_ipo_last_1y() -> dict:
         # row to judge from; the no-snapshot fallback below shows the set unfiltered.
         if s and not _tradable(sym, s, avg_dvol):
             continue
+        if deal_pending and deal_status.is_pending(sym, deal_pending):
+            continue        # a recent listing already being bought out: answered, not shown
         price = s.get("last_price") if s else None
         prev = s.get("prev_close") if s else None
         change_pct = None

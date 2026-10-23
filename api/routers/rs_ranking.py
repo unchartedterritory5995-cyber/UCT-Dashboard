@@ -53,6 +53,14 @@ def rs_rankings(_user: dict = Depends(require_paid)):
             return JSONResponse(status_code=503, headers={"Retry-After": "30"},
                                 content={"status": "warming",
                                          "error": "RS rankings are being computed; retry shortly"})
+        # A pending acquisition (DEAL_STATUS_ENABLED) is not shown as an RS leader. Removed
+        # from the DISPLAYED list only: every other name keeps the percentile it was ranked
+        # at. Flag off: the set is empty and the list is served untouched.
+        from api.services import deal_status
+        deal_pending = deal_status.consumer_pending()
+        if deal_pending:
+            data = [r for r in data
+                    if not deal_status.is_pending(r.get("ticker"), deal_pending)]
         return JSONResponse(content=data)
     except Exception as e:
         return JSONResponse(

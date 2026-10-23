@@ -180,6 +180,8 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
 
     # TERM-047: each reference name lands in exactly one bucket.
     from api.services.coverage_receipt import Tally
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()   # empty with DEAL_STATUS_ENABLED off
     tally = Tally()
     gains = []
     for app, ref_close in ref.items():
@@ -199,6 +201,8 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
             tally.drop(app, f"a {change_nd:.0f}% move is beyond the sanity ceiling")
             continue
         tally.answer()
+        if deal_pending and deal_status.is_pending(app, deal_pending):
+            continue                    # pinned at a buyout price: answered, not a gainer
         prev = s.get("prev_close")
         day_chg = (round((price - prev) / prev * 100, 2)
                    if isinstance(prev, (int, float)) and prev > 0 else None)
