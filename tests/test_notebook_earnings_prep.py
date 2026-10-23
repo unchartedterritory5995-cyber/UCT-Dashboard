@@ -748,6 +748,34 @@ def test_the_draft_cites_the_members_own_notes_and_never_anothers(client, app, g
     assert d["myTrades"]["value"] is None and d["myPosition"]["value"] is None
 
 
+def test_ticker_a_history_is_an_exact_match_never_aapls_rows(client, app, gate_on, monkeypatch, stores):
+    """FilterSpec(symbol=) is a PREFIX match by default: for "A" it read AAPL's rows into the
+    50-row page, so a member with 50 newer AAPL trades saw no history in A at all."""
+    _today(monkeypatch)
+    _quiet_market(monkeypatch, stores)
+    _trade(A, "A", "t-a")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    conn.execute("UPDATE j2_trades SET created_at = '2026-08-19T20:00:00Z' WHERE id = 't-a'")
+    conn.commit()
+    conn.close()
+    for i in range(50):
+        _trade(A, "AAPL", f"t-aapl-{i}")
+    seen = []
+    from api.services.journal_two import trades
+    real = trades.list_trades_for_user
+
+    def spy(user_id, spec=None, **kw):
+        rows, total = real(user_id, spec=spec, **kw)
+        seen.append([r["symbol"] for r in rows])
+        return rows, total
+    monkeypatch.setattr(trades, "list_trades_for_user", spy)
+    as_user(app, A)
+    d = client.post("/api/j2/earnings-prep/A/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"] or []] == ["t-a"]
+    assert seen and all(s == "A" for s in seen[0])                # AAPL never enters the page
+
+
 # ── the cap ─────────────────────────────────────────────────────────────────────────────
 
 def _quiet_market(monkeypatch, stores):

@@ -500,7 +500,7 @@ def _member_cells(user_id: str, sym: str, read_at: str) -> dict[str, dict]:
     try:
         from api.services.journal_two.filters import FilterSpec
         from api.services.journal_two.trades import list_trades_for_user
-        rows, _total = list_trades_for_user(user_id, spec=FilterSpec(symbol=sym, limit=50))
+        rows, _total = list_trades_for_user(user_id, spec=FilterSpec(symbol=sym, symbol_exact=True, limit=50))
         trades = [{"id": t["id"], "side": t.get("side"), "entryDate": t.get("entryDate"),
                    "exitDate": t.get("exitDate"), "pnlPercent": t.get("pnlPercent"),
                    "rMultiple": t.get("rMultiple"), "result": t.get("result")}
