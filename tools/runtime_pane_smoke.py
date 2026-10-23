@@ -64,7 +64,7 @@ WORKER_RE = re.compile(r"""runtimeWorker-[A-Za-z0-9_\-]+\.js""")
 BUDGET_MS = 1000  # `runtimeColumns.RUNTIME_PANE_TIME_BUDGET_MS`; the answer must come inside it
 
 
-def flag_on(js: str) -> bool:
+def pane_flag_on(js: str) -> bool:
     """Does this JS text carry the runtime pane flag switched ON?"""
     return bool(FLAG_RE.search(js or ""))
 
@@ -99,7 +99,7 @@ def walk_bundle(fetch, base: str, cap: int = 600) -> dict:
         seen.add(ref)
         n += 1
         js = fetch(f"{base}/{ref}")
-        flag = flag or flag_on(js)
+        flag = flag or pane_flag_on(js)
         worker = worker or worker_ref(js)
         queue.extend(r for r in chunk_refs(js) if r not in seen)
     return {"chunks": n, "flag": flag, "worker": worker, "truncated": bool(queue)}
@@ -231,10 +231,10 @@ def run(base: str, auth: bool, expect_pane: str | None = None) -> int:
 def self_check() -> int:
     """Rule 14: the helpers must be able to say NO."""
     bad = []
-    if not flag_on('x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}'):
-        bad.append("flag_on missed an ON flag")
-    if flag_on('x={VITE_PINE_RUNTIME_PANE_ENABLED:"",B:2}') or flag_on("nothing"):
-        bad.append("flag_on accepted an OFF / absent flag")
+    if not pane_flag_on('x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}'):
+        bad.append("pane_flag_on missed an ON flag")
+    if pane_flag_on('x={VITE_PINE_RUNTIME_PANE_ENABLED:"",B:2}') or pane_flag_on("nothing"):
+        bad.append("pane_flag_on accepted an OFF / absent flag")
     if worker_ref('new URL("/assets/runtimeWorker-AbC_1.js",import.meta.url)') != "assets/runtimeWorker-AbC_1.js":
         bad.append("worker_ref missed a worker chunk")
     if worker_ref('"/assets/index-xyz.js"') is not None:

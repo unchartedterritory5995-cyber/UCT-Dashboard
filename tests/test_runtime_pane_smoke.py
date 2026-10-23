@@ -33,9 +33,9 @@ def test_the_self_check_fails_when_the_worker_matcher_is_broken():
 
 def test_the_flag_matcher_reads_on_and_off_apart():
     mod = _load()
-    assert mod.flag_on('{VITE_PINE_RUNTIME_PANE_ENABLED:"1"}')
-    assert not mod.flag_on('{VITE_PINE_RUNTIME_PANE_ENABLED:""}')
-    assert not mod.flag_on('{VITE_PINE_OBJECTS_ONLY_PANE_ENABLED:"1"}')
+    assert mod.pane_flag_on('{VITE_PINE_RUNTIME_PANE_ENABLED:"1"}')
+    assert not mod.pane_flag_on('{VITE_PINE_RUNTIME_PANE_ENABLED:""}')
+    assert not mod.pane_flag_on('{VITE_PINE_OBJECTS_ONLY_PANE_ENABLED:"1"}')
 
 
 def test_without_credentials_it_is_INCONCLUSIVE_never_a_pass(monkeypatch):
