@@ -17201,6 +17201,15 @@ export default function StockChart({
             const bottom = plan.lookbackBottom
             if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
           }
+          // …and the same number as a variable on the WRAPPER, so chrome that must
+          // stack on the lookback band (PatternOverlay's deal-status notice) reads
+          // the one measurement instead of guessing it. Written even when the bar
+          // itself is absent: the band is still where the notice belongs.
+          const host = wrapperRef.current
+          if (host) {
+            const want = `${plan.lookbackBottom}px`
+            if (host.style.getPropertyValue('--lookback-bottom') !== want) host.style.setProperty('--lookback-bottom', want)
+          }
           const vl = volLegendRef.current
           if (vl) {
             // The VOLUME pane's own top — asked of the volume series, for the same
