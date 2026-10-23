@@ -204,6 +204,7 @@ const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
 const PatternAdmin = lazy(() => import('./pages/admin/PatternAdmin'))
 const LandingAnalytics = lazy(() => import('./pages/admin/LandingAnalytics'))
 const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
+const RarePreview = lazy(() => import('./pages/admin/RarePreview'))
 const WisdomAdmin = lazy(() => import('./pages/admin/wisdom/WisdomAdmin'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
@@ -759,6 +760,7 @@ export default function App() {
                 <Route path="/admin/chart-health" element={<ChartHealth />} />
                 <Route path="/admin/patterns" element={<PatternAdmin />} />
                 <Route path="/admin/pattern-review" element={<PatternReview />} />
+                <Route path="/admin/rare-preview" element={<RarePreview />} />
                 <Route path="/admin/landing-analytics" element={<LandingAnalytics />} />
                 <Route path="/admin/wisdom" element={<WisdomAdmin />} />
               </Route>
