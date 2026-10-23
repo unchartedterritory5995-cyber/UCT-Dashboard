@@ -279,6 +279,13 @@ EXEMPT_TOOLS: dict[str, str] = {
         "auth.db)', usage lines are literally `/opt/venv/bin/python /app/tools/...` -- the "
         "nixpacks.toml venv path. A pin would make `add`/`cancel` silently operate on an "
         "empty sandboxed auth.db instead of the real member/account rows it must resolve."),
+    "reencrypt_at_rest.py": (
+        "Key-rotation tool (2026-10-21 leak runbook docs/runbooks/at-rest-key-rotation.md) "
+        "that runs ON the web pod as `/opt/venv/bin/python tools/reencrypt_at_rest.py` against "
+        "the live /data/auth.db + /data/alert_taxonomy.db. A pin overwrites AUTH_DB_PATH "
+        "unconditionally (conftest.py), so the default run would report 0 rows from a sandbox "
+        "and the owner would believe the leaked-key rows were converted. It never creates a "
+        "DB (sqlite `mode=ro`/`mode=rw` URIs) and dry-run is the default."),
     "store_restore.py": (
         "Already carries its OWN conditional census guard (`if not args.restore: import "
         "conftest`) that deliberately SKIPS the sandbox during a REAL `--restore --to PATH` "
