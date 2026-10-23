@@ -422,6 +422,37 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
  */
+export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
+
+/** The one line a chart shows when the stock is pending acquisition. The label is the server's
+ *  (one authority); DEAL_STATUS_LABEL is only the fallback when a payload carries none. */
+function DealStatusNotice({ dealStatus }) {
+  const label = (typeof dealStatus?.label === 'string' && dealStatus.label) || DEAL_STATUS_LABEL
+  return (
+    <div
+      role="status"
+      data-testid="pattern-deal-status"
+      style={{
+        position: 'absolute',
+        top: 34,
+        left: 8,
+        zIndex: 5,
+        pointerEvents: 'none',
+        padding: '3px 8px',
+        borderRadius: 4,
+        border: '1px solid var(--border)',
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-muted)',
+        fontSize: 11,
+        lineHeight: 1.3,
+        maxWidth: 'calc(100% - 16px)',
+      }}
+    >
+      {label}
+    </div>
+  )
+}
+
 export default function PatternOverlay({
   chart,
   series,
@@ -436,6 +467,7 @@ export default function PatternOverlay({
   lastPrice = null,
   drawn = null,
   trustedOnly = false,
+  dealStatus = null,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -469,6 +501,10 @@ export default function PatternOverlay({
       try { timeScale.unsubscribeVisibleLogicalRangeChange(forceRedraw) } catch {}
     }
   }, [chart, containerRef, forceRedraw])
+
+  // Pending acquisition (server deal_status, DEAL_STATUS_ENABLED): the server withheld every
+  // drawing and buy-point label; say why instead of drawing nothing silently.
+  if (enabled && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
 
   const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null

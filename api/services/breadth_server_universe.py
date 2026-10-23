@@ -48,6 +48,12 @@ EXCLUDE = frozenset({
     "WSR", "RAMP", "ZKP", "RREV", "NUVL", "LPRO", "THMC", "PAYO", "SLP", "APGE",
     "CRNX", "ACA", "ATAI", "TECH", "FBRX", "UTZ", "LXP", "CBZ", "MKTX", "ITGR",
 })
+#: The EXCLUDE entries that are NOT pending deals, per the PC's own per-name comments
+#: (SMX: foreign micro-cap; ZKP, RREV: excluded by the owner). Every other name above is
+#: a buyout, so `deal_status` reads EXCLUDE - NOT_DEALS as its mirror of the PC's
+#: manual buyout list. Keep this beside EXCLUDE: a name added there is a deal unless
+#: it is also named here.
+NOT_DEALS = frozenset({"SMX", "ZKP", "RREV"})
 
 
 def excluded() -> frozenset:

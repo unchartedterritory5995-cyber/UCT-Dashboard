@@ -45,6 +45,9 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
     // The learned auto-drawer (admin + AUTO_STRUCTURES_ENABLED, D/W/M): trendlines,
     // levels and the display rules that ride with them. null whenever absent.
     drawn: data?.drawn || null,
+    // Deal status (DEAL_STATUS_ENABLED): the stock is pending acquisition, so the server sent
+    // no drawings and this small marker instead. null whenever absent.
+    dealStatus: data?.deal_status?.pending ? data.deal_status : null,
     count: data?.count || 0,
     isLoading,
     error,

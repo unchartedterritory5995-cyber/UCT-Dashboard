@@ -59,6 +59,22 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
+def deal_hold(sym: str):
+    """The chart marker that replaces EVERY drawing for `sym` (pattern rows, base boxes,
+    shelf pivot, base metrics, textbook numbers, learned levels) while the stock is pending
+    acquisition, or None. A stock pinned at a buyout price draws a perfect "base" that is
+    nothing of the kind (TECH, 2026-10-23), so the member AND team paths of the patterns
+    route ask this ONCE, before any layer runs. None while DEAL_STATUS_ENABLED is off (the
+    payload is then byte-identical to before) and on any error (a bug never hides a chart).
+    Never raises."""
+    try:
+        from api.services import deal_status
+        return deal_status.chart_marker(sym)
+    except Exception:  # noqa: BLE001 -- fail safe: not pending
+        _log.warning("[auto-structures] deal hold check failed for %s", sym, exc_info=True)
+        return None
+
+
 def metrics_enabled() -> bool:
     """AUTO_STRUCTURES_METRICS_ENABLED, read PER CALL; unset means OFF. While off, no metrics are
     computed and the structures payload is exactly what it was before metrics existed."""

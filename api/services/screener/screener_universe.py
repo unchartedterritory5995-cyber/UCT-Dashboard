@@ -32,7 +32,6 @@ log = logging.getLogger(__name__)
 
 _FILENAME = "screener_universe.json"
 _TYPES_FILENAME = "screener_types.json"
-_BUYOUT_FILENAME = "screener_buyout_exclude.json"
 
 # US common stock + ADR classes, per `api/ticker_types.py`.
 ADR_TYPES = frozenset({"ADRC", "ADRP", "ADRR", "ADRW"})
@@ -119,10 +118,13 @@ def _read_list(path: str) -> list[str]:
 
 
 def buyout_excludes() -> frozenset[str]:
-    """Owner-maintained buyout / M&A exclude set. There is NO live acquisition
-    feed anywhere in the app, so this is a best-effort hand list — subtracted at
-    build time and easy to extend (`api/data/screener_buyout_exclude.json`)."""
-    return frozenset(_read_list(_pkg_data_path(_BUYOUT_FILENAME)))
+    """The buyout / M&A exclude set, from the ONE deal-status service
+    (`api/services/deal_status.py`), which is the only reader of the owner's hand list
+    (`api/data/screener_buyout_exclude.json`). With DEAL_STATUS_ENABLED off this is that
+    file exactly, as before; with it on it is every pending deal (hand lists, stored
+    definitive-agreement news, price-confirmed old news)."""
+    from api.services import deal_status
+    return deal_status.screener_excludes()
 
 
 def symbols() -> list[str]:

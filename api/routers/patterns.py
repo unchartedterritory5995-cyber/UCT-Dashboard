@@ -821,6 +821,12 @@ def get_detections(
     if include_structures and not is_admin:
         from api.services import auto_structures
         if auto_structures.members_enabled():
+            # Pending acquisition (DEAL_STATUS_ENABLED): no drawings, no buy point, no metrics --
+            # only the marker. Asked before any layer runs, so none of them computes.
+            hold = auto_structures.deal_hold(sym.upper())
+            if hold is not None:
+                return {"sym": sym.upper(), "tf": tf, "detections": [], "count": 0,
+                        "deal_status": hold}
             # The member set holds one INTERNAL id (uct_pullback_ma_v5), which the query
             # above excluded. Re-read ONLY the member-set ids with internal rows allowed,
             # so no other internal id can reach a member. An empty id list must not reach
@@ -866,6 +872,11 @@ def get_detections(
     if include_structures and is_admin:
         from api.services import auto_structures
         if auto_structures.enabled():
+            # Pending acquisition (DEAL_STATUS_ENABLED): the team chart withholds every drawing too
+            hold = auto_structures.deal_hold(sym.upper())
+            if hold is not None:
+                return {"sym": sym.upper(), "tf": tf, "detections": [], "count": 0,
+                        "deal_status": hold}
             # base metrics ride the admin structures only under AUTO_STRUCTURES_METRICS_ENABLED
             # admin_base_rows: a bc:base row that only carries the member round's drawing is not an admin row
             out["structures"] = auto_structures.with_metrics(
