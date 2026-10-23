@@ -59,7 +59,13 @@ function rules(src) {
   return out
 }
 const CAL = /^\.frame\[data-widget-embed-view=['"]calendar['"]\] \.toolbar$/
-const TOUCH_TIER = (media) => /max-width:\s*1024px/.test(media || '') && /hover:\s*none/.test(media || '')
+// The touch tier is an OR: a narrow window with a mouse (where the toolbar is also always shown) OR a
+// device with no hover. A media query LIST: two comma-separated members, not one "and" condition.
+const mediaList = (media) => String(media || '').split(',').map((m) => m.trim().replace(/\s+/g, ' '))
+const TOUCH_TIER = (media) => {
+  const list = mediaList(media)
+  return list.length === 2 && list.includes('(max-width: 1024px)') && list.includes('(hover: none)')
+}
 
 const editor = () => ({ isEditable: true, storage: { uctJournalWidgets: { noteId: 'note-1' } }, on() {}, off() {} })
 
@@ -106,6 +112,7 @@ describe('a /calendar embed keeps its day header clear of the embed toolbar on t
     const cal = all.filter((r) => CAL.test(r.selector))
     const touch = cal.find((r) => TOUCH_TIER(r.media))
     expect(touch, 'no touch-tier rule for the calendar frame toolbar').toBeTruthy()
+    expect(mediaList(touch.media)).toHaveLength(2)              // an OR list, never an "and"
     expect(touch.body).toMatch(/position:\s*static/)
   })
 
