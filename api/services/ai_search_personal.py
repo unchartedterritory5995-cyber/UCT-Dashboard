@@ -144,13 +144,16 @@ def _fmt_heat(user_id, account_id):
     except Exception:
         return ""
     if not h: return ""
-    if h.get("account_size_is_default"):
-        return "EXPOSURE: account size not set — percentage exposure omitted."
     bits = []
     if h.get("risk_heat_pct") is not None:
         bits.append(f"risk heat {h['risk_heat_pct']}% of your {h.get('aggregate_cap_pct', 10)}% cap")
     if h.get("placeholder_stops"):
         bits.append("no-stop positions (excluded from heat): " + ", ".join(h["placeholder_stops"]))
+    if bits and h.get("account_size_is_default"):
+        # The Portfolio Risk page's own sentence (PortfolioHeat.jsx), naming the size heat used.
+        from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+        bits.append(f"No account size on file — these numbers use a default account size "
+                    f"(${UNSET_ACCOUNT_SIZE:,.0f}), not your real one")
     return ("EXPOSURE: " + "; ".join(bits)) if bits else ""
 
 def _fmt_edge(user_id, account_id):

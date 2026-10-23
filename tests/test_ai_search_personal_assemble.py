@@ -37,14 +37,19 @@ def test_assemble_broker_estimated_labels_return(monkeypatch):
     assert "est." in block.lower()          # estimated basis labeled
     assert "no stop" in block.lower()       # placeholder stop surfaced, not a number
 
-def test_assemble_default_account_size_omits_pct(monkeypatch):
+def test_assemble_default_account_size_keeps_the_figure_and_names_its_basis(monkeypatch):
+    """Fix round 3: an unset member keeps the heat figure, worded as computed on the default
+    account size (the Portfolio Risk page's own sentence), never omitted."""
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
     monkeypatch.setattr(p, "_positions_for", lambda uid, aid: [])
     monkeypatch.setattr(p, "_heat_for", lambda uid, aid: {"risk_heat_pct": 8.0, "account_size_is_default": True})
     monkeypatch.setattr(p, "_edge_for", lambda uid, aid: {})
     monkeypatch.setattr(p, "_watch_syms", lambda uid: [])
     block = p.assemble("u1", "acctB", "am i overexposed", [])
-    assert "8.0%" not in block               # % omitted when denominator is the $50k default
-    assert "account size not set" in block.lower()
+    assert "risk heat 8.0%" in block                     # the figure is kept
+    assert "default account size" in block.lower()       # and its basis is named
+    assert f"${UNSET_ACCOUNT_SIZE:,.0f}" in block        # the size heat actually used
+    assert "not your real one" in block
 
 def test_assemble_is_char_capped(monkeypatch):
     many = [{"symbol": f"T{i}", "side": "long", "entryPrice": 10.0, "stopPrice": 9.0,

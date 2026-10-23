@@ -891,7 +891,8 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     # predicate heat and sizing also ask (the migrated Default row's placeholder is unset). Correct
     # on the second call too: the migrated row holds the constant, so it still reads "default".
     is_default = own_size is None or bool(heat.get("account_size_is_default"))
-    account = j2_accounts._DEFAULT_ACCOUNT_SIZE if is_default else stored_size
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    account = UNSET_ACCOUNT_SIZE if is_default else own_size   # the size heat computed on
     prices: dict = {}
     if shown:
         try:

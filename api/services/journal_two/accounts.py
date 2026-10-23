@@ -66,7 +66,11 @@ def member_set_account_size(size) -> float | None:
     Unset = missing, zero, non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE`: the migration writes
     that placeholder into the Default row, and nothing in j2_accounts records a member edit, so a
     member who types exactly the default is indistinguishable from the migrated row and reads as
-    unset (fix round 2 ruling, 2026-10-23)."""
+    unset (fix round 2 ruling, 2026-10-23).
+
+    ⚠️ KNOWN LIMIT, accepted (fix round 3 ruling, no schema change): a member who really sets
+    exactly 100,000 is treated as unset everywhere (sized at UNSET_ACCOUNT_SIZE, labelled default),
+    because nothing stored can tell their choice from the placeholder."""
     try:
         v = float(size)
     except (TypeError, ValueError):

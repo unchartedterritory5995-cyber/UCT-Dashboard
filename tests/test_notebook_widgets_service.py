@@ -417,15 +417,15 @@ def test_positions_no_account_row_is_labelled_default_and_still_sized(monkeypatc
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=None, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
-    assert out["rows"][0]["sizePct"] == 1.1
+    assert out["accountSize"] == 25000.0 and out["accountSizeSource"] == "default"
+    assert out["rows"][0]["sizePct"] == 4.4                    # 10 x $110 on the 25,000 heat used
 
 
 def test_positions_heat_default_flag_is_labelled_default(monkeypatch):
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=25000.0, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
+    assert out["accountSize"] == 25000.0 and out["accountSizeSource"] == "default"
 
 
 def test_positions_default_label_survives_the_migrated_row_on_the_second_call(monkeypatch, tmp_path):
@@ -439,7 +439,7 @@ def test_positions_default_label_survives_the_migrated_row_on_the_second_call(mo
     assert nw._account_size("u-new") == 100000.0     # control: a row exists now
     second = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
     assert first["accountSizeSource"] == second["accountSizeSource"] == "default"
-    assert second["accountSize"] == 100000.0
+    assert second["accountSize"] == 25000.0                # the figure heat was computed on
     # and a size the member really set is theirs
     from api.services import auth_db
     conn = auth_db.get_connection()
@@ -517,7 +517,7 @@ def test_a_migrated_default_size_is_unset_in_heat_sizing_and_the_widget(monkeypa
     monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [])
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u8", {}, now=NOW)
-    assert out["accountSizeSource"] == "default"
+    assert out["accountSizeSource"] == "default" and out["accountSize"] == 25000.0
     # and the predicate is the one home: a member-set size passes, the placeholder and nothing do not
     assert accounts.member_set_account_size(73000) == 73000.0
     assert accounts.member_set_account_size(accounts._DEFAULT_ACCOUNT_SIZE) is None
