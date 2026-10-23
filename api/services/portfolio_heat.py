@@ -120,10 +120,24 @@ def _regime_label(regime_id) -> str | None:
     return label_of(regime_id)
 
 
+def _default_account_size_fn(user_id, account_id):
+    """The account's size from voice_position_sizing's settings read. ⛔ A WRITE on first call for
+    a member with no account: `_get_account_settings` falls back to
+    `accounts.get_or_migrate_default_account`, which inserts a Default account and reassigns the
+    member's rows. A read-only caller passes its own `account_size_fn`."""
+    from api.services.voice_position_sizing import _get_account_settings
+    return (_get_account_settings(user_id, account_id) or {}).get("account_size")
+
+
 def portfolio_heat(user_id, account_id=None, account_size=None, *,
-                   positions_fn=None, regime_fn=None, cap_fn=None) -> dict:
+                   positions_fn=None, regime_fn=None, cap_fn=None, account_size_fn=None) -> dict:
+    """`account_size_fn(user_id, account_id) -> size | None` answers the size when `account_size`
+    is not given; None (or 0) means "not set" and the default amount is used, flagged
+    `account_size_is_default`. The default reader can migrate a Default account (see
+    `_default_account_size_fn`); the Notebook widget passes a read-only one."""
     positions_fn = positions_fn or _default_positions_fn
     regime_fn = regime_fn or _default_regime_fn
+    account_size_fn = account_size_fn or _default_account_size_fn
     try:
         account = float(account_size) if account_size else None
     except (TypeError, ValueError):
@@ -134,8 +148,7 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         return {"ok": False, "reason": "could not read open positions"}
     if account is None:
         try:
-            from api.services.voice_position_sizing import _get_account_settings
-            account = float((_get_account_settings(user_id, account_id) or {}).get("account_size") or 0) or None
+            account = float(account_size_fn(user_id, account_id) or 0) or None
         except Exception:  # noqa: BLE001
             account = None
     account_size_is_default = not account

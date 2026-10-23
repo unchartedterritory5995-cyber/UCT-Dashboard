@@ -452,6 +452,24 @@ def test_positions_default_label_survives_the_migrated_row_on_the_second_call(mo
     assert third["accountSize"] == 73000.0 and third["accountSizeSource"] == "member"
 
 
+def test_positions_widget_read_on_a_fresh_member_writes_nothing(monkeypatch, tmp_path):
+    """The widget GET is a read. `portfolio_heat`'s own account-size fallback is
+    `get_or_migrate_default_account`, which INSERTS a Default account and reassigns the member's
+    rows on first call; the widget passes its read-only size so that branch never runs."""
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    _patch_prices(monkeypatch, {})
+    tables = ("j2_accounts", "j2_positions", "j2_trades")
+    before = tuple(_count(auth_db, t) for t in tables)
+    out = nw.build("myPositionsRisk", "u-fresh", {}, now=NOW)
+    assert tuple(_count(auth_db, t) for t in tables) == before
+    assert out["accountSizeSource"] == "default"
+    # Control: /portfolio-heat's own call (no size) still runs the one-shot migration, so the
+    # count above is able to move.
+    from api.services import portfolio_heat
+    portfolio_heat.portfolio_heat("u-fresh", regime_fn=lambda: {})
+    assert _count(auth_db, "j2_accounts") == before[0] + 1
+
+
 def test_positions_price_missing_is_null(monkeypatch):
     _patch_positions(monkeypatch, [_pos()], [_heat_row()])
     _patch_prices(monkeypatch, {})

@@ -864,10 +864,10 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     from api.services.journal_two import accounts as j2_accounts
     from api.services.journal_two import positions as j2_positions
     open_positions = list(j2_positions.list_open_positions(user_id) or [])
-    # Read BEFORE heat: `portfolio_heat` migrates a Default j2_accounts row (at the default size) for a
-    # member who has none, so after it runs "a row exists" no longer means "the member set a size".
+    # READ-ONLY: heat gets the size this widget already read (`_account_size`, one SELECT), never its
+    # own default reader, which migrates a Default j2_accounts row for a member who has none.
     stored_size = _account_size(user_id)
-    heat = portfolio_heat.portfolio_heat(user_id) or {}
+    heat = portfolio_heat.portfolio_heat(user_id, account_size_fn=lambda _u, _a: stored_size) or {}
     # Fix F1 (audit I-5): open option strategies are rows too, as the Open Positions tab shows them.
     strategies = _open_strategies(user_id)
     shown, cut = open_positions[:ROW_CAP], max(0, len(open_positions) - ROW_CAP)

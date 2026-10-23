@@ -292,6 +292,10 @@ def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
         "api/routers/portfolio_heat.py",
         "api/services/ai_search_personal.py",
         "api/services/journal_two/coach_chat_tools.py",
+        # Notebook widget myPositionsRisk: built per GET /api/j2/notebook-widgets/{kind} (and the
+        # journal-styles render of the same builder), a request-time reader. Read-only since
+        # 2026-10-23: it passes its own size, so heat's migrating default reader never runs.
+        "api/services/journal_two/notebook_widgets.py",
         "api/services/portfolio_heat.py",
         "api/services/test_portfolio_heat.py",
         "api/services/voice_tool_impls.py",
