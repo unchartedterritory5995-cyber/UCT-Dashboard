@@ -9,6 +9,7 @@
 // a 5xx, a deploy's 502) THROWS, so a surface can say it failed and offer
 // Try again instead of a skeleton that never resolves.
 import useMobileSWR from '../../hooks/useMobileSWR'
+import { shouldRetryOnErrorAppWide } from '../../lib/swrRetry'
 
 export const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -21,13 +22,12 @@ export const fetcher = (url) =>
     throw e
   })
 
-// The app-wide rule (App.jsx SWR_CONFIG): a 4xx answers the same on every
-// retry, so it is not retried, except 408. Study adds ONE thing: a 429 is not
-// retried either (the global rule retries it) -- the limit says wait, and quick
-// retries only spend more of it. The member's Try again asks again. A failure
-// with no status (the network) or a 5xx still retries.
+// The app-wide rule (lib/swrRetry.js, App.jsx's SWR_CONFIG), CALLED rather than
+// copied, plus ONE addition: a 429 is not retried here (the app-wide rule
+// retries it) -- the limit says wait, and quick retries only spend more of it.
+// The member's Try again asks again.
 export const shouldRetryStudy = (err) =>
-  !(err && err.status >= 400 && err.status < 500 && err.status !== 408)
+  err?.status !== 429 && shouldRetryOnErrorAppWide(err)
 
 const OPTS = {
   revalidateOnFocus: false,
