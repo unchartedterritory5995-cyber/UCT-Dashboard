@@ -116,7 +116,13 @@ def test_no_signing_key_storage_means_no_webhook(monkeypatch):
 
 # ── enqueue + drain ─────────────────────────────────────────────────────────
 
-T0 = time.time() + 60    # "now" for the drain: after every enqueue in these tests
+@pytest.fixture
+def T0():
+    """"now" for the drain: 60 s after every enqueue in the test. Read per TEST, never at
+    import: a module constant is collection time, so once >60 s of other files ran first
+    every enqueue (stamped with the real clock) lands AFTER it and drain finds nothing due
+    -- the four reds that appeared only in a big combined run."""
+    return time.time() + 60
 
 FIRE = {"fire_id": 7, "trigger_type": "document_arrival", "entity": "AAPL",
         "title": "New 8-K — AAPL", "message": "Apple filed an 8-K."}
@@ -130,7 +136,7 @@ def test_dark_enqueues_nothing_and_drains_nothing(monkeypatch):
     assert wh.drain(poster=lambda *a: 200)["skipped"] == "dark"
 
 
-def test_a_fire_is_signed_and_delivered_once(armed):
+def test_a_fire_is_signed_and_delivered_once(armed, T0):
     made = wh.create("u1", "https://hooks.example.com/a")
     ids = wh.enqueue_fire("u1", FIRE)
     assert len(ids) == 1
@@ -151,7 +157,7 @@ def test_a_fire_is_signed_and_delivered_once(armed):
     assert wh.drain(poster=poster, now=T0 + 100)["sent"] == 0   # nothing left
 
 
-def test_failures_back_off_then_fail_for_good(armed):
+def test_failures_back_off_then_fail_for_good(armed, T0):
     made = wh.create("u1", "https://hooks.example.com/a")
     wh.enqueue_fire("u1", FIRE)
     t = T0
@@ -168,7 +174,7 @@ def test_failures_back_off_then_fail_for_good(armed):
     assert wh.list_webhooks("u1")[0]["consecutive_failures"] == wh.MAX_ATTEMPTS
 
 
-def test_send_time_recheck_refuses_a_rebound_host(armed):
+def test_send_time_recheck_refuses_a_rebound_host(armed, T0):
     made = wh.create("u1", "https://hooks.example.com/a")
     wh.enqueue_fire("u1", FIRE)
     called = []
@@ -186,7 +192,7 @@ def test_per_member_hourly_cap_records_drops(armed, monkeypatch):
     assert statuses == ["dropped_rate", "pending", "pending"]
 
 
-def test_a_revoked_webhook_is_not_sent(armed):
+def test_a_revoked_webhook_is_not_sent(armed, T0):
     made = wh.create("u1", "https://hooks.example.com/a")
     wh.enqueue_fire("u1", FIRE)
     wh.revoke("u1", made["id"])

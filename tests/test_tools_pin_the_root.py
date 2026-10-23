@@ -228,6 +228,12 @@ EXEMPT_TOOLS: dict[str, str] = {
         "Docstring: 'Run this on the box that owns the real implied_moves.db (Railway web pod, "
         "via railway ssh...)' -- a local dev DB is stated as a harmless no-op, but production "
         "is the intended target and a pin would make it unreachable even there, on purpose."),
+    "market_intel_review.py": (
+        "Docstring: runs the Slice 2 event studies 'against UCT's REAL local stores' -- "
+        "`--data-dir` defaults to `os.environ.get('DATA_DIR', 'C:/data')` and is then written "
+        "back to DATA_DIR, so a pin would make the bare run review an empty sandbox while "
+        "reporting PASS. It carries its OWN in-process rails instead: every sqlite3.connect "
+        "forced to `mode=ro&immutable=1`, file writes outside --out-dir raise, no network."),
     "notebook_volume_report.py": (
         "Existing exemption, carried forward from `tests/test_notebook_bridges_pin_the_root.py`"
         "'s `LIVE_ROOT_READERS`: READ-ONLY by construction, built to measure the LIVE "

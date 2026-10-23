@@ -13,21 +13,24 @@ are catastrophic (lost user connections), so test it precisely:
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 from cryptography.fernet import Fernet
 
 from api.services import crypto_box
+from api.services.crypto_box import CryptoBoxError as _ERROR_AT_IMPORT
 
 
 @pytest.fixture
 def fresh_key(monkeypatch):
-    """Set BROKER_ENCRYPTION_KEY to a fresh Fernet key and reload the
-    module so any cached state picks it up. Returns the key str."""
+    """Set BROKER_ENCRYPTION_KEY to a fresh Fernet key. Returns the key str.
+
+    No `importlib.reload(crypto_box)`: CryptoBox reads the env LIVE on every
+    call, and a reload re-creates `CryptoBoxError`, so every module that bound
+    the original class (`from api.services.crypto_box import CryptoBoxError`,
+    e.g. wisdom/core/private.py) stops catching what crypto_box raises for the
+    rest of the pytest process -- an order-dependent red in other files."""
     key = Fernet.generate_key().decode("ascii")
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", key)
-    importlib.reload(crypto_box)
     return key
 
 
@@ -39,11 +42,9 @@ def test_roundtrip_active_key(fresh_key):
 
 def test_is_configured_reflects_env(monkeypatch):
     monkeypatch.delenv("BROKER_ENCRYPTION_KEY", raising=False)
-    importlib.reload(crypto_box)
     assert crypto_box.is_configured() is False
 
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    importlib.reload(crypto_box)
     assert crypto_box.is_configured() is True
 
 
@@ -54,7 +55,6 @@ def test_encrypt_refuses_empty(fresh_key):
 
 def test_encrypt_without_key_raises(monkeypatch):
     monkeypatch.delenv("BROKER_ENCRYPTION_KEY", raising=False)
-    importlib.reload(crypto_box)
     with pytest.raises(crypto_box.CryptoBoxError):
         crypto_box.encrypt("anything")
 
@@ -67,13 +67,11 @@ def test_decrypt_rejects_unprefixed(fresh_key):
 def test_decrypt_with_wrong_key_fails_closed(monkeypatch):
     # Encrypt with key A
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    importlib.reload(crypto_box)
     blob = crypto_box.encrypt("guarded")
 
     # Swap to key B without registering A — decrypt must raise, not
     # return garbage or the wrong string.
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    importlib.reload(crypto_box)
     with pytest.raises(crypto_box.CryptoBoxError):
         crypto_box.decrypt(blob)
 
@@ -84,11 +82,17 @@ def test_retired_version_decrypt_when_old_key_supplied(monkeypatch):
     # so old blobs still decrypt during the rotation window.
     old_key = Fernet.generate_key().decode()
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", old_key)
-    importlib.reload(crypto_box)
     blob = crypto_box.encrypt("pre-rotation-secret")
 
     # Rotate.
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("BROKER_ENCRYPTION_KEYS_V1", old_key)
-    importlib.reload(crypto_box)
     assert crypto_box.decrypt(blob) == "pre-rotation-secret"
+
+
+def test_this_file_leaves_the_error_class_it_found():
+    """Runs LAST in this file (pytest keeps file order). Every module that bound
+    `CryptoBoxError` by name catches only the original class; a test here that
+    rebinds it (e.g. `importlib.reload(crypto_box)`) turns their `except` into a
+    no-op for the rest of the process."""
+    assert crypto_box.CryptoBoxError is _ERROR_AT_IMPORT

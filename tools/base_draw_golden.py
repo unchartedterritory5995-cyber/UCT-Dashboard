@@ -20,6 +20,9 @@ import sys
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (--code-root still wins: it goes to sys.path[0] later, and conftest imports no api.*)
 
 
 def main() -> int:
