@@ -224,9 +224,10 @@ def get_my_account_balance(*, account_name: str | None = None, user_id: str) -> 
     except Exception:
         balance = None
     if balance is None:
-        # Fallback: starting size + zero P&L
+        # Fallback: the member's own size + zero P&L (accounts.own_account_size: a placeholder is
+        # not a balance, so it narrates 0 rather than the migrated 100,000).
         settings = chosen.get("settings") or {}
-        balance = settings.get("accountSize") or 0
+        balance = j2_accounts.own_account_size(settings) or 0
     return {
         "ok": True,
         "narration": (

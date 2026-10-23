@@ -436,7 +436,11 @@ def test_positions_default_label_survives_the_migrated_row_on_the_second_call(mo
     _patch_prices(monkeypatch, {})
     first = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
     accounts.get_or_migrate_default_account("u-new")  # the row heat's migration leaves behind
-    assert nw._account_size("u-new") == 100000.0     # control: a row exists now
+    # control: a row exists now, holding the placeholder; the widget reads it as the member's
+    # own size only through the one predicate, so it is None (Round B: _account_size returns
+    # the member-set size, not the raw column)
+    assert accounts.get_account_settings("u-new")["accountSize"] == 100000.0
+    assert nw._account_size("u-new") is None
     second = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
     assert first["accountSizeSource"] == second["accountSizeSource"] == "default"
     assert second["accountSize"] == 25000.0                # the figure heat was computed on
@@ -504,7 +508,9 @@ def test_a_migrated_default_size_is_unset_in_heat_sizing_and_the_widget(monkeypa
     from api.services.journal_two import accounts
     from api.services import portfolio_heat, voice_position_sizing as vps
     accounts.get_or_migrate_default_account("u8")               # the migration: 100,000 placeholder
-    assert nw._account_size("u8") == accounts._DEFAULT_ACCOUNT_SIZE   # control: a row and a size exist
+    # control: a row and a size exist (the placeholder), and the widget reads it as unset
+    assert accounts.get_account_settings("u8")["accountSize"] == accounts._DEFAULT_ACCOUNT_SIZE
+    assert nw._account_size("u8") is None
     s = vps._get_account_settings("u8", None)
     assert s["account_size"] == 25000.0 and s["account_size_is_default"] is True
     pos = _pos()

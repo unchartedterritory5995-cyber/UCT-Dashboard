@@ -332,12 +332,20 @@ def _exec_analyze_sequence(*, user_id, account_id, args, conn=None) -> dict:
     return {"prior_outcome": prior_outcome, "n": n, **agg, "confidence": _confidence_for(trade_count)}
 
 
+def _size_fields(is_default: bool) -> dict:
+    """The default-size flag + the shared sentence, added to a tool result whose numbers rest on
+    the account size (accounts.account_size_of is the one authority)."""
+    from api.services.voice_position_sizing import default_size_sentence
+    return {"account_size_is_default": bool(is_default),
+            "account_size_note": default_size_sentence() if is_default else None}
+
+
 def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
     days = int(args.get("days", 180))
     start, end = _trades_range_to_iso(days)
     trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    account_size, size_is_default = accounts_service.account_size_of(settings)
     if account_size <= 0:
         return {"buckets": [], "note": "account size not configured"}
     rows: list[dict] = []
@@ -359,7 +367,8 @@ def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
     for k, group in sorted(buckets.items()):
         agg = coach_data_assembler._aggregate_trades(group)
         out.append({"band": k, **agg})
-    return {"buckets": out, "days": days, "account_size": account_size, "confidence": _confidence_for(len(rows))}
+    return {"buckets": out, "days": days, "account_size": account_size, "confidence": _confidence_for(len(rows)),
+            **_size_fields(size_is_default)}
 
 
 def _exec_analyze_correlation(*, user_id, account_id, args, conn=None) -> dict:
@@ -482,7 +491,7 @@ def _exec_check_profile_divergence(*, user_id, account_id, args, conn=None) -> d
     days = int(args.get("days", 30))
     settings = accounts_service.get_account_settings(user_id, account_id, conn=c) or {}
     claimed_risk_pct = settings.get("maxRiskPerTradePct")
-    account_size = float(settings.get("accountSize") or 0)
+    account_size, size_is_default = accounts_service.account_size_of(settings)
     divergences = []
     if claimed_risk_pct is not None and account_size > 0:
         start, end = _trades_range_to_iso(days)
@@ -506,7 +515,7 @@ def _exec_check_profile_divergence(*, user_id, account_id, args, conn=None) -> d
                     "n_trades": len(actual_risk_pcts),
                     "note": f"Profile says {claimed_risk_pct}% risk per trade; last {len(actual_risk_pcts)} trades averaged {avg_actual:.1f}%.",
                 })
-    return {"divergences": divergences, "checked_days": days}
+    return {"divergences": divergences, "checked_days": days, **_size_fields(size_is_default)}
 
 
 # ── Action tools (preview + execute halves) ──────────────────────────────────
@@ -708,6 +717,8 @@ def _update_discipline_setting_preview(*, user_id, account_id, args, conn=None) 
         breach_count = _count_recent_breaches(conn or get_connection(), user_id, account_id, field, current, 30)
         if breach_count > 0:
             warnings.append(f"You've breached the current {field}={current} {breach_count} times in the last 30 days.")
+            if accounts_service.account_size_of(settings)[1]:   # the count rests on the default size
+                warnings.append(_size_fields(True)["account_size_note"])
         warnings.append(f"This change weakens the guardrail from {current} to {new_value}.")
     confirm_label = (
         "Yes, raise the cap" if (field == "maxRiskPerTradePct" and loosening) else
@@ -729,7 +740,7 @@ def _count_recent_breaches(conn, user_id, account_id, field, current_value, days
     start, end = _trades_range_to_iso(days)
     trades = coach_data_assembler._trades_in_range(conn, user_id, account_id, start, end)
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    account_size, _is_default = accounts_service.account_size_of(settings)
     if account_size <= 0:
         return 0
     count = 0

@@ -132,7 +132,7 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
         settings = j2_accounts._account_to_settings(acc) or {}
     except Exception:
         settings = {}
-    own = j2_accounts.member_set_account_size(settings.get("accountSize"))
+    own = j2_accounts.own_account_size(settings)   # reads the member-set marker too
     return {
         "account_id": acc.get("id"),
         "account_name": acc.get("displayName") or acc.get("name") or "Default",

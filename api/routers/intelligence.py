@@ -290,7 +290,11 @@ def get_risk_summary(
     default_acc = j2_accounts.get_or_migrate_default_account(user["id"])
     account_id = default_acc["id"]
     settings = j2_accounts.get_account_settings(user["id"], account_id) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    # The one authority (accounts.account_size_of): an unset size is the default size, flagged.
+    account_size, size_is_default = j2_accounts.account_size_of(settings)
+    from api.services.voice_position_sizing import default_size_sentence
+    size_fields = {"account_size_is_default": size_is_default,
+                   "account_size_note": default_size_sentence() if size_is_default else None}
 
     j2_open = j2_positions.list_open_positions(user["id"], account_id=account_id) or []
 
@@ -317,7 +321,7 @@ def get_risk_summary(
 
     uct = _get_api()
     if not uct:
-        return {"heat": {}, "sectors": {}, "protocol": {}, "limits": {}}
+        return {"heat": {}, "sectors": {}, "protocol": {}, "limits": {}, **size_fields}
 
     from uct_intelligence.risk import (
         calculate_portfolio_heat,
@@ -351,6 +355,7 @@ def get_risk_summary(
         "regime_exposure_pct": regime_exposure,
         "current_exposure_pct": round(current_exposure, 1),
         "open_position_count": len(open_trades),
+        **size_fields,
     }
 
 

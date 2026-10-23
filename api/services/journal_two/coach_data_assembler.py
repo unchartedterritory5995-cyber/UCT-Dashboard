@@ -334,14 +334,17 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
             "daily_loss_lockouts": 0, "cooling_off_fires": 0,
             "no_trade_window_blocks": 0, "a_plus_taken": 0,
         }
+        size_is_default = False
         for aid in ids:
             part = _discipline_events(conn, user_id, aid, start, end)
             for k in agg:
                 agg[k] += part.get(k, 0)
-        return agg
+            size_is_default = size_is_default or bool(part.get("account_size_is_default"))
+        return {**agg, "account_size_is_default": size_is_default}
 
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    # The one authority: an unset size is UNSET_ACCOUNT_SIZE, flagged default (accounts.py).
+    account_size, size_is_default = accounts_service.account_size_of(settings)
     cap_pct = settings.get("maxRiskPerTradePct")
     a_plus_setups = set(settings.get("aPlusSetups") or [])
     a_plus_mult = float(settings.get("aPlusRiskMultiplier") or 1.0)
@@ -410,6 +413,7 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
         "cooling_off_fires": cooling_off_fires,
         "no_trade_window_blocks": 0,
         "a_plus_taken": a_plus_taken,
+        "account_size_is_default": size_is_default,
     }
 
 

@@ -27,7 +27,10 @@ _log = logging.getLogger("grade_ticker")
 
 _EXTENDED_PCT = 0.03      # >3% past the pivot = "extended" (long)
 _RISK_CAP_PCT = 2.0       # account-risk hard cap (mirrors size_a_trade)
-_DEFAULT_ACCOUNT = 50000.0
+# The size a grade uses when no account_size is passed: the ONE unset-size constant
+# (voice_position_sizing.UNSET_ACCOUNT_SIZE), never a second default. It was 50,000 here while
+# heat and sizing used 25,000 and the raw readers the 100,000 placeholder (Round B).
+from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE as _DEFAULT_ACCOUNT  # noqa: E402
 
 
 def _regime_band(raw: str) -> str:
@@ -159,6 +162,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     playbook_fn = playbook_fn or _default_playbook_fn
     size_fn = size_fn or _default_size_fn
     archive_fn = archive_fn or _default_archive_fn
+    size_is_default = not account_size
     account = float(account_size or _DEFAULT_ACCOUNT)
 
     # ── the gate: regime + quote must be available ──────────────────────────
@@ -198,7 +202,8 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         if team and team.get("sentence"):
             basis += " " + team["sentence"]
             sources.append("team archive (labelled; does not change the verdict)")
-        return _verdict(ok=True, symbol=sym, verdict="SKIP", regime=band,
+        # Nothing was sized, so nothing rests on a default size.
+        return _with_size_flag(False, ok=True, symbol=sym, verdict="SKIP", regime=band,
                         regime_note=regime_note, setup=None, grade=None,
                         entry=None, stop=None, size_pct=None, account_risk_pct=None,
                         first_target=None,
@@ -288,7 +293,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         basis += " " + team["sentence"]
         sources.append("team archive (labelled; does not change the verdict)")
 
-    return _verdict(ok=True, symbol=sym, verdict=verdict, regime=band,
+    return _with_size_flag(size_is_default, ok=True, symbol=sym, verdict=verdict, regime=band,
                     regime_note=regime_note, setup=setup, grade=grade,
                     entry=entry, stop=stop, size_pct=size_pct,
                     account_risk_pct=account_risk_pct, first_target=first_target,
@@ -302,6 +307,15 @@ def _team_archive(archive_fn, symbol, setup):
     except Exception:  # noqa: BLE001 — the archive can never break a verdict
         _log.exception("team archive read failed in grade_ticker")
         return None
+
+
+def _with_size_flag(size_is_default, **kw):
+    """`_verdict`, plus whether its sizing rests on the default size (added keys only)."""
+    from api.services.voice_position_sizing import default_size_sentence
+    out = _verdict(**kw)
+    out["account_size_is_default"] = bool(size_is_default)
+    out["account_size_note"] = default_size_sentence() if size_is_default else None
+    return out
 
 
 def _verdict(*, ok, symbol, verdict, regime, regime_note, setup, grade, entry,

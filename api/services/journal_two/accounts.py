@@ -159,6 +159,80 @@ def _marker_for_seed(size, marked=None) -> int | None:
     return 1 if member_set_account_size(size, marked) is not None else None
 
 
+def _size_columns(conn: sqlite3.Connection) -> str:
+    """The size columns a read-only SELECT can name on this schema (the marker may predate it)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_accounts)")}
+    return "account_size, account_size_set" if "account_size_set" in cols else "account_size"
+
+
+def _size_rows(conn: sqlite3.Connection, where: str, params: tuple) -> list[dict]:
+    """j2_accounts size rows as plain dicts, whatever the connection's row_factory."""
+    cur = conn.execute(f"SELECT {_size_columns(conn)} FROM j2_accounts WHERE {where}", params)
+    names = [d[0] for d in cur.description]
+    return [dict(zip(names, tuple(r))) for r in cur.fetchall()]
+
+
+def read_member_account_size(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> float | None:
+    """READ-ONLY, one SELECT: the member's own size on `account_id`, or (no id) on their Default
+    account, else the oldest. None when it is unset or there is no account. Never migrates (not
+    `get_or_migrate_default_account`, which inserts a row and reassigns the member's trades)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if account_id:
+            rows = _size_rows(conn, "id = ? AND user_id = ?", (account_id, user_id))
+        else:
+            rows = _size_rows(
+                conn, "user_id = ? ORDER BY (CASE WHEN name = 'Default' THEN 0 ELSE 1 END),"
+                " created_at ASC LIMIT 1", (user_id,))
+        return own_account_size(rows[0]) if rows else None
+    finally:
+        if owned:
+            conn.close()
+
+
+def account_size_basis(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> tuple[float, bool]:
+    """READ-ONLY: (size, is_default) for one account, or for All Accounts when `account_id` is
+    None or names no account of this member. All Accounts sums only the member-set sizes; when
+    none is set (or there is no account, and the legacy j2_settings row holds no member size) it
+    is UNSET_ACCOUNT_SIZE flagged default."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if account_id:
+            one = _size_rows(conn, "id = ? AND user_id = ?", (account_id, user_id))
+            if one:
+                return account_size_of(one[0])
+        rows = _size_rows(conn, "user_id = ?", (user_id,))
+        owns = [v for v in (own_account_size(r) for r in rows) if v is not None]
+        if owns:
+            return float(sum(owns)), False
+        if not rows:
+            legacy = conn.execute(
+                "SELECT data FROM j2_settings WHERE user_id = ?", (user_id,),
+            ).fetchone()
+            try:
+                data = json.loads(tuple(legacy)[0]) if legacy is not None else None
+            except (TypeError, ValueError):
+                data = None
+            if isinstance(data, dict):
+                return account_size_of(data)
+        return account_size_of(None)
+    finally:
+        if owned:
+            conn.close()
+
+
 def _default_settings_block() -> dict[str, Any]:
     """Settings dict used when creating a new account from scratch
     (no copy-source). Matches the system defaults that single-row

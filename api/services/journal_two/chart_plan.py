@@ -164,7 +164,9 @@ def plan_levels_line(attrs: Any) -> str | None:
 
 def account_inputs(user_id: str, account_id: str | None = None) -> dict[str, Any]:
     """The member's sizing inputs: account size and max risk per trade % (accounts.py). Missing
-    values are None -- the client says which one is missing; nothing is defaulted here."""
+    values are None -- the client says which one is missing; nothing is defaulted here. The size
+    is the member's own (accounts.own_account_size, the one authority): the migrated placeholder
+    is unset, so it is None, never sized as if they had chosen it."""
     from api.services.journal_two import accounts  # noqa: PLC0415 -- heavy import, route-time only
     try:
         s = accounts.get_account_settings(user_id, account_id) or {}
@@ -172,7 +174,7 @@ def account_inputs(user_id: str, account_id: str | None = None) -> dict[str, Any
         s = {}
     return {
         "accountId": s.get("accountId"),
-        "accountSize": _finite_positive(s.get("accountSize")),
+        "accountSize": _finite_positive(accounts.own_account_size(s)),
         "riskPct": _finite_positive(s.get("maxRiskPerTradePct")),
     }
 

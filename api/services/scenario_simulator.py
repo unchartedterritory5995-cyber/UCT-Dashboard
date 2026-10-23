@@ -18,6 +18,11 @@ _log = logging.getLogger(__name__)
 _SUPPORTED_RULES = ("flat_pct", "flat_dollar", "multiplier")
 
 
+def _default_note(is_default: bool) -> str | None:
+    from api.services.voice_position_sizing import default_size_sentence
+    return default_size_sentence() if is_default else None
+
+
 def _trade_actual_risk(trade: dict) -> float:
     """Best estimate of the actual dollar risk on a trade."""
     shares = trade.get("shares") or 0
@@ -64,7 +69,10 @@ def simulate(
     try:
         from api.services.journal_two import coach_data_assembler
         from api.services.auth_db import get_connection
-        from api.services.journal_two.accounts_service import get_account_settings
+        # ⚰️ This imported `journal_two.accounts_service`, a module that does not exist, so every
+        # call returned "journal modules unavailable" and simulated nothing (found routing the
+        # size through the one authority, Round B).
+        from api.services.journal_two.accounts import get_account_settings, account_size_of
     except Exception as e:
         return {"error": f"journal modules unavailable: {e}"}
 
@@ -87,15 +95,17 @@ def simulate(
         from datetime import datetime, timedelta, timezone
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=max(1, min(730, int(days or 180))))
-        start_iso, end_iso = start.isoformat(), end.isoformat()
         conn = get_connection()
         try:
+            # datetimes, not ISO strings: `_trades_in_range` formats them itself, and handing it
+            # strings raised here on every call (found with the import fix, Round B).
             trades = coach_data_assembler._trades_in_range(
-                conn, user_id, account_id, start_iso, end_iso,
+                conn, user_id, account_id, start, end,
             )
+            account_size_is_default = False
             if account_size is None:
                 settings = get_account_settings(user_id, account_id, conn=conn) or {}
-                account_size = float(settings.get("accountSize") or 0)
+                account_size, account_size_is_default = account_size_of(settings)
         finally:
             conn.close()
     except Exception as e:
@@ -160,6 +170,8 @@ def simulate(
         "days": days,
         "trade_count": len(trades),
         "account_size": account_size,
+        "account_size_is_default": account_size_is_default,
+        "account_size_note": _default_note(account_size_is_default),
         "actual_pnl": round(actual_total, 2),
         "scenario_pnl": round(scenario_total, 2),
         "delta": round(scenario_total - actual_total, 2),
