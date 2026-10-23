@@ -240,8 +240,13 @@ def _env_name(node: ast.AST, os_names: set[str] | None = None,
                 return consts[a.id]
     # os.environ["X"] — the form an AST-only-on-Call scan silently misses.
     # Only a LOAD is a read: `os.environ["X"] = "1"` (Store) and `del os.environ["X"]` (Del)
-    # arm or clear the variable and parse nothing (review M-4, 2026-10-23).
-    if isinstance(node, ast.Subscript) and isinstance(getattr(node, "ctx", None), ast.Load):
+    # arm or clear the variable and parse nothing (review M-4, 2026-10-23). An AUGMENTED
+    # assignment (`os.environ["X"] += ...`) reads the old value first, so it IS a read: callers
+    # pass the AugAssign node and its target is classified as one (review M-C).
+    aug = isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Subscript)
+    if aug:
+        node = node.target
+    if isinstance(node, ast.Subscript) and (aug or isinstance(getattr(node, "ctx", None), ast.Load)):
         v = node.value
         if isinstance(v, ast.Attribute) and v.attr == "environ":
             sl = node.slice
@@ -330,6 +335,11 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
             self.generic_visit(node)
 
         def visit_Subscript(self, node):
+            self._record(node)
+            self.generic_visit(node)
+
+        def visit_AugAssign(self, node):
+            # `os.environ["X"] += ...` reads X (review M-C); its target subscript is Store.
             self._record(node)
             self.generic_visit(node)
 

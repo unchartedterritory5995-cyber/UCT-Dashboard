@@ -218,7 +218,7 @@ def _direct_reads(tree: ast.AST) -> list[tuple[int, str]]:
     consts = ffi._module_str_consts(tree)
     out = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Call, ast.Subscript)):
+        if isinstance(node, (ast.Call, ast.Subscript, ast.AugAssign)):
             name = ffi._env_name(node, os_names, consts)
             if name:
                 out.append((node.lineno, name))
@@ -296,6 +296,18 @@ def test_CONTROL_a_write_is_not_a_read_and_a_read_beside_it_still_is():
     )
     seen = {name for _, name in _direct_reads(ast.parse(src))}
     assert seen == {"NOTEBOOK_WRITING_HELP_ENABLED"}, seen
+
+
+def test_CONTROL_an_augmented_assignment_is_a_read():
+    """Review M-C: `os.environ[NAME] += ...` has a Store context but READS the old value first,
+    so it is a second parse and must be seen; the plain write beside it must not be."""
+    src = (
+        "import os\n"
+        "os.environ['J2_SHARE_LINKS_ENABLED'] = '1'\n"
+        "os.environ['NOTEBOOK_ONBOARDING_ENABLED'] += ',x'\n"
+    )
+    seen = {name for _, name in _direct_reads(ast.parse(src))}
+    assert seen == {"NOTEBOOK_ONBOARDING_ENABLED"}, seen
 
 
 # ── (c) flag_on is only for payload flags ───────────────────────────────────
