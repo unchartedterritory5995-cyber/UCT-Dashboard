@@ -74,9 +74,9 @@ def test_control_round_two_draws_differently_on_this_sweep():
     assert differ >= 5 and only_r1 >= 1 and only_r2 >= 1, (differ, only_r1, only_r2)
 
 
-def test_control_the_admin_view_is_round_two():
-    """The admin structures carry the CURRENT round: where round 2 draws, the admin row is round 2's drawing;
-    where only round 1 draws, the admin gets no bc:base row at all."""
+def test_control_the_admin_view_is_the_current_round():
+    """The admin structures carry the CURRENT round (base_draw.BASE_DRAW_ROUND): where it draws, the admin
+    row is its drawing; where only round 1 draws, the admin gets no bc:base row at all."""
     seen_r2 = seen_hidden = 0
     for s in range(SW.SW.SERIES):
         bars = SW.SW.series(s)
@@ -88,7 +88,7 @@ def test_control_the_admin_view_is_round_two():
             admin = auto_structures.admin_base_rows([row] if row else [])
             if d2 is not None:
                 assert admin and admin[0]["geometry"]["extras"]["draw_base"] == d2
-                assert admin[0]["geometry"]["extras"]["draw_round"] == 2
+                assert admin[0]["geometry"]["extras"]["draw_round"] == base_draw.BASE_DRAW_ROUND
                 seen_r2 += 1
             else:
                 assert admin == []
