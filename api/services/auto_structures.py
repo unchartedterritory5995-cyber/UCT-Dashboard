@@ -9,7 +9,9 @@ while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
 see ONLY the MEMBER SET (registry.DISPLAY_MEMBER_SET): the types that passed two
 independent blind packets as drawn -- flat_base, the MA pullback v5
 (uct_pullback_ma_v5, otherwise internal), and on D/W/M the bc:flat-base pivot line
-(box off; REPORT_BCFLAT_C2.md), the learned `drawn` levels + trendlines, and
+(box off; REPORT_BCFLAT_C2.md), and
+bull_flag (the learned `drawn` levels + trendlines are WITHHELD from members since
+2026-10-23, MEMBER_LEARNED_LINES_ROUND = None, until rebuilt to textbook rules), and
 bull_flag as the round-9 drawing code draws it (REPORT_BULLFLAG_R9.md; only a row
 stamped with that round, never a stale one), plus its lighter "flagging" tier (lab
 flag_vocab: a stale flag stopped only by a relaxed verdict and stamped extras.flagging;
@@ -1847,3 +1849,28 @@ def drawn_for(sym: str):
     if token is not None:
         _DRAWN_CACHE[sym] = (now, token, out)
     return out
+
+
+#: The learned auto-drawer round a MEMBER may be shown (the `drawn` block: learned levels + trendlines).
+#: None: WITHHELD from every member (owner decision 2026-10-23) until the layer is rebuilt to textbook
+#: support / resistance rules and that rebuild passes blind judging. A literal ON PURPOSE, like the other
+#: MEMBER_*_ROUND values: set it by hand to the confirmed round, and a member then gets a `drawn` block only
+#: while it carries that round in `learned_round` (the rebuilt drawer stamps it; today's drawer stamps
+#: nothing, so even a non-None literal serves members no lines -- fail closed). Admins are unaffected.
+MEMBER_LEARNED_LINES_ROUND = None
+
+
+def member_drawn_for(sym: str):
+    """A member's copy of the learned `drawn` block for `sym`, or None (no `drawn` key). None without
+    computing anything while MEMBER_LEARNED_LINES_ROUND is None; otherwise drawn_for's block only when its
+    `learned_round` equals the literal. Read PER CALL so a test can move the literal. Never raises."""
+    rnd = MEMBER_LEARNED_LINES_ROUND
+    if rnd is None or type(rnd) is bool:
+        return None
+    try:
+        drawn = drawn_for(sym)
+    except Exception:  # noqa: BLE001 -- a drawing layer must never 500 a read
+        return None
+    if not isinstance(drawn, dict) or drawn.get("learned_round") != rnd:
+        return None
+    return drawn

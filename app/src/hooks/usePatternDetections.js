@@ -22,7 +22,8 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
   // includeStructures (AUTO_STRUCTURES_ENABLED, admins): the server adds the current
   // base boxes as `structures` and the learned auto-drawer's lines as `drawn`;
   // a paid member with AUTO_STRUCTURES_MEMBERS_ENABLED also sends it, and the server answers with
-  // the member set only (registry.DISPLAY_MEMBER_SET rows + the learned `drawn` on D/W/M).
+  // the member set only (registry.DISPLAY_MEMBER_SET rows; NO learned `drawn` block while
+  // auto_structures.MEMBER_LEARNED_LINES_ROUND is None).
   const key =
     enabled && sym && tf
       ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}&confirmed_only=false${includeStructures ? '&include_structures=true' : ''}`

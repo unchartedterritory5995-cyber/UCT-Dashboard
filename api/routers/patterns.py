@@ -813,8 +813,9 @@ def get_detections(
     # both read per request): a non-admin's chart toggle asks with include_structures=true,
     # and gets ONLY the member set (registry.DISPLAY_MEMBER_SET: the types that passed the
     # blind check as drawn), filtered HERE, never by the client: member-set rows, on D/W/M
-    # member-set base boxes (`structures`: bc:flat-base, pivot line only, box off) and the
-    # learned drawer's levels + trendlines (`drawn`), and bull_flag rows only as the
+    # member-set base boxes (`structures`: bc:flat-base, pivot line only, box off) -- NOT the
+    # learned drawer's levels + trendlines (`drawn`: withheld while
+    # auto_structures.MEMBER_LEARNED_LINES_ROUND is None) -- and bull_flag rows only as the
     # confirmed round-9 drawing code stamped them (never stale). bc:cup-with-handle, the
     # levels layer and every other tier stay admin-only. With the member flag off the
     # payload is as before.
@@ -863,7 +864,9 @@ def get_detections(
                         boxes = list(boxes) + auto_structures.member_rows([shelf])
                 if boxes:
                     mout["structures"] = boxes
-                drawn = auto_structures.drawn_for(sym)
+                # the learned levels + trendlines: WITHHELD from members (MEMBER_LEARNED_LINES_ROUND = None,
+                # owner 2026-10-23) until rebuilt to textbook support/resistance and judged blind again
+                drawn = auto_structures.member_drawn_for(sym)
                 if drawn is not None:
                     mout["drawn"] = drawn
             return mout

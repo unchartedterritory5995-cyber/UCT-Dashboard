@@ -31,7 +31,8 @@
 //   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
 //   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
 //   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
-//   Whether `drawn` is present is the SERVER's call (admins; members only with the team set on).
+//   Whether `drawn` is present is the SERVER's call (admins only; withheld from members while
+//   auto_structures.MEMBER_LEARNED_LINES_ROUND is None).
 //
 // ⭐ TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET = the trusted tier):
 //   `trustedOnly` draws it (members always; admins by default, "All" shows everything). Its
