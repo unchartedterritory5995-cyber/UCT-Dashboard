@@ -1423,13 +1423,16 @@ def _structure_rows(sym: str, bars: list) -> list:
     return out
 
 
-# ================================================================ shelf pivot (dark)
+# ================================================================ shelf pivot (members: round r4)
 #: The shelf-pivot row id (api/services/pattern_engine/shelf_pivot.py).
 SHELF_PIVOT_ID = "draw:shelf-pivot"
-#: The shelf-pivot drawing round a member may be served -- None: NOT released. A literal ON PURPOSE, never
+#: The shelf-pivot drawing round a member may be served. A literal ON PURPOSE, never
 #: shelf_pivot.SHELF_PIVOT_ROUND: a member gets the line only while this equals that frozen constant ("r4")
 #: AND the id is in registry.DISPLAY_MEMBER_SET and the trusted set it must sit in (member_rows). Fail closed.
-MEMBER_SHELF_PIVOT_ROUND = None
+#: RELEASED to members 2026-10-23 at round "r4": blind judging round 4 (2.66 / 2.60), the independent verifier
+#: (SHIP WITH CONDITIONS C1-C5, built in 785c6ae448 + c059a0d61b) and the owner's live eye check (C6, 18 live
+#: shelf lines, 2026-10-22). Set it back to None to withdraw the line from members.
+MEMBER_SHELF_PIVOT_ROUND = "r4"
 #: The frame the drawing round was judged on; outside it there is no line.
 SHELF_WINDOW = 600
 SHELF_MIN_BARS = 261
