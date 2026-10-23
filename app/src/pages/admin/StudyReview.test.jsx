@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
@@ -581,5 +582,47 @@ describe('StudyReview hub', () => {
     expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=any')
     fireEvent.change(screen.getByTestId('feedback-scope'), { target: { value: 'items' } })
     expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=none')
+  })
+})
+
+// Review M4: one key press is answered by the topmost surface only. A stand-in modal layer (what
+// the command palette or a ticker popup is: role="dialog" aria-modal) opened over the surface, and
+// a live video binding, are the two things that used to answer the same press as well.
+const openModalLayer = () => {
+  const el = document.createElement('div')
+  el.setAttribute('role', 'dialog')
+  el.setAttribute('aria-modal', 'true')
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+describe('the card answers its keys only as the topmost surface', () => {
+  it('with a modal layer (palette, ticker popup) over the card, its keys do nothing; Shift+F belongs to the layer', () => {
+    renderWithProviders(<StudyReview />)
+    const close = openModalLayer()
+    fireEvent.keyDown(document.body, { key: 'n' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('NVDA')
+    fireEvent.keyDown(document.body, { key: 'F', shiftKey: true })
+    expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+    close()
+    fireEvent.keyDown(document.body, { key: 'n' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('TSLA')
+  })
+
+  it('F and Escape on the card do not also reach the video player keys', () => {
+    const fullscreen = vi.fn()
+    const escape = vi.fn()
+    const off = registerShortcuts({ 'video.fullscreen': fullscreen, 'video.escape': escape })
+    try {
+      renderWithProviders(<StudyReview />)
+      fireEvent.keyDown(document.body, { key: 'f' })
+      expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+      expect(fullscreen).not.toHaveBeenCalled()
+      expect(escape).not.toHaveBeenCalled()
+      fireEvent.keyDown(document.body, { key: 'Escape' })   // card in view mode: not its key
+      expect(escape).toHaveBeenCalledTimes(1)
+    } finally { off() }
   })
 })

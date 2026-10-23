@@ -4,10 +4,11 @@
 // registrations of 'archive.lightboxClose', which the shortcut registry refuses (it throws outside
 // production). The lightbox now holds focus while open: focus moves in, Tab stays inside, Escape or Close
 // returns focus to the thumb that opened it.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ArchiveThumbs from './ArchiveThumbs'
+import { registerShortcuts } from '../command/shortcutRegistry'
 
 const A = 'a'.repeat(64)
 const B = 'b'.repeat(64)
@@ -49,5 +50,47 @@ describe('the archive lightbox holds focus while it is open', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByTestId('archive-lightbox')).toBeNull()
     expect(document.activeElement).toBe(second)
+  })
+})
+
+// Review M4: one key press is answered by the topmost surface only. A stand-in modal layer (what
+// the command palette or a ticker popup is: role="dialog" aria-modal) opened over the surface, and
+// a live video binding, are the two things that used to answer the same press as well.
+const openModalLayer = () => {
+  const el = document.createElement('div')
+  el.setAttribute('role', 'dialog')
+  el.setAttribute('aria-modal', 'true')
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+describe('Escape is answered by the topmost layer only', () => {
+  it('with a modal layer over the lightbox, Escape leaves the lightbox open', async () => {
+    const user = userEvent.setup()
+    twoPosts()
+    screen.getAllByRole('button', { name: /Open chart 1 of 1/ })[0].focus()
+    await user.keyboard('{Enter}')
+    const close = openModalLayer()
+    await user.keyboard('{Escape}')
+    expect(screen.getByTestId('archive-lightbox')).toBeInTheDocument()
+    close()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('archive-lightbox')).toBeNull()
+  })
+
+  it('when the lightbox closes on Escape, the video player\'s Escape does not also fire', async () => {
+    const user = userEvent.setup()
+    const videoEscape = vi.fn()
+    const off = registerShortcuts({ 'video.escape': videoEscape })
+    try {
+      twoPosts()
+      screen.getAllByRole('button', { name: /Open chart 1 of 1/ })[0].focus()
+      await user.keyboard('{Enter}')
+      await user.keyboard('{Escape}')
+      expect(screen.queryByTestId('archive-lightbox')).toBeNull()
+      expect(videoEscape).not.toHaveBeenCalled()
+      await user.keyboard('{Escape}')                 // nothing open: the video key works as usual
+      expect(videoEscape).toHaveBeenCalledTimes(1)
+    } finally { off() }
   })
 })

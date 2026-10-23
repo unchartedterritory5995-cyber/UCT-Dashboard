@@ -215,7 +215,8 @@ export default function DrillPlayer({
         if (choice != null) { e.preventDefault(); setState({ ...(state || {}), choice }) }
       }
     }
-    return registerShortcuts({ 'drill.keys': onKey })
+    // drill.primary: Enter. drill.choice: a BARE 1-4 (a modified digit is the browser's tab key).
+    return registerShortcuts({ 'drill.primary': onKey, 'drill.choice': onKey })
   }, [open, primary, locked, item, mod, state, setState, confirmOpen])
 
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps

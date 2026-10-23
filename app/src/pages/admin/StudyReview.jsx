@@ -39,6 +39,7 @@ import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
+import { modalLayerOpen } from '../../lib/topLayer'
 import StudyGallery from './StudyGallery'
 import StudyFeedbackPanel from './StudyFeedbackPanel'
 import StudyHubPanel from './StudyHubPanel'
@@ -485,21 +486,26 @@ export default function StudyReview() {
       // The card's keys act on the card only: with the gallery, the feedback list
       // or the hub over it, A would approve a draft nobody can see.
       if (panelOpen) return
+      // ...and with any modal layer over the page (the command palette, a ticker popup), the
+      // layer owns the key. Window capture: when the card acts it claims the press, so the
+      // app-wide video keys (window bubble) never also answer it (review M4).
+      if (modalLayerOpen()) return
+      const claim = () => { e.preventDefault(); e.stopPropagation() }
       const typing = isTypingTarget(e.target)
-      if (e.key === 'Escape' && mode !== 'view') { e.preventDefault(); setMode('view'); return }
+      if (e.key === 'Escape' && mode !== 'view') { claim(); setMode('view'); return }
       if (e.key === 'Enter') {
         if (e.target?.tagName === 'TEXTAREA') return
-        if (mode === 'fix') { e.preventDefault(); saveFix() }
-        else if (mode === 'reject') { e.preventDefault(); confirmReject() }
+        if (mode === 'fix') { claim(); saveFix() }
+        else if (mode === 'reject') { claim(); confirmReject() }
         return
       }
       if (typing) return
       const k = e.key.toLowerCase()
-      if (k === 'a') { e.preventDefault(); if (mode === 'view') approve() }
-      else if (k === 'f') { e.preventDefault(); setMode('fix'); setStatus(null) }
-      else if (k === 'r') { e.preventDefault(); setMode('reject'); setStatus(null) }
-      else if (k === 'n') { e.preventDefault(); go(1) }
-      else if (k === 'p') { e.preventDefault(); go(-1) }
+      if (k === 'a') { claim(); if (mode === 'view') approve() }
+      else if (k === 'f') { claim(); setMode('fix'); setStatus(null) }
+      else if (k === 'r') { claim(); setMode('reject'); setStatus(null) }
+      else if (k === 'n') { claim(); go(1) }
+      else if (k === 'p') { claim(); go(-1) }
     }
     return registerShortcuts({ 'studyReview.card': onKey })
   }, [mode, approve, saveFix, confirmReject, go, panelOpen])

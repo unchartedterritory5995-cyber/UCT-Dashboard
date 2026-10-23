@@ -9,6 +9,7 @@ vi.mock('../../../../components/StockChart', () => ({
 }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchGridWarm: () => {}, prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import ScreenerChartGrid from '../ScreenerChartGrid'
+import { registerShortcuts } from '../../../command/shortcutRegistry'
 import { AuthContext } from '../../../../context/AuthContext'
 
 beforeEach(() => {
@@ -63,4 +64,34 @@ test('Escape closes the layout menu', async () => {
   expect(screen.getByText('Layout')).toBeInTheDocument()
   fireEvent.keyDown(document.body, { key: 'Escape' })
   await waitFor(() => expect(screen.queryByText('Layout')).not.toBeInTheDocument())
+})
+
+// Review M4: one key press is answered by the topmost surface only. A stand-in modal layer (what
+// the command palette or a ticker popup is: role="dialog" aria-modal) opened over the surface, and
+// a live video binding, are the two things that used to answer the same press as well.
+const openModalLayer = () => {
+  const el = document.createElement('div')
+  el.setAttribute('role', 'dialog')
+  el.setAttribute('aria-modal', 'true')
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+test('Escape with a modal layer over the page leaves the menu; alone it closes the menu and nothing else', async () => {
+  localStorage.setItem('uct.screener.gridLayout', '2x2')
+  const videoEscape = vi.fn()
+  const off = registerShortcuts({ 'video.escape': videoEscape })
+  try {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: /2×2/ }))
+    expect(screen.getByText('Layout')).toBeInTheDocument()
+    const close = openModalLayer()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.getByText('Layout')).toBeInTheDocument()
+    close()
+    videoEscape.mockClear()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText('Layout')).not.toBeInTheDocument())
+    expect(videoEscape).not.toHaveBeenCalled()
+  } finally { off() }
 })

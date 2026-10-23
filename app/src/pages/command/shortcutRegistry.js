@@ -346,11 +346,16 @@ export const SHORTCUTS = Object.freeze([
   }),
 
   // -- surface keys migrated off raw listeners (2026-10-23, census back to 111) --
-  // Each is the exact (target, phase) of the raw listener it replaced, auto-repeat on
-  // and inEditable true, because every one of these handlers kept its OWN typing guard
-  // (on `e.target`) and its own key tests. The chord narrows the event only where the
-  // handler already returned: a modifier the handler bailed on is forbidden here, and
-  // a modifier it never looked at is left as don't-care.
+  // Auto-repeat on and inEditable true, because every one of these handlers keeps its OWN
+  // typing guard (on `e.target`) and its own key tests. The chord narrows the event only
+  // where the handler returned anyway, with one deliberate exception (drill.choice, below).
+  //
+  // TOPMOST SURFACE ONLY (2026-10-23, review M4). The three page-level Escape/letter
+  // bindings below listen in the WINDOW CAPTURE phase, act only when they are the top layer
+  // (lib/topLayer.js: no open Sheet or modal dialog above them), and stop propagation when
+  // they act. So one press is answered once: with the palette or a ticker popup open over
+  // them they stand down and the layer answers; when they act, the window-bubble video keys
+  // never see that press. This is the Notebook tour's pattern.
   decl({
     id: 'goldReview.step',
     chord: { keys: [']', '['], ctrl: false, meta: false, alt: false },
@@ -361,18 +366,19 @@ export const SHORTCUTS = Object.freeze([
   decl({
     id: 'studyReview.card',
     chord: { keys: ['Escape', 'Enter', 'a', 'f', 'r', 'n', 'p'], fold: true, ctrl: false, meta: false, alt: false },
-    target: 'window', capture: false, inEditable: true, repeat: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
     why: 'The admin study review card: A approve, F fix, R reject, N / P next / previous, '
       + 'Enter saves the open fix or reject, Escape leaves it. Bound while the review is '
-      + 'mounted; the handler ignores every key while a panel is over the card, and the '
-      + 'letters while typing.',
+      + 'mounted; the handler ignores every key while a panel or any modal layer is over the '
+      + 'card, and the letters while typing. Window capture, stops propagation when it acts.',
   }),
   decl({
     id: 'screener.gridMenuClose',
     chord: { keys: ['Escape'] },
-    target: 'window', capture: false, inEditable: true, repeat: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
     why: 'Escape closes the layout menu on the screener Charts view, as the /charts header '
-      + 'menus do. Bound only while that menu is open.',
+      + 'menus do. Bound only while that menu is open, and it acts only with no modal layer '
+      + 'open above the page. Window capture, stops propagation when it acts.',
   }),
   decl({
     id: 'screener.gridPage',
@@ -382,19 +388,29 @@ export const SHORTCUTS = Object.freeze([
       + 'in the view. The handler leaves the key alone while typing in a field.',
   }),
   decl({
-    id: 'drill.keys',
-    chord: { keys: ['Enter', '1', '2', '3', '4'] },
+    id: 'drill.primary',
+    chord: { keys: ['Enter'] },
     target: 'document', capture: false, inEditable: true, repeat: true,
-    why: 'In a study drill, 1 to 4 pick a choice and Enter is the one Check / Continue button. '
-      + 'Bound only while the drill is open; the handler keeps a textarea\'s Enter and every '
-      + 'key typed in a field.',
+    why: 'In a Desk drill, Enter is the one Check / Continue button. Bound only while the drill '
+      + 'is open; the handler keeps a textarea\'s Enter and the on-screen keyboard\'s cursor.',
+  }),
+  decl({
+    // UNMODIFIED, unlike the raw listener (review M4): Ctrl/Cmd+1..4 is the browser's own
+    // tab switch and Alt+1..4 the terminal's panel keys, so a modified digit used to do two
+    // things at once. Now only a bare 1..4 picks a choice (the video keys' 2026-09-28 rule).
+    id: 'drill.choice',
+    chord: { keys: ['1', '2', '3', '4'], ctrl: false, meta: false, alt: false },
+    target: 'document', capture: false, inEditable: true, repeat: true,
+    why: 'In a Desk drill, a bare 1 to 4 picks that choice. Bound only while the drill is open; '
+      + 'the handler leaves every key typed in a field alone.',
   }),
   decl({
     id: 'archive.lightboxClose',
     chord: { keys: ['Escape'] },
-    target: 'window', capture: false, inEditable: true, repeat: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
     why: 'Escape closes the full-size chart opened from a trader archive post. Bound only '
-      + 'while that image is open.',
+      + 'while that image is open, and it acts only while that lightbox is the topmost layer. '
+      + 'Window capture, stops propagation when it acts.',
   }),
 ])
 
@@ -447,20 +463,20 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
       + 'tour trap acts only when focus is leaving its own modal card.',
   }),
 
-  // -- 2026-10-23: the overlaps the surface-key migration made VISIBLE. Every one of
-  // these existed, byte for byte, while the five files held raw listeners; declaring
-  // the bindings is what let this rail see them. None is new behaviour.
-  ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'preexisting',
-    `Escape matches both. ${SURFACE_WHAT[id]} The palette's close does not stop `
-      + 'propagation, so with the palette opened over it one Escape closes both layers, '
-      + 'exactly as the raw listener did before it moved here.')),
-  ...SURFACE_ESCAPES.map((id) => ack([id, 'video.escape'], 'preexisting',
-    `Escape matches both. ${SURFACE_WHAT[id]} With the app-wide video player active `
-      + 'one Escape also leaves fullscreen; unchanged from the raw listener.')),
-  ...SURFACE_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'propagation',
-    `Escape matches both. When a Notebook tour card is the topmost layer the tour stops `
-      + 'propagation in the window capture phase, so this window-bubble binding never sees '
-      + 'that press; otherwise the tour lets the key through.')),
+  // -- 2026-10-23: the overlaps the surface-key migration made visible to this rail. The
+  // chords still overlap (that is what this list records); since review M4 none of these is
+  // a double action: each says which ONE binding answers the press.
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'layer',
+    `Escape matches both. ${SURFACE_WHAT[id]} It acts only with no modal layer above it, `
+      + 'and the open palette is one, so with the palette over it this binding stands down '
+      + 'and only the palette closes.')),
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'video.escape'], 'propagation',
+    `Escape matches both. ${SURFACE_WHAT[id]} It listens in the window capture phase and `
+      + 'stops propagation when it acts, so the video binding (window bubble) never sees that '
+      + 'press; when it does not act, the video key works as usual.')),
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'surface',
+    'Escape matches both. The tour runs only on the Notebook, which never mounts this '
+      + 'binding; and if both were live, each acts only when it is the topmost layer.')),
   ack(['archive.lightboxClose', 'screener.gridMenuClose'], 'surface',
     'Escape matches both. One is on the trader archive, the other on the screener Charts '
       + 'view; they are never mounted on the same page.'),
@@ -470,29 +486,24 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   ack(['screener.gridMenuClose', 'studyReview.card'], 'surface',
     'Escape matches both. One is on the screener, the other on the admin pattern review; '
       + 'they are never mounted on the same page.'),
-  ack(['studyReview.card', 'video.fullscreen'], 'preexisting',
-    'F matches both. With the app-wide video player active on the admin study review, F '
-      + 'opens the card\'s fix mode and also toggles fullscreen, as the raw listener did.'),
-  ack(['chords:SHIFT_F', 'studyReview.card'], 'preexisting',
-    'Shift+F matches both (the card folds case, so Shift+F is its F). Shift+F flags a '
-      + 'ticker only while a chart pane or ticker popup that owns it is open; if one is '
-      + 'open over the review card both act, as before the migration.'),
+  ack(['studyReview.card', 'video.fullscreen'], 'propagation',
+    'F matches both. The card listens in the window capture phase and stops propagation '
+      + 'when it acts, so with the video player active F opens the card\'s fix mode only.'),
+  ack(['chords:SHIFT_F', 'studyReview.card'], 'layer',
+    'Shift+F matches both (the card folds case, so Shift+F is its F). The ticker popup that '
+      + 'owns Shift+F is a modal layer, and the card stands down while one is open, so only '
+      + 'the popup flags the ticker; with no popup, Shift+F is the card\'s F.'),
   ack(['notebook.toggleChevron', 'studyReview.card'], 'focus',
     'Enter matches both. The chevron binding acts only when Enter was pressed on a '
       + 'collapsible block\'s arrow button inside a note editor, which the review card '
       + 'never contains; otherwise it lets Enter through.'),
-  ack(['drill.keys', 'notebook.toggleChevron'], 'focus',
+  ack(['drill.primary', 'notebook.toggleChevron'], 'focus',
     'Enter matches both. The chevron binding acts only when Enter was pressed on a '
       + 'collapsible block\'s arrow button inside a note editor, which a drill never '
       + 'contains; otherwise it lets Enter through.'),
-  ack(['drill.keys', 'studyReview.card'], 'surface',
+  ack(['drill.primary', 'studyReview.card'], 'surface',
     'Enter matches both. A drill opens only from the Desk (CoursesSection), the review card lives '
       + 'on the admin pattern review; they are never mounted on the same page.'),
-  ...[1, 2, 3, 4].flatMap((n) => ['panel', 'count'].map((kind) => ack(
-    ['drill.keys', `terminal.${kind}${n}`], 'surface',
-    `Alt${kind === 'count' ? '+Shift' : ''}+${n} can match both (the drill's digit keys never `
-      + 'looked at modifiers). The terminal keys are bound only by the UCT Terminal shell, '
-      + 'and a drill opens only from the Desk (CoursesSection); they are never mounted together.'))),
 ])
 
 // ── conflict detection ───────────────────────────────────────────────────────

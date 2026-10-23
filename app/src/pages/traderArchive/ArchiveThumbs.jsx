@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ARCHIVE_API } from '../../utils/traderArchive'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import useFocusTrap from '../../components/mobile/useFocusTrap'
+import { isTopmostLayer } from '../../lib/topLayer'
 import styles from './TraderArchive.module.css'
 
 export const imageUrl = (id) => `${ARCHIVE_API}/image/${encodeURIComponent(id)}`
@@ -34,7 +35,16 @@ export default function ArchiveThumbs({ ids, max = 4, label = 'Chart' }) {
 
   useEffect(() => {
     if (!open) return undefined
-    return registerShortcuts({ 'archive.lightboxClose': () => setOpen(null) })
+    // Only while this lightbox is the top layer (a palette opened over it takes Escape), and
+    // then it claims the press (window capture), so the video player's Escape never also fires.
+    return registerShortcuts({
+      'archive.lightboxClose': (e) => {
+        if (!isTopmostLayer(boxRef.current)) return
+        e.preventDefault()
+        e.stopPropagation()
+        setOpen(null)
+      },
+    })
   }, [open])
 
   if (!shown.length) return null
