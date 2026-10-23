@@ -172,3 +172,23 @@ def test_merge_without_counts_weights_by_trade_count(monkeypatch):
     e = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: rows)["VCP"]
     assert e["n"] == 4 and e["avg_r"] == 0.5 and e["win_rate"] == 0.75 and e["total_r"] is None
 
+
+def test_merged_avg_r_weights_by_the_trades_that_carry_an_r(monkeypatch):
+    """M-B: avg_r is a mean over R-bearing trades (_aggregate_trades), so the merge weights by
+    r_count, not trade_count. Bull Flag n=20 with 2 R (+2.0), flag n=10 all R (-1.0): pooled
+    (4 - 10) / 12 = -0.5R, never (40 - 10) / 30 = +1.0R."""
+    monkeypatch.setattr(pe, "normalize_setup", lambda s: "FLAG")
+    rows = [{"key": "Bull Flag", "trade_count": 20, "r_count": 2, "avg_r": 2.0},
+            {"key": "flag", "trade_count": 10, "r_count": 10, "avg_r": -1.0}]
+    e = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: rows)["FLAG"]
+    assert e["n"] == 30 and abs(e["avg_r"] - (-0.5)) < 1e-9
+    assert e["verdict"] == "weak" and e["muted"] is True
+
+
+def test_the_breakdown_rows_carry_r_count():
+    from api.services.journal_two import coach_chat_tools as cct
+    trades = [{"setup": "Flag", "result": "Win", "r_multiple": 1.0, "pnl_dollar": 1.0, "pnl_percent": 0.01},
+              {"setup": "Flag", "result": "Loss", "r_multiple": None, "pnl_dollar": -1.0, "pnl_percent": -0.01}]
+    row = cct._breakdown_trades(trades, "setup")[0]
+    assert row["trade_count"] == 2 and row["r_count"] == 1
+

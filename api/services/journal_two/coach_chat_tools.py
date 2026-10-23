@@ -120,7 +120,10 @@ def _breakdown_trades(trades: list[dict], dimension: str) -> list[dict]:
     out = []
     for k, group in buckets.items():
         agg = coach_data_assembler._aggregate_trades(group)
-        out.append({"key": k, **agg})
+        # r_count: the trades avg_r is a mean over (those carrying an r_multiple), so a merge of
+        # two buckets can weight avg_r correctly (personal_edge, review M-B).
+        r_count = sum(1 for t in group if t.get("r_multiple") is not None)
+        out.append({"key": k, **agg, "r_count": r_count})
     out.sort(key=lambda b: b.get("net_pnl_dollar") or 0, reverse=True)
     return out
 

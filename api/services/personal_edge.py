@@ -118,7 +118,8 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
     except Exception:  # noqa: BLE001
         return {}
     # Merge first (M-5): two journal spellings that normalize to one key are ONE setup. Sums are
-    # exact (n, total_r, wins/losses); avg_r and a count-less win_rate are trade-count weighted.
+    # exact (n, total_r, wins/losses); avg_r is weighted by R-bearing trades (r_count, M-B); a
+    # count-less win_rate is trade-count weighted.
     merged: dict[str, dict] = {}
     for r in rows:
         raw = r.get("setup") or r.get("key") or ""  # 'key' = _breakdown_trades bucket
@@ -139,9 +140,15 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
                                     "wins": 0, "losses": 0, "counted": True,
                                     "wr_sum": 0.0, "wr_n": 0})
         m["n"] += n
-        if avg_r is not None and n:
-            m["r_sum"] += avg_r * n
-            m["r_n"] += n
+        # avg_r is a mean over the trades that CARRY an R (_aggregate_trades), so weight by
+        # r_count when the row has it; a row without it falls back to its trade count.
+        try:
+            rn = int(r["r_count"]) if r.get("r_count") is not None else n
+        except (TypeError, ValueError):
+            rn = n
+        if avg_r is not None and rn:
+            m["r_sum"] += avg_r * rn
+            m["r_n"] += rn
         if tr is not None:
             m["total_r"] = (m["total_r"] or 0.0) + tr
         if r.get("wins") is not None and r.get("losses") is not None:
