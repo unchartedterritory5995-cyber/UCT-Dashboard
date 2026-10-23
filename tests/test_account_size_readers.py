@@ -175,15 +175,31 @@ def test_calendar_pnl_pct_rests_on_the_authority(conn):
     assert out["days"][-1]["pnlPercent"] == pytest.approx(500 / 100_000)
 
 
-def test_calendar_all_accounts_sums_only_member_set_sizes(conn):
+def test_calendar_all_accounts_matches_base_arithmetic(conn):
+    """Fix round 2 ruling: the All Accounts denominator is base's SUM(account_size) over every
+    account, placeholder included (an unset account adds the 100,000 default, equal to the base
+    placeholder). Flagged default when any term was the default."""
     from api.services.journal_two import accounts, calendar as cal
-    _member(conn, "ca3", typed=40_000)
-    accounts.create_account("ca3", {"name": "Second", "color": "teal", "startingBalance": 1},
-                            conn=conn)                              # the placeholder, unset
-    assert cal._account_size_basis("ca3", conn) == (40_000.0, False)   # never 140,000
+    from api.services.journal_two.broker import balances
+    # two unset accounts: base SUM = 100,000 + 100,000
+    _member(conn, "ca3")
+    accounts.create_account("ca3", {"name": "Second", "color": "teal", "startingBalance": 1}, conn=conn)
+    assert cal._account_size_basis("ca3", conn) == (200_000.0, True)
+    # unused placeholder Default + a $20,000 broker account: base SUM = 100,000 + 20,000
     _member(conn, "ca4")
-    assert cal._account_size_basis("ca4", conn) == (UNSET, True)       # none set: unset
-    assert cal._account_size_basis("nobody", conn) == (UNSET, True)    # no account at all
+    b = accounts.create_account("ca4", {"name": "Broker", "color": "teal", "startingBalance": 1}, conn=conn)
+    balances.write_balances("ca4", {"id": "ba", "j2AccountId": b["id"]}, [], [], conn=conn,
+                            broker_total=20_000.0)
+    assert cal._account_size_basis("ca4", conn) == (120_000.0, True)
+    # set 40,000 + a placeholder second account: base SUM = 140,000
+    _member(conn, "ca5", typed=40_000)
+    accounts.create_account("ca5", {"name": "Second", "color": "teal", "startingBalance": 1}, conn=conn)
+    assert cal._account_size_basis("ca5", conn) == (140_000.0, True)
+    # every account set: not default
+    _member(conn, "ca6", typed=40_000)
+    assert cal._account_size_basis("ca6", conn) == (40_000.0, False)
+    # no account and no legacy row: base fallback 100,000
+    assert cal._account_size_basis("nobody", conn) == (UNSET, True)
 
 
 # ── Intelligence, chart plan, simulator, grade ───────────────────────────────────────────────

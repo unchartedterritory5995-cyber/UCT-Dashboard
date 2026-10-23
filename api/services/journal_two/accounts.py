@@ -194,38 +194,57 @@ def read_member_account_size(
             conn.close()
 
 
+def _enforcement_size(src) -> tuple[float, bool]:
+    """(size, is_default) exactly as base enforcement read it (`float(raw or 0)`), except that an
+    unset size is the ONE default (UNSET_ACCOUNT_SIZE, equal to the base placeholder), flagged.
+    A non-positive size stays what it is, so the checks it switched off stay off."""
+    size, marked = _size_and_marker(src)
+    own = member_set_account_size(size, marked)
+    if own is not None:
+        return float(own), False
+    try:
+        v = float(size or 0)
+    except (TypeError, ValueError):
+        v = 0.0
+    if v > 0:
+        return _unset_account_size(), True
+    return v, False
+
+
 def account_size_basis(
     user_id: str,
     conn: sqlite3.Connection | None = None,
     *,
     account_id: str | None = None,
 ) -> tuple[float, bool]:
-    """READ-ONLY: (size, is_default) for one account, or for All Accounts when `account_id` is
-    None or names no account of this member. All Accounts sums only the member-set sizes; when
-    none is set (or there is no account, and the legacy j2_settings row holds no member size) it
-    is UNSET_ACCOUNT_SIZE flagged default."""
+    """READ-ONLY: (size, is_default) for the calendar P&L %, with base arithmetic (fix round 2):
+    one account = its size; All Accounts (no id, or an id naming no account of this member) =
+    the SUM over every account, placeholder included (an unset account adds the default, which
+    equals the base placeholder); a zero sum falls back to the legacy j2_settings size, then to
+    the default. `is_default` is True when any term was the default."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         if account_id:
             one = _size_rows(conn, "id = ? AND user_id = ?", (account_id, user_id))
             if one:
-                return account_size_of(one[0])
-        rows = _size_rows(conn, "user_id = ?", (user_id,))
-        owns = [v for v in (own_account_size(r) for r in rows) if v is not None]
-        if owns:
-            return float(sum(owns)), False
-        if not rows:
-            legacy = conn.execute(
-                "SELECT data FROM j2_settings WHERE user_id = ?", (user_id,),
-            ).fetchone()
-            try:
-                data = json.loads(tuple(legacy)[0]) if legacy is not None else None
-            except (TypeError, ValueError):
-                data = None
-            if isinstance(data, dict):
-                return account_size_of(data)
-        return account_size_of(None)
+                return _enforcement_size(one[0])
+        terms = [_enforcement_size(r) for r in _size_rows(conn, "user_id = ?", (user_id,))]
+        total = sum(v for v, _d in terms)
+        if total:
+            return float(total), any(d for _v, d in terms)
+        legacy = conn.execute(
+            "SELECT data FROM j2_settings WHERE user_id = ?", (user_id,),
+        ).fetchone()
+        if legacy is None:
+            return _unset_account_size(), True
+        try:
+            data = json.loads(tuple(legacy)[0])
+        except (TypeError, ValueError):
+            return _unset_account_size(), True
+        if not isinstance(data, dict) or not isinstance(data.get("accountSize"), (int, float)):
+            return _unset_account_size(), True
+        return _enforcement_size(data)
     finally:
         if owned:
             conn.close()
