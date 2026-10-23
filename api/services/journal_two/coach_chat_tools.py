@@ -345,6 +345,8 @@ def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
     start, end = _trades_range_to_iso(days)
     trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
+    # No settings (the unified '_all_' scope) or a size of 0 or less is 0 here, as on base, so the
+    # curve answers "not configured" instead of bucketing every account on one size (fix round 2).
     account_size, size_is_default = accounts_service.account_size_of(settings)
     if account_size <= 0:
         return {"buckets": [], "note": "account size not configured"}

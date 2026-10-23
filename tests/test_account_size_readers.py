@@ -356,3 +356,13 @@ def test_the_predicate_keeps_a_marked_non_positive_size_as_base_did():
     assert accounts.member_set_account_size(-2_000, True) == -2_000.0
     assert accounts.member_set_account_size(-2_000) == -2_000.0      # base returned it too
     assert accounts.member_set_account_size(0, True) is None          # base: `not v`
+
+
+def test_unified_sizing_curve_is_base_not_configured(conn):
+    """'_all_' has no account settings; base answered "account size not configured" rather than
+    bucketing every account's trades on one size."""
+    from api.services.journal_two import coach_chat_tools as cct
+    aid = _member(conn, "uc1", typed=40_000)
+    _trade(conn, "uc1", aid, pnl=-100)
+    assert cct._exec_analyze_sizing_curve(user_id="uc1", account_id="_all_", args={}, conn=conn) == \
+        {"buckets": [], "note": "account size not configured"}
