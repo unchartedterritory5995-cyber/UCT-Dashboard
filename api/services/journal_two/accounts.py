@@ -60,8 +60,29 @@ _DEFAULT_ACCOUNT_SIZE = 100_000.0
 
 
 def member_set_account_size(size) -> float | None:
-    """The size the MEMBER set, or None when it is unset. THE one predicate every sizing reader
-    (heat, voice sizing / validate_trade, the Notebook positions widget) asks.
+    """The size the MEMBER set, or None when it is unset.
+
+    It is the home for FIVE readers, and only these: portfolio_heat (its default reader),
+    voice_position_sizing._get_account_settings, validate_trade (through it), the Notebook
+    myPositionsRisk widget, and AI Search's EXPOSURE line (through heat's flag). Unset there means
+    voice_position_sizing.UNSET_ACCOUNT_SIZE (25,000), flagged default.
+
+    ⚠️ KNOWN DISAGREEMENTS, not migrated (fix round 4 ruling: moving them would change Compass
+    pre-trade and coach sizing numbers for most members, a separate change). These still read the
+    RAW size, so an unset member's migrated placeholder reads as a real 100,000, or use their own
+    default:
+      - journal_two/pre_trade_verdict.py:111, :367 (Compass pre-trade hard checks)
+      - journal_two/coach_chat_tools.py:340 (sizing curve), :485 (claimed-risk check), :732
+      - journal_two/coach_data_assembler.py:344 (per-trade cap and daily-loss checks)
+      - journal_two/interventions.py:151, :272 (daily-loss tilt threshold)
+      - journal_two/discipline.py:52 (daily loss cap)
+      - journal_two/calendar.py:155-185 (P&L %; sums every account when no id is given;
+        its own fallback is 100,000)
+      - routers/intelligence.py:293 (size_pct)
+      - routers/notebook_chart_alerts.py:113 via journal_two/chart_plan.compass_size
+      - scenario_simulator.py:98
+      - grade_ticker.py:30, :162 (its own default, 50,000, used by grade_watchlist and the
+        coach/voice grade tools whenever no account_size is passed)
 
     Unset = missing, zero, non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE`: the migration writes
     that placeholder into the Default row, and nothing in j2_accounts records a member edit, so a
@@ -69,7 +90,8 @@ def member_set_account_size(size) -> float | None:
     unset (fix round 2 ruling, 2026-10-23).
 
     ⚠️ KNOWN LIMIT, accepted (fix round 3 ruling, no schema change): a member who really sets
-    exactly 100,000 is treated as unset everywhere (sized at UNSET_ACCOUNT_SIZE, labelled default),
+    exactly 100,000 is treated as unset by the five readers above (sized at UNSET_ACCOUNT_SIZE,
+    labelled default),
     because nothing stored can tell their choice from the placeholder."""
     try:
         v = float(size)
