@@ -401,10 +401,24 @@ def test_vi_a_declared_prefix_matching_NOTHING_is_stale(app, monkeypatch):
     assert res["ok"] is False
 
 
-def _dist_registrations_from_main_py() -> dict[str, str]:
+#: The `app.<attr>(path, ...)` calls that register a path. Only these are
+#: required to resolve: `@app.exception_handler(SomeError)` is not a path.
+_ROUTE_ATTRS = frozenset({"get", "post", "put", "patch", "delete", "head", "options",
+                          "api_route", "route", "websocket", "mount"})
+
+
+class UnresolvedDistPath(AssertionError):
+    pass
+
+
+def _dist_registrations_from_main_py(src: str | None = None) -> dict[str, str]:
     """`{path: "route"|"mount"}` for what api/main.py registers ONLY under
-    `if os.path.exists(DIST):`, read by AST -- never typed here."""
-    tree = ast.parse((REPO / "api" / "main.py").read_text(encoding="utf-8"))
+    `if os.path.exists(DIST):`, read by AST -- never typed here.
+
+    ⛔ A path expression it cannot resolve (an f-string, a call, an imported
+    name) RAISES, naming the line, instead of being skipped: a skipped route is
+    one the census never sees."""
+    tree = ast.parse(src if src is not None else (REPO / "api" / "main.py").read_text(encoding="utf-8"))
 
     def is_dist_guard(test):
         return (isinstance(test, ast.Call) and isinstance(test.func, ast.Attribute)
@@ -442,24 +456,65 @@ def _dist_registrations_from_main_py() -> dict[str, str]:
         # declare `/x/` apart from `/x`.
         return path if path == rlp.SPA_CATCH_ALL else (path.rstrip("/") or "/")
 
+    unresolved: list[str] = []
+
+    def path_of(call):
+        """The resolved path of an `app.<route attr>(path, ...)` call, else None."""
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Name) and call.func.value.id == "app"
+                and call.func.attr in _ROUTE_ATTRS and call.args):
+            return None
+        path = resolve(call.args[0])
+        if path is None:
+            unresolved.append(f"main.py:{call.lineno} app.{call.func.attr}({ast.unparse(call.args[0])})")
+        return path
+
     def collect(node):
         for sub in ast.walk(node):
             if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for dec in sub.decorator_list:
-                    if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
-                            and isinstance(dec.func.value, ast.Name) and dec.func.value.id == "app"
-                            and dec.args and resolve(dec.args[0]) is not None):
-                        out[norm(resolve(dec.args[0]))] = "route"
-            if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
-                    and sub.func.attr == "mount" and isinstance(sub.func.value, ast.Name)
-                    and sub.func.value.id == "app" and sub.args
-                    and resolve(sub.args[0]) is not None):
-                out[norm(resolve(sub.args[0]))] = "mount"
+                    path = path_of(dec)
+                    if path is not None:
+                        out[norm(path)] = "route"
+            if isinstance(sub, ast.Call) and getattr(sub.func, "attr", None) == "mount":
+                path = path_of(sub)
+                if path is not None:
+                    out[norm(path)] = "mount"
 
     for node in tree.body:
         if isinstance(node, ast.If) and is_dist_guard(node.test):
             collect(node)
+    if unresolved:
+        raise UnresolvedDistPath(
+            "these DIST-guard registrations have a path the census reader cannot resolve, so it "
+            "would never see them; write the path as a literal or a module-level string constant: "
+            + "; ".join(unresolved))
     return out
+
+
+def test_vi_the_DIST_reader_resolves_every_path_in_main_py():
+    # The real file: every app.<route>(path) under the DIST guard resolved (no raise).
+    assert rlp.SPA_CATCH_ALL in _dist_registrations_from_main_py()
+
+
+def test_THE_CONTROL_an_unresolvable_DIST_path_fails_by_name():
+    src = "\n".join([
+        "import os",
+        "P = '/known'",
+        "if os.path.exists(DIST):",
+        "    @app.get(P + '/ok')",
+        "    def ok(): pass",
+        "    @app.get(f'/x/{P}')",
+        "    def bad(): pass",
+        "    app.mount(make_path(), None)",
+        "    @app.exception_handler(ValueError)",
+        "    def handler(): pass",
+    ]) + "\n"
+    with pytest.raises(UnresolvedDistPath) as exc:
+        _dist_registrations_from_main_py(src)
+    msg = str(exc.value)
+    assert "main.py:6 app.get(f'/x/{P}')" in msg and "main.py:8 app.mount(make_path())" in msg, msg
+    assert "exception_handler" not in msg, msg     # not a path, so not required to resolve
 
 
 def _dist_only_from_main_py() -> set[str]:
