@@ -38,6 +38,7 @@ import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import styles from './StudyReview.module.css'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import StudyGallery from './StudyGallery'
 import StudyFeedbackPanel from './StudyFeedbackPanel'
 import StudyHubPanel from './StudyHubPanel'
@@ -477,6 +478,7 @@ export default function StudyReview() {
     }
   }, [mutate])
 
+  // The card's keys, bound through the shortcut registry (studyReview.card).
   useEffect(() => {
     function onKey(e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
@@ -499,8 +501,7 @@ export default function StudyReview() {
       else if (k === 'n') { e.preventDefault(); go(1) }
       else if (k === 'p') { e.preventDefault(); go(-1) }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return registerShortcuts({ 'studyReview.card': onKey })
   }, [mode, approve, saveFix, confirmReject, go, panelOpen])
 
   const trust = sel ? trustFor(sel.type) : null

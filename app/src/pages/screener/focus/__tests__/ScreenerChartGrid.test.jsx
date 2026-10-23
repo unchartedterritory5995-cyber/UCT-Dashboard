@@ -1,6 +1,6 @@
 // The Charts view mounts the REAL /charts Multi-Chart grid (only the canvas is stubbed): the
 // screener host must supply everything the grid and its cells read, or a cell renders dead.
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
@@ -26,4 +26,41 @@ test('the real grid charts the first page of results through its mount queue', a
   await waitFor(() => expect(screen.getAllByTestId('stockchart')).toHaveLength(4))
   expect(screen.getAllByTestId('stockchart').map(c => c.dataset.sym)).toEqual(['R0', 'R1', 'R2', 'R3'])
   expect(screen.getByText(/1–4 of 6/)).toBeInTheDocument()
+})
+
+// The view's two window keys (PageDown/PageUp turn the page, Escape closes the layout menu)
+// moved onto the shortcut registry; these keep what each key DOES on screen.
+const mount = () => render(<MemoryRouter><AuthContext.Provider value={{ user: { role: 'member' } }}><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+  <ScreenerChartGrid rows={rows(6)} total={6} hasMore={false} onLoadMore={() => {}} resetKey="k" />
+</SWRConfig></AuthContext.Provider></MemoryRouter>)
+
+test('PageDown and PageUp turn the page of charts from anywhere in the view', async () => {
+  localStorage.setItem('uct.screener.gridLayout', '2x2')
+  mount()
+  await waitFor(() => expect(screen.getByText(/1–4 of 6/)).toBeInTheDocument())
+  fireEvent.keyDown(document.body, { key: 'PageDown' })
+  await waitFor(() => expect(screen.getByText(/5–6 of 6/)).toBeInTheDocument())
+  fireEvent.keyDown(document.body, { key: 'PageUp' })
+  await waitFor(() => expect(screen.getByText(/1–4 of 6/)).toBeInTheDocument())
+})
+
+test('PageDown typed in a text field leaves the page where it is', async () => {
+  localStorage.setItem('uct.screener.gridLayout', '2x2')
+  mount()
+  await waitFor(() => expect(screen.getByText(/1–4 of 6/)).toBeInTheDocument())
+  const input = document.createElement('input')
+  document.body.appendChild(input)
+  fireEvent.keyDown(input, { key: 'PageDown' })
+  expect(screen.getByText(/1–4 of 6/)).toBeInTheDocument()
+  input.remove()
+})
+
+test('Escape closes the layout menu', async () => {
+  localStorage.setItem('uct.screener.gridLayout', '2x2')
+  mount()
+  const toggle = await screen.findByRole('button', { expanded: false })
+  fireEvent.click(toggle)
+  expect(screen.getByText('Layout')).toBeInTheDocument()
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByText('Layout')).not.toBeInTheDocument())
 })

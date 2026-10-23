@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 
 import { ARCHIVE_API } from '../../utils/traderArchive'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import styles from './TraderArchive.module.css'
 
 export const imageUrl = (id) => `${ARCHIVE_API}/image/${encodeURIComponent(id)}`
@@ -17,9 +18,7 @@ export default function ArchiveThumbs({ ids, max = 4, label = 'Chart' }) {
 
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(null) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return registerShortcuts({ 'archive.lightboxClose': () => setOpen(null) })
   }, [open])
 
   if (!shown.length) return null

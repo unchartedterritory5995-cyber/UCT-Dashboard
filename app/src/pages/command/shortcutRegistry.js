@@ -344,6 +344,58 @@ export const SHORTCUTS = Object.freeze([
       + 'while a note editor exists; the handler acts ONLY when the key was pressed on that '
       + 'button and otherwise lets Enter through untouched.',
   }),
+
+  // -- surface keys migrated off raw listeners (2026-10-23, census back to 111) --
+  // Each is the exact (target, phase) of the raw listener it replaced, auto-repeat on
+  // and inEditable true, because every one of these handlers kept its OWN typing guard
+  // (on `e.target`) and its own key tests. The chord narrows the event only where the
+  // handler already returned: a modifier the handler bailed on is forbidden here, and
+  // a modifier it never looked at is left as don't-care.
+  decl({
+    id: 'goldReview.step',
+    chord: { keys: [']', '['], ctrl: false, meta: false, alt: false },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: '] and [ step to the next / previous item on the admin gold-set review. Bound while '
+      + 'that review is mounted; the handler skips the key while typing in a field.',
+  }),
+  decl({
+    id: 'studyReview.card',
+    chord: { keys: ['Escape', 'Enter', 'a', 'f', 'r', 'n', 'p'], fold: true, ctrl: false, meta: false, alt: false },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: 'The admin study review card: A approve, F fix, R reject, N / P next / previous, '
+      + 'Enter saves the open fix or reject, Escape leaves it. Bound while the review is '
+      + 'mounted; the handler ignores every key while a panel is over the card, and the '
+      + 'letters while typing.',
+  }),
+  decl({
+    id: 'screener.gridMenuClose',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: 'Escape closes the layout menu on the screener Charts view, as the /charts header '
+      + 'menus do. Bound only while that menu is open.',
+  }),
+  decl({
+    id: 'screener.gridPage',
+    chord: { keys: ['PageDown', 'PageUp'] },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: 'PageDown / PageUp turn the page of charts on the screener Charts view from anywhere '
+      + 'in the view. The handler leaves the key alone while typing in a field.',
+  }),
+  decl({
+    id: 'drill.keys',
+    chord: { keys: ['Enter', '1', '2', '3', '4'] },
+    target: 'document', capture: false, inEditable: true, repeat: true,
+    why: 'In a study drill, 1 to 4 pick a choice and Enter is the one Check / Continue button. '
+      + 'Bound only while the drill is open; the handler keeps a textarea\'s Enter and every '
+      + 'key typed in a field.',
+  }),
+  decl({
+    id: 'archive.lightboxClose',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: 'Escape closes the full-size chart opened from a trader archive post. Bound only '
+      + 'while that image is open.',
+  }),
 ])
 
 const BY_ID = new Map(SHORTCUTS.map((d) => [d.id, d]))
@@ -357,6 +409,16 @@ export const shortcutById = (id) => BY_ID.get(id) || null
  * chord tables (`pages/command/chords.js::CHORDS`,
  * `components/chart/keyboardShortcuts.js::INDICATOR_CHORDS`), adapted in the rail.
  */
+const ack = (ids, kind, why) => Object.freeze({ ids, kind, why })
+
+/** The three surface Escape bindings, and what each one closes (for the overlap reasons). */
+const SURFACE_ESCAPES = ['archive.lightboxClose', 'screener.gridMenuClose', 'studyReview.card']
+const SURFACE_WHAT = {
+  'archive.lightboxClose': 'The archive lightbox closes on it while its image is open.',
+  'screener.gridMenuClose': 'The screener layout menu closes on it while the menu is open.',
+  'studyReview.card': 'The study review card leaves its fix or reject mode on it.',
+}
+
 export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   Object.freeze({
     ids: ['palette.close', 'video.escape'],
@@ -384,6 +446,53 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
     why: 'Tab matches both. The palette pins focus to its own input while it is open; the '
       + 'tour trap acts only when focus is leaving its own modal card.',
   }),
+
+  // -- 2026-10-23: the overlaps the surface-key migration made VISIBLE. Every one of
+  // these existed, byte for byte, while the five files held raw listeners; declaring
+  // the bindings is what let this rail see them. None is new behaviour.
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'preexisting',
+    `Escape matches both. ${SURFACE_WHAT[id]} The palette's close does not stop `
+      + 'propagation, so with the palette opened over it one Escape closes both layers, '
+      + 'exactly as the raw listener did before it moved here.')),
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'video.escape'], 'preexisting',
+    `Escape matches both. ${SURFACE_WHAT[id]} With the app-wide video player active `
+      + 'one Escape also leaves fullscreen; unchanged from the raw listener.')),
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'propagation',
+    `Escape matches both. When a Notebook tour card is the topmost layer the tour stops `
+      + 'propagation in the window capture phase, so this window-bubble binding never sees '
+      + 'that press; otherwise the tour lets the key through.')),
+  ack(['archive.lightboxClose', 'screener.gridMenuClose'], 'surface',
+    'Escape matches both. One is on the trader archive, the other on the screener Charts '
+      + 'view; they are never mounted on the same page.'),
+  ack(['archive.lightboxClose', 'studyReview.card'], 'surface',
+    'Escape matches both. One is on the trader archive, the other on the admin pattern '
+      + 'review; they are never mounted on the same page.'),
+  ack(['screener.gridMenuClose', 'studyReview.card'], 'surface',
+    'Escape matches both. One is on the screener, the other on the admin pattern review; '
+      + 'they are never mounted on the same page.'),
+  ack(['studyReview.card', 'video.fullscreen'], 'preexisting',
+    'F matches both. With the app-wide video player active on the admin study review, F '
+      + 'opens the card\'s fix mode and also toggles fullscreen, as the raw listener did.'),
+  ack(['chords:SHIFT_F', 'studyReview.card'], 'preexisting',
+    'Shift+F matches both (the card folds case, so Shift+F is its F). Shift+F flags a '
+      + 'ticker only while a chart pane or ticker popup that owns it is open; if one is '
+      + 'open over the review card both act, as before the migration.'),
+  ack(['notebook.toggleChevron', 'studyReview.card'], 'focus',
+    'Enter matches both. The chevron binding acts only when Enter was pressed on a '
+      + 'collapsible block\'s arrow button inside a note editor, which the review card '
+      + 'never contains; otherwise it lets Enter through.'),
+  ack(['drill.keys', 'notebook.toggleChevron'], 'focus',
+    'Enter matches both. The chevron binding acts only when Enter was pressed on a '
+      + 'collapsible block\'s arrow button inside a note editor, which a drill never '
+      + 'contains; otherwise it lets Enter through.'),
+  ack(['drill.keys', 'studyReview.card'], 'surface',
+    'Enter matches both. Drills open from the Desk and Study pages, the review card lives '
+      + 'on the admin pattern review; they are never mounted on the same page.'),
+  ...[1, 2, 3, 4].flatMap((n) => ['panel', 'count'].map((kind) => ack(
+    ['drill.keys', `terminal.${kind}${n}`], 'surface',
+    `Alt${kind === 'count' ? '+Shift' : ''}+${n} can match both (the drill's digit keys never `
+      + 'looked at modifiers). The terminal keys are bound only by the UCT Terminal shell, '
+      + 'and a drill opens from the Desk and Study pages; they are never mounted together.'))),
 ])
 
 // ── conflict detection ───────────────────────────────────────────────────────
