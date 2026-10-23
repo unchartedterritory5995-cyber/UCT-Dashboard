@@ -867,7 +867,8 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     # READ-ONLY: heat gets the size this widget already read (`_account_size`, one SELECT), never its
     # own default reader, which migrates a Default j2_accounts row for a member who has none.
     stored_size = _account_size(user_id)
-    heat = portfolio_heat.portfolio_heat(user_id, account_size_fn=lambda _u, _a: stored_size) or {}
+    own_size = j2_accounts.member_set_account_size(stored_size)
+    heat = portfolio_heat.portfolio_heat(user_id, account_size_fn=lambda _u, _a: own_size) or {}
     # Fix F1 (audit I-5): open option strategies are rows too, as the Open Positions tab shows them.
     strategies = _open_strategies(user_id)
     shown, cut = open_positions[:ROW_CAP], max(0, len(open_positions) - ROW_CAP)
@@ -886,15 +887,10 @@ def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
         bucket = heat_rows.get(key) or []
         joined.append(bucket.pop(0) if bucket else None)
 
-    # A size is the member's own only when it was read and differs from the migration default
-    # (`accounts._DEFAULT_ACCOUNT_SIZE`). Nothing in j2_accounts records a member edit, so a member who
-    # types exactly the default is indistinguishable from the migrated row and reads as "default".
-    # Correct on the second call too: the migrated row holds the constant, so it still reads "default".
-    is_default = (
-        stored_size is None
-        or stored_size == j2_accounts._DEFAULT_ACCOUNT_SIZE
-        or bool(heat.get("account_size_is_default"))
-    )
+    # A size is the member's own only when `accounts.member_set_account_size` says so: the ONE
+    # predicate heat and sizing also ask (the migrated Default row's placeholder is unset). Correct
+    # on the second call too: the migrated row holds the constant, so it still reads "default".
+    is_default = own_size is None or bool(heat.get("account_size_is_default"))
     account = j2_accounts._DEFAULT_ACCOUNT_SIZE if is_default else stored_size
     prices: dict = {}
     if shown:

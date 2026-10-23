@@ -14,7 +14,6 @@ from api.services.placeholder_stop import is_placeholder_stop
 
 _log = logging.getLogger("portfolio_heat")
 
-_DEFAULT_ACCOUNT = 50000.0
 _PER_TRADE_CAP_PCT = 2.0
 _DEFAULT_AGG_CAP_PCT = 10.0
 
@@ -121,23 +120,25 @@ def _regime_label(regime_id) -> str | None:
 
 
 def _default_account_size_fn(user_id, account_id):
-    """The account's own size from voice_position_sizing's settings read (25,000 only when the
-    member has none: see `_get_account_settings`). It always answers a size, so on this default
-    path `account_size_is_default` is True only if the read fails. ⛔ A WRITE on first call for a
+    """The size the member SET, from voice_position_sizing's settings read, or None when it is
+    unset (`accounts.member_set_account_size`: the migrated Default row's placeholder is unset), so
+    heat then uses UNSET_ACCOUNT_SIZE flagged `account_size_is_default`. ⛔ A WRITE on first call for a
     member with no account: `_get_account_settings` falls back to
     `accounts.get_or_migrate_default_account`, which inserts a Default account and reassigns the
     member's rows. A read-only caller passes its own `account_size_fn`."""
     from api.services.voice_position_sizing import _get_account_settings
-    return (_get_account_settings(user_id, account_id) or {}).get("account_size")
+    s = _get_account_settings(user_id, account_id) or {}
+    return None if s.get("account_size_is_default", True) else s.get("account_size")
 
 
 def portfolio_heat(user_id, account_id=None, account_size=None, *,
                    positions_fn=None, regime_fn=None, cap_fn=None, account_size_fn=None) -> dict:
     """`account_size_fn(user_id, account_id) -> size | None` answers the size when `account_size`
-    is not given. When it answers None or 0 (or raises), `_DEFAULT_ACCOUNT` is used and the result
-    is flagged `account_size_is_default`. The default reader (`_default_account_size_fn`) answers
-    the member's own size, or 25,000 when they have none, and can migrate a Default account; the
-    Notebook widget passes a read-only one (its own one-SELECT read, None when no row exists)."""
+    is not given. When it answers None or 0 (or raises), the size is unset:
+    `voice_position_sizing.UNSET_ACCOUNT_SIZE` (25,000) is used and the result is flagged
+    `account_size_is_default`. Both readers answer only a member-SET size
+    (`accounts.member_set_account_size`): the default one (`_default_account_size_fn`) can migrate
+    a Default account; the Notebook widget passes a read-only one (its own one-SELECT read)."""
     positions_fn = positions_fn or _default_positions_fn
     regime_fn = regime_fn or _default_regime_fn
     account_size_fn = account_size_fn or _default_account_size_fn
@@ -155,7 +156,9 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         except Exception:  # noqa: BLE001
             account = None
     account_size_is_default = not account
-    account = account or _DEFAULT_ACCOUNT
+    if not account:
+        from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+        account = UNSET_ACCOUNT_SIZE
 
     try:
         regime = regime_fn() or {}

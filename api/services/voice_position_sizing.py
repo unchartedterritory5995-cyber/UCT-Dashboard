@@ -31,6 +31,8 @@ _log = logging.getLogger(__name__)
 ABSOLUTE_MAX_RISK_PER_TRADE_PCT = 5.0  # No single trade may risk >5% ever
 ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT = 12.0  # Total open risk capped at 12%
 DEFAULT_RISK_PCT = 1.0  # Used when account has no setting
+#: The size every sizing reader uses when the member has set none (heat imports it).
+UNSET_ACCOUNT_SIZE = 25000.0
 
 
 # ── Pure math (no DB) ───────────────────────────────────────────────────────
@@ -99,8 +101,10 @@ def calc_position_size(
 
 def _get_account_settings(user_id: str, account_id: str | None) -> dict:
     """The account's own account_size + max_risk_pct, read from its j2_accounts row
-    (`accounts._account_to_settings`). The old defaults (25,000 and DEFAULT_RISK_PCT) apply only
-    where the member has none: no account could be read, or the row holds no value.
+    (`accounts._account_to_settings`). The size counts only when the member SET it
+    (`accounts.member_set_account_size`: the migrated Default row's placeholder is unset); unset
+    means UNSET_ACCOUNT_SIZE (25,000) with `account_size_is_default` True. An unset risk % is
+    DEFAULT_RISK_PCT.
 
     ⛔ A WRITE on first call for a member with no account: account None (or an unknown id) falls
     back to `accounts.get_or_migrate_default_account`, which inserts a Default account.
@@ -114,16 +118,18 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
             acc = j2_accounts.get_account(user_id, account_id) or \
                   j2_accounts.get_or_migrate_default_account(user_id)
     except Exception:
-        return {"account_size": 25000.0, "max_risk_pct": DEFAULT_RISK_PCT,
-                "account_id": None, "account_name": "Default"}
+        return {"account_size": UNSET_ACCOUNT_SIZE, "max_risk_pct": DEFAULT_RISK_PCT,
+                "account_size_is_default": True, "account_id": None, "account_name": "Default"}
     try:
         settings = j2_accounts._account_to_settings(acc) or {}
     except Exception:
         settings = {}
+    own = j2_accounts.member_set_account_size(settings.get("accountSize"))
     return {
         "account_id": acc.get("id"),
         "account_name": acc.get("displayName") or acc.get("name") or "Default",
-        "account_size": float(settings.get("accountSize") or 25000.0),
+        "account_size": own if own is not None else UNSET_ACCOUNT_SIZE,
+        "account_size_is_default": own is None,
         "max_risk_pct": float(settings.get("maxRiskPerTradePct") or DEFAULT_RISK_PCT),
     }
 

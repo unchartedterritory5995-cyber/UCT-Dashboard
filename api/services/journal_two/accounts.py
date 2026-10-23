@@ -59,6 +59,23 @@ def _now_iso() -> str:
 _DEFAULT_ACCOUNT_SIZE = 100_000.0
 
 
+def member_set_account_size(size) -> float | None:
+    """The size the MEMBER set, or None when it is unset. THE one predicate every sizing reader
+    (heat, voice sizing / validate_trade, the Notebook positions widget) asks.
+
+    Unset = missing, zero, non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE`: the migration writes
+    that placeholder into the Default row, and nothing in j2_accounts records a member edit, so a
+    member who types exactly the default is indistinguishable from the migrated row and reads as
+    unset (fix round 2 ruling, 2026-10-23)."""
+    try:
+        v = float(size)
+    except (TypeError, ValueError):
+        return None
+    if not v or v != v or v == _DEFAULT_ACCOUNT_SIZE:
+        return None
+    return v
+
+
 def _default_settings_block() -> dict[str, Any]:
     """Settings dict used when creating a new account from scratch
     (no copy-source). Matches the system defaults that single-row

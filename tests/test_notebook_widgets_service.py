@@ -482,6 +482,7 @@ def test_a_members_set_size_reaches_heat_sizing_and_the_widget(monkeypatch, tmp_
                   " WHERE user_id = 'u7'")
     s = vps._get_account_settings("u7", None)
     assert s["account_size"] == 73000.0 and s["max_risk_pct"] == 2.0
+    assert s["account_size_is_default"] is False
     pos = _pos()                                                # 10 x (100 - 95) = $50 at risk
     heat = portfolio_heat.portfolio_heat("u7", positions_fn=lambda u, a: [pos], regime_fn=lambda: {})
     assert heat["risk_heat_pct"] == round(50 / 73000 * 100, 2)   # 0.07, never 50/25,000 = 0.2
@@ -493,6 +494,34 @@ def test_a_members_set_size_reaches_heat_sizing_and_the_widget(monkeypatch, tmp_
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u7", {}, now=NOW)
     assert out["accountSize"] == 73000.0 and out["accountSizeSource"] == "member"
+
+
+def test_a_migrated_default_size_is_unset_in_heat_sizing_and_the_widget(monkeypatch, tmp_path):
+    """Fix round 2: the migrated Default row's size (accounts._DEFAULT_ACCOUNT_SIZE) is a placeholder
+    the member never chose. Every reader asks ONE predicate (accounts.member_set_account_size) and
+    treats it as unset: heat and sizing at 25,000 flagged default, the widget labelled default."""
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    from api.services import portfolio_heat, voice_position_sizing as vps
+    accounts.get_or_migrate_default_account("u8")               # the migration: 100,000 placeholder
+    assert nw._account_size("u8") == accounts._DEFAULT_ACCOUNT_SIZE   # control: a row and a size exist
+    s = vps._get_account_settings("u8", None)
+    assert s["account_size"] == 25000.0 and s["account_size_is_default"] is True
+    pos = _pos()
+    heat = portfolio_heat.portfolio_heat("u8", positions_fn=lambda u, a: [pos], regime_fn=lambda: {})
+    assert heat["account_size_is_default"] is True
+    assert heat["risk_heat_pct"] == round(50 / 25000 * 100, 2)
+    import api.services.journal_two.positions as ps
+    import api.services.journal_two.options as op
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [pos])
+    monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u8", {}, now=NOW)
+    assert out["accountSizeSource"] == "default"
+    # and the predicate is the one home: a member-set size passes, the placeholder and nothing do not
+    assert accounts.member_set_account_size(73000) == 73000.0
+    assert accounts.member_set_account_size(accounts._DEFAULT_ACCOUNT_SIZE) is None
+    assert accounts.member_set_account_size(None) is None and accounts.member_set_account_size(0) is None
 
 
 def test_sizing_falls_back_to_the_old_default_only_without_an_account(monkeypatch):
