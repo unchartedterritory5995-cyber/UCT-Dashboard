@@ -9,8 +9,11 @@ Rails, each on hand-built bars whose answer follows from the textbook definition
   * the volume readout: breakout volume at or above the buy point (light under 40%), below it only when
     notable, never on a forming bar;
   * no lookahead; AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED off leaves every payload byte-identical and runs
-    nothing; a member never sees the textbook numbers until MEMBER_TEXTBOOK_ROUND is released.
-Synthetic bars only (public repo).
+    nothing; a member sees the textbook numbers only on the released MEMBER_TEXTBOOK_ROUND;
+  * the two defects the blind A/B found, on the real charts' own drawn spans (PLSE, TECH, 2026-10-22): only a
+    CEILING bar's high is a buy point (a spike wick through the base is not, and the printed number is guarded),
+    and a base too shallow to describe gets no label, old or new.
+Synthetic bars, plus those two drawn spans as a small fixture.
 """
 from __future__ import annotations
 
@@ -133,6 +136,123 @@ def test_nonsense_in_nothing_out():
     bad = copy.deepcopy(row)
     del bad["geometry"]["extras"]["draw_base"]
     assert tn.compute(bad, b) is None
+
+
+# -- the blind A/B's two defects, on the real drawn spans (bars.db, as of 2026-10-22) ---------------
+
+# PLSE: the member drawing (round 1) as served -- the pivot on the bodies at 55.20, ATR(14) 3.4728 -- and its
+# span to the as-of bar. 2026-09-09 printed a wick to 58.90 from a body topping at 52.97: the old textbook rule
+# took it as the buy point ("Buy point 59.00 / 26% deep"), over every other price in the base.
+PLSE_DRAW = {"pivot": 55.2, "start_t": 20260903, "end_t": 20261022, "low": 43.32, "low_t": 20261016,
+             "bars": 34, "atr": 3.4727714285714293, "label": "pivot", "low_label": "base low"}
+PLSE_BARS = [
+    (20260903, 53.79, 55.37, 53.11, 54.71, 702800), (20260904, 53.68, 54.75, 52.75, 53.24, 515200),
+    (20260908, 52.93, 53.105, 47.7, 48.79, 769300), (20260909, 49.76, 58.9, 48.426, 52.97, 1560400),
+    (20260910, 52.18, 57.94, 51.3, 54.43, 915500), (20260911, 54.5, 56.61, 50.315, 53.11, 664300),
+    (20260914, 52.3, 55.78, 51.6, 54.21, 505832), (20260915, 54.415, 56.61, 53.51, 55.2, 472340),
+    (20260916, 52.55, 54.2405, 48.61, 49.61, 1037137), (20260917, 49.46, 53.55, 49.01, 50.61, 571886),
+    (20260918, 50.61, 54.29, 50.245, 53.87, 867540), (20260921, 53.97, 54.8099, 51.74, 53.31, 382256),
+    (20260922, 53.23, 53.7867, 52.485, 52.69, 372189), (20260923, 53.75, 56.74, 51.87, 51.98, 550631),
+    (20260924, 52.18, 53.605, 51.6221, 52.02, 406629), (20260925, 52.17, 54.05, 50.8009, 51.63, 663993),
+    (20260928, 51.63, 53.6, 51.14, 52.32, 374814), (20260929, 52.24, 52.74, 48.92, 50.89, 516993),
+    (20260930, 51.18, 51.27, 49.17, 49.92, 604607), (20261001, 49.49, 51.56, 49.12, 49.83, 450350),
+    (20261002, 50.13, 50.7122, 47.7532, 47.9, 519265), (20261005, 47.89, 50.99, 47.47, 50.5, 433451),
+    (20261006, 51.26, 51.26, 48.62, 49.75, 421365), (20261007, 49.11, 49.93, 48.13, 49.09, 409472),
+    (20261008, 48.9, 50.32, 47.31, 49.98, 315585), (20261009, 49.98, 53.97, 49.98, 53.81, 367598),
+    (20261012, 53.53, 53.98, 50.15, 52.45, 434413), (20261013, 53.02, 53.21, 48.01, 48.54, 455467),
+    (20261014, 47.6, 48.9708, 44.8, 46.32, 440297), (20261015, 45.13, 46.67, 43.96, 45.59, 425632),
+    (20261016, 45.49, 46.67, 43.32, 44.43, 327426), (20261019, 44.58, 48.12, 44.58, 47.55, 342451),
+    (20261020, 47.25, 52.325, 47.25, 50.84, 385979), (20261021, 51.16, 52.03, 50.067, 51.31, 317921),
+    (20261022, 50.92, 53.67, 50.0, 52.68, 421424)]
+
+# TECH: a gap-then-flat range, 72.33-72.69 over 22 sessions (ATR 0.133), drawn as a base and labelled
+# "0% deep" by both labels.
+TECH_DRAW = {"pivot": 72.64, "start_t": 20260922, "end_t": 20261022, "low": 72.33, "low_t": 20260930,
+             "bars": 22, "atr": 0.13293571428571177, "label": "pivot", "low_label": "base low"}
+TECH_BARS = [
+    (20260922, 72.52, 72.69, 72.46, 72.55, 3441497), (20260923, 72.5, 72.64, 72.48, 72.52, 3562210),
+    (20260924, 72.54, 72.63, 72.51, 72.57, 2986227), (20260925, 72.59, 72.64, 72.555, 72.61, 2175955),
+    (20260928, 72.58, 72.65, 72.485, 72.51, 3820152), (20260929, 72.36, 72.5, 72.36, 72.38, 3360178),
+    (20260930, 72.38, 72.55, 72.33, 72.47, 3138664), (20261001, 72.5, 72.54, 72.38, 72.4, 2711405),
+    (20261002, 72.44, 72.47, 72.38, 72.4, 1866663), (20261005, 72.41, 72.61, 72.38, 72.58, 2087228),
+    (20261006, 72.58, 72.605, 72.41, 72.43, 2893249), (20261007, 72.43, 72.55, 72.43, 72.53, 3153715),
+    (20261008, 72.56, 72.58, 72.43, 72.45, 5390348), (20261009, 72.46, 72.52, 72.44, 72.46, 2227970),
+    (20261012, 72.47, 72.585, 72.44, 72.56, 2419628), (20261013, 72.49, 72.545, 72.48, 72.48, 2420572),
+    (20261014, 72.5, 72.54, 72.48, 72.5, 1544854), (20261015, 72.53, 72.61, 72.5, 72.52, 2403837),
+    (20261016, 72.59, 72.59, 72.45, 72.57, 2646349), (20261019, 72.51, 72.55, 72.47, 72.49, 2573896),
+    (20261020, 72.48, 72.61, 72.48, 72.58, 3210448), (20261021, 72.54, 72.645, 72.5, 72.64, 3497692),
+    (20261022, 72.56, 72.69, 72.5139, 72.62, 4161605)]
+
+
+def _real(bars, draw):
+    b = [{"t": t, "o": o, "h": h, "l": l, "c": c, "v": float(v)} for t, o, h, l, c, v in bars]
+    row = {"id": "bc:base:REAL", "pattern_id": "bc:base", "sym": "REAL", "start_t": draw["start_t"],
+           "end_t": draw["end_t"], "geometry": {"shape": "base_draw",
+                                                "extras": {"draw_base": dict(draw), "draw_round": 1}}}
+    return b, row
+
+
+def test_plse_a_spike_wick_through_the_base_is_not_the_buy_point():
+    b, row = _real(PLSE_BARS, PLSE_DRAW)
+    m = tn.compute(base_metrics.with_metrics([row], b)[0], b)
+    assert m["buy_point"] == 58.04 and m["base_high"] == 57.94     # 2026-09-10's high, a ceiling bar
+    assert m["depth_pct"] == round((57.94 - 43.32) / 57.94 * 100, 1) == 25.2
+    span = b[:-1]
+    assert 58.04 - 0.10 == pytest.approx(57.94) and any(x["h"] == 57.94 for x in span)
+    assert max(x["h"] for x in span) == 58.9 > m["base_high"]      # the spike is in the span, and ignored
+
+
+def test_plse_the_guard_refuses_a_buy_point_that_is_not_a_ceiling_bars_high():
+    b, row = _real(PLSE_BARS, PLSE_DRAW)
+    span, piv, a = b[:-1], PLSE_DRAW["pivot"], PLSE_DRAW["atr"]
+    assert tn.buy_point_justified(span, 58.04, piv, a) is True
+    assert tn.buy_point_justified(span, 59.00, piv, a) is False    # the spike bar's high + 0.10
+    assert tn.buy_point_justified(span, 58.05, piv, a) is False    # not any bar's high + 0.10
+    assert tn.buy_point_justified(span, None, piv, a) is False
+
+
+def test_plse_a_wrong_pivot_high_fails_closed_to_the_old_label(monkeypatch):
+    # the selection reverting to "the window's highest high" must not print 59.00: the guard withholds the
+    # textbook numbers, and the member keeps the old confirmed label
+    b, row = _real(PLSE_BARS, PLSE_DRAW)
+    mrow = base_metrics.with_metrics([row], b)[0]
+    monkeypatch.setattr(tn, "pivot_high", lambda window, pivot, atr: max(x["h"] for x in window))
+    assert tn.compute(mrow, b) is None
+    out = tn.with_textbook([mrow], b)
+    assert out[0] is mrow and out[0]["geometry"]["extras"]["metrics"]["pivot"] == 55.2
+
+
+def test_a_ceiling_bars_wick_counts_only_up_to_the_spike_cap():
+    b, row = _real(PLSE_BARS, PLSE_DRAW)
+    piv, a = PLSE_DRAW["pivot"], PLSE_DRAW["atr"]
+    i = next(k for k, x in enumerate(b) if x["t"] == 20260915)     # body top 55.20: ON the drawn ceiling
+    b[i]["h"] = round(piv + 1.4 * a, 2)                            # 60.06: under the cap, the top of the base
+    assert tn.compute(row, b)["buy_point"] == round(round(piv + 1.4 * a, 2) + 0.10, 2)
+    b[i]["h"] = round(piv + 1.6 * a, 2)                            # 60.76: a spike -- left out
+    assert tn.compute(row, b)["buy_point"] == 58.04
+
+
+def test_no_ceiling_bar_or_no_readable_pivot_withholds():
+    b, row = _real(PLSE_BARS, PLSE_DRAW)
+    assert tn.pivot_high(b[:-1], 80.0, PLSE_DRAW["atr"]) is None   # no body near a ceiling at 80
+    bad = copy.deepcopy(row)
+    bad["geometry"]["extras"]["draw_base"]["pivot"] = None
+    assert tn.compute(bad, b) is None
+
+
+def test_tech_a_zero_percent_range_gets_no_label_old_or_new():
+    b, row = _real(TECH_BARS, TECH_DRAW)
+    assert base_metrics.compute(row, b) is None                    # the old label: withheld
+    assert base_metrics.with_metrics([row], b)[0] is row           # the drawing row passes through untouched
+    assert tn.compute(row, b) is None                              # the new label: withheld
+    assert tn.with_textbook(base_metrics.with_metrics([row], b), b)[0] is row
+
+
+@pytest.mark.parametrize("depth,range_atr,shallow", [
+    (2.9, None, True), (3.0, None, False), (0.4, 2.71, True), (None, 9.0, True),
+    (10.0, 1.4, True), (10.0, 1.5, False), (25.2, 4.2, False)])
+def test_too_shallow(depth, range_atr, shallow):
+    assert base_metrics.too_shallow(depth, range_atr) is shallow
 
 
 # -- the stage count --------------------------------------------------------------------------------
@@ -262,7 +382,8 @@ def test_never_volume_on_a_forming_or_unconfirmed_bar_or_without_a_full_average(
     b = _vol_series(10.5, 1.62e6)
     assert tn.volume_readout(b, 10.30, False) is None
     assert tn.volume_readout(b[-50:], 10.30, True) is None          # 49 prior sessions: no 50-day average
-    row = _base_row(b, 40, pivot=10.0, low=9.8)
+    b[45]["l"] = 8.5                     # a real pullback: a flat 4% range is too shallow to label at all
+    row = _base_row(b, 40, pivot=10.0, low=8.5)
     assert "volume" in tn.compute(row, b, asof_complete=lambda t: True)
     assert "volume" not in tn.compute(row, b, asof_complete=lambda t: False)
     assert "volume" not in tn.compute(row, b)                        # no clock: not complete
@@ -352,9 +473,10 @@ def test_flag_on_an_admin_sees_the_textbook_numbers(monkeypatch):
     assert ex["metrics"] == base_metrics.compute(row, b)                # the confirmed metrics stay beside
 
 
-def test_the_member_textbook_round_is_not_released():
-    """None until the new label passes its own blind check; then set by hand to TEXTBOOK_ROUND."""
-    assert auto_structures.MEMBER_TEXTBOOK_ROUND is None
+def test_the_member_textbook_round_is_released():
+    """Round 1 passed its blind A/B (2026-10-23, new preferred 20-2) and was released by hand, after the two
+    defects that check found (PLSE, TECH below) were fixed. Moving either literal is a deliberate act."""
+    assert auto_structures.MEMBER_TEXTBOOK_ROUND == 1 and type(auto_structures.MEMBER_TEXTBOOK_ROUND) is int
     assert tn.TEXTBOOK_ROUND == 1
 
 

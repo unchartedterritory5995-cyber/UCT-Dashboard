@@ -29,6 +29,20 @@ pivots on its left-side high; anything with a handle on the handle peak):
     bc:cup-with-handle  the handle's highest high when the row carries a handle, else the rim (left-side) high
 The as-of bar itself is never part of the base (it may be the breakout bar).
 
+ONLY A CEILING BAR'S HIGH (`ceiling_bar`, `pivot_high`). The drawing's top is a line on the candle BODIES, and
+wicks may poke through it. A high counts toward the buy point only when its bar is part of that ceiling: the
+bar's body top within base_draw.TOUCH ATR under the drawn pivot (the bars the drawing itself counts as touches)
+AND its high no more than SPIKE_MAX_ATR ATR over the drawn pivot. A long wick on a bar whose body sits down in
+the base, or a wick far over every body, is a spike through the base, not its top. (PLSE as of 2026-10-22: the
+drawn pivot 55.20, ATR 3.47; one session's wick to 58.90 from a body topping at 52.97 printed "Buy point 59.00",
+over every other price in the base. The ceiling bars top out at 57.94: buy point 58.04.) The base high (depth)
+leaves out the same rejected bars. GUARD (`buy_point_justified`): the printed buy point must be a ceiling bar's
+high inside the pivot window + $0.10; when it is not, or the drawn pivot / ATR cannot be read, or no bar of the
+window is a ceiling bar, the textbook numbers are WITHHELD (None) and the chart keeps the old confirmed label.
+
+TOO SHALLOW: when base_metrics.too_shallow says the base is too shallow to label (under 3% deep, or a range
+under 1.5 ATR), the textbook numbers are withheld too (the old label withholds on the same predicate).
+
 STAGE (base count). Every base type counts, because the walk below is shape-agnostic: from the start of the
 series, a stretch from a running high to the next bar that clears it is a BASE when it lasts at least five
 weeks (PRIOR_BASE_MIN_BARS) and corrects at least PRIOR_BASE_MIN_DEPTH; it RESETS the count when it corrects
@@ -58,7 +72,7 @@ from typing import Callable, Optional
 from api.services import base_metrics
 
 #: Stamped on every row this computes as `extras.metrics_textbook_round`. A member sees the textbook numbers
-#: only while auto_structures.MEMBER_TEXTBOOK_ROUND (a literal, None until a blind check) equals it.
+#: only while auto_structures.MEMBER_TEXTBOOK_ROUND (a literal, set by hand after a blind check) equals it.
 TEXTBOOK_ROUND = 1
 
 #: The IBD convention: the buy point is the pivot high plus ten cents.
@@ -71,6 +85,10 @@ NOTABLE_VOLUME_PCT = 40.0
 VOLUME_AVG_BARS = 50
 #: Above the buy zone (buy point + 5%) the label says "extended".
 EXTENDED_PCT = 5.0
+#: A ceiling bar's high may stand at most this many ATR(14) over the drawn pivot; a higher wick is a spike.
+#: On the 30 judged charts of 2026-10-22 the ceiling bars' highest high sat 0.0-1.05 ATR over the drawn pivot on
+#: 29; the 30th (one session's wick) 2.86 ATR over it.
+SPIKE_MAX_ATR = 1.5
 
 # -- the stage walk --
 #: A prior base lasts at least five weeks (the shortest textbook base, the flat base) ...
@@ -131,6 +149,24 @@ def _hi(b) -> float:
 
 def _lo(b) -> float:
     return float(b["l"])
+
+
+def ceiling_bar(x, pivot: float, atr: float) -> bool:
+    """True when bar `x` is part of the drawn base's ceiling: its body top within base_draw.TOUCH ATR under the
+    drawn `pivot` and its high no more than SPIKE_MAX_ATR ATR over it. Only such a bar's high is a pivot high."""
+    from api.services.pattern_engine import base_draw
+    return base_draw._bt(x) >= pivot - base_draw.TOUCH * atr and _hi(x) <= pivot + SPIKE_MAX_ATR * atr
+
+
+def pivot_high(window, pivot: float, atr: float) -> Optional[float]:
+    """The highest high of the ceiling bars of `window` (the bars the buy point is read from), or None."""
+    hs = [_hi(x) for x in window if ceiling_bar(x, pivot, atr)]
+    return max(hs) if hs else None
+
+
+def buy_point_justified(window, bp, pivot: float, atr: float) -> bool:
+    """THE GUARD on the printed number: `bp` is the high of a ceiling bar inside `window`, + $0.10."""
+    return bp is not None and any(ceiling_bar(x, pivot, atr) and buy_point(_hi(x)) == bp for x in window)
 
 
 # ================================================================ the stage walk
@@ -297,13 +333,28 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         if start_i >= asof_i:
             return None
         span = b[start_i:asof_i]
-        base_high = max(_hi(x) for x in span)
-        base_low = min(_lo(x) for x in span)
         piv = [x for x in span if p_s <= _int(x["t"]) <= p_e]
         if not piv:
             return None
-        bp = buy_point(max(_hi(x) for x in piv))
+        # the window's geometry: the drawn pivot (the ceiling line) and ATR(14) at the as-of bar
+        drawn = base_metrics._drawn(row)
+        dpiv = _num(drawn[0]) if drawn else None
+        atr = base_metrics.asof_atr(row, b)
+        if dpiv is None or dpiv <= 0 or atr is None:
+            return None
+        ph = pivot_high(piv, dpiv, atr)
+        if ph is None:
+            return None
+        bp = buy_point(ph)
+        if not buy_point_justified(piv, bp, dpiv, atr):
+            return None                                 # the guard: withheld, the old label stays
+        # the base high leaves out the window bars the pivot test rejected (a spike is not the base's top)
+        rejected = {id(x) for x in piv if not ceiling_bar(x, dpiv, atr)}
+        base_high = max(_hi(x) for x in span if id(x) not in rejected)
+        base_low = min(_lo(x) for x in span)
         dp = base_metrics.depth_pct(base_high, base_low)
+        if base_metrics.too_shallow(dp, (base_high - base_low) / atr):
+            return None                                 # too shallow to label
         # the base's length is the base metrics' own count (one authority over one number)
         old = ((row.get("geometry") or {}).get("extras") or {}).get("metrics")
         weeks = _num(old.get("length_weeks")) if isinstance(old, dict) else None

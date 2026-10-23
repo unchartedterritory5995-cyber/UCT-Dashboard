@@ -86,10 +86,12 @@ def textbook_numbers_enabled() -> bool:
 
 
 #: The textbook-numbers round a member may be shown (textbook_numbers.TEXTBOOK_ROUND stamps
-#: `extras.metrics_textbook_round`). None: NOT released -- the new label has not passed a blind check, so a
-#: member keeps the confirmed base metrics label and never gets `metrics_textbook` (fail closed), while
-#: admins see it under the flag. Set it by hand to the confirmed round.
-MEMBER_TEXTBOOK_ROUND = None
+#: `extras.metrics_textbook_round`). 1: RELEASED -- round 1 passed its blind A/B against the old label on
+#: 2026-10-23 (new preferred 20-2), with the two defects that check found fixed before release (a spike wick
+#: taken as the buy point, PLSE; a "0% deep" range labelled at all, TECH). A member gets `metrics_textbook`
+#: once AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED is on; a row whose stamped round differs keeps the confirmed
+#: base metrics label (fail closed). None withholds it from every member again.
+MEMBER_TEXTBOOK_ROUND = 1
 #: The textbook keys a member's row loses while MEMBER_TEXTBOOK_ROUND does not match.
 _TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
 

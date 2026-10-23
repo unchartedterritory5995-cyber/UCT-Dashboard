@@ -24,6 +24,12 @@ Depth:
     bc:cup-with-handle  the cup detector's own depth (primitives.cup.cup_with_handle_state, re-read on the
                         bars up to the as-of bar); when it does not fire there, the cup sub-box (rim - low)/rim
 
+TOO SHALLOW TO LABEL: a drawn base whose depth is under MIN_LABEL_DEPTH_PCT, or whose top-to-low range is
+under MIN_LABEL_RANGE_ATR x ATR(14) at the as-of bar, gets NO metrics (`too_shallow`): a gap-then-flat range
+that prints "0% deep" is not a base a number can describe. The textbook label (textbook_numbers) asks the same
+predicate, so the old label and the new one withhold together. Only the LABEL is withheld; the drawing is not
+this module's to change.
+
 Pure functions; nothing here reads an env var, the database or the clock. Never raises.
 """
 from __future__ import annotations
@@ -43,6 +49,14 @@ BARS_PER_WEEK = 5
 
 #: The cup detector's working window (base_geometry.WORKING_BARS: the window the box was read on).
 _CUP_WORKING_BARS = 400
+
+#: A base shallower than this (%, top to low) is not labelled. The shallowest textbook base is the flat base,
+#: about 10-15% deep; 3% is far under it and only catches a range that is not a base at all (measured on the
+#: 30-chart judged sample of 2026-10-22: the shallowest real base was 5.5% deep, the one under 3% read "0%").
+MIN_LABEL_DEPTH_PCT = 3.0
+#: ... nor one whose top-to-low range is under this many ATR(14) at the as-of bar (the bc:base drawing's own
+#: pullback floor, base_draw.MIN_DEPTH_ATR, restated as a label floor for every base row).
+MIN_LABEL_RANGE_ATR = 1.5
 
 
 def _num(v) -> Optional[float]:
@@ -79,6 +93,31 @@ def length_weeks(bars, start_t, end_t) -> Optional[float]:
     if n <= 0:
         return None
     return round(n / BARS_PER_WEEK, 1)
+
+
+def too_shallow(depth, range_atr) -> bool:
+    """True when a base is too shallow to label: `depth` (%, as depth_pct gives it) missing or under
+    MIN_LABEL_DEPTH_PCT, or `range_atr` (top-to-low range in ATR; None = not readable, not checked) under
+    MIN_LABEL_RANGE_ATR. The ONE predicate both labels (old metrics, textbook numbers) ask."""
+    d = _num(depth)
+    if d is None or d < MIN_LABEL_DEPTH_PCT:
+        return True
+    r = _num(range_atr)
+    return r is not None and r < MIN_LABEL_RANGE_ATR
+
+
+def asof_atr(row, bars) -> Optional[float]:
+    """ATR(14) at the as-of bar (the last of `bars`): the bc:base drawing's own `draw_base.atr` when it
+    carries one, else base_draw's ATR over `bars` (the same computation the drawing reads). None if unreadable."""
+    try:
+        ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+        a = _num((ex.get("draw_base") or {}).get("atr")) if (row or {}).get("pattern_id") == "bc:base" else None
+        if a is None:
+            from api.services.pattern_engine import base_draw
+            a = _num(base_draw._atr(list(bars), len(bars) - 1)) if bars and len(bars) >= 2 else None
+        return a if a is not None and a > 0 else None
+    except Exception:  # noqa: BLE001 -- an unreadable ATR is None, never a guess
+        return None
 
 
 def buy_zone_top(pivot) -> Optional[float]:
@@ -173,14 +212,21 @@ def compute(row, bars) -> Optional[dict]:
         if pivot is None or pivot <= 0:
             return None
         ex = (row.get("geometry") or {}).get("extras") or {}
+        rng = None                                    # (top, low) the range in ATR is read from
         if pid == "bc:base":
-            dp = depth_pct(pivot, (ex.get("draw_base") or {}).get("low"))
+            rng = (pivot, _num((ex.get("draw_base") or {}).get("low")))
+            dp = depth_pct(*rng)
         elif pid == "bc:flat-base":
-            dp = depth_pct(ex.get("top"), ex.get("floor"))
+            rng = (_num(ex.get("top")), _num(ex.get("floor")))
+            dp = depth_pct(*rng)
         else:
             dp = _cup_depth(row, b)
         if dp is None:
             return None
+        a = asof_atr(row, b)
+        r_atr = (rng[0] - rng[1]) / a if rng and None not in rng and a else None
+        if too_shallow(dp, r_atr):
+            return None                               # too shallow to label: no metrics, the drawing stays
         end = asof if _int(e) is None else min(_int(e), asof)
         weeks = length_weeks(b, s, end)
         if weeks is None:
