@@ -41,6 +41,11 @@ describe('the Study fetcher', () => {
     await expect(fetcher('/api/study/today')).resolves.toBeNull()
   })
 
+  test('a 402 (no paid plan) resolves to null, like Study off', async () => {
+    answer(402)
+    await expect(fetcher('/api/study/profile')).resolves.toBeNull()
+  })
+
   test('a 429 throws, carrying the status', async () => {
     answer(429)
     await expect(fetcher('/api/study/today')).rejects.toMatchObject({ status: 429 })

@@ -2,7 +2,7 @@
 // useStudyProfile via useMobileSWR). One fetcher, one key per route, so a
 // panel and a trail mounted together share the cache.
 //
-// A 404 resolves to null rather than throwing: `STUDY_ENABLED` off
+// A 404 (or a 402) resolves to null rather than throwing: `STUDY_ENABLED` off
 // server-side answers 404 and the surfaces render their skeleton (T13); the
 // client flag (`studyEnabled` on the auth payload) is what keeps them
 // unmounted in that case. ANY OTHER non-OK answer (a 429 from the rate limit,
@@ -13,7 +13,9 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 export const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
     if (r.ok) return r.json()
-    if (r.status === 404) return null
+    // 404: Study is switched off. 402: no paid plan. Both mean "not available
+    // here", which the surfaces already say; neither is a failure to retry.
+    if (r.status === 404 || r.status === 402) return null
     const e = new Error(`HTTP ${r.status}`)
     e.status = r.status
     throw e
