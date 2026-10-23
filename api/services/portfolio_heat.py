@@ -132,8 +132,8 @@ def _default_account_size_fn(user_id, account_id):
         return None if s["account_size_is_default"] else s.get("account_size")
     # A dict without the flag (an older reader or a stub): ask the predicate about its size,
     # never treat a supplied size as unset (review M-D).
-    from api.services.journal_two.accounts import member_set_account_size
-    return member_set_account_size(s.get("account_size"))
+    from api.services.journal_two.accounts import own_account_size
+    return own_account_size({"account_size": s.get("account_size")})
 
 
 def portfolio_heat(user_id, account_id=None, account_size=None, *,
