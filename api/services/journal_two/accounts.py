@@ -59,7 +59,7 @@ def _now_iso() -> str:
 _DEFAULT_ACCOUNT_SIZE = 100_000.0
 
 
-def member_set_account_size(size) -> float | None:
+def member_set_account_size(size, marked=None) -> float | None:
     """The size the MEMBER set, or None when it is unset.
 
     It is the home for FIVE readers, and only these: portfolio_heat (its default reader),
@@ -97,9 +97,66 @@ def member_set_account_size(size) -> float | None:
         v = float(size)
     except (TypeError, ValueError):
         return None
-    if not v or v != v or v == _DEFAULT_ACCOUNT_SIZE:
+    if not v or v != v or v in (float("inf"), float("-inf")) or v < 0:
+        return None
+    if v == _DEFAULT_ACCOUNT_SIZE and not marked:
         return None
     return v
+
+
+#: The settings-dict key carrying the member-set marker (j2_accounts.account_size_set).
+ACCOUNT_SIZE_SET_KEY = "accountSizeSet"
+
+
+def _size_and_marker(src) -> tuple[Any, Any]:
+    """(size, marker) from a settings dict (camelCase) or a j2_accounts row (snake_case)."""
+    if src is None:
+        return None, None
+    try:
+        keys = set(src.keys())
+    except AttributeError:
+        return None, None
+    if "accountSize" in keys:
+        return src["accountSize"], (src[ACCOUNT_SIZE_SET_KEY] if ACCOUNT_SIZE_SET_KEY in keys else None)
+    if "account_size" in keys:
+        return src["account_size"], (src["account_size_set"] if "account_size_set" in keys else None)
+    return None, None
+
+
+def own_account_size(src) -> float | None:
+    """The size the member SET on this account (a settings dict or a j2_accounts row), or None.
+    The one reader every module outside accounts.py asks (rail: tests/test_account_size_authority.py)."""
+    size, marked = _size_and_marker(src)
+    return member_set_account_size(size, marked)
+
+
+def account_size_of(src) -> tuple[float, bool]:
+    """(size, is_default): the member's own size, or voice_position_sizing.UNSET_ACCOUNT_SIZE
+    flagged default when they set none."""
+    own = own_account_size(src)
+    if own is not None:
+        return own, False
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    return UNSET_ACCOUNT_SIZE, True
+
+
+def marked_after_write(prior, new_size) -> bool:
+    """The marker a settings write leaves: set when it CHANGES the stored size (or it was already
+    set). `prior` is the stored settings dict, or None when there is none yet (the seed default).
+    The legacy j2_settings PUT carries it in its JSON; the Default-row migration reads it."""
+    size, marked = _size_and_marker(prior if prior else {"accountSize": _DEFAULT_ACCOUNT_SIZE})
+    if marked:
+        return True
+    try:
+        return float(new_size) != float(size)
+    except (TypeError, ValueError):
+        return True
+
+
+def _marker_for_seed(size, marked=None) -> int | None:
+    """The marker a newly written row carries: 1 when the size is the member's own, else NULL
+    (unmarked, read by the old rule)."""
+    return 1 if member_set_account_size(size, marked) is not None else None
 
 
 def _default_settings_block() -> dict[str, Any]:
@@ -218,9 +275,9 @@ def get_or_migrate_default_account(
                     id, user_id, name, color, broker, starting_balance,
                     account_size, default_stop, position_closing,
                     breakeven_range, setups, share_journal_data,
-                    trading_mode,
+                    trading_mode, account_size_set,
                     created_at, updated_at
-                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     new_id, user_id,
@@ -232,6 +289,7 @@ def get_or_migrate_default_account(
                     json.dumps(block["setups"]),
                     1 if block.get("shareJournalData") else 0,
                     block.get("tradingMode", "both"),
+                    _marker_for_seed(block["accountSize"], settings.get(ACCOUNT_SIZE_SET_KEY)),
                     now, now,
                 ),
             )
@@ -409,6 +467,8 @@ def create_account(
                 "loss_streak_threshold": _src(src, "loss_streak_threshold", None),
                 "win_streak_threshold": _src(src, "win_streak_threshold", None),
                 "stale_hold_days_threshold": _src(src, "stale_hold_days_threshold", None),
+                # The member-set marker travels with the size it describes.
+                "account_size_set": _src(src, "account_size_set", None),
                 # share_journal_data, trader_profile: intentionally NOT copied
             }
         else:
@@ -436,6 +496,7 @@ def create_account(
                 "loss_streak_threshold": None,
                 "win_streak_threshold": None,
                 "stale_hold_days_threshold": None,
+                "account_size_set": None,
             }
 
         new_id = str(uuid.uuid4())
@@ -453,10 +514,11 @@ def create_account(
                 regime_size_multipliers,
                 mistake_tags, emotion_tags,
                 loss_streak_threshold, win_streak_threshold, stale_hold_days_threshold,
+                account_size_set,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?)
+                      ?, ?, ?)
             """,
             (
                 new_id, user_id, validated["name"], validated["color"],
@@ -471,6 +533,7 @@ def create_account(
                 settings["regime_size_multipliers"],
                 settings["mistake_tags"], settings["emotion_tags"],
                 settings["loss_streak_threshold"], settings["win_streak_threshold"], settings["stale_hold_days_threshold"],
+                _marker_for_seed(settings["account_size"], settings["account_size_set"]),
                 now, now,
             ),
         )
@@ -1076,7 +1139,8 @@ def upsert_account_settings(
         conn.execute(
             """
             UPDATE j2_accounts
-               SET account_size = ?, default_stop = ?, position_closing = ?,
+               SET account_size_set = CASE WHEN account_size = ? THEN account_size_set ELSE 1 END,
+                   account_size = ?, default_stop = ?, position_closing = ?,
                    breakeven_range = ?, setups = ?, setup_rules = ?,
                    share_journal_data = ?,
                    trading_mode = ?,
@@ -1099,6 +1163,11 @@ def upsert_account_settings(
              WHERE id = ? AND user_id = ?
             """,
             (
+                # A save marks the size set only when it CHANGES it: the settings modal PUTs the whole
+                # block on every save, so an untouched placeholder must not read as the member's choice.
+                # SQLite evaluates every SET expression against the row as it was, so the CASE reads
+                # the OLD size.
+                float(full_validated["accountSize"]),
                 float(full_validated["accountSize"]),
                 json.dumps(full_validated["defaultStop"]),
                 full_validated["positionClosing"],
@@ -1241,6 +1310,8 @@ def _account_to_settings(acc: dict[str, Any], *, conn: sqlite3.Connection | None
             "accountId": row["id"],
             "accountName": row["name"],
             "accountSize": float(row["account_size"]),
+            # The member-set marker (raw); readers ask own_account_size / account_size_of, never this.
+            ACCOUNT_SIZE_SET_KEY: bool(row["account_size_set"]) if "account_size_set" in keys else False,
             "defaultStop": json.loads(row["default_stop"]),
             "positionClosing": row["position_closing"],
             "breakevenRange": json.loads(row["breakeven_range"]),

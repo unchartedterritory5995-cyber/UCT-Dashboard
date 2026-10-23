@@ -485,8 +485,17 @@ def upsert_settings(
     try:
         now = _now_iso()
         row = conn.execute(
-            "SELECT id, created_at FROM j2_settings WHERE user_id = ?", (user_id,)
+            "SELECT id, created_at, data FROM j2_settings WHERE user_id = ?", (user_id,)
         ).fetchone()
+        # The member-set marker (accounts.marked_after_write): a save that changes the size marks
+        # it the member's own, so the Default-row migration can tell it from the seed default.
+        from api.services.journal_two import accounts as _accounts
+        try:
+            prior = json.loads(row["data"]) if row is not None else None
+        except (TypeError, ValueError):
+            prior = None
+        validated[_accounts.ACCOUNT_SIZE_SET_KEY] = _accounts.marked_after_write(
+            prior, validated["accountSize"])
         if row is None:
             new_id = str(uuid.uuid4())
             conn.execute(
