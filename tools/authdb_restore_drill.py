@@ -58,6 +58,16 @@ never a pass.
 The key layout and the client come from the backup job itself
 (``authdb_backup.KEY_PREFIX``, ``data_sync._client``), so this drill cannot drift
 from what is actually being written.
+
+⛔⛔ ENCRYPTED BACKUPS (2026-10-22). New objects are ``<ts>.db.gz.enc`` (and
+``j2-attachments-<date>.tar.gz.enc``), UCTBK1-encrypted to the offline key
+(``api/services/backup_crypto.py``). The drill decrypts them with
+``--private-key PATH`` or ``BACKUP_PRIVATE_KEY_PATH`` (a passphrase-protected key reads
+``BACKUP_PRIVATE_KEY_PASSPHRASE``); legacy plaintext ``.db.gz`` objects still drill with
+no key. An encrypted object with NO key is INCONCLUSIVE; one that will not decrypt
+(wrong key, tampered, truncated) is a FAIL. Runbook: docs/runbooks/backup-encryption.md.
+
+    python tools/authdb_restore_drill.py --private-key D:\\offline\\uct-backup-private.pem
 """
 from __future__ import annotations
 
@@ -78,6 +88,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from api.services import authdb_backup, data_sync  # noqa: E402  (stdlib-only at import)
+from api.services import backup_crypto  # noqa: E402
 # The ONE prefix the archive tool writes to -- reused, never retyped (a second copy of
 # this string would be a second authority over the same value).
 from tools.archive_authdb_backup import ARCHIVE_PREFIX  # noqa: E402
@@ -89,7 +100,21 @@ REQUIRED_TABLES = (
     "j2_accounts", "j2_trades", "j2_positions", "j2_day_notes",
     "j2_notes", "j2_note_folders", "watchlists", "watchlist_items",
 )
-_TS_RE = re.compile(r"(\d{8}T\d{6}Z)\.db\.gz$")
+_TS_RE = re.compile(r"(\d{8}T\d{6}Z)\.db\.gz(?:\.enc)?$")
+#: A backup object, legacy plaintext or encrypted.
+_BACKUP_SUFFIXES = (".db.gz", ".db.gz" + backup_crypto.ENC_SUFFIX)
+
+
+def _private_key_for(args) -> tuple[bytes | None, str | None]:
+    """(PEM, None) from --private-key / BACKUP_PRIVATE_KEY_PATH, or (None, why-not)."""
+    try:
+        pem = backup_crypto.load_private_key(getattr(args, "private_key", None))
+    except backup_crypto.BackupKeyError as exc:
+        return None, str(exc)
+    if pem is None:
+        return None, (f"no private key given (--private-key PATH or "
+                      f"{backup_crypto.PRIVATE_KEY_PATH_ENV})")
+    return pem, None
 _SHARED_ROOTS = (Path("C:/data"), Path("/data"))
 
 
@@ -153,7 +178,7 @@ def list_backups(client, bucket: str, *, prefix: str | None = None) -> list[dict
             if token:
                 kw["ContinuationToken"] = token
             resp = client.list_objects_v2(**kw)
-            out.extend(o for o in resp.get("Contents", []) if o["Key"].endswith(".db.gz"))
+            out.extend(o for o in resp.get("Contents", []) if o["Key"].endswith(_BACKUP_SUFFIXES))
             if not resp.get("IsTruncated"):
                 break
             token = resp.get("NextContinuationToken")
@@ -319,10 +344,14 @@ def attachment_freshness(last_modified: dt.datetime, now: dt.datetime) -> dict:
 
 
 def attachment_check(client, bucket, work: Path, *, file: str | None = None,
-                     sample: int = ATTACHMENT_SAMPLE, tombstoned=(), now: dt.datetime | None = None) -> dict:
+                     sample: int = ATTACHMENT_SAMPLE, tombstoned=(), now: dt.datetime | None = None,
+                     private_key: bytes | None = None) -> dict:
     """F-7: prove the newest attachments tarball restores byte-identical, by sampling
     its manifest, and that it is FRESH (a stopped backup job stops its prune too, so the
-    last tarball stays "newest" forever). Verdict PASS / FAIL / INCONCLUSIVE, with the reason."""
+    last tarball stays "newest" forever). Verdict PASS / FAIL / INCONCLUSIVE, with the reason.
+
+    An encrypted tarball is decrypted with ``private_key`` (default: BACKUP_PRIVATE_KEY_PATH);
+    with no key it is INCONCLUSIVE, and one that will not decrypt is a FAIL."""
     import hashlib
     import random
     import tarfile
@@ -369,6 +398,16 @@ def attachment_check(client, bucket, work: Path, *, file: str | None = None,
             client.download_file(bucket, key, str(src))
         except Exception as exc:  # noqa: BLE001
             out["why"] = f"could not download {key}: {exc}"
+            return out
+    if backup_crypto.is_encrypted(src):
+        pem, why = (private_key, None) if private_key else _private_key_for(None)
+        if pem is None:
+            out["why"] = f"{out['source']} is encrypted and cannot be checked: {why}"
+            return out
+        try:
+            src = backup_crypto.decrypt_if_encrypted(src, work, pem)
+        except backup_crypto.BackupDecryptError as exc:
+            out["verdict"], out["why"] = "FAIL", f"cannot decrypt {out['source']}: {exc}"
             return out
     try:
         with tarfile.open(src, "r:gz") as tar:
@@ -517,14 +556,30 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
                 return PASS
             src, source = fetch_newest(client, bucket, work, prefix=src_prefix)
         tomb = None
-        try:
-            db = gunzip(src, work)
-        except (OSError, EOFError) as exc:
+        private_key, no_key_why = _private_key_for(args)
+        plain, decrypt_error = src, None
+        if backup_crypto.is_encrypted(src):
+            # ⛔ An encrypted backup with no key is an UNKNOWN (never a pass); one that will
+            # not decrypt with the key given is not restorable (FAIL, below).
+            if private_key is None:
+                raise Inconclusive(f"{source} is encrypted: {no_key_why}")
+            try:
+                plain = backup_crypto.decrypt_if_encrypted(src, work, private_key)
+            except backup_crypto.BackupDecryptError as exc:
+                decrypt_error = f"cannot decrypt {source} with the private key given: {exc}"
+        if decrypt_error:
             result = {"integrity": None, "missing": list(REQUIRED_TABLES), "counts": {},
-                      "notes_updated_max": None, "error": f"not a readable gzip: {exc}"}
+                      "notes_updated_max": None, "error": decrypt_error}
             db = None
         else:
-            result = examine(db)
+            try:
+                db = gunzip(plain, work)
+            except (OSError, EOFError) as exc:
+                result = {"integrity": None, "missing": list(REQUIRED_TABLES), "counts": {},
+                          "notes_updated_max": None, "error": f"not a readable gzip: {exc}"}
+                db = None
+            else:
+                result = examine(db)
         taken = snapshot_time(source)
         code, reasons = verdict(result, taken, now, age_limit_hours=age_limit)
         # ⛔⛔ R-9: every restore replays the tombstones. Only on a database that opened.
@@ -552,7 +607,8 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
         if getattr(args, "attachments", False):
             att = attachment_check(client, bucket, work, file=getattr(args, "attachments_file", None),
                                    sample=getattr(args, "sample", ATTACHMENT_SAMPLE) or ATTACHMENT_SAMPLE,
-                                   tombstoned=(tomb or {}).get("tombstoned_ids", ()), now=now)
+                                   tombstoned=(tomb or {}).get("tombstoned_ids", ()), now=now,
+                                   private_key=private_key)
             if att["verdict"] == "FAIL":
                 code = FAIL
                 reasons.append(f"attachments: {att['why']}")
@@ -622,6 +678,9 @@ def main(argv=None) -> int:
                          "tools/archive_authdb_backup.py) instead of the regular weekly backups. "
                          "No freshness limit (kept forever by design); every other check, INCLUDING "
                          "the R-9 tombstone replay, runs unchanged and still fails closed")
+    ap.add_argument("--private-key", dest="private_key",
+                    help=f"the OFFLINE private key PEM that decrypts .enc backups (default: "
+                         f"${backup_crypto.PRIVATE_KEY_PATH_ENV}); legacy plaintext backups need none")
     ap.add_argument("--print-schedule", action="store_true", help="print the weekly schedule line and exit")
     args = ap.parse_args(argv)
     if args.print_schedule:

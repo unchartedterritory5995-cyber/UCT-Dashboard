@@ -22,9 +22,16 @@ Design invariants (the 524 law + safety):
   - **Skips gracefully** when R2 creds are absent (fully inert).
   - Prunes to the newest ``AUTHDB_BACKUP_KEEP`` (default 14) after each upload.
 
-R2 key layout: ``authdb/backup/<UTC ts>.db.gz`` where ``<UTC ts>`` is
-``YYYYMMDDTHHMMSSZ`` (lexicographically sortable == chronological, so prune is
-a simple name sort).
+R2 key layout: ``authdb/backup/<UTC ts>.db.gz.enc`` where ``<UTC ts>`` is
+``YYYYMMDDTHHMMSSZ``. Prune orders by the parsed timestamp, over BOTH the encrypted
+names and the legacy plaintext ``<UTC ts>.db.gz`` ones, so retention keeps counting
+across the switch-over and the legacy copies age out by the same RETAIN.
+
+⛔⛔ ENCRYPTED, FAIL-CLOSED (2026-10-22, after the Railway env-var leak): every object is
+UCTBK1-encrypted (``api/services/backup_crypto.py``) with ``BACKUP_PUBLIC_KEY``; only the
+offline private key can read it. With the key missing or invalid the run logs ONE error
+naming the variable and uploads NOTHING — no plaintext fallback, ever.
+Runbook: docs/runbooks/backup-encryption.md.
 """
 from __future__ import annotations
 
@@ -32,11 +39,14 @@ import datetime as _dt
 import gzip
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
 import time
 from typing import Optional
+
+from api.services import backup_crypto
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +55,15 @@ KEY_PREFIX = "authdb/backup/"
 # Newest-N retention. Env-tunable; default 14 (roughly a week of 6h + daily
 # backups, comfortably covering a "we noticed the corruption a few days late".
 RETAIN = int(os.environ.get("AUTHDB_BACKUP_KEEP", "14"))
+#: A backup object, legacy plaintext (``.db.gz``) or encrypted (``.db.gz.enc``).
+KEY_RE = re.compile(r"^" + re.escape(KEY_PREFIX) + r"(\d{8}T\d{6}Z)\.db\.gz(\.enc)?$")
+
+
+def backup_keys_newest_first(keys) -> list[str]:
+    """The backup keys among ``keys``, newest timestamp first (legacy and encrypted together).
+    Anything under the prefix that is not a backup is left out — and so never pruned."""
+    dated = [(m.group(1), k) for k in keys for m in [KEY_RE.match(k)] if m]
+    return [k for _ts, k in sorted(dated, reverse=True)]
 
 
 def is_enabled() -> bool:
@@ -96,16 +115,17 @@ def _gzip_file(src_path: str, dst_gz_path: str) -> None:
 def _prune(client, bucket: str, keep: int = RETAIN) -> int:
     """Delete all but the newest ``keep`` backups under KEY_PREFIX.
 
-    The UTC-timestamp keys sort lexicographically == chronologically, so a
-    name sort (descending) puts the newest first. Best-effort — never raises."""
+    Ordered by the parsed UTC timestamp over legacy ``.db.gz`` and encrypted
+    ``.db.gz.enc`` keys alike, so one retention count spans the switch-over.
+    Best-effort — never raises."""
     try:
         resp = client.list_objects_v2(Bucket=bucket, Prefix=KEY_PREFIX)
         objs = resp.get("Contents", []) or []
-        objs.sort(key=lambda o: o["Key"], reverse=True)  # newest first
+        keys = backup_keys_newest_first(o["Key"] for o in objs)
         deleted = 0
-        for o in objs[keep:]:
+        for k in keys[keep:]:
             try:
-                client.delete_object(Bucket=bucket, Key=o["Key"])
+                client.delete_object(Bucket=bucket, Key=k)
                 deleted += 1
             except Exception:
                 pass
@@ -142,6 +162,10 @@ def run_backup() -> Optional[str]:
     if not is_enabled():
         return None
     try:
+        # ⛔ FAIL CLOSED: no valid public key, no upload. Checked before anything is built.
+        public_key = backup_crypto.public_key_or_log(logger, "[authdb_backup]")
+        if public_key is None:
+            return None
         from api.services import data_sync
         client = data_sync._client()
         bucket = data_sync._bucket()
@@ -166,12 +190,16 @@ def run_backup() -> Optional[str]:
 
             gz_path = snap_db + ".gz"
             _gzip_file(snap_db, gz_path)
-            gz_bytes = os.path.getsize(gz_path)
+            os.remove(snap_db)
+            enc_path = gz_path + backup_crypto.ENC_SUFFIX
+            backup_crypto.encrypt_file(gz_path, enc_path, public_key)
+            os.remove(gz_path)
+            gz_bytes = os.path.getsize(enc_path)
 
             ts = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            key = f"{KEY_PREFIX}{ts}.db.gz"
+            key = f"{KEY_PREFIX}{ts}.db.gz{backup_crypto.ENC_SUFFIX}"
             client.upload_file(
-                gz_path, bucket, key, ExtraArgs={"ContentType": "application/gzip"}
+                enc_path, bucket, key, ExtraArgs={"ContentType": backup_crypto.ENC_CONTENT_TYPE}
             )
             dur = time.time() - t0
             logger.info(

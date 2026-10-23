@@ -144,6 +144,8 @@ def test_run_backup_end_to_end(tmp_path, monkeypatch):
 
     monkeypatch.setenv(authdb_backup.ENABLED_ENV, "1")
     monkeypatch.setattr(authdb_backup, "_auth_db_path", lambda: src)
+    from tests import _backup_keys
+    _backup_keys.arm(monkeypatch)   # fail-closed: no public key, no upload
 
     fake = FakeR2()
     import api.services.data_sync as data_sync
@@ -156,7 +158,7 @@ def test_run_backup_end_to_end(tmp_path, monkeypatch):
     assert len(fake.uploaded) == 1
     key, size = fake.uploaded[0]
     assert key.startswith(authdb_backup.KEY_PREFIX)
-    assert key.endswith(".db.gz")
+    assert key.endswith(".db.gz.enc")   # encrypted since 2026-10-22
     assert size > 0
 
 

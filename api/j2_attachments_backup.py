@@ -42,6 +42,13 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+# ⛔⛔ ENCRYPTED, FAIL-CLOSED (2026-10-22, after the Railway env-var leak): every tarball is
+# UCTBK1-encrypted with BACKUP_PUBLIC_KEY before upload and lands as
+# `j2-attachments-<date>.tar.gz.enc`. No valid key => one ERROR line, nothing uploaded, no
+# plaintext fallback. Legacy `.tar.gz` objects are still dated and pruned by the same rule.
+# Runbook: docs/runbooks/backup-encryption.md.
+from api.services import backup_crypto
+
 logger = logging.getLogger(__name__)
 
 ET = ZoneInfo("America/New_York")
@@ -196,8 +203,8 @@ def _make_tarball(root: Path, dest: Path) -> int:
 
 
 def _date_from_key(key: str):
-    """j2_attachment_backups/j2-attachments-YYYY-MM-DD.tar.gz -> date, or None."""
-    base = key.rsplit("/", 1)[-1]
+    """j2_attachment_backups/j2-attachments-YYYY-MM-DD.tar.gz[.enc] -> date, or None."""
+    base = backup_crypto.strip_enc(key.rsplit("/", 1)[-1])
     if not (base.startswith("j2-attachments-") and base.endswith(".tar.gz")):
         return None
     ds = base[len("j2-attachments-"):-len(".tar.gz")]
@@ -249,8 +256,9 @@ def _prune_old_backups(client, bucket, retain_days=None, keep_min=_KEEP_MIN,
 # --- core: backup ------------------------------------------------------------
 
 def backup_j2_attachments_to_r2() -> dict:
-    """tar.gz the J2 attachments tree, upload to R2 key
-    j2_attachment_backups/j2-attachments-<ET date>.tar.gz, then prune old keys.
+    """tar.gz the J2 attachments tree, ENCRYPT it, upload to R2 key
+    j2_attachment_backups/j2-attachments-<ET date>.tar.gz.enc, then prune old keys.
+    No valid BACKUP_PUBLIC_KEY -> {status:'error'} with nothing uploaded (fail-closed).
     Returns {status, key, bytes, files, duration_sec}. NEVER raises — any failure
     returns {status:'error', error}. Disabled → {skipped:'disabled'}. Empty or
     missing tree → {skipped:'no attachments'} (no upload)."""
@@ -259,6 +267,11 @@ def backup_j2_attachments_to_r2() -> dict:
     t0 = time.time()
     tmpdir = None
     try:
+        # ⛔ FAIL CLOSED: no valid public key, no upload. Checked before anything is built.
+        public_key = backup_crypto.public_key_or_log(logger, "[j2-attach-backup]")
+        if public_key is None:
+            return {"status": "error",
+                    "error": f"fail-closed: {backup_crypto.PUBLIC_KEY_ENV} missing or invalid; nothing uploaded"}
         root = _attachment_root()
         if not root.exists():
             return {"skipped": "no attachments"}
@@ -274,11 +287,14 @@ def backup_j2_attachments_to_r2() -> dict:
         if file_count == 0:
             return {"skipped": "no attachments"}
 
-        gz_bytes = os.path.getsize(gz)
+        enc = gz + backup_crypto.ENC_SUFFIX
+        backup_crypto.encrypt_file(gz, enc, public_key)
+        os.remove(gz)
+        gz_bytes = os.path.getsize(enc)
         day = _et_date()
-        key = f"{_PREFIX}j2-attachments-{day.isoformat()}.tar.gz"
-        client.upload_file(gz, bucket, key,
-                           ExtraArgs={"ContentType": "application/gzip"})
+        key = f"{_PREFIX}j2-attachments-{day.isoformat()}.tar.gz{backup_crypto.ENC_SUFFIX}"
+        client.upload_file(enc, bucket, key,
+                           ExtraArgs={"ContentType": backup_crypto.ENC_CONTENT_TYPE})
 
         pruned = _prune_old_backups(client, bucket)
         if pruned["deleted"]:

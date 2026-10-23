@@ -38,6 +38,13 @@ shared data root (``C:\\data`` / ``/data``) and deletes its temp directory unles
 
 The key layout, the client and the store list come from ``api/services/store_backup.py``, so
 this cannot drift from what the backup job writes.
+
+⛔⛔ ENCRYPTED BACKUPS (2026-10-22). New objects are ``<stamp>.db.gz.enc`` beside
+``<stamp>.manifest.json.enc`` (UCTBK1, ``api/services/backup_crypto.py``). Every mode decrypts
+them with ``--private-key PATH`` or ``BACKUP_PRIVATE_KEY_PATH`` (passphrase:
+``BACKUP_PRIVATE_KEY_PASSPHRASE``); legacy plaintext objects need no key. An encrypted object
+with no key is INCONCLUSIVE; one that will not decrypt is a FAIL.
+Runbook: docs/runbooks/backup-encryption.md.
 """
 from __future__ import annotations
 
@@ -56,6 +63,7 @@ REPO = Path(__file__).resolve().parent.parent
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from api.services import backup_crypto as bc  # noqa: E402
 from api.services import store_backup as sb  # noqa: E402
 from tools.authdb_restore_drill import FAIL, INCONCLUSIVE, PASS, refuse_shared_root  # noqa: E402
 
@@ -65,6 +73,38 @@ _CODE = {v: k for k, v in _WORD.items()}
 
 class RestoreRefused(Exception):
     """The restore procedure would not write — the message says why."""
+
+
+class _Unreadable(Exception):
+    """An encrypted object that could not be opened: INCONCLUSIVE (no key) or FAIL (won't decrypt)."""
+
+    def __init__(self, verdict: str, why: str):
+        super().__init__(why)
+        self.verdict, self.why = verdict, why
+
+
+def _resolve_key(private_key: bytes | None) -> tuple[bytes | None, str | None]:
+    """The key given, else BACKUP_PRIVATE_KEY_PATH's, else (None, why-not)."""
+    if private_key:
+        return private_key, None
+    try:
+        pem = bc.load_private_key(None)
+    except bc.BackupKeyError as exc:
+        return None, str(exc)
+    return (pem, None) if pem else (None, f"no private key given (--private-key PATH or {bc.PRIVATE_KEY_PATH_ENV})")
+
+
+def plaintext(path, work: Path, private_key: bytes | None):
+    """A legacy plaintext object unchanged; an encrypted one decrypted into ``work``."""
+    if path is None or not Path(path).is_file() or not bc.is_encrypted(path):
+        return path
+    pem, why = _resolve_key(private_key)
+    if pem is None:
+        raise _Unreadable("INCONCLUSIVE", f"{Path(path).name} is encrypted: {why}")
+    try:
+        return bc.decrypt_if_encrypted(path, work, pem)
+    except bc.BackupDecryptError as exc:
+        raise _Unreadable("FAIL", f"cannot decrypt {Path(path).name}: {exc}") from exc
 
 
 # ── the restore procedure (used by the rehearsal AND the real restore) ──────
@@ -122,11 +162,21 @@ def compare(manifest: dict, restored: dict) -> list[str]:
 
 
 def rehearse_file(name: str, gz: Path, manifest_path: Path | None, work: Path, *,
-                  now: dt.datetime, taken: dt.datetime | None) -> dict:
-    """Restore ``gz`` into ``work`` with restore_file and check it against the manifest."""
+                  now: dt.datetime, taken: dt.datetime | None,
+                  private_key: bytes | None = None) -> dict:
+    """Restore ``gz`` into ``work`` with restore_file and check it against the manifest.
+    Encrypted objects (db and manifest) are decrypted first with ``private_key`` (default:
+    BACKUP_PRIVATE_KEY_PATH)."""
     refuse_shared_root(work)
     work.mkdir(parents=True, exist_ok=True)
     out = {"verdict": "INCONCLUSIVE", "reasons": [], "restored": None, "manifest": None}
+    try:
+        gz = plaintext(gz, work, private_key)
+        manifest_path = plaintext(manifest_path, work, private_key)
+    except _Unreadable as exc:
+        out["verdict"] = exc.verdict
+        out["reasons"].append(exc.why)
+        return out
     manifest = None
     if manifest_path is not None and Path(manifest_path).is_file():
         try:
@@ -174,7 +224,8 @@ def _overall(results: dict) -> int:
     return PASS
 
 
-def rehearse_stores(client, bucket, *, now: dt.datetime, work: Path, stores=None) -> dict:
+def rehearse_stores(client, bucket, *, now: dt.datetime, work: Path, stores=None,
+                    private_key: bytes | None = None) -> dict:
     """The newest object of each store, from the bucket, rehearsed. {verdict: code, stores: {...}}."""
     refuse_shared_root(work)
     names = sb._names(stores)
@@ -213,7 +264,8 @@ def rehearse_stores(client, bucket, *, now: dt.datetime, work: Path, stores=None
             client.download_file(bucket, sb.manifest_key(key), str(man))
         except Exception:  # noqa: BLE001 -- a missing manifest is reported by rehearse_file
             man = None
-        res = rehearse_file(name, gz, man, sub / "restore", now=now, taken=taken)
+        res = rehearse_file(name, gz, man, sub / "restore", now=now, taken=taken,
+                            private_key=private_key)
         res["key"] = key
         results[name] = res
     return {"verdict": _overall(results), "stores": results}
@@ -256,16 +308,24 @@ def main(argv=None) -> int:
     ap.add_argument("--list", action="store_true", help="newest object per store, and the stale ones by name")
     ap.add_argument("--rehearse", action="store_true", help="rehearse each store's newest object from R2")
     ap.add_argument("--store", action="append", help="limit to this store (repeatable)")
-    ap.add_argument("--file", help="rehearse a .db.gz already on disk")
-    ap.add_argument("--manifest", help="its .manifest.json (with --file)")
+    ap.add_argument("--file", help="rehearse a .db.gz or .db.gz.enc already on disk")
+    ap.add_argument("--manifest", help="its .manifest.json[.enc] (with --file)")
     ap.add_argument("--round-trip", dest="round_trip", help="back up and restore a local copy you own")
-    ap.add_argument("--restore", help="REAL restore: an object key under store_backups/ or a local .db.gz")
+    ap.add_argument("--restore", help="REAL restore: an object key under store_backups/ or a local .db.gz[.enc]")
     ap.add_argument("--to", help="the store path to restore into (with --restore)")
     ap.add_argument("--replace", action="store_true", help="move an existing target aside (never deletes)")
     ap.add_argument("--report", help="also write the markdown report here")
     ap.add_argument("--keep", action="store_true", help="keep the temp work directory")
+    ap.add_argument("--private-key", dest="private_key",
+                    help=f"the OFFLINE private key PEM that decrypts .enc objects (default: "
+                         f"${bc.PRIVATE_KEY_PATH_ENV}); legacy plaintext objects need none")
     args = ap.parse_args(argv)
     now = dt.datetime.now(dt.timezone.utc)
+    try:
+        private_key = bc.load_private_key(args.private_key)
+    except bc.BackupKeyError as exc:
+        print(f"VERDICT: INCONCLUSIVE - {exc}")
+        return INCONCLUSIVE
     if args.store:
         unknown = sorted(set(args.store) - {s.name for s in sb.STORES})
         if unknown:
@@ -301,7 +361,15 @@ def main(argv=None) -> int:
                 client.download_file(bucket, sb.manifest_key(args.restore), str(man))
             else:
                 gz = Path(args.restore)
-                man = Path(args.manifest) if args.manifest else Path(str(gz)[: -len(sb.DB_SUFFIX)] + sb.MANIFEST_SUFFIX)
+                man = Path(args.manifest) if args.manifest else Path(sb.manifest_key(str(gz)))
+            # The REAL restore writes the PLAINTEXT gzip, so an encrypted object is opened here,
+            # once, and the rehearsal below checks exactly the bytes that will be restored.
+            try:
+                gz = plaintext(gz, work, private_key)
+                man = plaintext(man, work, private_key)
+            except _Unreadable as exc:
+                print(f"NOT RESTORED: {exc.why}")
+                return _CODE[exc.verdict]
             name = Path(args.to).stem
             check = rehearse_file(name, gz, man, work / "check", now=now, taken=None)
             print(render({name: check}, _CODE[check["verdict"]], now))
@@ -323,10 +391,12 @@ def main(argv=None) -> int:
             man = Path(args.manifest) if args.manifest else None
             parsed = sb.parse_key(f"{sb.KEY_PREFIX}x/{gz.name}")
             results = {"file": rehearse_file("file", gz, man, work / "file", now=now,
-                                             taken=parsed[1] if parsed else None)}
+                                             taken=parsed[1] if parsed else None,
+                                             private_key=private_key)}
             code, stale = _overall(results), None
         elif args.rehearse:
-            report = rehearse_stores(client, bucket, now=now, work=work, stores=args.store)
+            report = rehearse_stores(client, bucket, now=now, work=work, stores=args.store,
+                                     private_key=private_key)
             results, code = report["stores"], report["verdict"]
             stale = sb.stale_stores(client, bucket, now=now, stores=args.store)
         else:

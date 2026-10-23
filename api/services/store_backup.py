@@ -24,9 +24,17 @@ Invariants (the same law the three sibling rails keep):
   * An absent store is reported ``absent`` and never created (``sqlite3.connect`` would create it).
   * One store failing never stops the others, and nothing here raises into the scheduler.
 
-R2 layout: ``store_backups/<store>/<YYYYMMDDTHHMMSSZ>.db.gz`` beside
-``store_backups/<store>/<YYYYMMDDTHHMMSSZ>.manifest.json`` (uploaded after the db, so a manifest's
-presence implies its db). The UTC stamp sorts lexicographically == chronologically.
+R2 layout: ``store_backups/<store>/<YYYYMMDDTHHMMSSZ>.db.gz.enc`` beside
+``store_backups/<store>/<YYYYMMDDTHHMMSSZ>.manifest.json.enc`` (uploaded after the db, so a
+manifest's presence implies its db). Legacy plaintext objects (``.db.gz`` + ``.manifest.json``)
+are still parsed, listed, rehearsed and pruned, each with its own manifest, ordered by the UTC
+stamp, so they age out by the same RETAIN.
+
+⛔⛔ ENCRYPTED, FAIL-CLOSED (2026-10-22, after the Railway env-var leak): the db AND its manifest
+(table names and counts are member-derived) are UCTBK1-encrypted with ``BACKUP_PUBLIC_KEY``
+(``api/services/backup_crypto.py``). With the key missing or invalid, run_backup logs ONE error
+naming the variable and uploads NOTHING; there is no plaintext fallback.
+Runbook: docs/runbooks/backup-encryption.md.
 """
 from __future__ import annotations
 
@@ -44,19 +52,22 @@ import tempfile
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
+from api.services import backup_crypto
+
 logger = logging.getLogger(__name__)
 
 ENABLED_ENV = "STORE_BACKUP_ENABLED"
 KEY_PREFIX = "store_backups/"
 DB_SUFFIX = ".db.gz"
 MANIFEST_SUFFIX = ".manifest.json"
+ENC_SUFFIX = backup_crypto.ENC_SUFFIX
 #: Newest-N retention per store.
 RETAIN = int(os.environ.get("STORE_BACKUP_KEEP", "14"))
 #: A registered store whose newest object is older than this is named by stale_stores(). The job
 #: is nightly, so this is two missed nights.
 MAX_AGE_HOURS = 48
 _TS_FMT = "%Y%m%dT%H%M%SZ"
-_KEY_RE = re.compile(r"^store_backups/([a-z0-9_]+)/(\d{8}T\d{6}Z)\.db\.gz$")
+_KEY_RE = re.compile(r"^store_backups/([a-z0-9_]+)/(\d{8}T\d{6}Z)\.db\.gz(\.enc)?$")
 
 CLASS_MEMBER = "member-authored"
 CLASS_CURATED = "firm-curated"
@@ -118,16 +129,21 @@ def resolve_path(name: str) -> str:
     return str(val() if callable(val) else val)
 
 
-def db_key(name: str, when: _dt.datetime) -> str:
-    return f"{KEY_PREFIX}{name}/{when.astimezone(_dt.timezone.utc).strftime(_TS_FMT)}{DB_SUFFIX}"
+def db_key(name: str, when: _dt.datetime, *, encrypted: bool = True) -> str:
+    """The object key a backup taken ``when`` is written under (encrypted unless told otherwise)."""
+    stamp = when.astimezone(_dt.timezone.utc).strftime(_TS_FMT)
+    return f"{KEY_PREFIX}{name}/{stamp}{DB_SUFFIX}{ENC_SUFFIX if encrypted else ''}"
 
 
 def manifest_key(key: str) -> str:
+    """The manifest beside a db object: an encrypted db's manifest is encrypted too."""
+    if key.endswith(DB_SUFFIX + ENC_SUFFIX):
+        return key[: -len(DB_SUFFIX + ENC_SUFFIX)] + MANIFEST_SUFFIX + ENC_SUFFIX
     return key[: -len(DB_SUFFIX)] + MANIFEST_SUFFIX
 
 
 def parse_key(key: str) -> Optional[tuple[str, _dt.datetime]]:
-    """``store_backups/<name>/<stamp>.db.gz`` -> (name, taken UTC), else None."""
+    """``store_backups/<name>/<stamp>.db.gz[.enc]`` -> (name, taken UTC), else None."""
     m = _KEY_RE.match(key)
     if not m:
         return None
@@ -252,18 +268,31 @@ def prune(client, bucket: str, name: str, keep: int = RETAIN) -> list[str]:
     return deleted
 
 
-def backup_store(name: str, src_path: str, client, bucket: str, *, now: _dt.datetime) -> dict:
-    """One store -> one object + its manifest. {status: ok|absent|error, ...}. Never raises."""
+def backup_store(name: str, src_path: str, client, bucket: str, *, now: _dt.datetime,
+                 public_key: Optional[bytes] = None) -> dict:
+    """One store -> one ENCRYPTED object + its encrypted manifest. {status: ok|absent|error, ...}.
+    Never raises. ``public_key`` defaults to BACKUP_PUBLIC_KEY; without a valid one this
+    uploads nothing and reports an error naming the variable."""
     if not os.path.exists(src_path):
         return {"status": "absent", "path": src_path}
+    if public_key is None:
+        try:
+            public_key = backup_crypto.load_public_key_from_env()
+        except backup_crypto.BackupKeyError as e:
+            logger.error("[store_backup] %s FAIL-CLOSED: %s -- nothing uploaded", name, e)
+            return {"status": "error", "error": f"fail-closed: {e}"[:300]}
     tmpdir = tempfile.mkdtemp(prefix=f"store_backup_{name}_")
     try:
         art = build_artifacts(name, src_path, tmpdir, now)
+        enc_db = art["gz"] + ENC_SUFFIX
+        enc_man = art["manifest_path"] + ENC_SUFFIX
+        backup_crypto.encrypt_file(art["gz"], enc_db, public_key)
+        backup_crypto.encrypt_file(art["manifest_path"], enc_man, public_key)
         key = db_key(name, now)
-        client.upload_file(art["gz"], bucket, key, ExtraArgs={"ContentType": "application/gzip"})
-        client.upload_file(art["manifest_path"], bucket, manifest_key(key),
-                           ExtraArgs={"ContentType": "application/json"})
-        return {"status": "ok", "key": key, "bytes": os.path.getsize(art["gz"]),
+        client.upload_file(enc_db, bucket, key, ExtraArgs={"ContentType": backup_crypto.ENC_CONTENT_TYPE})
+        client.upload_file(enc_man, bucket, manifest_key(key),
+                           ExtraArgs={"ContentType": backup_crypto.ENC_CONTENT_TYPE})
+        return {"status": "ok", "key": key, "bytes": os.path.getsize(enc_db),
                 "tables": len(art["manifest"]["tables"])}
     except Exception as e:  # noqa: BLE001 -- one store's failure is reported, never raised
         logger.error("[store_backup] %s failed: %s", name, e)
@@ -291,6 +320,10 @@ def run_backup(*, now: Optional[_dt.datetime] = None, client=None, bucket=None,
         if not (client and bucket):
             logger.warning("[store_backup] R2 creds/bucket missing; skipping")
             return None
+        # ⛔ FAIL CLOSED: no valid public key, no upload of any store.
+        public_key = backup_crypto.public_key_or_log(logger, "[store_backup]")
+        if public_key is None:
+            return None
         out = {}
         for name in _names(stores):
             try:
@@ -298,7 +331,7 @@ def run_backup(*, now: Optional[_dt.datetime] = None, client=None, bucket=None,
             except Exception as e:  # noqa: BLE001
                 out[name] = {"status": "error", "error": f"cannot resolve path: {e}"[:300]}
                 continue
-            out[name] = backup_store(name, path, client, bucket, now=now)
+            out[name] = backup_store(name, path, client, bucket, now=now, public_key=public_key)
             if out[name]["status"] == "ok":
                 prune(client, bucket, name)
         logger.info("[store_backup] %s", {k: v["status"] for k, v in out.items()})

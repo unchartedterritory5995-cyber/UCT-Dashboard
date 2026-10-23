@@ -11,6 +11,18 @@ import tarfile
 from datetime import date
 from pathlib import Path
 
+import pytest
+
+from api.services import backup_crypto
+from tests import _backup_keys
+
+
+@pytest.fixture(autouse=True)
+def _armed_public_key(monkeypatch):
+    """Since 2026-10-22 the rail is FAIL-CLOSED without BACKUP_PUBLIC_KEY (its own rails live in
+    tests/test_backup_rails_encrypted.py); every test here runs with a test key set."""
+    _backup_keys.arm(monkeypatch)
+
 
 def _seed(root: Path) -> None:
     """Two users, two days, two image files — the real on-disk layout is
@@ -31,6 +43,11 @@ class _RecorderClient:
 
     def upload_file(self, filename, bucket, key, ExtraArgs=None):
         manifest = None
+        encrypted = backup_crypto.is_encrypted(filename)
+        if encrypted:   # what lands in R2 is UCTBK1; open it with the (test) offline key
+            plain = filename + ".dec"
+            backup_crypto.decrypt_file(filename, plain, _backup_keys.keypair()[0])
+            filename = plain
         with tarfile.open(filename, "r:gz") as tar:
             members = sorted(
                 m.name.replace("\\", "/") for m in tar.getmembers() if m.isfile()
@@ -43,7 +60,7 @@ class _RecorderClient:
         if MANIFEST_NAME in blobs:
             manifest = json.loads(blobs[MANIFEST_NAME].decode("utf-8"))
         self.uploads.append(
-            {"filename": filename, "bucket": bucket, "key": key,
+            {"filename": filename, "bucket": bucket, "key": key, "encrypted": encrypted,
              "extra": ExtraArgs, "members": members, "manifest": manifest, "blobs": blobs}
         )
 
@@ -106,8 +123,8 @@ def test_tarball_roundtrip(monkeypatch, tmp_path):
     up = rec.uploads[0]
     assert up["bucket"] == "test-bucket"
     assert up["key"].startswith("j2_attachment_backups/j2-attachments-")
-    assert up["key"].endswith(".tar.gz")
-    assert (up["extra"] or {}).get("ContentType") == "application/gzip"
+    assert up["key"].endswith(".tar.gz.enc") and up["encrypted"] is True
+    assert (up["extra"] or {}).get("ContentType") == backup_crypto.ENC_CONTENT_TYPE
 
     # the tarball actually carries the seeded files under relative arcnames --
     # every user file, nothing skipped, and (wave 10, F-7) ONE more member: the manifest.

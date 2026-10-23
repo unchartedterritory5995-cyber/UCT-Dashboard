@@ -9,6 +9,10 @@ copies the newest backup to ``authdb/archive/pre_pattern_purge_<ts>.db.gz``,
 which the pruner never touches. Run it BEFORE the purge (or at least before the
 pre-purge backups age out). Idempotent — re-runs skip if already archived.
 
+Since 2026-10-22 the newest backup is normally an ENCRYPTED ``<ts>.db.gz.enc``; the
+server-side copy keeps it encrypted (``pre_pattern_purge_<ts>.db.gz.enc``), and
+``tools/authdb_restore_drill.py --archive --private-key PATH`` reads it.
+
   railway ssh -s web "/opt/venv/bin/python /app/tools/archive_authdb_backup.py"
 """
 from __future__ import annotations

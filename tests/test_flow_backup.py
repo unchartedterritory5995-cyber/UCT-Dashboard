@@ -15,6 +15,8 @@ import pytest
 
 from api import flow_backup as fb
 from api.flow_db import FlowDB, COLUMNS
+from api.services import backup_crypto
+from tests import _backup_keys
 
 
 # --- fakes -------------------------------------------------------------------
@@ -80,6 +82,7 @@ def wired(tmp_path, monkeypatch):
     monkeypatch.setattr(fb, "ENABLED", True)
     monkeypatch.setattr(fb, "_r2_client", lambda: fake)
     monkeypatch.setattr(fb, "_bucket", lambda: "test-bucket")
+    _backup_keys.arm(monkeypatch)   # fail-closed since 2026-10-22: no public key, no upload
     return db_path, fake, tmp_path
 
 
@@ -128,14 +131,18 @@ def test_backup_produces_gzip_artifact(wired, tmp_path):
     res = fb.backup_flow_db_to_r2()
 
     assert res["status"] == "ok"
-    assert re.fullmatch(r"flow_backups/flow-\d{4}-\d{2}-\d{2}\.db\.gz", res["key"])
+    assert re.fullmatch(r"flow_backups/flow-\d{4}-\d{2}-\d{2}\.db\.gz\.enc", res["key"])
     assert res["bytes"] > 0
     assert "duration_sec" in res
 
-    # The artifact was captured, is valid gzip, and decompresses to a valid
-    # sqlite DB carrying the same rows.
+    # The artifact was captured ENCRYPTED, decrypts (with the offline key) to valid gzip,
+    # and decompresses to a valid sqlite DB carrying the same rows.
     assert res["key"] in fake.store
-    raw = gzip.decompress(fake.store[res["key"]])
+    assert backup_crypto.is_encrypted(fake.store[res["key"]])
+    enc = tmp_path / "dl.enc"
+    enc.write_bytes(fake.store[res["key"]])
+    backup_crypto.decrypt_file(enc, tmp_path / "dl.gz", _backup_keys.keypair()[0])
+    raw = gzip.decompress((tmp_path / "dl.gz").read_bytes())
     restored = tmp_path / "restored.db"
     restored.write_bytes(raw)
     conn = sqlite3.connect(str(restored))
@@ -155,6 +162,7 @@ def test_backup_missing_source_errors(tmp_path, monkeypatch):
     monkeypatch.setattr(fb, "ENABLED", True)
     monkeypatch.setattr(fb, "_r2_client", lambda: FakeR2())
     monkeypatch.setattr(fb, "_bucket", lambda: "b")
+    _backup_keys.arm(monkeypatch)
     res = fb.backup_flow_db_to_r2()
     assert res["status"] == "error"
     assert "not found" in res["error"]

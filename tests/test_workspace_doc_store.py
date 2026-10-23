@@ -405,12 +405,16 @@ def test_the_rehearsal_restores_the_backup_into_a_store_this_module_can_read(sto
     assert store.exists()
 
     monkeypatch.setenv(sb.ENABLED_ENV, "1")
+    from api.services import backup_crypto
+    from tests import _backup_keys
+    _backup_keys.arm(monkeypatch)   # the store rail is encrypted + fail-closed since 2026-10-22
     r2 = _FakeR2()
     res = sb.run_backup(now=NOW, client=r2, bucket="b", stores=["workspace_docs"])
     assert res["workspace_docs"]["status"] == "ok", res
 
     work = tmp_path / "rehearsal"
-    out = sr.rehearse_stores(r2, "b", now=NOW, work=work, stores=["workspace_docs"])
+    out = sr.rehearse_stores(r2, "b", now=NOW, work=work, stores=["workspace_docs"],
+                             private_key=_backup_keys.keypair()[0])
     assert out["verdict"] == sr.PASS, out
     restored = out["stores"]["workspace_docs"]["restored"]
     assert restored["tables"]["workspace_doc_versions"] == 3
@@ -418,7 +422,9 @@ def test_the_rehearsal_restores_the_backup_into_a_store_this_module_can_read(sto
 
     # The restored copy is not merely integrity-ok: the module reads it and can restore N-1 on it.
     copy = tmp_path / "reread.db"
-    sr.restore_file(Path(work / "workspace_docs" / Path(res["workspace_docs"]["key"]).name), copy, now=NOW)
+    downloaded = Path(work / "workspace_docs" / Path(res["workspace_docs"]["key"]).name)
+    plain = backup_crypto.decrypt_if_encrypted(downloaded, tmp_path, _backup_keys.keypair()[0])
+    sr.restore_file(plain, copy, now=NOW)
     monkeypatch.setattr(wds, "_DB_PATH", str(copy))
     assert [h["version"] for h in wds.history(USER, BOARD)] == [3, 2, 1]
     back = wds.restore(USER, BOARD, 1, base_version=3)
@@ -428,6 +434,8 @@ def test_the_rehearsal_restores_the_backup_into_a_store_this_module_can_read(sto
 def test_an_unarmed_store_is_reported_absent_and_never_created(tmp_path, monkeypatch):
     monkeypatch.setattr(wds, "_DB_PATH", str(tmp_path / "never.db"))
     monkeypatch.setenv(sb.ENABLED_ENV, "1")
+    from tests import _backup_keys
+    _backup_keys.arm(monkeypatch)   # past the fail-closed gate, so "absent" is what is measured
     res = sb.run_backup(now=NOW, client=_FakeR2(), bucket="b", stores=["workspace_docs"])
     assert res["workspace_docs"]["status"] == "absent"
     assert not (tmp_path / "never.db").exists()

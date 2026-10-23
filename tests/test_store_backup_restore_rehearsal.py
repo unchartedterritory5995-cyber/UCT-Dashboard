@@ -23,11 +23,37 @@ from pathlib import Path
 
 import pytest
 
+from api.services import backup_crypto
 from api.services import store_backup as sb
+from tests import _backup_keys
 from tools import store_restore as sr
 
 NOW = dt.datetime(2026, 9, 27, 7, 5, 0, tzinfo=dt.timezone.utc)
 ROWS = {"posts": 40, "replies": 7, "reactions": 0}
+
+
+@pytest.fixture(autouse=True)
+def _backup_keypair(monkeypatch, tmp_path):
+    """Since 2026-10-22 every object is UCTBK1-encrypted and the rail is FAIL-CLOSED without
+    BACKUP_PUBLIC_KEY (its own rails: tests/test_backup_rails_encrypted.py). Every test here
+    runs with a test public key on the rail and the matching private key for the restore."""
+    _backup_keys.arm(monkeypatch)
+    monkeypatch.setenv(backup_crypto.PRIVATE_KEY_PATH_ENV, str(_backup_keys.write_private(tmp_path)))
+
+
+def _open(blob: bytes, tmp_path: Path) -> bytes:
+    """An object as it sits in R2 -> its plaintext (the test's offline key)."""
+    src, out = tmp_path / "_obj.enc", tmp_path / "_obj.plain"
+    src.write_bytes(blob)
+    backup_crypto.decrypt_file(src, out, _backup_keys.keypair()[0])
+    return out.read_bytes()
+
+
+def _seal(data: bytes, tmp_path: Path) -> bytes:
+    src, out = tmp_path / "_seal.plain", tmp_path / "_seal.enc"
+    src.write_bytes(data)
+    backup_crypto.encrypt_file(src, out, _backup_keys.keypair()[1])
+    return out.read_bytes()
 
 
 # ── the synthetic store ──────────────────────────────────────────────────────
@@ -108,8 +134,9 @@ def test_a_backup_round_trips_through_the_object_store_into_a_scratch_restore(tm
     r2 = FakeR2()
     res = _backup(tmp_path, r2)
     assert res["status"] == "ok", res
-    assert res["key"] == "store_backups/community/20260927T070500Z.db.gz"
+    assert res["key"] == "store_backups/community/20260927T070500Z.db.gz.enc"
     assert sb.manifest_key(res["key"]) in r2.objects
+    assert backup_crypto.is_encrypted(r2.objects[res["key"]])
 
     work = tmp_path / "work"
     work.mkdir()
@@ -127,7 +154,7 @@ def test_a_backup_round_trips_through_the_object_store_into_a_scratch_restore(tm
 def test_the_manifest_records_the_source_as_the_backup_saw_it(tmp_path):
     r2 = FakeR2()
     res = _backup(tmp_path, r2)
-    manifest = json.loads(r2.objects[sb.manifest_key(res["key"])])
+    manifest = json.loads(_open(r2.objects[sb.manifest_key(res["key"])], tmp_path))
     assert manifest["store"] == "community"
     assert manifest["taken_at"] == "2026-09-27T07:05:00+00:00"
     assert manifest["journal_mode"] == "wal"
@@ -141,7 +168,7 @@ def test_the_restored_copy_keeps_wal_mode_and_leaves_no_journal_files(tmp_path):
     r2 = FakeR2()
     res = _backup(tmp_path, r2)
     gz = tmp_path / "b.db.gz"
-    gz.write_bytes(r2.objects[res["key"]])
+    gz.write_bytes(_open(r2.objects[res["key"]], tmp_path))
     dest = tmp_path / "restore" / "community.db"
     dest.parent.mkdir()
     out = sr.restore_file(gz, dest, now=NOW)
@@ -201,7 +228,7 @@ def test_a_write_landing_between_the_count_and_the_copy_does_not_split_them(tmp_
 def _tamper(r2: FakeR2, key: str, tmp_path: Path, sql: str) -> None:
     """Rewrite the stored backup object with `sql` applied — a backup that lost something."""
     db = tmp_path / "tamper.db"
-    with gzip.open(io.BytesIO(r2.objects[key])) as f_in:
+    with gzip.open(io.BytesIO(_open(r2.objects[key], tmp_path))) as f_in:
         db.write_bytes(f_in.read())
     c = sqlite3.connect(str(db))
     c.executescript(sql)
@@ -209,7 +236,8 @@ def _tamper(r2: FakeR2, key: str, tmp_path: Path, sql: str) -> None:
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode="wb") as f_out:
         f_out.write(db.read_bytes())
-    r2.objects[key] = buf.getvalue()
+    # Re-sealed to the same key: a backup that is authentic but LOST something.
+    r2.objects[key] = _seal(buf.getvalue(), tmp_path)
 
 
 def test_a_backup_missing_a_table_fails_the_rehearsal_by_name(tmp_path):
@@ -303,10 +331,10 @@ def test_prune_keeps_the_newest_n_and_removes_each_pruned_manifest_with_it(tmp_p
     assert len(deleted) == 4  # two db objects + their two manifests
     left = sorted(k for k in r2.objects if k.startswith("store_backups/community/"))
     assert left == [
-        "store_backups/community/20260926T070500Z.db.gz",
-        "store_backups/community/20260926T070500Z.manifest.json",
-        "store_backups/community/20260927T070500Z.db.gz",
-        "store_backups/community/20260927T070500Z.manifest.json",
+        "store_backups/community/20260926T070500Z.db.gz.enc",
+        "store_backups/community/20260926T070500Z.manifest.json.enc",
+        "store_backups/community/20260927T070500Z.db.gz.enc",
+        "store_backups/community/20260927T070500Z.manifest.json.enc",
     ]
 
 
@@ -371,7 +399,7 @@ def test_the_real_restore_refuses_to_overwrite_without_replace_and_moves_aside_n
     r2 = FakeR2()
     res = _backup(tmp_path, r2)
     gz = tmp_path / "b.db.gz"
-    gz.write_bytes(r2.objects[res["key"]])
+    gz.write_bytes(_open(r2.objects[res["key"]], tmp_path))
     live = tmp_path / "live"
     live.mkdir()
     dest = live / "community.db"
@@ -397,7 +425,7 @@ def test_a_stale_wal_beside_an_absent_main_file_is_refused(tmp_path):
     r2 = FakeR2()
     res = _backup(tmp_path, r2)
     gz = tmp_path / "b.db.gz"
-    gz.write_bytes(r2.objects[res["key"]])
+    gz.write_bytes(_open(r2.objects[res["key"]], tmp_path))
     live = tmp_path / "live"
     live.mkdir()
     dest = live / "community.db"

@@ -53,6 +53,11 @@ from fastapi.responses import JSONResponse
 # alert below. MODULE level, so an import problem surfaces at boot and not in the
 # middle of reporting a corrupt flow.db.
 from api.services.alert_destination import ops_webhook as _ops_webhook
+# ⛔⛔ ENCRYPTED, FAIL-CLOSED (2026-10-22, after the Railway env-var leak): the snapshot is
+# UCTBK1-encrypted with BACKUP_PUBLIC_KEY and lands as `flow-<date>.db.gz.enc`. No valid key
+# => one ERROR line, nothing uploaded, no plaintext fallback. Legacy `.db.gz` objects are still
+# dated and pruned by the same rule. Runbook: docs/runbooks/backup-encryption.md.
+from api.services import backup_crypto
 
 logger = logging.getLogger(__name__)
 
@@ -219,8 +224,8 @@ def _sqlite_backup(src_path: str, dst_path: str) -> None:
 
 
 def _date_from_key(key: str):
-    """flow_backups/flow-YYYY-MM-DD.db.gz -> date, or None if it doesn't match."""
-    base = key.rsplit("/", 1)[-1]
+    """flow_backups/flow-YYYY-MM-DD.db.gz[.enc] -> date, or None if it doesn't match."""
+    base = backup_crypto.strip_enc(key.rsplit("/", 1)[-1])
     if not (base.startswith("flow-") and base.endswith(".db.gz")):
         return None
     ds = base[len("flow-"):-len(".db.gz")]
@@ -272,7 +277,7 @@ def _prune_old_backups(client, bucket, retain_days=None, keep_min=_KEEP_MIN,
 # --- core: backup ------------------------------------------------------------
 
 def backup_flow_db_to_r2() -> dict:
-    """Snapshot flow.db, gzip it, upload to R2 key flow_backups/flow-<ET date>.db.gz,
+    """Snapshot flow.db, gzip + ENCRYPT it, upload to R2 key flow_backups/flow-<ET date>.db.gz.enc,
     then prune old keys. Returns {status, key, bytes, duration_sec}. NEVER raises —
     any failure returns {status:'error', error}. Disabled → {status:'disabled'}."""
     if not ENABLED:
@@ -280,6 +285,11 @@ def backup_flow_db_to_r2() -> dict:
     t0 = time.time()
     tmpdir = None
     try:
+        # ⛔ FAIL CLOSED: no valid public key, no upload. Checked before anything is built.
+        public_key = backup_crypto.public_key_or_log(logger, "[flow-backup]")
+        if public_key is None:
+            return {"status": "error",
+                    "error": f"fail-closed: {backup_crypto.PUBLIC_KEY_ENV} missing or invalid; nothing uploaded"}
         if not os.path.exists(DB_PATH):
             return {"status": "error", "error": f"flow.db not found at {DB_PATH}"}
         client = _r2_client()
@@ -306,11 +316,17 @@ def backup_flow_db_to_r2() -> dict:
         except OSError:
             pass
 
-        gz_bytes = os.path.getsize(gz)
+        enc = gz + backup_crypto.ENC_SUFFIX
+        backup_crypto.encrypt_file(gz, enc, public_key)
+        try:
+            os.remove(gz)
+        except OSError:
+            pass
+        gz_bytes = os.path.getsize(enc)
         day = _et_date()
-        key = f"{_PREFIX}flow-{day.isoformat()}.db.gz"
-        client.upload_file(gz, bucket, key,
-                           ExtraArgs={"ContentType": "application/gzip"})
+        key = f"{_PREFIX}flow-{day.isoformat()}.db.gz{backup_crypto.ENC_SUFFIX}"
+        client.upload_file(enc, bucket, key,
+                           ExtraArgs={"ContentType": backup_crypto.ENC_CONTENT_TYPE})
 
         pruned = _prune_old_backups(client, bucket)
         if pruned["deleted"]:
