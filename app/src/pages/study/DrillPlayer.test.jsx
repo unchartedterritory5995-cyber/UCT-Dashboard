@@ -214,6 +214,11 @@ describe('DrillPlayer', () => {
     await answerChoice('Flat base')
     fireEvent.click(screen.getByTestId('primary-action'))
     await screen.findByText('Question 4 of 10')
+    // Every digit in the drill's chord reaches it: 3 and 4 pick the third and fourth choice.
+    fireEvent.keyDown(document.body, { key: '3' })
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'The target' })).toHaveAttribute('aria-checked', 'true'))
+    fireEvent.keyDown(document.body, { key: '4' })
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'The low' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: '1' })
     await waitFor(() => expect(screen.getByRole('radio', { name: 'The buy point' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: 'Enter' })

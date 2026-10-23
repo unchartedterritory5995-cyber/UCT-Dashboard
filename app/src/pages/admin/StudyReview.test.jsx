@@ -280,6 +280,35 @@ describe('StudyReview card', () => {
     expect(screen.getByText('rejected')).toBeInTheDocument()
   })
 
+  it('Escape leaves the fix editor and the reject panel', () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.keyDown(document.body, { key: 'f' })
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'r' })
+    expect(screen.getByTestId('reject-panel')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByTestId('reject-panel')).not.toBeInTheDocument()
+  })
+
+  it('upper-case letters (Caps Lock) act like lower-case ones', async () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.keyDown(document.body, { key: 'N' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('TSLA')
+    fireEvent.keyDown(document.body, { key: 'P' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('NVDA')
+    fireEvent.keyDown(document.body, { key: 'F' })
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'R' })
+    expect(screen.getByTestId('reject-panel')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'A' })
+    await waitFor(() => expect(postCalls(REVIEW_URL)).toHaveLength(1))
+    expect(postCalls(REVIEW_URL)[0].body).toEqual({ action: 'approve' })
+  })
+
   it('N and P move through the queue', () => {
     renderWithProviders(<StudyReview />)
     fireEvent.keyDown(document.body, { key: 'n' })
