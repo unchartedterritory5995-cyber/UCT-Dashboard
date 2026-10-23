@@ -77,24 +77,81 @@ MEMBER_METRICS_ROUND = 1
 MEMBER_METRICS_IDS = frozenset({"bc:base"})
 
 
+def textbook_numbers_enabled() -> bool:
+    """AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED, read PER CALL; unset means OFF. It rides
+    AUTO_STRUCTURES_METRICS_ENABLED (the textbook numbers sit beside the base metrics, so with metrics off
+    nothing is computed either way). While off, nothing in api/services/textbook_numbers.py runs and every
+    payload is byte-identical to before."""
+    return os.environ.get("AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: The textbook-numbers round a member may be shown (textbook_numbers.TEXTBOOK_ROUND stamps
+#: `extras.metrics_textbook_round`). None: NOT released -- the new label has not passed a blind check, so a
+#: member keeps the confirmed base metrics label and never gets `metrics_textbook` (fail closed), while
+#: admins see it under the flag. Set it by hand to the confirmed round.
+MEMBER_TEXTBOOK_ROUND = None
+#: The textbook keys a member's row loses while MEMBER_TEXTBOOK_ROUND does not match.
+_TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
+
+
 def with_metrics(sym: str, rows, *, member: bool = False) -> list:
     """`rows` with base metrics attached (base_metrics.with_metrics) when AUTO_STRUCTURES_METRICS_ENABLED
     is on; `rows` itself, untouched, when it is off. On the member path a row keeps its metrics only while
     MEMBER_METRICS_ROUND is an int equal to its stamped `extras.metrics_round`; otherwise the member gets
-    the row exactly as it was before metrics (fail closed). Never mutates a cached row. Never raises."""
+    the row exactly as it was before metrics (fail closed). Never mutates a cached row. Never raises.
+
+    With AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED also on, every row with metrics also gets the textbook
+    numbers (textbook_numbers.with_textbook); a member keeps them only while MEMBER_TEXTBOOK_ROUND equals the
+    stamped round, and otherwise gets the row exactly as the metrics alone build it."""
     if not metrics_enabled():
         return rows
     try:
         from api.services import base_metrics
         if not any((r or {}).get("pattern_id") in base_metrics.METRIC_IDS for r in rows or []):
             return rows
-        out = base_metrics.with_metrics(rows, _daily_bars(sym))
+        bars = _daily_bars(sym)
+        out = base_metrics.with_metrics(rows, bars)
+        if textbook_numbers_enabled():
+            out = _with_textbook(out, bars)
     except Exception:  # noqa: BLE001 -- metrics never break a read
         _log.debug("[base-metrics] %s failed", sym, exc_info=True)
         return rows
     if not member:
         return out
-    return [m if _member_metrics_ok(m) else r for r, m in zip(rows, out)]
+    return [_member_textbook(m) if _member_metrics_ok(m) else r for r, m in zip(rows, out)]
+
+
+def _with_textbook(rows, bars) -> list:
+    """The textbook numbers on `rows` (the as-of session's completeness from last_bar_complete, which fails
+    closed; the series is the full history when it is shorter than the STRUCTURE_BARS asked for). On any
+    failure the rows come back as they were."""
+    try:
+        from api.services import textbook_numbers
+        return textbook_numbers.with_textbook(rows, bars, asof_complete=last_bar_complete,
+                                              full_history=len(bars or []) < STRUCTURE_BARS)
+    except Exception:  # noqa: BLE001 -- the textbook numbers never break a read
+        _log.debug("[textbook-numbers] failed", exc_info=True)
+        return rows
+
+
+def _member_textbook_ok(row) -> bool:
+    """True only while MEMBER_TEXTBOOK_ROUND is an int equal to the row's stamped metrics_textbook_round,
+    beside a dict of textbook numbers."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    rnd = ex.get("metrics_textbook_round")
+    return (type(MEMBER_TEXTBOOK_ROUND) is int and type(rnd) is int and rnd == MEMBER_TEXTBOOK_ROUND
+            and isinstance(ex.get("metrics_textbook"), dict))
+
+
+def _member_textbook(row):
+    """A member's copy of a metrics row: as it is when it carries no textbook numbers or they are released
+    (_member_textbook_ok), else the same row with the textbook keys removed (key order kept, so the payload
+    is byte-identical to the metrics-only row). Never mutates `row`."""
+    ex = ((row or {}).get("geometry") or {}).get("extras") or {}
+    if not any(k in ex for k in _TEXTBOOK_KEYS) or _member_textbook_ok(row):
+        return row
+    geo = row.get("geometry") or {}
+    return {**row, "geometry": {**geo, "extras": {k: v for k, v in ex.items() if k not in _TEXTBOOK_KEYS}}}
 
 
 def _member_metrics_ok(row) -> bool:

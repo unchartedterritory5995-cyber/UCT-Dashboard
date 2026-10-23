@@ -179,6 +179,8 @@ export function baseDrawing(d) {
  * always labelled an estimate. Pure — exported for tests.
  */
 export function baseMetricsLines(d) {
+  const tb = textbookMetricsLines(d)
+  if (tb) return tb
   const m = d?.geometry?.extras?.metrics
   if (!m || typeof m !== 'object') return null
   const pivot = Number(m.pivot)
@@ -198,9 +200,45 @@ export function baseMetricsLines(d) {
   return [first.join(' · '), second.join(' · ')]
 }
 
-// The metrics text: two lines right-aligned to the END of the pivot line (its extended tip) and set
-// just ABOVE it, so it sits over the base (whose prices are below the pivot) and never touches the
-// pivot label, which starts 4px to the right of that same tip.
+const signedPct = (v, digits = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(digits)}%`
+
+/**
+ * The TEXTBOOK numbers a base row carries (`extras.metrics_textbook`, server-computed only under
+ * AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED; api/services/textbook_numbers.py): the IBD-style buy point
+ * (the base's pivot HIGH + $0.10), its buy zone and the close against it, plus the base count and the
+ * volume when the server could read them. The drawn line does not move; these lines say "Buy point" so the
+ * two prices are never confused. Two or three lines:
+ *   "Buy point 43.12 · 12% deep · 5.2 wks · stage 2"
+ *   "Buy zone to 45.28 · −1.3% from buy point"       (" · extended" past the buy zone)
+ *   "Vol +62% vs 50d avg"                             (" · light volume" on a breakout under 40%)
+ * Returns null when the row has no textbook numbers or they are malformed. Pure — exported for tests.
+ */
+export function textbookMetricsLines(d) {
+  const m = d?.geometry?.extras?.metrics_textbook
+  if (!m || typeof m !== 'object') return null
+  const req = [m.buy_point, m.depth_pct, m.length_weeks, m.buy_zone_top, m.pct_from_buy_point]
+  if (req.some((v) => v == null)) return null
+  const [bp, depth, weeks, bz, pfb] = req.map(Number)
+  if (![bp, depth, weeks, bz, pfb].every(Number.isFinite)) return null
+  const first = [`Buy point ${bp.toFixed(2)}`, `${Math.round(depth)}% deep`, `${weeks.toFixed(1)} wks`]
+  const stage = Number(m.stage)
+  if (m.stage != null && Number.isInteger(stage) && stage >= 1) first.push(`stage ${stage}`)
+  const second = [`Buy zone to ${bz.toFixed(2)}`, `${signedPct(pfb)} from buy point`]
+  if (m.extended === true) second.push('extended')
+  const lines = [first.join(' · '), second.join(' · ')]
+  const vol = m.volume
+  const vp = Number(vol?.vol_pct)
+  if (vol && typeof vol === 'object' && vol.vol_pct != null && Number.isFinite(vp)) {
+    const third = [`Vol ${vp >= 0 ? '+' : '−'}${Math.abs(Math.round(vp))}% vs 50d avg`]
+    if (vol.breakout === true && vol.light === true) third.push('light volume')
+    lines.push(third.join(' · '))
+  }
+  return lines
+}
+
+// The metrics text: two (or three) lines right-aligned to the END of the pivot line (its extended tip) and
+// set just ABOVE it, so it sits over the base (whose prices are below the pivot) and never touches the
+// pivot label, which starts 4px to the right of that same tip. A third line lifts the block by one line.
 function BaseMetricsText({ d, lines, line, tToX, priceToY }) {
   if (!lines || !line) return null
   const xs = [tToX(line.start_t), tToX(line.end_t)].filter((v) => v != null)
@@ -208,10 +246,9 @@ function BaseMetricsText({ d, lines, line, tToX, priceToY }) {
   if (!xs.length || y == null) return null
   const x = Math.max(...xs) + 40
   return (
-    <text data-role="base-metrics" x={x} y={y - 18} textAnchor="end" fontSize="10" fontWeight="600"
-      fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }}>
-      <tspan x={x} dy="0">{lines[0]}</tspan>
-      <tspan x={x} dy="12">{lines[1]}</tspan>
+    <text data-role="base-metrics" x={x} y={y - 18 - 12 * Math.max(0, lines.length - 2)} textAnchor="end"
+      fontSize="10" fontWeight="600" fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }}>
+      {lines.map((s, i) => <tspan key={i} x={x} dy={i === 0 ? '0' : '12'}>{s}</tspan>)}
     </text>
   )
 }
