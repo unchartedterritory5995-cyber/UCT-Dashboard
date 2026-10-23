@@ -495,7 +495,9 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   member, in-process only: each example preview reduces the whole note, so a second process
   doubles how many a member can run), and since P5 (starter packs, dark) `notebook-starter-pack`
   on the journal styles router (10/hour, plus a DURABLE 5/day, so a second process doubles only
-  the hourly half) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  the hourly half), and since the Notebook widgets final review (I-4) `notebook-widgets` (60/minute
+  per member, `WIDGET_RATE` at the top of `api/routers/notebook_widgets.py`, in-process only, so a
+  second process doubles it) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
@@ -511,7 +513,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
   `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
   `entry_context._vendor_cache` (one answer per symbol per capture day), and
-  `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes). A second
+  `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes) · the Notebook
+  widgets' shared builder pool `notebook_widgets._POOL` (`WIDGET_POOL_WORKERS` = 8 workers; full, it
+  answers each widget's sentence at once) and the journal styles slot pool `journal_styles._SLOT_POOL`
+  (`SLOT_POOL_WORKERS` = 8 workers, its OWN pool: a slot waits on builder tasks). A second
   web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
