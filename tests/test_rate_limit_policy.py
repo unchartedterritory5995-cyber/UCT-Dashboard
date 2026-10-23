@@ -413,19 +413,48 @@ def _dist_registrations_from_main_py() -> dict[str, str]:
 
     out: dict[str, str] = {}
 
+    # Module-level string constants, so a path written as a NAME
+    # (`@app.api_route(LIVE_TRADING_ROOM_PATH + "/terms", ...)`) is resolved
+    # instead of silently skipped. A literal-only reader missed the six
+    # /live-trading-room routes for weeks, and the census only met them when a
+    # local build happened to exist.
+    consts: dict[str, str] = {}
+
+    def resolve(expr):
+        if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+            return expr.value
+        if isinstance(expr, ast.Name):
+            return consts.get(expr.id)
+        if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add):
+            left, right = resolve(expr.left), resolve(expr.right)
+            return left + right if left is not None and right is not None else None
+        return None
+
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            val = resolve(node.value)
+            if val is not None:
+                consts[node.targets[0].id] = val
+
+    def norm(path):
+        # classify() strips a trailing slash, so the policy cannot (and need not)
+        # declare `/x/` apart from `/x`.
+        return path if path == rlp.SPA_CATCH_ALL else (path.rstrip("/") or "/")
+
     def collect(node):
         for sub in ast.walk(node):
             if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for dec in sub.decorator_list:
                     if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
                             and isinstance(dec.func.value, ast.Name) and dec.func.value.id == "app"
-                            and dec.args and isinstance(dec.args[0], ast.Constant)):
-                        out[dec.args[0].value] = "route"
+                            and dec.args and resolve(dec.args[0]) is not None):
+                        out[norm(resolve(dec.args[0]))] = "route"
             if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
                     and sub.func.attr == "mount" and isinstance(sub.func.value, ast.Name)
                     and sub.func.value.id == "app" and sub.args
-                    and isinstance(sub.args[0], ast.Constant)):
-                out[sub.args[0].value] = "mount"
+                    and resolve(sub.args[0]) is not None):
+                out[norm(resolve(sub.args[0]))] = "mount"
 
     for node in tree.body:
         if isinstance(node, ast.If) and is_dist_guard(node.test):
@@ -477,6 +506,48 @@ def test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_prox
     res = rlp.census(_production_shape(app))
     assert res["ok"], _fmt(res)
     assert res["dist_served"] and res["proxy_served"], res
+
+
+def _app_with_a_built_dist(app, dist_dir):
+    """The real app as production serves it: main.py's OWN `if
+    os.path.exists(DIST):` blocks, executed against a throwaway FastAPI with
+    DIST pointed at a temporary bundle. Not a list of paths restated here, and
+    never app/dist: what registers is whatever main.py registers."""
+    import api.main as m
+    for sub in ("assets", "fonts", "live-trading-room"):
+        (dist_dir / sub).mkdir(parents=True, exist_ok=True)
+    (dist_dir / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    tree = ast.parse(MAIN_SRC())
+    blocks = [n for n in tree.body if isinstance(n, ast.If)
+              and isinstance(n.test, ast.Call) and isinstance(n.test.func, ast.Attribute)
+              and n.test.func.attr == "exists" and len(n.test.args) == 1
+              and isinstance(n.test.args[0], ast.Name) and n.test.args[0].id == "DIST"]
+    assert blocks, "found no DIST guard in api/main.py"
+    built = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    scope = dict(vars(m))
+    scope.update(app=built, DIST=str(dist_dir))
+    for block in blocks:
+        exec(compile(ast.Module(body=[block], type_ignores=[]), str(REPO / "api" / "main.py"), "exec"), scope)
+    whole = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    dist_paths = {getattr(r, "path", None) for r in built.routes}
+    whole.router.routes.extend(r for r in app.routes if getattr(r, "path", None) not in dist_paths)
+    whole.router.routes.extend(built.routes)
+    return whole, built
+
+
+def MAIN_SRC():
+    return (REPO / "api" / "main.py").read_text(encoding="utf-8")
+
+
+def test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt(app, tmp_path):
+    whole, built = _app_with_a_built_dist(app, tmp_path / "dist")
+    paths = {getattr(r, "path", None) for r in built.routes}
+    # non-vacuity: the executed block really registered the bundle's routes
+    assert rlp.SPA_CATCH_ALL in paths and "/live-trading-room" in paths, sorted(p for p in paths if p)
+    res = rlp.census(whole)
+    assert res["dist_served"] is True, res
+    assert not res["unclassified"], _fmt(res)
+    assert not res["stale"] and not res["dist_only_undeclared"], _fmt(res)
 
 
 def test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one(app):

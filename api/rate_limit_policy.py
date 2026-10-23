@@ -410,6 +410,18 @@ EXEMPT: dict[str, str] = {
     "/sitemap.xml": "Static crawler file from app/dist.",
     "/pip-embed": "Static picture-in-picture embed page from app/dist.",
     "/q1-probe.html": "Static browser-probe page from app/dist.",
+    # The Live Trading Room's public landing page and its own terms and privacy
+    # pages: static HTML from app/dist (no JS, no member data), served before
+    # the SPA catch-all so a crawler reads them, plus the images mounted beside
+    # them. Pages, not API calls -- the same treatment as the SPA shell below.
+    # classify() strips the trailing slash, so each entry covers its `/` form
+    # (a 301 to the no-slash URL) too.
+    "/live-trading-room": "Static public landing page from app/dist (and its images); "
+                          "a page a visitor or crawler loads, not an API call.",
+    "/live-trading-room/terms": "The room's static terms page from app/dist; same reason "
+                                "as /live-trading-room.",
+    "/live-trading-room/privacy": "The room's static privacy page from app/dist; same "
+                                  "reason as /live-trading-room.",
     SPA_CATCH_ALL: "The SPA shell (index.html) for every client-side route; a "
                    "page, not an API call.",
 }
@@ -422,7 +434,8 @@ DIST_ONLY = frozenset({
     "/assets", "/fonts", "/manifest.json", "/sw.js", "/push-sw.js", "/favicon.svg", "/vite.svg",
     "/og-image.png", "/og-coming-soon.png", "/api/q1-probe-result",
     "/api/q1-probe-results", "/q1-probe.html", "/robots.txt", "/sitemap.xml",
-    "/pip-embed", SPA_CATCH_ALL,
+    "/pip-embed", "/live-trading-room", "/live-trading-room/terms",
+    "/live-trading-room/privacy", SPA_CATCH_ALL,
 })
 
 
