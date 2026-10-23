@@ -160,7 +160,9 @@ def score(c: dict) -> float:
     # Catalyst Hunter: a confirmed hard catalyst earns a per-category bonus so a
     # not-yet-moving name surfaces onto the board. A mover keeps its gap/volume
     # score and gets this on top, so movers still outrank equal-type flat names.
-    if c.get("hunter_confirmed"):
+    # A definitive agreed buyout of THIS ticker (`deal_definitive`, set by the engine
+    # only while DEAL_STATUS_ENABLED is on) is not a bullish catalyst: no bonus.
+    if c.get("hunter_confirmed") and not c.get("deal_definitive"):
         s += _hunter_bonus(c.get("catalyst_type") or HUNTER_CATALYST_TYPE_FALLBACK)
 
     return s

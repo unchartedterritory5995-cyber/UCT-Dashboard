@@ -92,6 +92,11 @@ def passes_add_gate(sym_hy, theme_id, conf, cmin=None, cliq=None):
     patching orphans._is_liquid etc. keep working."""
     if not theme_id:
         return False
+    # A pending acquisition (DEAL_STATUS_ENABLED) is never admitted to a theme by either
+    # loop: it is about to stop trading. Flag off: never consulted.
+    from api.services import deal_status
+    if deal_status.is_pending(sym_hy):
+        return False
     cmin = _env_f("THEME_ENGINE_CONFIDENCE_MIN", 0.75) if cmin is None else cmin
     cliq = _env_f("THEME_ENGINE_CONFIDENCE_LIQUID", 0.85) if cliq is None else cliq
     liquid = _is_liquid(sym_hy)

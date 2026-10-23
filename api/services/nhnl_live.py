@@ -633,12 +633,21 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
             return round((last - prev) / prev * 100, 2)   # % change vs prior close
         return None
 
+    # A pending acquisition (DEAL_STATUS_ENABLED) keeps printing tiny new highs at its
+    # deal price; it is left off the STOCK leaderboard of the default scope only. The
+    # group breadth counts below (rank_breadth, categories) are untouched, and so is a
+    # member's own watchlist/ETF scope (`restrict`). Flag off: empty set.
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending() if restrict is None else frozenset()
+
     def rank_stocks(direction, cat=None):
         hi = direction == "high"
         full = []
         for sym, nh, nl, last, hts, lts, prev in sym_rows:
             cnt = nh if hi else nl
             if cnt < min_count or sym in etf:              # stocks only
+                continue
+            if deal_pending and deal_status.is_pending(sym, deal_pending):
                 continue
             if restrict is not None and sym not in restrict:  # ETF/watchlist scope
                 continue
