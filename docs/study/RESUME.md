@@ -206,6 +206,24 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
   status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
   import once Railway is back; the hub then shows the survivors by station; sizing first.
+- **2026-10-23 ~02:10Z: RAILWAY BACK; #457 LIVE; PR #459 carries #458 + the audit.** Railway's
+  builds resumed; web deployed production fb4a45c68e at 02:12:26Z (commit STATUS "web | success"),
+  which contains #457 (8043eca012), so the scoring fix is live. NOT YET VERIFIED in a browser: the
+  site signed everyone out (the owner's admin tab sits on /login) and the Railway CLI still answers
+  Unauthorized (`! railway login --browserless` is the owner's step). PR #459 (feat/study-method-audit)
+  carries #458's commit plus the audit, batch 1, the short glossary choices, and two new commits:
+  191078f54f (the review card's "Checked against" lists reveal.support, the firm's lines, instead
+  of reveal.quote, the AI brief's sentence; learners never saw the quote) and 54b36522c9
+  (scripts/study/retire_ids.py + docs/study/audits/2026-10-21/retire_batch1.json: reject the 137
+  cuts on the pod, drafts only, refuses off the pod, re-run safe). Merging #459 merges #458.
+  A bulk reject from the browser was refused by the auto-mode classifier (external write), hence
+  the owner-run tool. A helper is price-checking the 17 regime.bottoms holds on real bars
+  (scratchpad bottoms_check/REPORT.md). NEXT: merge #459, wait web SUCCESS; owner runs
+  `railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only size.house_rule
+  --only walk.method --only vocab.chart --only recall.glossary --only recall.concepts` (regime.bottoms waits for
+  the price check; its 17 holds are already on the pod as drafts)
+  then `... scripts/study/retire_ids.py docs/study/audits/2026-10-21/retire_batch1.json` (dry-run first);
+  owner signs in, verify a right choice says Correct; run scratchpad pod_count_misscored.py (read-only).
 - **2026-10-21 ~17:45Z to 22:00Z: BATCH 1 APPLIED, glossary choices shortened (branch
   feat/study-method-audit, stacked on #458, pushed).** a9f984ca53 rebuilt six segments from the audit's
   corrections records: size.house_rule 84->62, walk.method 25->9, vocab.chart 78->29, recall.glossary
