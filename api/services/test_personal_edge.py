@@ -145,3 +145,30 @@ def test_default_seam_keeps_the_seven_day_lookback(monkeypatch, tmp_path):
     from api.services import grade_watchlist as gw, ai_search_personal as asp
     assert gw._default_edge("u9", acc_id) == {} and asp._edge_for("u9", acc_id) == {}
 
+
+def test_two_spellings_of_one_setup_merge_their_stats(monkeypatch):
+    """M-5: "Bull Flag" and "flag" normalize to one key; the edge is BOTH buckets, never whichever
+    came last (n=10 here would read 'thin' and hide a net-negative record of 30 trades)."""
+    monkeypatch.setattr(pe, "normalize_setup", lambda s: "FLAG")
+    rows = [
+        {"key": "Bull Flag", "trade_count": 20, "wins": 12, "losses": 8, "win_rate": 0.6,
+         "avg_r": 0.5, "total_r": 10.0},
+        {"key": "flag", "trade_count": 10, "wins": 2, "losses": 8, "win_rate": 0.2,
+         "avg_r": -2.0, "total_r": -20.0},
+    ]
+    out = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: rows)
+    assert set(out) == {"FLAG"}
+    e = out["FLAG"]
+    assert e["n"] == 30 and e["total_r"] == -10.0
+    assert abs(e["avg_r"] - (-10.0 / 30)) < 1e-9
+    assert abs(e["win_rate"] - 14 / 30) < 1e-9
+    assert e["verdict"] == "weak" and e["muted"] is True
+
+
+def test_merge_without_counts_weights_by_trade_count(monkeypatch):
+    monkeypatch.setattr(pe, "normalize_setup", lambda s: "VCP")
+    rows = [{"setup": "vcp", "trade_count": 3, "win_rate": 1.0, "avg_r": 1.0},
+            {"setup": "VCP base", "trade_count": 1, "win_rate": 0.0, "avg_r": -1.0}]
+    e = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: rows)["VCP"]
+    assert e["n"] == 4 and e["avg_r"] == 0.5 and e["win_rate"] == 0.75 and e["total_r"] is None
+

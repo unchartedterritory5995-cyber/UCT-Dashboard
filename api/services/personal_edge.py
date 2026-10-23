@@ -117,7 +117,9 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
         rows = setup_perf_fn(user_id, account_id) or []
     except Exception:  # noqa: BLE001
         return {}
-    edge: dict[str, dict] = {}
+    # Merge first (M-5): two journal spellings that normalize to one key are ONE setup. Sums are
+    # exact (n, total_r, wins/losses); avg_r and a count-less win_rate are trade-count weighted.
+    merged: dict[str, dict] = {}
     for r in rows:
         raw = r.get("setup") or r.get("key") or ""  # 'key' = _breakdown_trades bucket
         key = normalize_setup(raw) or raw
@@ -127,8 +129,37 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
             n = int(r.get("trade_count") or 0)
             avg_r = r.get("avg_r")
             avg_r = float(avg_r) if avg_r is not None else None
+            wr = r.get("win_rate")
+            wr = float(wr) if wr is not None else None
+            tr = r.get("total_r")
+            tr = float(tr) if tr is not None else None
         except (TypeError, ValueError):
             continue
+        m = merged.setdefault(key, {"n": 0, "r_sum": 0.0, "r_n": 0, "total_r": None,
+                                    "wins": 0, "losses": 0, "counted": True,
+                                    "wr_sum": 0.0, "wr_n": 0})
+        m["n"] += n
+        if avg_r is not None and n:
+            m["r_sum"] += avg_r * n
+            m["r_n"] += n
+        if tr is not None:
+            m["total_r"] = (m["total_r"] or 0.0) + tr
+        if r.get("wins") is not None and r.get("losses") is not None:
+            m["wins"] += int(r["wins"]); m["losses"] += int(r["losses"])
+        else:
+            m["counted"] = False
+        if wr is not None and n:
+            m["wr_sum"] += wr * n
+            m["wr_n"] += n
+    edge: dict[str, dict] = {}
+    for key, m in merged.items():
+        n = m["n"]
+        avg_r = (m["r_sum"] / m["r_n"]) if m["r_n"] else None
+        if m["counted"]:
+            decisive = m["wins"] + m["losses"]
+            win_rate = (m["wins"] / decisive) if decisive else None
+        else:
+            win_rate = (m["wr_sum"] / m["wr_n"]) if m["wr_n"] else None
         if n == 0 or avg_r is None:
             verdict, muted = "unknown", False
             note = "no personal history — using the firm's win-rate"
@@ -141,7 +172,7 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
         else:
             verdict, muted = "edge", False
             note = f"you're net-positive here (n={n}, avg {avg_r:+.2f}R)"
-        edge[key] = {"n": n, "avg_r": avg_r, "total_r": r.get("total_r"),
-                     "win_rate": r.get("win_rate"), "verdict": verdict,
+        edge[key] = {"n": n, "avg_r": avg_r, "total_r": m["total_r"],
+                     "win_rate": win_rate, "verdict": verdict,
                      "muted": muted, "note": note}
     return edge
