@@ -2,7 +2,7 @@
   "master_sha": "785c6ae4480cc7803b2f3796571606fd140577dd",
   "gate_run_id": null,
   "gate_conclusion": null,
-  "promoted": "785c6ae4480cc7803b2f3796571606fd140577dd",
+  "promoted": "already",
   "production_head_after": "785c6ae4480cc7803b2f3796571606fd140577dd",
-  "ts": "2026-10-22T23:28:29.453049Z"
+  "ts": "2026-10-23T00:01:35.531298Z"
 }
