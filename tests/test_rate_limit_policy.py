@@ -546,6 +546,8 @@ def test_the_render_pages_are_EXEMPT_so_enforcement_cannot_fail_a_discord_render
 PINNED_FAMILIES = [
     ("/api/study/today", "community-content"),
     ("/api/study/attempts/12/step", "community-content"),
+    ("/api/study/admin/items/si_a/bars", "study-review"),
+    ("/api/study/admin/review", "study-review"),
     ("/api/wisdom/archive/ticker/NVDA", "research"),
     ("/api/wisdom/team-calls", "research"),
     ("/api/tsdr-lessons/link-transcript", "internal"),

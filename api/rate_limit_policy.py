@@ -261,8 +261,8 @@ FAMILIES: dict[str, Family] = {
         ("/api/community", "/api/desk", "/api/education", "/api/modelbook",
          "/api/support", "/api/discord",
          # Study, the drills: SWR reads deduped 15-60 s with no polling, and one POST per
-         # answer, step or session start. Its owner review screens (/api/study/admin) mount
-         # one subject's examples at a time; /api/study/import carries PUSH_SECRET (exempt).
+         # answer, step or session start. The owner review screens (/api/study/admin) are
+         # their own family, study-review; /api/study/import carries PUSH_SECRET (exempt).
          "/api/study"),
     ),
     "options-analytics": Family(
@@ -322,6 +322,16 @@ FAMILIES: dict[str, Family] = {
          "/api/flow-backup", "/api/watchdog", "/api/theme-engine",
          # TAS's require_admin status read (the tape itself is under /api/stream).
          "/api/time-and-sales"),
+    ),
+    "study-review": Family(
+        TIER_BULK,
+        "The owner's Study review screens (every route require_admin). The example "
+        "gallery mounts one subject's chart cards at once and each card reads its stored "
+        "bars, so stepping through the subjects (603 candle chart items over ~66 subjects "
+        "in the bank) is ~600 bar reads in seconds. That would drain admin-ops or "
+        "community-content in one sweep, so it gets its OWN bucket at the bulk tier, the "
+        "same fan-out reasoning as market-data's chart warm-up.",
+        ("/api/study/admin",),
     ),
     "internal": Family(
         TIER_STANDARD,
