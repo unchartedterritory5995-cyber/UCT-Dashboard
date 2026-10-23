@@ -67,10 +67,15 @@ describe.each([['tablet (820 px)', { tablet: true }], ['phone', {}]])('Tools she
   test('carries Send to Journal, and a tap sends this chart and says so', async () => {
     const user = userEvent.setup()
     renderApp(props)
+    // The live region is there BEFORE the send, empty, so the confirmation is announced (M6).
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent('')
     await user.click(screen.getByRole('button', { name: /more tools/i }))
     const row = screen.getByRole('button', { name: 'Send to Journal' })
     await user.click(row)
     expect(await screen.findByText('NVDA chart added to your note')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toBe(region)            // the same node, now holding the line
+    expect(region).toHaveTextContent('NVDA chart added to your note')
     expect(sendCaptureToJournal).toHaveBeenCalledTimes(1)
     const [widgetId, capture] = sendCaptureToJournal.mock.calls[0]
     expect(widgetId).toBe('chart')

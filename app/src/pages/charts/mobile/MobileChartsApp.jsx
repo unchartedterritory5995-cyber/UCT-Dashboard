@@ -499,7 +499,12 @@ export default function MobileChartsApp({
                 stockChartProps={stockChartProps}
               />
             </div>
-            {journalToast && <div className={wsStyles.flagToast} role="status">{journalToast}</div>}
+            {/* The live region stays mounted and only its text changes: a region inserted already
+                holding its words is not announced by many screen readers. The pill inside it is the
+                visible toast. */}
+            <div role="status" data-testid="journal-send-status">
+              {journalToast && <span className={wsStyles.flagToast}>{journalToast}</span>}
+            </div>
 
             {/* Phone: the widget page is a full-screen overlay OVER the chart
                 (it never unmounts — returning is instant). */}
