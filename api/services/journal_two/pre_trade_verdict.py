@@ -108,7 +108,11 @@ def _persist_verdict(
 
 def _account_size(settings: dict) -> tuple[float, bool]:
     """(size, is_default) from the ONE authority (accounts.account_size_of): an unset size is
-    voice_position_sizing.UNSET_ACCOUNT_SIZE, flagged default."""
+    voice_position_sizing.UNSET_ACCOUNT_SIZE, flagged default. No account settings at all (the
+    unified '_all_' coach scope, an unknown id) is size 0 as on base, so the ERROR verdict
+    answers with no model call and no daily-cap charge (fix round 2, finding 2)."""
+    if not settings:
+        return 0.0, False
     return accounts_service.account_size_of(settings)
 
 

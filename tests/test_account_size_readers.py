@@ -293,3 +293,28 @@ def test_scenario_simulator_is_bounded(conn, monkeypatch):
     assert out["trade_count"] == 3 and out["trades_capped"] is True
     assert out["actual_pnl"] == 102 + 103 + 104                     # the newest three
     assert out["days"] == 730                                       # the window is clamped too
+
+
+def test_unified_pre_trade_is_base_error_with_no_model_call_and_no_charge(conn, monkeypatch):
+    """The unified coach ('_all_') reaches pre-trade through the chat tool. Base: no account
+    settings, size 0 -> ERROR "not configured", no model call, no daily-cap charge."""
+    import json as _json
+    from api.services.journal_two import pre_trade_verdict as ptv, compass_daily_caps
+    _member(conn, "un1", typed=40_000)
+    charged = []
+    monkeypatch.setattr(compass_daily_caps, "take", lambda *a, **k: charged.append(a) or True)
+
+    class Fake:
+        calls = []
+
+        def write_verdict(self, **kw):
+            self.calls.append(kw)
+            return {"body": _json.dumps({"label": "GO", "paragraph": "x", "factors": []})}
+
+    fake = Fake()
+    out = ptv.generate_verdict(user_id="un1", account_id="_all_",
+                               params={"symbol": "NVDA", "side": "Long", "shares": 10,
+                                       "entry_price": 100, "stop_price": 95},
+                               client=fake, conn=conn)
+    assert out["label"] == "ERROR" and out["hard_check_failed"] == "account_size_unset"
+    assert fake.calls == [] and charged == []
