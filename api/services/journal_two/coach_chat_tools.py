@@ -1702,8 +1702,13 @@ def _exec_size_a_trade(*, user_id, account_id, args, conn=None) -> dict:
 
 def _exec_grade_ticker(*, user_id, account_id, args, conn=None) -> dict:
     from api.services import grade_ticker as _gt
-    return _gt.grade_ticker(str(args.get("symbol", "")),
-                            account_size=args.get("account_size"))
+    given = args.get("account_size")
+    if given:   # a size the model was handed wins; else the member's (finding 7)
+        return _gt.grade_ticker(str(args.get("symbol", "")), account_size=given,
+                                account_size_is_default=False)
+    size, is_default = accounts_service.grading_account_size(user_id, account_id=account_id)
+    return _gt.grade_ticker(str(args.get("symbol", "")), account_size=size,
+                            account_size_is_default=is_default)
 
 
 def _exec_portfolio_heat(*, user_id, account_id, args, conn=None) -> dict:

@@ -164,6 +164,28 @@ def _size_columns(conn: sqlite3.Connection) -> str:
     return "account_size, account_size_set" if "account_size_set" in cols else "account_size"
 
 
+def grading_account_size(
+    user_id: str | None,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> tuple[float, bool]:
+    """READ-ONLY: (size, is_default) for a grade (grade_ticker / grade_watchlist) when the caller
+    knows the member: their own size on `account_id` (the unified '_all_' scope or no id = their
+    Default account), else UNSET_ACCOUNT_SIZE flagged default. A size of 0 or less is not a size
+    a trade can be graded on, so it is the default too (fix round 2, finding 7)."""
+    if not user_id:
+        return _unset_account_size(), True
+    acct = None if (not account_id or account_id == "_all_") else account_id
+    try:
+        own = read_member_account_size(user_id, conn, account_id=acct)
+    except Exception:  # noqa: BLE001 -- an unreadable size grades on the default, never fails a grade
+        own = None
+    if own is not None and own > 0:
+        return float(own), False
+    return _unset_account_size(), True
+
+
 def _size_rows(conn: sqlite3.Connection, where: str, params: tuple) -> list[dict]:
     """j2_accounts size rows as plain dicts, whatever the connection's row_factory."""
     cur = conn.execute(f"SELECT {_size_columns(conn)} FROM j2_accounts WHERE {where}", params)

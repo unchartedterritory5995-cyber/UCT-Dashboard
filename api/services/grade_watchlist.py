@@ -80,6 +80,13 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
     except Exception:  # noqa: BLE001
         edge = {}
 
+    # The member's own size when the caller did not give one (finding 7); the no-member default
+    # stays grade_ticker's own (UNSET_ACCOUNT_SIZE).
+    size_is_default = False
+    if not account_size and user_id:
+        from api.services.journal_two import accounts as _acc
+        account_size, size_is_default = _acc.grading_account_size(user_id, account_id=account_id)
+
     graded = []
     for sym in names:
         try:
@@ -137,4 +144,5 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
             "source_described": described or source, "graded": graded,
             "list_verdict": list_verdict, "correlated_blocks": correlated_blocks,
             "behavioral_note": behavioral_note,
-            "sources": ["grade_ticker per name", "personal edge", f"regime {regime.get('regime')}"]}
+            "sources": ["grade_ticker per name", "personal edge", f"regime {regime.get('regime')}"],
+            "account_size_is_default": size_is_default}

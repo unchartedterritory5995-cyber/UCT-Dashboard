@@ -416,3 +416,78 @@ def test_pre_trade_model_input_and_factors_are_base_for_an_unset_member(conn, mo
     assert out["factors"] == ref["factors"] and out["label"] == ref["label"]
     assert out["risk_pct"] == ref["risk_pct"]
     assert out["account_size_is_default"] is True                                # payload key only
+
+
+# ── Finding 7: callers that know the member grade on the member's size ──────────────────────
+
+def _capture_grade(monkeypatch):
+    from api.services import grade_ticker as gt
+    seen = []
+
+    def fake(symbol, account_size=None, *, account_size_is_default=None, **kw):
+        seen.append((account_size, account_size_is_default))
+        return {"ok": True, "symbol": symbol, "verdict": "GO", "regime": "GREEN",
+                "account_size_is_default": bool(account_size_is_default)}
+    monkeypatch.setattr(gt, "grade_ticker", fake)
+    return seen
+
+
+def test_grading_account_size_is_the_members_or_the_flagged_default(conn):
+    from api.services.journal_two import accounts
+    _member(conn, "gr1", typed=40_000)
+    assert accounts.grading_account_size("gr1", conn=conn) == (40_000.0, False)
+    _member(conn, "gr2")
+    assert accounts.grading_account_size("gr2", conn=conn) == (UNSET, True)
+    assert accounts.grading_account_size(None, conn=conn) == (UNSET, True)
+    assert accounts.grading_account_size("nobody", conn=conn) == (UNSET, True)
+
+
+def test_coach_and_voice_grade_on_the_members_size(conn, monkeypatch):
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services import voice_tool_impls as vti
+    seen = _capture_grade(monkeypatch)
+    aid = _member(conn, "gr3", typed=40_000)
+    cct._exec_grade_ticker(user_id="gr3", account_id=aid, args={"symbol": "NVDA"})
+    assert seen[-1] == (40_000.0, False)
+    cct._exec_grade_ticker(user_id="gr3", account_id=aid, args={"symbol": "NVDA", "account_size": 9_000})
+    assert seen[-1] == (9_000, False)                         # a size the model was given still wins
+    vti._grade_ticker("NVDA", user={"id": "gr3"})
+    assert seen[-1] == (40_000.0, False)
+    _member(conn, "gr4")
+    vti._grade_ticker("NVDA", user={"id": "gr4"})
+    assert seen[-1] == (UNSET, True)
+
+
+def test_grade_watchlist_grades_on_the_members_size(conn):
+    from api.services import grade_watchlist as gw
+    _member(conn, "gr5", typed=40_000)
+    seen = []
+
+    def grade_fn(sym, account_size=None):
+        seen.append(account_size)
+        return {"ok": True, "verdict": "GO"}
+    out = gw.grade_watchlist("gr5", symbols=["NVDA"], source="explicit",
+                             resolve_fn=lambda *a: (["NVDA"], "explicit"), grade_fn=grade_fn,
+                             regime_fn=lambda: {"regime": "GREEN"}, edge_fn=lambda *a: {},
+                             sector_fn=lambda s: None)
+    assert seen == [40_000.0] and out["account_size_is_default"] is False
+
+
+def test_terminal_and_ai_search_grade_on_the_members_size(conn, monkeypatch):
+    from api.routers import terminal_grade as tg, ai_search
+    seen = _capture_grade(monkeypatch)
+    monkeypatch.setattr(tg, "brain_tools_enabled", lambda: True)
+    monkeypatch.setattr(tg, "_brain_available", lambda: True)
+    tg._reset_cache_for_tests()
+    _member(conn, "gr6", typed=40_000)
+    _member(conn, "gr7")
+    tg.terminal_grade("NVDA", user={"id": "gr6"})
+    assert seen[-1] == (40_000.0, False)
+    out = tg.terminal_grade("NVDA", user={"id": "gr7"})      # the cache is per size, never shared
+    assert seen[-1] == (UNSET, True) and out["account_size_is_default"] is True
+    tok = ai_search._WISDOM_ASKER.set("gr6")
+    try:
+        ai_search._ctx_verdict("NVDA")
+    finally:
+        ai_search._WISDOM_ASKER.reset(tok)
+    assert seen[-1] == (40_000.0, False)

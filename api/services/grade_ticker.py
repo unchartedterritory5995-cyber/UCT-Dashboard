@@ -153,7 +153,11 @@ def _default_size_fn(entry, stop, account, regime="", grade="A", risk_pct=1.0):
 
 
 def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
-                 patterns_fn=None, playbook_fn=None, size_fn=None, archive_fn=None) -> dict:
+                 patterns_fn=None, playbook_fn=None, size_fn=None, archive_fn=None,
+                 account_size_is_default=None) -> dict:
+    """`account_size_is_default`: a caller that resolved the member's size
+    (accounts.grading_account_size) says whether it is the default; left None, a passed size is
+    the caller's own and no size is the default."""
     sym = (symbol or "").upper().strip()
     if not sym:
         return {"ok": False, "reason": "no symbol"}
@@ -163,7 +167,8 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     playbook_fn = playbook_fn or _default_playbook_fn
     size_fn = size_fn or _default_size_fn
     archive_fn = archive_fn or _default_archive_fn
-    size_is_default = not account_size
+    size_is_default = (not account_size) if account_size_is_default is None \
+        else bool(account_size_is_default)
     account = float(account_size or _DEFAULT_ACCOUNT)
 
     # ── the gate: regime + quote must be available ──────────────────────────
