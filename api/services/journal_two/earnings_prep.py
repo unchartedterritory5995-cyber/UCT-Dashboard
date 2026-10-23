@@ -67,6 +67,8 @@ CAP_SENTENCE = ("You've drafted {cap} earnings prep notes today, the daily limit
 #: How many of the member's own notes and trades a prep cites.
 NOTES_LIMIT = 5
 TRADES_LIMIT = 5
+#: Ceiling on the alias symbols one trade read walks (one bounded SELECT each).
+ALIASES_MAX = 8
 REACTIONS_LIMIT = 4
 
 #: ⛔ LOCAL SANDBOX ONLY: a JSON file standing in for the calendar window, for the
@@ -500,7 +502,16 @@ def _member_cells(user_id: str, sym: str, read_at: str) -> dict[str, dict]:
     try:
         from api.services.journal_two.filters import FilterSpec
         from api.services.journal_two.trades import list_trades_for_user
-        rows, _total = list_trades_for_user(user_id, spec=FilterSpec(symbol=sym, symbol_exact=True, limit=50))
+        # One EXACT read per alias (FilterSpec's default is a PREFIX match: "A" would read AAPL),
+        # each bounded at TRADES_LIMIT, so the merged newest TRADES_LIMIT are exact.
+        aliases = [sym] + sorted(wanted - {sym})
+        rows = []
+        for alias in aliases[:ALIASES_MAX]:
+            got, _total = list_trades_for_user(
+                user_id, spec=FilterSpec(symbol=alias, symbol_exact=True, limit=TRADES_LIMIT))
+            rows.extend(got)
+        rows.sort(key=lambda t: (str(t.get("entryDate") or ""), str(t.get("createdAt") or "")),
+                  reverse=True)
         trades = [{"id": t["id"], "side": t.get("side"), "entryDate": t.get("entryDate"),
                    "exitDate": t.get("exitDate"), "pnlPercent": t.get("pnlPercent"),
                    "rMultiple": t.get("rMultiple"), "result": t.get("result")}

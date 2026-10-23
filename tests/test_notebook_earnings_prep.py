@@ -776,6 +776,30 @@ def test_ticker_a_history_is_an_exact_match_never_aapls_rows(client, app, gate_o
     assert seen and all(s == "A" for s in seen[0])                # AAPL never enters the page
 
 
+def _aliases(monkeypatch, symbols):
+    from api.services.journal_two import ticker_research
+    monkeypatch.setattr(ticker_research, "get_ticker_research_summary",
+                        lambda user_id, sym: {"identity": {"symbols": list(symbols)}, "notes": []})
+
+
+@pytest.mark.parametrize("asked,aliases,traded", [
+    ("GOOG", ("GOOG", "GOOGL"), "GOOGL"),     # an alias that EXTENDS the asked symbol
+    ("META", ("META", "FB"), "FB"),           # an alias that shares no prefix with it
+])
+def test_ticker_history_reads_every_alias_exactly(client, app, gate_on, monkeypatch, stores,
+                                                  asked, aliases, traded):
+    """The cell promises the security's whole alias set (ticker_research's identity), each one an
+    EXACT match: an alias trade is in, a longer ticker that merely starts the same is not."""
+    _today(monkeypatch)
+    _quiet_market(monkeypatch, stores)
+    _aliases(monkeypatch, aliases)
+    _trade(A, traded, "t-alias")
+    _trade(A, asked + "X", "t-longer")             # not an alias: never read
+    as_user(app, A)
+    d = client.post(f"/api/j2/earnings-prep/{asked}/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"] or []] == ["t-alias"]
+
+
 # ── the cap ─────────────────────────────────────────────────────────────────────────────
 
 def _quiet_market(monkeypatch, stores):
