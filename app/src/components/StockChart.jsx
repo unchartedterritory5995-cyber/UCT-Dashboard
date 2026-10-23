@@ -20312,6 +20312,7 @@ export default function StockChart({
           showLevels={autoStructuresOn && showAllDrawings && showPatternLevels}
           trustedOnly={autoStructuresTrustedOnly}
           lastPrice={patternLastPrice}
+          candles={patternsActive ? ohlcData : null}
         />
       )}
       {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
