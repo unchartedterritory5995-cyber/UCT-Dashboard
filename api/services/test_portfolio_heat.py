@@ -68,3 +68,20 @@ def test_null_stop_is_placeholder_not_dropped():
     assert "NUL" in out["placeholder_stops"]          # surfaced, not dropped
     assert out["risk_heat_pct"] == 0.5                # only DECK counts
     assert any(p["symbol"] == "NUL" and p["placeholder_stop"] for p in out["per_position"])
+
+
+# -- M-D: a settings dict without the flag falls back to the predicate on its size ----------
+
+def test_a_settings_dict_without_the_flag_reads_its_size_through_the_predicate(monkeypatch):
+    from api.services import voice_position_sizing as vps
+    from api.services.journal_two import accounts
+    monkeypatch.setattr(vps, "_get_account_settings", lambda u, a: {"account_size": 73000.0})
+    assert ph._default_account_size_fn("u", None) == 73000.0          # never silently "unset"
+    h = ph.portfolio_heat("u", **_fns([_pos("NVDA", 100.0, 95.0, 10)]))
+    assert h["account_size_is_default"] is False
+    monkeypatch.setattr(vps, "_get_account_settings",
+                        lambda u, a: {"account_size": accounts._DEFAULT_ACCOUNT_SIZE})
+    assert ph._default_account_size_fn("u", None) is None              # the placeholder is unset
+    monkeypatch.setattr(vps, "_get_account_settings", lambda u, a: {})
+    assert ph._default_account_size_fn("u", None) is None              # no size at all is unset
+
