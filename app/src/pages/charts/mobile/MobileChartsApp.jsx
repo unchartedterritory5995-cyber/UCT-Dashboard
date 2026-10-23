@@ -18,6 +18,8 @@ import MobileChartTypeSheet, { selectedTypeKey, chartTypePatch } from './MobileC
 import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
+import { chartJournalCapture } from '../widgets/chartJournalCapture'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
 import MobileBoardsSheet from './MobileBoardsSheet'
 import CompareSymbolsPanel from '../CompareSymbolsPanel'
@@ -322,6 +324,20 @@ export default function MobileChartsApp({
     } catch { /* share cancelled / chart not ready — nothing to clean up */ }
   }, [sym, tf])
 
+  // Tools → "Send to Journal" (O1): the desktop right-click menu's one-click action. Same
+  // capture builder (chartJournalCapture) and the same shared send (last-active note,
+  // else the inbox) as ChartWidget's handler; the line it returns is shown on the chart.
+  const [journalToast, setJournalToast] = useState(null)
+  useEffect(() => {
+    if (!journalToast) return undefined
+    const t = setTimeout(() => setJournalToast(null), 2400)
+    return () => clearTimeout(t)
+  }, [journalToast])
+  const handleSendToJournal = useCallback(async () => {
+    const capture = chartJournalCapture({ pane: paneRef.current, symbol: sym, tf, settings: csRef.current })
+    setJournalToast(await sendCaptureToJournal('chart', capture))
+  }, [sym, tf])
+
   // ★ Watchlist — the scan→tap→chart loop, one tap from the chart. Opens the
   // layout's first watchlist widget; with none saved, adds one and opens it as
   // soon as it hydrates into `widgets`.
@@ -483,6 +499,7 @@ export default function MobileChartsApp({
                 stockChartProps={stockChartProps}
               />
             </div>
+            {journalToast && <div className={wsStyles.flagToast} role="status">{journalToast}</div>}
 
             {/* Phone: the widget page is a full-screen overlay OVER the chart
                 (it never unmounts — returning is instant). */}
@@ -613,6 +630,7 @@ export default function MobileChartsApp({
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
+        onSendToJournal={chartWidget ? handleSendToJournal : undefined}
         onDrawOnChart={drawOnChart}
         onEnterMultiChart={onEnterMultiChart}
         onOpenCompare={chartWidget && chartApiById ? () => setCompareOpen(true) : undefined}
