@@ -16,7 +16,7 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ user: { role: 'pro-user' }, studyEnabled: true }),
 }))
 
-import { fetcher } from './useStudy'
+import { fetcher, shouldRetryStudy } from './useStudy'
 import StudyPanel from './StudyPanel'
 import SkillTrail from './SkillTrail'
 import StudySettingsCard from '../../components/settings/StudySettingsCard'
@@ -54,6 +54,19 @@ describe('the Study fetcher', () => {
   test('a 200 is the body', async () => {
     answer(200, { session_id: 's1' })
     await expect(fetcher('/api/study/today')).resolves.toEqual({ session_id: 's1' })
+  })
+})
+
+describe('the Study retry rule', () => {
+  // The app-wide rule (no retry on a 4xx except 408) plus ONE addition: no retry on a 429.
+  test.each([400, 401, 402, 403, 404, 429])('a %s is not retried', (status) => {
+    expect(shouldRetryStudy(httpError(status))).toBe(false)
+  })
+  test.each([408, 500, 502, 503])('a %s is retried', (status) => {
+    expect(shouldRetryStudy(httpError(status))).toBe(true)
+  })
+  test('a failure with no status (the network) is retried', () => {
+    expect(shouldRetryStudy(new TypeError('Failed to fetch'))).toBe(true)
   })
 })
 

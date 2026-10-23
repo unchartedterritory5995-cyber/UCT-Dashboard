@@ -19,12 +19,18 @@ export const fetcher = (url) =>
     throw e
   })
 
-// A 429 is not retried automatically: the limit says wait, and quick retries
-// only spend more of it. The member's Try again asks again.
+// The app-wide rule (App.jsx SWR_CONFIG): a 4xx answers the same on every
+// retry, so it is not retried, except 408. Study adds ONE thing: a 429 is not
+// retried either (the global rule retries it) -- the limit says wait, and quick
+// retries only spend more of it. The member's Try again asks again. A failure
+// with no status (the network) or a 5xx still retries.
+export const shouldRetryStudy = (err) =>
+  !(err && err.status >= 400 && err.status < 500 && err.status !== 408)
+
 const OPTS = {
   revalidateOnFocus: false,
   dedupingInterval: 15_000,
-  shouldRetryOnError: (err) => err?.status !== 429,
+  shouldRetryOnError: shouldRetryStudy,
 }
 
 /** Today's Study: prompts + bars inline, answered ids, session id, profile. */
