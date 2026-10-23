@@ -14,8 +14,8 @@
   },
   "difficulty": 3,
   "id": "si_c2c8c906e852",
-  "lesson_origin": "template",
-  "lesson_text": "The 2022 Rate Bear: News Failure fired here. Count the signposts, not the days. Hot CPI gapped the market to new lows, then reversed +5% intraday, sellers exhausted.",
+  "lesson_origin": "session",
+  "lesson_text": "That's the news failure. Price undercut the prior low, then reversed and closed green. When bad news can't push price lower, the sellers are spent. It marks the turn, not the confirmation. I still wait for a follow-through day before I press. Here SPY opened below its prior low, then rallied 5.1% off the low to close up 2.6%.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -26,9 +26,9 @@
     "News Failure",
     "Leadership Emerges",
     "Capitulation",
-    "Volatility Peak"
+    "The Follow-Through Day"
    ],
-   "q": "The 2022 Rate Bear: which signpost fired third?",
+   "q": "The 2022 Rate Bear: the chart ends on the day one signpost fired. Which one?",
    "subject": "2022-bear signpost 3"
   },
   "reveal_json": {
@@ -40,7 +40,7 @@
    "low_date": "2022-10-13",
    "ordinal": 3,
    "peak_date": "2022-01-03",
-   "quote": "Hot CPI gapped the market to new lows, then reversed +5% intraday — sellers exhausted.",
+   "quote": "Here SPY opened below its prior low, then rallied 5.1% off the low to close up 2.6%.",
    "signpost": "News Failure",
    "signposts": [
     {
@@ -88,92 +88,6 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "The Follow-Through Day"
-  },
-  "asof": "2022-11-10",
-  "bars": {
-   "asof": "2022-11-10",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_8824aded5eb6",
-  "lesson_origin": "template",
-  "lesson_text": "The 2022 Rate Bear: The Follow-Through Day fired here. Count the signposts, not the days. A soft CPI print drove a thrust day on heavy volume confirming the turn.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Volatility Peak",
-    "The Follow-Through Day",
-    "Leadership Emerges",
-    "Capitulation"
-   ],
-   "q": "The 2022 Rate Bear: which signpost fired fourth?",
-   "subject": "2022-bear signpost 4"
-  },
-  "reveal_json": {
-   "bottom": "The 2022 Rate Bear",
-   "co_fired": [],
-   "date": "2022-11-10",
-   "drawdown_pct": -25.0,
-   "index": "S&P 500",
-   "low_date": "2022-10-13",
-   "ordinal": 4,
-   "peak_date": "2022-01-03",
-   "quote": "A soft CPI print drove a thrust day on heavy volume confirming the turn.",
-   "signpost": "The Follow-Through Day",
-   "signposts": [
-    {
-     "date": "2022-09-30",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "Percent of S&P stocks above their 200-day collapsed into single digits."
-    },
-    {
-     "date": "2022-10-11",
-     "key": "volatility",
-     "name": "Volatility Peak",
-     "quote": "VIX pressed into the mid-30s as the second leg down accelerated."
-    },
-    {
-     "date": "2022-10-13",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Hot CPI gapped the market to new lows, then reversed +5% intraday — sellers exhausted."
-    },
-    {
-     "date": "2022-11-10",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A soft CPI print drove a thrust day on heavy volume confirming the turn."
-    },
-    {
-     "date": "2023-01-15",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "Mega-cap tech (NVDA, META) reclaimed and led; AI became the new-cycle theme."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2022-bear",
-   "type": "Double Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2022-bear#follow_through#2022-11-10",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
    "answer": "Capitulation"
   },
   "asof": "2020-03-12",
@@ -186,8 +100,8 @@
   },
   "difficulty": 3,
   "id": "si_553b9a890157",
-  "lesson_origin": "template",
-  "lesson_text": "The COVID Crash: Capitulation fired here. Count the signposts, not the days. A -9.5% day; circuit breakers tripped repeatedly through mid-March on record volume.",
+  "lesson_origin": "session",
+  "lesson_text": "That's capitulation. The last bar is a big down day on volume well above normal, after a run of red days. It's the flush: everyone who is going to sell, sells. It means the market is running out of sellers, not finding buyers. So it isn't a buy signal on its own. Next you want bad news to fail to make a new low, then a follow-through day. Here SPY fell 9.6% and closed near its low, on volume 2.1 times its 20-day average, the heaviest of the chart.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -195,12 +109,12 @@
     "window_bars": 120
    },
    "choices": [
-    "Breadth Washout",
+    "News Failure",
     "Capitulation",
     "Leadership Emerges",
-    "Volatility Peak"
+    "The Follow-Through Day"
    ],
-   "q": "The COVID Crash: which signpost fired first?",
+   "q": "The COVID Crash: the chart ends on the day one signpost fired. Which one?",
    "subject": "2020-covid signpost 1"
   },
   "reveal_json": {
@@ -212,7 +126,7 @@
    "low_date": "2020-03-23",
    "ordinal": 1,
    "peak_date": "2020-02-19",
-   "quote": "A -9.5% day; circuit breakers tripped repeatedly through mid-March on record volume.",
+   "quote": "Here SPY fell 9.6% and closed near its low, on volume 2.1 times its 20-day average, the heaviest of the chart.",
    "signpost": "Capitulation",
    "signposts": [
     {
@@ -260,92 +174,6 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "The Follow-Through Day"
-  },
-  "asof": "2020-03-26",
-  "bars": {
-   "asof": "2020-03-26",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_94495d8da54e",
-  "lesson_origin": "template",
-  "lesson_text": "The COVID Crash: The Follow-Through Day fired here. Count the signposts, not the days. Three powerful up days, the last on expanding volume, confirmed the rally.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "The Follow-Through Day",
-    "Volatility Peak",
-    "Breadth Washout",
-    "News Failure"
-   ],
-   "q": "The COVID Crash: which signpost fired fourth?",
-   "subject": "2020-covid signpost 4"
-  },
-  "reveal_json": {
-   "bottom": "The COVID Crash",
-   "co_fired": [],
-   "date": "2020-03-26",
-   "drawdown_pct": -34.0,
-   "index": "S&P 500",
-   "low_date": "2020-03-23",
-   "ordinal": 4,
-   "peak_date": "2020-02-19",
-   "quote": "Three powerful up days, the last on expanding volume, confirmed the rally.",
-   "signpost": "The Follow-Through Day",
-   "signposts": [
-    {
-     "date": "2020-03-12",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A -9.5% day; circuit breakers tripped repeatedly through mid-March on record volume."
-    },
-    {
-     "date": "2020-03-16",
-     "key": "volatility",
-     "name": "Volatility Peak",
-     "quote": "VIX closed at 82.69 — an all-time record high, exceeding 2008."
-    },
-    {
-     "date": "2020-03-23",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Climactic low printed into peak fear, the day before the Fed went \"unlimited.\""
-    },
-    {
-     "date": "2020-03-26",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "Three powerful up days, the last on expanding volume, confirmed the rally."
-    },
-    {
-     "date": "2020-04-06",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "ZM, NVDA, SHOP, DOCU, AMD broke out first — the digital / WFH cohort led."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2020-covid",
-   "type": "V-Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2020-covid#follow_through#2020-03-26",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
    "answer": "Capitulation"
   },
   "asof": "2018-12-21",
@@ -358,8 +186,8 @@
   },
   "difficulty": 3,
   "id": "si_e1c2559e50cb",
-  "lesson_origin": "template",
-  "lesson_text": "The Christmas Eve Low: Capitulation fired here. Count the signposts, not the days. Quad-witching dumped the market on record December volume.",
+  "lesson_origin": "session",
+  "lesson_text": "That's capitulation. The last bar is a big down day on volume well above normal, after a run of red days. It's the flush: everyone who is going to sell, sells. It means the market is running out of sellers, not finding buyers. So it isn't a buy signal on its own. Next you want bad news to fail to make a new low, then a follow-through day. Here SPY fell 2.6% to the lowest close of the chart, its seventh straight down day, on volume nearly twice its 20-day average.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -372,7 +200,7 @@
     "The Follow-Through Day",
     "Leadership Emerges"
    ],
-   "q": "The Christmas Eve Low: which signpost fired first?",
+   "q": "The Christmas Eve Low: the chart ends on the day one signpost fired. Which one?",
    "subject": "2018-christmas signpost 1"
   },
   "reveal_json": {
@@ -384,7 +212,7 @@
    "low_date": "2018-12-24",
    "ordinal": 1,
    "peak_date": "2018-09-20",
-   "quote": "Quad-witching dumped the market on record December volume.",
+   "quote": "Here SPY fell 2.6% to the lowest close of the chart, its seventh straight down day, on volume nearly twice its 20-day average.",
    "signpost": "Capitulation",
    "signposts": [
     {
@@ -434,272 +262,6 @@
   "answer_json": {
    "answer": "The Follow-Through Day"
   },
-  "asof": "2019-01-04",
-  "bars": {
-   "asof": "2019-01-04",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_a37391a802da",
-  "lesson_origin": "template",
-  "lesson_text": "The Christmas Eve Low: The Follow-Through Day fired here. Count the signposts, not the days. A strong jobs number + Powell \"patient\" pivot drove a volume thrust.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "News Failure",
-    "Leadership Emerges",
-    "The Follow-Through Day",
-    "Breadth Washout"
-   ],
-   "q": "The Christmas Eve Low: which signpost fired fourth?",
-   "subject": "2018-christmas signpost 4"
-  },
-  "reveal_json": {
-   "bottom": "The Christmas Eve Low",
-   "co_fired": [],
-   "date": "2019-01-04",
-   "drawdown_pct": -20.0,
-   "index": "S&P 500",
-   "low_date": "2018-12-24",
-   "ordinal": 4,
-   "peak_date": "2018-09-20",
-   "quote": "A strong jobs number + Powell \"patient\" pivot drove a volume thrust.",
-   "signpost": "The Follow-Through Day",
-   "signposts": [
-    {
-     "date": "2018-12-21",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "Quad-witching dumped the market on record December volume."
-    },
-    {
-     "date": "2018-12-24",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "New 52-week lows surged; under-the-surface damage was far worse than the index -20%."
-    },
-    {
-     "date": "2018-12-26",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "A +5% reversal day — the largest Dow point gain ever at the time — off the low."
-    },
-    {
-     "date": "2019-01-04",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A strong jobs number + Powell \"patient\" pivot drove a volume thrust."
-    },
-    {
-     "date": "2019-01-15",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "Software (TTD, COUP, AYX) and chips led the new advance."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2018-christmas",
-   "type": "V-Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2018-christmas#follow_through#2019-01-04",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Capitulation"
-  },
-  "asof": "2016-01-20",
-  "bars": {
-   "asof": "2016-01-20",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_9d2e9f0dbbbf",
-  "lesson_origin": "template",
-  "lesson_text": "The 2016 Double Bottom: Capitulation fired here. Count the signposts, not the days. A capitulation flush as WTI crude broke $27 and dragged risk assets down.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Breadth Washout",
-    "Capitulation",
-    "Leadership Emerges",
-    "Volatility Peak"
-   ],
-   "q": "The 2016 Double Bottom: which signpost fired first?",
-   "subject": "2016-feb signpost 1"
-  },
-  "reveal_json": {
-   "bottom": "The 2016 Double Bottom",
-   "co_fired": [],
-   "date": "2016-01-20",
-   "drawdown_pct": -15.0,
-   "index": "S&P 500",
-   "low_date": "2016-02-11",
-   "ordinal": 1,
-   "peak_date": "2015-05-20",
-   "quote": "A capitulation flush as WTI crude broke $27 and dragged risk assets down.",
-   "signpost": "Capitulation",
-   "signposts": [
-    {
-     "date": "2016-01-20",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A capitulation flush as WTI crude broke $27 and dragged risk assets down."
-    },
-    {
-     "date": "2016-02-11",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Price undercut the January low intraday, reversed, and held — the double bottom completed."
-    },
-    {
-     "date": "2016-02-11",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "New lows peaked at the retest even as the index held above the August low."
-    },
-    {
-     "date": "2016-02-17",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A breadth thrust off the low confirmed; the McClellan surged."
-    },
-    {
-     "date": "2016-03-01",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "FANG (FB, AMZN, NFLX, GOOGL) and NVDA reasserted leadership."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2016-feb",
-   "type": "Double Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2016-feb#capitulation#2016-01-20",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "accept": [
-    "Breadth Washout"
-   ],
-   "answer": "News Failure"
-  },
-  "asof": "2016-02-11",
-  "bars": {
-   "asof": "2016-02-11",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_85520092d6ac",
-  "lesson_origin": "template",
-  "lesson_text": "The 2016 Double Bottom: News Failure fired here. Count the signposts, not the days. Price undercut the January low intraday, reversed, and held, the double bottom completed.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "News Failure",
-    "Leadership Emerges",
-    "Capitulation",
-    "Volatility Peak"
-   ],
-   "q": "The 2016 Double Bottom: which signpost fired second?",
-   "subject": "2016-feb signpost 2"
-  },
-  "reveal_json": {
-   "bottom": "The 2016 Double Bottom",
-   "co_fired": [
-    {
-     "name": "Breadth Washout",
-     "quote": "New lows peaked at the retest even as the index held above the August low."
-    }
-   ],
-   "date": "2016-02-11",
-   "drawdown_pct": -15.0,
-   "index": "S&P 500",
-   "low_date": "2016-02-11",
-   "ordinal": 2,
-   "peak_date": "2015-05-20",
-   "quote": "Price undercut the January low intraday, reversed, and held — the double bottom completed.",
-   "signpost": "News Failure",
-   "signposts": [
-    {
-     "date": "2016-01-20",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A capitulation flush as WTI crude broke $27 and dragged risk assets down."
-    },
-    {
-     "date": "2016-02-11",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Price undercut the January low intraday, reversed, and held — the double bottom completed."
-    },
-    {
-     "date": "2016-02-11",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "New lows peaked at the retest even as the index held above the August low."
-    },
-    {
-     "date": "2016-02-17",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A breadth thrust off the low confirmed; the McClellan surged."
-    },
-    {
-     "date": "2016-03-01",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "FANG (FB, AMZN, NFLX, GOOGL) and NVDA reasserted leadership."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2016-feb",
-   "type": "Double Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2016-feb#news_failure#2016-02-11",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "The Follow-Through Day"
-  },
   "asof": "2016-02-17",
   "bars": {
    "asof": "2016-02-17",
@@ -710,8 +272,8 @@
   },
   "difficulty": 3,
   "id": "si_e8febf0f81b0",
-  "lesson_origin": "template",
-  "lesson_text": "The 2016 Double Bottom: The Follow-Through Day fired here. Count the signposts, not the days. A breadth thrust off the low confirmed; the McClellan surged.",
+  "lesson_origin": "session",
+  "lesson_text": "That's the follow-through day. A few sessions after the low, the index rallies hard on heavier volume than the day before. It's the sign big buyers are stepping back in. It can fail, so the stop goes under the low. This is where you start watching the names that break out first. Here SPY rose 1.6% on heavier volume than the day before, three sessions after its February 11 closing low.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -724,7 +286,7 @@
     "The Follow-Through Day",
     "Breadth Washout"
    ],
-   "q": "The 2016 Double Bottom: which signpost fired third?",
+   "q": "The 2016 Double Bottom: the chart ends on the day one signpost fired. Which one?",
    "subject": "2016-feb signpost 3"
   },
   "reveal_json": {
@@ -736,7 +298,7 @@
    "low_date": "2016-02-11",
    "ordinal": 3,
    "peak_date": "2015-05-20",
-   "quote": "A breadth thrust off the low confirmed; the McClellan surged.",
+   "quote": "Here SPY rose 1.6% on heavier volume than the day before, three sessions after its February 11 closing low.",
    "signpost": "The Follow-Through Day",
    "signposts": [
     {
@@ -799,8 +361,8 @@
   },
   "difficulty": 3,
   "id": "si_f57df1bb386c",
-  "lesson_origin": "template",
-  "lesson_text": "The 2011 Crisis Low: Capitulation fired here. Count the signposts, not the days. A -6.7% day after the S&P downgraded US debt; volume spiked to a climax.",
+  "lesson_origin": "session",
+  "lesson_text": "That's capitulation. The last bar is a big down day on volume well above normal, after a run of red days. It's the flush: everyone who is going to sell, sells. It means the market is running out of sellers, not finding buyers. So it isn't a buy signal on its own. Next you want bad news to fail to make a new low, then a follow-through day. Here SPY fell 6.5% and closed near its low, on volume 2.7 times its 20-day average, the heaviest of the chart.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -808,12 +370,12 @@
     "window_bars": 120
    },
    "choices": [
-    "Breadth Washout",
+    "The Follow-Through Day",
     "News Failure",
     "Capitulation",
     "Leadership Emerges"
    ],
-   "q": "The 2011 Crisis Low: which signpost fired first?",
+   "q": "The 2011 Crisis Low: the chart ends on the day one signpost fired. Which one?",
    "subject": "2011-summer signpost 1"
   },
   "reveal_json": {
@@ -830,7 +392,7 @@
    "low_date": "2011-10-03",
    "ordinal": 1,
    "peak_date": "2011-05-02",
-   "quote": "A -6.7% day after the S&P downgraded US debt; volume spiked to a climax.",
+   "quote": "Here SPY fell 6.5% and closed near its low, on volume 2.7 times its 20-day average, the heaviest of the chart.",
    "signpost": "Capitulation",
    "signposts": [
     {
@@ -890,8 +452,8 @@
   },
   "difficulty": 3,
   "id": "si_7f5d712143b3",
-  "lesson_origin": "template",
-  "lesson_text": "The 2011 Crisis Low: News Failure fired here. Count the signposts, not the days. Price undercut the August low intraday, then reversed +4% to close green.",
+  "lesson_origin": "session",
+  "lesson_text": "That's the news failure. Price undercut the prior low, then reversed and closed green. When bad news can't push price lower, the sellers are spent. It marks the turn, not the confirmation. I still wait for a follow-through day before I press. Here SPY undercut its August low intraday, then rallied 4.6% off the low to close up 2.2%.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -904,7 +466,7 @@
     "Leadership Emerges",
     "Capitulation"
    ],
-   "q": "The 2011 Crisis Low: which signpost fired second?",
+   "q": "The 2011 Crisis Low: the chart ends on the day one signpost fired. Which one?",
    "subject": "2011-summer signpost 2"
   },
   "reveal_json": {
@@ -916,7 +478,7 @@
    "low_date": "2011-10-03",
    "ordinal": 2,
    "peak_date": "2011-05-02",
-   "quote": "Price undercut the August low intraday, then reversed +4% to close green.",
+   "quote": "Here SPY undercut its August low intraday, then rallied 4.6% off the low to close up 2.2%.",
    "signpost": "News Failure",
    "signposts": [
     {
@@ -964,272 +526,6 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "The Follow-Through Day"
-  },
-  "asof": "2011-10-10",
-  "bars": {
-   "asof": "2011-10-10",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_28c4e2396923",
-  "lesson_origin": "template",
-  "lesson_text": "The 2011 Crisis Low: The Follow-Through Day fired here. Count the signposts, not the days. A thrust day on heavy volume confirmed the October double-bottom low.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "News Failure",
-    "Leadership Emerges",
-    "The Follow-Through Day",
-    "Breadth Washout"
-   ],
-   "q": "The 2011 Crisis Low: which signpost fired third?",
-   "subject": "2011-summer signpost 3"
-  },
-  "reveal_json": {
-   "bottom": "The 2011 Crisis Low",
-   "co_fired": [],
-   "date": "2011-10-10",
-   "drawdown_pct": -19.0,
-   "index": "S&P 500",
-   "low_date": "2011-10-03",
-   "ordinal": 3,
-   "peak_date": "2011-05-02",
-   "quote": "A thrust day on heavy volume confirmed the October double-bottom low.",
-   "signpost": "The Follow-Through Day",
-   "signposts": [
-    {
-     "date": "2011-08-08",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A -6.7% day after the S&P downgraded US debt; volume spiked to a climax."
-    },
-    {
-     "date": "2011-08-08",
-     "key": "volatility",
-     "name": "Volatility Peak",
-     "quote": "VIX spiked above 48 as the August waterfall hit."
-    },
-    {
-     "date": "2011-10-04",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Price undercut the August low intraday, then reversed +4% to close green."
-    },
-    {
-     "date": "2011-10-10",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A thrust day on heavy volume confirmed the October double-bottom low."
-    },
-    {
-     "date": "2011-10-20",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "AAPL and consumer leaders broke out to lead the 2012 advance."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2011-summer",
-   "type": "Double Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2011-summer#follow_through#2011-10-10",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "accept": [
-    "Volatility Peak"
-   ],
-   "answer": "Capitulation"
-  },
-  "asof": "2008-11-20",
-  "bars": {
-   "asof": "2008-11-20",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_07141dea361c",
-  "lesson_origin": "template",
-  "lesson_text": "The Generational Low: Capitulation fired here. Count the signposts, not the days. A climactic November flush on record volume set the first low.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "The Follow-Through Day",
-    "Capitulation",
-    "Breadth Washout",
-    "News Failure"
-   ],
-   "q": "The Generational Low: which signpost fired first?",
-   "subject": "2009-gfc signpost 1"
-  },
-  "reveal_json": {
-   "bottom": "The Generational Low",
-   "co_fired": [
-    {
-     "name": "Volatility Peak",
-     "quote": "VIX closed near 81 — the credit-crisis panic peak."
-    }
-   ],
-   "date": "2008-11-20",
-   "drawdown_pct": -57.0,
-   "index": "S&P 500",
-   "low_date": "2009-03-09",
-   "ordinal": 1,
-   "peak_date": "2007-10-09",
-   "quote": "A climactic November flush on record volume set the first low.",
-   "signpost": "Capitulation",
-   "signposts": [
-    {
-     "date": "2008-11-20",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A climactic November flush on record volume set the first low."
-    },
-    {
-     "date": "2008-11-20",
-     "key": "volatility",
-     "name": "Volatility Peak",
-     "quote": "VIX closed near 81 — the credit-crisis panic peak."
-    },
-    {
-     "date": "2009-03-09",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "The March low came on POSITIVE breadth divergence — fewer new lows than November."
-    },
-    {
-     "date": "2009-03-12",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A powerful thrust on expanding volume confirmed the rally attempt."
-    },
-    {
-     "date": "2009-03-23",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "AMZN, AAPL, FFIV, GMCR and high-beta names broke out to lead."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2009-gfc",
-   "type": "Rounded Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2009-gfc#capitulation#2008-11-20",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "The Follow-Through Day"
-  },
-  "asof": "2009-03-12",
-  "bars": {
-   "asof": "2009-03-12",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_2f527b374a59",
-  "lesson_origin": "template",
-  "lesson_text": "The Generational Low: The Follow-Through Day fired here. Count the signposts, not the days. A powerful thrust on expanding volume confirmed the rally attempt.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "The Follow-Through Day",
-    "Capitulation",
-    "Volatility Peak",
-    "Breadth Washout"
-   ],
-   "q": "The Generational Low: which signpost fired third?",
-   "subject": "2009-gfc signpost 3"
-  },
-  "reveal_json": {
-   "bottom": "The Generational Low",
-   "co_fired": [],
-   "date": "2009-03-12",
-   "drawdown_pct": -57.0,
-   "index": "S&P 500",
-   "low_date": "2009-03-09",
-   "ordinal": 3,
-   "peak_date": "2007-10-09",
-   "quote": "A powerful thrust on expanding volume confirmed the rally attempt.",
-   "signpost": "The Follow-Through Day",
-   "signposts": [
-    {
-     "date": "2008-11-20",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A climactic November flush on record volume set the first low."
-    },
-    {
-     "date": "2008-11-20",
-     "key": "volatility",
-     "name": "Volatility Peak",
-     "quote": "VIX closed near 81 — the credit-crisis panic peak."
-    },
-    {
-     "date": "2009-03-09",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "The March low came on POSITIVE breadth divergence — fewer new lows than November."
-    },
-    {
-     "date": "2009-03-12",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A powerful thrust on expanding volume confirmed the rally attempt."
-    },
-    {
-     "date": "2009-03-23",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "AMZN, AAPL, FFIV, GMCR and high-beta names broke out to lead."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2009-gfc",
-   "type": "Rounded Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2009-gfc#follow_through#2009-03-12",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
    "answer": "Capitulation"
   },
   "asof": "2002-07-23",
@@ -1242,8 +538,8 @@
   },
   "difficulty": 3,
   "id": "si_3b80b6bc1543",
-  "lesson_origin": "template",
-  "lesson_text": "The Dot-Com Bottom: Capitulation fired here. Count the signposts, not the days. A washout flush set the first low on heavy capitulation volume.",
+  "lesson_origin": "session",
+  "lesson_text": "That's capitulation. The last bar is a big down day on volume well above normal, after a run of red days. It's the flush: everyone who is going to sell, sells. It means the market is running out of sellers, not finding buyers. So it isn't a buy signal on its own. Next you want bad news to fail to make a new low, then a follow-through day. Here SPY fell 2.7% to the lowest close of the chart, its fourth straight down day, on volume 1.8 times its 20-day average.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -1251,12 +547,12 @@
     "window_bars": 120
    },
    "choices": [
-    "Breadth Washout",
+    "Leadership Emerges",
     "News Failure",
     "The Follow-Through Day",
     "Capitulation"
    ],
-   "q": "The Dot-Com Bottom: which signpost fired first?",
+   "q": "The Dot-Com Bottom: the chart ends on the day one signpost fired. Which one?",
    "subject": "2002-dotcom signpost 1"
   },
   "reveal_json": {
@@ -1268,7 +564,7 @@
    "low_date": "2002-10-09",
    "ordinal": 1,
    "peak_date": "2000-03-10",
-   "quote": "A washout flush set the first low on heavy capitulation volume.",
+   "quote": "Here SPY fell 2.7% to the lowest close of the chart, its fourth straight down day, on volume 1.8 times its 20-day average.",
    "signpost": "Capitulation",
    "signposts": [
     {
@@ -1316,100 +612,6 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "accept": [
-    "Breadth Washout"
-   ],
-   "answer": "News Failure"
-  },
-  "asof": "2002-10-09",
-  "bars": {
-   "asof": "2002-10-09",
-   "forward": 20,
-   "sym": "SPY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_24d4b19957f4",
-  "lesson_origin": "template",
-  "lesson_text": "The Dot-Com Bottom: News Failure fired here. Count the signposts, not the days. Price undercut the July low and reversed, the double bottom completed.",
-  "module": "M3",
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Capitulation",
-    "News Failure",
-    "The Follow-Through Day",
-    "Leadership Emerges"
-   ],
-   "q": "The Dot-Com Bottom: which signpost fired second?",
-   "subject": "2002-dotcom signpost 2"
-  },
-  "reveal_json": {
-   "bottom": "The Dot-Com Bottom",
-   "co_fired": [
-    {
-     "name": "Breadth Washout",
-     "quote": "New lows peaked at the October retest; the deck was finally cleared."
-    }
-   ],
-   "date": "2002-10-09",
-   "drawdown_pct": -78.0,
-   "index": "Nasdaq Composite",
-   "low_date": "2002-10-09",
-   "ordinal": 2,
-   "peak_date": "2000-03-10",
-   "quote": "Price undercut the July low and reversed — the double bottom completed.",
-   "signpost": "News Failure",
-   "signposts": [
-    {
-     "date": "2002-07-23",
-     "key": "capitulation",
-     "name": "Capitulation",
-     "quote": "A washout flush set the first low on heavy capitulation volume."
-    },
-    {
-     "date": "2002-10-09",
-     "key": "news_failure",
-     "name": "News Failure",
-     "quote": "Price undercut the July low and reversed — the double bottom completed."
-    },
-    {
-     "date": "2002-10-09",
-     "key": "breadth_washout",
-     "name": "Breadth Washout",
-     "quote": "New lows peaked at the October retest; the deck was finally cleared."
-    },
-    {
-     "date": "2002-10-15",
-     "key": "follow_through",
-     "name": "The Follow-Through Day",
-     "quote": "A +4% thrust on heavy volume confirmed the rally attempt."
-    },
-    {
-     "date": "2003-03-15",
-     "key": "leadership",
-     "name": "Leadership Emerges",
-     "quote": "Homebuilders, energy, and a re-basing AAPL led the new cycle."
-    }
-   ],
-   "source": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2002-dotcom",
-   "type": "Double Bottom"
-  },
-  "review_status": "draft",
-  "skill_id": "regime.call",
-  "source_kind": "bottoms",
-  "source_ref": "app/src/pages/modelbook/bottomsCatalog.js#BOTTOMS#2002-dotcom#news_failure#2002-10-09",
-  "sym": "SPY",
-  "type": "regime",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
    "answer": "The Follow-Through Day"
   },
   "asof": "2002-10-15",
@@ -1422,8 +624,8 @@
   },
   "difficulty": 3,
   "id": "si_2c5cf5fe2b7e",
-  "lesson_origin": "template",
-  "lesson_text": "The Dot-Com Bottom: The Follow-Through Day fired here. Count the signposts, not the days. A +4% thrust on heavy volume confirmed the rally attempt.",
+  "lesson_origin": "session",
+  "lesson_text": "That's the follow-through day. A few sessions after the low, the index rallies hard on heavier volume than the day before. It's the sign big buyers are stepping back in. It can fail, so the stop goes under the low. This is where you start watching the names that break out first. Here SPY rose 4.8% on twice the prior day's volume, three sessions after its October 10 low.",
   "module": "M3",
   "prompt_json": {
    "chart": {
@@ -1436,7 +638,7 @@
     "Leadership Emerges",
     "Capitulation"
    ],
-   "q": "The Dot-Com Bottom: which signpost fired third?",
+   "q": "The Dot-Com Bottom: the chart ends on the day one signpost fired. Which one?",
    "subject": "2002-dotcom signpost 3"
   },
   "reveal_json": {
@@ -1448,7 +650,7 @@
    "low_date": "2002-10-09",
    "ordinal": 3,
    "peak_date": "2000-03-10",
-   "quote": "A +4% thrust on heavy volume confirmed the rally attempt.",
+   "quote": "Here SPY rose 4.8% on twice the prior day's volume, three sessions after its October 10 low.",
    "signpost": "The Follow-Through Day",
    "signposts": [
     {

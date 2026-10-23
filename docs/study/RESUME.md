@@ -206,6 +206,26 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
   status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
   import once Railway is back; the hub then shows the survivors by station; sizing first.
+- **2026-10-23 ~03:00Z to 03:40Z: BATCH 1 LIVE ON THE POD; #457 VERIFIED; BOTTOMS BATCH 2 BUILT.**
+  #459 merged (b8c5cbb1b4; #458 merged with it), web SUCCESS 03:01:32Z. The owner signed in to the
+  site and to the Railway CLI. #457 VERIFIED on the pod read-only (scratchpad pod_verify_scoring.py,
+  commit fb4a45c68e): approved recall items score {choice: key} True and a wrong choice False.
+  pod_count_misscored.py: 1 attempt ever, the owner's walkthrough answer, mis-scored; no member hit,
+  no repair. Owner ran import_bank --only size.house_rule walk.method vocab.chart recall.glossary
+  recall.concepts (157 updated, 0 flagged/misses/rejected) and retire_ids.py retire_batch1.json
+  (137 retired, 0 skipped). `!` commands run in the worktree cwd: prefix `cd /c/Users/pgosz/projects/
+  UCT-Dashboard && MSYS_NO_PATHCONV=1`. Railway ssh timed out once (their outage banner); a retry worked.
+  BOTTOMS: a helper price-checked the 17 holds on Yahoo bars, then every kept number was re-read on
+  the pod's own study_bars snapshot. docs/study/audits/2026-10-23/: bottoms_price_check.md (evidence),
+  bottoms_batch2.py (37 records, tag "bottoms-batch2 2026-10-23"), retire_batch2.json (9 ids).
+  8 kept (q = "{bottom}: the chart ends on the day one signpost fired. Which one?", lesson = the
+  signpost lesson + the measured SPY note, no news clause, no "record volume"), 9 cut (7 whose last
+  bar doesn't show the signpost; the 2008/2009 pair because the firm's SPY bars carry two bad lows:
+  2008-09-29 L 11.85 (Yahoo 110.97), 2008-11-07 L 53.15 (Yahoo 90.50); no approved item shows them;
+  the firm's own SPY 2008 chart likely does: report to the bars owner). 344 Study tests pass.
+  NEXT: PR + merge + web SUCCESS; owner runs import_bank --only regime.bottoms and
+  retire_ids.py docs/study/audits/2026-10-23/retire_batch2.json; then the owner reviews station by
+  station (sizing first); spot/family + bible wait on the rulings.
 - **2026-10-23 ~02:10Z: RAILWAY BACK; #457 LIVE; PR #459 carries #458 + the audit.** Railway's
   builds resumed; web deployed production fb4a45c68e at 02:12:26Z (commit STATUS "web | success"),
   which contains #457 (8043eca012), so the scoring fix is live. NOT YET VERIFIED in a browser: the

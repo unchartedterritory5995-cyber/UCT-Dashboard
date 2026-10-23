@@ -86,3 +86,12 @@ def test_batch1_is_the_137_cuts_and_none_of_them_is_still_in_the_bank():
         bank.update(it["id"] for it in json.loads(pathlib.Path(p).read_text(encoding="utf-8")))
     assert len(bank) > 100                                   # the bank was actually read
     assert not (set(ids) & bank), sorted(set(ids) & bank)[:10]
+
+
+def test_batch2_is_the_9_bottoms_cuts_and_none_of_them_is_still_in_the_bank():
+    ids, why = rt.load_ids(REPO / "docs/study/audits/2026-10-23/retire_batch2.json")
+    assert len(ids) == 9 and len(set(ids)) == 9
+    assert "2026-10-23" in why
+    bank = {it["id"] for it in json.loads((REPO / "docs/study/bank/regime.bottoms.json").read_text(encoding="utf-8"))}
+    assert len(bank) == 8
+    assert not (set(ids) & bank)
