@@ -230,3 +230,30 @@ def test_validate_reports_account_state(monkeypatch):
     assert out["account_name"] == "Swing"
     assert out["portfolio_heat_before"] == pytest.approx(0.5, abs=0.01)
     assert "rule_book" in out
+
+
+# -- M-A: validate_trade says when it sized on the default account size ------------------
+
+def _validate_with(monkeypatch, settings):
+    monkeypatch.setattr(vps, "_get_account_settings", lambda u, a: dict(settings))
+    monkeypatch.setattr(vps, "_current_portfolio_risk", lambda u, a: {
+        "total_risk": 0.0, "open_count": 0, "by_symbol": {},
+    })
+    return vps.validate_trade(user_id=_user(), symbol="NVDA", entry=200, stop=195, shares=10)
+
+
+def test_validate_names_the_default_size_for_an_unset_member(monkeypatch):
+    out = _validate_with(monkeypatch, {"account_id": None, "account_name": "Default",
+                                       "account_size": vps.UNSET_ACCOUNT_SIZE, "max_risk_pct": 1.0,
+                                       "account_size_is_default": True})
+    assert out["account_size_is_default"] is True
+    assert out["account_size_note"] == vps.default_size_sentence()
+    assert "default account size ($25,000)" in out["account_size_note"]
+
+
+def test_validate_says_nothing_for_a_member_set_size(monkeypatch):
+    out = _validate_with(monkeypatch, {"account_id": "a1", "account_name": "Main",
+                                       "account_size": 73000.0, "max_risk_pct": 1.0,
+                                       "account_size_is_default": False})
+    assert out["account_size_is_default"] is False and out["account_size_note"] is None
+

@@ -35,6 +35,14 @@ DEFAULT_RISK_PCT = 1.0  # Used when account has no setting
 UNSET_ACCOUNT_SIZE = 25000.0
 
 
+def default_size_sentence() -> str:
+    """The one sentence every surface uses when its numbers rest on UNSET_ACCOUNT_SIZE (the
+    Portfolio Risk page's wording, PortfolioHeat.jsx). AI Search's EXPOSURE line and
+    validate_trade's `account_size_note` both read it from here."""
+    return (f"No account size on file — these numbers use a default account size "
+            f"(${UNSET_ACCOUNT_SIZE:,.0f}), not your real one")
+
+
 # ── Pure math (no DB) ───────────────────────────────────────────────────────
 
 def calc_position_size(
@@ -339,6 +347,10 @@ def validate_trade(
             for sec in sectors
         },
         "account_size": account_size,
+        # M-A: say so when the shares and refusals rest on the default size.
+        "account_size_is_default": bool(settings.get("account_size_is_default", False)),
+        "account_size_note": (default_size_sentence()
+                              if settings.get("account_size_is_default", False) else None),
         "max_risk_pct": max_risk_pct,
         "account_name": settings["account_name"],
         "current_open_count": current["open_count"],

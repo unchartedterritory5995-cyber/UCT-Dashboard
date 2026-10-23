@@ -151,9 +151,8 @@ def _fmt_heat(user_id, account_id):
         bits.append("no-stop positions (excluded from heat): " + ", ".join(h["placeholder_stops"]))
     if bits and h.get("account_size_is_default"):
         # The Portfolio Risk page's own sentence (PortfolioHeat.jsx), naming the size heat used.
-        from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
-        bits.append(f"No account size on file — these numbers use a default account size "
-                    f"(${UNSET_ACCOUNT_SIZE:,.0f}), not your real one")
+        from api.services.voice_position_sizing import default_size_sentence
+        bits.append(default_size_sentence())
     return ("EXPOSURE: " + "; ".join(bits)) if bits else ""
 
 def _fmt_edge(user_id, account_id):
