@@ -416,6 +416,13 @@ EXEMPT: dict[str, str] = {
     # them. Pages, not API calls -- the same treatment as the SPA shell below.
     # classify() strips the trailing slash, so each entry covers its `/` form
     # (a 301 to the no-slash URL) too.
+    # ⛔ An EXEMPT prefix covers its WHOLE SUBTREE (classify() matches on a
+    # segment boundary): every path under /live-trading-room is unlimited,
+    # today only the static pages and the StaticFiles image mount. A DYNAMIC
+    # route (one that reads a DB, a vendor or a session) must NEVER be added
+    # under this prefix -- the census would file it as exempt and never flag
+    # it. Put it under /api (the room's call-request form is /api/ltr, which
+    # is public-intake), the same rule as /assets and /fonts.
     "/live-trading-room": "Static public landing page from app/dist (and its images); "
                           "a page a visitor or crawler loads, not an API call.",
     "/live-trading-room/terms": "The room's static terms page from app/dist; same reason "
