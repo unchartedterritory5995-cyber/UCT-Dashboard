@@ -486,13 +486,13 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
       + 'collapsible block\'s arrow button inside a note editor, which a drill never '
       + 'contains; otherwise it lets Enter through.'),
   ack(['drill.keys', 'studyReview.card'], 'surface',
-    'Enter matches both. Drills open from the Desk and Study pages, the review card lives '
+    'Enter matches both. A drill opens only from the Desk (CoursesSection), the review card lives '
       + 'on the admin pattern review; they are never mounted on the same page.'),
   ...[1, 2, 3, 4].flatMap((n) => ['panel', 'count'].map((kind) => ack(
     ['drill.keys', `terminal.${kind}${n}`], 'surface',
     `Alt${kind === 'count' ? '+Shift' : ''}+${n} can match both (the drill's digit keys never `
       + 'looked at modifiers). The terminal keys are bound only by the UCT Terminal shell, '
-      + 'and a drill opens from the Desk and Study pages; they are never mounted together.'))),
+      + 'and a drill opens only from the Desk (CoursesSection); they are never mounted together.'))),
 ])
 
 // ── conflict detection ───────────────────────────────────────────────────────
