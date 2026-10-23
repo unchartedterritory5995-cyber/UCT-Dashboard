@@ -2,7 +2,8 @@
  * DrillPlayer — the session runner (spec §7.2, §13.2 T1-T4, §13.7 D5-D7, D9-D12, D18).
  *
  * A fullscreen Sheet: a 44px top bar (close · ten-segment progress strip · a
- * combo chip hidden until x2) · the question (16px/600, two lines at most) ·
+ * combo chip hidden until x2 · for a reviewer, the "Feedback on this screen"
+ * door, which names the question / reveal / end screen it was left on) · the question (16px/600, two lines at most) ·
  * ONE StockChart mounted for the whole session, locked down (studyMode,
  * barsOverride, sym = the item id, frozen, no watermark, no live updates, no
  * feeds) and hidden with visibility:hidden on items without a chart, never
@@ -35,6 +36,8 @@ import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
 import EndCard from './EndCard'
+import ScreenFeedback from './ScreenFeedback'
+import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
 import styles from './DrillPlayer.module.css'
 
@@ -333,6 +336,12 @@ export default function DrillPlayer({
           <span className={styles.combo} data-testid="combo-chip" aria-label={`Combo ${combo}`}>x{combo}</span>
         ) : (
           <span className={styles.comboGhost} aria-hidden="true" />
+        )}
+        {reviewer && (
+          <ScreenFeedback compact screen={drillScreen({ finished: s.finished, phase })}
+            context={item && !s.finished
+              ? { item_id: item.id, skill_id: item.skill_id || null, type: item.type || null, question: s.index + 1 }
+              : { set_size: s.items.length || null }} />
         )}
       </div>
 

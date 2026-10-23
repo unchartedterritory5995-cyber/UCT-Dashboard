@@ -161,6 +161,113 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Study layout in CoursesSection; tests 4 + 14, eslint clean. NEXT: screenshot it live for the
   owner, iterate on his reaction; then the session's own pass over the 599 chart drafts (approve
   the legible ones in bulk under the delegation, sampling to the owner), and his lesson review.
+- **2026-10-21 ~16:00Z: BUILT the two review tools offered in the walkthrough** (branch
+  feat/study-screen-feedback-hub, while Railway builds were paused). (1) "Feedback on this
+  screen", admin-only, on every Study screen: landing, trail, practise sheet, the quiz's top bar
+  (question / reveal / end), the review screen, gallery, lesson reading view. Kinds are the
+  owner's words (layout, visuals, effects, how it works, teaching, broken, great, other);
+  `POST /api/study/admin/screen-feedback`; a study_feedback row with `screen` set and item_id ''
+  (never counted against an item, never applied); listed in the Feedback panel as
+  "Screen · ..." with a scope select. (2) The review hub (review screen -> "Review hub",
+  `GET /api/study/admin/hub`): counts laid on the course map (curriculum -> track -> unit) plus
+  unplaced skills, and all candle lessons as members read them with live-example counts and a
+  verdict door on the LESSON (approve / needs fix + note -> a lessons screen note; ingest writes
+  a source_ruling about:"lesson"). FOUND + FIXED: the review screen's A/F/R keys stayed live
+  under the gallery / feedback panels (A could approve a hidden draft); now they act on the card
+  only (mutation-checked). Also walked two member routes the sym-leak rail had missed
+  (house-chart, item feedback). Doc: docs/study/feedback_loop.md. NEXT for the owner once
+  deployed: open Review hub, read the lessons, Approve / Needs fix each; leave screen notes as he
+  goes; the session ingests them.
+- **2026-10-21 ~17:00Z: METHOD DRAFTS AUDITED (owner: "whatever you suggest honestly" -> tighten
+  first, then review station by station in the Review hub).** Three read-only agents graded all
+  511 auditable bank drafts against their own sources; verdict files + summaries + the build
+  scripts are committed in docs/study/audits/2026-10-21/ (auditA recall, auditB regime+size,
+  auditC charts+walkthroughs; one jsonl line per item, counts verified). Result: keep 29, fix 185,
+  cut 280, hold 17 (bottoms, need a price check). Held by earlier rulings and not audited:
+  recall.principles 34, recall.playbooks 29. So about 214 reach the owner instead of 574.
+  Per segment: size.house_rule 14 keep / 42 fix / 22 cut (no math errors in all 84; fixes = full
+  lessons from each item's own numbers, the "A+ gets 1.5%" invention removed, the sizing_rule.md
+  line "a tight stop never licenses a monster position" on big positions); regime.bottoms 31 cut
+  (trivia) / 17 hold (bottomsCatalog.js is unreliable: signpost dates on a Sunday 2023-01-15 and a
+  Saturday 2003-03-15, four self-contradictions; every fact needs a check on real index bars);
+  recall.bible 19 fix / 13 cut (the bible contradicts itself: "3 out of 4 stocks follow the market"
+  vs "determines 75% of a stock's outcome"; it reads like a compiled O'Neil/Minervini base, not the
+  owner's writing); recall.concepts 5 fix / 17 cut (12 duplicate vocab.chart); recall.glossary 52
+  fix / 2 cut (the AI brief contradicts the firm: Wedge Drop is a RISING wedge per
+  setupPlaybooks.js, distribution days 5-6 per the bible, exposure rating, HVC, heat); spot.fixtures
+  39 fix / 93 cut, family.fixtures 5 fix / 37 cut (detectors disagree with the owner's setup cards
+  for six setups: Launchpad positives lack the MA stack, 5 of 6 close under the 200-day, verified;
+  Go Signal is a different setup; Kicker, Oops, HVE, Slingshot, Gap Support partly off-card);
+  vocab.chart 8 keep / 21 fix / 49 cut (the example finder never checks the other words: 16
+  distractors true on the bar, one MSFT chart carries 7 answers); walk.method 7 keep / 2 fix / 16
+  cut (model jargon, THE LOOP, contradictions with his ladder and heat ruling). OWNER RULINGS
+  NEEDED: (1) setup definition = his card or the detector (recommend the card); (2) is the
+  methodology bible a Study source at all; (3) sizing: 20% vs 25% cap, the drawdown ladder, may his
+  30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
+  status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
+  import once Railway is back; the hub then shows the survivors by station; sizing first.
+- **2026-10-23 ~02:10Z: RAILWAY BACK; #457 LIVE; PR #459 carries #458 + the audit.** Railway's
+  builds resumed; web deployed production fb4a45c68e at 02:12:26Z (commit STATUS "web | success"),
+  which contains #457 (8043eca012), so the scoring fix is live. NOT YET VERIFIED in a browser: the
+  site signed everyone out (the owner's admin tab sits on /login) and the Railway CLI still answers
+  Unauthorized (`! railway login --browserless` is the owner's step). PR #459 (feat/study-method-audit)
+  carries #458's commit plus the audit, batch 1, the short glossary choices, and two new commits:
+  191078f54f (the review card's "Checked against" lists reveal.support, the firm's lines, instead
+  of reveal.quote, the AI brief's sentence; learners never saw the quote) and 54b36522c9
+  (scripts/study/retire_ids.py + docs/study/audits/2026-10-21/retire_batch1.json: reject the 137
+  cuts on the pod, drafts only, refuses off the pod, re-run safe). Merging #459 merges #458.
+  A bulk reject from the browser was refused by the auto-mode classifier (external write), hence
+  the owner-run tool. A helper is price-checking the 17 regime.bottoms holds on real bars
+  (scratchpad bottoms_check/REPORT.md). NEXT: merge #459, wait web SUCCESS; owner runs
+  `railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only size.house_rule
+  --only walk.method --only vocab.chart --only recall.glossary --only recall.concepts` (regime.bottoms waits for
+  the price check; its 17 holds are already on the pod as drafts)
+  then `... scripts/study/retire_ids.py docs/study/audits/2026-10-21/retire_batch1.json` (dry-run first);
+  owner signs in, verify a right choice says Correct; run scratchpad pod_count_misscored.py (read-only).
+- **2026-10-21 ~17:45Z to 22:00Z: BATCH 1 APPLIED, glossary choices shortened (branch
+  feat/study-method-audit, stacked on #458, pushed).** a9f984ca53 rebuilt six segments from the audit's
+  corrections records: size.house_rule 84->62, walk.method 25->9, vocab.chart 78->29, recall.glossary
+  54->52, recall.concepts 22->5, regime.bottoms 48->17 (the 17 held for a price check on real index
+  bars). Then the 26 glossary "what does X mean" items still had choices of 60-130 characters, too long
+  on a phone: docs/study/audits/2026-10-21/gloss_shorten.py appended 52 fix records (choices + answer,
+  tag "short-choices 2026-10-21", delegated under "whatever you suggest honestly"), one short form per
+  term, every one <=55 characters, meaning kept from each item's own support lines; the rebuild changed
+  only those 26 items' choices and answers (52 items, ids unchanged, every key still a choice; the
+  term->name items were already <=24). 338 Study tests pass. OPEN: the review card's "Source says" line
+  for glossary items still prints reveal.quote, the AI brief's sentence, which the audit found wrong in
+  places (exposure "computed from breadth, distribution days"); the firm's own lines sit in
+  reveal.support, which the card does not show. Fix before the owner reviews that station: show
+  support on the card, or point reveal.quote at the firm's line. RAILWAY at 21:50Z: still a major
+  outage, builds paused in every region, and Railway invalidated CLI sessions (`railway deployment
+  list` answers Unauthorized: the owner runs `! railway login`). Live site up, pod booted ~05:24Z, so
+  #457 is NOT live. The watcher (wait_railway_recovery.sh) was stopped by Claude Code for low memory
+  and not restarted. After recovery, same order: verify #457, merge #458, open a PR for this branch and
+  merge it, import --only the six segments (recall.glossary now carries the short choices), retire the 137 cut ids (scratchpad
+  pod_reject_audit_batch1.json).
+- **2026-10-21 15:10Z: THE WALKTHROUGH FOUND A SCORING BUG; fix merged, waiting on a Railway outage.**
+  Owner asked to see everything ("show me everything here and now so we can go through it all ... layout and
+  visual and effects and interactive and learning"). Six screens shown (landing, question, reveal, admin
+  review card, example gallery, feedback panel). FOUND LIVE: drills post `{choice: x}` (drills/types.js
+  choiceAnswer) but study_scoring._as_answer_value only unwrapped `{answer: x}`, so EVERY multiple-choice
+  answer scored wrong. #457 (merge 8043eca012): `_SINGLE_VALUE_KEYS = ("answer","choice")`, `_norm` makes
+  integral floats equal ints, RevealCard .meta flex (ref no longer jammed against the date); router test fails
+  on the old code. NOT LIVE YET: Railway major outage from 07:24Z ("builds paused" in every region,
+  dashboard/API/CLI unavailable, `railway ssh` port 22 times out). The site still serves the 05:19Z build
+  (b90c568537). The production branch holds 8043eca012; nothing registered on Railway web since 05:19Z.
+  The scheduled 13:02Z full-suite run failed only on its report (vitest job cancelled, no diff.json); all 12
+  pytest shards passed. NEXT once it deploys: verify a right choice says Correct; run scratchpad
+  pod_count_misscored.py (read-only) to count past mis-scored attempts, then decide a repair.
+  Walkthrough findings put to the owner (no verdicts yet): start button below the fold; duplicate intros;
+  empty Foundations / DRAFT course cards; chart small on the desktop question screen; bracket the bars the
+  question means; reveal cramped (lesson scrolls, review door under Continue), no divider before the forward
+  bars; 3 names with no chart example (abandoned-baby-bullish, deliberation, kicking-bullish), thin Kicking
+  (Bear) 3 / Abandoned Baby (Bear) 2; Bullish Engulfing has 6 of 10 examples on 2025-04-09 -> proposed cap 2
+  per day per name; trust panel "recall 599 clean" inflated by bulk approvals.
+  POD INVENTORY: 610 live (604 candle charts + 6 size.formula), 1003 drafts (candles text 172, vocab.chart
+  78, vocab.method 54, Method stations ~690, walkthroughs ~25), 222 rejected; Foundations has no content;
+  the landing's 8 Method stations have no live questions. Offered: (1) a "Feedback on this screen" button on
+  every Study screen into the same panel, (2) a review hub with section counts + a reading view of all 66
+  lessons. OWNER DECISION PENDING: how to take the ~1000 Method drafts (section by section, or prune first).
 - **2026-10-21 05:05Z ALL LIVE: the feedback loop, `/study`, the audited lessons, every approved example on
   the pod.** #453 deployed (6404d2d280, a 43-minute Railway build, then SUCCESS; review screen shows
   "Feedback (0)", /api/study/admin/feedback answers). `/study` REGISTERED for the UT guild: the owner ran

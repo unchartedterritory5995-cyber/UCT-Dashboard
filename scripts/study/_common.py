@@ -229,8 +229,8 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
                 problems.append(f"{iid}: approved without an owner verdict (docs/study/corrections)")
         elif status != "draft":
             problems.append(f"{iid}: review_status must be draft|approved")
-        if it.get("lesson_origin") not in ("template", "source"):
-            problems.append(f"{iid}: lesson_origin must be template|source")
+        if it.get("lesson_origin") not in ("template", "source", "session"):
+            problems.append(f"{iid}: lesson_origin must be template|source|session")
         if not (isinstance(it.get("lesson_text"), str) and it["lesson_text"].strip()):
             problems.append(f"{iid}: no lesson_text (every item teaches, spec §4.9)")
         for field in ("q", "choices", "quote"):

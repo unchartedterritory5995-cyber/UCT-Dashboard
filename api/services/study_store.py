@@ -75,6 +75,19 @@ FEEDBACK_CHANNELS = ("site", "discord", "review")
 #: through `review()`; fix is a note the next build answers (it names no field).
 FEEDBACK_VERDICTS = ("approve", "fix", "reject")
 FEEDBACK_TEXT_MAX = 2000
+#: Feedback on a whole SCREEN rather than one item (owner 2026-10-21: "the
+#: overall layout and visual and effects and interactive and learning"). The
+#: kinds are the owner's own words; the screens are the Study views. A screen
+#: row has `screen` set and an empty `item_id`, so it never counts against an
+#: item and never reaches `review()`.
+SCREEN_KINDS = ("layout", "visuals", "effects", "interaction", "learning", "broken", "great", "other")
+SCREENS = ("landing", "trail", "question", "reveal", "end", "practise", "lessons", "review", "gallery")
+#: On the lessons reading view the owner's note can carry a verdict on ONE
+#: lesson. It is recorded (the ingest writes it as a source ruling), never
+#: applied to items: a lesson is shared by every example of its candle name.
+LESSON_VERDICTS = ("approve", "fix")
+_CONTEXT_MAX_KEYS = 12
+_CONTEXT_VALUE_MAX = 200
 TRUST_STATES = ("manual", "sampled")
 BANDS = ("learning", "practised", "proficient")
 
@@ -320,6 +333,8 @@ _ALTERS = (
     ("study_items", "import_flags", "TEXT"),
     ("study_profile", "reminder_tz", "TEXT"),
     ("study_attempts", "scored", "INTEGER NOT NULL DEFAULT 1"),
+    ("study_feedback", "screen", "TEXT"),
+    ("study_feedback", "context_json", "TEXT"),
 )
 
 _ITEM_CONTENT_FIELDS = (
@@ -1358,6 +1373,59 @@ def add_feedback(item_id: str, user_id: str, *, role: str, channel: str, kind: s
     return {"feedback": get_feedback(fid), "applied": applied}
 
 
+def _clean_context(context) -> Optional[dict]:
+    """What the screen was showing, small and flat: up to a dozen scalar
+    values (an item id, a lesson key, the question number), strings cut short.
+    Anything else is dropped rather than stored."""
+    if not isinstance(context, dict):
+        return None
+    out: dict = {}
+    for k, v in context.items():
+        if len(out) >= _CONTEXT_MAX_KEYS:
+            break
+        if not isinstance(k, str) or not k:
+            continue
+        if isinstance(v, bool) or isinstance(v, (int, float)) or v is None:
+            out[k[:40]] = v
+        elif isinstance(v, str):
+            out[k[:40]] = v[:_CONTEXT_VALUE_MAX]
+    return out or None
+
+
+def add_screen_feedback(screen: str, user_id: str, *, role: str, kind: str, text: Optional[str] = None,
+                        verdict: Optional[str] = None, context=None, channel: str = "site") -> dict:
+    """One note about a whole Study screen (its layout, visuals, effects, how it
+    behaves, what it teaches). Nothing is applied: a screen note is read by the
+    session and carried by the ingest. The one verdict a screen note can carry
+    is the owner's approve / fix on a LESSON, from the lessons reading view,
+    and it must name the lesson (`context.lesson_key`)."""
+    if screen not in SCREENS:
+        raise ValueError(f"screen must be one of {SCREENS}")
+    if role not in FEEDBACK_ROLES:
+        raise ValueError(f"role must be one of {FEEDBACK_ROLES}")
+    if channel not in FEEDBACK_CHANNELS:
+        raise ValueError(f"channel must be one of {FEEDBACK_CHANNELS}")
+    if kind not in SCREEN_KINDS:
+        raise ValueError(f"kind must be one of {SCREEN_KINDS}")
+    ctx = _clean_context(context)
+    if verdict is not None:
+        if role != "owner" or screen != "lessons":
+            verdict = None
+        elif verdict not in LESSON_VERDICTS:
+            raise ValueError(f"a lesson verdict must be one of {LESSON_VERDICTS}")
+        elif not (ctx or {}).get("lesson_key"):
+            raise ValueError("a lesson verdict must name the lesson (context.lesson_key)")
+    text = (text or "").strip()[:FEEDBACK_TEXT_MAX] or None
+    with _write() as c:
+        cur = c.execute(
+            "INSERT INTO study_feedback (item_id, item_version, user_id, role, channel, kind, text, verdict, "
+            "screen, context_json, at) VALUES ('', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, role, channel, kind, text, verdict, screen,
+             _dumps(ctx) if ctx else None, _iso(_now_utc())))
+        fid = int(cur.lastrowid)
+    return {"feedback": get_feedback(fid), "applied": None}
+
+
 def _feedback_row(r: sqlite3.Row) -> dict:
     d = dict(r)
     d["answer_json"] = _loads(d.get("answer_json"), d.get("answer_json"))
@@ -1366,7 +1434,9 @@ def _feedback_row(r: sqlite3.Row) -> dict:
         p = _loads(d.pop("prompt_json"), {}) or {}
         d["subject"] = p.get("subject")
         d["q"] = p.get("q")
-    d["ref"] = short_ref(d["item_id"])
+    d["context"] = _loads(d.pop("context_json", None), None)
+    d["screen"] = d.get("screen") or None
+    d["ref"] = short_ref(d["item_id"]) if d.get("item_id") else None
     return d
 
 
@@ -1381,14 +1451,23 @@ def get_feedback(feedback_id: int) -> Optional[dict]:
 
 
 def list_feedback(*, item_id: Optional[str] = None, unhandled_only: bool = False,
-                  since_id: int = 0, limit: int = 500) -> list[dict]:
+                  since_id: int = 0, limit: int = 500, screen: Optional[str] = None) -> list[dict]:
     """ADMIN: feedback rows newest first, with the item's ticker, date, subject
-    and question beside each so the list reads without opening the item."""
+    and question beside each so the list reads without opening the item.
+    `screen` narrows to the notes about one screen ("any" = every screen note,
+    "none" = item notes only)."""
     q = _FEEDBACK_SELECT + " WHERE f.id > ?"
     args: list = [int(since_id)]
     if item_id:
         q += " AND f.item_id=?"
         args.append(item_id)
+    if screen == "any":
+        q += " AND f.screen IS NOT NULL AND f.screen != ''"
+    elif screen == "none":
+        q += " AND (f.screen IS NULL OR f.screen = '')"
+    elif screen:
+        q += " AND f.screen=?"
+        args.append(screen)
     if unhandled_only:
         q += " AND f.handled_at IS NULL"
     q += " ORDER BY f.id DESC LIMIT ?"
@@ -1399,12 +1478,19 @@ def list_feedback(*, item_id: Optional[str] = None, unhandled_only: bool = False
 
 
 def feedback_counts() -> dict:
-    """{item_id: open feedback rows} plus the totals the review screen shows."""
+    """{item_id: open feedback rows} plus the totals the review screen shows.
+    Screen notes are counted apart ({screen: open rows}) so a layout note never
+    reads as a note on an item; `open_total` carries both."""
     with contextlib.closing(_connect()) as c:
         per = {r["item_id"]: int(r["n"]) for r in c.execute(
-            "SELECT item_id, COUNT(*) AS n FROM study_feedback WHERE handled_at IS NULL GROUP BY item_id")}
+            "SELECT item_id, COUNT(*) AS n FROM study_feedback WHERE handled_at IS NULL "
+            "AND (screen IS NULL OR screen = '') GROUP BY item_id")}
+        screens = {r["screen"]: int(r["n"]) for r in c.execute(
+            "SELECT screen, COUNT(*) AS n FROM study_feedback WHERE handled_at IS NULL "
+            "AND screen IS NOT NULL AND screen != '' GROUP BY screen")}
         total = c.execute("SELECT COUNT(*) FROM study_feedback").fetchone()[0]
-    return {"open": per, "open_total": sum(per.values()), "total": int(total)}
+    return {"open": per, "open_screens": screens,
+            "open_total": sum(per.values()) + sum(screens.values()), "total": int(total)}
 
 
 def handle_feedback(ids: Iterable[int], by_user: str, note: Optional[str] = None) -> int:
@@ -1427,6 +1513,76 @@ def export_feedback(*, since_id: int = 0, limit: int = 5000) -> list[dict]:
         rows = c.execute(_FEEDBACK_SELECT + " WHERE f.id > ? ORDER BY f.id LIMIT ?",
                          (int(since_id), int(limit))).fetchall()
     return [_feedback_row(r) for r in rows]
+
+
+# ── Review hub (owner 2026-10-21: "show me everything here and now so we can go
+#    through it all") ─────────────────────────────────────────────────────────
+
+#: The skill the candle lessons ride on (scripts/study/gen_candles.py).
+CANDLE_SKILL = "vocab.candle"
+_STATUSES = (STATUS_APPROVED, STATUS_DRAFT, STATUS_REJECTED, STATUS_RETIRED)
+_GRADE_RANK = {"great": 0, "good": 1, "okay": 2}
+
+
+def review_sections() -> list[dict]:
+    """[{skill_id, approved, draft, rejected, retired, total}] for every skill
+    that has items, so the hub shows what members get and what still waits."""
+    out: dict[str, dict] = {}
+    with contextlib.closing(_connect()) as c:
+        for r in c.execute("SELECT skill_id, review_status, COUNT(*) AS n FROM study_items "
+                           "GROUP BY skill_id, review_status"):
+            sid = r["skill_id"] or ""
+            row = out.setdefault(sid, {"skill_id": sid, **{s: 0 for s in _STATUSES}})
+            st = r["review_status"] if r["review_status"] in _STATUSES else STATUS_DRAFT
+            row[st] += int(r["n"])
+    for row in out.values():
+        row["total"] = sum(row[s] for s in _STATUSES)
+    return sorted(out.values(), key=lambda r: r["skill_id"])
+
+
+def lesson_overview() -> list[dict]:
+    """One row per candle name: the six-part lesson members read (taken from a
+    live item when one carries it), how many chart and text items carry it by
+    status, the best live example's id, and the owner's latest verdict on the
+    lesson from the reading view (screen notes with `context.lesson_key`)."""
+    with contextlib.closing(_connect()) as c:
+        items = c.execute("SELECT id, sym, review_status, reveal_json FROM study_items WHERE skill_id=?",
+                          (CANDLE_SKILL,)).fetchall()
+        notes = c.execute("SELECT id, kind, text, verdict, at, handled_at, context_json FROM study_feedback "
+                          "WHERE screen='lessons' ORDER BY id").fetchall()
+    by_key: dict[str, dict] = {}
+    best: dict[str, int] = {}
+    for r in items:
+        rv = _loads(r["reveal_json"], {}) or {}
+        key = rv.get("key")
+        if not key:
+            continue
+        row = by_key.setdefault(key, {
+            "key": key, "label": rv.get("label") or key, "axis": rv.get("axis"), "bars": rv.get("bars"),
+            "parts": None, "parts_from": None, "charts": {}, "text": {}, "example_id": None,
+            "verdict": None, "notes_open": 0})
+        status = r["review_status"] or STATUS_DRAFT
+        bucket = row["charts"] if r["sym"] else row["text"]
+        bucket[status] = bucket.get(status, 0) + 1
+        parts = rv.get("lesson_parts")
+        if isinstance(parts, dict) and parts and (
+                row["parts"] is None or (status == STATUS_APPROVED and row["parts_from"] != STATUS_APPROVED)):
+            row["parts"], row["parts_from"] = parts, status
+        if status == STATUS_APPROVED and r["sym"]:
+            rank = _GRADE_RANK.get(rv.get("example_grade"), 3)
+            if rank < best.get(key, 99):
+                best[key] = rank
+                row["example_id"] = r["id"]
+    for n in notes:
+        ctx = _loads(n["context_json"], {}) or {}
+        row = by_key.get(ctx.get("lesson_key"))
+        if not row:
+            continue
+        if n["verdict"]:
+            row["verdict"] = {"id": n["id"], "verdict": n["verdict"], "text": n["text"], "at": n["at"]}
+        if not n["handled_at"]:
+            row["notes_open"] += 1
+    return sorted(by_key.values(), key=lambda r: (str(r["axis"] or ""), str(r["label"]).lower()))
 
 
 # ── Reminder claim row (one reminder per member per day) ──────────────────────

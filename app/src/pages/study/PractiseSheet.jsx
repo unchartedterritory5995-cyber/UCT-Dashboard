@@ -9,13 +9,15 @@
  *
  * Kinds sent: misses → refresher (the composer weights past misses and due
  * slots), stale → refresher narrowed to `staleSkillId`, trail → skill narrowed
- * to `trailSkillId` (or free when there is none).
+ * to `trailSkillId` (or free when there is none). A reviewer (an admin) also
+ * gets the "Feedback on this screen" door, inside the sheet.
  */
 import { useState } from 'react'
 import Sheet from '../../components/mobile/Sheet'
 import UIcon from '../../components/ui/UIcon'
 import { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
 import { SESSIONS_URL, studyFetch } from './useStudySession'
+import ScreenFeedback from './ScreenFeedback'
 import styles from './PractiseSheet.module.css'
 
 export function rowsFor({ misses = 0, stale = 0 }) {
@@ -26,7 +28,7 @@ export function rowsFor({ misses = 0, stale = 0 }) {
   ]
 }
 
-export default function PractiseSheet({ open, onClose, misses = 0, stale = 0, staleSkillId = null, trailSkillId = null, onStart, fetcher = studyFetch }) {
+export default function PractiseSheet({ open, onClose, misses = 0, stale = 0, staleSkillId = null, trailSkillId = null, onStart, fetcher = studyFetch, reviewer = false }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
 
@@ -68,6 +70,11 @@ export default function PractiseSheet({ open, onClose, misses = 0, stale = 0, st
         <p className={styles.failed} role="status">
           {loadFailedSentence([{ what: 'a practice set', error }])}
         </p>
+      )}
+      {reviewer && (
+        <div className={styles.screenFb}>
+          <ScreenFeedback screen="practise" align="start" up context={{ misses, stale }} />
+        </div>
       )}
     </Sheet>
   )

@@ -75,8 +75,45 @@ A member's "wrong answer" is never applied by itself; it is a flag for the sessi
 against the catalog. A member's "great example" is read as "keep this one" when examples
 are pruned.
 
+## Notes on a whole screen, and the review hub (owner 2026-10-21)
+
+The owner asked to review "the overall layout and visual and effects and interactive and
+learning and everything", not only single questions. Two more doors, both admin-only:
+
+- **Feedback on this screen.** A small button on every Study screen: the Courses landing,
+  the skill trail, the practise sheet, the quiz (its top bar names the question, the reveal
+  or the end card it was left on), the review screen, the example gallery and the lesson
+  reading view. One tap says what the note is about (layout, visuals, effects, how it works,
+  teaching, broken, great, other), plus a note. What the screen was showing rides along as
+  `context` (the item id and question number in the quiz, the open unit on the trail).
+  `POST /api/study/admin/screen-feedback`. It is a `study_feedback` row with `screen` set
+  and an empty `item_id`: it never counts against an item (`feedback_counts()["open"]`) and
+  is never applied; it shows in the review screen's Feedback list marked "Screen · ...",
+  with a scope select (everything / on questions / on screens).
+- **The review hub** (review screen → "Review hub", `GET /api/study/admin/hub`): every
+  skill's counts (live / waiting / rejected) laid on the course map, curriculum → track →
+  unit, plus the skills the map does not place; then every candle lesson as members read
+  it on the reveal card, with how many live examples carry it and a verdict door on the
+  LESSON (Approve lesson / Needs fix + note). That verdict is a screen note on the
+  `lessons` screen with `context.lesson_key`; it changes no item, because one lesson is
+  shared by every example of its name.
+
+The review screen's A / F / R keys act on the card only: while the gallery, the feedback
+list or the hub covers the card they do nothing (before this, A could approve a draft no
+one could see).
+
+The ingest carries both: screen notes get their own "Screens" section in REPORT.md,
+grouped by screen with what each was showing; a lesson verdict is appended to
+`corrections/feedback.jsonl` as a `source_ruling` with `about: "lesson"`, `lesson_key`
+and `lesson_verdict` (approve = confirmed; fix = build_required, a rewrite of
+`docs/study/terms/candle_lessons.json`). A screen note is never written as an item verdict.
+
 ## Tests
 
 `tests/test_study_feedback.py` (store + router), `tests/test_discord_study_command.py`,
 `tests/test_study_ingest_feedback.py`, `app/src/pages/study/RevealCard.test.jsx` (lesson
-parts + the door), `app/src/pages/admin/StudyReview.test.jsx` (the panel).
+parts + the door), `app/src/pages/admin/StudyReview.test.jsx` (the panel, the hub, the
+key guard, screen notes in the list), `tests/test_study_screen_feedback.py` (screen notes,
+lesson verdicts, the hub, the ingest), `app/src/pages/study/ScreenFeedback.test.jsx`,
+`app/src/pages/admin/studyHubHelpers.test.js`, and the door rails in
+`DrillPlayer.test.jsx` and `CoursesSection.test.jsx`.

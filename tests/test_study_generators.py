@@ -508,5 +508,25 @@ def test_corrections_overlay_applies_a_prompt_field_fix():
     assert out[0]["prompt_json"]["q"] == "Which name?"
 
 
+def test_corrections_overlay_sets_the_accept_list_and_names_who_wrote_a_lesson():
+    """The 2026-10-21 audit: a fix can set answer_json.accept beside the key, and a
+    lesson a session wrote from the item's facts is labelled "session", never
+    passed off as the owner's words ("source")."""
+    from scripts.study import corrections
+    it = {"id": "si_a", "prompt_json": {"q": "Fill in the rule.", "choices": ["A", "B"]},
+          "answer_json": {"answer": "A"}, "reveal_json": {}, "review_status": "draft",
+          "lesson_text": "l", "lesson_origin": "template"}
+    out = corrections.apply([dict(it)], [
+        {"item_id": "si_a", "verdict": "fix", "field": "answer.accept", "after": ["a", "the a"]},
+        {"item_id": "si_a", "verdict": "fix", "field": "lesson_text", "after": "A full lesson.",
+         "lesson_origin": "session"},
+    ])
+    assert out[0]["answer_json"] == {"answer": "A", "accept": ["a", "the a"]}
+    assert out[0]["lesson_text"] == "A full lesson." and out[0]["lesson_origin"] == "session"
+    owner = corrections.apply([dict(it, answer_json={"answer": "A"})], [
+        {"item_id": "si_a", "verdict": "fix", "field": "lesson_text", "after": "His words."}])
+    assert owner[0]["lesson_origin"] == "source"
+
+
 def test_run_all_lists_every_generator():
     assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms}

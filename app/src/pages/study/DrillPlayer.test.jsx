@@ -276,3 +276,31 @@ describe('DrillPlayer walk-throughs (unscored, spec 13.9 #1)', () => {
     expect(await screen.findByTestId('end-score')).toHaveTextContent('1 of 1')
   })
 })
+
+describe('DrillPlayer screen feedback (owner 2026-10-21)', () => {
+  it('a reviewer gets the screen door in the top bar, named for the question and then the reveal', async () => {
+    render(<DrillPlayer open reviewer onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    await screen.findByText('Question 1 of 10')
+    expect(screen.getByTestId('screen-feedback').dataset.screen).toBe('question')
+    await answerChoice('VCP')
+    expect(screen.getByTestId('screen-feedback').dataset.screen).toBe('reveal')
+  })
+
+  it('a member never sees it', async () => {
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    await screen.findByText('Question 1 of 10')
+    expect(screen.queryByTestId('screen-feedback')).not.toBeInTheDocument()
+  })
+
+  it('typing the note never drives the drill: Enter and the digit keys stay in the box', async () => {
+    render(<DrillPlayer open reviewer onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    await screen.findByText('Question 1 of 10')
+    fireEvent.click(screen.getByRole('radio', { name: 'VCP' }))
+    fireEvent.click(screen.getByTestId('screen-feedback-open'))
+    const box = screen.getByLabelText('Your note')
+    fireEvent.keyDown(box, { key: '2' })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Check')       // not checked
+    expect(screen.getByRole('radio', { name: 'VCP' })).toHaveAttribute('aria-checked', 'true')
+  })
+})

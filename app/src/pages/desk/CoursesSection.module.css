@@ -134,3 +134,10 @@
   }
   .studyAside { position: sticky; top: var(--space-md); }
 }
+
+/* The owner's "Feedback on this screen" door (admin only), at the right edge. */
+.screenFb {
+  display: flex;
+  justify-content: flex-end;
+  align-self: stretch;
+}

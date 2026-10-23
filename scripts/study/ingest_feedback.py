@@ -17,7 +17,14 @@ What this writes, idempotently (a row already carried is skipped by its id):
   docs/study/feedback/REPORT.md
       every row that is still open (not handled on the screen), grouped by
       item with the question, the note, who said it and the verdict, for the
-      session to act on (a lesson fix, a better example, a rejected chart).
+      session to act on (a lesson fix, a better example, a rejected chart),
+      then the notes on whole SCREENS (layout, visuals, effects, how it
+      behaves, what it teaches), grouped by screen.
+
+A screen note never becomes an item verdict. The one verdict it can carry, the
+owner's approve / fix on a lesson from the review hub's reading view, is
+written to feedback.jsonl as a `source_ruling` with `about: "lesson"` (no
+item id, so `corrections.apply` leaves every item alone).
 
 Run from the repo root:
   python -m scripts.study.ingest_feedback             # exports -> jsonl + report
@@ -44,7 +51,17 @@ KIND_WORD = {
     "wrong_answer": "wrong answer", "bad_chart": "bad chart", "unclear_question": "question unclear",
     "unclear_lesson": "lesson unclear", "too_easy": "too easy", "too_hard": "too hard",
     "great": "great example", "other": "other",
+    # screen notes (study_store.SCREEN_KINDS); "great" and "other" are shared
+    "layout": "layout", "visuals": "visuals", "effects": "effects", "interaction": "interaction",
+    "learning": "learning", "broken": "broken",
 }
+SCREEN_KIND_WORD = dict(KIND_WORD, great="great")
+#: The segment a candle lesson ruling is filed under (the lessons ride on the chart items).
+LESSON_SEGMENT = "candles.chart"
+
+
+def is_screen_row(row: dict) -> bool:
+    return bool(row.get("screen"))
 
 
 def load_exports(directory: pathlib.Path = EXPORTS_DIR) -> list[dict]:
@@ -91,8 +108,33 @@ def carried_ids(path: pathlib.Path = FEEDBACK_JSONL) -> set[int]:
     return out
 
 
+def lesson_ruling(row: dict) -> Optional[dict]:
+    """The source ruling for an OWNER verdict on a lesson (the review hub's
+    reading view), else None. Approve is a confirmed ruling; fix is work for
+    the next regeneration of docs/study/terms/candle_lessons.json."""
+    ctx = row.get("context") if isinstance(row.get("context"), dict) else {}
+    key = ctx.get("lesson_key")
+    if (row.get("role") != "owner" or row.get("screen") != "lessons" or not key
+            or row.get("verdict") not in ("approve", "fix")):
+        return None
+    label = ctx.get("label") or key
+    words = row.get("text") or ""
+    if row["verdict"] == "approve":
+        action, status = f"the {label} lesson is approved as written", "confirmed"
+    else:
+        action = f"rewrite the {label} lesson in docs/study/terms/candle_lessons.json" + (f": {words}" if words else "")
+        status = "build_required"
+    return {"ts": (row.get("at") or "")[:10] or dt.date.today().isoformat(), "segment": LESSON_SEGMENT,
+            "verdict": "source_ruling", "about": "lesson", "lesson_key": key, "lesson_verdict": row["verdict"],
+            "owner_words": words, "action": action, "status": status, "channel": "review hub",
+            "feedback_id": int(row["id"])}
+
+
 def verdict_record(row: dict, segments: dict[str, str]) -> Optional[dict]:
-    """The corrections record for an OWNER row with an applied verdict, else None."""
+    """The corrections record for an OWNER row with an applied verdict, else None.
+    A screen note is never an item verdict; a lesson verdict is a source ruling."""
+    if is_screen_row(row):
+        return lesson_ruling(row)
     if row.get("role") != "owner" or row.get("verdict") not in APPLIED_VERDICTS:
         return None
     ts = (row.get("at") or "")[:10] or dt.date.today().isoformat()
@@ -128,7 +170,9 @@ def append_verdicts(rows: Iterable[dict], *, path: pathlib.Path = FEEDBACK_JSONL
 def render_report(rows: list[dict], *, now: Optional[dt.datetime] = None) -> str:
     """REPORT.md: the open rows grouped by item, plus the counts by kind."""
     now = now or dt.datetime.now(dt.timezone.utc)
-    open_rows = [r for r in rows if not r.get("handled_at")]
+    open_all = [r for r in rows if not r.get("handled_at")]
+    open_rows = [r for r in open_all if not is_screen_row(r)]
+    open_screens = [r for r in open_all if is_screen_row(r)]
     by_item: dict[str, list[dict]] = defaultdict(list)
     for r in open_rows:
         by_item[r["item_id"]].append(r)
@@ -137,7 +181,7 @@ def render_report(rows: list[dict], *, now: Optional[dt.datetime] = None) -> str
         kinds[r.get("kind") or "other"] += 1
     lines = ["# Study feedback — open items", "",
              f"Rendered {now.strftime('%Y-%m-%d %H:%MZ')} from {len(rows)} exported rows; "
-             f"{len(open_rows)} open across {len(by_item)} items. "
+             f"{len(open_rows)} open across {len(by_item)} items, {len(open_screens)} on screens. "
              "A row leaves this report when it is marked handled on the review screen.", ""]
     if kinds:
         lines.append("| kind | open |")
@@ -166,7 +210,31 @@ def render_report(rows: list[dict], *, now: Optional[dt.datetime] = None) -> str
     if not by_item:
         lines.append("Nothing open.")
         lines.append("")
+    lines += render_screens(open_screens)
     return "\n".join(lines)
+
+
+def render_screens(open_screens: list[dict]) -> list[str]:
+    """The notes on whole screens, grouped by screen, oldest first."""
+    lines = ["## Screens", ""]
+    if not open_screens:
+        return lines + ["Nothing open on screens.", ""]
+    by_screen: dict[str, list[dict]] = defaultdict(list)
+    for r in open_screens:
+        by_screen[r["screen"]].append(r)
+    for screen, group in sorted(by_screen.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        lines.append(f"### {screen} ({len(group)})")
+        lines.append("")
+        for r in sorted(group, key=lambda x: int(x["id"])):
+            ctx = r.get("context") if isinstance(r.get("context"), dict) else {}
+            where = ", ".join(f"{k} {v}" for k, v in ctx.items())
+            verdict = f" · **{r['verdict']}**" if r.get("verdict") else ""
+            text = f" — {r['text']}" if r.get("text") else ""
+            lines.append(f"- #{r['id']} {SCREEN_KIND_WORD.get(r.get('kind'), r.get('kind'))}{verdict}{text}  "
+                         f"({r.get('role')}, {(r.get('at') or '')[:16].replace('T', ' ')}"
+                         f"{'; ' + where if where else ''})")
+        lines.append("")
+    return lines
 
 
 def run(*, report_only: bool = False, exports_dir: pathlib.Path = EXPORTS_DIR,

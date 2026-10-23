@@ -1,0 +1,154 @@
+/* ScreenFeedback — a reviewer's note on a whole Study screen. A quiet text
+   button; the panel floats over the screen (it never pushes the layout the
+   note is about). Gold for the chosen chip, never green or red. */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.openBtn,
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min, 44px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.openBtn { padding: 0 14px; }
+.iconBtn {
+  justify-content: center;
+  min-width: var(--tap-min, 44px);
+  padding: 0;
+  border-color: transparent;
+  background: none;
+}
+.openBtn:hover,
+.iconBtn:hover,
+.openBtn[aria-expanded='true'],
+.iconBtn[aria-expanded='true'] { color: var(--ut-gold); border-color: var(--ut-gold); }
+.openBtn:focus-visible,
+.iconBtn:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+
+.sentDot {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(220, 187, 94, 0.18);
+  color: var(--ut-gold);
+  font-size: var(--text-xs);
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated, var(--bg-surface));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  text-align: left;
+  box-sizing: border-box;
+}
+.panelStart { right: auto; left: 0; }
+/* At the foot of a sheet the panel opens upward, inside the sheet. */
+.panelUp { top: auto; bottom: calc(100% + 6px); }
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.where { color: var(--text-muted); font-weight: 400; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--ut-gold); }
+.chipOn {
+  border-color: var(--ut-gold);
+  background: rgba(220, 187, 94, 0.14);
+  color: var(--ut-gold);
+}
+
+.text {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg, #0f0f0f);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.send {
+  min-height: var(--tap-min, 44px);
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ut-gold);
+  color: #141410;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.send:disabled { opacity: 0.5; cursor: default; }
+.cancel {
+  min-height: var(--tap-min, 44px);
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.err { color: var(--text-bright); font-size: var(--text-sm); }
+.hint,
+.saved {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}

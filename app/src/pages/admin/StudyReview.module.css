@@ -136,6 +136,10 @@
 }
 .prov, .forward, .lesson, .provLine { margin: 0; font-size: 13px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .prov q { font-style: italic; color: var(--text-bright, #f8f7f3); }
+.support { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.support li { display: flex; flex-direction: column; gap: 2px; }
+.supportText { font-style: italic; color: var(--text-bright, #f8f7f3); overflow-wrap: anywhere; }
+.supportFrom { font-size: 11px; color: var(--text-muted, #cfcac0); overflow-wrap: anywhere; }
 .provLine { font-size: 11px; color: var(--text-muted, #cfcac0); }
 .forward span:last-child, .lesson span:nth-child(2) { color: var(--text, #f0efea); }
 .lesson { line-height: 1.5; }

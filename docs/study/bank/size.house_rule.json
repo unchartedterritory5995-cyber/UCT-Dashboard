@@ -575,8 +575,8 @@
   },
   "difficulty": 2,
   "id": "si_d0c4fcd38430",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2% away. Risk $750 divided by $7.76 a share is 96 shares, $37264.32 in the stock, 49.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "lesson_origin": "session",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $750 divided by $7.76 a share is 96 shares, $37264.32 in the stock, 49.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book. A tight stop never licenses a monster position. A stop can't catch an overnight gap. With 49.7% of the account in one name, a gap through the stop costs far more than the 1% you planned. That's why the trim isn't optional.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -624,8 +624,8 @@
   },
   "difficulty": 2,
   "id": "si_b60168235fb2",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 4% away. Risk $1000 divided by $4.85 a share is 206 shares, $24965.14 in the stock, 49.9% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "lesson_origin": "session",
+  "lesson_text": "Stop first. The stop is 4% away. Risk $1000 divided by $4.85 a share is 206 shares, $24965.14 in the stock, 49.9% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book. A tight stop never licenses a monster position. A stop can't catch an overnight gap. With 49.9% of the account in one name, a gap through the stop costs far more than the 2% you planned. That's why the trim isn't optional.",
   "module": "M5",
   "prompt_json": {
    "account": 50000,
@@ -663,55 +663,6 @@
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-13",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 3997.76,
-   "shares": 13
-  },
-  "difficulty": 2,
-  "id": "si_b76345801661",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $500 divided by $36.9 a share is 13 shares, $3997.76 in the stock, 8% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 50000,
-   "entry": 307.52,
-   "format": "size",
-   "q": "Account $50000. Risk 1%. Entry $307.52. Stop $270.62. How many shares?",
-   "risk_pct": 1.0,
-   "stop": 270.62
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 50000,
-    "desk_max_pct": 20,
-    "dollars": 3997.76,
-    "entry": 307.52,
-    "formula_pct": 8.3,
-    "per_share": 36.9,
-    "position_pct": 8.0,
-    "risk_dollars": 500.0,
-    "risk_pct": 1.0,
-    "shares": 13,
-    "skip": false,
-    "stop": 270.62,
-    "stop_pct": 12.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": true
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-14",
   "type": "size",
   "version": 1
  },
@@ -815,208 +766,12 @@
  },
  {
   "answer_json": {
-   "dollars": 587.02,
-   "shares": 14
-  },
-  "difficulty": 2,
-  "id": "si_8f5d0d2b5033",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $75 divided by $5.03 a share is 14 shares, $587.02 in the stock, 5.9% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 10000,
-   "entry": 41.93,
-   "format": "size",
-   "q": "Account $10000. Risk 0.75%. Entry $41.93. Stop $36.9. How many shares?",
-   "risk_pct": 0.75,
-   "stop": 36.9
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 10000,
-    "desk_max_pct": 20,
-    "dollars": 587.02,
-    "entry": 41.93,
-    "formula_pct": 6.2,
-    "per_share": 5.03,
-    "position_pct": 5.9,
-    "risk_dollars": 75.0,
-    "risk_pct": 0.75,
-    "shares": 14,
-    "skip": false,
-    "stop": 36.9,
-    "stop_pct": 12.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": true
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-18",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 164.8,
-   "shares": 2
-  },
-  "difficulty": 2,
-  "id": "si_d90f379c5a7a",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 12% away, far wider than the desk would ever use, but the math is the same. Risk $25 divided by $9.89 a share is 2 shares, $164.8 in the stock, 1.6% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 10000,
-   "entry": 82.4,
-   "format": "size",
-   "q": "Account $10000. Risk 0.25%. Entry $82.4. Stop $72.51. How many shares?",
-   "risk_pct": 0.25,
-   "stop": 72.51
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 10000,
-    "desk_max_pct": 20,
-    "dollars": 164.8,
-    "entry": 82.4,
-    "formula_pct": 2.1,
-    "per_share": 9.89,
-    "position_pct": 1.6,
-    "risk_dollars": 25.0,
-    "risk_pct": 0.25,
-    "shares": 2,
-    "skip": false,
-    "stop": 72.51,
-    "stop_pct": 12.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": true
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-19",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 153.64,
-   "shares": 1
-  },
-  "difficulty": 2,
-  "id": "si_8a029aac484b",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 15% away, far wider than the desk would ever use, but the math is the same. Risk $25 divided by $23.05 a share is 1 share, $153.64 in the stock, 1.5% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 10000,
-   "entry": 153.64,
-   "format": "size",
-   "q": "Account $10000. Risk 0.25%. Entry $153.64. Stop $130.59. How many shares?",
-   "risk_pct": 0.25,
-   "stop": 130.59
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 10000,
-    "desk_max_pct": 20,
-    "dollars": 153.64,
-    "entry": 153.64,
-    "formula_pct": 1.7,
-    "per_share": 23.05,
-    "position_pct": 1.5,
-    "risk_dollars": 25.0,
-    "risk_pct": 0.25,
-    "shares": 1,
-    "skip": false,
-    "stop": 130.59,
-    "stop_pct": 15.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": true
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-20",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 367.26,
-   "shares": 2
-  },
-  "difficulty": 2,
-  "id": "si_72f548651a72",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 10% away. Risk $40 divided by $18.36 a share is 2 shares, $367.26 in the stock, 4.6% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 8000,
-   "entry": 183.63,
-   "format": "size",
-   "q": "Account $8000. Risk 0.5%. Entry $183.63. Stop $165.27. How many shares?",
-   "risk_pct": 0.5,
-   "stop": 165.27
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 8000,
-    "desk_max_pct": 20,
-    "dollars": 367.26,
-    "entry": 183.63,
-    "formula_pct": 5.0,
-    "per_share": 18.36,
-    "position_pct": 4.6,
-    "risk_dollars": 40.0,
-    "risk_pct": 0.5,
-    "shares": 2,
-    "skip": false,
-    "stop": 165.27,
-    "stop_pct": 10.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-21",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "1%"
   },
   "difficulty": 2,
   "id": "si_3d9de1002380",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 20% of the account with a 5% stop is 1% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "1% of the account is at risk. If the stop hits, the stock drops 5% from your entry. The position is 20% of the account, so the account loses 5% of 20%, which is 1%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 1% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 1%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1050,8 +805,8 @@
   },
   "difficulty": 2,
   "id": "si_e5cb7bdae19b",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 20% of the account with a 1% stop is 0.2% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.2% of the account is at risk. If the stop hits, the stock drops 1% from your entry. The position is 20% of the account, so the account loses 1% of 20%, which is 0.2%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.2% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.2%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1085,8 +840,8 @@
   },
   "difficulty": 2,
   "id": "si_c0c1d32a97e9",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 5% of the account with a 2% stop is 0.1% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.1% of the account is at risk. If the stop hits, the stock drops 2% from your entry. The position is 5% of the account, so the account loses 2% of 5%, which is 0.1%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.1% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.1%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1120,8 +875,8 @@
   },
   "difficulty": 2,
   "id": "si_428c79a8cdbd",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 5% of the account with a 3% stop is 0.15% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.15% of the account is at risk. If the stop hits, the stock drops 3% from your entry. The position is 5% of the account, so the account loses 3% of 5%, which is 0.15%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.15% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.15%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1165,7 +920,7 @@
     "20%",
     "1.6%"
    ],
-   "q": "A 8% stop at a 20% position. What is the account risk?"
+   "q": "An 8% stop at a 20% position. What is the account risk?"
   },
   "reveal_json": {
    "facts": {
@@ -1190,8 +945,8 @@
   },
   "difficulty": 2,
   "id": "si_c7866e308482",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 20% of the account with a 3% stop is 0.6% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.6% of the account is at risk. If the stop hits, the stock drops 3% from your entry. The position is 20% of the account, so the account loses 3% of 20%, which is 0.6%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.6% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.6%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1225,8 +980,8 @@
   },
   "difficulty": 2,
   "id": "si_dfd4afd52613",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 50% of the account with a 10% stop is 5% at risk. That is over the 2% ceiling. Size down or skip.",
+  "lesson_origin": "session",
+  "lesson_text": "5% of the account is at risk. If the stop hits, the stock drops 10% from your entry. The position is 50% of the account, so the account loses 10% of 50%, which is 5%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 5% is over the desk's 2% ceiling per trade. Keep the stop where the chart puts it and make the position smaller, or skip the trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 5%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1260,8 +1015,8 @@
   },
   "difficulty": 2,
   "id": "si_eaade686d4d7",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 50% of the account with a 5% stop is 2.5% at risk. That is over the 2% ceiling. Size down or skip.",
+  "lesson_origin": "session",
+  "lesson_text": "2.5% of the account is at risk. If the stop hits, the stock drops 5% from your entry. The position is 50% of the account, so the account loses 5% of 50%, which is 2.5%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 2.5% is over the desk's 2% ceiling per trade. Keep the stop where the chart puts it and make the position smaller, or skip the trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 2.5%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1295,8 +1050,8 @@
   },
   "difficulty": 2,
   "id": "si_aec045f3436b",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 10% of the account with a 1% stop is 0.1% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.1% of the account is at risk. If the stop hits, the stock drops 1% from your entry. The position is 10% of the account, so the account loses 1% of 10%, which is 0.1%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.1% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.1%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1330,8 +1085,8 @@
   },
   "difficulty": 2,
   "id": "si_5172ca2c6b30",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 5% of the account with a 1% stop is 0.05% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.05% of the account is at risk. If the stop hits, the stock drops 1% from your entry. The position is 5% of the account, so the account loses 1% of 5%, which is 0.05%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.05% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.05%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1365,8 +1120,8 @@
   },
   "difficulty": 2,
   "id": "si_e19d8eaa82f2",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 50% of the account with a 1% stop is 0.5% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "0.5% of the account is at risk. If the stop hits, the stock drops 1% from your entry. The position is 50% of the account, so the account loses 1% of 50%, which is 0.5%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 0.5% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 0.5%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1400,8 +1155,8 @@
   },
   "difficulty": 2,
   "id": "si_991374a12785",
-  "lesson_origin": "template",
-  "lesson_text": "Risk is size times stop distance. 50% of the account with a 2% stop is 1% at risk.",
+  "lesson_origin": "session",
+  "lesson_text": "1% of the account is at risk. If the stop hits, the stock drops 2% from your entry. The position is 50% of the account, so the account loses 2% of 50%, which is 1%. That's the sizing formula run backwards. Forward, position % is risk % divided by stop %. Backwards, risk % is position % times stop %. 1% is inside the desk's 2% ceiling per trade. One warning: a stop can't catch an overnight gap. If the stock opens below your stop, you lose more than 1%.",
   "module": "M5",
   "prompt_json": {
    "choices": [
@@ -1431,91 +1186,13 @@
  },
  {
   "answer_json": {
-   "dollars": 1815.1,
-   "shares": 5
-  },
-  "difficulty": 3,
-  "id": "si_ce71798c63a3",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 66.7%. The cap for GREEN A+ is 25%. Cap it: 5 shares, $1815.1. A tight stop never licenses a monster position.",
-  "module": "M13",
-  "prompt_json": {
-   "account": 8000,
-   "band": "GREEN",
-   "entry": 363.02,
-   "format": "size",
-   "grade": "A+",
-   "q": "GREEN, A+ setup. Account $8000. Risk 2%. Entry $363.02. Stop $352.13. Check the cap. How many shares?",
-   "risk_pct": 2.0,
-   "stop": 352.13
-  },
-  "reveal_json": {
-   "cap_table": {
-    "GREEN": {
-     "A": 20,
-     "A+": 25,
-     "B": 10
-    },
-    "ORANGE": {
-     "A": 5,
-     "A+": 8,
-     "B": 0
-    },
-    "RED": {
-     "A": 0,
-     "A+": 0,
-     "B": 0
-    },
-    "YELLOW": {
-     "A": 12,
-     "A+": 15,
-     "B": 6
-    }
-   },
-   "facts": {
-    "account": 8000,
-    "band": "GREEN",
-    "cap_pct": 25,
-    "capped_dollars": 1815.1,
-    "capped_risk_pct": 0.68,
-    "capped_shares": 5,
-    "desk_max_pct": 20,
-    "dollars": 5082.28,
-    "entry": 363.02,
-    "formula_pct": 66.7,
-    "grade": "A+",
-    "per_share": 10.89,
-    "position_pct": 63.5,
-    "risk_dollars": 160.0,
-    "risk_pct": 2.0,
-    "shares": 14,
-    "skip": false,
-    "stop": 352.13,
-    "stop_pct": 3.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.cap_table",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-cap-1",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 2858.4,
    "shares": 20
   },
   "difficulty": 3,
   "id": "si_ee92b326f4c4",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 66.7%. The cap for YELLOW A is 12%. Cap it: 20 shares, $2858.4. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 20 shares, $2858.4. The formula alone says 66.7% of the account, 2% risk over a 3% stop. The firm's cap for an A setup in a YELLOW market is 12% of the account. When the formula and the cap disagree, the smaller number wins. Take 12% of the account, divide by the $142.92 entry and round down: 20 shares. Your risk drops to 0.34% of the account, under the 2% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 25000,
@@ -1592,8 +1269,8 @@
   },
   "difficulty": 3,
   "id": "si_0743466210e8",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 66.7%. The cap for YELLOW A+ is 15%. Cap it: 195 shares, $37395.15. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 195 shares, $37395.15. The formula alone says 66.7% of the account, 2% risk over a 3% stop. The firm's cap for an A+ setup in a YELLOW market is 15% of the account. When the formula and the cap disagree, the smaller number wins. Take 15% of the account, divide by the $191.77 entry and round down: 195 shares. Your risk drops to 0.45% of the account, under the 2% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 250000,
@@ -1665,91 +1342,13 @@
  },
  {
   "answer_json": {
-   "dollars": 219.4,
-   "shares": 1
-  },
-  "difficulty": 3,
-  "id": "si_92516dd2a564",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 25%. The cap for ORANGE A is 5%. Cap it: 1 share, $219.4. A tight stop never licenses a monster position.",
-  "module": "M13",
-  "prompt_json": {
-   "account": 8000,
-   "band": "ORANGE",
-   "entry": 219.4,
-   "format": "size",
-   "grade": "A",
-   "q": "ORANGE, A setup. Account $8000. Risk 1%. Entry $219.4. Stop $210.62. Check the cap. How many shares?",
-   "risk_pct": 1.0,
-   "stop": 210.62
-  },
-  "reveal_json": {
-   "cap_table": {
-    "GREEN": {
-     "A": 20,
-     "A+": 25,
-     "B": 10
-    },
-    "ORANGE": {
-     "A": 5,
-     "A+": 8,
-     "B": 0
-    },
-    "RED": {
-     "A": 0,
-     "A+": 0,
-     "B": 0
-    },
-    "YELLOW": {
-     "A": 12,
-     "A+": 15,
-     "B": 6
-    }
-   },
-   "facts": {
-    "account": 8000,
-    "band": "ORANGE",
-    "cap_pct": 5,
-    "capped_dollars": 219.4,
-    "capped_risk_pct": 0.11,
-    "capped_shares": 1,
-    "desk_max_pct": 20,
-    "dollars": 1974.6,
-    "entry": 219.4,
-    "formula_pct": 25.0,
-    "grade": "A",
-    "per_share": 8.78,
-    "position_pct": 24.7,
-    "risk_dollars": 80.0,
-    "risk_pct": 1.0,
-    "shares": 9,
-    "skip": false,
-    "stop": 210.62,
-    "stop_pct": 4.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.cap_table",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-cap-4",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 2473.24,
    "shares": 11
   },
   "difficulty": 3,
   "id": "si_6b9f0ef18b5a",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 66.7%. The cap for GREEN A+ is 25%. Cap it: 11 shares, $2473.24. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 11 shares, $2473.24. The formula alone says 66.7% of the account, 2% risk over a 3% stop. The firm's cap for an A+ setup in a GREEN market is 25% of the account. When the formula and the cap disagree, the smaller number wins. Take 25% of the account, divide by the $224.84 entry and round down: 11 shares. Your risk drops to 0.74% of the account, under the 2% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 10000,
@@ -1826,8 +1425,8 @@
   },
   "difficulty": 3,
   "id": "si_f3b9a4a34b48",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 50.3%. The cap for ORANGE A is 5%. Cap it: 10 shares, $243.7. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 10 shares, $243.7. The formula alone says 50.3% of the account, 2% risk over a 3.98% stop. The firm's cap for an A setup in an ORANGE market is 5% of the account. When the formula and the cap disagree, the smaller number wins. Take 5% of the account, divide by the $24.37 entry and round down: 10 shares. Your risk drops to 0.19% of the account, under the 2% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 5000,
@@ -1903,8 +1502,8 @@
   },
   "difficulty": 3,
   "id": "si_b61887f73965",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 33.3%. The cap for ORANGE B is 0%. No B setups in ORANGE. Skip it.",
+  "lesson_origin": "session",
+  "lesson_text": "Skip it. The formula says 33.3% of the account, but the firm's cap for a B setup in an ORANGE market is 0%. No B setups in ORANGE. When the cap is zero, the stop and the risk budget don't matter. There's no size to take. Wait for a better setup or a better market.",
   "module": "M13",
   "prompt_json": {
    "account": 250000,
@@ -1979,8 +1578,8 @@
   },
   "difficulty": 3,
   "id": "si_f21eb0e75209",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 25%. The cap for YELLOW A+ is 15%. Cap it: 9 shares, $1401.48. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 9 shares, $1401.48. The formula alone says 25% of the account, 1% risk over a 4% stop. The firm's cap for an A+ setup in a YELLOW market is 15% of the account. When the formula and the cap disagree, the smaller number wins. Take 15% of the account, divide by the $155.72 entry and round down: 9 shares. Your risk drops to 0.56% of the account, under the 1% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 10000,
@@ -2052,91 +1651,13 @@
  },
  {
   "answer_json": {
-   "dollars": 2976.12,
-   "shares": 36
-  },
-  "difficulty": 3,
-  "id": "si_6377af818f62",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 50%. The cap for YELLOW A is 12%. Cap it: 36 shares, $2976.12. A tight stop never licenses a monster position.",
-  "module": "M13",
-  "prompt_json": {
-   "account": 25000,
-   "band": "YELLOW",
-   "entry": 82.67,
-   "format": "size",
-   "grade": "A",
-   "q": "YELLOW, A setup. Account $25000. Risk 2%. Entry $82.67. Stop $79.36. Check the cap. How many shares?",
-   "risk_pct": 2.0,
-   "stop": 79.36
-  },
-  "reveal_json": {
-   "cap_table": {
-    "GREEN": {
-     "A": 20,
-     "A+": 25,
-     "B": 10
-    },
-    "ORANGE": {
-     "A": 5,
-     "A+": 8,
-     "B": 0
-    },
-    "RED": {
-     "A": 0,
-     "A+": 0,
-     "B": 0
-    },
-    "YELLOW": {
-     "A": 12,
-     "A+": 15,
-     "B": 6
-    }
-   },
-   "facts": {
-    "account": 25000,
-    "band": "YELLOW",
-    "cap_pct": 12,
-    "capped_dollars": 2976.12,
-    "capped_risk_pct": 0.48,
-    "capped_shares": 36,
-    "desk_max_pct": 20,
-    "dollars": 12483.17,
-    "entry": 82.67,
-    "formula_pct": 50.0,
-    "grade": "A",
-    "per_share": 3.31,
-    "position_pct": 49.9,
-    "risk_dollars": 500.0,
-    "risk_pct": 2.0,
-    "shares": 151,
-    "skip": false,
-    "stop": 79.36,
-    "stop_pct": 4.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.cap_table",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-cap-9",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 14908.8,
    "shares": 80
   },
   "difficulty": 3,
   "id": "si_4eef9d28428f",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 50%. The cap for GREEN A is 20%. Cap it: 80 shares, $14908.8. A tight stop never licenses a monster position.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 80 shares, $14908.8. The formula alone says 50% of the account, 1.5% risk over a 3% stop. The firm's cap for an A setup in a GREEN market is 20% of the account. When the formula and the cap disagree, the smaller number wins. Take 20% of the account, divide by the $186.36 entry and round down: 80 shares. Your risk drops to 0.6% of the account, under the 1.5% you planned. That's fine. A tight stop never licenses a monster position, because a stop can't catch an overnight gap.",
   "module": "M13",
   "prompt_json": {
    "account": 75000,
@@ -2211,50 +1732,9 @@
    "skip": true
   },
   "difficulty": 3,
-  "id": "si_1008719b6385",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 15% away. $20 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 8000,
-   "entry": 276.71,
-   "format": "size",
-   "q": "The stop under the base is honest. Account $8000. Risk 0.25%. Entry $276.71. Stop $235.2. How many shares?",
-   "risk_pct": 0.25,
-   "skip_allowed": true,
-   "stop": 235.2
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 8000,
-    "dollars": 0.0,
-    "entry": 276.71,
-    "per_share": 41.51,
-    "risk_dollars": 20.0,
-    "risk_pct": 0.25,
-    "shares": 0,
-    "skip": true,
-    "stop": 235.2,
-    "stop_pct": 15.0
-   },
-   "rule": "If the honest stop does not fit the risk budget: skip, never tighten.",
-   "source": "docs/study/sizing_rule.md#2"
-  },
-  "review_status": "draft",
-  "skill_id": "size.gate",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#2-skip-2",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "skip": true
-  },
-  "difficulty": 3,
   "id": "si_244e3ca4d58b",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 15% away. $50 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
+  "lesson_origin": "session",
+  "lesson_text": "Skip it. Your risk budget is $50, 0.5% of $10000. The stop is 15% below the entry, far wider than the desk would ever use. That's $52.43 of risk on every share. $50 doesn't cover even one share, and rounding up would break the budget. Don't tighten the stop to make it fit. The stop sits where the chart says the idea is wrong. Pull it closer and you get stopped out on noise. Skip it and wait for a setup whose honest stop fits.",
   "module": "M5",
   "prompt_json": {
    "account": 10000,
@@ -2293,50 +1773,9 @@
    "skip": true
   },
   "difficulty": 3,
-  "id": "si_2252b03c12db",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 10% away. $12.5 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 5000,
-   "entry": 370.61,
-   "format": "size",
-   "q": "The stop under the base is honest. Account $5000. Risk 0.25%. Entry $370.61. Stop $333.55. How many shares?",
-   "risk_pct": 0.25,
-   "skip_allowed": true,
-   "stop": 333.55
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 5000,
-    "dollars": 0.0,
-    "entry": 370.61,
-    "per_share": 37.06,
-    "risk_dollars": 12.5,
-    "risk_pct": 0.25,
-    "shares": 0,
-    "skip": true,
-    "stop": 333.55,
-    "stop_pct": 10.0
-   },
-   "rule": "If the honest stop does not fit the risk budget: skip, never tighten.",
-   "source": "docs/study/sizing_rule.md#2"
-  },
-  "review_status": "draft",
-  "skill_id": "size.gate",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#2-skip-8",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "skip": true
-  },
-  "difficulty": 3,
   "id": "si_131e40ba1384",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 12% away. $20 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
+  "lesson_origin": "session",
+  "lesson_text": "Skip it. Your risk budget is $20, 0.25% of $8000. The stop is 12% below the entry, far wider than the desk would ever use. That's $21.58 of risk on every share. $20 doesn't cover even one share, and rounding up would break the budget. Don't tighten the stop to make it fit. The stop sits where the chart says the idea is wrong. Pull it closer and you get stopped out on noise. Skip it and wait for a setup whose honest stop fits.",
   "module": "M5",
   "prompt_json": {
    "account": 8000,
@@ -2375,50 +1814,9 @@
    "skip": true
   },
   "difficulty": 3,
-  "id": "si_fa714b679ff6",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 15% away. $25 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 5000,
-   "entry": 398.54,
-   "format": "size",
-   "q": "The stop under the base is honest. Account $5000. Risk 0.5%. Entry $398.54. Stop $338.76. How many shares?",
-   "risk_pct": 0.5,
-   "skip_allowed": true,
-   "stop": 338.76
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 5000,
-    "dollars": 0.0,
-    "entry": 398.54,
-    "per_share": 59.78,
-    "risk_dollars": 25.0,
-    "risk_pct": 0.5,
-    "shares": 0,
-    "skip": true,
-    "stop": 338.76,
-    "stop_pct": 15.0
-   },
-   "rule": "If the honest stop does not fit the risk budget: skip, never tighten.",
-   "source": "docs/study/sizing_rule.md#2"
-  },
-  "review_status": "draft",
-  "skill_id": "size.gate",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#2-skip-11",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "skip": true
-  },
-  "difficulty": 3,
   "id": "si_b2977d4b72c8",
-  "lesson_origin": "template",
-  "lesson_text": "The honest stop is 10% away. $20 of risk buys 0 shares. Skip it. Never tighten the stop to make it fit.",
+  "lesson_origin": "session",
+  "lesson_text": "Skip it. Your risk budget is $20, 0.25% of $8000. The stop is 10% below the entry. That's $25.6 of risk on every share. $20 doesn't cover even one share, and rounding up would break the budget. Don't tighten the stop to make it fit. The stop sits where the chart says the idea is wrong. Pull it closer and you get stopped out on noise. Skip it and wait for a setup whose honest stop fits.",
   "module": "M5",
   "prompt_json": {
    "account": 8000,
@@ -2459,8 +1857,8 @@
   },
   "difficulty": 3,
   "id": "si_55e936fe14d1",
-  "lesson_origin": "template",
-  "lesson_text": "Flat risk: 1% on every trade, whatever the grade. $750 divided by $8.27 is 90 shares.",
+  "lesson_origin": "session",
+  "lesson_text": "90 shares. Flat risk means the same 1% on every trade, whatever the grade. 1% of $75000 is $750. The stop is $8.27 a share below the entry, 8% away. $750 divided by $8.27 is 90 shares, rounded down. That's $9307.8 in the stock, 12.4% of the account. The other way is quality-scaled: setup quality, your recent trading and the market move the risk up or down. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -2511,8 +1909,8 @@
   },
   "difficulty": 3,
   "id": "si_523f7722aefb",
-  "lesson_origin": "template",
-  "lesson_text": "Quality-scaled: a A+ setup gets 1.5%. $1125 divided by $8.27 is 136 shares. Both ways are taught. Pick one and write it in the plan.",
+  "lesson_origin": "session",
+  "lesson_text": "136 shares. Quality-scaled means the risk moves with the setup, your recent trading and the market. This plan puts 1.5% on an A+ setup, more than you'd put on an average idea. 1.5% of $75000 is $1125. The stop is $8.27 a share below the entry, 8% away. $1125 divided by $8.27 is 136 shares, rounded down: $14065.12 in the stock, 18.8% of the account. The flat way uses the same percent on every trade. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 75000,
@@ -2563,8 +1961,8 @@
   },
   "difficulty": 3,
   "id": "si_8830e2ad942b",
-  "lesson_origin": "template",
-  "lesson_text": "Flat risk: 1% on every trade, whatever the grade. $250 divided by $26.92 is 9 shares.",
+  "lesson_origin": "session",
+  "lesson_text": "9 shares. Flat risk means the same 1% on every trade, whatever the grade. 1% of $25000 is $250. The stop is $26.92 a share below the entry, 8% away. $250 divided by $26.92 is 9 shares, rounded down. That's $3028.32 in the stock, 12.1% of the account. The other way is quality-scaled: setup quality, your recent trading and the market move the risk up or down. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 25000,
@@ -2615,8 +2013,8 @@
   },
   "difficulty": 3,
   "id": "si_7304a5f7bce3",
-  "lesson_origin": "template",
-  "lesson_text": "Quality-scaled: a B setup gets 0.5%. $125 divided by $26.92 is 4 shares. Both ways are taught. Pick one and write it in the plan.",
+  "lesson_origin": "session",
+  "lesson_text": "4 shares. Quality-scaled means the risk moves with the setup, your recent trading and the market. This plan puts 0.5% on a B setup, less than you'd put on your best ideas. 0.5% of $25000 is $125. The stop is $26.92 a share below the entry, 8% away. $125 divided by $26.92 is 4 shares, rounded down: $1345.92 in the stock, 5.4% of the account. The flat way uses the same percent on every trade. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 25000,
@@ -2662,117 +2060,13 @@
  },
  {
   "answer_json": {
-   "dollars": 1156.75,
-   "shares": 7
-  },
-  "difficulty": 3,
-  "id": "si_6860961522ed",
-  "lesson_origin": "template",
-  "lesson_text": "Flat risk: 1% on every trade, whatever the grade. $100 divided by $13.22 is 7 shares.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 10000,
-   "entry": 165.25,
-   "format": "size",
-   "grade": "B",
-   "mode": "flat",
-   "q": "Flat risk, the same percent every trade. Account $10000. Risk 1%. Entry $165.25. Stop $152.03. How many shares?",
-   "risk_pct": 1.0,
-   "stop": 152.03
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 10000,
-    "desk_max_pct": 20,
-    "dollars": 1156.75,
-    "entry": 165.25,
-    "formula_pct": 12.5,
-    "grade": "B",
-    "mode": "flat",
-    "per_share": 13.22,
-    "position_pct": 11.6,
-    "risk_dollars": 100.0,
-    "risk_pct": 1.0,
-    "shares": 7,
-    "skip": false,
-    "stop": 152.03,
-    "stop_pct": 8.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "source": "docs/study/sizing_rule.md#1"
-  },
-  "review_status": "draft",
-  "skill_id": "size.gate",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#1-flat-3",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 495.75,
-   "shares": 3
-  },
-  "difficulty": 3,
-  "id": "si_fdb6e773bfe3",
-  "lesson_origin": "template",
-  "lesson_text": "Quality-scaled: a B setup gets 0.5%. $50 divided by $13.22 is 3 shares. Both ways are taught. Pick one and write it in the plan.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 10000,
-   "entry": 165.25,
-   "format": "size",
-   "grade": "B",
-   "mode": "scaled",
-   "q": "Quality-scaled, B setup. Account $10000. Risk 0.5%. Entry $165.25. Stop $152.03. How many shares?",
-   "risk_pct": 0.5,
-   "stop": 152.03
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 10000,
-    "desk_max_pct": 20,
-    "dollars": 495.75,
-    "entry": 165.25,
-    "formula_pct": 6.2,
-    "grade": "B",
-    "mode": "scaled",
-    "per_share": 13.22,
-    "position_pct": 5.0,
-    "risk_dollars": 50.0,
-    "risk_pct": 0.5,
-    "shares": 3,
-    "skip": false,
-    "stop": 152.03,
-    "stop_pct": 8.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "source": "docs/study/sizing_rule.md#1"
-  },
-  "review_status": "draft",
-  "skill_id": "size.gate",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#1-scaled-3",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 4088.94,
    "shares": 23
   },
   "difficulty": 3,
   "id": "si_c1ed9544faae",
-  "lesson_origin": "template",
-  "lesson_text": "Flat risk: 1% on every trade, whatever the grade. $250 divided by $10.67 is 23 shares.",
+  "lesson_origin": "session",
+  "lesson_text": "23 shares. Flat risk means the same 1% on every trade, whatever the grade. 1% of $25000 is $250. The stop is $10.67 a share below the entry, 6% away. $250 divided by $10.67 is 23 shares, rounded down. That's $4088.94 in the stock, 16.4% of the account. The other way is quality-scaled: setup quality, your recent trading and the market move the risk up or down. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 25000,
@@ -2823,8 +2117,8 @@
   },
   "difficulty": 3,
   "id": "si_57e2e6ac255b",
-  "lesson_origin": "template",
-  "lesson_text": "Quality-scaled: a B setup gets 0.5%. $125 divided by $10.67 is 11 shares. Both ways are taught. Pick one and write it in the plan.",
+  "lesson_origin": "session",
+  "lesson_text": "11 shares. Quality-scaled means the risk moves with the setup, your recent trading and the market. This plan puts 0.5% on a B setup, less than you'd put on your best ideas. 0.5% of $25000 is $125. The stop is $10.67 a share below the entry, 6% away. $125 divided by $10.67 is 11 shares, rounded down: $1955.58 in the stock, 7.8% of the account. The flat way uses the same percent on every trade. Both ways are taught. Pick one and write it in your plan.",
   "module": "M5",
   "prompt_json": {
    "account": 25000,
@@ -2874,8 +2168,8 @@
   },
   "difficulty": 2,
   "id": "si_e576f9b41325",
-  "lesson_origin": "template",
-  "lesson_text": "After a 8% drawdown the max is 8%. You are 8% down, so 8% is the ceiling. Those who control their drawdown best are best.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 8% of the account. You are 8% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. That's right at the 8% step, so the max drops to 8% now. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -2924,66 +2218,12 @@
  },
  {
   "answer_json": {
-   "answer": "20%"
-  },
-  "difficulty": 2,
-  "id": "si_3b8104a97b70",
-  "lesson_origin": "template",
-  "lesson_text": "You are 3% down, inside the normal band. The max stays 20%. The ladder starts at a 6% drawdown.",
-  "module": "M13",
-  "prompt_json": {
-   "choices": [
-    "5%",
-    "20%",
-    "10%",
-    "8%"
-   ],
-   "q": "You are 3% off your peak. What is your max position size under the firm's drawdown protocol?"
-  },
-  "reveal_json": {
-   "facts": {
-    "drawdown_pct": 3,
-    "ladder": [
-     {
-      "after_drawdown_pct": 10.0,
-      "max_pct": 5
-     },
-     {
-      "after_drawdown_pct": 8.0,
-      "max_pct": 8
-     },
-     {
-      "after_drawdown_pct": 6.0,
-      "max_pct": 10
-     },
-     {
-      "after_drawdown_pct": 0.0,
-      "max_pct": 20
-     }
-    ],
-    "max_pct": 20,
-    "threshold_pct": 0.0
-   },
-   "owner_confirm_pending": true,
-   "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
-   "quote_date": "2026-07-19",
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.drawdown",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-ladder-2",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "5%"
   },
   "difficulty": 2,
   "id": "si_8177461b7e7a",
-  "lesson_origin": "template",
-  "lesson_text": "After a 10% drawdown the max is 5%. You are 10% down, so 5% is the ceiling. Those who control their drawdown best are best.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 5% of the account. You are 10% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. That's right at the 10% step, so the max drops to 5% now. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -3036,8 +2276,8 @@
   },
   "difficulty": 2,
   "id": "si_940371f91ca8",
-  "lesson_origin": "template",
-  "lesson_text": "You are 5% down, inside the normal band. The max stays 20%. The ladder starts at a 6% drawdown.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 20% of the account. You are 5% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. 5% is short of the first step at 6%, so the max stays 20%. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -3090,8 +2330,8 @@
   },
   "difficulty": 2,
   "id": "si_94273f4d761e",
-  "lesson_origin": "template",
-  "lesson_text": "After a 6% drawdown the max is 10%. You are 7% down, so 10% is the ceiling. Those who control their drawdown best are best.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 10% of the account. You are 7% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. 7% is past the 6% step but short of 8%, so the max is 10%. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -3144,8 +2384,8 @@
   },
   "difficulty": 2,
   "id": "si_c0136c9593b7",
-  "lesson_origin": "template",
-  "lesson_text": "After a 6% drawdown the max is 10%. You are 6% down, so 10% is the ceiling. Those who control their drawdown best are best.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 10% of the account. You are 6% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. That's right at the 6% step, so the max drops to 10% now. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -3197,63 +2437,9 @@
    "answer": "5%"
   },
   "difficulty": 2,
-  "id": "si_7d94be79f077",
-  "lesson_origin": "template",
-  "lesson_text": "After a 10% drawdown the max is 5%. You are 15% down, so 5% is the ceiling. Those who control their drawdown best are best.",
-  "module": "M13",
-  "prompt_json": {
-   "choices": [
-    "8%",
-    "5%",
-    "20%",
-    "10%"
-   ],
-   "q": "You are 15% off your peak. What is your max position size under the firm's drawdown protocol?"
-  },
-  "reveal_json": {
-   "facts": {
-    "drawdown_pct": 15,
-    "ladder": [
-     {
-      "after_drawdown_pct": 10.0,
-      "max_pct": 5
-     },
-     {
-      "after_drawdown_pct": 8.0,
-      "max_pct": 8
-     },
-     {
-      "after_drawdown_pct": 6.0,
-      "max_pct": 10
-     },
-     {
-      "after_drawdown_pct": 0.0,
-      "max_pct": 20
-     }
-    ],
-    "max_pct": 5,
-    "threshold_pct": 10.0
-   },
-   "owner_confirm_pending": true,
-   "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
-   "quote_date": "2026-07-19",
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.drawdown",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-ladder-7",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "5%"
-  },
-  "difficulty": 2,
   "id": "si_955eb9512c0e",
-  "lesson_origin": "template",
-  "lesson_text": "After a 10% drawdown the max is 5%. You are 12% down, so 5% is the ceiling. Those who control their drawdown best are best.",
+  "lesson_origin": "session",
+  "lesson_text": "Your max position is 5% of the account. You are 12% off your peak. The max position steps down as the drawdown grows: 20% normally, 10% after a 6% drawdown, 8% after 8%, 5% after 10%. 12% is past the last step at 10%, so the max is 5%. The ladder cuts position size, not just the risk per trade. Smaller positions make every mistake cheaper while you are off your game. As I put it: those who can control their drawdown best are best.",
   "module": "M13",
   "prompt_json": {
    "choices": [
@@ -3307,8 +2493,8 @@
   },
   "difficulty": 4,
   "id": "si_470a13a70731",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 75%. 6% down puts the ladder max at 10%. Cap it: 9 shares, $2276.01.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 9 shares, $2276.01. The formula alone says 75% of the account, 1.5% risk over a 2% stop. An A+ setup in a GREEN market caps at 25% on the firm's table. But you are 6% off your peak, and the drawdown ladder puts the max at 10%. The lowest cap wins. Take 10% of the account, divide by the $252.89 entry and round down: 9 shares. Your risk ends up well under the 1.5% you planned. That's the point of the ladder: while you are in a drawdown, every mistake costs less.",
   "module": "M13",
   "prompt_json": {
    "account": 25000,
@@ -3369,8 +2555,8 @@
   },
   "difficulty": 4,
   "id": "si_00503cd67d33",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 50.5%. 9% down puts the ladder max at 8%. Cap it: 30 shares, $394.2.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 30 shares, $394.2. The formula alone says 50.5% of the account, 1.5% risk over a 2.97% stop. An A+ setup in a GREEN market caps at 25% on the firm's table. But you are 9% off your peak, and the drawdown ladder puts the max at 8%. The lowest cap wins. Take 8% of the account, divide by the $13.14 entry and round down: 30 shares. Your risk ends up well under the 1.5% you planned. That's the point of the ladder: while you are in a drawdown, every mistake costs less.",
   "module": "M13",
   "prompt_json": {
    "account": 5000,
@@ -3431,8 +2617,8 @@
   },
   "difficulty": 4,
   "id": "si_2141fef66a3a",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 50%. 12% down puts the ladder max at 5%. Cap it: 13 shares, $3506.36.",
+  "lesson_origin": "session",
+  "lesson_text": "Cap it: 13 shares, $3506.36. The formula alone says 50% of the account, 1% risk over a 2% stop. An A+ setup in a GREEN market caps at 25% on the firm's table. But you are 12% off your peak, and the drawdown ladder puts the max at 5%. The lowest cap wins. Take 5% of the account, divide by the $269.72 entry and round down: 13 shares. Your risk ends up well under the 1% you planned. That's the point of the ladder: while you are in a drawdown, every mistake costs less.",
   "module": "M13",
   "prompt_json": {
    "account": 75000,
@@ -3483,68 +2669,6 @@
   "skill_id": "size.drawdown",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#4-ladder-size-3",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 9987.52,
-   "shares": 236
-  },
-  "difficulty": 4,
-  "id": "si_5d9c8828170c",
-  "lesson_origin": "template",
-  "lesson_text": "The formula says 74.6%. 7% down puts the ladder max at 10%. Cap it: 236 shares, $9987.52.",
-  "module": "M13",
-  "prompt_json": {
-   "account": 100000,
-   "band": "GREEN",
-   "drawdown_pct": 7,
-   "entry": 42.32,
-   "format": "size",
-   "grade": "A+",
-   "q": "You are 7% off your peak. GREEN, A+ setup. Account $100000. Risk 1.5%. Entry $42.32. Stop $41.47. How many shares?",
-   "risk_pct": 1.5,
-   "stop": 41.47
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 100000,
-    "band": "GREEN",
-    "cap_pct": 10,
-    "capped_dollars": 9987.52,
-    "capped_shares": 236,
-    "desk_max_pct": 20,
-    "dollars": 74652.48,
-    "drawdown_pct": 7,
-    "entry": 42.32,
-    "formula_pct": 74.6,
-    "grade": "A+",
-    "ladder_max_pct": 10,
-    "per_share": 0.85,
-    "position_pct": 74.7,
-    "risk_dollars": 1500.0,
-    "risk_pct": 1.5,
-    "shares": 1764,
-    "skip": false,
-    "stop": 41.47,
-    "stop_pct": 2.01,
-    "table_cap_pct": 25,
-    "threshold_pct": 6.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "owner_confirm_pending": true,
-   "quote": "I lowered my max sizing to 5% down from 10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
-   "source": "docs/study/sizing_rule.md#4"
-  },
-  "review_status": "draft",
-  "skill_id": "size.drawdown",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#4-ladder-size-4",
   "type": "size",
   "version": 1
  },
@@ -3653,8 +2777,8 @@
   },
   "difficulty": 2,
   "id": "si_303c63739664",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2.5% away. Risk $750 divided by $9.82 a share is 76 shares, $29857.36 in the stock, 59.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "lesson_origin": "session",
+  "lesson_text": "Stop first. The stop is 2.5% away. Risk $750 divided by $9.82 a share is 76 shares, $29857.36 in the stock, 59.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book. A tight stop never licenses a monster position. A stop can't catch an overnight gap. With 59.7% of the account in one name, a gap through the stop costs far more than the 1.5% you planned. That's why the trim isn't optional.",
   "module": "M5",
   "prompt_json": {
    "account": 50000,
@@ -3697,111 +2821,13 @@
  },
  {
   "answer_json": {
-   "dollars": 693.02,
-   "shares": 2
-  },
-  "difficulty": 2,
-  "id": "si_5fc8baf75dcb",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2.5% away. Risk $25 divided by $8.66 a share is 2 shares, $693.02 in the stock, 13.9% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 5000,
-   "entry": 346.51,
-   "format": "size",
-   "q": "Account $5000. Risk 0.5%. Entry $346.51. Stop $337.85. How many shares?",
-   "risk_pct": 0.5,
-   "stop": 337.85
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 5000,
-    "desk_max_pct": 20,
-    "dollars": 693.02,
-    "entry": 346.51,
-    "formula_pct": 20.0,
-    "per_share": 8.66,
-    "position_pct": 13.9,
-    "risk_dollars": 25.0,
-    "risk_pct": 0.5,
-    "shares": 2,
-    "skip": false,
-    "stop": 337.85,
-    "stop_pct": 2.5,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-4",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 475.02,
-   "shares": 2
-  },
-  "difficulty": 2,
-  "id": "si_c5d8b72698c1",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 3% away. Risk $20 divided by $7.13 a share is 2 shares, $475.02 in the stock, 5.9% of the account.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 8000,
-   "entry": 237.51,
-   "format": "size",
-   "q": "Account $8000. Risk 0.25%. Entry $237.51. Stop $230.38. How many shares?",
-   "risk_pct": 0.25,
-   "stop": 230.38
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 8000,
-    "desk_max_pct": 20,
-    "dollars": 475.02,
-    "entry": 237.51,
-    "formula_pct": 8.3,
-    "per_share": 7.13,
-    "position_pct": 5.9,
-    "risk_dollars": 20.0,
-    "risk_pct": 0.25,
-    "shares": 2,
-    "skip": false,
-    "stop": 230.38,
-    "stop_pct": 3.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-5",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 18679.68,
    "shares": 92
   },
   "difficulty": 2,
   "id": "si_aaa9600701b7",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2% away. Risk $375 divided by $4.06 a share is 92 shares, $18679.68 in the stock, 74.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "lesson_origin": "session",
+  "lesson_text": "Stop first. The stop is 2% away. Risk $375 divided by $4.06 a share is 92 shares, $18679.68 in the stock, 74.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book. A tight stop never licenses a monster position. A stop can't catch an overnight gap. With 74.7% of the account in one name, a gap through the stop costs far more than the 1.5% you planned. That's why the trim isn't optional.",
   "module": "M5",
   "prompt_json": {
    "account": 25000,
@@ -3893,111 +2919,13 @@
  },
  {
   "answer_json": {
-   "dollars": 7978.3,
-   "shares": 110
-  },
-  "difficulty": 2,
-  "id": "si_05ea5ee88915",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 2% away. Risk $160 divided by $1.45 a share is 110 shares, $7978.3 in the stock, 99.7% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 8000,
-   "entry": 72.53,
-   "format": "size",
-   "q": "Account $8000. Risk 2%. Entry $72.53. Stop $71.08. How many shares?",
-   "risk_pct": 2.0,
-   "stop": 71.08
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 8000,
-    "desk_max_pct": 20,
-    "dollars": 7978.3,
-    "entry": 72.53,
-    "formula_pct": 100.0,
-    "per_share": 1.45,
-    "position_pct": 99.7,
-    "risk_dollars": 160.0,
-    "risk_pct": 2.0,
-    "shares": 110,
-    "skip": false,
-    "stop": 71.08,
-    "stop_pct": 2.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-8",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 1649.75,
-   "shares": 5
-  },
-  "difficulty": 2,
-  "id": "si_7a707a85f1c3",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 4% away. Risk $75 divided by $13.2 a share is 5 shares, $1649.75 in the stock, 33% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 5000,
-   "entry": 329.95,
-   "format": "size",
-   "q": "Account $5000. Risk 1.5%. Entry $329.95. Stop $316.75. How many shares?",
-   "risk_pct": 1.5,
-   "stop": 316.75
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 5000,
-    "desk_max_pct": 20,
-    "dollars": 1649.75,
-    "entry": 329.95,
-    "formula_pct": 37.5,
-    "per_share": 13.2,
-    "position_pct": 33.0,
-    "risk_dollars": 75.0,
-    "risk_pct": 1.5,
-    "shares": 5,
-    "skip": false,
-    "stop": 316.75,
-    "stop_pct": 4.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-9",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
    "dollars": 3996.48,
    "shares": 92
   },
   "difficulty": 2,
   "id": "si_162bd1cdc4ba",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 1.5% away. Risk $60 divided by $0.65 a share is 92 shares, $3996.48 in the stock, 50% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
+  "lesson_origin": "session",
+  "lesson_text": "Stop first. The stop is 1.5% away. Risk $60 divided by $0.65 a share is 92 shares, $3996.48 in the stock, 50% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book. A tight stop never licenses a monster position. A stop can't catch an overnight gap. With 50% of the account in one name, a gap through the stop costs far more than the 0.75% you planned. That's why the trim isn't optional.",
   "module": "M5",
   "prompt_json": {
    "account": 8000,
@@ -4035,104 +2963,6 @@
   "skill_id": "size.formula",
   "source_kind": "toolkit",
   "source_ref": "docs/study/sizing_rule.md#3-forward-tight-10",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 1862.88,
-   "shares": 6
-  },
-  "difficulty": 2,
-  "id": "si_4612795ed656",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 8% away. Risk $160 divided by $24.84 a share is 6 shares, $1862.88 in the stock, 23.3% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 8000,
-   "entry": 310.48,
-   "format": "size",
-   "q": "Account $8000. Risk 2%. Entry $310.48. Stop $285.64. How many shares?",
-   "risk_pct": 2.0,
-   "stop": 285.64
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 8000,
-    "desk_max_pct": 20,
-    "dollars": 1862.88,
-    "entry": 310.48,
-    "formula_pct": 25.0,
-    "per_share": 24.84,
-    "position_pct": 23.3,
-    "risk_dollars": 160.0,
-    "risk_pct": 2.0,
-    "shares": 6,
-    "skip": false,
-    "stop": 285.64,
-    "stop_pct": 8.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-11",
-  "type": "size",
-  "version": 1
- },
- {
-  "answer_json": {
-   "dollars": 6145.6,
-   "shares": 32
-  },
-  "difficulty": 2,
-  "id": "si_fee1babd47be",
-  "lesson_origin": "template",
-  "lesson_text": "Stop first. The stop is 8% away. Risk $500 divided by $15.36 a share is 32 shares, $6145.6 in the stock, 24.6% of the account. That is past the desk's 20% max. You can take the trade this size on the entry, but trim it down toward 20-25% of the account quickly as it moves, so one name never owns the book.",
-  "module": "M5",
-  "prompt_json": {
-   "account": 25000,
-   "entry": 192.05,
-   "format": "size",
-   "q": "Account $25000. Risk 2%. Entry $192.05. Stop $176.69. How many shares?",
-   "risk_pct": 2.0,
-   "stop": 176.69
-  },
-  "reveal_json": {
-   "facts": {
-    "account": 25000,
-    "desk_max_pct": 20,
-    "dollars": 6145.6,
-    "entry": 192.05,
-    "formula_pct": 25.0,
-    "per_share": 15.36,
-    "position_pct": 24.6,
-    "risk_dollars": 500.0,
-    "risk_pct": 2.0,
-    "shares": 32,
-    "skip": false,
-    "stop": 176.69,
-    "stop_pct": 8.0,
-    "trim_to_pct": [
-     20,
-     25
-    ],
-    "wide_stop": false
-   },
-   "rule": "Position % = risk % / stop distance %; shares round down",
-   "source": "docs/study/sizing_rule.md"
-  },
-  "review_status": "draft",
-  "skill_id": "size.formula",
-  "source_kind": "toolkit",
-  "source_ref": "docs/study/sizing_rule.md#3-forward-tight-12",
   "type": "size",
   "version": 1
  },

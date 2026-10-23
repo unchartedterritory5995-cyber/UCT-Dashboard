@@ -36,3 +36,9 @@
   color: var(--text-muted);
   font-size: var(--text-md);
 }
+
+/* The reviewer's "Feedback on this screen" door; its panel opens upward. */
+.screenFb {
+  display: flex;
+  padding-top: 8px;
+}
