@@ -64,7 +64,7 @@ def member_set_account_size(size, marked=None) -> float | None:
 
     Every reader asks it, through `own_account_size` / `account_size_of` (a settings dict or a
     j2_accounts row) or the read-only `read_member_account_size` / `account_size_basis`; unset
-    means voice_position_sizing.UNSET_ACCOUNT_SIZE (25,000), flagged default, and a surface that
+    means voice_position_sizing.UNSET_ACCOUNT_SIZE (100,000), flagged default, and a surface that
     shows a number on it says so with voice_position_sizing.default_size_sentence().
     tests/test_account_size_authority.py fails on a module outside this file that reads the raw
     size itself.

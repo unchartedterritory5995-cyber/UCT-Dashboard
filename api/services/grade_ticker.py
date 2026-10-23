@@ -29,7 +29,8 @@ _EXTENDED_PCT = 0.03      # >3% past the pivot = "extended" (long)
 _RISK_CAP_PCT = 2.0       # account-risk hard cap (mirrors size_a_trade)
 # The size a grade uses when no account_size is passed: the ONE unset-size constant
 # (voice_position_sizing.UNSET_ACCOUNT_SIZE), never a second default. It was 50,000 here while
-# heat and sizing used 25,000 and the raw readers the 100,000 placeholder (Round B).
+# heat and sizing used 25,000 and the raw readers the 100,000 placeholder (Round B; the one
+# default is 100,000 since fix 1).
 from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE as _DEFAULT_ACCOUNT  # noqa: E402
 
 

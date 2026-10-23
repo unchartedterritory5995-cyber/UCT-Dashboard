@@ -4,7 +4,10 @@ Before this, an unset member's trade got three sizes: 25,000 (heat, sizing, the 
 Search), the migrated 100,000 placeholder read raw (Compass pre-trade, coach, interventions,
 discipline, calendar, intelligence, chart plan, the simulator), and grade_ticker's own 50,000.
 Each reader here is driven twice: on the migrated placeholder (unset: UNSET_ACCOUNT_SIZE,
-flagged default) and on a member who typed exactly 100,000 (set: their 100,000)."""
+flagged default) and on a member who typed exactly 100,000 (set: their 100,000). Since fix 1 the
+unset default IS 100,000 (owner ruling: enforcement for unset members does not move), so the two
+runs agree on every number and differ only in the default flag and sentence, which is the point:
+the member's own 100,000 is never labelled default, and the default is never unlabelled."""
 
 import sqlite3
 import uuid
@@ -12,7 +15,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-UNSET = 25_000.0
+UNSET = 100_000.0
 _PAYLOAD = {
     "defaultStop": {"mode": "custom"},
     "positionClosing": "FIFO",
@@ -72,10 +75,10 @@ def _sentence():
 def test_pre_trade_hard_check_sizes_an_unset_member_at_the_default_and_says_so(conn):
     from api.services.journal_two import pre_trade_verdict as ptv
     aid = _member(conn, "pt1", maxRiskPerTradePct=1)
-    params = {"symbol": "NVDA", "side": "Long", "shares": 10, "entry_price": 100, "stop_price": 50}
+    params = {"symbol": "NVDA", "side": "Long", "shares": 30, "entry_price": 100, "stop_price": 50}
     out = ptv.generate_verdict(user_id="pt1", account_id=aid, params=params, conn=conn)
     assert out["label"] == "SKIP" and out["hard_check_failed"] == "risk_cap_breach"
-    assert out["risk_pct"] == pytest.approx(500 / UNSET * 100)        # 2%, never 0.5% of 100,000
+    assert out["risk_pct"] == pytest.approx(1500 / UNSET * 100)       # 1.5%, as production had it
     assert out["account_size_is_default"] is True
     assert out["account_size_note"] == _sentence() and _sentence() in out["factors"]
 
@@ -83,8 +86,11 @@ def test_pre_trade_hard_check_sizes_an_unset_member_at_the_default_and_says_so(c
 def test_pre_trade_hard_check_reads_a_member_who_typed_100000_as_theirs(conn):
     from api.services.journal_two import pre_trade_verdict as ptv
     aid = _member(conn, "pt2", typed=100_000, maxRiskPerTradePct=1)
-    params = {"symbol": "NVDA", "side": "Long", "shares": 10, "entry_price": 100, "stop_price": 50}
-    assert ptv._hard_checks(user_id="pt2", account_id=aid, params=params, conn=conn) is None
+    params = {"symbol": "NVDA", "side": "Long", "shares": 30, "entry_price": 100, "stop_price": 50}
+    out = ptv.generate_verdict(user_id="pt2", account_id=aid, params=params, conn=conn)
+    assert out["label"] == "SKIP" and out["risk_pct"] == pytest.approx(1.5)
+    assert out["account_size_is_default"] is False and out["account_size_note"] is None
+    assert _sentence() not in out["factors"]
 
 
 # ── Coach ────────────────────────────────────────────────────────────────────────────────────
@@ -105,24 +111,31 @@ def test_coach_daily_loss_lockouts_rest_on_the_authority(conn):
     start = datetime(2000, 1, 1, tzinfo=timezone.utc)
     end = datetime(2100, 1, 1, tzinfo=timezone.utc)
     unset = _member(conn, "cd1", dailyLossLimitPct=3)
-    _trade(conn, "cd1", unset, pnl=-1000)                         # -4% of 25,000; -1% of 100,000
+    _trade(conn, "cd1", unset, pnl=-4000)                         # -4% of 100,000, past 3%
     ev = cda._discipline_events(conn, "cd1", unset, start, end)
     assert ev["daily_loss_lockouts"] == 1 and ev["account_size_is_default"] is True
     mine = _member(conn, "cd2", typed=100_000, dailyLossLimitPct=3)
-    _trade(conn, "cd2", mine, pnl=-1000)
+    _trade(conn, "cd2", mine, pnl=-4000)
     ev = cda._discipline_events(conn, "cd2", mine, start, end)
-    assert ev["daily_loss_lockouts"] == 0 and ev["account_size_is_default"] is False
+    assert ev["daily_loss_lockouts"] == 1 and ev["account_size_is_default"] is False
+    small = _member(conn, "cd3", dailyLossLimitPct=3)
+    _trade(conn, "cd3", small, pnl=-1000)                         # -1%: no lockout (unchanged)
+    assert cda._discipline_events(conn, "cd3", small, start, end)["daily_loss_lockouts"] == 0
 
 
 def test_intervention_daily_loss_threshold_rests_on_the_authority(conn):
     from api.services.journal_two import interventions as iv
     unset = _member(conn, "iv1", dailyLossLimitPct=3)
-    _trade(conn, "iv1", unset, pnl=-600)                          # past 75% of 3% of 25,000
+    _trade(conn, "iv1", unset, pnl=-2500)                         # past 75% of 3% of 100,000
     hit = iv._check_daily_loss_approach(conn, user_id="iv1", account_id=unset)
     assert hit is not None and _sentence() in hit["factors"]
     mine = _member(conn, "iv2", typed=100_000, dailyLossLimitPct=3)
-    _trade(conn, "iv2", mine, pnl=-600)
-    assert iv._check_daily_loss_approach(conn, user_id="iv2", account_id=mine) is None
+    _trade(conn, "iv2", mine, pnl=-2500)
+    hit = iv._check_daily_loss_approach(conn, user_id="iv2", account_id=mine)
+    assert hit is not None and _sentence() not in hit["factors"]
+    quiet = _member(conn, "iv3", dailyLossLimitPct=3)
+    _trade(conn, "iv3", quiet, pnl=-600)                          # not past it (unchanged)
+    assert iv._check_daily_loss_approach(conn, user_id="iv3", account_id=quiet) is None
 
 
 def test_discipline_state_rests_on_the_authority(conn):
@@ -130,12 +143,17 @@ def test_discipline_state_rests_on_the_authority(conn):
     unset = _member(conn, "ds1", dailyLossLimitPct=3)
     _trade(conn, "ds1", unset, pnl=-1000)
     st = discipline.compute_discipline_state("ds1", unset, conn=conn)
-    assert st["todaysPnlPct"] == -4.0 and st["locked"] is True
+    assert st["todaysPnlPct"] == -1.0 and st["locked"] is False      # as production had it
     assert st["accountSizeIsDefault"] is True and st["accountSizeNote"] == _sentence()
+    _trade(conn, "ds1", unset, pnl=-3000)
+    st = discipline.compute_discipline_state("ds1", unset, conn=conn)
+    assert st["todaysPnlPct"] == -4.0 and st["locked"] is True
+    assert st["reasons"][0]["accountSizeNote"] == _sentence()
     mine = _member(conn, "ds2", typed=100_000, dailyLossLimitPct=3)
     _trade(conn, "ds2", mine, pnl=-1000)
     st = discipline.compute_discipline_state("ds2", mine, conn=conn)
     assert st["todaysPnlPct"] == -1.0 and st["locked"] is False and st["accountSizeIsDefault"] is False
+    assert st["accountSizeNote"] is None
 
 
 # ── Calendar P&L % ───────────────────────────────────────────────────────────────────────────
@@ -235,3 +253,12 @@ def test_sizing_and_the_widget_read_a_member_who_typed_100000_as_theirs(conn):
     _member(conn, "vw2")
     assert vps._get_account_settings("vw2", None)["account_size_is_default"] is True
     assert nw._account_size("vw2") is None
+
+
+def test_the_one_unset_default_is_100000_and_is_still_labelled():
+    """Fix 1 ruling: an unset member's enforcement stays where production had it (100,000, the
+    size the Settings modal shows), so the ONE unset default is 100,000. It is still a default,
+    flagged and said with the shared sentence, never presented as the member's own."""
+    from api.services import voice_position_sizing as vps
+    assert vps.UNSET_ACCOUNT_SIZE == 100_000.0
+    assert "($100,000)" in vps.default_size_sentence()
