@@ -117,20 +117,12 @@ def _account_size(settings: dict) -> tuple[float, bool]:
 
 
 def _with_default_size_note(result: dict, is_default: bool) -> dict:
-    """Label a verdict that rests on the default size: the flag, the shared sentence, and the
-    sentence as a factor so the member reads it beside the verdict (and it is persisted)."""
+    """Label a verdict that rests on the default size with payload keys only (the flag and the
+    shared sentence). The factors, the persisted verdict and the model input stay as base wrote
+    them (fix round 2, finding 5: base showed no equivalent)."""
     from api.services.voice_position_sizing import default_size_sentence
-    out = {**result, "account_size_is_default": bool(is_default)}
-    if is_default:
-        note = default_size_sentence()
-        out["account_size_note"] = note
-        factors = list(out.get("factors") or [])
-        if note not in factors:
-            factors.append(note)
-        out["factors"] = factors
-    else:
-        out["account_size_note"] = None
-    return out
+    return {**result, "account_size_is_default": bool(is_default),
+            "account_size_note": default_size_sentence() if is_default else None}
 
 
 def _hard_checks(*, user_id: str, account_id: str, params: dict, conn) -> dict | None:
@@ -332,10 +324,8 @@ def _llm_verdict(
     parts.append("Return your verdict as JSON only — no surrounding text.")
     user_message = "\n".join(parts)
 
-    _size, size_is_default = _account_size(settings)
-    if size_is_default:
-        from api.services.voice_position_sizing import default_size_sentence
-        user_message += "\n\n## Account size\n" + default_size_sentence() + "."
+    # The model's input is byte-identical to base (fix round 2, finding 5): the default size is a
+    # payload label for the member, never prompt text.
     response = client.write_verdict(system_prompt=prompt, user_message=user_message, user_id=user_id)
     raw = response.get("body", "").strip()
 

@@ -80,7 +80,8 @@ def test_pre_trade_hard_check_sizes_an_unset_member_at_the_default_and_says_so(c
     assert out["label"] == "SKIP" and out["hard_check_failed"] == "risk_cap_breach"
     assert out["risk_pct"] == pytest.approx(1500 / UNSET * 100)       # 1.5%, as production had it
     assert out["account_size_is_default"] is True
-    assert out["account_size_note"] == _sentence() and _sentence() in out["factors"]
+    # payload label only: the factors are base's (fix round 2, finding 5)
+    assert out["account_size_note"] == _sentence() and _sentence() not in out["factors"]
 
 
 def test_pre_trade_hard_check_reads_a_member_who_typed_100000_as_theirs(conn):
@@ -366,3 +367,45 @@ def test_unified_sizing_curve_is_base_not_configured(conn):
     _trade(conn, "uc1", aid, pnl=-100)
     assert cct._exec_analyze_sizing_curve(user_id="uc1", account_id="_all_", args={}, conn=conn) == \
         {"buckets": [], "note": "account size not configured"}
+
+
+def _base_module(rel, name):
+    """The master-base (e9fc60a0f2) copy of one module, loaded beside the live one, so a parity
+    rail compares against base CODE rather than a restatement of it."""
+    import importlib.util
+    import subprocess
+    import sys
+    src = subprocess.run(["git", "show", f"e9fc60a0f2:{rel}"], capture_output=True, check=True,
+                         cwd=str(__import__("pathlib").Path(__file__).resolve().parents[1])).stdout
+    spec = importlib.util.spec_from_loader(name, loader=None)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    exec(compile(src, f"<base {rel}>", "exec"), mod.__dict__)
+    return mod
+
+
+def test_pre_trade_model_input_and_factors_are_base_for_an_unset_member(conn, monkeypatch):
+    import json as _json
+    from api.services.journal_two import pre_trade_verdict as ptv, compass_daily_caps
+    base = _base_module("api/services/journal_two/pre_trade_verdict.py", "base_pre_trade_verdict")
+    monkeypatch.setattr(compass_daily_caps, "take", lambda *a, **k: True)
+
+    class Fake:
+        def __init__(self):
+            self.calls = []
+
+        def write_verdict(self, **kw):
+            self.calls.append(kw)
+            return {"body": _json.dumps({"label": "GO", "paragraph": "ok", "factors": ["f1"]})}
+
+    aid = _member(conn, "mi1", maxRiskPerTradePct=2)
+    params = {"symbol": "NVDA", "side": "Long", "shares": 10, "entry_price": 100, "stop_price": 95,
+              "setup": "Breakout"}
+    live, was = Fake(), Fake()
+    out = ptv.generate_verdict(user_id="mi1", account_id=aid, params=params, client=live, conn=conn)
+    ref = base.generate_verdict(user_id="mi1", account_id=aid, params=params, client=was, conn=conn)
+    assert live.calls[0]["user_message"] == was.calls[0]["user_message"]          # byte-identical
+    assert live.calls[0]["system_prompt"] == was.calls[0]["system_prompt"]
+    assert out["factors"] == ref["factors"] and out["label"] == ref["label"]
+    assert out["risk_pct"] == ref["risk_pct"]
+    assert out["account_size_is_default"] is True                                # payload key only
