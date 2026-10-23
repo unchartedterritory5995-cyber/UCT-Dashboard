@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 import tempfile
 import threading
 import time
@@ -147,10 +148,17 @@ def uptime_seconds() -> float | None:
     Reads `api.main._APP_BOOT_TS` - the SAME clock `/api/health` reports uptime
     from, so "the pod is warm" means one thing here and in the health artifact.
     None is UNKNOWN and never blocks the post: a missing clock must not be able
-    to silence a scheduled public message."""
+    to silence a scheduled public message.
+
+    ⛔ Read from the RUNNING app (`sys.modules`), never imported: an import of
+    api.main from a service builds the whole web app when it is not loaded, and
+    puts every router on this module's import graph (the earnings-prep rail
+    walks through here). Not loaded means no web app in this process: UNKNOWN."""
     try:
-        from api.main import _APP_BOOT_TS
-        return max(0.0, time.time() - float(_APP_BOOT_TS))
+        main = sys.modules.get("api.main")
+        if main is None:
+            raise LookupError("api.main is not loaded in this process")
+        return max(0.0, time.time() - float(main._APP_BOOT_TS))
     except Exception as e:  # noqa: BLE001
         log.warning("[index-close] uptime unavailable (%s); not waiting", e)
         return None

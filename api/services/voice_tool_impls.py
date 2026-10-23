@@ -680,8 +680,8 @@ def _get_top_catalysts(count: int = 12) -> dict:
     earnings reactions, analyst upgrades/downgrades, syndicate pricings."""
     try:
         from api.services.catalyst.store import get_for_date
-        from api.services.catalyst.engine import _today_market_date
-        rows = get_for_date(_today_market_date(), ranked_only=True)
+        from api.services.catalyst.store import today_market_date
+        rows = get_for_date(today_market_date(), ranked_only=True)
         count = max(1, min(25, int(count or 12)))
         rows = rows[:count]
         if not rows:

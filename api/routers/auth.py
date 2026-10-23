@@ -4,6 +4,7 @@ All NEW endpoints under /api/auth/*. Does not touch any existing routes.
 """
 
 import os
+import sys
 import csv
 import io
 import json
@@ -2185,7 +2186,11 @@ class MaintenanceRequest(BaseModel):
 def admin_toggle_maintenance(req: MaintenanceRequest, user: dict = Depends(get_current_user)):
     """Admin-only: toggle maintenance mode."""
     _require_admin(user)
-    import api.main as _main_module
+    # The RUNNING app's flag, read from sys.modules, never imported: an import here would put
+    # api.main (every router) on the import graph of everything that imports auth.
+    _main_module = sys.modules.get("api.main")
+    if _main_module is None:
+        raise HTTPException(503, "Maintenance mode is not available in this process")
     _main_module._MAINTENANCE_MODE = req.enabled
     log_activity(user["id"], "maintenance_toggled", details=f"enabled={req.enabled}")
     return {"ok": True, "maintenance": req.enabled}

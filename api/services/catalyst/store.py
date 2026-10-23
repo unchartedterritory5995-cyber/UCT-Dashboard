@@ -399,6 +399,13 @@ def upsert_catalyst(row: dict) -> None:
 _ET = ZoneInfo("America/New_York")
 
 
+def today_market_date() -> str:
+    """Today's ET date, the key every row in this store is filed under. Lives here (a SQLite
+    module with no vendor import) so a reader of today's rows does not have to import the engine,
+    which reaches AlphaVantage through catalyst.sources."""
+    return datetime.datetime.now(_ET).date().isoformat()
+
+
 def redact_stale_raw_signals(days: int = 7) -> int:
     """Strip verbatim vendor text bodies (tweet `text`; RSS `title`/`url`)
     out of `raw_signals` for rows whose market_date is older than `days`,

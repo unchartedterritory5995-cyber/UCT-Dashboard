@@ -574,3 +574,21 @@ def test_a_retry_pass_is_registered_and_lands_after_the_first_can_finish():
     # clear of the worst-case first run: the full warm wait plus its renders
     assert gap > idx.WARM_MIN_UPTIME_S, f"retry only {gap}s after the first"
     assert gap < 30 * 60, "still into the close, not after it"
+
+
+# -- uptime is read from the RUNNING app, never imported (2026-10-23) --------------------
+
+def test_uptime_reads_the_running_apps_boot_clock(monkeypatch):
+    import time
+    import api.main as m
+    monkeypatch.setattr(m, "_APP_BOOT_TS", time.time() - 120.0)
+    up = idx.uptime_seconds()
+    assert up is not None and 119.0 <= up <= 125.0
+
+
+def test_uptime_is_unknown_when_no_web_app_is_loaded(monkeypatch):
+    import sys
+    monkeypatch.delitem(sys.modules, "api.main", raising=False)
+    assert idx.uptime_seconds() is None
+    assert "api.main" not in sys.modules        # asking never builds the app
+

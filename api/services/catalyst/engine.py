@@ -436,7 +436,7 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
 
 
 def _today_market_date() -> str:
-    return dt.datetime.now(_ET).date().isoformat()
+    return store.today_market_date()
 
 
 # How long a per-ticker / per-sector Perplexity enrichment answer is reused
