@@ -1621,48 +1621,15 @@ SETUP_EDGE_TRADES_MAX = 5000
 #: Per-member cache of the edge read: the answer only moves when a trade closes.
 SETUP_EDGE_TTL_S = 300
 _SETUP_EDGE_CACHE = TTLCache(max_size=500)
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def _scoped_closed_trades(user_id: str) -> list[dict]:
     """The member's most recent `SETUP_EDGE_TRADES_MAX` closed trades in the UNIFIED Compass scope
-    (`resolve_account_scope(..., UNIFIED_ACCOUNT_ID)`: the Compass-enabled accounts), oldest first.
-
-    The rows are `coach_data_assembler._trades_in_range`'s, the reader `personal_edge`'s default seam
-    goes through (`_exec_get_aggregates`), so the per-setup aggregate is the same one; only the window
-    differs. ⛔ The default seam asks for no `period` (the last 7 days, almost always "thin") and with
-    account None, which `resolve_account_scope` turns into `account_id IN (NULL)`: no trade at all.
-    The window here starts at the exit of the 5,000th most recent trade in scope, so the read is
-    bounded in SQL, then sliced to exactly the bound. Read-only: SELECTs on a connection this closes."""
-    from api.services import auth_db
-    from api.services.journal_two import coach_data_assembler
-    from api.services.journal_two.coach_scope import resolve_account_scope
+    (the Compass-enabled accounts), oldest first: `personal_edge.closed_trades`, the same bounded
+    read-only reader the edge's default seam uses, so the widget and Compass see one history."""
+    from api.services import personal_edge
     from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
-    conn = auth_db.get_connection()
-    try:
-        ids = resolve_account_scope(conn, user_id, UNIFIED_ACCOUNT_ID)
-        if not ids:
-            return []
-        marks = ",".join("?" * len(ids))
-        row = conn.execute(
-            f"SELECT exit_date FROM j2_trades WHERE user_id = ? AND account_id IN ({marks})"
-            " AND (analytics_excluded IS NULL OR analytics_excluded = 0)"
-            " ORDER BY exit_date DESC LIMIT 1 OFFSET ?",
-            [user_id, *ids, SETUP_EDGE_TRADES_MAX - 1]).fetchone()
-        start = _EPOCH
-        if row and row[0]:
-            try:
-                start = datetime.fromisoformat(str(row[0]).replace("Z", "+00:00"))
-            except ValueError:
-                start = _EPOCH
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
-            start -= timedelta(days=1)       # inclusive of the boundary day; the slice below is exact
-        end = datetime.now(timezone.utc) + timedelta(days=1)
-        trades = coach_data_assembler._trades_in_range(conn, user_id, UNIFIED_ACCOUNT_ID, start, end)
-    finally:
-        conn.close()
-    return trades[-SETUP_EDGE_TRADES_MAX:]
+    return personal_edge.closed_trades(user_id, UNIFIED_ACCOUNT_ID, limit=SETUP_EDGE_TRADES_MAX)
 
 
 def _setup_edge_read(user_id: str) -> dict:
