@@ -37,17 +37,47 @@ def _dicts(bars):
              "v": float(b[5] or 0)} for b in bars]
 
 
+#: Fixture charts whose recorded "served" set holds a row the member's chart never draws (stale, not the
+#: "flagging" tier). The fixture was recorded when "served" meant SENT; it now means DRAWN, so on exactly these
+#: charts that row leaves `served` and its lines turn withheld. The fixture itself is unchanged, and the layer's
+#: answer (gate, line, span start, display start) is unchanged on every one of them.
+SENT_NOT_DRAWN = {
+    "held/draw/001": "uct_pullback_ma_v5", "held/draw/002": "uct_pullback_ma_v5",
+    "held/draw/062": "uct_pullback_ma_v5", "held/none/014": "uct_pullback_ma_v5",
+    "held/none/028": "uct_pullback_ma_v5", "held/none/036": "flat_base", "held/none/053": "flat_base",
+    "held/none/061": "flat_base", "held/none/063": "flat_base", "held/none/105": "uct_pullback_ma_v5",
+    "held/none/151": "uct_pullback_ma_v5", "held/none/171": "flat_base", "held/none/173": "uct_pullback_ma_v5",
+    "held/none/213": "uct_pullback_ma_v5", "held/none/217": "uct_pullback_ma_v5", "held/none/229": "flat_base",
+    "held/none/242": "uct_pullback_ma_v5", "held/none/252": "flat_base", "held/none/269": "flat_base",
+    "held/none/274": "flat_base",
+}
+
+
+def _drawn_view(c):
+    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld."""
+    served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
+    lines = [tuple(x) for x in c["lines"]]
+    pid = SENT_NOT_DRAWN.get(c["id"])
+    if pid is None:
+        return served, lines
+    gone = [x for x in served if x[0] == pid]
+    assert len(gone) == 1, c["id"]
+    prices = set(gone[0][1])
+    return ([x for x in served if x is not gone[0]],
+            [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
+
+
 def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
+        want_served, want_lines = _drawn_view(c)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
         # of lines is the contract (ties never moved an answer on the 1,550 charts measured)
-        if sorted(map(tuple, lines)) != sorted(map(tuple, c["lines"])):
+        if sorted(map(tuple, lines)) != sorted(want_lines):
             bad.append((c["id"], "lines"))
         r = S.evaluate(c["bars"], served, lines)
         e = c["expect"]
@@ -170,6 +200,143 @@ def test_any_served_drawing_hides_the_line(monkeypatch, shelf_on):
     # the member path itself serving something hides it too
     monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: ([("bull_flag", [1.0], None)], c["lines"]))
     assert AS.shelf_compute("SYN", bars) is None
+
+
+# ---------------------------------------------------------------- "served" means DRAWN (C3)
+def _stale_pullback(price=None):
+    # sent to the member, never drawn: PatternOverlay.selectDrawable skips a stale row
+    ex = {"stale": True, "stale_reason": "no_reclaim"}
+    if price is not None:
+        ex["pivot"] = price
+    return {"pattern_id": "uct_pullback_ma_v5", "display_tier": "trusted", "geometry": {"extras": ex}}
+
+
+def _flagging_bull_flag():
+    # stale on a relaxed verdict and stamped as the "flagging" tier: the client DOES draw it
+    reason = sorted(AS._display.FLAGGING_REASONS)[0]
+    return {"pattern_id": "bull_flag", "display_tier": "trusted", "geometry": {"extras": {
+        "stale": True, "stale_reason": reason,
+        "flagging": {"tier": AS.MEMBER_FLAGGING_TIER, "draw_round": AS.MEMBER_FLAGGING_ROUND}}}}
+
+
+def _live_pullback():
+    return {"pattern_id": "uct_pullback_ma_v5", "display_tier": "trusted", "geometry": {"extras": {}}}
+
+
+def test_the_rows_are_what_the_client_draws():
+    assert not AS._drawn_incumbent(_stale_pullback())
+    assert AS._flagging_flag(_flagging_bull_flag()) and AS._drawn_incumbent(_flagging_bull_flag())
+    assert AS._drawn_incumbent(_live_pullback())
+
+
+def test_a_stale_row_the_chart_never_draws_does_not_hide_the_line(monkeypatch, shelf_on):
+    c, bars = _drawing_bars()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
+    assert AS.shelf_pivot_row("SYN", member=False, chart_served=[_stale_pullback()]) is not None
+
+
+def test_a_flagging_tier_flag_hides_the_line(monkeypatch, shelf_on):
+    c, bars = _drawing_bars()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
+    assert AS.shelf_pivot_row("SYN", chart_served=[_flagging_bull_flag()]) is None
+    AS._SHELF_CACHE.clear()
+    assert AS.shelf_pivot_row("SYN", chart_served=[_stale_pullback(), _flagging_bull_flag()]) is None
+
+
+def test_a_live_row_hides_the_line(monkeypatch, shelf_on):
+    c, bars = _drawing_bars()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
+    assert AS.shelf_pivot_row("SYN", chart_served=[_live_pullback()]) is None
+    AS._SHELF_CACHE.clear()
+    assert AS.shelf_pivot_row("SYN", chart_served=[_stale_pullback(), _live_pullback()]) is None
+
+
+def test_a_malformed_served_row_draws_nothing(monkeypatch, shelf_on):
+    c, bars = _drawing_bars()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
+    assert AS.shelf_pivot_row("SYN", chart_served=["not a row"]) is None
+
+
+def _with_extra_detection(monkeypatch, row_for):
+    from api.services import pattern_engine as PE
+    real = PE.detect_all
+
+    def detect_all(bars, ctx, **kw):
+        out = list(real(bars, ctx, **kw))
+        r = row_for(float(bars[-1]["c"]))
+        out.append({**r, "confidence": 90.0, "status": "active", "start_t": int(bars[-40]["t"]),
+                    "end_t": int(bars[-1]["t"])})
+        return out
+    monkeypatch.setattr(PE, "detect_all", detect_all)
+
+
+def _strip_tier(r):
+    return {k: v for k, v in r.items() if k != "display_tier"}
+
+
+def test_the_member_path_does_not_count_a_stale_detection_as_served(monkeypatch, member_path_env):
+    c, bars = _drawing_bars()
+    _ASOF[0] = int(bars[-1]["t"])
+    ticker = c["ticker"]
+    # a stale pullback far above the chart: sent, never drawn
+    _with_extra_detection(monkeypatch, lambda close: _strip_tier(_stale_pullback(close * 3.0)))
+    served, lines = AS.shelf_member_facts(ticker, bars)
+    assert not any(p == "uct_pullback_ma_v5" for p, _ls, _sp in served)
+    stale_lines = [x for x in lines if x[0] == "uct_pullback_ma_v5" and x[1] == float(bars[-1]["c"]) * 3.0]
+    assert stale_lines and all(w for _p, _v, w in stale_lines)       # counted as withheld
+    assert AS.shelf_compute(ticker, bars) is not None
+
+
+def test_the_member_path_counts_a_flagging_flag_as_served(monkeypatch, member_path_env):
+    c, bars = _drawing_bars()
+    _ASOF[0] = int(bars[-1]["t"])
+    ticker = c["ticker"]
+
+    def flag(close):
+        r = _strip_tier(_flagging_bull_flag())
+        r["geometry"]["extras"]["pivot"] = close * 3.0
+        return r
+    _with_extra_detection(monkeypatch, flag)
+    served, _lines = AS.shelf_member_facts(ticker, bars)
+    assert any(p == "bull_flag" for p, _ls, _sp in served)
+    assert AS.shelf_compute(ticker, bars) is None
+
+
+def test_the_member_path_counts_a_live_detection_as_served(monkeypatch, member_path_env):
+    c, bars = _drawing_bars()
+    _ASOF[0] = int(bars[-1]["t"])
+    ticker = c["ticker"]
+    _with_extra_detection(monkeypatch, lambda close: {**_strip_tier(_live_pullback()),
+                                                      "geometry": {"extras": {"pivot": close * 3.0}}})
+    served, _lines = AS.shelf_member_facts(ticker, bars)
+    assert any(p == "uct_pullback_ma_v5" for p, _ls, _sp in served)
+    assert AS.shelf_compute(ticker, bars) is None
+
+
+def test_the_member_path_does_not_count_a_stale_structure_as_served(monkeypatch, member_path_env):
+    # no member rule admits a stale structure today (stale boxes are dropped, the drawing rounds require
+    # not-stale); the guard is what keeps "served" meaning DRAWN if one ever does
+    c, bars = _drawing_bars()
+    _ASOF[0] = int(bars[-1]["t"])
+    ticker = c["ticker"]
+    real = AS._structure_rows
+    hi = float(bars[-1]["c"]) * 3.0
+
+    def structure_rows(sym, b):
+        stale = {"id": "stale-fb", "pattern_id": "flat_base", "display_tier": "trusted",
+                 "start_t": int(b[-40]["t"]), "end_t": int(b[-1]["t"]),
+                 "geometry": {"extras": {"stale": True, "stale_reason": "broke_down", "pivot": hi}}}
+        return list(real(sym, b)) + [stale]
+    monkeypatch.setattr(AS, "_structure_rows", structure_rows)
+    served, lines = AS.shelf_member_facts(ticker, bars)
+    assert not any(p == "flat_base" and hi in ls for p, ls, _sp in served)
+    mine = [x for x in lines if x[0] == "flat_base" and x[1] == hi]
+    assert mine and all(w for _p, _v, w in mine)
+    assert AS.shelf_compute(ticker, bars) is not None
 
 
 def test_any_failure_draws_nothing(monkeypatch, shelf_on):

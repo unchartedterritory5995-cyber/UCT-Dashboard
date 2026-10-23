@@ -1427,7 +1427,9 @@ def shelf_member_facts(sym: str, bars: list):
     drawings the member path serves on that chart -- [(pattern_id, [drawn prices], (start_t, end_t) or None)] --
     and every detector line on it, served or withheld -- [(pattern_id, price, withheld)]. The member detectors
     run on the bars as the daily scan runs them; the structures go through member_rows and the member
-    precedences exactly as the route applies them. RAISES on any failure (the caller draws nothing)."""
+    precedences exactly as the route applies them. "Served" means DRAWN: a row the member path sends but the
+    member's chart never draws (a stale row other than the "flagging" tier: `_drawn_incumbent`) is not in
+    `served` and its lines count as withheld. RAISES on any failure (the caller draws nothing)."""
     from api.services.pattern_engine import detect_all
     from api.services.pattern_engine.primitives.context import build_context
     from api.services.pattern_engine.detectors import registry as reg
@@ -1457,6 +1459,8 @@ def shelf_member_facts(sym: str, bars: list):
             why = "status"
         elif not member_rows([d]):
             why = "stale" if ex.get("stale") else "tier"
+        elif not _drawn_incumbent(d):
+            why = "stale"   # sent, never drawn
         else:
             why = None
         if not in_universe and why is None:
@@ -1486,21 +1490,23 @@ def shelf_member_facts(sym: str, bars: list):
         pid = r["pattern_id"]
         ls, _span = _row_lines(r)
         if id(r) in final_ids:
-            why = None
+            why = None if _drawn_incumbent(r) else "stale"
         elif not any(x is r or (x.get("id") == r.get("id") and x.get("pattern_id") == pid) for x in served_st):
             why = "member_rows"
         else:
             why = "precedence"
-        if pid == CUP_ID and why in (None, "precedence") and any(x.get("pattern_id") == pid for x in after_id):
+        if pid == CUP_ID and why in (None, "stale", "precedence") and any(x.get("pattern_id") == pid for x in after_id):
             continue   # served in member form below
         for p in ls:
             lines.append((pid, p, why is not None))
     for r in after_id:
         if r.get("pattern_id") == CUP_ID:
             for p in _row_lines(r)[0]:
-                lines.append((CUP_ID, p, False))
+                lines.append((CUP_ID, p, not _drawn_incumbent(r)))
     served = []
     for r in dets_ok + list(after_id):
+        if not _drawn_incumbent(r):
+            continue   # sent, never drawn: covers nothing (its lines are withheld above)
         ls, span = _row_lines(r)
         served.append((r["pattern_id"], ls, span))
     return served, lines
@@ -1589,14 +1595,15 @@ def shelf_pivot_row(sym: str, *, member: bool = False, chart_served=()):
     """The shelf-pivot row for `sym`'s daily chart, or None. Gated: AUTO_STRUCTURES_SHELF_ENABLED (default
     off; nothing runs while it is off) and, for a member, MEMBER_SHELF_PIVOT_ROUND equal to the frozen round
     (member_rows also requires the member set). `chart_served`: the drawings the caller's chart already
-    serves -- any one hides the line (v1). One computed answer per (ticker, last completed session). Any
+    serves -- any one the chart DRAWS hides the line (v1; a stale row other than the "flagging" tier is sent
+    but never drawn: `_drawn_incumbent`). One computed answer per (ticker, last completed session). Any
     failure -> None. Never raises."""
     try:
         if not shelf_enabled():
             return None
         if member and not _member_shelf_ok():
             return None
-        if chart_served:
+        if any(_drawn_incumbent(r) for r in chart_served or ()):
             return None
         sym = (sym or "").upper()
         bars = _shelf_bars(sym)
