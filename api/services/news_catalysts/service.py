@@ -258,7 +258,15 @@ def _web_catalysts(sym, company, bars, movers, *, outcome=None):
     # Phase 2: verify each catalyst's REAL announcement date with a FOCUSED query
     # (a single bulk request mis-dates; a targeted question is accurate — as the
     # owner observed). Parallel + bounded.
-    verified = _verify_dates(sym, company, prelim)
+    refused: list = []
+    verified = _verify_dates(sym, company, prelim, refused=refused)
+    if refused:
+        # The daily Perplexity budget refused some verify calls. Persisting now
+        # would store the bulk call's sloppy dates as a FINISHED web set — never
+        # re-generated. Report a failed look instead so the symbol is retried
+        # once the budget allows (the error-retry window), never baked in.
+        _out(False, "error", "perplexity budget refused date verification")
+        return None, None
 
     trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
     day_set = set(trading_days)
@@ -321,10 +329,11 @@ def _extract_iso_date(text):
     return None
 
 
-def _verify_dates(sym, company, prelim):
+def _verify_dates(sym, company, prelim, refused=None):
     """Focused Perplexity query per catalyst → its exact YYYY-MM-DD announcement
     date (returns None for that item on failure). Parallel, bounded. Gated by
-    NEWS_VERIFY_DATES (default on)."""
+    NEWS_VERIFY_DATES (default on). `refused` (optional list) collects the
+    titles whose verify call the daily budget refused rather than answered."""
     if os.environ.get("NEWS_VERIFY_DATES", "1") != "1":
         return [None] * len(prelim)
     try:
@@ -344,6 +353,8 @@ def _verify_dates(sym, company, prelim):
                                                cost_surface="news_catalysts")
         except Exception:
             return None
+        if res.get("budget_refused") and refused is not None:
+            refused.append(p["title"])   # list.append is atomic across the pool
         d = _extract_iso_date(res.get("answer") or "")
         # Guard against a nonsense parse: keep it within the YTD window.
         if d and YTD_LO <= d <= _today_iso():

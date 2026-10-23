@@ -257,18 +257,63 @@ def _daily_limit() -> int:
         return _DAILY_LIMIT_DEFAULT
 
 
+# ── Per-surface sub-budgets (2026-10-22) ──────────────────────────────────
+# 2026-10-23 02:45 UTC prod: "perplexity daily budget EXHAUSTED (502/500 calls
+# today) — refusing call (surface=catalyst)". The global count is ONE pool, so
+# the two BACKGROUND fan-outs (the catalyst engine's ~27 refreshes/day and the
+# calendar warm's news-catalyst backfill, 1 + up to 12 date-verify calls per
+# symbol) could spend the whole day's budget by the afternoon and leave the
+# member-facing surfaces (ai_search, uct_agent, voice) refused all evening.
+# Each named surface may spend at most its own share; a surface not named is
+# bounded only by the global limit. The defaults keep >= 100 of the default
+# 500 out of the background surfaces' reach.
+#   PERPLEXITY_SURFACE_LIMITS="catalyst=250,news_catalysts=150"   (the default)
+#   PERPLEXITY_SURFACE_LIMITS=""                                  (no sub-caps)
+_SURFACE_LIMITS_ENV = "PERPLEXITY_SURFACE_LIMITS"
+_SURFACE_LIMITS_DEFAULT = "catalyst=250,news_catalysts=150"
+
+
+def _surface_limits() -> dict[str, int]:
+    raw = os.environ.get(_SURFACE_LIMITS_ENV)
+    if raw is None:
+        raw = _SURFACE_LIMITS_DEFAULT
+    out: dict[str, int] = {}
+    for part in raw.split(","):
+        name, sep, val = part.partition("=")
+        name = name.strip()
+        if not sep or not name:
+            continue
+        try:
+            n = int(val.strip())
+        except (TypeError, ValueError):
+            continue
+        if n > 0:
+            out[name] = n
+    return out
+
+
 def get_daily_status() -> dict:
     """Today's (ET) Perplexity call count vs. the configured daily limit —
-    for admin visibility / a future status endpoint. Never raises."""
+    for admin visibility / a future status endpoint. Never raises. `surfaces`
+    carries each sub-capped surface's own count vs. its cap."""
     limit = _daily_limit()
     try:
         from api.services import narrative_cost_guard
         count = narrative_cost_guard.calls_today(_PPLX_SURFACE_PREFIX)
     except Exception:
         count = 0
+    surfaces = {}
+    for name, cap in _surface_limits().items():
+        try:
+            from api.services import narrative_cost_guard
+            n = narrative_cost_guard.calls_today_for_surface(_PPLX_SURFACE_PREFIX + name)
+        except Exception:
+            n = 0
+        surfaces[name] = {"calls_today": n, "limit": cap, "remaining": max(0, cap - n)}
     return {"calls_today": count, "limit": limit,
             "remaining": max(0, limit - count),
-            "pct": round(count / limit * 100, 1) if limit else 0.0}
+            "pct": round(count / limit * 100, 1) if limit else 0.0,
+            "surfaces": surfaces}
 
 
 def _is_pytest_env() -> bool:
@@ -306,6 +351,20 @@ def _check_daily_budget(surface: str) -> str | None:
     if count >= int(limit * _WARN_FRACTION):
         _log.warning("perplexity daily budget at %d%% (%d/%d calls today, surface=%s)",
                      int(count * 100 / limit), count, limit, surface)
+    # Per-surface share (see _surface_limits). The ledger is read ONLY for a
+    # sub-capped surface, so an uncapped one pays nothing extra. Fails open,
+    # like the global check above.
+    cap = _surface_limits().get(surface)
+    if cap:
+        try:
+            from api.services import narrative_cost_guard
+            used = narrative_cost_guard.calls_today_for_surface(_PPLX_SURFACE_PREFIX + surface)
+        except Exception:
+            return None
+        if used >= cap:
+            _log.warning("perplexity surface budget EXHAUSTED (surface=%s %d/%d calls today, "
+                         "global %d/%d) — refusing call", surface, used, cap, count, limit)
+            return f"perplexity daily budget reached for {surface} ({cap} requests/day)"
     return None
 
 
@@ -352,7 +411,8 @@ def _mask_http_error(e: "requests.RequestException") -> tuple[str, int | None]:
     return (f"request failed ({status})" if status else "request failed (network)", status)
 
 
-def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, salt="") -> str:
+def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, salt="",
+               identity: str | None = None) -> str:
     # Shared by web_search AND stream_search so a streamed answer warms the
     # cache for later single-shot calls (and vice versa). The system prompt +
     # query are HASHED IN FULL (not truncated) — truncating query[:300]/
@@ -360,8 +420,14 @@ def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, 
     # desk-grounding blocks) collide on one cache entry and serve the wrong
     # answer.
     import hashlib
+    # `identity` (opt-in) REPLACES the query text in the hash: a caller whose
+    # prompt embeds a value that drifts on every call (a live gap %, a
+    # re-ordered ticker list) names the question it is actually asking, or no
+    # two asks would ever share an entry. `id:`-prefixed so it cannot collide
+    # with a plain query's key.
+    subject = f"id:{identity}" if identity else query.lower()
     digest = hashlib.md5(
-        f"{system or ''}\x00{query.lower()}".encode("utf-8", "ignore")
+        f"{system or ''}\x00{subject}".encode("utf-8", "ignore")
     ).hexdigest()
     return (
         f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
@@ -398,6 +464,7 @@ def web_search(
     allow_stale: bool = False,
     cache_ttl_override: int | None = None,
     return_cost: bool = False,
+    cache_identity: str | None = None,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -420,6 +487,9 @@ def web_search(
             Existing callers leave this None and keep the tuned per-mode
             defaults (15/30/60 min); PerplexityClient.ask() passes a flat
             3600s (60 min) for the (ticker, prompt)-shaped convenience path.
+        cache_identity: a stable name for the question, hashed into the cache
+            key IN PLACE of the query text (see _cache_key) — for prompts that
+            embed a per-call-drifting value. None (the default) = unchanged.
     """
     query = (query or "").strip()
     if not query:
@@ -435,7 +505,8 @@ def web_search(
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
     # Cache key incorporates everything that affects the answer
-    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, cache_salt)
+    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query,
+                           cache_salt, identity=cache_identity)
     cached = _SEARCH_CACHE.get(cache_key)
     if cached is not None:
         out = dict(cached)
@@ -445,8 +516,10 @@ def web_search(
 
     budget_error = _check_daily_budget(cost_surface)
     if budget_error:
+        # `budget_refused` lets a caller tell "we were not allowed to ask" from
+        # "the provider had nothing" without parsing the error string.
         return {"answer": "", "citations": [], "error": budget_error,
-                "mode": resolved_mode, "model": model}
+                "budget_refused": True, "mode": resolved_mode, "model": model}
 
     api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
     if not api_key:
@@ -663,7 +736,7 @@ async def stream_search(
 
     budget_error = _check_daily_budget(cost_surface)
     if budget_error:
-        yield {"type": "error", "error": budget_error}
+        yield {"type": "error", "error": budget_error, "budget_refused": True}
         return
 
     api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()

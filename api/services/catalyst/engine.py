@@ -66,9 +66,14 @@ def _compute_sector_context(top_n: list[dict]) -> list[dict]:
             f"Cite sources. Be concise — 2-3 sentences."
         )
         try:
+            # The prompt embeds this tick's ticker list, which re-orders and
+            # churns between refreshes — keyed on the text, the answer was
+            # re-bought on nearly every tick. Keyed on (day, sector) instead.
             result = perplexity_search.web_search(
                 query, max_tokens=300,
                 domain_pack="finance", recency="day", cost_surface="catalyst",
+                cache_identity=f"catalyst:sector:{_today_market_date()}:{sector}",
+                cache_ttl_override=_enrich_cache_ttl(),
             )
         except Exception:
             logger.exception("[catalyst-engine] sector context for %s failed", sector)
@@ -434,6 +439,21 @@ def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
 
+# How long a per-ticker / per-sector Perplexity enrichment answer is reused
+# across refreshes (2026-10-22). The engine refreshes ~27x a trading day and
+# rebuilds every candidate from scratch each tick, so without a stable cache the
+# zero-signal fallback, the earnings deep-dive and the sector banner re-bought
+# the same answer on almost every tick (the fallback's prompt embeds the live
+# gap % to one decimal, so its text — and its cache key — never repeated).
+# Discovery (A1/A2/F1) keeps the wrapper's 15-min TTL: it IS the freshness lever.
+def _enrich_cache_ttl() -> int:
+    try:
+        v = int(os.environ.get("CATALYST_PPLX_ENRICH_TTL_SECONDS", "3600"))
+        return v if v > 0 else 3600
+    except (TypeError, ValueError):
+        return 3600
+
+
 def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
     """For the 3 highest-scored candidates, run a richer Perplexity query
     that captures peer reaction, historical comparable setups, and broader
@@ -662,6 +682,8 @@ def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
             result = perplexity_search.web_search(
                 query, max_tokens=400,
                 domain_pack="finance", recency="day", cost_surface="catalyst",
+                cache_identity=f"catalyst:earnings:{_today_market_date()}:{ticker}:{when}",
+                cache_ttl_override=_enrich_cache_ttl(),
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity earnings %s failed", ticker)
@@ -794,9 +816,16 @@ def _enrich_with_perplexity(candidates: list[dict]) -> None:
                  f"technical breakout, or any breaking news. If no clear "
                  f"catalyst exists, say so plainly.")
         try:
+            # ⛔ The prompt carries the LIVE gap to one decimal, so its text
+            # differs on every tick and a text-keyed cache never hit: a ticker
+            # that stays thin was re-asked on every one of ~27 refreshes a day.
+            # Keyed on (day, ticker, direction) — the question actually asked.
             result = perplexity_search.web_search(
                 query, max_tokens=300,
                 domain_pack="finance", recency="day", cost_surface="catalyst",
+                cache_identity=(f"catalyst:fallback:{_today_market_date()}:{ticker}:"
+                                f"{'up' if gap_pct >= 0 else 'down'}"),
+                cache_ttl_override=_enrich_cache_ttl(),
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity %s failed", ticker)

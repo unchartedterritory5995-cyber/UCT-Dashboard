@@ -185,8 +185,10 @@ def test_daily_limit_ignores_junk_and_falls_back_to_default(monkeypatch):
 def test_get_daily_status_shape(monkeypatch):
     monkeypatch.setenv("PERPLEXITY_DAILY_LIMIT", "100")
     monkeypatch.setattr(guard, "calls_today", lambda prefix: 25)
+    monkeypatch.setenv("PERPLEXITY_SURFACE_LIMITS", "")   # sub-caps railed in test_perplexity_budget_surfaces
     status = pplx.get_daily_status()
-    assert status == {"calls_today": 25, "limit": 100, "remaining": 75, "pct": 25.0}
+    assert status == {"calls_today": 25, "limit": 100, "remaining": 75, "pct": 25.0,
+                      "surfaces": {}}
 
 
 # ── retry: widened to 3 retries (4 attempts), exponential backoff ──────────

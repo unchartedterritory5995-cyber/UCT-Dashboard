@@ -230,6 +230,24 @@ def calls_today(surface_prefix: str) -> int:
         return 0
 
 
+def calls_today_for_surface(surface: str) -> int:
+    """Count of ledger rows today (ET) for EXACTLY `surface` — the per-surface
+    twin of calls_today(). Exact, not a prefix: "pplx:ai_search" must not also
+    count "pplx:ai_search_deep" / "pplx:ai_search_brief"."""
+    try:
+        _init()
+        with _conn() as c:
+            row = c.execute(
+                "SELECT COUNT(*) FROM llm_route_cost_log "
+                "WHERE surface = ? AND at >= ?",
+                (surface, _et_midnight_utc_text())).fetchone()
+        return int(row[0] or 0)
+    except Exception as exc:  # noqa: BLE001 — a broken ledger must not 500 a read
+        logger.error("[narrative_cost_guard] call count read failed for %s: %s",
+                     surface, exc)
+        return 0
+
+
 def record(surface: str, model: str, input_tokens: int = 0,
            output_tokens: int = 0, web_searches: int = 0,
            cost_usd: float | None = None, cache_read_tokens: int = 0,
