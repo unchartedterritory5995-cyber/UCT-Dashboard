@@ -929,7 +929,7 @@ export default function GlobalVideoLayer() {
       </div>
 
       {ended && upNext && (
-        <div className={styles.nextCard} role="dialog" aria-label="Next up">
+        <div className={styles.nextCard} role="dialog" aria-label="Next up" data-escape-layer="">
           <img className={styles.endMark} src={brandMark} alt="" aria-hidden="true" />
           <div className={styles.endBrand}>UCT INTELLIGENCE</div>
           <div className={styles.nextLabel}>Next up</div>

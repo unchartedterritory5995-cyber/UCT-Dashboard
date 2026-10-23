@@ -101,6 +101,7 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
       className={styles.menu}
       style={{ left: clampedX, top: clampedY }}
       role="menu"
+      data-escape-layer=""
     >
       {rows}
     </div>

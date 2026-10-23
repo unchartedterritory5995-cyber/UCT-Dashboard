@@ -3,6 +3,7 @@ import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../t
 import PatternReview from './PatternReview'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import KeyboardHelpOverlay from '../../components/chart/KeyboardHelpOverlay'
+import ChartContextMenu from '../../components/chart/ChartContextMenu'
 import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
@@ -634,6 +635,22 @@ describe('Escape over the card goes to the top modal', () => {
   it('with the chart keyboard help open in fix mode, Escape closes the help and keeps fix mode', () => {
     const onClose = vi.fn()
     renderWithProviders(<><StudyReview /><KeyboardHelpOverlay open onClose={onClose} /></>)
+    fireEvent.click(screen.getByRole('button', { name: /Fix/ }))
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+  })
+})
+
+// Review R2: the chart's click-dismiss popups (its right-click menu, the earnings popover, the IPO
+// tag) close on Escape. They are not modal, so they carry data-escape-layer, which lib/topLayer.js
+// counts as a layer: Escape in fix mode with the menu open closes the menu, not the mode.
+describe('Escape over the card goes to an open chart popup', () => {
+  it('with the chart right-click menu open in fix mode, Escape closes the menu and keeps fix mode', () => {
+    const onClose = vi.fn()
+    const sections = [{ id: 's', items: [{ id: 'i', label: 'Reset view', onSelect: () => {} }] }]
+    renderWithProviders(<><StudyReview /><ChartContextMenu open x={10} y={10} sections={sections} onClose={onClose} /></>)
     fireEvent.click(screen.getByRole('button', { name: /Fix/ }))
     expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
     fireEvent.keyDown(document.body, { key: 'Escape' })

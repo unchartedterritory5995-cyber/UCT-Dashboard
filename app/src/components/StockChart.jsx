@@ -18511,6 +18511,7 @@ export default function StockChart({
         return (
           <div
             ref={ipoPopupRef}
+            data-escape-layer=""
             style={{
               position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
               background: 'var(--menu-bg, #0e0e10)',
