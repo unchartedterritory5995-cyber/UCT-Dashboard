@@ -384,7 +384,9 @@ def register_jobs(scheduler) -> bool:
         backup_flow_db_to_r2,
         CronTrigger(day_of_week="mon-sat", hour=2, minute=30,
                     timezone=ZoneInfo("America/New_York")),
-        id="flow_db_backup", max_instances=1, replace_existing=True)
+        id="flow_db_backup", max_instances=1, replace_existing=True,
+        # a busy executor at 02:30 must not silently drop the night (APScheduler default grace = 1s)
+        misfire_grace_time=3600, coalesce=True)
     logger.info("[flow-backup] scheduled nightly 02:30 ET Mon-Sat (retain=%dd)", RETAIN_DAYS)
     return True
 

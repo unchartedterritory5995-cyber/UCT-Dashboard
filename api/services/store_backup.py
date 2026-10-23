@@ -366,5 +366,7 @@ def register_jobs(scheduler) -> bool:
     from apscheduler.triggers.cron import CronTrigger
     from zoneinfo import ZoneInfo
     scheduler.add_job(run_backup, trigger=CronTrigger(hour=3, minute=5, timezone=ZoneInfo("America/New_York")),
-                      id="store_backup_nightly", max_instances=1, replace_existing=True)
+                      id="store_backup_nightly", max_instances=1, replace_existing=True,
+                      # a busy executor at 03:05 must not silently drop the night (default grace = 1s)
+                      misfire_grace_time=3600, coalesce=True)
     return True

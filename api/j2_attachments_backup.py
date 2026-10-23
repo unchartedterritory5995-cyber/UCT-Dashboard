@@ -360,6 +360,8 @@ def register_jobs(scheduler) -> bool:
     scheduler.add_job(
         backup_j2_attachments_to_r2,
         _trigger(),
-        id="j2_attachments_backup", max_instances=1, replace_existing=True)
+        id="j2_attachments_backup", max_instances=1, replace_existing=True,
+        # a busy executor at 02:45 must not silently drop the night (APScheduler default grace = 1s)
+        misfire_grace_time=3600, coalesce=True)
     logger.info("[j2-attach-backup] scheduled 02:45 ET Mon-Sat (retain=%dd)", _retain_days())
     return True
