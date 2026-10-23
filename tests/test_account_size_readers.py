@@ -262,3 +262,18 @@ def test_the_one_unset_default_is_100000_and_is_still_labelled():
     from api.services import voice_position_sizing as vps
     assert vps.UNSET_ACCOUNT_SIZE == 100_000.0
     assert "($100,000)" in vps.default_size_sentence()
+
+
+def test_scenario_simulator_is_bounded(conn, monkeypatch):
+    """Revived on the request path (the voice simulate_sizing_change tool): it reads at most
+    MAX_TRADES of the newest trades in at most 730 days, and says when it capped."""
+    from api.services import scenario_simulator as sim
+    monkeypatch.setattr(sim, "MAX_TRADES", 3)
+    aid = _member(conn, "sm9")
+    for i in range(5):
+        _trade(conn, "sm9", aid, pnl=100 + i,
+               exit_iso=datetime(2026, 1, 1 + i, tzinfo=timezone.utc).isoformat())
+    out = sim.simulate(user_id="sm9", rule="multiplier", rule_value=1.0, account_id=aid, days=100_000)
+    assert out["trade_count"] == 3 and out["trades_capped"] is True
+    assert out["actual_pnl"] == 102 + 103 + 104                     # the newest three
+    assert out["days"] == 730                                       # the window is clamped too

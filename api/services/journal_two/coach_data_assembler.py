@@ -140,8 +140,10 @@ def _recent_coach_memory(conn, user_id: str, account_id: str, limit: int) -> lis
 
 def _trades_in_range(
     conn, user_id: str, account_id: str,
-    start: datetime, end: datetime,
+    start: datetime, end: datetime, *, limit: int | None = None,
 ) -> list[dict]:
+    """Closed trades in [start, end), oldest first. `limit` keeps only the NEWEST that many (still
+    returned oldest first), so a request-path caller reads a bounded number of rows."""
     ids = resolve_account_scope(conn, user_id, account_id)
     if not ids:
         return []
@@ -163,10 +165,12 @@ def _trades_in_range(
            -- FIX-C: coaching aggregates must not be fed unvouched trades
            -- (phantom short / user opt-out). The trade list still shows them.
            AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)
-         ORDER BY t.exit_date ASC
+         ORDER BY t.exit_date {"DESC LIMIT ?" if limit else "ASC"}
         """,
-        [user_id, *ids, start_iso, end_iso],
+        [user_id, *ids, start_iso, end_iso, *([int(limit)] if limit else [])],
     ).fetchall()
+    if limit:
+        rows = list(reversed(rows))
     out = []
     for r in rows:
         out.append({
