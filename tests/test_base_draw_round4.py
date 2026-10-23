@@ -14,8 +14,14 @@ and the base metrics of that drawing. The cases:
   * every one of the 50 blind-judged packet cases (A and B, all drawn by round 4 only) and the 25 regression
     cases (round 2 draws);
   * from the lab's own 3,000-day DEV and 3,000-day held-out coverage samples: every day round 4 adds a drawing,
-    every-day subsets where round 2 draws, where a waived candidate reached a textbook floor and was stopped
-    there (the near misses, which are what make a moved threshold visible) and where nothing is drawn.
+    seeded subsets where round 2 draws, where a waived candidate reached a textbook floor and was stopped
+    there (the near misses, which are what make a moved threshold visible) and where nothing is drawn;
+  * 30 sessions with only 200..218 sessions of history, where the rising-average gate cannot be read and
+    decides the answer (a search over the lab's samples with that gate disabled in a copy of the lab rule);
+  * 20 drawn days with ONE high in the 30 sessions before the lip raised to the lip's high + 0.75 ATR (body
+    unchanged): the left-clear HIGH check alone decides no sampled day -- the body check and round 2's own
+    gates cover it on 14,000 searched days -- so these make that check visible. The answer is the
+    unmodified lab's.
 
 The rail must be able to fail: each control moves ONE threshold and asserts the reproduction breaks.
 """
@@ -95,6 +101,8 @@ def test_the_fixture_is_what_it_says():
     judged = [c for c in cs if c["id"].startswith("judged/")]
     regress = [c for c in cs if c["id"].startswith("regress/")]
     assert len(judged) == 50 and len(regress) == 25
+    assert sum(c["kind"] == "short_history" for c in cs) == 30
+    assert sum(c["kind"] == "left_clear_spike" for c in cs) == 20
     # every judged case is drawn by round 4 only; every regression case is drawn by round 2
     assert all(c["expect"]["draw"] is not None and c["expect"]["round2"] is None for c in judged)
     assert all(c["expect"]["round2"] is not None and c["expect"]["draw"] == c["expect"]["round2"] for c in regress)
@@ -107,9 +115,10 @@ def test_the_fixture_is_what_it_says():
     # non-vacuity: drawings round 2 does not make, AND near misses each textbook floor stopped
     assert sum(c["expect"]["draw"] is not None and c["expect"]["round2"] is None for c in cs) >= 80
     stopped = {g for c in cs for g in c["expect"]["near_miss"]}
-    assert {"tb_len", "tb_depth", "tb_higher_high_inside", "tb_left_not_clear", "tb_not_real_low",
-            "tb_advance", "tb_200_not_rising"} <= stopped, stopped
-    assert all(len(c["bars"]) >= 261 for c in cs)
+    assert {"tb_len", "tb_depth", "tb_higher_high_inside", "tb_left_not_clear", "tb_left_body_above",
+            "tb_not_real_low", "tb_advance", "tb_200_not_rising", "tb_short_history"} <= stopped, stopped
+    assert all(len(c["bars"]) >= 261 for c in cs if c["kind"] != "short_history")
+    assert all(200 <= len(c["bars"]) <= 218 for c in cs if c["kind"] == "short_history")
 
 
 def test_the_constants_are_the_labs_frozen_config():
