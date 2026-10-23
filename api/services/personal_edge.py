@@ -86,12 +86,24 @@ def closed_trades(user_id, account_id=None, *, limit=None) -> list[dict]:
 
 
 def _default_setup_perf_fn(user_id, account_id):
-    """Per-setup performance rows [{key, trade_count, win_rate, avg_r, total_r, ...}] over the
-    member's bounded closed-trade history (closed_trades). account None = the whole Compass scope.
-    Before 2026-10-23 this asked _exec_get_aggregates with no period (the last 7 days) and passed
-    None through to resolve_account_scope (`account_id IN (NULL)`): {} for every member."""
+    """Per-setup performance rows [{key, trade_count, win_rate, avg_r, total_r, ...}] from
+    _exec_get_aggregates' setup breakdown over its default period (the last 7 days, the lookback
+    every default-seam caller has always had). account None = the whole Compass scope.
+
+    Fix 2026-10-23 (ruling I-1): None used to reach resolve_account_scope as `account_id IN (NULL)`
+    (no rows), and the connection _exec_get_aggregates opened was never closed. The seam now opens
+    one connection, passes it, and closes it. The window is unchanged."""
+    from api.services import auth_db
     from api.services.journal_two import coach_chat_tools as cct
-    return cct._breakdown_trades(closed_trades(user_id, account_id), "setup")
+    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
+    scope = UNIFIED_ACCOUNT_ID if account_id is None else account_id
+    conn = auth_db.get_connection()
+    try:
+        out = cct._exec_get_aggregates(user_id=user_id, account_id=scope,
+                                       args={"breakdown_by": "setup"}, conn=conn)
+    finally:
+        conn.close()
+    return out.get("breakdown") or out.get("setup_performance") or []
 
 
 def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=None) -> dict:

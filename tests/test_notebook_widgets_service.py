@@ -1589,10 +1589,9 @@ def test_setup_edge_real_read_covers_every_account_and_all_time_and_never_writes
     acc_id = acc["id"] if isinstance(acc, dict) else acc
     old = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
     _insert_trade(auth_db, "u9", acc_id, "Flag", 2.0, old)
-    # The bare call (account None, the default seam) reads the same bounded all-time Compass scope
-    # since 2026-10-23; it used to scope to `IN (NULL)` and the last 7 days and answer {}.
-    monkeypatch.setattr(pe, "_resolve", lambda n: None)
-    assert {k: v["n"] for k, v in pe.edge_for_setups("u9").items()} == {"Flag": 1}
+    # Control, measured: the bare call (the default seam) keeps its 7-day lookback (ruling I-1), so
+    # a 60-day-old trade is outside it; the widget's own seam reads the bounded all-time history.
+    assert pe.edge_for_setups("u9") == {}
     tables = ("j2_accounts", "j2_trades", "j2_positions")
     before = tuple(_count(auth_db, t) for t in tables)
     out = nw.build("mySetupEdge", "u9", {}, now=NOW)

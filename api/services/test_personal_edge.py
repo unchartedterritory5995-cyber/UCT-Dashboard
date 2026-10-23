@@ -49,8 +49,9 @@ def test_edge_reads_breakdown_key_shape(monkeypatch):
 
 
 # -- the DEFAULT seam reads real trades (2026-10-23) ---------------------------------------
-# Before: account None became `account_id IN (NULL)` and the window was the last 7 days, so
-# every caller that did not inject a seam (Compass grading, AI Search) got {} for every member.
+# Before: account None became `account_id IN (NULL)` (a direct call answered {}), and the
+# connection the seam opened was never closed. The 7-day lookback every production caller
+# (Compass grading, AI Search) saw is KEPT: fix round 1 ruling I-1.
 
 def _temp_db(monkeypatch, tmp_path):
     from api.services import auth_db
@@ -59,13 +60,13 @@ def _temp_db(monkeypatch, tmp_path):
     return auth_db
 
 
-def _member_with_old_flag_trade(monkeypatch, tmp_path, user_id="u9"):
+def _member_with_flag_trade(monkeypatch, tmp_path, user_id="u9", days_ago=3):
     from datetime import datetime, timedelta, timezone
     auth_db = _temp_db(monkeypatch, tmp_path)
     from api.services.journal_two import accounts
     acc = accounts.get_or_migrate_default_account(user_id)      # setup only: this helper writes
     acc_id = acc["id"] if isinstance(acc, dict) else acc
-    when = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+    when = (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat()
     c = auth_db.get_connection()
     try:
         c.execute(
@@ -82,8 +83,8 @@ def _member_with_old_flag_trade(monkeypatch, tmp_path, user_id="u9"):
     return auth_db, acc_id
 
 
-def test_default_seam_with_no_account_reads_the_members_trades_all_time(monkeypatch, tmp_path):
-    _member_with_old_flag_trade(monkeypatch, tmp_path)
+def test_default_seam_with_no_account_reads_the_members_recent_trades(monkeypatch, tmp_path):
+    _member_with_flag_trade(monkeypatch, tmp_path)
     out = pe.edge_for_setups("u9")
     assert set(out) == {"Flag"}
     assert out["Flag"]["n"] == 1 and out["Flag"]["avg_r"] == 2.0
@@ -91,13 +92,13 @@ def test_default_seam_with_no_account_reads_the_members_trades_all_time(monkeypa
 
 
 def test_default_seam_with_a_real_account_reads_that_account(monkeypatch, tmp_path):
-    _, acc_id = _member_with_old_flag_trade(monkeypatch, tmp_path)
+    _, acc_id = _member_with_flag_trade(monkeypatch, tmp_path)
     assert set(pe.edge_for_setups("u9", acc_id)) == {"Flag"}
     assert pe.edge_for_setups("u9", "not-my-account") == {}
 
 
 def test_default_seam_closes_its_connection(monkeypatch, tmp_path):
-    auth_db, _ = _member_with_old_flag_trade(monkeypatch, tmp_path)
+    auth_db, _ = _member_with_flag_trade(monkeypatch, tmp_path)
     real = auth_db.get_connection
     opened = []
 
@@ -123,13 +124,24 @@ def test_default_seam_closes_its_connection(monkeypatch, tmp_path):
 
 
 def test_compass_grading_seam_gets_real_edge(monkeypatch, tmp_path):
-    _member_with_old_flag_trade(monkeypatch, tmp_path)
+    _member_with_flag_trade(monkeypatch, tmp_path)
     from api.services import grade_watchlist as gw
     assert set(gw._default_edge("u9", None)) == {"Flag"}
 
 
 def test_ai_search_seam_gets_real_edge(monkeypatch, tmp_path):
-    _, acc_id = _member_with_old_flag_trade(monkeypatch, tmp_path)
+    _, acc_id = _member_with_flag_trade(monkeypatch, tmp_path)
     from api.services import ai_search_personal as asp
     assert set(asp._edge_for("u9", acc_id)) == {"Flag"}
     assert "Flag +2.00R" in asp._fmt_edge("u9", acc_id)
+
+
+def test_default_seam_keeps_the_seven_day_lookback(monkeypatch, tmp_path):
+    """Ruling I-1: the defect was the scope and the leaked connection, not the window. A trade
+    eight days old is outside every default-seam caller's lookback, as it always was."""
+    _, acc_id = _member_with_flag_trade(monkeypatch, tmp_path, days_ago=8)
+    assert pe.edge_for_setups("u9") == {}
+    assert pe.edge_for_setups("u9", acc_id) == {}
+    from api.services import grade_watchlist as gw, ai_search_personal as asp
+    assert gw._default_edge("u9", acc_id) == {} and asp._edge_for("u9", acc_id) == {}
+
