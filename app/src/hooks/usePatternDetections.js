@@ -22,7 +22,8 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
   // includeStructures (AUTO_STRUCTURES_ENABLED, admins): the server adds the current
   // base boxes as `structures` and the learned auto-drawer's lines as `drawn`;
   // a paid member with AUTO_STRUCTURES_MEMBERS_ENABLED also sends it, and the server answers with
-  // the member set only (registry.DISPLAY_MEMBER_SET rows + the learned `drawn` on D/W/M).
+  // the member set only (registry.DISPLAY_MEMBER_SET rows; NO learned `drawn` block while
+  // auto_structures.MEMBER_LEARNED_LINES_ROUND is None).
   const key =
     enabled && sym && tf
       ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}&confirmed_only=false${includeStructures ? '&include_structures=true' : ''}`
@@ -45,6 +46,9 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
     // The learned auto-drawer (admin + AUTO_STRUCTURES_ENABLED, D/W/M): trendlines,
     // levels and the display rules that ride with them. null whenever absent.
     drawn: data?.drawn || null,
+    // Deal status (DEAL_STATUS_ENABLED): the stock is pending acquisition, so the server sent
+    // no drawings and this small marker instead. null whenever absent.
+    dealStatus: data?.deal_status?.pending ? data.deal_status : null,
     count: data?.count || 0,
     isLoading,
     error,

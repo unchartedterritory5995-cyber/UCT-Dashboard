@@ -8,80 +8,69 @@
 // learned line is never read as a detector's. Display-only; never clickable as a detection.
 
 import { nudgeLabelOffsets } from './learnedLabelNudge'
+import { LEARNED_COLOR, LEARNED_TAG, levelLabel, trendGeom, levelGeom } from './learnedGeometry'
 
-export const LEARNED_COLOR = '#a78bfa'
-export const LEARNED_TAG = 'learned'
-const EXTEND_PX = 48
+export { LEARNED_COLOR, LEARNED_TAG }
 
-function levelLabel(h) {
-  const price = Number(h.price).toFixed(2)
-  const what = h.label && h.label !== LEARNED_TAG ? ` · ${h.label}` : ''
-  return `${LEARNED_TAG}${what} ${price}`
-}
-
-function Trendline({ line, asofT, tToX, priceToY, index }) {
-  const x1 = tToX(line.t1)
-  const y1 = priceToY(line.p1)
-  let x2 = asofT != null ? tToX(asofT) : null
-  let y2 = priceToY(line.p_now)
-  if (x2 == null || y2 == null) {
-    x2 = tToX(line.t2)
-    y2 = priceToY(line.p2)
-  }
-  if (x1 == null || y1 == null || x2 == null || y2 == null || x2 - x1 < 1) return null
-  const slope = (y2 - y1) / (x2 - x1)
-  const xe = x2 + EXTEND_PX
-  const ye = y2 + slope * EXTEND_PX
+function Trendline({ line, asofT, tToX, priceToY, index, dropLabel = false }) {
+  const g = trendGeom(line, asofT, tToX, priceToY)
+  if (!g) return null
+  const { x1, y1, xe, ye } = g
   return (
-    <g data-shape="learned-trendline" data-learned-index={index}>
+    <g data-shape="learned-trendline" data-learned-index={index} data-label-dropped={dropLabel ? '1' : undefined}>
       <title>{`${LEARNED_TAG} trendline${line.why ? ` — ${line.why}` : ''}`}</title>
       <line x1={x1} y1={y1} x2={xe} y2={ye} stroke={LEARNED_COLOR} strokeWidth={1.5}
         strokeDasharray="8,4" opacity={0.85} />
-      <text x={xe + 4} y={ye + 3} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
-        style={{ pointerEvents: 'none' }}>
-        {LEARNED_TAG}
-      </text>
+      {!dropLabel && (
+        <text x={xe + 4} y={ye + 3} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
+          style={{ pointerEvents: 'none' }}>
+          {LEARNED_TAG}
+        </text>
+      )}
     </g>
   )
 }
 
-function Level({ level, asofT, tToX, priceToY, index, labelDy = 0 }) {
-  const y = priceToY(level.price)
-  if (y == null) return null
-  const xEnd = asofT != null ? tToX(asofT) : null
-  let x1 = level.t_from != null ? tToX(level.t_from) : null
-  if (xEnd == null && x1 == null) return null
-  const x2 = (xEnd ?? x1) + EXTEND_PX
-  if (x1 == null || x1 > x2 - EXTEND_PX) x1 = x2 - EXTEND_PX * 2
+function Level({ level, asofT, tToX, priceToY, index, labelDy = 0, dropLabel = false }) {
+  const g = levelGeom(level, asofT, tToX, priceToY)
+  if (!g) return null
+  const { x1, x2, y } = g
   return (
-    <g data-shape="learned-level" data-learned-source={level.source || ''} data-learned-index={index}>
+    <g data-shape="learned-level" data-learned-source={level.source || ''} data-learned-index={index}
+      data-label-dropped={dropLabel ? '1' : undefined}>
       <title>{level.why ? `${levelLabel(level)} — ${level.why}` : levelLabel(level)}</title>
       <line x1={x1} y1={y} x2={x2} y2={y} stroke={LEARNED_COLOR} strokeWidth={1.25}
         strokeDasharray="8,4" opacity={0.8} />
-      <text x={x2 + 4} y={y + 3 + labelDy} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
-        style={{ pointerEvents: 'none' }} data-label-dy={labelDy || undefined}>
-        {levelLabel(level)}
-      </text>
+      {!dropLabel && (
+        <text x={x2 + 4} y={y + 3 + labelDy} fontSize="10" fill={LEARNED_COLOR} opacity={0.9}
+          style={{ pointerEvents: 'none' }} data-label-dy={labelDy || undefined}>
+          {levelLabel(level)}
+        </text>
+      )}
     </g>
   )
 }
 
-export default function LearnedDrawn({ drawn, tToX, priceToY }) {
+// `droppedLabels`: keys from learnedLabelItems whose TEXT is not drawn because it would print over a pattern
+// or metrics label (PatternOverlay decides; pattern and metrics text always win). The lines always draw.
+export default function LearnedDrawn({ drawn, tToX, priceToY, droppedLabels = null }) {
   if (!drawn) return null
   const trendlines = Array.isArray(drawn.trendlines) ? drawn.trendlines : []
   const horizontals = Array.isArray(drawn.horizontals) ? drawn.horizontals : []
   if (!trendlines.length && !horizontals.length) return null
   const asofT = drawn.asof_t ?? null
+  const dropped = (key) => !!droppedLabels && droppedLabels.has(key)
   // display only: labels of levels a few px apart are spaced vertically; the lines are not moved
   const labelDy = nudgeLabelOffsets(horizontals.map((h) => priceToY(h.price) ?? null))
   return (
     <g data-layer="learned" style={{ pointerEvents: 'none' }}>
       {trendlines.map((line, i) => (
-        <Trendline key={`tl${i}`} line={line} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i} />
+        <Trendline key={`tl${i}`} line={line} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i}
+          dropLabel={dropped(`tl${i}`)} />
       ))}
       {horizontals.map((level, i) => (
         <Level key={`h${i}`} level={level} asofT={asofT} tToX={tToX} priceToY={priceToY} index={i}
-          labelDy={labelDy[i]} />
+          labelDy={labelDy[i]} dropLabel={dropped(`h${i}`)} />
       ))}
     </g>
   )

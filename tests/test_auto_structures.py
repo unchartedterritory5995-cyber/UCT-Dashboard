@@ -358,8 +358,8 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
 
 
 def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
-    """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows and the
-    learned drawer. bull_flag IS member set, but only as the round-9 drawing code stamped it: this
+    """The member set (registry.DISPLAY_MEMBER_SET, blind-confirmed): flat_base rows (the
+    learned drawer is withheld from members: MEMBER_LEARNED_LINES_ROUND = None). bull_flag IS member set, but only as the round-9 drawing code stamped it: this
     row carries no draw_round stamp, so it is not served (fail closed). bc:flat-base IS member set,
     but only as its pivot line: this BOX was built without bars, so it carries no pivot stamp and
     would draw the full box -- a member is not served it (tests/test_member_drawing_set.py)."""
@@ -369,7 +369,7 @@ def test_member_flag_on_serves_only_the_member_set(monkeypatch, _box_and_drawn):
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
     assert body["count"] == 1
     assert "structures" not in body          # an unstamped bc:flat-base box is not pivot-only
-    assert "drawn" in body
+    assert "drawn" not in body               # learned lines withheld from members (MEMBER_LEARNED_LINES_ROUND)
     # intraday: rows only (the boxes and the learned drawer are daily geometry)
     intra = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(
         STRUCT_URL.replace("tf=D", "tf=5")).json()

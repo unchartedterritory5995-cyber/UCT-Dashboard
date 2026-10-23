@@ -1,10 +1,12 @@
 """The MEMBER drawing set (owner-approved 2026-10-17): what a PAID member's chart is drawn while
 AUTO_STRUCTURES_MEMBERS_ENABLED is on. Exactly the seven types that passed two independent blind
-packets: learned levels, learned trendlines (the `drawn` block, auto_draw.py), flat_base and the
+packets: flat_base and the
 MA pullback v5 (uct_pullback_ma_v5, otherwise INTERNAL) at 331774fc5a; the bc:flat-base PIVOT LINE
 (box off; R5c 2.40 [2.10, 2.67] and bcflat-c2 2.30 [2.03, 2.57], lab/geometry_eval
 REPORT_BCFLAT_C2.md); and bull_flag AS THE ROUND-9 DRAWING CODE DRAWS IT (8d033ec7d2; team_bf9a
 2.43 [2.13, 2.73] and team_bf9b 2.40 [2.17, 2.63], lab/geometry_eval REPORT_BULLFLAG_R9.md).
+(The learned levels + trendlines -- the `drawn` block, auto_draw.py -- passed too, but are WITHHELD
+from members since 2026-10-23 until rebuilt to textbook rules: tests/test_member_learned_lines_withheld.py.)
 Nothing else: not bc:cup-with-handle, not another internal uct_* id, not an experimental / hidden /
 levels-layer row, not a bc:flat-base whose pivot stamp is missing (that would draw the full box,
 which nobody judged), and not a bull_flag that is stale or does not carry the round-9 stamp
@@ -246,18 +248,20 @@ def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, call
     # bc:flat-base: exactly ONE base box, the pivot-only one; the cup, the square box and the
     # unstamped flat-base are not served
     assert [s["pattern_id"] for s in body["structures"]] == ["bc:flat-base"]
-    drawn = body["drawn"]
-    assert drawn["horizontals"] and drawn["trendlines"]    # learned levels + learned trendlines
-    assert set(body) == {"sym", "tf", "detections", "count", "structures", "drawn"}
-    # The seven types, and nothing else that draws.
+    # The learned levels + trendlines (`drawn`) are WITHHELD from members since 2026-10-23 (owner:
+    # rebuild to textbook support/resistance first; auto_structures.MEMBER_LEARNED_LINES_ROUND = None,
+    # railed in tests/test_member_learned_lines_withheld.py). The fixture's drawn_for still answers,
+    # so its absence here is the gate, not an empty drawer.
+    assert "drawn" not in body
+    assert set(body) == {"sym", "tf", "detections", "count", "structures"}
+    # The confirmed types, and nothing else that draws.
     types = ({r["pattern_id"] for r in body["detections"]}
-             | {s["pattern_id"] for s in body["structures"]}
-             | {"learned_levels", "learned_trendlines"})
+             | {s["pattern_id"] for s in body["structures"]})
     # (this fixture's structures carry no base drawing and no stamped cup; bc:base reaching a member is
     # railed in tests/test_base_draw_member_drawing.py, the cup in tests/test_cup_tier_member_drawing.py)
     # (nor an inside-day drawing: tests/test_inside_day_draw_member_drawing.py)
     # (nor a double-bottom drawing: tests/test_shape_draw.py)
-    assert types == (MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom"} - STAMP_GATED) | {"learned_levels", "learned_trendlines"}
+    assert types == MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom"} - STAMP_GATED
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):

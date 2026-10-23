@@ -4,12 +4,17 @@
 // MA…) and for a trusted detector's breakout pivot (levels.entry). Unlike HorizontalLine,
 // which spans the whole chart, this runs from the first anchor to the last (and on to
 // `extendRight` px past it), so a level reads as belonging to the structure that made it.
+import { useContext } from 'react'
 import { getColor, getOpacity } from './style'
+import { LabelLayoutContext, labelDyFor } from './labelLayoutContext'
 
 // `faint` (cup round 9): a reference line drawn quieter than the level it sits beside -- thinner,
 // a sparser dash and ~45% of the detection's opacity -- so a cup's rim reference never reads as the pivot.
 // `role` is stamped as data-role for the overlay's tests and for anything that needs to tell the two apart.
 export default function LevelSegment({ detection, tToX, priceToY, onClick, extendRight = 0, dashed = true, faint = false, role }) {
+  // display only: the collision pass may move the TEXT down; the line never moves
+  const layout = useContext(LabelLayoutContext)
+  const labelDy = labelDyFor(layout, detection?.id)
   const anchors = detection?.geometry?.anchors || []
   if (!anchors.length) return null
   const price = anchors[0].price
@@ -43,8 +48,8 @@ export default function LevelSegment({ detection, tToX, priceToY, onClick, exten
         opacity={opacity}
       />
       {label && (
-        <text x={x2 + 4} y={y + 3} fontSize="10" fill={color} opacity={opacity}
-          style={{ pointerEvents: 'none' }}>
+        <text x={x2 + 4} y={y + 3 + labelDy} fontSize="10" fill={color} opacity={opacity}
+          style={{ pointerEvents: 'none' }} data-label-dy={labelDy || undefined}>
           {label}
         </text>
       )}
