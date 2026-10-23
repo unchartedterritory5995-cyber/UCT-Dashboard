@@ -71,8 +71,8 @@ def member_set_account_size(size, marked=None) -> float | None:
 
     `marked` is the member-set marker (j2_accounts.account_size_set; `accountSizeSet` in a
     settings dict). Marked = the member's size, whatever its value, so a member who types exactly
-    100,000 counts as set. Unmarked = the old rule: missing, zero, negative, non-finite,
-    non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE` (the placeholder the Default-row migration
+    100,000 counts as set. Unmarked = the old rule: missing, zero, NaN, non-numeric, or exactly
+    `_DEFAULT_ACCOUNT_SIZE` (the placeholder the Default-row migration
     writes) is unset. A write marks it when it changes the stored size (`marked_after_write`), a
     broker sync always does, and db._backfill_account_size_marker marked every pre-marker row
     whose size was not the placeholder."""
@@ -80,7 +80,9 @@ def member_set_account_size(size, marked=None) -> float | None:
         v = float(size)
     except (TypeError, ValueError):
         return None
-    if not v or v != v or v in (float("inf"), float("-inf")) or v < 0:
+    # Base's rule, unchanged except for the marker: a NEGATIVE size (a broker's margin debt) is
+    # still the member's and is returned, so the `size > 0` checks it switches off stay off.
+    if not v or v != v:
         return None
     if v == _DEFAULT_ACCOUNT_SIZE and not marked:
         return None
@@ -114,13 +116,12 @@ def own_account_size(src) -> float | None:
 
 
 def account_size_of(src) -> tuple[float, bool]:
-    """(size, is_default): the member's own size, or voice_position_sizing.UNSET_ACCOUNT_SIZE
-    flagged default when they set none."""
-    own = own_account_size(src)
-    if own is not None:
-        return own, False
-    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
-    return UNSET_ACCOUNT_SIZE, True
+    """(size, is_default) for an enforcement reader: exactly the size base read
+    (`float(raw or 0)`), except that the unset placeholder is the ONE default
+    (voice_position_sizing.UNSET_ACCOUNT_SIZE, equal to it), flagged. A size of 0 or less, or no
+    settings at all, stays 0 / itself, never the default, so the checks base switched off stay
+    off (fix round 2, finding 3)."""
+    return _enforcement_size(src)
 
 
 #: The PUT body key the settings modal sends when the member saved the size field (fix 1).

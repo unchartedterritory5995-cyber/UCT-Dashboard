@@ -91,28 +91,21 @@ def test_hard_check_risk_above_cap_returns_skip(db_conn):
     assert "risk" in result["paragraph"].lower()
 
 
-def test_hard_check_account_size_unset_sizes_on_the_default_and_says_so(db_conn):
-    """Round B: an unset size (0 here, or the migrated placeholder) is the ONE unset size,
-    voice_position_sizing.UNSET_ACCOUNT_SIZE, flagged default with the shared sentence. It was an
-    ERROR verdict for 0 while the placeholder read as a real 100,000."""
+def test_hard_check_account_size_unset_returns_error(db_conn):
+    """A size of 0 is base's "not configured" ERROR (restored in Round B fix 2, finding 3: a size
+    of 0 or less is never the default)."""
     from api.services.journal_two import pre_trade_verdict as ptv
     from api.services.journal_two import accounts as accounts_service
-    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE, default_size_sentence
     acc = accounts_service.get_or_migrate_default_account("u_v", conn=db_conn)
     db_conn.execute("UPDATE j2_accounts SET account_size = 0 WHERE id = ?", (acc["id"],))
     db_conn.commit()
-    fake = FakeVerdictClient(json.dumps({"label": "GO", "paragraph": "ok", "factors": ["a"]}))
     result = ptv.generate_verdict(
         user_id="u_v", account_id=acc["id"],
         params={"symbol": "NVDA", "side": "Long", "shares": 100,
                 "entry_price": 200.0, "stop_price": 198.0, "setup": "Bull Flag"},
-        client=fake, conn=db_conn,
+        conn=db_conn,
     )
-    assert result["label"] == "GO"
-    assert result["risk_pct"] == pytest.approx(200 / UNSET_ACCOUNT_SIZE * 100)
-    assert result["account_size_is_default"] is True
-    assert default_size_sentence() in result["factors"]
-    assert default_size_sentence() in fake.calls[0]["user_message"]
+    assert result["label"] == "ERROR"
 
 
 def test_hard_check_daily_loss_limit_breached_returns_skip(db_conn):

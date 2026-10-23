@@ -318,3 +318,41 @@ def test_unified_pre_trade_is_base_error_with_no_model_call_and_no_charge(conn, 
                                client=fake, conn=conn)
     assert out["label"] == "ERROR" and out["hard_check_failed"] == "account_size_unset"
     assert fake.calls == [] and charged == []
+
+
+@pytest.mark.parametrize("equity", [0.0, -2_000.0])
+def test_a_non_positive_size_keeps_the_base_checks_off(conn, equity):
+    """A broker net-liq of 0 or less (margin debt) is marked set and kept as is. Base read the raw
+    value, so every `size > 0` check was off: pre-trade ERROR, no daily-loss lock, no tilt
+    threshold, sizing curve "not configured". It must never become the 100,000 default."""
+    from api.services.journal_two import (accounts, pre_trade_verdict as ptv, discipline,
+                                          interventions as iv, coach_chat_tools as cct)
+    from api.services.journal_two.broker import balances
+    aid = _member(conn, "np1", dailyLossLimitPct=3, maxRiskPerTradePct=1)
+    balances.write_balances("np1", {"id": "ba", "j2AccountId": aid}, [], [], conn=conn,
+                            broker_total=equity)
+    s = accounts.get_account_settings("np1", aid, conn=conn)
+    if equity < 0:
+        assert accounts.account_size_of(s) == (equity, False)
+    else:
+        # base `float(0 or 0)`; the trustworthy-equity guard leaves the stored size, so assert the
+        # helper on the zero value itself
+        assert accounts.account_size_of({**s, "accountSize": 0.0}) == (0.0, False)
+        conn.execute("UPDATE j2_accounts SET account_size = 0 WHERE id = ?", (aid,))
+        conn.commit()
+    _trade(conn, "np1", aid, pnl=-3_500)
+    out = ptv.generate_verdict(user_id="np1", account_id=aid, conn=conn,
+                               params={"symbol": "NVDA", "side": "Long", "shares": 30,
+                                       "entry_price": 100, "stop_price": 50})
+    assert out["label"] == "ERROR"
+    assert discipline.compute_discipline_state("np1", aid, conn=conn)["locked"] is False
+    assert iv._check_daily_loss_approach(conn, user_id="np1", account_id=aid) is None
+    assert cct._exec_analyze_sizing_curve(user_id="np1", account_id=aid, args={}, conn=conn) == \
+        {"buckets": [], "note": "account size not configured"}
+
+
+def test_the_predicate_keeps_a_marked_non_positive_size_as_base_did():
+    from api.services.journal_two import accounts
+    assert accounts.member_set_account_size(-2_000, True) == -2_000.0
+    assert accounts.member_set_account_size(-2_000) == -2_000.0      # base returned it too
+    assert accounts.member_set_account_size(0, True) is None          # base: `not v`
