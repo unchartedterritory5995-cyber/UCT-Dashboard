@@ -137,6 +137,12 @@ TIER_COSTLY = "120/minute"
 #: Anonymous-writable intake (waitlist, page analytics, client error reports).
 #: A browser posts these a few times per page view at most.
 TIER_INTAKE = "60/minute"
+#: The Trader Archive's post thumbnails. The Ticker view lists up to 500 posts (the
+#: route's default `limit`), each with up to 4 lazily loaded <img> thumbnails, so a
+#: fast scroll to the end of a heavily posted name asks for ~2,000 images inside a
+#: minute. 2,400 is that plus 20%. The bytes are immutable (7-day Cache-Control), so
+#: only a member's first view of a post spends this at all.
+TIER_IMAGES = "2400/minute"
 
 
 class Family(NamedTuple):
@@ -322,6 +328,14 @@ FAMILIES: dict[str, Family] = {
          "/api/flow-backup", "/api/watchdog", "/api/theme-engine",
          # TAS's require_admin status read (the tape itself is under /api/stream).
          "/api/time-and-sales"),
+    ),
+    "archive-images": Family(
+        TIER_IMAGES,
+        "The Trader Archive's post thumbnail bytes (require_paid). Static, immutable "
+        "images, not reads of record: a page of posts mounts many at once, so they get "
+        "their own bucket rather than spending the member's research budget, and "
+        "market-data's 1200/minute is below one fully scrolled Ticker view.",
+        ("/api/wisdom/archive/image",),
     ),
     "study-review": Family(
         TIER_BULK,

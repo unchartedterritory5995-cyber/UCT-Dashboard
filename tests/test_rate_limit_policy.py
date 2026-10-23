@@ -550,6 +550,7 @@ PINNED_FAMILIES = [
     ("/api/study/admin/review", "study-review"),
     ("/api/wisdom/archive/ticker/NVDA", "research"),
     ("/api/wisdom/team-calls", "research"),
+    ("/api/wisdom/archive/image/img_1", "archive-images"),
     ("/api/tsdr-lessons/link-transcript", "internal"),
     ("/api/time-and-sales/status", "admin-ops"),
 ]
