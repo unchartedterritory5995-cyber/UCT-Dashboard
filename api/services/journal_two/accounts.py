@@ -123,17 +123,32 @@ def account_size_of(src) -> tuple[float, bool]:
     return UNSET_ACCOUNT_SIZE, True
 
 
-def marked_after_write(prior, new_size) -> bool:
-    """The marker a settings write leaves: set when it CHANGES the stored size (or it was already
-    set). `prior` is the stored settings dict, or None when there is none yet (the seed default).
+#: The PUT body key the settings modal sends when the member saved the size field (fix 1).
+ACCOUNT_SIZE_TOUCHED_KEY = "accountSizeTouched"
+
+
+def size_touched(payload) -> bool:
+    """True only when the request says the member saved the size field (a literal True)."""
+    return isinstance(payload, dict) and payload.get(ACCOUNT_SIZE_TOUCHED_KEY) is True
+
+
+def marked_after_write(prior, new_size, touched: bool = False) -> bool:
+    """The marker a settings write leaves: set when the member saved the size field (`touched`,
+    even at an unchanged value), when the write CHANGES the stored size, or when it was already
+    set. `prior` is the stored settings dict, or None when there is none yet (the seed default).
     The legacy j2_settings PUT carries it in its JSON; the Default-row migration reads it."""
     size, marked = _size_and_marker(prior if prior else {"accountSize": _DEFAULT_ACCOUNT_SIZE})
-    if marked:
+    if marked or touched:
         return True
     try:
         return float(new_size) != float(size)
     except (TypeError, ValueError):
         return True
+
+
+def _unset_account_size() -> float:
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    return UNSET_ACCOUNT_SIZE
 
 
 def _marker_for_seed(size, marked=None) -> int | None:
@@ -1196,7 +1211,8 @@ def upsert_account_settings(
         conn.execute(
             """
             UPDATE j2_accounts
-               SET account_size_set = CASE WHEN account_size = ? THEN account_size_set ELSE 1 END,
+               SET account_size_set = CASE WHEN ? THEN 1 WHEN account_size = ? THEN account_size_set
+                                           ELSE 1 END,
                    account_size = ?, default_stop = ?, position_closing = ?,
                    breakeven_range = ?, setups = ?, setup_rules = ?,
                    share_journal_data = ?,
@@ -1224,6 +1240,9 @@ def upsert_account_settings(
                 # block on every save, so an untouched placeholder must not read as the member's choice.
                 # SQLite evaluates every SET expression against the row as it was, so the CASE reads
                 # the OLD size.
+                # The member saved the size field (the modal's accountSizeTouched): set, whatever
+                # the value -- this is how typing exactly the placeholder counts.
+                1 if size_touched(payload) else 0,
                 float(full_validated["accountSize"]),
                 float(full_validated["accountSize"]),
                 json.dumps(full_validated["defaultStop"]),
@@ -1369,6 +1388,10 @@ def _account_to_settings(acc: dict[str, Any], *, conn: sqlite3.Connection | None
             "accountSize": float(row["account_size"]),
             # The member-set marker (raw); readers ask own_account_size / account_size_of, never this.
             ACCOUNT_SIZE_SET_KEY: bool(row["account_size_set"]) if "account_size_set" in keys else False,
+            # The predicate's answer, so a client never re-derives "unset" from the value: True =
+            # the size above is not the member's, and readers use defaultAccountSize, labelled.
+            "accountSizeIsDefault": own_account_size(row) is None,
+            "defaultAccountSize": _unset_account_size(),
             "defaultStop": json.loads(row["default_stop"]),
             "positionClosing": row["position_closing"],
             "breakevenRange": json.loads(row["breakeven_range"]),

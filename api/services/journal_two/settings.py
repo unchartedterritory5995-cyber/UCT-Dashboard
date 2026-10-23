@@ -495,7 +495,7 @@ def upsert_settings(
         except (TypeError, ValueError):
             prior = None
         validated[_accounts.ACCOUNT_SIZE_SET_KEY] = _accounts.marked_after_write(
-            prior, validated["accountSize"])
+            prior, validated["accountSize"], touched=_accounts.size_touched(payload))
         if row is None:
             new_id = str(uuid.uuid4())
             conn.execute(

@@ -167,3 +167,36 @@ def test_the_legacy_settings_path_carries_the_marker_into_the_default_row(conn):
     legacy.upsert_settings("u8", {**_PAYLOAD, "accountSize": 100_000}, conn=conn)   # untouched seed
     acc8 = accounts.get_or_migrate_default_account("u8", conn=conn)
     assert accounts.own_account_size(accounts.get_account_settings("u8", acc8["id"], conn=conn)) is None
+
+
+# ── Round B fix 1: the modal says when the member saved the size field ────────────────────────
+
+def test_saving_the_size_field_marks_it_set_even_at_an_unchanged_value(conn):
+    """The settings modal sends accountSizeTouched when the member saved the size field, so a member
+    on the placeholder who types exactly 100,000 counts as set (was: a no-op, still unset)."""
+    from api.services.journal_two import accounts
+    acc = accounts.get_or_migrate_default_account("t1", conn=conn)
+    out = accounts.upsert_account_settings(
+        "t1", acc["id"], {**_PAYLOAD, "accountSize": 100_000, "accountSizeTouched": True}, conn=conn)
+    assert out["accountSizeIsDefault"] is False
+    assert accounts.own_account_size(accounts.get_account_settings("t1", acc["id"], conn=conn)) == 100_000.0
+
+
+def test_an_untouched_save_leaves_the_placeholder_unset_and_says_so(conn):
+    from api.services.journal_two import accounts
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    acc = accounts.get_or_migrate_default_account("t2", conn=conn)
+    out = accounts.upsert_account_settings(
+        "t2", acc["id"], {**_PAYLOAD, "accountSize": 100_000, "accountSizeTouched": False}, conn=conn)
+    assert out["accountSizeIsDefault"] is True and out["defaultAccountSize"] == UNSET_ACCOUNT_SIZE
+    # a non-boolean "touched" is not a member action
+    out = accounts.upsert_account_settings(
+        "t2", acc["id"], {**_PAYLOAD, "accountSize": 100_000, "accountSizeTouched": "yes"}, conn=conn)
+    assert out["accountSizeIsDefault"] is True
+
+
+def test_the_legacy_settings_put_honours_the_touched_flag(conn):
+    from api.services.journal_two import accounts, settings as legacy
+    legacy.upsert_settings("t3", {**_PAYLOAD, "accountSize": 100_000, "accountSizeTouched": True}, conn=conn)
+    acc = accounts.get_or_migrate_default_account("t3", conn=conn)
+    assert accounts.own_account_size(accounts.get_account_settings("t3", acc["id"], conn=conn)) == 100_000.0
