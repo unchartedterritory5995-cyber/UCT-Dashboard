@@ -206,6 +206,19 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   30-word trim sentence be split. NEXT: apply cuts (retired bulk lists) and fixes (corrections,
   status confirmed under delegation, items stay draft) on branch feat/study-method-audit, regenerate,
   import once Railway is back; the hub then shows the survivors by station; sizing first.
+- **2026-10-23 ~16:20Z: BOTTOMS BATCH 2 LIVE ON THE POD, VERIFIED.** #460 merged as c375d1e97e, but
+  Railway SKIPPED web for it (docs-only, watch paths). The next api/ commit, 1aebdb1e6b, FAILED at
+  04:13Z on a Railway "failed to fetch snapshot" build error. The auto-mode classifier refused the
+  session's `railway redeploy --service web --yes` ("Production Deploy"), so the owner ran it with
+  `!`: deployment 630027ec built 37e4b17a07 (contains c375d1e97e), SUCCESS 15:55:30Z. Owner ran
+  import_bank --only regime.bottoms (8 updated, 0 flagged/misses/rejected) and retire_ids.py
+  retire_batch2.json (retired 9). Read back on the pod: the 8 kept are drafts with the new q,
+  choices, lesson and quote; the 9 cut are rejected. CHECK BY THE FULL PHRASE: the old q "which
+  signpost fired first?" also contains "signpost fired". `railway deployment list --service web
+  --json` gives status + commitHash per deployment id (no need to infer from commit statuses).
+  NEXT: owner reviews station by station in the Review hub (sizing first); audit the pod-only
+  detection drafts; spot/family fixtures and recall.bible wait on the rulings; report the two bad
+  SPY bars (2008-09-29, 2008-11-07) to the bars owner.
 - **2026-10-23 ~03:00Z to 03:40Z: BATCH 1 LIVE ON THE POD; #457 VERIFIED; BOTTOMS BATCH 2 BUILT.**
   #459 merged (b8c5cbb1b4; #458 merged with it), web SUCCESS 03:01:32Z. The owner signed in to the
   site and to the Railway CLI. #457 VERIFIED on the pod read-only (scratchpad pod_verify_scoring.py,
