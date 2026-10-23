@@ -282,6 +282,22 @@ def test_CONTROL_the_reader_sees_every_shape_of_a_second_read():
     assert not {n for _, n in _direct_reads(one)} & set(auth_router.NOTEBOOK_FLAGS)
 
 
+def test_CONTROL_a_write_is_not_a_read_and_a_read_beside_it_still_is():
+    """Review M-4: arming a gate (`os.environ[NAME] = "1"`, `del os.environ[NAME]`,
+    `os.environ.setdefault(NAME, ...)`) is not a second PARSE of it. The reader classifies by the
+    subscript's context, so writes are ignored, and the read planted in the same source must still
+    be seen (an ignore-everything reader passes the first half alone)."""
+    src = (
+        "import os\n"
+        "os.environ['J2_SHARE_LINKS_ENABLED'] = '1'\n"
+        "del os.environ['NOTEBOOK_PUBLISH_ENABLED']\n"
+        "os.environ.setdefault('NOTEBOOK_ONBOARDING_ENABLED', '0')\n"
+        "def r(): return os.environ['NOTEBOOK_WRITING_HELP_ENABLED'] == '1'\n"
+    )
+    seen = {name for _, name in _direct_reads(ast.parse(src))}
+    assert seen == {"NOTEBOOK_WRITING_HELP_ENABLED"}, seen
+
+
 # ── (c) flag_on is only for payload flags ───────────────────────────────────
 
 def _flag_on_literals(tree: ast.AST) -> list[tuple[int, str]]:

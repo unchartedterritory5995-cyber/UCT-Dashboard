@@ -285,10 +285,8 @@ def pin_sandbox(sandbox: str) -> dict:
     os.environ.pop("WORKER_ENABLED", None)          # web semantics (bars busy_timeout 2 s)
     # Mirror production's armed state for the two gates the levels part reads
     # (docs/feature_flags.json: both "armed" on web since 2026-10-08).
-    # A WRITE, spelled as one: `os.environ[NAME] = ...` is the subscript form the one-parse rail
-    # (tests/test_notebook_flag_parse.py) reads as a second READ of a Notebook flag. This probe
-    # never reads either gate; the server's own `flag_on` does, inside the run.
-    os.environ.update({"NOTEBOOK_SETUPS_BOARD_ENABLED": "1", "NOTEBOOK_CHART_PLAN_ENABLED": "1"})
+    os.environ["NOTEBOOK_SETUPS_BOARD_ENABLED"] = "1"
+    os.environ["NOTEBOOK_CHART_PLAN_ENABLED"] = "1"
     refuse_shared_root(applied)
     return {"pins": applied, "unpinnable": list(unpinnable), "conftest": conftest}
 

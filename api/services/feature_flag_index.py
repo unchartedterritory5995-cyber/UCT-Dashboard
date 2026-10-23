@@ -239,7 +239,9 @@ def _env_name(node: ast.AST, os_names: set[str] | None = None,
             if isinstance(a, ast.Name) and a.id in consts:
                 return consts[a.id]
     # os.environ["X"] — the form an AST-only-on-Call scan silently misses.
-    if isinstance(node, ast.Subscript):
+    # Only a LOAD is a read: `os.environ["X"] = "1"` (Store) and `del os.environ["X"]` (Del)
+    # arm or clear the variable and parse nothing (review M-4, 2026-10-23).
+    if isinstance(node, ast.Subscript) and isinstance(getattr(node, "ctx", None), ast.Load):
         v = node.value
         if isinstance(v, ast.Attribute) and v.attr == "environ":
             sl = node.slice
