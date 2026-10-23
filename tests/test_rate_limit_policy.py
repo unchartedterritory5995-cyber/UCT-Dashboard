@@ -535,3 +535,44 @@ def test_the_render_pages_are_EXEMPT_so_enforcement_cannot_fail_a_discord_render
     assert "render" not in rlp.FAMILIES
     # the control: an ordinary market-data read is still limited
     assert rlp.classify("/api/ticker-meta/NVDA")[0] != rlp.KIND_EXEMPT
+
+
+# ── chosen families, pinned ──────────────────────────────────────────────────
+#
+# The census proves every route is in SOME family; it cannot see a prefix
+# moved to the WRONG one (say /api/study into the 60/minute intake tier).
+# Each row is a concrete request path and the family it was placed in on
+# purpose, with the reason in rate_limit_policy.py beside the prefix.
+PINNED_FAMILIES = [
+    ("/api/study/today", "community-content"),
+    ("/api/study/attempts/12/step", "community-content"),
+    ("/api/wisdom/archive/ticker/NVDA", "research"),
+    ("/api/wisdom/team-calls", "research"),
+    ("/api/tsdr-lessons/link-transcript", "internal"),
+    ("/api/time-and-sales/status", "admin-ops"),
+]
+
+
+def _family_of(path, index=None):
+    hit = rlp.classify(path, index)
+    assert hit is not None and hit[0] == rlp.KIND_FAMILY, (path, hit)
+    return hit[1]
+
+
+@pytest.mark.parametrize("path,family", PINNED_FAMILIES)
+def test_each_new_prefix_is_in_the_family_it_was_placed_in(path, family):
+    assert _family_of(path) == family
+
+
+def test_THE_CONTROL_the_pin_sees_a_prefix_moved_to_another_family(monkeypatch):
+    # Move /api/study into public-intake in a copy of the table: the pin's
+    # lookup must then answer the new family, or the rows above prove nothing.
+    fams = dict(rlp.FAMILIES)
+    cc = fams["community-content"]
+    fams["community-content"] = cc._replace(
+        prefixes=tuple(p for p in cc.prefixes if p != "/api/study"))
+    pi = fams["public-intake"]
+    fams["public-intake"] = pi._replace(prefixes=pi.prefixes + ("/api/study",))
+    moved = rlp.build_index(fams)
+    assert _family_of("/api/study/today", moved) == "public-intake"
+    assert _family_of("/api/study/today") == "community-content"
