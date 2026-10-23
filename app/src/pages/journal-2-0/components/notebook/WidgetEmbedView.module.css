@@ -192,6 +192,16 @@
     padding: 8px 12px;
   }
 }
+/* Notebook widgets O4: a /calendar embed draws its day header (the date and its day navigation) in its
+   top-left corner. On the touch tier the toolbar is always shown with 44 px controls, so the overlay hid
+   that header at 820 and 390. There, as D1 does for snapshot widgets, the toolbar is a row in flow above
+   the body and the header starts below it. At 1200 px with a mouse the hover-reveal overlay is unchanged. */
+@media (max-width: 1024px), (hover: none) {
+  .frame[data-widget-embed-view='calendar'] .toolbar {
+    position: static;
+    margin: 6px 8px 4px;
+  }
+}
 /* While drawing, keep the frame visibly in-mode and its Done button findable. */
 .annotating { border-color: #3a4048; }
 /* Drawing needs canvas, not a postage stamp: while annotating, ANY embed

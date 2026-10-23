@@ -66,6 +66,7 @@ import useMarketOpen from '../hooks/useMarketOpen'
 import { getExtSessionCached, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
+import IpoFirstTradeTag from './chart/IpoFirstTradeTag'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
@@ -18501,31 +18502,7 @@ export default function StockChart({
           onClose={() => setEarningsPopup(null)}
         />
       )}
-      {ipoPopup && (() => {
-        const d = new Date(`${ipoPopup.date}T00:00:00Z`)
-        const label = isNaN(d.getTime())
-          ? ipoPopup.date
-          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-        // FIXED dark menu palette (gold label, white text) — matches the earnings
-        // popover exactly and never tints with the canvas. (--menu-* is the app's
-        // single fixed-dark menu palette; see tokens.css.)
-        return (
-          <div
-            ref={ipoPopupRef}
-            style={{
-              position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
-              background: 'var(--menu-bg, #0e0e10)',
-              border: '1px solid var(--menu-border, rgba(255,255,255,0.09))', borderRadius: 6,
-              padding: '5px 9px', font: "600 11px 'Instrument Sans', sans-serif",
-              color: 'var(--menu-text, #ededed)', whiteSpace: 'nowrap', cursor: 'default',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto',
-            }}
-          >
-            <span style={{ color: 'var(--menu-accent, #c9a84c)', fontWeight: 700, marginRight: 6 }}>IPO</span>
-            First trade · {label}
-          </div>
-        )
-      })()}
+      {ipoPopup && <IpoFirstTradeTag ref={ipoPopupRef} date={ipoPopup.date} x={ipoPopup.x} y={ipoPopup.y} />}
       {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
           <body>, so its position in this tree is irrelevant to layout.
 

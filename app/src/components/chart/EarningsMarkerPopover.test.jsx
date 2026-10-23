@@ -62,3 +62,12 @@ describe('EarningsMarkerPopover', () => {
     expect(onClose.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 })
+
+// N2: the popover closes on Escape and is not modal, so it marks itself as an Escape layer for
+// lib/topLayer.js (a page surface under it, like the study review card, then lets Escape through).
+describe('EarningsMarkerPopover is an Escape layer', () => {
+  it('its dialog carries data-escape-layer', () => {
+    render(<EarningsMarkerPopover data={MU} x={100} y={100} sym="MU" onClose={() => {}} />)
+    expect(screen.getByRole('dialog', { name: 'MU earnings' })).toHaveAttribute('data-escape-layer')
+  })
+})

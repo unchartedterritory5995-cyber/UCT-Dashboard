@@ -23,6 +23,7 @@ export default function MobileMoreSheet({
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
+  onSendToJournal,         // the desktop menu's "Send to Journal" (row hidden when absent)
   onDrawOnChart,           // expands the collapsed drawing toolbar (row hidden when absent)
   onEnterMultiChart,       // P14b — enters Multi-Chart grid mode (row hidden when absent)
   onOpenCompare,           // P14b — the desktop Tools → Compare Symbols panel (row hidden when absent)
@@ -61,6 +62,12 @@ export default function MobileMoreSheet({
             <span className={styles.rowIcon}><UIcon name="camera" size={17} gold={false} /></span>
             <span className={styles.rowLabel}>Share chart image</span>
             <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
+        {onSendToJournal && (
+          <button type="button" className={styles.row} onClick={() => { haptics.tap(); onClose(); onSendToJournal() }}>
+            <span className={styles.rowIcon}><UIcon name="journal" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Send to Journal</span>
           </button>
         )}
         <button type="button" className={styles.row} onClick={() => { onClose(); onOpenSettings?.() }}>

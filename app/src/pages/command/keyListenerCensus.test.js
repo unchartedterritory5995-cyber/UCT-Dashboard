@@ -265,6 +265,11 @@ const BASELINE = {
 // ⛔ THE STATED CEILING. Sum of every bucket in BASELINE. Only ever edited DOWN.
 const CEILING = 111
 
+// This is the test that runs the whole-tree AST walk first (census() is lazy and shared), so the
+// walk's cost lands here: about 5 s alone, and it went past the default 15 s inside a 70-file run.
+// Its own ceiling, set for a loaded box; the walk and every assertion are unchanged.
+const CENSUS_WALK_TIMEOUT_MS = 120_000
+
 describe('TERM-063 — the census can see (controls)', () => {
   const q = "'"
   const KD = 'key' + 'down'
@@ -304,7 +309,7 @@ describe('TERM-063 — the census can see (controls)', () => {
     // listeners; if this ever reads 0 the exclusion is hiding nothing and is stale.
     const own = censusOf(read(REGISTRY_FILE))
     expect(own.literal + own.orphan).toBeGreaterThan(0)
-  })
+  }, CENSUS_WALK_TIMEOUT_MS)
 })
 
 describe('TERM-063 — the raw key-listener ratchet', () => {

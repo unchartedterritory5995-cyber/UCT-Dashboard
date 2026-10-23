@@ -405,6 +405,28 @@ describe('TERM-063 — declared == registered (derived by AST)', () => {
   })
 })
 
+// ── a `surface` reason is a claim about where a binding is mounted; check the drill's ──
+describe('surface reasons name the pages that actually mount the binding', () => {
+  it('DrillPlayer is mounted only from the Desk, and no drill reason says otherwise', () => {
+    const importers = []
+    const walkDir = (dir) => {
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, ent.name)
+        if (ent.isDirectory()) { if (ent.name !== 'node_modules') walkDir(p) } else if (/\.(m?jsx?)$/.test(ent.name) && !/\.(test|spec)\./.test(ent.name)) {
+          if (/import\s+DrillPlayer\b[^;]*from\s+['"][^'"]*DrillPlayer['"]/.test(fs.readFileSync(p, 'utf8'))) {
+            importers.push(path.relative(SRC, p).split(path.sep).join('/'))
+          }
+        }
+      }
+    }
+    walkDir(SRC)
+    expect(importers).toEqual(['pages/desk/CoursesSection.jsx'])          // non-vacuity: the importer is found
+    const drillReasons = ACKNOWLEDGED_OVERLAPS.filter((o) => o.ids.some((id) => id.startsWith('drill.')))
+    expect(drillReasons.length).toBeGreaterThan(0)
+    for (const o of drillReasons) expect(o.why, o.ids.join(' <> ')).not.toMatch(/Study/)
+  })
+})
+
 // ── 2026-09-28: the video keys answer only UNMODIFIED ────────────────────────
 describe('video shortcuts never steal a modified chord', () => {
   const env = { document: { activeElement: null }, isMac: false }

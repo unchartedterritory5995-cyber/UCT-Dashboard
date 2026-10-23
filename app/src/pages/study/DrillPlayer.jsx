@@ -40,6 +40,7 @@ import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
 import styles from './DrillPlayer.module.css'
+import { registerShortcuts } from '../command/shortcutRegistry'
 
 export const LEAVE_COPY = 'Leave? Your answers so far are saved.'
 export const CHART_SLOW_MS = 2000
@@ -214,8 +215,8 @@ export default function DrillPlayer({
         if (choice != null) { e.preventDefault(); setState({ ...(state || {}), choice }) }
       }
     }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    // drill.primary: Enter. drill.choice: a BARE 1-4 (a modified digit is the browser's tab key).
+    return registerShortcuts({ 'drill.primary': onKey, 'drill.choice': onKey })
   }, [open, primary, locked, item, mod, state, setState, confirmOpen])
 
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps

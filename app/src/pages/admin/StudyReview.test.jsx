@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
+import { registerShortcuts } from '../command/shortcutRegistry'
+import KeyboardHelpOverlay from '../../components/chart/KeyboardHelpOverlay'
+import ChartContextMenu from '../../components/chart/ChartContextMenu'
 import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
@@ -280,6 +283,35 @@ describe('StudyReview card', () => {
     expect(screen.getByText('rejected')).toBeInTheDocument()
   })
 
+  it('Escape leaves the fix editor and the reject panel', () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.keyDown(document.body, { key: 'f' })
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'r' })
+    expect(screen.getByTestId('reject-panel')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByTestId('reject-panel')).not.toBeInTheDocument()
+  })
+
+  it('upper-case letters (Caps Lock) act like lower-case ones', async () => {
+    renderWithProviders(<StudyReview />)
+    fireEvent.keyDown(document.body, { key: 'N' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('TSLA')
+    fireEvent.keyDown(document.body, { key: 'P' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('NVDA')
+    fireEvent.keyDown(document.body, { key: 'F' })
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'R' })
+    expect(screen.getByTestId('reject-panel')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'A' })
+    await waitFor(() => expect(postCalls(REVIEW_URL)).toHaveLength(1))
+    expect(postCalls(REVIEW_URL)[0].body).toEqual({ action: 'approve' })
+  })
+
   it('N and P move through the queue', () => {
     renderWithProviders(<StudyReview />)
     fireEvent.keyDown(document.body, { key: 'n' })
@@ -552,5 +584,77 @@ describe('StudyReview hub', () => {
     expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=any')
     fireEvent.change(screen.getByTestId('feedback-scope'), { target: { value: 'items' } })
     expect(KEYS).toContain('/api/study/admin/feedback?unhandled=1&limit=500&screen=none')
+  })
+})
+
+// Review M4: one key press is answered by the topmost surface only. A stand-in modal layer (what
+// the command palette or a ticker popup is: role="dialog" aria-modal) opened over the surface, and
+// a live video binding, are the two things that used to answer the same press as well.
+const openModalLayer = () => {
+  const el = document.createElement('div')
+  el.setAttribute('role', 'dialog')
+  el.setAttribute('aria-modal', 'true')
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+describe('the card answers its keys only as the topmost surface', () => {
+  it('with a modal layer (palette, ticker popup) over the card, its keys do nothing; Shift+F belongs to the layer', () => {
+    renderWithProviders(<StudyReview />)
+    const close = openModalLayer()
+    fireEvent.keyDown(document.body, { key: 'n' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('NVDA')
+    fireEvent.keyDown(document.body, { key: 'F', shiftKey: true })
+    expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+    close()
+    fireEvent.keyDown(document.body, { key: 'n' })
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('TSLA')
+  })
+
+  it('F and Escape on the card do not also reach the video player keys', () => {
+    const fullscreen = vi.fn()
+    const escape = vi.fn()
+    const off = registerShortcuts({ 'video.fullscreen': fullscreen, 'video.escape': escape })
+    try {
+      renderWithProviders(<StudyReview />)
+      fireEvent.keyDown(document.body, { key: 'f' })
+      expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(screen.queryByTestId('fix-editor')).not.toBeInTheDocument()
+      expect(fullscreen).not.toHaveBeenCalled()
+      expect(escape).not.toHaveBeenCalled()
+      fireEvent.keyDown(document.body, { key: 'Escape' })   // card in view mode: not its key
+      expect(escape).toHaveBeenCalledTimes(1)
+    } finally { off() }
+  })
+})
+
+// Review R1: in fix mode, `?` on the card's chart opens the chart's Keyboard Shortcuts overlay, a
+// backdrop modal. Escape then closes only the overlay; the card stays in fix mode.
+describe('Escape over the card goes to the top modal', () => {
+  it('with the chart keyboard help open in fix mode, Escape closes the help and keeps fix mode', () => {
+    const onClose = vi.fn()
+    renderWithProviders(<><StudyReview /><KeyboardHelpOverlay open onClose={onClose} /></>)
+    fireEvent.click(screen.getByRole('button', { name: /Fix/ }))
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+  })
+})
+
+// Review R2: the chart's click-dismiss popups (its right-click menu, the earnings popover, the IPO
+// tag) close on Escape. They are not modal, so they carry data-escape-layer, which lib/topLayer.js
+// counts as a layer: Escape in fix mode with the menu open closes the menu, not the mode.
+describe('Escape over the card goes to an open chart popup', () => {
+  it('with the chart right-click menu open in fix mode, Escape closes the menu and keeps fix mode', () => {
+    const onClose = vi.fn()
+    const sections = [{ id: 's', items: [{ id: 'i', label: 'Reset view', onSelect: () => {} }] }]
+    renderWithProviders(<><StudyReview /><ChartContextMenu open x={10} y={10} sections={sections} onClose={onClose} /></>)
+    fireEvent.click(screen.getByRole('button', { name: /Fix/ }))
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
   })
 })

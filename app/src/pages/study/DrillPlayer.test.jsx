@@ -214,6 +214,17 @@ describe('DrillPlayer', () => {
     await answerChoice('Flat base')
     fireEvent.click(screen.getByTestId('primary-action'))
     await screen.findByText('Question 4 of 10')
+    // Every digit in the drill's chord reaches it: 3 and 4 pick the third and fourth choice.
+    fireEvent.keyDown(document.body, { key: '3' })
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'The target' })).toHaveAttribute('aria-checked', 'true'))
+    fireEvent.keyDown(document.body, { key: '4' })
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'The low' })).toHaveAttribute('aria-checked', 'true'))
+    // A modified digit is not a choice key (review M4): Ctrl/Cmd+1 is the browser's tab switch,
+    // Alt+1 the terminal's panel key. The 4th choice stays picked.
+    for (const mod of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
+      fireEvent.keyDown(document.body, { key: '1', ...mod })
+      expect(screen.getByRole('radio', { name: 'The low' })).toHaveAttribute('aria-checked', 'true')
+    }
     fireEvent.keyDown(document.body, { key: '1' })
     await waitFor(() => expect(screen.getByRole('radio', { name: 'The buy point' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: 'Enter' })

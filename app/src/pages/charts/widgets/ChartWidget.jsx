@@ -27,6 +27,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
@@ -38,16 +39,8 @@ import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 const ADD_WIDGET_TYPES = WORKSPACE_MENU_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
 
-// LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
-// business-day objects D/W/M ranges report). The registry's `ts` coercion
-// accepts both encodings — the same dual encoding the bars store uses.
-function lwcTimeToTs(t) {
-  if (typeof t === 'number' || typeof t === 'string') return t
-  if (t && typeof t === 'object' && t.year) {
-    return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
-  }
-  return undefined
-}
+// The chart capture (symbol, tf, visible range, merged settings) is built by ONE
+// shared builder, also used by the touch shell's Tools sheet (MobileChartsApp).
 
 // The whole chart shell — identity row, timeframe bar, meta strip, settings
 // modal, focus surface, StockChart — is ChartPane. What is left here is the
@@ -312,16 +305,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       // settings is the fully-MERGED blob (never a null opts.settings that
       // would re-resolve from the global seed later). All reads go through
       // refs so the entry never goes stale between effect runs.
-      getCaptureState: () => {
-        const range = paneRef.current?.getViewState?.()?.range || null
-        return {
-          symbol: symRef.current,
-          tf: tfRef.current,
-          from: range ? lwcTimeToTs(range.from) : undefined,
-          to: range ? lwcTimeToTs(range.to) : undefined,
-          settings: chartCsRef.current,
-        }
-      },
+      getCaptureState: () => chartJournalCapture({
+        pane: paneRef.current, symbol: symRef.current, tf: tfRef.current, settings: chartCsRef.current,
+      }),
       agent: {
         read: () => {
           const r = agentRef.current
@@ -548,16 +534,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // symbol, tf, merged settings, visible range) and land it as a widgetEmbed
   // — in the LAST-ACTIVE notebook note when one exists, else the capture
   // inbox. Fire the bars warm either way so the history outlives the session.
-  const buildJournalCapture = useCallback(() => {
-    const range = paneRef.current?.getViewState?.()?.range || null
-    return {
-      symbol: symRef.current,
-      tf: tfRef.current,
-      from: range ? lwcTimeToTs(range.from) : undefined,
-      to: range ? lwcTimeToTs(range.to) : undefined,
-      settings: chartCsRef.current,
-    }
-  }, [])
+  const buildJournalCapture = useCallback(() => chartJournalCapture({
+    pane: paneRef.current, symbol: symRef.current, tf: tfRef.current, settings: chartCsRef.current,
+  }), [])
 
   const handleSendToJournal = useCallback(async () => {
     closeCtx()

@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import Textarea from '../../components/ui/Textarea'
 import styles from './GoldReview.module.css'
+import { registerShortcuts } from '../command/shortcutRegistry'
 
 // Gold-set drawing review. Items are auto-drawn charts loaded in batches by an
 // ops script (POST /api/patterns/admin/gold-items); a trader confirms the seed
@@ -151,15 +152,14 @@ export default function GoldReview() {
     }
   }
 
-  useEffect(() => {
-    function onKey(e) {
+  // ] / [ step through the set. Bound through the shortcut registry (goldReview.step).
+  useEffect(() => registerShortcuts({
+    'goldReview.step': (e) => {
       if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === ']') { e.preventDefault(); go(1) }
       else if (e.key === '[') { e.preventDefault(); go(-1) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [go])
+    },
+  }), [go])
 
   if (error) {
     return <div className={styles.empty}>Could not load the gold set ({error.message}).</div>

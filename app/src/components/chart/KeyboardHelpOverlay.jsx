@@ -1,9 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import useFocusTrap from '../mobile/useFocusTrap';
 import styles from './KeyboardHelpOverlay.module.css';
 import { SHORTCUTS } from './keyboardShortcuts';
 
 
 export default function KeyboardHelpOverlay({ open, onClose }) {
+  const modalRef = useRef(null);
+  const closeRef = useRef(null);
+  // A modal holds focus: Close takes it on open, Tab stays inside (the shared trap), and focus
+  // returns to whatever opened the overlay when it closes.
+  useFocusTrap(!!open, modalRef);
+  useEffect(() => {
+    if (!open) return undefined;
+    const opener = document.activeElement;
+    closeRef.current?.focus();
+    return () => { if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus(); };
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -26,10 +38,10 @@ export default function KeyboardHelpOverlay({ open, onClose }) {
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Keyboard shortcuts">
+      <div ref={modalRef} className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
         <div className={styles.header}>
           <h2 className={styles.title}>Keyboard Shortcuts</h2>
-          <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
+          <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className={styles.groups}>
           {Object.entries(groups).map(([groupName, items]) => (

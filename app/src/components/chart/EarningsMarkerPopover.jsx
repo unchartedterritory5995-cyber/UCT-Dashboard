@@ -142,7 +142,7 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   }
 
   return createPortal(
-    <div ref={ref} className={styles.pop} style={style} role="dialog" aria-label={`${sym || ''} earnings`}>
+    <div ref={ref} className={styles.pop} style={style} role="dialog" aria-label={`${sym || ''} earnings`} data-escape-layer="">
       <div className={styles.head}>
         <div className={styles.titleWrap}>
           <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>

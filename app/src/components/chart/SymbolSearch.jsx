@@ -292,6 +292,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
             className={styles.dialog}
             style={themeVars || undefined}
             role="dialog"
+            aria-modal="true"
             aria-label="Symbol search"
           >
             <div className={styles.dialogHead}>

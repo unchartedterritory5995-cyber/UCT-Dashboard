@@ -7,6 +7,8 @@ import { LAYOUTS, parseLayoutId } from '../../charts/grid/gridLayouts'
 import useDrillWorkspace from '../../breadth/drill/drillWorkspace'
 import useScreenerGrid, { isGridLayout, DEFAULT_GRID_LAYOUT, PHONE_GRID_LAYOUT } from './useScreenerGrid'
 import styles from './FocusScreener.module.css'
+import { registerShortcuts } from '../../command/shortcutRegistry'
+import { modalLayerOpen } from '../../../lib/topLayer'
 
 // The Charts view: the screen's results on the /charts Multi-Chart grid (Finviz's Charts view,
 // TC2000's flip grid). The grid is the real MultiChartGrid, in a workspace host built like the
@@ -48,27 +50,31 @@ export default function ScreenerChartGrid({ rows, total, hasMore, onLoadMore, re
   useEffect(() => {
     if (!menuOpen) return undefined
     const onDown = e => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false) }
-    const onKey = e => { if (e.key === 'Escape') setMenuOpen(false) }
     document.addEventListener('mousedown', onDown, true)
-    window.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('mousedown', onDown, true); window.removeEventListener('keydown', onKey) }
+    // A modal layer above the page (the palette, a settings dialog) owns Escape; otherwise the
+    // menu closes and claims the press (window capture), so nothing else answers it.
+    const offKeys = registerShortcuts({
+      'screener.gridMenuClose': (e) => {
+        if (modalLayerOpen()) return
+        e.stopPropagation()
+        setMenuOpen(false)
+      },
+    })
+    return () => { document.removeEventListener('mousedown', onDown, true); offKeys() }
   }, [menuOpen])
   const workspace = useDrillWorkspace({ initialSym: rows[0]?.ticker || null, chartsTheme })
 
   // PageDown / PageUp turn the page from anywhere in the view, except while typing (a cell's
   // ticker search). The grid's own keys (timeframes, letters to search) are left alone.
   const { next, prev, canNext, canPrev } = grid
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== 'PageDown' && e.key !== 'PageUp') return
+  useEffect(() => registerShortcuts({
+    'screener.gridPage': (e) => {
       const t = e.target
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       e.preventDefault()
       if (e.key === 'PageDown') { if (canNext) next() } else if (canPrev) prev()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [next, prev, canNext, canPrev])
+    },
+  }), [next, prev, canNext, canPrev])
 
   const count = useMemo(() => {
     if (!grid.range) return 'No results'

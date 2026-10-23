@@ -145,6 +145,18 @@ describe('Gold set review mode', () => {
     expect(screen.getByTestId('gold-ticker')).toHaveTextContent('AAAA')
   })
 
+  it('] and [ with Ctrl, Cmd or Alt held do nothing, as before', () => {
+    renderWithProviders(<GoldReview />)
+    expect(screen.getByTestId('gold-ticker')).toHaveTextContent('AAAA')
+    for (const mod of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
+      fireEvent.keyDown(window, { key: ']', ...mod })
+      expect(screen.getByTestId('gold-ticker')).toHaveTextContent('AAAA')
+    }
+    // Shift is not a modifier the handler ever refused: Shift+] still steps.
+    fireEvent.keyDown(window, { key: ']', shiftKey: true })
+    expect(screen.getByTestId('gold-ticker')).toHaveTextContent('BBBB')
+  })
+
   it('reset restores the auto-drawn seed after an edit', () => {
     renderWithProviders(<GoldReview />)
     fireEvent.click(screen.getByText('stub-add-line'))
