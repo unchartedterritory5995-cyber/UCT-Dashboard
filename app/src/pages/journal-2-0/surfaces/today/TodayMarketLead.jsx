@@ -30,6 +30,7 @@ import {
 } from '../../../../lib/journal-2-0'
 import TodayNoSync from './TodayNoSync'
 import { resolvedAccountSize } from '../../../../lib/accountSize'
+import DefaultSizeMarker from '../../../../components/account/DefaultSizeMarker'
 
 export default function TodayMarketLead({
   account, settings, overview, onLogTrade, onLogPosition,
@@ -92,7 +93,8 @@ export default function TodayMarketLead({
     // freshness readout before — this unifies it, no duplicate line).
     return (
       <>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <DefaultSizeMarker settings={settings} />
           <SyncFreshnessChip />
         </div>
         <BrokerAccountHero
