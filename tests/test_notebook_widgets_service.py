@@ -470,6 +470,42 @@ def test_positions_widget_read_on_a_fresh_member_writes_nothing(monkeypatch, tmp
     assert _count(auth_db, "j2_accounts") == before[0] + 1
 
 
+def test_a_members_set_size_reaches_heat_sizing_and_the_widget(monkeypatch, tmp_path):
+    """I-3: heat's default size reader is voice_position_sizing._get_account_settings, which read
+    `acc["settings"]`, a key `accounts._row_to_account` never returns, so every member was sized at
+    the 25,000 fallback. The member's own size (and risk %) must arrive in all three views."""
+    auth_db = _temp_auth_db(monkeypatch, tmp_path)
+    from api.services.journal_two import accounts
+    from api.services import portfolio_heat, voice_position_sizing as vps
+    accounts.get_or_migrate_default_account("u7")               # setup only: this helper writes
+    _sql(auth_db, "UPDATE j2_accounts SET account_size = 73000, max_risk_per_trade_pct = 2.0"
+                  " WHERE user_id = 'u7'")
+    s = vps._get_account_settings("u7", None)
+    assert s["account_size"] == 73000.0 and s["max_risk_pct"] == 2.0
+    pos = _pos()                                                # 10 x (100 - 95) = $50 at risk
+    heat = portfolio_heat.portfolio_heat("u7", positions_fn=lambda u, a: [pos], regime_fn=lambda: {})
+    assert heat["risk_heat_pct"] == round(50 / 73000 * 100, 2)   # 0.07, never 50/25,000 = 0.2
+    assert heat["account_size_is_default"] is False
+    import api.services.journal_two.positions as ps
+    import api.services.journal_two.options as op
+    monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [pos])
+    monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [])
+    _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
+    out = nw.build("myPositionsRisk", "u7", {}, now=NOW)
+    assert out["accountSize"] == 73000.0 and out["accountSizeSource"] == "member"
+
+
+def test_sizing_falls_back_to_the_old_default_only_without_an_account(monkeypatch):
+    from api.services import voice_position_sizing as vps
+    from api.services.journal_two import accounts
+
+    def boom(*a, **k):
+        raise RuntimeError("no account")
+    monkeypatch.setattr(accounts, "get_or_migrate_default_account", boom)
+    s = vps._get_account_settings("nobody", None)
+    assert s["account_size"] == 25000.0 and s["max_risk_pct"] == vps.DEFAULT_RISK_PCT
+
+
 def test_positions_price_missing_is_null(monkeypatch):
     _patch_positions(monkeypatch, [_pos()], [_heat_row()])
     _patch_prices(monkeypatch, {})

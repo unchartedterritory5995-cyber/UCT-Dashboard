@@ -121,8 +121,10 @@ def _regime_label(regime_id) -> str | None:
 
 
 def _default_account_size_fn(user_id, account_id):
-    """The account's size from voice_position_sizing's settings read. ⛔ A WRITE on first call for
-    a member with no account: `_get_account_settings` falls back to
+    """The account's own size from voice_position_sizing's settings read (25,000 only when the
+    member has none: see `_get_account_settings`). It always answers a size, so on this default
+    path `account_size_is_default` is True only if the read fails. ⛔ A WRITE on first call for a
+    member with no account: `_get_account_settings` falls back to
     `accounts.get_or_migrate_default_account`, which inserts a Default account and reassigns the
     member's rows. A read-only caller passes its own `account_size_fn`."""
     from api.services.voice_position_sizing import _get_account_settings
@@ -132,9 +134,10 @@ def _default_account_size_fn(user_id, account_id):
 def portfolio_heat(user_id, account_id=None, account_size=None, *,
                    positions_fn=None, regime_fn=None, cap_fn=None, account_size_fn=None) -> dict:
     """`account_size_fn(user_id, account_id) -> size | None` answers the size when `account_size`
-    is not given; None (or 0) means "not set" and the default amount is used, flagged
-    `account_size_is_default`. The default reader can migrate a Default account (see
-    `_default_account_size_fn`); the Notebook widget passes a read-only one."""
+    is not given. When it answers None or 0 (or raises), `_DEFAULT_ACCOUNT` is used and the result
+    is flagged `account_size_is_default`. The default reader (`_default_account_size_fn`) answers
+    the member's own size, or 25,000 when they have none, and can migrate a Default account; the
+    Notebook widget passes a read-only one (its own one-SELECT read, None when no row exists)."""
     positions_fn = positions_fn or _default_positions_fn
     regime_fn = regime_fn or _default_regime_fn
     account_size_fn = account_size_fn or _default_account_size_fn

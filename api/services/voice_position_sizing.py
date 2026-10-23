@@ -98,8 +98,14 @@ def calc_position_size(
 # ── Full validation against user state ─────────────────────────────────────
 
 def _get_account_settings(user_id: str, account_id: str | None) -> dict:
-    """Pull account_size + max_risk_pct from j2_accounts. Falls back to
-    legacy j2_settings or defaults if no account."""
+    """The account's own account_size + max_risk_pct, read from its j2_accounts row
+    (`accounts._account_to_settings`). The old defaults (25,000 and DEFAULT_RISK_PCT) apply only
+    where the member has none: no account could be read, or the row holds no value.
+
+    ⛔ A WRITE on first call for a member with no account: account None (or an unknown id) falls
+    back to `accounts.get_or_migrate_default_account`, which inserts a Default account.
+    ⚰️ Until 2026-10-23 this read `acc["settings"]`, a key `_row_to_account` never returns, so
+    every member was sized at 25,000 and 1% whatever they had set (review I-3)."""
     try:
         from api.services.journal_two import accounts as j2_accounts
         if account_id is None:
@@ -110,7 +116,10 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
     except Exception:
         return {"account_size": 25000.0, "max_risk_pct": DEFAULT_RISK_PCT,
                 "account_id": None, "account_name": "Default"}
-    settings = acc.get("settings") or {}
+    try:
+        settings = j2_accounts._account_to_settings(acc) or {}
+    except Exception:
+        settings = {}
     return {
         "account_id": acc.get("id"),
         "account_name": acc.get("displayName") or acc.get("name") or "Default",
