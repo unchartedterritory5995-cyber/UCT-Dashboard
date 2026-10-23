@@ -44,6 +44,7 @@ import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // The single authority for "is the joystick hub actually rendering" — shared with
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
+import { shouldRetryOnErrorAppWide } from './lib/swrRetry'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -315,10 +316,9 @@ const SWR_CONFIG = {
   dedupingInterval: 8000,
   focusThrottleInterval: 10000,
   errorRetryCount: 3,
-  // A 4xx answers the same way on every retry (signed out, not paid, not
-  // allowed, not there), so retrying only repeats it. 408 and 429 still retry.
-  // Fetchers that throw without a `status` still retry as before.
-  shouldRetryOnError: (err) => !(err && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429),
+  // No retry on a 4xx except 408 and 429: the rule and its reason live in
+  // lib/swrRetry.js, so a hook that adds to it calls the same function.
+  shouldRetryOnError: shouldRetryOnErrorAppWide,
 }
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).

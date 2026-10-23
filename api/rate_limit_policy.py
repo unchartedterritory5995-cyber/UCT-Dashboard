@@ -40,6 +40,13 @@ KEYS
     `open_reads_gate._bearer_is_push_secret` (constant-time, blank secret
     exempts nobody) -- one authority for "is this the internal bearer".
 
+  ⚠️ A key has ONE BUCKET PER FAMILY, shared by every route in that family:
+  a member's Study drills, Community, Desk and education reads all draw from
+  the same community-content window. So a headroom argument for a new prefix
+  must count the whole family's load for one member, not the new routes
+  alone. Admins are keyed like any member; only the PUSH_SECRET bearer is
+  exempt.
+
 THE FLAG -- `RATE_LIMIT_POLICY`, read PER REQUEST (no rebuild to change it)
 ---------------------------------------------------------------------------
     unset / "off" -> exactly today's behaviour. The middleware returns before
@@ -137,6 +144,12 @@ TIER_COSTLY = "120/minute"
 #: Anonymous-writable intake (waitlist, page analytics, client error reports).
 #: A browser posts these a few times per page view at most.
 TIER_INTAKE = "60/minute"
+#: The Trader Archive's post thumbnails. The Ticker view lists up to 500 posts (the
+#: route's default `limit`), each with up to 4 lazily loaded <img> thumbnails, so a
+#: fast scroll to the end of a heavily posted name asks for ~2,000 images inside a
+#: minute. 2,400 is that plus 20%. The bytes are immutable (7-day Cache-Control), so
+#: only a member's first view of a post spends this at all.
+TIER_IMAGES = "2400/minute"
 
 
 class Family(NamedTuple):
@@ -205,7 +218,10 @@ FAMILIES: dict[str, Family] = {
     "research": Family(
         TIER_STANDARD,
         "Per-ticker research, fundamentals, filings, earnings, calendar and news "
-        "-- cached vendor reads behind the research pages and the calendar.",
+        "-- cached vendor reads behind the research pages and the calendar -- and the "
+        "TSDR trader archive's member reads (/api/wisdom: per-ticker team calls and "
+        "history, playbooks, the CHK check, rhymes, UCT20 team calls), which are cached "
+        "archive reads rather than vendor ones. Its post thumbnails are archive-images.",
         ("/api/research", "/api/about", "/api/fundamentals", "/api/fundamentals-full",
          "/api/fundamentals-statements", "/api/filings", "/api/insider",
          "/api/analyst", "/api/analyst-actions", "/api/ownership", "/api/earnings",
@@ -218,7 +234,12 @@ FAMILIES: dict[str, Family] = {
          "/api/options/vol",
          # The terminal's per-ticker reads: MOVE (the intelligence + catalyst services for
          # one name), the sector comparator lookup, and GRADE (grade_ticker, cached per symbol).
-         "/api/terminal/move", "/api/terminal/compare-target", "/api/terminal/grade"),
+         "/api/terminal/move", "/api/terminal/compare-target", "/api/terminal/grade",
+         # The TSDR trader archive's member reads (per-ticker team calls and history, setup
+         # playbooks, the CHK check, rhymes, lazily loaded post thumbnails) and UCT20's one
+         # batched team-calls read: cached archive reads behind the research sections, the
+         # chart's pattern side panel and the Trader Archive page, one per view or click.
+         "/api/wisdom"),
     ),
     "screener": Family(
         TIER_STANDARD,
@@ -251,10 +272,14 @@ FAMILIES: dict[str, Family] = {
     ),
     "community-content": Family(
         TIER_STANDARD,
-        "Community, The Desk, education, Model Book, support status and the "
+        "Community, The Desk, education, Study, Model Book, support status and the "
         "Discord ops routes (the interactions endpoint is exempt below).",
         ("/api/community", "/api/desk", "/api/education", "/api/modelbook",
-         "/api/support", "/api/discord"),
+         "/api/support", "/api/discord",
+         # Study, the drills: SWR reads deduped 15-60 s with no polling, and one POST per
+         # answer, step or session start. The owner review screens (/api/study/admin) are
+         # their own family, study-review; /api/study/import carries PUSH_SECRET (exempt).
+         "/api/study"),
     ),
     "options-analytics": Family(
         TIER_STANDARD,
@@ -310,13 +335,35 @@ FAMILIES: dict[str, Family] = {
         "and are exempt; this bounds a human admin or an unauthenticated prober.",
         ("/api/admin", "/api/debug", "/api/company-news-ops", "/api/flow-gap-fill",
          "/api/instruments/what-else-open",   # TERM-093 owner-desk capture, admin-only
-         "/api/flow-backup", "/api/watchdog", "/api/theme-engine"),
+         "/api/flow-backup", "/api/watchdog", "/api/theme-engine",
+         # TAS's require_admin status read (the tape itself is under /api/stream).
+         "/api/time-and-sales"),
+    ),
+    "archive-images": Family(
+        TIER_IMAGES,
+        "The Trader Archive's post thumbnail bytes (require_paid). Static, immutable "
+        "images, not reads of record: a page of posts mounts many at once, so they get "
+        "their own bucket rather than spending the member's research budget, and "
+        "market-data's 1200/minute is below one fully scrolled Ticker view.",
+        ("/api/wisdom/archive/image",),
+    ),
+    "study-review": Family(
+        TIER_BULK,
+        "The owner's Study review screens (every route require_admin). The example "
+        "gallery mounts one subject's chart cards at once and each card reads its stored "
+        "bars, so stepping through the subjects (603 candle chart items over ~66 subjects "
+        "in the bank) is ~600 bar reads in seconds. That would drain admin-ops or "
+        "community-content in one sweep, so it gets its OWN bucket at the bulk tier, the "
+        "same fan-out reasoning as market-data's chart warm-up.",
+        ("/api/study/admin",),
     ),
     "internal": Family(
         TIER_STANDARD,
         "Engine pushes and internal bridges. Their callers carry PUSH_SECRET and "
         "are exempt; the ceiling bounds anyone guessing at the secret.",
-        ("/api/push", "/api/internal"),
+        ("/api/push", "/api/internal",
+         # The TSDR lessons transcript worker's two require_push_secret routes.
+         "/api/tsdr-lessons"),
     ),
     "docs": Family(
         TIER_STANDARD,
@@ -363,6 +410,25 @@ EXEMPT: dict[str, str] = {
     "/sitemap.xml": "Static crawler file from app/dist.",
     "/pip-embed": "Static picture-in-picture embed page from app/dist.",
     "/q1-probe.html": "Static browser-probe page from app/dist.",
+    # The Live Trading Room's public landing page and its own terms and privacy
+    # pages: static HTML from app/dist (no JS, no member data), served before
+    # the SPA catch-all so a crawler reads them, plus the images mounted beside
+    # them. Pages, not API calls -- the same treatment as the SPA shell below.
+    # classify() strips the trailing slash, so each entry covers its `/` form
+    # (a 301 to the no-slash URL) too.
+    # ⛔ An EXEMPT prefix covers its WHOLE SUBTREE (classify() matches on a
+    # segment boundary): every path under /live-trading-room is unlimited,
+    # today only the static pages and the StaticFiles image mount. A DYNAMIC
+    # route (one that reads a DB, a vendor or a session) must NEVER be added
+    # under this prefix -- the census would file it as exempt and never flag
+    # it. Put it under /api (the room's call-request form is /api/ltr, which
+    # is public-intake), the same rule as /assets and /fonts.
+    "/live-trading-room": "Static public landing page from app/dist (and its images); "
+                          "a page a visitor or crawler loads, not an API call.",
+    "/live-trading-room/terms": "The room's static terms page from app/dist; same reason "
+                                "as /live-trading-room.",
+    "/live-trading-room/privacy": "The room's static privacy page from app/dist; same "
+                                  "reason as /live-trading-room.",
     SPA_CATCH_ALL: "The SPA shell (index.html) for every client-side route; a "
                    "page, not an API call.",
 }
@@ -375,7 +441,8 @@ DIST_ONLY = frozenset({
     "/assets", "/fonts", "/manifest.json", "/sw.js", "/push-sw.js", "/favicon.svg", "/vite.svg",
     "/og-image.png", "/og-coming-soon.png", "/api/q1-probe-result",
     "/api/q1-probe-results", "/q1-probe.html", "/robots.txt", "/sitemap.xml",
-    "/pip-embed", SPA_CATCH_ALL,
+    "/pip-embed", "/live-trading-room", "/live-trading-room/terms",
+    "/live-trading-room/privacy", SPA_CATCH_ALL,
 })
 
 
