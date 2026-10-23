@@ -326,6 +326,18 @@ def test_a_filled_gap_is_not_a_pin():
     assert ds.price_pinned(bars) is None
 
 
+def test_a_post_gap_drift_wider_than_the_limit_is_not_a_pin():
+    bars = pinned_bars()
+    bars[45] = {**bars[45], "l": 60.0 / (1 + ds.POST_GAP_RANGE_MAX) - 0.5}   # still far above the fill
+    assert ds.price_pinned(bars) is None
+    bars[45] = {**bars[45], "l": 60.0 / (1 + ds.POST_GAP_RANGE_MAX) + 0.5}
+    assert ds.price_pinned(bars) is not None
+
+
+def test_the_drift_limit_sits_below_the_gap_so_a_fill_cannot_pass():
+    assert ds.POST_GAP_RANGE_MAX < ds.GAP_MIN
+
+
 def test_price_behaviour_alone_is_possible_never_pending():
     st = ds.deal_status("ZZZQ", bars=pinned_bars())
     assert st["pending"] is False and st["possible"] is True

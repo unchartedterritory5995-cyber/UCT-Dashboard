@@ -70,7 +70,10 @@ GAP_MIN = 0.08            # |open / prior close - 1| of the deal gap
 PIN_SESSIONS = 15         # trailing sessions that must sit in the tiny range
 PIN_RANGE_MAX = 0.02      # max(high) / min(low) - 1 over those sessions
 PIN_ATR_MAX = 0.005       # mean true range / last close over the last 14 sessions
-POST_GAP_RANGE_MAX = 0.08 # the whole post-gap stretch stays this tight (arb drift)
+# The whole post-gap stretch stays this tight (arb drift; TECH 2026: 3.7%). Kept BELOW GAP_MIN on
+# purpose: a gap that filled has a post-gap range of at least the gap, so this one check also
+# refuses every filled gap (one guard, not two).
+POST_GAP_RANGE_MAX = 0.06
 GAP_LOOKBACK = 260        # sessions searched for the gap
 DEAL_PRICE_BAND = (0.90, 1.03)  # last close / deal price, to count as "near" it
 PRICE_BARS = 300
@@ -419,8 +422,9 @@ def price_pinned(bars, deal_price=None):
     """The deal-pin read of daily `bars` (oldest first; {t,o,h,l,c} dicts or (t,o,h,l,c,..)
     tuples), or None when the chart does not look pinned. Geometry only:
       * a gap of GAP_MIN+ (open vs prior close) in the last GAP_LOOKBACK sessions, at least
-        PIN_SESSIONS sessions ago, that never filled (no low back through the prior close);
-      * the whole post-gap stretch within POST_GAP_RANGE_MAX;
+        PIN_SESSIONS sessions ago (the latest such gap is the one judged);
+      * the whole post-gap stretch within POST_GAP_RANGE_MAX, which is below GAP_MIN, so a gap
+        that filled can never pass;
       * the last PIN_SESSIONS sessions within PIN_RANGE_MAX, and their mean true range under
         PIN_ATR_MAX of the last close.
     `near_deal_price` is None without a deal price, else whether the last close sits in
@@ -455,10 +459,8 @@ def price_pinned(bars, deal_price=None):
         post = b[g:]
         hi = max(x[2] for x in post)
         low = min(x[3] for x in post)
-        if (gap > 0 and low <= pc) or (gap < 0 and hi >= pc):
-            return None            # the latest big gap filled: not a deal pin
         if hi / low - 1.0 > POST_GAP_RANGE_MAX:
-            return None
+            return None            # drifted, or the gap filled: not a deal pin
         near = None
         if deal_price:
             near = DEAL_PRICE_BAND[0] * deal_price <= last_c <= DEAL_PRICE_BAND[1] * deal_price
