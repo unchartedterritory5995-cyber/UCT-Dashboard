@@ -5,7 +5,9 @@
 // (require_paid, WISDOM_ARCHIVE_ENABLED). The server resolves the detector to an archive
 // setup through the ONE setup vocabulary; this file restates no mapping. A 404 (detector
 // maps to no setup, no playbook, or the flag is off) or a 402 (no paid plan) keeps the
-// panel's original placeholder, word for word.
+// panel's original placeholder, word for word. ANY OTHER failure (a 429 from the rate limit,
+// a 5xx, the network) says the record did not load and offers Try again: the placeholder
+// reads "not launched yet", which is false about a feature that is live and merely failed.
 //
 // ⛔ DISPLAY ONLY. Nothing here feeds the detection's confidence, its historical score or
 // what fires. No price levels are shown for archive calls.
@@ -21,6 +23,7 @@ import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { ARCHIVE_API, MIN_CONTEXT_N, archiveRefPriceLines, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
 import WatchLink from '../../pages/traderArchive/WatchLink'
+import LoadFailed from '../../pages/journal-2-0/components/LoadFailed'
 import styles from './PatternSidePanel.module.css'
 
 export const PLACEHOLDER = 'Pattern stats available after Phase 7 launch — outcome tracker pending.'
@@ -54,7 +57,7 @@ export function archiveUrl(patternId, sym) {
 }
 
 export default function PatternArchiveStats({ patternId, sym, onLines }) {
-  const { data, error } = useSWR(archiveUrl(patternId, sym), jsonFetcher, SWR_OPTS)
+  const { data, error, mutate } = useSWR(archiveUrl(patternId, sym), jsonFetcher, SWR_OPTS)
   const rawLines = error ? null : data?.lines
 
   useEffect(() => {
@@ -64,7 +67,10 @@ export default function PatternArchiveStats({ patternId, sym, onLines }) {
     return () => onLines(null)
   }, [rawLines, onLines])
 
-  if (error || !patternId) return <div className={styles.placeholder}>{PLACEHOLDER}</div>
+  // 404 and 402 are the route's "nothing to show here" answers; anything else is a failure.
+  const nothingToShow = !patternId || error?.status === 404 || error?.status === 402
+  if (nothingToShow) return <div className={styles.placeholder}>{PLACEHOLDER}</div>
+  if (error) return <LoadFailed what="the team's record" error={error} onRetry={() => mutate()} compact />
   if (!data) return <div className={styles.placeholder} data-testid="archive-stats-loading">Loading the team&apos;s record…</div>
 
   const all = data.stats?.all || {}

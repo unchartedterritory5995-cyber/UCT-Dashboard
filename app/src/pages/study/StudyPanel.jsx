@@ -13,6 +13,7 @@
 import { useMemo } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import ProgressRing from './ProgressRing'
+import LoadFailed from '../journal-2-0/components/LoadFailed'
 import { useStudyToday, useStudyMap, useStudyLeaderboard } from './useStudy'
 import {
   skillsById, recommendUnit, todayState, minutesFor, ordinal, weekDots,
@@ -54,7 +55,7 @@ function StreakChip({ streak, dots }) {
 }
 
 export default function StudyPanel({ onStart, onPractise, onOpenUnit }) {
-  const { data: today, error } = useStudyToday()
+  const { data: today, error, mutate: retryToday } = useStudyToday()
   const { data: mapData } = useStudyMap()
   const { data: board } = useStudyLeaderboard()
 
@@ -75,7 +76,19 @@ export default function StudyPanel({ onStart, onPractise, onOpenUnit }) {
     return { complete: true }
   }, [mapData])
 
-  if (error) return null
+  // A failed read (a 429, a 5xx) is SAID, with Try again: a skeleton here
+  // would read as "still loading" forever. A 404 (Study off) resolves to null
+  // in the fetcher and keeps the skeleton.
+  if (error) {
+    return (
+      <section className={s.panel} aria-label="Study">
+        <div className={s.eyebrowRow}>
+          <span className={s.eyebrow}>STUDY</span>
+        </div>
+        <LoadFailed what="today's Study" error={error} onRetry={() => retryToday?.()} />
+      </section>
+    )
+  }
   if (today == null) return <StudyPanelSkeleton />
 
   const streak = Number(profile.streak) || 0
