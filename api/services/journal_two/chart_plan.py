@@ -164,17 +164,20 @@ def plan_levels_line(attrs: Any) -> str | None:
 
 def account_inputs(user_id: str, account_id: str | None = None) -> dict[str, Any]:
     """The member's sizing inputs: account size and max risk per trade % (accounts.py). Missing
-    values are None -- the client says which one is missing; nothing is defaulted here. The size
-    is the member's own (accounts.own_account_size, the one authority): the migrated placeholder
-    is unset, so it is None, never sized as if they had chosen it."""
+    values are None -- the client says which one is missing. The size comes from
+    accounts.account_size_of (the one authority): an unset size is the default the member was
+    sized on before (100,000), now labelled `accountSizeIsDefault`; 0 or less is None, as base
+    (fix round 2, finding 6)."""
     from api.services.journal_two import accounts  # noqa: PLC0415 -- heavy import, route-time only
     try:
         s = accounts.get_account_settings(user_id, account_id) or {}
     except Exception:  # noqa: BLE001 -- an unreadable account sizes nothing, never 500s a panel
         s = {}
+    size, size_is_default = accounts.account_size_of(s)
     return {
         "accountId": s.get("accountId"),
-        "accountSize": _finite_positive(accounts.own_account_size(s)),
+        "accountSize": _finite_positive(size),
+        "accountSizeIsDefault": bool(size_is_default and _finite_positive(size) is not None),
         "riskPct": _finite_positive(s.get("maxRiskPerTradePct")),
     }
 

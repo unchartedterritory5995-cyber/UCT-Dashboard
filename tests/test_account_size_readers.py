@@ -215,12 +215,19 @@ def test_risk_summary_carries_the_default_flag(conn, monkeypatch):
     assert intelligence.get_risk_summary(user={"id": "in2"})["account_size_is_default"] is False
 
 
-def test_chart_plan_inputs_never_size_on_the_placeholder(conn):
+def test_chart_plan_inputs_size_on_the_default_as_base_did_and_label_it(conn):
+    """Base sized the Compass /size panel on the raw placeholder (100,000). Fix round 2, finding 6:
+    the same number, now labelled default; a member's own size is not labelled; 0 stays None."""
     from api.services.journal_two import chart_plan
     unset = _member(conn, "cp1", maxRiskPerTradePct=1)
-    assert chart_plan.account_inputs("cp1", unset)["accountSize"] is None
+    got = chart_plan.account_inputs("cp1", unset)
+    assert got["accountSize"] == 100_000.0 and got["accountSizeIsDefault"] is True
     mine = _member(conn, "cp2", typed=100_000, maxRiskPerTradePct=1)
-    assert chart_plan.account_inputs("cp2", mine)["accountSize"] == 100_000.0
+    got = chart_plan.account_inputs("cp2", mine)
+    assert got["accountSize"] == 100_000.0 and got["accountSizeIsDefault"] is False
+    conn.execute("UPDATE j2_accounts SET account_size = 0 WHERE id = ?", (mine,))
+    conn.commit()
+    assert chart_plan.account_inputs("cp2", mine)["accountSize"] is None
 
 
 def test_scenario_simulator_runs_and_sizes_on_the_authority(conn):
