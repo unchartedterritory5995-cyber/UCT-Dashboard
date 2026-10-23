@@ -40,6 +40,13 @@ KEYS
     `open_reads_gate._bearer_is_push_secret` (constant-time, blank secret
     exempts nobody) -- one authority for "is this the internal bearer".
 
+  ⚠️ A key has ONE BUCKET PER FAMILY, shared by every route in that family:
+  a member's Study drills, Community, Desk and education reads all draw from
+  the same community-content window. So a headroom argument for a new prefix
+  must count the whole family's load for one member, not the new routes
+  alone. Admins are keyed like any member; only the PUSH_SECRET bearer is
+  exempt.
+
 THE FLAG -- `RATE_LIMIT_POLICY`, read PER REQUEST (no rebuild to change it)
 ---------------------------------------------------------------------------
     unset / "off" -> exactly today's behaviour. The middleware returns before
@@ -211,7 +218,10 @@ FAMILIES: dict[str, Family] = {
     "research": Family(
         TIER_STANDARD,
         "Per-ticker research, fundamentals, filings, earnings, calendar and news "
-        "-- cached vendor reads behind the research pages and the calendar.",
+        "-- cached vendor reads behind the research pages and the calendar -- and the "
+        "TSDR trader archive's member reads (/api/wisdom: per-ticker team calls and "
+        "history, playbooks, the CHK check, rhymes, UCT20 team calls), which are cached "
+        "archive reads rather than vendor ones. Its post thumbnails are archive-images.",
         ("/api/research", "/api/about", "/api/fundamentals", "/api/fundamentals-full",
          "/api/fundamentals-statements", "/api/filings", "/api/insider",
          "/api/analyst", "/api/analyst-actions", "/api/ownership", "/api/earnings",
