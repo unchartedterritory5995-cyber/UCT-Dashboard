@@ -1,6 +1,6 @@
 // The Charts view mounts the REAL /charts Multi-Chart grid (only the canvas is stubbed): the
 // screener host must supply everything the grid and its cells read, or a cell renders dead.
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
@@ -9,6 +9,8 @@ vi.mock('../../../../components/StockChart', () => ({
 }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchGridWarm: () => {}, prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
 import ScreenerChartGrid from '../ScreenerChartGrid'
+import SymbolSearch from '../../../../components/chart/SymbolSearch'
+import { createRef } from 'react'
 import { registerShortcuts } from '../../../command/shortcutRegistry'
 import { AuthContext } from '../../../../context/AuthContext'
 
@@ -95,4 +97,23 @@ test('Escape with a modal layer over the page leaves the menu; alone it closes t
     await waitFor(() => expect(screen.queryByText('Layout')).not.toBeInTheDocument())
     expect(videoEscape).not.toHaveBeenCalled()
   } finally { off() }
+})
+
+// Review R1: a grid cell's type-to-search opens the Symbol Search modal over the board while the
+// layout menu can still be open underneath. The search is a backdrop modal (aria-modal), so the
+// menu's Escape stands down and the press closes only the search.
+test('Escape with the Symbol Search modal open over the layout menu closes only the search', async () => {
+  localStorage.setItem('uct.screener.gridLayout', '2x2')
+  const search = createRef()
+  render(<MemoryRouter><AuthContext.Provider value={{ user: { role: 'member' } }}><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <ScreenerChartGrid rows={rows(6)} total={6} hasMore={false} onLoadMore={() => {}} resetKey="k" />
+    <SymbolSearch ref={search} sym="R0" onSymbolChange={() => {}} />
+  </SWRConfig></AuthContext.Provider></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: /2×2/ }))
+  expect(screen.getByText('Layout')).toBeInTheDocument()
+  await act(async () => { search.current.openWith('N') })
+  expect(screen.getByRole('dialog', { name: 'Symbol search' })).toBeInTheDocument()
+  fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Symbol search' })).not.toBeInTheDocument())
+  expect(screen.getByText('Layout')).toBeInTheDocument()
 })

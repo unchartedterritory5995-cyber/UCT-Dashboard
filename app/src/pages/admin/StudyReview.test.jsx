@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
 import { registerShortcuts } from '../command/shortcutRegistry'
+import KeyboardHelpOverlay from '../../components/chart/KeyboardHelpOverlay'
 import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
@@ -624,5 +625,19 @@ describe('the card answers its keys only as the topmost surface', () => {
       fireEvent.keyDown(document.body, { key: 'Escape' })   // card in view mode: not its key
       expect(escape).toHaveBeenCalledTimes(1)
     } finally { off() }
+  })
+})
+
+// Review R1: in fix mode, `?` on the card's chart opens the chart's Keyboard Shortcuts overlay, a
+// backdrop modal. Escape then closes only the overlay; the card stays in fix mode.
+describe('Escape over the card goes to the top modal', () => {
+  it('with the chart keyboard help open in fix mode, Escape closes the help and keeps fix mode', () => {
+    const onClose = vi.fn()
+    renderWithProviders(<><StudyReview /><KeyboardHelpOverlay open onClose={onClose} /></>)
+    fireEvent.click(screen.getByRole('button', { name: /Fix/ }))
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
   })
 })

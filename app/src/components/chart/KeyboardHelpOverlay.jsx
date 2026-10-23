@@ -26,7 +26,7 @@ export default function KeyboardHelpOverlay({ open, onClose }) {
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Keyboard shortcuts">
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
         <div className={styles.header}>
           <h2 className={styles.title}>Keyboard Shortcuts</h2>
           <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
