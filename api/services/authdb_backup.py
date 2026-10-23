@@ -154,6 +154,102 @@ def _flush_pending_tombstones(src_path: str, client, bucket: str) -> int:
         return 0
 
 
+# -- schedule (restart-proof, 2026-10-22) ------------------------------------------
+# ⛔ The 6-hourly job was an IntervalTrigger(hours=6). APScheduler starts an interval's
+# countdown at process start and the job store is in memory, so on a day with restarts
+# more often than every 6h it NEVER fired (R2 on 2026-10-22: only the nightly landed).
+# Fixed UTC wall-clock slots fire regardless of when the pod booted; they match the
+# times the interval landed on quiet days. The catch-up covers a restart that spans a
+# slot: one delayed, one-shot check per boot that backs up only when the newest R2
+# object is older than CATCH_UP_MAX_AGE_S — so a burst of redeploys cannot stampede.
+SIX_HOURLY_UTC_HOURS = "5,11,17,23"
+SIX_HOURLY_UTC_MINUTE = 26
+NIGHTLY_ET = (2, 55)
+CATCH_UP_MAX_AGE_S = 6 * 3600
+CATCH_UP_DELAY_S = 600
+#: A cron slot missed because the executor was busy still runs up to this late
+#: (APScheduler's job_defaults grace is 1 second).
+MISFIRE_GRACE_S = 3600
+
+
+def _ts_of_key(key: str) -> Optional[_dt.datetime]:
+    m = KEY_RE.match(key)
+    if not m:
+        return None
+    return _dt.datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=_dt.timezone.utc)
+
+
+def catch_up_decision(client, bucket: str, now: Optional[_dt.datetime] = None,
+                      max_age_s: int = CATCH_UP_MAX_AGE_S) -> tuple[bool, str]:
+    """(run?, reason). Lists KEY_PREFIX the way ``_prune`` does and runs only when the
+    newest backup is older than ``max_age_s`` (or none exists). A listing failure is a
+    SKIP — the cron slots still stand, and an unreadable bucket is not an empty one.
+    Never raises."""
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    try:
+        resp = client.list_objects_v2(Bucket=bucket, Prefix=KEY_PREFIX)
+        objs = resp.get("Contents", []) or []
+        keys = backup_keys_newest_first(o["Key"] for o in objs)
+    except Exception as e:  # noqa: BLE001
+        return False, f"list failed ({e}); skipping catch-up"
+    if not keys:
+        return True, "no backups found"
+    newest = _ts_of_key(keys[0])
+    age = (now - newest).total_seconds()
+    if age > max_age_s:
+        return True, f"newest {keys[0]} is {age / 3600:.1f}h old"
+    return False, f"newest {keys[0]} is {age / 3600:.1f}h old (fresh)"
+
+
+def run_catch_up() -> Optional[str]:
+    """Startup catch-up: one backup iff the newest R2 backup is stale. Same gates as
+    ``run_backup`` (dark flag; fail-closed key is enforced inside run_backup).
+    Wholly exception-contained."""
+    if not is_enabled():
+        return None
+    try:
+        from api.services import data_sync
+        client = data_sync._client()
+        bucket = data_sync._bucket()
+        if not (client and bucket):
+            logger.warning("[authdb_backup] catch-up: R2 creds/bucket missing; skipping")
+            return None
+        run, reason = catch_up_decision(client, bucket)
+        logger.info("[authdb_backup] catch-up: %s -> %s", reason, "RUN" if run else "skip")
+        if not run:
+            return None
+        return run_backup()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[authdb_backup] catch-up failed (non-fatal): %s", e)
+        return None
+
+
+def register_jobs(scheduler, now: Optional[_dt.datetime] = None) -> list[str]:
+    """Register the 6-hourly UTC cron, the nightly ET cron and the delayed one-shot
+    catch-up. The caller gates on AUTHDB_BACKUP_ENABLED. Returns the job ids."""
+    from zoneinfo import ZoneInfo
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.date import DateTrigger
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    common = dict(max_instances=1, replace_existing=True, coalesce=True,
+                  misfire_grace_time=MISFIRE_GRACE_S)
+    scheduler.add_job(
+        run_backup,
+        trigger=CronTrigger(hour=SIX_HOURLY_UTC_HOURS, minute=SIX_HOURLY_UTC_MINUTE,
+                            timezone=_dt.timezone.utc),
+        id="authdb_backup_6h", **common)
+    scheduler.add_job(
+        run_backup,
+        trigger=CronTrigger(hour=NIGHTLY_ET[0], minute=NIGHTLY_ET[1],
+                            timezone=ZoneInfo("America/New_York")),
+        id="authdb_backup_nightly", **common)
+    scheduler.add_job(
+        run_catch_up,
+        trigger=DateTrigger(run_date=now + _dt.timedelta(seconds=CATCH_UP_DELAY_S)),
+        id="authdb_backup_catchup", **common)
+    return ["authdb_backup_6h", "authdb_backup_nightly", "authdb_backup_catchup"]
+
+
 def run_backup() -> Optional[str]:
     """Take one auth.db backup and ship it to R2. Returns the UTC ts string on
     success, or None (disabled / no creds / nothing to back up / any failure).

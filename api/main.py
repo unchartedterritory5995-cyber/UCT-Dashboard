@@ -7194,19 +7194,17 @@ async def lifespan(app: FastAPI):
         # data-sync rail. DARK: AUTHDB_BACKUP_ENABLED=1 to arm (owner flips it).
         # BackgroundScheduler runs the job on a worker THREAD (off the event
         # loop) and authdb_backup.run_backup is wholly exception-contained.
+        # ⛔ 2026-10-22: the 6h job was an IntervalTrigger, whose countdown restarts at
+        # every boot -- on a redeploy-heavy day it never fired. register_jobs uses fixed
+        # UTC cron slots + a delayed, age-checked one-shot catch-up (see the module).
         if os.getenv("AUTHDB_BACKUP_ENABLED") == "1":
-            from api.services import authdb_backup as _authdb_backup
-            _scheduler.add_job(
-                _authdb_backup.run_backup,
-                trigger=IntervalTrigger(hours=6),
-                id="authdb_backup_6h", max_instances=1, replace_existing=True,
-            )
-            _scheduler.add_job(
-                _authdb_backup.run_backup,
-                trigger=CronTrigger(hour=2, minute=55, timezone=_ET),
-                id="authdb_backup_nightly", max_instances=1, replace_existing=True,
-            )
-            print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
+            try:
+                from api.services import authdb_backup as _authdb_backup
+                _authdb_backup.register_jobs(_scheduler)
+                print("[startup] auth.db R2 backup scheduler ON (05:26/11:26/17:26/23:26 UTC "
+                      "+ daily 2:55am ET + boot catch-up if newest >6h)")
+            except Exception as e:
+                print(f"[scheduler] auth.db backup registration error: {e}")
 
         # -- UCT Wisdom Loop jobs (docs/wisdom/CONTRACTS.md §2.2, §5) --
         # Registered unconditionally, in their own try: every run re-reads
