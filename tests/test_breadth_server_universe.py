@@ -93,3 +93,87 @@ def test_compare_names_both_sides():
     c = bsu.compare(["A", "B", "C"], ["B", "C", "D"])
     assert c["both"] == 2 and c["only_server"] == ["A"] and c["only_collector"] == ["D"]
     assert c["jaccard"] == 0.5
+
+
+# -- Parity with the PC's exclude set when deal_status names a pending deal ---------------
+#
+# The PC collector (uct-intelligence `scripts/universe_exclude.py`) excludes
+# `_MANUAL | auto | _spellings(s) for s in GET /api/catalysts/pending-deals-internal`. That
+# endpoint serves `deal_status.consumer_pending()`. The server list must exclude every one
+# of those names, or the parity run shows them as `only_server` and every count is off.
+
+def _pc_spellings(sym) -> set:
+    """uct-intelligence `universe_exclude._spellings`, verbatim."""
+    s = str(sym or "").strip().upper()
+    if not s:
+        return set()
+    return {s, s.replace(".", "-").replace("/", "-"), s.replace("-", ".").replace("/", ".")}
+
+
+def _pc_excluded() -> frozenset:
+    """The PC's set, its dashboard half read through the real endpoint."""
+    from api.routers import catalysts
+    payload = catalysts.pending_deals_internal(authorization="Bearer s3cret")
+    out = set(bsu.EXCLUDE)
+    for sym in payload["symbols"]:
+        out |= _pc_spellings(sym)
+    return frozenset(out)
+
+
+@pytest.fixture
+def _news_deal(monkeypatch, tmp_path):
+    """A news-only pending deal (NEWCO) and a class share in the dashboard's hyphen
+    spelling (DEAL-B), with no hand-list file on disk behind them."""
+    from api.services import deal_status as ds
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    monkeypatch.setattr(ds, "pending_deal_symbols", lambda: frozenset({"NEWCO", "DEAL-B"}))
+    from api.services.screener import screener_universe
+    monkeypatch.setattr(screener_universe, "buyout_excludes", lambda: frozenset())
+    ds.reset_cache()
+    yield
+    ds.reset_cache()
+
+
+def test_a_news_only_pending_deal_is_excluded_on_both_sides(_news_deal):
+    pc, server = _pc_excluded(), bsu.excluded()
+    assert {"NEWCO", "DEAL-B", "DEAL.B"} <= pc, "control: the PC excludes them"
+    assert pc <= server, f"PC excludes names the server keeps: {sorted(pc - server)}"
+
+
+def test_the_server_list_drops_them_so_parity_has_no_only_server(_news_deal):
+    ref = {**REF, "NEWCO": REF["AAA"], "DEAL.B": REF["AAA"]}
+    frame = {**FRAME, "NEWCO": FRAME["AAA"], "DEAL.B": FRAME["AAA"]}
+    caps = {**CAPS, "NEWCO": 5e9, "DEAL.B": 5e9}
+    server, _ = bsu.select(frame, ref, caps, "2026-10-22", bsu.excluded())
+    pc_ex = _pc_excluded()
+    collector = [s for s in bsu.select(frame, ref, caps, "2026-10-22", frozenset())[0]
+                 if s not in pc_ex]
+    c = bsu.compare(server, collector)
+    assert c["only_server_n"] == 0 and c["only_collector_n"] == 0, c
+    assert "NEWCO" not in server and "DEAL.B" not in server
+
+
+def test_flag_off_the_exclude_set_is_unchanged(monkeypatch):
+    from api.services import deal_status as ds
+    from api.services.screener import screener_universe
+    monkeypatch.delenv("DEAL_STATUS_ENABLED", raising=False)
+
+    calls = []      # recorded, not raised: pending_deals() swallows every exception
+    monkeypatch.setattr(ds, "pending_deal_symbols",
+                        lambda: calls.append(1) or frozenset({"NEWCO"}))
+    assert bsu.pending_deals() == frozenset()
+    assert bsu.excluded() == bsu.EXCLUDE | screener_universe.buyout_excludes()
+    assert "NEWCO" not in bsu.excluded()
+
+
+def test_a_deal_status_fault_excludes_nothing_extra_and_never_raises(monkeypatch):
+    from api.services import deal_status as ds
+    from api.services.screener import screener_universe
+    monkeypatch.setattr(screener_universe, "buyout_excludes", lambda: frozenset({"HAND"}))
+
+    def boom():
+        raise RuntimeError("deal_status down")
+    monkeypatch.setattr(ds, "consumer_pending", boom)
+    assert bsu.pending_deals() == frozenset()
+    assert bsu.excluded() == bsu.EXCLUDE | {"HAND"}
