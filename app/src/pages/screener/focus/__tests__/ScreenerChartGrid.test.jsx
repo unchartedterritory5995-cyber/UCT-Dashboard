@@ -59,7 +59,8 @@ test('PageDown typed in a text field leaves the page where it is', async () => {
 test('Escape closes the layout menu', async () => {
   localStorage.setItem('uct.screener.gridLayout', '2x2')
   mount()
-  const toggle = await screen.findByRole('button', { expanded: false })
+  // The layout menu's own toggle, by its accessible name (the current layout), not by aria-expanded alone.
+  const toggle = await screen.findByRole('button', { name: /2×2/ })
   fireEvent.click(toggle)
   expect(screen.getByText('Layout')).toBeInTheDocument()
   fireEvent.keyDown(document.body, { key: 'Escape' })
