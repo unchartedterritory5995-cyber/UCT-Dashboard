@@ -289,11 +289,16 @@ def rank_holdings(holdings: list, by: str = "today", seed: str = None,
     """
     cap = cap_universe_set()
     seed_hy = normalize_sym(seed) if seed else None
+    # A pending acquisition (DEAL_STATUS_ENABLED) never fills a leaders/peers grid cell.
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()
     cands = []
     seen = set()
     for idx, h in enumerate(holdings):
         hy = normalize_sym(h.get("sym", ""))
         if not hy or hy in seen or hy not in cap or hy == seed_hy:
+            continue
+        if deal_pending and deal_status.is_pending(hy, deal_pending):
             continue
         # Defensive dedupe (first occurrence wins): a duplicate holdings row
         # (overlay drift, same sym under two sub-themes) must never become two
@@ -473,11 +478,15 @@ def _ai_peers(seed_hy: str, n: int) -> list:
     seed_sector = (meta.get("sector") or "").strip().lower()
     seed_industry = (meta.get("industry") or "").strip().lower()
     cap = cap_universe_set()
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()   # empty with DEAL_STATUS_ENABLED off
     out = []
     seen = {seed_hy}
     for raw in _ai_peer_raw(seed_hy, n, meta):
         hy = normalize_sym(raw)
         if hy in seen or hy not in cap:
+            continue
+        if deal_pending and deal_status.is_pending(hy, deal_pending):
             continue
         pm = ticker_meta.get_ticker_meta(hy) or {}
         ps = (pm.get("sector") or "").strip().lower()

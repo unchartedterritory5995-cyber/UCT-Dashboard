@@ -682,6 +682,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     # TERM-047: each name in scope (the tracked universe, or the member's own
     # list) lands in exactly one bucket; one checked and not lit was ANSWERED.
     from api.services.coverage_receipt import Tally
+    # A pending acquisition (DEAL_STATUS_ENABLED) is left off the default top-N board; a
+    # member's own list is shown as-is. Flag off: empty set.
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending() if wanted is None else frozenset()
     tally = Tally()
     with _lock:
         asof = _state["asof"]
@@ -701,6 +705,8 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             tally.answer()
             # A user's own list is shown as-is; the top-N default keeps the tradable floor.
             if wanted is None and not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
+                continue
+            if deal_pending and deal_status.is_pending(sym, deal_pending):
                 continue
             lit = _is_lit(m)
             if not show_all and not lit:

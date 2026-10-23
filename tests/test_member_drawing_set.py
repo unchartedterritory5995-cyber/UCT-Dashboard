@@ -46,7 +46,7 @@ from tests.test_drawing_geometry_v2 import _bars
 from tests.test_team_drawing_set_r4 import _flag_det
 
 MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout",
-              "bc:base", "bc:cup-with-handle", "draw:inside-day", "draw:double-bottom"}
+              "bc:base", "bc:cup-with-handle", "draw:inside-day", "draw:double-bottom", "draw:shelf-pivot"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
 MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
 #: The internal ids a member may be drawn: each is in the member set by its own blind check.
@@ -217,7 +217,7 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     assert bc == {"bc:flat-base", "bc:base", "bc:cup-with-handle"}
     assert bc - {auto_structures.BASE_DRAW_ID} <= auto_structures.TEAM_PIVOT_BOXES
     # the inside-day drawing is its own structures row too (draw:inside-day, gated by its round stamp)
-    drawings = {auto_structures.INSIDE_DAY_DRAW_ID, "draw:double-bottom"}
+    drawings = {auto_structures.INSIDE_DAY_DRAW_ID, "draw:double-bottom", auto_structures.SHELF_PIVOT_ID}
     assert set(registry.DISPLAY_MEMBER_SET) - bc - drawings <= set(registry.list_pattern_ids())
 
 
@@ -261,7 +261,9 @@ def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, call
     # railed in tests/test_base_draw_member_drawing.py, the cup in tests/test_cup_tier_member_drawing.py)
     # (nor an inside-day drawing: tests/test_inside_day_draw_member_drawing.py)
     # (nor a double-bottom drawing: tests/test_shape_draw.py)
-    assert types == MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom"} - STAMP_GATED
+    # (nor a shelf pivot: AUTO_STRUCTURES_SHELF_ENABLED is off here; tests/test_shelf_pivot_member_path.py)
+    assert types == MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom",
+                                  "draw:shelf-pivot"} - STAMP_GATED
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):

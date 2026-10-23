@@ -513,6 +513,13 @@ def _scan_patterns_daily(symbols, leader_set, _plog, on_progress=None) -> tuple[
     canonical_adapted = 0
     canonical_adapt_failed = 0
 
+    # A pending acquisition (DEAL_STATUS_ENABLED) is skipped HERE, inside the loop, not
+    # cut from the list: the universe run's checkpoint hashes the ordered list, so a
+    # pending set that changes between a run and its resume must not move the offsets.
+    # Flag off: empty set, nothing skipped. Read once per pass.
+    from api.services import deal_status as _deal_status
+    _deal_pending = _deal_status.consumer_pending()
+
     scanned = 0
     stored = 0
     for _i, sym in enumerate(symbols):
@@ -521,6 +528,8 @@ def _scan_patterns_daily(symbols, leader_set, _plog, on_progress=None) -> tuple[
                 on_progress(_i, symbols[_i - 1] if _i else None)
             except Exception as prog_err:  # noqa: BLE001 - a checkpoint never stops the scan
                 _plog.debug("[patterns] progress callback failed: %s", prog_err)
+        if _deal_pending and _deal_status.is_pending(sym, _deal_pending):
+            continue
         try:
             bars = bars_sqlite.get_bars(sym, "D", _fetch_depth)
         except Exception as bars_err:
@@ -3112,6 +3121,19 @@ def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list
             seen.add(u)
             out.append(u)
 
+    # A pending acquisition (DEAL_STATUS_ENABLED) is never sent to the judge: its chart is
+    # pinned to the deal price, and the chart already withholds its drawings. Recorded by
+    # name (diagnostics["dropped_pending_deal"]) only when something was dropped, so the
+    # flag-off diagnostics are exactly what they were.
+    from api.services import deal_status as _deal_status
+    _deal_pending = _deal_status.consumer_pending()
+    if _deal_pending:
+        _deal_dropped = [u for u in out if _deal_status.is_pending(u, _deal_pending)]
+        if _deal_dropped:
+            out = [u for u in out if u not in set(_deal_dropped)]
+            if diagnostics is not None:
+                diagnostics["dropped_pending_deal"] = _deal_dropped
+
     if diagnostics is not None:
         diagnostics.setdefault("dropped_stale", [])
         diagnostics.setdefault("dropped_no_bars", [])
@@ -3511,6 +3533,11 @@ def register_pattern_vision_jobs(scheduler):
                     "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
                     "path": "dropped_no_bars",
                     "message": "no stored daily bars at all"})
+            for _sym in diag.get("dropped_pending_deal", []):
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
+                    "path": "dropped_pending_deal",
+                    "message": "pending acquisition (deal_status)"})
             for _sym in truncated:
                 agg["truncated"] += 1
                 problems.append({

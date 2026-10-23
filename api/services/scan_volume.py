@@ -324,6 +324,8 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
     # TERM-047: each reference name lands in exactly one bucket. An untradable
     # name was ANSWERED (it was checked and is out by the scan's own floor).
     from api.services.coverage_receipt import Tally
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()   # empty with DEAL_STATUS_ENABLED off
     tally = Tally()
     results = []
     for sym, rmax in ref.items():
@@ -337,6 +339,8 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
         tally.answer()
         if not _tradable(sym, s, avg_dvol):   # price > $1 + avg $ volume floor
             continue
+        if deal_pending and deal_status.is_pending(sym, deal_pending):
+            continue                          # pinned at a buyout price: answered, not a pick
         tv = int(s.get("today_vol") or 0)
         if tv <= rmax:
             continue

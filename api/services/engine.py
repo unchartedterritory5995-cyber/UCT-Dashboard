@@ -772,6 +772,19 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
 # ─── Leadership ───────────────────────────────────────────────────────────────
 
 def get_leadership() -> list:
+    """The UCT20 leadership list as the wire pushed it, minus any pending acquisition
+    (DEAL_STATUS_ENABLED; the list is computed in the morning-wire repo, this is the one
+    dashboard read every surface goes through). Flag off: the list exactly as pushed."""
+    data = _leadership_as_pushed()
+    from api.services import deal_status
+    deal_pending = deal_status.consumer_pending()
+    if not deal_pending:
+        return data
+    return [r for r in data if not (isinstance(r, dict) and deal_status.is_pending(
+        r.get("ticker") or r.get("sym") or r.get("symbol"), deal_pending))]
+
+
+def _leadership_as_pushed() -> list:
     wire = _load_wire_data()
     if wire and wire.get("leadership"):
         cached = cache.get("leadership")

@@ -141,6 +141,23 @@ def catalysts_today_internal(authorization: Optional[str] = Header(None)):
     }
 
 
+@router.get("/catalysts/pending-deals-internal")
+def pending_deals_internal(authorization: Optional[str] = Header(None)):
+    """Server-to-server: the symbols the app treats as pending acquisitions, for the PC
+    pipelines (Morning Wire leaders, the scanner) so they exclude the SAME names.
+
+    PUSH_SECRET bearer, like /catalysts/today-internal. `enabled` is DEAL_STATUS_ENABLED;
+    with it off `symbols` is empty (consumers exclude nothing, exactly as before). The
+    set is `deal_status.consumer_pending()`: any error inside it is an empty set."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services import deal_status
+    return {"enabled": deal_status.enabled(),
+            "symbols": sorted(deal_status.consumer_pending()),
+            "as_of": _today()}
+
+
 @router.get("/catalysts/by-date/{ymd}")
 def catalysts_by_date(ymd: str = Path(...), user=Depends(get_current_user)):
     if not _DATE_RE.match(ymd):

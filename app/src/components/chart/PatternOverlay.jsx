@@ -487,6 +487,20 @@ export function rowView(row) {
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
+/** Where the deal-status notice sits: BOTTOM-LEFT of the price pane, stacked on the
+ *  3M/6M/YTD/1Y/5Y/Origin lookback bar.
+ *  ⚰️ IT WAS BORN AT `top: 34, left: 8` — exactly the OHLC readout row and the EMA/SMA
+ *  legend under it (`.legend` is `top: 28px + --price-pane-top`, `left: 8px`), so it hid
+ *  the numbers a member reads first. The top-left corner belongs to the legend.
+ *  ⭐ `--lookback-bottom` is published on the chart wrapper by StockChart's chrome sampler,
+ *  the same number it writes to the lookback bar's `style.bottom`; the notice sits one
+ *  bar-height (LOOKBACK_BAR_PX) plus a gap above it. The fallback is `.rangeBar`'s own CSS
+ *  fallback, for the frames before the sampler runs. */
+export const LOOKBACK_BAR_PX = 26
+export const DEAL_NOTICE_GAP_PX = 4
+export const DEAL_NOTICE_BOTTOM =
+  `calc(var(--lookback-bottom, calc(22% + 32px)) + ${LOOKBACK_BAR_PX + DEAL_NOTICE_GAP_PX}px)`
+
 /** The one line a chart shows when the stock is pending acquisition. The label is the server's
  *  (one authority); DEAL_STATUS_LABEL is only the fallback when a payload carries none. */
 function DealStatusNotice({ dealStatus }) {
@@ -497,7 +511,7 @@ function DealStatusNotice({ dealStatus }) {
       data-testid="pattern-deal-status"
       style={{
         position: 'absolute',
-        top: 34,
+        bottom: DEAL_NOTICE_BOTTOM,
         left: 8,
         zIndex: 5,
         pointerEvents: 'none',

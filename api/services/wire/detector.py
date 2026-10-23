@@ -72,6 +72,14 @@ def run_wire_tick(now_ts: float | None = None) -> dict:
     result: dict = {"market_date": md, "scanned": 0, "written": 0}
     try:
         reporters = todays_reporters(md)
+        # A pending acquisition (DEAL_STATUS_ENABLED) reports but does not trade on it:
+        # it is pinned to the deal price, so no wire row is written for it. The board
+        # still lists it (this reads the board; it does not edit it). Flag off: no-op.
+        from api.services import deal_status
+        deal_pending = deal_status.consumer_pending()
+        if deal_pending:
+            reporters = [r for r in reporters
+                         if not deal_status.is_pending(r.get("sym"), deal_pending)]
         result["scanned"] = len(reporters)
         if not reporters:
             return result                      # holiday / Friday night — correct

@@ -3362,9 +3362,9 @@ export default function StockChart({
     if (!deskCallLevels || !deskEnabled) return undefined
     const style = { entry: ['#60a5fa', 0], stop: ['#f87171', 2], target: ['#4ade80', 2] }
     for (const l of deskCallLevels.levels) {
-      const [color, lineStyle] = style[l.kind] || ['#c9a84c', 2]
+      const [color, styleCode] = style[l.kind] || ['#c9a84c', 2]
       deskCallLinesRef.current.push(series.createPriceLine({
-        price: Number(l.price), color, lineWidth: 1, lineStyle, axisLabelVisible: true,
+        price: Number(l.price), color, lineWidth: 1, lineStyle: styleCode, axisLabelVisible: true,
         title: `${deskCallLevels.trader} ${l.kind}`,
       }))
     }
@@ -17200,6 +17200,15 @@ export default function StockChart({
             // than a number that happens to come out right today.
             const bottom = plan.lookbackBottom
             if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
+          }
+          // …and the same number as a variable on the WRAPPER, so chrome that must
+          // stack on the lookback band (PatternOverlay's deal-status notice) reads
+          // the one measurement instead of guessing it. Written even when the bar
+          // itself is absent: the band is still where the notice belongs.
+          const host = wrapperRef.current
+          if (host) {
+            const want = `${plan.lookbackBottom}px`
+            if (host.style.getPropertyValue('--lookback-bottom') !== want) host.style.setProperty('--lookback-bottom', want)
           }
           const vl = volLegendRef.current
           if (vl) {

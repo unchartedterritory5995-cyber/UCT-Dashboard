@@ -312,6 +312,14 @@ def gather_inputs(sym: str, live_move: dict | None = None) -> dict:
     return out
 
 
+def pending_grade() -> dict:
+    """What the grade chip shows for a pending acquisition: no letter, no score, the label."""
+    from api.services import deal_status
+    return {"letter": None, "score": None, "pending_acquisition": True,
+            "label": deal_status.PENDING_LABEL, "basis": None,
+            "inputs_present": 0, "inputs_total": len(WEIGHTS), "inputs": []}
+
+
 def _grade_is_good(payload: dict | None) -> bool:
     """A None/ungradeable build must never become the value the next caller
     sees — same contract as `implied_move._move_is_good`."""
@@ -336,6 +344,11 @@ def get_setup_grade(sym: str, live_move: dict | None = None) -> dict | None:
     instead of waiting out the TTL.
     """
     sym_key = (sym or "").upper().strip()
+    # A pending acquisition (DEAL_STATUS_ENABLED) gets the reason, never a letter: it
+    # trades pinned to the deal price, so an earnings setup grade would be noise.
+    from api.services import deal_status
+    if deal_status.is_pending(sym_key):
+        return pending_grade()
     key = f"setupgrade::{sym_key}::{'iv' if live_move else 'noiv'}"
 
     def _build():
@@ -412,7 +425,7 @@ def run_daily_grade_snapshot(now: _dt.datetime | None = None) -> dict:
                 _log.debug("[setup-grade] live-move fetch failed for %s", sym, exc_info=True)
                 live = None
             grade = get_setup_grade(sym, live_move=live)
-            if not grade:
+            if not grade or grade.get("pending_acquisition"):
                 summary["skipped"] += 1
                 continue
             implied_store.record_grade(sym=sym, date=today, surface=SURFACE,

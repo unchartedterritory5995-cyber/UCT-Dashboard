@@ -31,6 +31,7 @@ export const FLAG_TEXT = {
   size_unavailable: 'The trade could not be sized',
   extended: 'Price is already more than 3% past the entry',
   quote_unavailable: 'No live price, so extension could not be checked',
+  pending_acquisition: 'Pending acquisition: the stock is pinned to its buyout price',
 }
 
 export function flagText(f) { return FLAG_TEXT[f] || String(f) }
