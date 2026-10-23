@@ -31,7 +31,8 @@
 //   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
 //   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
 //   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
-//   Whether `drawn` is present is the SERVER's call (admins; members only with the team set on).
+//   Whether `drawn` is present is the SERVER's call (admins only; withheld from members while
+//   auto_structures.MEMBER_LEARNED_LINES_ROUND is None).
 //
 // ⭐ TEAM DRAWING SET (owner direction 2026-10-17; registry.DISPLAY_TEAM_SET = the trusted tier):
 //   `trustedOnly` draws it (members always; admins by default, "All" shows everything). Its
@@ -70,6 +71,8 @@ import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
 import LearnedDrawn from './patternShapes/LearnedDrawn'
+import { LabelLayoutContext } from './patternShapes/labelLayoutContext'
+import { computeLabelLayout } from './patternLabelLayout'
 import EmaSegment from './patternShapes/EmaSegment'
 import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
@@ -236,19 +239,17 @@ export function textbookMetricsLines(d) {
   return lines
 }
 
-// The metrics text: two (or three) lines right-aligned to the END of the pivot line (its extended tip) and
-// set just ABOVE it, so it sits over the base (whose prices are below the pivot) and never touches the
-// pivot label, which starts 4px to the right of that same tip. A third line lifts the block by one line.
-function BaseMetricsText({ d, lines, line, tToX, priceToY }) {
-  if (!lines || !line) return null
-  const xs = [tToX(line.start_t), tToX(line.end_t)].filter((v) => v != null)
-  const y = priceToY(Number(line.price))
-  if (!xs.length || y == null) return null
-  const x = Math.max(...xs) + 40
+// The metrics text: two (or three) lines LEFT-aligned to the base's own left edge, set just above the box
+// top (or just inside it, whichever covers fewer candles; labelLayout.placeMetricsBlock decides). It used to
+// sit right-aligned to the pivot line's extended tip, i.e. at the right price edge, where it printed over
+// the latest candles and the learned levels' labels (WDAY daily, 2026-10-23). Text only: the box, the pivot
+// line and every number are unchanged.
+function BaseMetricsText({ d, lines, place }) {
+  if (!lines || !place) return null
   return (
-    <text data-role="base-metrics" x={x} y={y - 18 - 12 * Math.max(0, lines.length - 2)} textAnchor="end"
+    <text data-role="base-metrics" data-metrics-side={place.side} x={place.x} y={place.y} textAnchor="start"
       fontSize="10" fontWeight="600" fill={getColor(d)} opacity={getOpacity(d)} style={{ pointerEvents: 'none' }}>
-      {lines.map((s, i) => <tspan key={i} x={x} dy={i === 0 ? '0' : '12'}>{s}</tspan>)}
+      {lines.map((s, i) => <tspan key={i} x={place.x} dy={i === 0 ? '0' : '12'}>{s}</tspan>)}
     </text>
   )
 }
@@ -407,6 +408,67 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
 }
 
 /**
+ * Everything one drawable row derives before it draws (the drawing extras it carries, the levels it
+ * adds, the metrics it prints). Shared by the render and by the label-collision pass so the two can
+ * never disagree about which labels exist. Pure.
+ */
+export function rowView(row) {
+  const d = drawGeometry(row)
+  const shape = d?.geometry?.shape
+  const ex = d?.geometry?.extras || {}
+  // A pullback names an EMA: draw that EMA over the pullback window, not a flat line.
+  const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
+  // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
+  const lanesOff = ex.draw_lanes === false
+  // A team-set base whose box did not hold up draws its pivot line only.
+  const boxOff = ex.draw_box === false
+  // The flat-top ceiling replaces the detector's candle mark and secondary levels outright.
+  const flatTop = flatTopDrawing(d)
+  // The base drawing (bc:base) is its own geometry: region + pivot + low, nothing else.
+  const base = baseDrawing(d)
+  // The inside-day drawing (draw:inside-day) is its own geometry: box + trigger + stop, nothing else.
+  const insideDay = insideDayDrawing(d)
+  // A named base shape (draw:<shape>) is its own geometry: region + pivot + low + its points.
+  const shapeDraw = shapeDrawing(d)
+  // The shelf pivot (draw:shelf-pivot) is its own geometry: one labelled level, nothing else.
+  const shelf = shelfPivotDrawing(d)
+  const Renderer = (flatTop || base || insideDay || shapeDraw || shelf) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
+  const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
+  const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
+  // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
+  // as a faint, separately labelled reference so the two lines are never read as one.
+  const rimRef = pivot && ex.draw_rim_ref && Number.isFinite(Number(ex.draw_rim_ref.price)) ? ex.draw_rim_ref : null
+  // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
+  // the stop to start at the TAG bar (the detector's own stop secondary runs from the
+  // 10-session high, far left) — same price, same label, display only.
+  const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
+  const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay && !shapeDraw && !shelf ? d.geometry.secondary : [])
+    .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
+    .map((sec) => (drawStop && sec?.role === 'stop'
+      ? {
+          ...sec,
+          draw_stop: true,
+          anchors: [
+            { t: drawStop.start_t, price: Number(drawStop.price) },
+            { t: drawStop.end_t, price: Number(drawStop.price) },
+          ],
+        }
+      : sec))
+  // Round 6 (bull_flag): `draw_entry_price` moves the DRAWN entry off a single wick /
+  // spike over the flag onto its body highs. Display only — levels.entry is untouched.
+  const drawnEntry = Number(ex.draw_entry_price)
+  const entry = d?.draw_entry
+    ? (ex.draw_entry_price != null && Number.isFinite(drawnEntry) ? drawnEntry : Number(d?.levels?.entry))
+    : NaN
+  const anchors = d?.geometry?.anchors || []
+  const tlBreak = trendlineBreakLine(d)
+  // base metrics print only beside a pivot line that actually draws (the base's own, or draw_pivot)
+  const metricsLine = base ? { start_t: base.start_t, end_t: base.end_t, price: base.pivot } : pivot
+  const metricsLines = metricsLine ? baseMetricsLines(d) : null
+  return { d, shape, ex, hasEma, lanesOff, boxOff, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, drawStop, secondary, drawnEntry, entry, anchors, tlBreak, metricsLine, metricsLines }
+}
+
+/**
  * Props:
  *   chart:             lightweight-charts IChartApi (already created in parent)
  *   series:            ISeriesApi — the candle series, used for priceToCoordinate
@@ -422,6 +484,37 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
  */
+export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
+
+/** The one line a chart shows when the stock is pending acquisition. The label is the server's
+ *  (one authority); DEAL_STATUS_LABEL is only the fallback when a payload carries none. */
+function DealStatusNotice({ dealStatus }) {
+  const label = (typeof dealStatus?.label === 'string' && dealStatus.label) || DEAL_STATUS_LABEL
+  return (
+    <div
+      role="status"
+      data-testid="pattern-deal-status"
+      style={{
+        position: 'absolute',
+        top: 34,
+        left: 8,
+        zIndex: 5,
+        pointerEvents: 'none',
+        padding: '3px 8px',
+        borderRadius: 4,
+        border: '1px solid var(--border)',
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-muted)',
+        fontSize: 11,
+        lineHeight: 1.3,
+        maxWidth: 'calc(100% - 16px)',
+      }}
+    >
+      {label}
+    </div>
+  )
+}
+
 export default function PatternOverlay({
   chart,
   series,
@@ -436,6 +529,8 @@ export default function PatternOverlay({
   lastPrice = null,
   drawn = null,
   trustedOnly = false,
+  dealStatus = null,
+  candles = null,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -470,6 +565,10 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
+  // Pending acquisition (server deal_status, DEAL_STATUS_ENABLED): the server withheld every
+  // drawing and buy-point label; say why instead of drawing nothing silently.
+  if (enabled && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
+
   const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
@@ -500,7 +599,33 @@ export default function PatternOverlay({
     if (typeof spacing === 'number' && spacing > 0) barHalfWidthPx = spacing / 2
   } catch { /* keep the default */ }
 
+  const views = drawable.map(rowView)
+  // Candle extents in px, only when a metrics block needs placing (a base row with metrics) -- read lazily.
+  let candlePx = null
+  const readCandles = () => {
+    if (candlePx) return candlePx
+    candlePx = []
+    if (!Array.isArray(candles)) return candlePx
+    const ts = chart.timeScale()
+    for (const c of candles) {
+      if (!c || c.high == null || c.low == null) continue
+      let x = null
+      try { x = ts.timeToCoordinate(c.time) } catch { x = null }
+      if (x == null) continue
+      const yHigh = priceToY(c.high)
+      const yLow = priceToY(c.low)
+      if (yHigh == null || yLow == null) continue
+      candlePx.push({ x, yHigh: Math.min(yHigh, yLow), yLow: Math.max(yHigh, yLow) })
+    }
+    return candlePx
+  }
+  const labelLayout = computeLabelLayout({
+    views, drawn: hasDrawn ? drawn : null, tToX, priceToY,
+    pane: { w: size.width, h: size.height }, candles: readCandles, halfW: barHalfWidthPx,
+  })
+
   return (
+    <LabelLayoutContext.Provider value={labelLayout}>
     <svg
       ref={svgRef}
       style={{
@@ -523,60 +648,11 @@ export default function PatternOverlay({
           </feMerge>
         </filter>
       </defs>
-      {hasDrawn && <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} />}
-      {drawable.map((row) => {
-        const d = drawGeometry(row)
-        const shape = d?.geometry?.shape
-        const ex = d?.geometry?.extras || {}
-        // A pullback names an EMA: draw that EMA over the pullback window, not a flat line.
-        const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
-        // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
-        const lanesOff = ex.draw_lanes === false
-        // A team-set base whose box did not hold up draws its pivot line only.
-        const boxOff = ex.draw_box === false
-        // The flat-top ceiling replaces the detector's candle mark and secondary levels outright.
-        const flatTop = flatTopDrawing(d)
-        // The base drawing (bc:base) is its own geometry: region + pivot + low, nothing else.
-        const base = baseDrawing(d)
-        // The inside-day drawing (draw:inside-day) is its own geometry: box + trigger + stop, nothing else.
-        const insideDay = insideDayDrawing(d)
-        // A named base shape (draw:<shape>) is its own geometry: region + pivot + low + its points.
-        const shapeDraw = shapeDrawing(d)
-        // The shelf pivot (draw:shelf-pivot) is its own geometry: one labelled level, nothing else.
-        const shelf = shelfPivotDrawing(d)
-        const Renderer = (flatTop || base || insideDay || shapeDraw || shelf) ? null : (hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape]))
-        const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
-        const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
-        // Cup round 9: a right side that stalled under the rim pivots at the HANDLE HIGH; the rim stays
-        // as a faint, separately labelled reference so the two lines are never read as one.
-        const rimRef = pivot && ex.draw_rim_ref && Number.isFinite(Number(ex.draw_rim_ref.price)) ? ex.draw_rim_ref : null
-        // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
-        // the stop to start at the TAG bar (the detector's own stop secondary runs from the
-        // 10-session high, far left) — same price, same label, display only.
-        const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
-        const secondary = (Array.isArray(d?.geometry?.secondary) && !flatTop && !base && !insideDay && !shapeDraw && !shelf ? d.geometry.secondary : [])
-          .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
-          .map((sec) => (drawStop && sec?.role === 'stop'
-            ? {
-                ...sec,
-                draw_stop: true,
-                anchors: [
-                  { t: drawStop.start_t, price: Number(drawStop.price) },
-                  { t: drawStop.end_t, price: Number(drawStop.price) },
-                ],
-              }
-            : sec))
-        // Round 6 (bull_flag): `draw_entry_price` moves the DRAWN entry off a single wick /
-        // spike over the flag onto its body highs. Display only — levels.entry is untouched.
-        const drawnEntry = Number(ex.draw_entry_price)
-        const entry = d?.draw_entry
-          ? (ex.draw_entry_price != null && Number.isFinite(drawnEntry) ? drawnEntry : Number(d?.levels?.entry))
-          : NaN
-        const anchors = d?.geometry?.anchors || []
-        const tlBreak = trendlineBreakLine(d)
-        // base metrics print only beside a pivot line that actually draws (the base's own, or draw_pivot)
-        const metricsLine = base ? { start_t: base.start_t, end_t: base.end_t, price: base.pivot } : pivot
-        const metricsLines = metricsLine ? baseMetricsLines(d) : null
+      {hasDrawn && (
+        <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} droppedLabels={labelLayout.droppedLearned} />
+      )}
+      {views.map((v) => {
+        const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v
         return (
           <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
             {Renderer && (
@@ -748,7 +824,7 @@ export default function PatternOverlay({
                   {shelf.tooltip && <title>{shelf.tooltip}</title>}
                   <line x1={Math.min(x1, x2)} y1={y} x2={xEnd} y2={y} stroke={SHELF_PIVOT_COLOR}
                     strokeWidth={1.75} />
-                  <text data-role="shelf-pivot-label" x={xEnd + 4} y={y + 3} fontSize="10" fontWeight="600"
+                  <text data-role="shelf-pivot-label" x={xEnd + 4} y={y + 3 + (labelLayout.dy[`${d.id}:shelf`] || 0)} fontSize="10" fontWeight="600"
                     fill={SHELF_PIVOT_COLOR} textAnchor="start" style={{ pointerEvents: 'none' }}>
                     {shelf.label}
                   </text>
@@ -894,11 +970,12 @@ export default function PatternOverlay({
               />
             )}
             {metricsLines && (
-              <BaseMetricsText d={d} lines={metricsLines} line={metricsLine} tToX={tToX} priceToY={priceToY} />
+              <BaseMetricsText d={d} lines={metricsLines} place={labelLayout.metrics[d.id]} />
             )}
           </g>
         )
       })}
     </svg>
+    </LabelLayoutContext.Provider>
   )
 }

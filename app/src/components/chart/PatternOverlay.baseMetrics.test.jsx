@@ -90,7 +90,7 @@ describe('baseMetricsLines', () => {
 })
 
 describe('the metrics render beside the pivot line', () => {
-  it('a bc:base prints both lines above its pivot, right-aligned to the line tip', () => {
+  it('a bc:base prints both lines above its pivot, left-aligned to the base (not at the price edge)', () => {
     const { container } = draw([base({ metrics: METRICS })])
     const t = container.querySelector('[data-role="base-metrics"]')
     expect(t).not.toBeNull()
@@ -98,10 +98,12 @@ describe('the metrics render beside the pivot line', () => {
       'Pivot 81.98 · 12% deep · 5.2 wks · stage 2 (est.)',
       'BZ to 86.08 · +3.1% vs pivot',
     ])
-    // the pivot line runs x 0..80 at y = 1000 - 819.8 = 180.2; the text ends at the tip, above the line
-    expect(t.getAttribute('x')).toBe('80')
-    expect(t.getAttribute('text-anchor')).toBe('end')
-    expect(Number(t.getAttribute('y'))).toBeLessThan(180.2 - 12)
+    // the base spans x 0..40 with its pivot at y = 1000 - 819.8 = 180.2; the block starts at the base's
+    // LEFT edge (2px in) and sits above the box top -- never at the right price edge (WDAY, 2026-10-23)
+    expect(t.getAttribute('x')).toBe('2')
+    expect(t.getAttribute('text-anchor')).toBe('start')
+    expect(t.getAttribute('data-metrics-side')).toBe('above')
+    expect(Number(t.getAttribute('y'))).toBeCloseTo(180.2 - 18, 6)
     // the pivot label is untouched and still starts to the right of the tip
     const pivot = container.querySelector('[data-role="base-pivot"] text')
     expect(pivot.textContent).toBe('pivot')

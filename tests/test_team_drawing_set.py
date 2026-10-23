@@ -230,7 +230,7 @@ def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_t
     # without bars (no pivot stamp, so it would draw the full box): not served to a member.
     assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
     assert "structures" not in body
-    assert "drawn" in body
+    assert "drawn" not in body               # learned lines withheld from members (MEMBER_LEARNED_LINES_ROUND)
     admin = _client(ADMIN, monkeypatch, ROWS).get(URL).json()
     assert [r["pattern_id"] for r in admin["detections"]] == [r["pattern_id"] for r in ROWS]
     assert [r["display_tier"] for r in admin["detections"]] == [

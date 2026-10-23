@@ -6128,7 +6128,8 @@ export default function StockChart({
   // `showPatterns` is true still sees (and fetches) nothing, exactly as before.
   // Members (AUTO_STRUCTURES_MEMBERS_ENABLED): scope 'trusted' — the same toggle, but their request
   // always carries include_structures=true so the SERVER filters to trusted-tier rows, and the
-  // overlay draws trusted only (no experimental, levels, base boxes or learned drawer).
+  // overlay draws trusted only (no experimental, levels, base boxes or learned drawer: the server sends
+  // a member no `drawn` block, and the overlay's `drawn` prop is passed for scope 'all' only).
   const autoStructuresScope = useAutoStructuresScope()
   const autoStructuresOn = autoStructuresScope === 'all'
   // TEAM DRAWING SET (owner direction 2026-10-17): an admin's chart draws the team set by default
@@ -6140,7 +6141,7 @@ export default function StockChart({
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
-  const { detections: patternDetections, drawn: patternDrawn } = usePatternDetections(
+  const { detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus } = usePatternDetections(
     sym, resolvedTf, patternsActive, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
@@ -20278,7 +20279,8 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
-          drawn={autoStructuresScope != null ? patternDrawn : null}
+          drawn={autoStructuresScope === 'all' ? patternDrawn : null}
+          dealStatus={autoStructuresScope != null ? patternDealStatus : null}
           enabled={patternsActive}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}
@@ -20287,6 +20289,7 @@ export default function StockChart({
           showLevels={autoStructuresOn && showAllDrawings && showPatternLevels}
           trustedOnly={autoStructuresTrustedOnly}
           lastPrice={patternLastPrice}
+          candles={patternsActive ? ohlcData : null}
         />
       )}
       {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
