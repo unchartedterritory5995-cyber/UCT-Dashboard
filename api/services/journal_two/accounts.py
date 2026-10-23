@@ -60,39 +60,22 @@ _DEFAULT_ACCOUNT_SIZE = 100_000.0
 
 
 def member_set_account_size(size, marked=None) -> float | None:
-    """The size the MEMBER set, or None when it is unset.
+    """The size the MEMBER set, or None when it is unset. The ONE authority for account size.
 
-    It is the home for FIVE readers, and only these: portfolio_heat (its default reader),
-    voice_position_sizing._get_account_settings, validate_trade (through it), the Notebook
-    myPositionsRisk widget, and AI Search's EXPOSURE line (through heat's flag). Unset there means
-    voice_position_sizing.UNSET_ACCOUNT_SIZE (25,000), flagged default.
+    Every reader asks it, through `own_account_size` / `account_size_of` (a settings dict or a
+    j2_accounts row) or the read-only `read_member_account_size` / `account_size_basis`; unset
+    means voice_position_sizing.UNSET_ACCOUNT_SIZE (25,000), flagged default, and a surface that
+    shows a number on it says so with voice_position_sizing.default_size_sentence().
+    tests/test_account_size_authority.py fails on a module outside this file that reads the raw
+    size itself.
 
-    ⚠️ KNOWN DISAGREEMENTS, not migrated (fix round 4 ruling: moving them would change Compass
-    pre-trade and coach sizing numbers for most members, a separate change). These still read the
-    RAW size, so an unset member's migrated placeholder reads as a real 100,000, or use their own
-    default:
-      - journal_two/pre_trade_verdict.py:111, :367 (Compass pre-trade hard checks)
-      - journal_two/coach_chat_tools.py:340 (sizing curve), :485 (claimed-risk check), :732
-      - journal_two/coach_data_assembler.py:344 (per-trade cap and daily-loss checks)
-      - journal_two/interventions.py:151, :272 (daily-loss tilt threshold)
-      - journal_two/discipline.py:52 (daily loss cap)
-      - journal_two/calendar.py:155-185 (P&L %; sums every account when no id is given;
-        its own fallback is 100,000)
-      - routers/intelligence.py:293 (size_pct)
-      - routers/notebook_chart_alerts.py:113 via journal_two/chart_plan.compass_size
-      - scenario_simulator.py:98
-      - grade_ticker.py:30, :162 (its own default, 50,000, used by grade_watchlist and the
-        coach/voice grade tools whenever no account_size is passed)
-
-    Unset = missing, zero, non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE`: the migration writes
-    that placeholder into the Default row, and nothing in j2_accounts records a member edit, so a
-    member who types exactly the default is indistinguishable from the migrated row and reads as
-    unset (fix round 2 ruling, 2026-10-23).
-
-    ⚠️ KNOWN LIMIT, accepted (fix round 3 ruling, no schema change): a member who really sets
-    exactly 100,000 is treated as unset by the five readers above (sized at UNSET_ACCOUNT_SIZE,
-    labelled default),
-    because nothing stored can tell their choice from the placeholder."""
+    `marked` is the member-set marker (j2_accounts.account_size_set; `accountSizeSet` in a
+    settings dict). Marked = the member's size, whatever its value, so a member who types exactly
+    100,000 counts as set. Unmarked = the old rule: missing, zero, negative, non-finite,
+    non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE` (the placeholder the Default-row migration
+    writes) is unset. A write marks it when it changes the stored size (`marked_after_write`), a
+    broker sync always does, and db._backfill_account_size_marker marked every pre-marker row
+    whose size was not the placeholder."""
     try:
         v = float(size)
     except (TypeError, ValueError):
