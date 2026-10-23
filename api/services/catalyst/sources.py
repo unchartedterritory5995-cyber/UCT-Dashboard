@@ -861,6 +861,9 @@ def _merge_hunter_hits(by_ticker: dict, hits: list[dict]) -> list[dict]:
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
+_FLOW_NO_SECRET_LOGGED = False   # "PUSH_SECRET unset" is logged once per process
+
+
 def _pull_options_flow() -> dict[str, dict]:
     """Source 9: options-flow conviction board — unusual sweep/block "smart
     money" premium per ticker. Reads the flow-worker's per-ticker leaderboard
@@ -868,20 +871,33 @@ def _pull_options_flow() -> dict[str, dict]:
     drops noise, and ranks by net bull/bear premium.
 
     Post-cutover the fresh flow.db lives on the FLOW-WORKER; web's local copy is
-    a frozen snapshot, so we MUST fetch over WORKER_INTERNAL_URL (internal, the
-    endpoint takes no auth). Fail-soft: disabled / no worker URL / any error =>
-    {} (no flow signal today). Gated on CATALYST_FLOW_ENABLED (default on)."""
+    a frozen snapshot, so we MUST fetch over WORKER_INTERNAL_URL. The endpoint is
+    `require_flow_user` (since 9ff74f693b, 2026-08-09), so this server-side read
+    sends the PUSH_SECRET service bearer from `flow_proxy.internal_read_headers()`
+    -- the same credential every other web->flow-worker read uses, never a
+    member's cookie. Fail-soft: disabled / no worker URL / no PUSH_SECRET (logged
+    once, no call made) / any error incl. 401 => {} (no flow signal today).
+    Gated on CATALYST_FLOW_ENABLED (default on)."""
+    global _FLOW_NO_SECRET_LOGGED
     if os.environ.get("CATALYST_FLOW_ENABLED", "1").lower() not in ("1", "true", "yes"):
         return {}
     base = os.environ.get("WORKER_INTERNAL_URL", "").rstrip("/")
     if not base:
+        return {}
+    from api import flow_proxy
+    headers = flow_proxy.internal_read_headers()
+    if not headers:
+        if not _FLOW_NO_SECRET_LOGGED:
+            _FLOW_NO_SECRET_LOGGED = True
+            logger.warning("[catalyst-sources] options-flow pull skipped: PUSH_SECRET "
+                           "unset, the flow-worker would answer 401")
         return {}
     try:
         import requests
         limit = int(os.environ.get("CATALYST_FLOW_LIMIT", "20"))
         timeout = float(os.environ.get("CATALYST_FLOW_TIMEOUT", "6"))
         r = requests.get(f"{base}/api/flow/top-conviction",
-                         params={"limit": limit}, timeout=timeout)
+                         params={"limit": limit}, headers=headers, timeout=timeout)
         r.raise_for_status()
         data = r.json() or {}
     except Exception as e:
