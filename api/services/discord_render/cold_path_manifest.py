@@ -40,14 +40,14 @@ DEFAULT_THRESHOLD_MS = 50.0
 
 #: ⛔⛔ MEASURED 2026-09-18: `api.main` timed at **17,300 ms** — by far the largest single entry
 #: the scanner has ever produced, and a METHODOLOGY ARTIFACT, not a live-request risk. `api.main`
-#: is the ASGI entry point uvicorn imports first; every OTHER module in this repo — including
-#: `api.routers.auth` and `api.services.discord_index_close`, the two places that lazily
-#: `import api.main` (a maintenance-mode toggle and a scheduled-post uptime read) — can only
+#: is the ASGI entry point uvicorn imports first; every OTHER module in this repo can only
 #: execute a single line of its own code AFTER `api.main` has finished importing, because that
-#: import is what wires their routers/scheduler into existence in the first place. So a "lazy"
-#: import of `api.main` from inside this codebase is a GUARANTEED `sys.modules` cache hit in
-#: every real request path; measuring it standalone times the WHOLE APP'S boot cost and
-#: attributes it to a call site that can never pay it live. Registering it for preload would be
+#: import is what wires their routers/scheduler into existence in the first place. The two places
+#: that reach back into it (`api.routers.auth`'s maintenance-mode toggle and
+#: `api.services.discord_index_close`'s scheduled-post uptime read) no longer import it at all:
+#: since 2026-10-23 they read the running module from `sys.modules["api.main"]`. So no call site
+#: inside this codebase pays `api.main`'s import cost live; measuring it standalone times the
+#: WHOLE APP'S boot cost and attributes it to a call site that never pays it. Registering it for preload would be
 #: harmless (an instant no-op resolving from cache) but reporting it at the top of a ranked list
 #: is actively misleading — a reader would reasonably read "17.3 s, #1 by far" as an emergency
 #: that does not exist, and it would visually bury the entries below it that ARE real risks
