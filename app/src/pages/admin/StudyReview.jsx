@@ -147,10 +147,29 @@ function fmtNum(v) {
   return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, '')
 }
 
-/** The provenance line: the verbatim quote, else the detector's geometry numbers. */
+const LOCAL_ROOT = 'C:/Users/pgosz/projects/'
+
+/** One support line split into the words and where they came from. Lines read
+ *  `<file> <place>: "<words>"`; a line without that shape is shown whole. */
+export function supportLineOf(line) {
+  const s = String(line)
+  const cut = s.indexOf(': "')
+  if (cut <= 0) return { source: '', text: s }
+  const from = s.slice(0, cut)
+  return { source: from.startsWith(LOCAL_ROOT) ? from.slice(LOCAL_ROOT.length) : from, text: s.slice(cut + 2) }
+}
+
+/** The provenance line: the firm's own support lines, else the verbatim quote,
+ *  else the detector's geometry numbers. Support wins over the quote because a
+ *  glossary item's quote is the AI brief's sentence the draft started from (the
+ *  2026-10-21 audit found it wrong in places); the support lines are what the
+ *  item was checked against. */
 export function provenanceOf(item) {
   const r = item?.reveal_json || NO_OBJ
   const facts = r.facts || NO_OBJ
+  if (Array.isArray(r.support) && r.support.length) {
+    return { kind: 'support', lines: r.support.map(supportLineOf) }
+  }
   if (r.quote) return { kind: 'quote', text: String(r.quote) }
   const geometry = facts.geometry || r.geometry
   if (geometry && typeof geometry === 'object' && Object.keys(geometry).length) {
@@ -772,7 +791,20 @@ export default function StudyReview() {
               </div>
             )}
 
-            {prov && (
+            {prov && prov.kind === 'support' && (
+              <div className={styles.prov} data-testid="study-provenance">
+                <span className={styles.label}>Checked against</span>
+                <ul className={styles.support}>
+                  {prov.lines.map((l, i) => (
+                    <li key={i}>
+                      <span className={styles.supportText}>{l.text}</span>
+                      {l.source && <span className={styles.supportFrom}>{l.source}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {prov && prov.kind !== 'support' && (
               <p className={styles.prov} data-testid="study-provenance">
                 <span className={styles.label}>{prov.kind === 'quote' ? 'Source says' : 'Provenance'}</span>
                 {prov.kind === 'quote' ? <q>{prov.text}</q> : <span>{prov.text}</span>}

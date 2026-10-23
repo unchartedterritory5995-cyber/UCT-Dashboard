@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
-import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, forwardSummaryOf } from './StudyReview'
+import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
@@ -384,6 +384,27 @@ describe('StudyReview helpers', () => {
     expect(provenanceOf({ reveal_json: { quote: 'word for word' } })).toEqual({ kind: 'quote', text: 'word for word' })
     expect(provenanceOf({ reveal_json: { rule: 'Position % = risk % / stop %' } })).toEqual({ kind: 'rule', text: 'Position % = risk % / stop %' })
     expect(provenanceOf({ reveal_json: {} })).toBeNull()
+  })
+
+  it('provenanceOf shows the firm support lines over the AI-brief quote', () => {
+    const prov = provenanceOf({
+      reveal_json: {
+        quote: 'computed from breadth, distribution days and index MA structure',
+        support: [
+          'C:/Users/pgosz/projects/morning-wire/morning_wire_engine.py calculate_exposure: "0-150, IS the recommended exposure %"',
+          'arithmetic: 5 positions x 1% = 5% heat',
+        ],
+      },
+    })
+    expect(prov).toEqual({
+      kind: 'support',
+      lines: [
+        { source: 'morning-wire/morning_wire_engine.py calculate_exposure', text: '"0-150, IS the recommended exposure %"' },
+        { source: '', text: 'arithmetic: 5 positions x 1% = 5% heat' },
+      ],
+    })
+    expect(supportLineOf('docs/study/sizing_rule.md §2: "stop first"')).toEqual({ source: 'docs/study/sizing_rule.md §2', text: '"stop first"' })
+    expect(provenanceOf({ reveal_json: { quote: 'q', support: [] } })).toEqual({ kind: 'quote', text: 'q' })
   })
 
   it('forwardSummaryOf prints the fair-scoring accept list and the window', () => {
