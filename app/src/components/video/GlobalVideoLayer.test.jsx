@@ -68,6 +68,8 @@ describe('GlobalVideoLayer', () => {
     act(() => store.play(LIST, 0))
     act(() => lastOnStateChange({ data: 0 })) // ENDED
     expect(screen.getByText('Next up')).toBeInTheDocument()
+    // N2: the card is an Escape layer for lib/topLayer.js (not modal, so no aria-modal).
+    expect(screen.getByRole('dialog', { name: 'Next up' })).toHaveAttribute('data-escape-layer')
     fireEvent.click(screen.getByText('Play now'))
     expect(store.getSnapshot().index).toBe(1)
     expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({ videoId: 'bbbbbbbbbbb', startSeconds: 0 })
