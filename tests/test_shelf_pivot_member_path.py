@@ -53,10 +53,26 @@ SENT_NOT_DRAWN = {
 }
 
 
+#: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
+#: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
+#: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
+#: shelf line) the layer draws nothing there. Measured on all 427 charts: this is the only one that moved.
+ROUND4_DRAWN = {
+    "held/draw/042": ("bc:base", [245.97], (20260303, 20260622)),
+}
+
+
 def _drawn_view(c):
-    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld."""
+    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld, and
+    the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there)."""
     served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
     lines = [tuple(x) for x in c["lines"]]
+    add = ROUND4_DRAWN.get(c["id"])
+    if add is not None:
+        assert not any(x[0] == add[0] for x in served), c["id"]
+        assert not any(x[0] == add[0] for x in lines), c["id"]
+        served = served + [add]
+        lines = lines + [(add[0], v, False) for v in add[1]]
     pid = SENT_NOT_DRAWN.get(c["id"])
     if pid is None:
         return served, lines
@@ -82,7 +98,11 @@ def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
         r = S.evaluate(c["bars"], served, lines)
         e = c["expect"]
         got = None if r["pick"] is None else {k: r["pick"][k] for k in ("P", "left", "disp_left")}
-        if r["gate"] != e["gate"] or got != e["pick"]:
+        if c["id"] in ROUND4_DRAWN:
+            # the recorded answer drew a shelf line; with the round-4 base served, the layer draws nothing
+            if not (e["pick"] is not None and got is None and r["gate"] != "PASS"):
+                bad.append((c["id"], "round4", e, r["gate"], got))
+        elif r["gate"] != e["gate"] or got != e["pick"]:
             bad.append((c["id"], "answer", e, got))
     assert bad == []
 

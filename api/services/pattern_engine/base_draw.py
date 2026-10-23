@@ -24,7 +24,7 @@ The lab rule passed its pre-registered checks AS DRAWN here (lab/base_draw/PRERE
 Two drawing rounds live here, chosen by `draw_round`:
   * ROUND 1 -- the confirmed member drawing: a verbatim port of the lab's rule_bd.base_drawing
     (parity-railed in tests/test_base_draw_lab_parity.py); the constants are the lab's frozen PARAMS.
-  * ROUND 2 (BASE_DRAW_ROUND) -- lab base_draw_v2. Round 1 put the pivot on the top CLUSTER of body
+  * ROUND 2 -- lab base_draw_v2. Round 1 put the pivot on the top CLUSTER of body
     tops, so a base whose highest body stands alone -- a spike bar at the base's start, a single high
     day inside it -- was drawn with its pivot UNDER that body, in the bar (blind judges, lab
     base_metrics: "the pivot sits mid-body, well under the real left-side top"). Round 2 puts the
@@ -39,8 +39,8 @@ Two drawing rounds live here, chosen by `draw_round`:
     region and/or a lip reached from above, when it also meets the textbook floors (TB_*): at least
     5 weeks long, at most 35% deep, after a prior advance of at least 30% from a real low, the close
     above a RISING 200-day average, no pending deal (deal_status.price_pinned), and the region
-    starting AT the left-side high (no higher high inside it or in the 30 sessions before it, no
-    candle body there above the pivot). Pivot, low, label and selection are round 2's. Passed two
+    starting AT the left-side high (no high inside it or in the 30 sessions before it above the lip's
+    high + 0.5 ATR, no candle body there above the pivot + 0.25 ATR). Pivot, low, label and selection are round 2's. Passed two
     pre-registered blind packets (A 2.86 [2.72, 2.98], B 2.96 [2.90, 3.00]) and a regression packet
     where round 2 draws (25 of 25 identical). Parity-railed against the lab rule in
     tests/test_base_draw_round4.py. Round 3 (a shelf under a higher peak) failed held-out and is

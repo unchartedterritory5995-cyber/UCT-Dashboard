@@ -41,8 +41,8 @@ def round_one_members(monkeypatch):
 
 
 def test_the_golden_is_from_round_one_and_is_not_vacuous():
-    # members are on round 2 now; the golden is the round-1 view a rollback must restore
-    assert auto_structures.MEMBER_BASE_ROUND == 2
+    # members are on round 4 now; the golden is the round-1 view a rollback must restore
+    assert auto_structures.MEMBER_BASE_ROUND == 4
     assert GOLDEN["member_round"] == 1
     c = GOLDEN["counts"]
     assert c["rows"] == 960 and c["scans"] == 168
