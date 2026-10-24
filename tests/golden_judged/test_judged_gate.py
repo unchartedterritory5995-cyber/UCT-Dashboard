@@ -101,13 +101,20 @@ def test_a_withdrawn_drawing_is_not_served_to_members(monkeypatch):
     assert WITHDRAWN_FAMS, "no withdrawn family: delete this test with the last one"
     for f in WITHDRAWN_FAMS:
         assert getattr(AS, f["member_literal"]) is None, (f["family"], getattr(AS, f["member_literal"]))
-    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "sr")
-    case = next(c for c in fam["cases"] if c["expect"]["zones"])
-    payload, _bars = MP.member_payload(monkeypatch, case)
-    assert "levels_sr" not in payload
-    monkeypatch.setattr(AS, "MEMBER_SR_ROUND", fam["judged_round"])     # control: the door is real
-    payload, _bars = MP.member_payload(monkeypatch, case)
-    assert payload.get("levels_sr", {}).get("zones")
+    # the door is real: a withdrawn case that draws as judged with its round set is red with the literal None
+    for f in WITHDRAWN_FAMS:
+        for c in f["cases"]:
+            if "retired" in c or c["id"] in KNOWN_RED:
+                continue
+            monkeypatch.setattr(AS, f["member_literal"], f["judged_round"])
+            payload, bars = MP.member_payload(monkeypatch, c)
+            if JG.failures(c, payload, bars):
+                continue
+            monkeypatch.setattr(AS, f["member_literal"], None)
+            payload, bars = MP.member_payload(monkeypatch, c)
+            assert JG.failures(c, payload, bars), (f["family"], c["id"])
+            return
+    raise AssertionError("no withdrawn case draws as judged with its round set: the control cannot run")
 
 
 def _cups(payload):
@@ -332,9 +339,11 @@ def test_the_replay_reaches_every_layer():
     every = fams | {f["family"] for f in REPLAYED_FAMS}    # a withdrawn or superseded family still replays
     assert {"base", "double_bottom", "inside_day"} <= fams, fams
     # shelf and donchian: withdrawn 2026-10-24 when their recert B textbook fix round failed
-    # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
+    # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A); sr: withdrawn at r2 and
+    # re-released at r7 the same day (recert D)
     # cup: withdrawn 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20; re-ships on an n >= 60 packet)
     assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout", "cup"} <= every, every
+    assert "sr" in fams, "sr is released at r7"
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
     # every setup-line family is a released fixture, and each one reproduces at least one judged case today
     assert set(JG.SETUP_LINE_FAMILIES) <= fams, set(JG.SETUP_LINE_FAMILIES) - fams

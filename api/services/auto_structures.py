@@ -2956,18 +2956,19 @@ def member_drawn_for(sym: str):
     return drawn
 
 
-# ================================================================ textbook support / resistance (members: WITHDRAWN)
+# ================================================================ textbook support / resistance (members: round r7)
 #: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
 #: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
 #: constant, so a new drawing round cannot release itself. Fail closed.
-#: None: WITHDRAWN from members 2026-10-24 (admins keep it under AUTO_STRUCTURES_SR_ENABLED). Round r2 first passed
-#: two packets of 25 (2.52 / 2.36) on a looser rubric. The recertification on the strict Edwards & Magee / Bulkowski
-#: rubric (four pre-registered packets of 25 per round, two fresh blind judges each) failed it, 2.04 / 1.98 / 2.02 /
-#: 2.20, pooled 2.06, mostly for an important nearby level left undrawn. Both permitted fix rounds failed too: r3
-#: pooled 2.055, r4 2.56 / 2.02 / 2.24 / 2.36, pooled 2.295 (bar: every packet >= 2.3 and >= 70% of charts >= 2,
-#: pooled >= 2.4). Evidence: lab/recert/D_levels_candles. Setting this back to a round string needs a new passed
-#: blind round of that round (tests/golden_judged: sr.json is "withdrawn" until then).
-MEMBER_SR_ROUND = None
+#: "r7": RELEASED 2026-10-24. Round r2 was withdrawn the same day after the strict Edwards & Magee / Bulkowski
+#: recertification failed it (pooled 2.06), and the fix rounds r3 (2.055), r4 (2.295), r5 (2.00) and r6 (2.345, every
+#: packet passed, pooled short) failed too. r7 = r6's model (two-touch levels, a broken level drawn in its new role
+#: only after a held retest, at most 3 levels) plus the serving rule that a chart with fewer than 2 levels gets no
+#: layer at all; it passed on 100 fresh charts, four pre-registered packets of 25 with two fresh blind judges each:
+#: 2.42 / 2.52 / 2.36 / 2.50, pooled 2.45 (bar: every packet >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). About
+#: half of liquid charts (51.8% measured) get a layer. Evidence: lab/recert/D_levels_candles/r7. Setting this to
+#: None withdraws it again (tests/golden_judged: sr.json is "released" at r7).
+MEMBER_SR_ROUND = "r7"
 #: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
 #: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
 SR_MIN_BARS = 261
@@ -3047,7 +3048,7 @@ def _sr_payload(d: dict) -> dict:
         "asof_t": int(d["asof"]),
         "atr": d["atr"],
         "zones": [{k: z[k] for k in ("role", "bot", "top", "label", "touches", "first_t", "last_t",
-                                     "broken_retested")} for z in d["zones"]],
+                                     "broken_retested", "state")} for z in d["zones"]],
         "trendlines": [{k: t[k] for k in ("side", "t1", "p1", "t2", "p2", "slope_per_bar", "label", "touches",
                                           "last_touch_t")} for t in d["trendlines"]],
     }
@@ -3058,7 +3059,8 @@ def _sr_payload(d: dict) -> dict:
 
 def _sr_withheld(bars: list, why: str) -> dict:
     """The block for a chart the released layer looked at and draws nothing on, by rule ("out_of_frame": outside
-    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer"."""
+    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer". (A chart
+    with fewer than 2 levels carries "too_few_levels", from sr_levels.draw itself.)"""
     from api.services.pattern_engine import sr_levels
     return {"round": sr_levels.SR_ROUND, "asof_t": int(bars[-1]["t"]), "atr": None, "zones": [], "trendlines": [],
             "withheld": why}
