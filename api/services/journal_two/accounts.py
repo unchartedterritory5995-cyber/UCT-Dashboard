@@ -169,21 +169,38 @@ def grading_account_size(
     conn: sqlite3.Connection | None = None,
     *,
     account_id: str | None = None,
-) -> tuple[float, bool]:
-    """READ-ONLY: (size, is_default) for a grade (grade_ticker / grade_watchlist) when the caller
-    knows the member: their own size on `account_id` (the unified '_all_' scope or no id = their
-    Default account), else UNSET_ACCOUNT_SIZE flagged default. A size of 0 or less is not a size
-    a trade can be graded on, so it is the default too (fix round 2, finding 7)."""
+) -> tuple[float, bool, str | None]:
+    """READ-ONLY: (size, is_default, note) for a grade (grade_ticker / grade_watchlist) when the
+    caller knows the member: their own size on `account_id` (the unified '_all_' scope or no id =
+    their Default account), else UNSET_ACCOUNT_SIZE flagged default. A size of 0 or less is not a
+    size a trade can be graded on, so it is the default too (fix round 2, finding 7), with its
+    own wording (R2-2): the member has a size, it is not positive. `note` is None on their own."""
+    from api.services.voice_position_sizing import default_size_sentence, nonpositive_size_sentence
     if not user_id:
-        return _unset_account_size(), True
+        return _unset_account_size(), True, default_size_sentence()
     acct = None if (not account_id or account_id == "_all_") else account_id
     try:
-        own = read_member_account_size(user_id, conn, account_id=acct)
+        row = _member_size_row(user_id, conn, account_id=acct)
     except Exception:  # noqa: BLE001 -- an unreadable size grades on the default, never fails a grade
-        own = None
+        row = None
+    own = own_account_size(row) if row else None
     if own is not None and own > 0:
-        return float(own), False
-    return _unset_account_size(), True
+        return float(own), False, None
+    return _unset_account_size(), True, (
+        nonpositive_size_sentence() if _is_nonpositive_size(row, own) else default_size_sentence())
+
+
+def _is_nonpositive_size(row, own) -> bool:
+    """The member HAS a size and it is 0 or less: a negative one the predicate returns, or a 0 the
+    member-set marker says is theirs (a broker sync at net-liq 0; base reads 0 as unset, so the
+    predicate does too, and the marker is what tells the two apart)."""
+    if own is not None:
+        return own <= 0
+    size, marked = _size_and_marker(row)
+    try:
+        return bool(marked) and float(size) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _size_rows(conn: sqlite3.Connection, where: str, params: tuple) -> list[dict]:
@@ -202,6 +219,13 @@ def read_member_account_size(
     """READ-ONLY, one SELECT: the member's own size on `account_id`, or (no id) on their Default
     account, else the oldest. None when it is unset or there is no account. Never migrates (not
     `get_or_migrate_default_account`, which inserts a row and reassigns the member's trades)."""
+    row = _member_size_row(user_id, conn, account_id=account_id)
+    return own_account_size(row) if row else None
+
+
+def _member_size_row(user_id: str, conn: sqlite3.Connection | None = None, *,
+                     account_id: str | None = None) -> dict | None:
+    """READ-ONLY, one SELECT: the size row read_member_account_size reads, or None."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -211,7 +235,7 @@ def read_member_account_size(
             rows = _size_rows(
                 conn, "user_id = ? ORDER BY (CASE WHEN name = 'Default' THEN 0 ELSE 1 END),"
                 " created_at ASC LIMIT 1", (user_id,))
-        return own_account_size(rows[0]) if rows else None
+        return rows[0] if rows else None
     finally:
         if owned:
             conn.close()

@@ -437,12 +437,73 @@ def _capture_grade(monkeypatch):
 
 def test_grading_account_size_is_the_members_or_the_flagged_default(conn):
     from api.services.journal_two import accounts
+    from api.services.voice_position_sizing import default_size_sentence
+    unset = (UNSET, True, default_size_sentence())
     _member(conn, "gr1", typed=40_000)
-    assert accounts.grading_account_size("gr1", conn=conn) == (40_000.0, False)
+    assert accounts.grading_account_size("gr1", conn=conn) == (40_000.0, False, None)
     _member(conn, "gr2")
-    assert accounts.grading_account_size("gr2", conn=conn) == (UNSET, True)
-    assert accounts.grading_account_size(None, conn=conn) == (UNSET, True)
-    assert accounts.grading_account_size("nobody", conn=conn) == (UNSET, True)
+    assert accounts.grading_account_size("gr2", conn=conn) == unset
+    assert accounts.grading_account_size(None, conn=conn) == unset
+    assert accounts.grading_account_size("nobody", conn=conn) == unset
+
+
+@pytest.mark.parametrize("net_liq", [0.0, -2_000.0])
+def test_a_non_positive_broker_size_grades_on_the_default_with_its_own_wording(conn, net_liq):
+    """R2-2: a broker size of 0 or less is graded on the default, and says THAT, never "No account
+    size on file" (the member has one; it is not positive)."""
+    from api.services.journal_two import accounts
+    from api.services.journal_two.broker import balances
+    from api.services import grade_ticker as gt
+    from api.services.voice_position_sizing import default_size_sentence, nonpositive_size_sentence
+    aid = _member(conn, "gr9")
+    balances.write_balances("gr9", {"id": "ba", "j2AccountId": aid}, [], [], conn=conn,
+                            broker_total=net_liq)
+    assert accounts.grading_account_size("gr9", conn=conn) == (UNSET, True, nonpositive_size_sentence())
+    assert "zero or negative" in nonpositive_size_sentence()
+    assert nonpositive_size_sentence() != default_size_sentence()
+    v = gt._with_size_flag(True, size_note=nonpositive_size_sentence(), **_VERDICT_KW)
+    assert v["account_size_is_default"] is True and v["account_size_note"] == nonpositive_size_sentence()
+    v = gt._with_size_flag(True, **_VERDICT_KW)
+    assert v["account_size_note"] == default_size_sentence()
+
+
+_VERDICT_KW = dict(ok=True, symbol="NVDA", verdict="GO", regime="GREEN", regime_note="", setup="x",
+                   grade="A", entry=100, stop=95, size_pct=10, account_risk_pct=0.5,
+                   first_target=None, basis="", hard_flags=[], sources=[])
+
+
+def test_every_grader_carries_the_non_positive_wording(conn, monkeypatch):
+    """R2-2: terminal, AI Search, coach, voice and watchlist hand grade_ticker the note too."""
+    from api.services.journal_two import accounts, coach_chat_tools as cct
+    from api.services.journal_two.broker import balances
+    from api.services import voice_tool_impls as vti, grade_watchlist as gw, grade_ticker as gt
+    from api.routers import terminal_grade as tg, ai_search
+    from api.services.voice_position_sizing import nonpositive_size_sentence
+    notes = []
+
+    def fake(symbol, account_size=None, *, account_size_is_default=None, account_size_note=None, **kw):
+        notes.append(account_size_note)
+        return {"ok": True, "symbol": symbol, "verdict": "GO", "regime": "GREEN"}
+    monkeypatch.setattr(gt, "grade_ticker", fake)
+    monkeypatch.setattr(tg, "brain_tools_enabled", lambda: True)
+    monkeypatch.setattr(tg, "_brain_available", lambda: True)
+    tg._reset_cache_for_tests()
+    aid = _member(conn, "gr10")
+    balances.write_balances("gr10", {"id": "ba", "j2AccountId": aid}, [], [], conn=conn,
+                            broker_total=-500.0)
+    tg.terminal_grade("NVDA", user={"id": "gr10"})
+    vti._grade_ticker("NVDA", user={"id": "gr10"})
+    cct._exec_grade_ticker(user_id="gr10", account_id=aid, args={"symbol": "NVDA"})
+    token = ai_search._WISDOM_ASKER.set("gr10")
+    try:
+        ai_search._ctx_verdict("NVDA")
+    finally:
+        ai_search._WISDOM_ASKER.reset(token)
+    gw.grade_watchlist("gr10", symbols=["NVDA"], source="explicit",
+                       resolve_fn=lambda *a: (["NVDA"], "explicit"),
+                       regime_fn=lambda: {"regime": "GREEN"}, edge_fn=lambda *a: {},
+                       sector_fn=lambda s: None)
+    assert notes == [nonpositive_size_sentence()] * 5
 
 
 def test_coach_and_voice_grade_on_the_members_size(conn, monkeypatch):

@@ -1706,9 +1706,9 @@ def _exec_grade_ticker(*, user_id, account_id, args, conn=None) -> dict:
     if given:   # a size the model was handed wins; else the member's (finding 7)
         return _gt.grade_ticker(str(args.get("symbol", "")), account_size=given,
                                 account_size_is_default=False)
-    size, is_default = accounts_service.grading_account_size(user_id, account_id=account_id)
+    size, is_default, note = accounts_service.grading_account_size(user_id, account_id=account_id)
     return _gt.grade_ticker(str(args.get("symbol", "")), account_size=size,
-                            account_size_is_default=is_default)
+                            account_size_is_default=is_default, account_size_note=note)
 
 
 def _exec_portfolio_heat(*, user_id, account_id, args, conn=None) -> dict:

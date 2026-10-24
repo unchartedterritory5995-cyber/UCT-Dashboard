@@ -1173,7 +1173,7 @@ def _ctx_posture(sym: str) -> str:
     return f"{sym} technical posture ({label}): " + ", ".join(bits) if bits else ""
 
 
-def _verdict_account_size() -> tuple[float, bool]:
+def _verdict_account_size() -> tuple[float, bool, str | None]:
     """The asking member's grading size (accounts.grading_account_size, finding 7). The asker
     rides _WISDOM_ASKER, set around grounding; without it (eval harness) it is the default."""
     from api.services.journal_two import accounts as _acc
@@ -1185,8 +1185,9 @@ def _ctx_verdict(sym: str) -> str:
     narrates a computed answer instead of hedging. Every number is tool-sourced;
     hard flags are surfaced so a SKIP-for-missing-data reads as exactly that."""
     from api.services.grade_ticker import grade_ticker
-    size, is_default = _verdict_account_size()
-    v = grade_ticker(sym, account_size=size, account_size_is_default=is_default) or {}
+    size, is_default, note = _verdict_account_size()
+    v = grade_ticker(sym, account_size=size, account_size_is_default=is_default,
+                     account_size_note=note) or {}
     if not v.get("ok"):
         return ""
     bits = [f"verdict {v.get('verdict')}", f"regime {v.get('regime')}"]

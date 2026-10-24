@@ -23,10 +23,11 @@ def _default_resolve(user_id, account_id, source, symbols):
     return wsrc.resolve(user_id, account_id, source, symbols)
 
 
-def _default_grade(symbol, account_size=None, account_size_is_default=None):
+def _default_grade(symbol, account_size=None, account_size_is_default=None, account_size_note=None):
     from api.services.grade_ticker import grade_ticker
     return grade_ticker(symbol, account_size=account_size,
-                        account_size_is_default=account_size_is_default)
+                        account_size_is_default=account_size_is_default,
+                        account_size_note=account_size_note)
 
 
 def _default_regime():
@@ -85,16 +86,21 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
     # stays grade_ticker's own (UNSET_ACCOUNT_SIZE).
     # `size_flag` goes to every name (R2-1): resolved here it says whether the size is the default;
     # None (a size the caller gave, or no member) leaves grade_ticker's own rule.
-    size_flag = None
+    size_flag = size_note = None
     if not account_size and user_id:
         from api.services.journal_two import accounts as _acc
-        account_size, size_flag = _acc.grading_account_size(user_id, account_id=account_id)
+        account_size, size_flag, size_note = _acc.grading_account_size(user_id, account_id=account_id)
     size_is_default = bool(size_flag)
+    # The note goes only when it is not grade_ticker's own default wording (a non-positive size,
+    # R2-2), so an injected grade_fn need not take it.
+    from api.services.voice_position_sizing import default_size_sentence
+    note_kw = {"account_size_note": size_note} if size_note and size_note != default_size_sentence() else {}
 
     graded = []
     for sym in names:
         try:
-            v = grade_fn(sym, account_size=account_size, account_size_is_default=size_flag) or {}
+            v = grade_fn(sym, account_size=account_size, account_size_is_default=size_flag,
+                         **note_kw) or {}
         except Exception as e:  # noqa: BLE001
             v = {"ok": False, "reason": str(e)}
         if not v.get("ok"):

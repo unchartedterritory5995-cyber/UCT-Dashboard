@@ -154,10 +154,11 @@ def _default_size_fn(entry, stop, account, regime="", grade="A", risk_pct=1.0):
 
 def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
                  patterns_fn=None, playbook_fn=None, size_fn=None, archive_fn=None,
-                 account_size_is_default=None) -> dict:
+                 account_size_is_default=None, account_size_note=None) -> dict:
     """`account_size_is_default`: a caller that resolved the member's size
     (accounts.grading_account_size) says whether it is the default; left None, a passed size is
-    the caller's own and no size is the default."""
+    the caller's own and no size is the default. `account_size_note`: that resolver's wording
+    for a default (R2-2); left None, it is default_size_sentence()."""
     sym = (symbol or "").upper().strip()
     if not sym:
         return {"ok": False, "reason": "no symbol"}
@@ -299,7 +300,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         basis += " " + team["sentence"]
         sources.append("team archive (labelled; does not change the verdict)")
 
-    return _with_size_flag(size_is_default, ok=True, symbol=sym, verdict=verdict, regime=band,
+    return _with_size_flag(size_is_default, size_note=account_size_note, ok=True, symbol=sym, verdict=verdict, regime=band,
                     regime_note=regime_note, setup=setup, grade=grade,
                     entry=entry, stop=stop, size_pct=size_pct,
                     account_risk_pct=account_risk_pct, first_target=first_target,
@@ -315,12 +316,12 @@ def _team_archive(archive_fn, symbol, setup):
         return None
 
 
-def _with_size_flag(size_is_default, **kw):
+def _with_size_flag(size_is_default, size_note=None, **kw):
     """`_verdict`, plus whether its sizing rests on the default size (added keys only)."""
     from api.services.voice_position_sizing import default_size_sentence
     out = _verdict(**kw)
     out["account_size_is_default"] = bool(size_is_default)
-    out["account_size_note"] = default_size_sentence() if size_is_default else None
+    out["account_size_note"] = (size_note or default_size_sentence()) if size_is_default else None
     return out
 
 

@@ -1884,8 +1884,9 @@ def _grade_ticker(symbol: str, account_size: float = 0, user: dict | None = None
     if account_size:   # a size the model was handed wins; else the member's (finding 7)
         return _gt.grade_ticker(symbol, account_size=account_size, account_size_is_default=False)
     from api.services.journal_two import accounts as _acc
-    size, is_default = _acc.grading_account_size((user or {}).get("id"))
-    return _gt.grade_ticker(symbol, account_size=size, account_size_is_default=is_default)
+    size, is_default, note = _acc.grading_account_size((user or {}).get("id"))
+    return _gt.grade_ticker(symbol, account_size=size, account_size_is_default=is_default,
+                            account_size_note=note)
 
 
 def _setup_winrate(setup: str, regime: str = "ALL") -> dict:

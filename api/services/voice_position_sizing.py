@@ -48,6 +48,14 @@ def default_size_sentence() -> str:
             f"(${UNSET_ACCOUNT_SIZE:,.0f}), not your real one")
 
 
+def nonpositive_size_sentence() -> str:
+    """A grade's wording when the member HAS a size but it is 0 or less (a broker balance at zero
+    or in margin debt): graded on the default, which "No account size on file" would misstate
+    (Round B fix 3, R2-2). Enforcement never reads this; base's checks stay off for that size."""
+    return (f"Account balance is zero or negative; graded on a default account size "
+            f"(${UNSET_ACCOUNT_SIZE:,.0f})")
+
+
 # ── Pure math (no DB) ───────────────────────────────────────────────────────
 
 def calc_position_size(

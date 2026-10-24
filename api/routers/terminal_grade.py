@@ -72,10 +72,11 @@ def _brain_available() -> bool:
         return False
 
 
-def _grade(sym: str, account_size=None, account_size_is_default=None) -> dict:
+def _grade(sym: str, account_size=None, account_size_is_default=None, account_size_note=None) -> dict:
     from api.services.grade_ticker import grade_ticker
     return grade_ticker(sym, account_size=account_size,
-                        account_size_is_default=account_size_is_default) or {}
+                        account_size_is_default=account_size_is_default,
+                        account_size_note=account_size_note) or {}
 
 
 def _reset_cache_for_tests() -> None:
@@ -98,8 +99,8 @@ def terminal_grade(sym: str = Path(..., min_length=1, max_length=10),
     # Graded on the member's own size (accounts.grading_account_size, finding 7). The cache is
     # keyed by the size, never shared across sizes: whole-share rounding makes size_skip size-bound.
     from api.services.journal_two import accounts as _acc
-    size, size_is_default = _acc.grading_account_size((user or {}).get("id"))
-    key = (s, size, size_is_default)
+    size, size_is_default, size_note = _acc.grading_account_size((user or {}).get("id"))
+    key = (s, size, size_is_default, size_note)
     now = time.time()
     with _lock:
         hit = _cache.get(key)
@@ -107,7 +108,7 @@ def terminal_grade(sym: str = Path(..., min_length=1, max_length=10),
         return hit[1]
 
     try:
-        v = _grade(s, size, size_is_default)
+        v = _grade(s, size, size_is_default, size_note)
     except Exception:  # noqa: BLE001 -- grade_ticker never raises; this is belt and braces
         v = {"ok": False, "reason": "the grade could not be computed just now"}
     if not v.get("ok"):
