@@ -307,6 +307,15 @@ def test_every_builder_measure_has_a_format():
         assert key in payload.MEASURE_FMT, key
 
 
+def test_profit_factor_has_its_own_format_so_the_client_can_show_its_cap():
+    # Ruling R-29: "pf", not "ratio" -- the client renders a value at the cap (measures.PF_CAP) as "5+".
+    assert payload.MEASURE_FMT["profit_factor"] == "pf"
+    assert payload.MEASURE_FMT["payoff"] == "ratio"
+    p = vplan(raw_plan(measures=("profit_factor",)))
+    out = build(p, result_of(total=(5.0,), count=4), scan_of(count=4))
+    assert out["measures"][0]["fmt"] == "pf"
+
+
 # -- notebook_widgets: source_detail and cap_payload -----------------------------------------
 
 def test_source_detail_built_widget_sentences():

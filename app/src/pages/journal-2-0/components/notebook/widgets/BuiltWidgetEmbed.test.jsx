@@ -1,9 +1,16 @@
-// Wave 8 (Task 8.13): a placed built widget, drawn from its params alone. Number and Table views, every other view
-// on the table until Task 8.14, and "Show as table". Asserted by RENDERED TEXT.
+// Wave 8 (Tasks 8.13-8.14): a placed built widget, drawn from its params alone: the Number and Table views, "Show as
+// table", drill-down and the ⋯ menu (How this is made, Manage…, an update, an archived or a missing widget). The
+// seven chart views have their own file (builtViews/builtViews.test.jsx). Asserted by RENDERED TEXT.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
-import BuiltWidgetEmbed from './BuiltWidgetEmbed'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
+import BuiltWidgetEmbed, { SAVED_COPY_SENTENCE, ARCHIVED_SENTENCE } from './BuiltWidgetEmbed'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
+import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
+import { openMyTools } from '../myTools/openMyTools.js'
+
+// Ruling R-2: Tasks 8.15 and 8.17 replace these placeholder doors; here they are mocked, so the test sees the call.
+vi.mock('../widgetBuilder/openWidgetBuilder.js', () => ({ openWidgetBuilder: vi.fn(() => true) }))
+vi.mock('../myTools/openMyTools.js', () => ({ openMyTools: vi.fn(() => true) }))
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -26,8 +33,19 @@ const TABLE = { ...BASE, view: 'table', measures: [M('Net P&L', 'money')], value
 const attrsOf = (p) => widgetEmbedNode('builtWidget', p).attrs
 
 let fetchSpy
-beforeEach(() => { fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy) })
+beforeEach(() => { fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy); openWidgetBuilder.mockClear(); openMyTools.mockClear() })
 afterEach(() => vi.unstubAllGlobals())
+
+/** A fetch answer the client reads (`ok`, `status`, `json()`). */
+const answer = (data, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => data })
+/** The JSON body of fetch call `i`. */
+const bodyOf = (i) => JSON.parse(fetchSpy.mock.calls[i][1].body)
+const urlOf = (i) => fetchSpy.mock.calls[i][0]
+const tradeRows = (n) => Array.from({ length: n }, (_, i) => ({
+  id: `t-${i}`, symbol: `SYM${i}`, side: 'long', day: '2026-10-02', net: 100 + i, r: 1.5, setup: 'Flag',
+  flagged: i === 1,
+}))
+const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'More for this widget' }))
 
 describe('BuiltWidgetEmbed', () => {
   it('renders_number_and_table_from_params_without_fetch', () => {
@@ -54,28 +72,6 @@ describe('BuiltWidgetEmbed', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('other_views_fall_back_to_table', () => {
-    for (const view of ['bar', 'list', 'compare', 'progress']) {
-      const p = { ...TABLE, view, rows: view === 'compare' || view === 'progress' ? [] : ROWS }
-      const { unmount } = render(<BuiltWidgetEmbed attrs={attrsOf(p)} />)
-      expect(screen.getByTestId('built-table-view'), view).toBeInTheDocument()
-      expect(screen.queryByTestId('built-number-view'), view).toBeNull()
-      unmount()
-    }
-    const { unmount } = render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'line', rows: [],
-      series: [{ label: '2026-10', v1: 100, n1: 3, s1: '', n: 3 }, { label: '2026-09', v1: -50, n1: 2, s1: '', n: 2 }] })} />)
-    const line = screen.getByTestId('built-table-view')
-    expect(within(line).getByText('2026-10')).toBeInTheDocument()
-    expect(within(line).getByText('-$50.00')).toBeInTheDocument()
-    unmount()
-    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'scatter', rows: [], measures: [M('R', 'r'), M('Net P&L', 'money')],
-      points: [{ x: 1.5, y: 300, d: '2026-10-02', r: 'win' }] })} />)
-    const scatter = screen.getByTestId('built-table-view')
-    expect(within(scatter).getByText('+1.5R')).toBeInTheDocument()
-    expect(within(scatter).getByText('Win')).toBeInTheDocument()
-    expect(fetchSpy).toHaveBeenCalledTimes(0)
-  })
-
   it('table_alt_matches_rows', () => {
     const bar = { ...TABLE, view: 'bar' }
     render(<BuiltWidgetEmbed attrs={attrsOf(bar)} />)
@@ -95,7 +91,7 @@ describe('BuiltWidgetEmbed', () => {
 
   it('R-25: a SHARED widget draws no account name (Account 1, 2 by first appearance); unshared it does', () => {
     const CANARY = 'CANARY-ACCT-Roth'
-    const byAccount = { ...TABLE, view: 'bar', labelKind: 'account', label2Kind: 'account', rows: [
+    const byAccount = { ...TABLE, view: 'table', labelKind: 'account', label2Kind: 'account', rows: [
       { label: CANARY, label2: 'Main', v1: 10, n1: 1, s1: '', n: 1 },
       { label: 'Main', label2: CANARY, v1: 20, n1: 1, s1: '', n: 1 },
       { label: CANARY, label2: 'Main', v1: 30, n1: 1, s1: '', n: 1 },
@@ -108,9 +104,13 @@ describe('BuiltWidgetEmbed', () => {
       .map((td) => td.textContent))
     // one account keeps one number; label and label2 are numbered separately
     expect(rows).toEqual([['Account 1', 'Account 1'], ['Account 2', 'Account 2'], ['Account 1', 'Account 1']])
-    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
-    expect(shared.container.textContent).not.toContain(CANARY)       // the table alternative too
     shared.unmount()
+    // the table alternative of a chart view too
+    const asBar = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, view: 'bar', share: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+    expect(asBar.container.textContent).not.toContain(CANARY)
+    expect(screen.getByTestId('built-table-alt').textContent).toContain('Account 1')
+    asBar.unmount()
     // control: unshared, the member sees their own account names
     const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, share: false })} />)
     expect(own.container.textContent).toContain(CANARY)
@@ -163,5 +163,249 @@ describe('BuiltWidgetEmbed', () => {
     render(<BuiltWidgetEmbed attrs={attrsOf({ asOf: ASOF, source: 'manual', title: 'Big one', tooLarge: true,
       empty: "This widget's data was too large to save. Narrow it and try again." })} />)
     expect(screen.getByText("This widget's data was too large to save. Narrow it and try again.")).toBeInTheDocument()
+  })
+  it('table_alt_available_for_every_chart_view', () => {
+    const rows = [{ label: 'Flag', v1: 10, n1: 1, s1: '', n: 1 }]
+    const views = {
+      number: {}, compare: { compare: { v1: 4, n1: 1, n: 1 }, compareLabel: 'Sep' }, bar: { rows },
+      line: { series: rows }, heat: { cells: [{ label: '2026-10-20', v1: 10, n1: 1, s1: '' }] }, list: { rows },
+      progress: { def: { display: { target: 100 } } },
+      scatter: { measures: [M('R', 'r'), M('Net P&L', 'money')], points: [{ x: 1, y: 2, d: '2026-10-02', r: 'win' }] },
+    }
+    for (const [view, extra] of Object.entries(views)) {
+      const { unmount } = render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view, ...extra })} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+      const alt = screen.getByTestId('built-table-alt')
+      expect(alt.querySelector('table'), view).not.toBeNull()
+      expect(alt.querySelectorAll('tbody tr').length, view).toBe(1)
+      unmount()
+    }
+  })
+
+  it('drill_opens_on_enter_and_escape_returns_focus', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(2), more: 0, count: 2, live: false, note: null }))
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} />)
+    const bars = screen.getByTestId('built-bar-view')
+    const marks = bars.querySelectorAll('[data-built-cell]')
+    expect(marks.length).toBe(3)
+    // one Tab stop for the group; the arrow keys move it
+    expect([...marks].map((m) => m.getAttribute('tabindex'))).toEqual(['0', '-1', '-1'])
+    act(() => marks[0].focus())
+    fireEvent.keyDown(marks[0], { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(marks[1])
+    expect([...marks].map((m) => m.getAttribute('tabindex'))).toEqual(['-1', '0', '-1'])
+    expect(fetchSpy).toHaveBeenCalledTimes(0)                       // nothing is asked until a mark is opened
+    fireEvent.keyDown(marks[1], { key: 'Enter' })
+    const panel = await screen.findByRole('dialog', { name: 'Behind __proto__' })
+    await within(panel).findByText('SYM0 long')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(urlOf(0)).toBe('/api/j2/widget-definitions/drill')
+    const body = bodyOf(0)
+    expect(body.cell).toEqual({ label: '__proto__' })
+    expect(body).toMatchObject({ defId: 'd-1', defRev: 1, snapshotCount: 47, snapshotAt: ASOF })
+    expect(document.activeElement).toBe(within(panel).getByRole('button', { name: 'Close' }))
+    // the panel traps focus: Tab from its last control wraps inside it
+    const focusables = panel.querySelectorAll('a[href], button:not([disabled])')
+    act(() => focusables[focusables.length - 1].focus())
+    fireEvent.keyDown(focusables[focusables.length - 1], { key: 'Tab' })
+    expect(panel.contains(document.activeElement)).toBe(true)
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(marks[1])                  // focus is back on the bar that opened it
+  })
+
+  it('drill_absent_in_share_view', () => {
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} shareView />)
+    const bars = screen.getByTestId('built-bar-view')
+    expect(bars.querySelectorAll('[data-built-cell]').length).toBe(0)
+    expect(bars.querySelectorAll('[tabindex]').length).toBe(0)
+    fireEvent.click(within(bars).getByText('Flag'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(fetchSpy).toHaveBeenCalledTimes(0)
+    r.unmount()
+    // the table rows and the number too
+    const t = render(<BuiltWidgetEmbed attrs={attrsOf(TABLE)} shareView />)
+    expect(t.container.querySelectorAll('[data-built-cell]').length).toBe(0)
+    t.unmount()
+    const n = render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} shareView />)
+    expect(n.container.querySelectorAll('[data-built-cell]').length).toBe(0)
+    n.unmount()
+    // control: the same widget off a public page drills
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} />)
+    expect(screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]').length).toBe(3)
+  })
+
+  it('drill_lists_40_and_more_and_flagged_label', async () => {
+    fetchSpy.mockImplementation(() => answer({
+      rows: tradeRows(40), more: 7, count: 46, live: true,
+      note: 'That account is no longer in your Journal; showing all accounts. Live data; the snapshot was taken on Oct 24',
+    }))
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Net P&L:/ }))
+    const panel = await screen.findByRole('dialog')
+    const list = await within(panel).findByTestId('built-drill-rows')
+    expect(list.querySelectorAll('li').length).toBe(40)
+    expect(within(panel).getByText('and 7 more')).toBeInTheDocument()
+    // the note is rendered as given
+    expect(within(panel).getByTestId('built-drill-note').textContent)
+      .toBe('That account is no longer in your Journal; showing all accounts. Live data; the snapshot was taken on Oct 24')
+    // each trade links into the Journal; the flagged one says so
+    const first = within(panel).getByRole('link', { name: 'SYM0 long' })
+    expect(first).toHaveAttribute('href', '/journal?j2tab=journal&openTrade=t-0')
+    const flagged = within(panel).getByRole('link', { name: 'SYM1 long' }).closest('li')
+    expect(within(flagged).getByText('Flagged')).toBeInTheDocument()
+    expect(within(first.closest('li')).queryByText('Flagged')).toBeNull()
+    expect(bodyOf(0).cell).toEqual({})                             // a total drills the whole widget
+  })
+
+  it('a refused drill shows its sentence, and nothing else changes', async () => {
+    fetchSpy.mockImplementation(() => answer({ detail: { code: 'rate', message: 'x' } }, 429))
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Net P&L:/ }))
+    const panel = await screen.findByRole('dialog')
+    expect(await within(panel).findByText('Too many refreshes in a minute. Try again shortly.')).toBeInTheDocument()
+    expect(screen.getByText('+$2,140.00')).toBeInTheDocument()
+  })
+
+  it('proto_label_groups_safely: a row labelled __proto__ renders and drills', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: [], more: 0, count: 0, live: false, note: null }))
+    const rows = [{ label: '__proto__', label2: 'constructor', v1: 5, n1: 1, s1: '', n: 1 },
+      { label: 'hasOwnProperty', label2: '__proto__', v1: -3, n1: 1, s1: '', n: 1 }]
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, rows })} />)
+    const table = screen.getByTestId('built-table-view')
+    const row = within(table).getAllByText('__proto__')[0].closest('tr')
+    expect(within(row).getByText('+$5.00')).toBeInTheDocument()
+    expect(within(row).getByText('constructor')).toBeInTheDocument()
+    fireEvent.keyDown(row, { key: 'Enter' })
+    await screen.findByRole('dialog')
+    expect(bodyOf(0).cell).toEqual({ label: '__proto__', label2: 'constructor' })
+    expect(Object.prototype.polluted).toBeUndefined()
+    expect({}.constructor).toBe(Object)
+  })
+
+  it('shared_body_has_no_summary_or_filter_text', () => {
+    const p = {
+      ...TABLE, view: 'bar', share: true, summary: 'Net P&L of CANARY-SUMMARY trades, split by setup',
+      def: { v: 1, source: 'closed_trades', filters: [{ field: 'setup', op: 'in', values: ['CANARY-FILTER'], overridable: true }],
+        display: { subtitle: 'CANARY-SUBTITLE', title: 'Net P&L by setup' } },
+      filter: ['CANARY-FILTER'],
+    }
+    const shared = render(<BuiltWidgetEmbed attrs={attrsOf(p)} editable onUpdateParams={() => true} />)
+    const body = shared.getByTestId('built-widget-embed')
+    for (const canary of ['CANARY-SUMMARY', 'CANARY-FILTER', 'CANARY-SUBTITLE', 'Main account']) {
+      expect(body.textContent, canary).not.toContain(canary)
+    }
+    expect(screen.queryByRole('button', { name: 'More for this widget' })).toBeNull()   // nor the ⋯ menu
+    shared.unmount()
+    // control: private, the member sees their subtitle and gets the menu (the summary is behind it)
+    const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...p, share: false })} editable onUpdateParams={() => true} />)
+    expect(own.getByTestId('built-widget-embed').textContent).toContain('CANARY-SUBTITLE')
+    expect(screen.getByRole('button', { name: 'More for this widget' })).toBeInTheDocument()
+  })
+
+  it('How this is made shows the summary and opens the builder at this node; Manage opens My tools', async () => {
+    fetchSpy.mockImplementation(() => answer({ id: 'd-1', rev: 1, placedRev: 1, etag: 4, archived: false, summary: 'x' }))
+    const editor = { id: 'editor' }
+    const getPos = () => 7
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, summary: 'Net P&L of every closed trade in the last 90 days.' })}
+      editable onUpdateParams={() => true} editor={editor} getPos={getPos} />)
+    expect(fetchSpy).toHaveBeenCalledTimes(0)                       // nothing is read until the menu opens
+    openMenu()
+    expect(urlOf(0)).toBe('/api/j2/widget-definitions/d-1')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'How this is made' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    expect(within(sheet).getByText('Net P&L of every closed trade in the last 90 days.')).toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Edit widget' }))
+    await waitFor(() => expect(openWidgetBuilder).toHaveBeenCalledTimes(1))
+    expect(openWidgetBuilder).toHaveBeenCalledWith({ editor, from: { defId: 'd-1', getPos } })
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Manage…' }))
+    await waitFor(() => expect(openMyTools).toHaveBeenCalledTimes(1))
+    expect(openMyTools).toHaveBeenCalledWith({ editor, defId: 'd-1' })
+  })
+
+  it('a firm example says Edit a copy, and is not read from the member\'s widgets', async () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defId: 'shelf:pnl-by-setup' })} editable onUpdateParams={() => true} />)
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'How this is made' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    expect(within(sheet).getByRole('button', { name: 'Edit a copy' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Edit widget' })).toBeNull()
+    expect(fetchSpy).toHaveBeenCalledTimes(0)
+  })
+
+  it('updated_version_control_previews_then_applies', async () => {
+    const OLD = 'Net P&L of every closed trade.'
+    const NEW = 'Net P&L of closed trades tagged Flag.'
+    const payload = { ...NUMBER, defRev: 3, summary: NEW, value: { v1: 900, n1: 10, s1: '', n: 10 }, share: true }
+    fetchSpy.mockImplementation((url) => (url.endsWith('/run') ? answer(payload)
+      : answer({ id: 'd-1', rev: 3, placedRev: 2, etag: 9, archived: false, summary: NEW })))
+    const onUpdateParams = vi.fn(() => true)
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defRev: 2, summary: OLD })} editable onUpdateParams={onUpdateParams} />)
+    openMenu()
+    const item = await screen.findByRole('menuitem', { name: 'Updated version available' })
+    fireEvent.click(item)
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    // the new sentence beside the one this note runs
+    expect(within(sheet).getAllByText(OLD).length).toBeGreaterThan(0)
+    expect(within(sheet).getByTestId('built-how-latest').textContent).toBe(NEW)
+    expect(onUpdateParams).not.toHaveBeenCalled()                   // a preview writes nothing
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Use the updated version' }))
+    await waitFor(() => expect(onUpdateParams).toHaveBeenCalledTimes(1))
+    const run = fetchSpy.mock.calls.findIndex(([u]) => u.endsWith('/run'))
+    expect(bodyOf(run)).toMatchObject({ defId: 'd-1', defRev: 3 })
+    const written = onUpdateParams.mock.calls[0][0]
+    expect(written.defRev).toBe(3)
+    expect(written.value.v1).toBe(900)
+    expect(written.share).toBe(false)                               // a refresh never publishes
+  })
+
+  it('a widget at its latest revision offers no update', async () => {
+    fetchSpy.mockImplementation(() => answer({ id: 'd-1', rev: 2, placedRev: 2, etag: 9, archived: false, summary: 's' }))
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defRev: 2 })} editable onUpdateParams={() => true} />)
+    openMenu()
+    await waitFor(() => expect(screen.queryByText('Checking this widget…')).toBeNull())
+    expect(screen.queryByRole('menuitem', { name: 'Updated version available' })).toBeNull()
+  })
+
+  it('archived_shows_restore', async () => {
+    fetchSpy.mockImplementation((url, init) => (init?.method === 'POST'
+      ? answer({ id: 'd-1', archived: false })
+      : answer({ id: 'd-1', rev: 1, placedRev: 1, etag: 3, archived: true, summary: 's' })))
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(ARCHIVED_SENTENCE)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore' }))
+    await waitFor(() => expect(screen.queryByText(ARCHIVED_SENTENCE)).toBeNull())
+    const post = fetchSpy.mock.calls.findIndex(([, init]) => init?.method === 'POST')
+    expect(urlOf(post)).toBe('/api/j2/widget-definitions/d-1/unarchive')
+  })
+
+  it('missing_definition_says_saved_copy', async () => {
+    fetchSpy.mockImplementation(() => answer({ detail: 'Not Found' }, 404))
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(SAVED_COPY_SENTENCE)).toBeInTheDocument()
+    expect(SAVED_COPY_SENTENCE).toBe('Running from the saved copy in this note.')
+    // the widget still draws its snapshot
+    expect(screen.getByText('+$2,140.00')).toBeInTheDocument()
+  })
+
+  it('a read-only placed widget has no menu', () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} />)
+    expect(screen.queryByRole('button', { name: 'More for this widget' })).toBeNull()
+  })
+
+  it('an empty closed-trades widget offers Log a trade', () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, count: 0, value: { v1: null, n1: 0, s1: '', n: 0 },
+      empty: 'No closed trades in this range. Widen the range, or log a trade.' })} />)
+    expect(screen.getByRole('link', { name: 'Log a trade' })).toHaveAttribute('href', '/journal/trades')
+  })
+
+  it('the notice and footnotes render under the body', () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar', notice: 'Based on your newest 5,000 trades.',
+      footnotes: ['Max drawdown: within your newest 5,000 trades.'] })} />)
+    expect(screen.getByText('Based on your newest 5,000 trades.')).toBeInTheDocument()
+    expect(screen.getByTestId('built-footnotes').textContent).toBe('Max drawdown: within your newest 5,000 trades.')
   })
 })

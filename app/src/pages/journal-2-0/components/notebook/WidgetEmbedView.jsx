@@ -802,6 +802,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             mobileDrawBar={annotate && isCoarsePointer}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
             {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
+            // Wave 8 (Task 8.14): a built widget's ⋯ menu opens the builder at this node (editor + getPos).
+            {...(attrs.widgetId === 'builtWidget' ? { editor, getPos, shareView } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

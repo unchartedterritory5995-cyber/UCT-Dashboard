@@ -40,7 +40,7 @@ export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
   onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
-  changeKeys = [], settings = {}, onChange, changeContext = null,
+  changeKeys = [], settings = {}, onChange, changeContext = null, menu = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [change, setChange] = useState(null)   // the settings being edited, or null when closed
@@ -186,6 +186,8 @@ export default function SnapshotFrame({
             Save these settings as a preset
           </button>
         )}
+        {/* Wave 8 (Task 8.14): a kind's own header controls (a built widget's ⋯ menu), drawn last. */}
+        {menu}
       </div>
       {change !== null && (
         <form className={styles.presetForm} aria-label="Change this widget"

@@ -76,8 +76,10 @@ MEASURE_FMT: dict[str, str] = {
     "avg_day_pnl": "money", "unrealised_pnl": "money", "open_risk": "money",
     # a share, stored as a fraction (0.6 = 60%)
     "win_rate": "pct", "profitable_days_pct": "pct", "green_day_pct": "pct",
-    # a ratio (profit factor shows "5+" at its cap)
-    "payoff": "ratio", "profit_factor": "ratio",
+    # a ratio
+    "payoff": "ratio",
+    # profit factor (ruling R-29): its own format, so the client shows "5+" at its cap (measures.PF_CAP)
+    "profit_factor": "pf",
     # R
     "expectancy_r": "r", "total_r": "r", "avg_true_r": "r",
     # counts
