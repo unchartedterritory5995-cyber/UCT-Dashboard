@@ -39,9 +39,24 @@ PATTERN_IDS = {
     "remount": "draw:remount",
     "u_and_r": "draw:u_and_r",
     "donchian_breakout": "draw:donchian_breakout",
+    "flat_top": "uct_flat_top_breakout",
 }
-#: the setup drawings ride their own `setup_draws` key
+#: the setup drawings ride their own `setup_draws` key (the single-level ones: one horizontal line at `level`)
 SETUP_FAMILIES = ("remount", "u_and_r", "donchian_breakout")
+#: The SETUP-LINE families (the round-2 / round-3 setup drawings and the rectangle box), also on `setup_draws`:
+#: family -> the member row id. Their judged drawing is a whole geometry (one or two lines, a neckline, a box, a
+#: moving-average curve), so the setup lens (setup_line_failures) compares every judged ANCHOR, not one key price.
+SETUP_LINE_FAMILIES = {
+    "rsi_bullish_divergence": "draw:rsi-bullish-divergence", "wyckoff_upthrust": "draw:wyckoff-upthrust",
+    "channel": "draw:channel", "pennant": "draw:pennant", "darvas_box": "draw:darvas-box",
+    "falling_wedge": "draw:falling-wedge", "double_top": "draw:double-top", "golden_cross": "draw:golden-cross",
+    "death_cross": "draw:death-cross",
+    "outside_bar": "draw:outside-bar", "descending_triangle": "draw:descending-triangle",
+    "inverse_head_shoulders": "draw:inverse-head-shoulders", "bear_flag": "draw:bear-flag",
+    "bollinger_squeeze": "draw:bollinger-squeeze", "major_trendlines": "draw:major-trendline",
+    "rectangle": "draw:rectangle",
+}
+PATTERN_IDS.update(SETUP_LINE_FAMILIES)
 
 
 def _finite(v):
@@ -120,6 +135,9 @@ def _key_and_span(fam, row, bars):
     if fam == "shelf":
         d = ex["draw_shelf"]
         return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
+    if fam == "flat_top":
+        d = ex["draw_flat_top"]
+        return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
     if fam == "cup":
         d = ex["draw_pivot"]
         return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
@@ -128,6 +146,10 @@ def _key_and_span(fam, row, bars):
         return float(d["trigger"]), (int(d["start_t"]), int(d["end_t"]))
     if fam in SETUP_FAMILIES:
         return float(ex["draw_setup"]["level"]), (int(row["start_t"]), int(row["end_t"]))
+    if fam in SETUP_LINE_FAMILIES:
+        # the first anchor: the rectangle's top edge (its breakout line), a line's left end otherwise
+        an = (row.get("geometry") or {}).get("anchors") or []
+        return float(an[0]["price"]), (int(row["start_t"]), int(row["end_t"]))
     raise KeyError(fam)
 
 
@@ -174,6 +196,12 @@ def _check_geometry(fam, case, row, bars, atr, out):
         _near("shelf price", d.get("price"), w, tol(w), out)
         n = _idx(bars, _expect_t(case, "end_t")) - _idx(bars, _expect_t(case, "start_t"))
         _span_near("shelf start", bars, d.get("start_t", 0), _expect_t(case, "start_t"), n, out)
+    elif fam == "flat_top":
+        d = ex.get("draw_flat_top") or {}
+        w = _unscale(case, e["price"])
+        _near("flat top line", d.get("price"), w, tol(w), out)
+        n = _idx(bars, _expect_t(case, "end_t")) - _idx(bars, _expect_t(case, "start_t"))
+        _span_near("flat top start", bars, d.get("start_t", 0), _expect_t(case, "start_t"), n, out)
     elif fam == "cup":
         pv, hd = ex.get("draw_pivot") or {}, ex.get("draw_handle") or {}
         w = _unscale(case, e["pivot_price"])
@@ -258,10 +286,12 @@ def _check_other_on_base(fam, case, payload, bars, atr, mine, out):
 
 
 def _want_key(fam, case):
+    if fam in SETUP_LINE_FAMILIES:
+        return _unscale(case, case["expect"]["dets"][0]["anchors"][0]["price"])
     return _unscale(case, case["expect"][{"base": "pivot", "textbook": "buy_point", "double_bottom": "pivot",
                                           "shelf": "price", "cup": "pivot_price",
                                           "inside_day": "trigger", "remount": "level", "u_and_r": "level",
-                                          "donchian_breakout": "level"}[fam]])
+                                          "donchian_breakout": "level", "flat_top": "price"}[fam]])
 
 
 #: Rules a passed blind round retired judged cases under: rule -> (what must still hold on the fixture's chart for
@@ -277,15 +307,26 @@ def _trend_gate_holds(bars):
 _DONCHIAN_WINDOW = 55
 
 
+def _yield_window(case, bars):
+    """(start_t, end_t) over which a yielding setup drawing meets the line it yields to: the donchian channel window
+    (its 55-bar high is set inside it), or the judged rectangle box's own span."""
+    if case["family"] == "rectangle":
+        d = case["expect"]["dets"][0]
+        return MP.ymd(case, d["start"]), MP.ymd(case, d["end"])
+    return int(bars[max(0, len(bars) - 1 - _DONCHIAN_WINDOW)]["t"]), int(bars[-1]["t"])
+
+
 def _base_line_holds(case, payload, bars):
-    """precedence round e: a member-drawn row ranked AHEAD of the donchian channel line in the one-line-per-base
-    order puts a breakout line (where the chart draws it) within ONE_BASE_ATR x ATR14 of the judged level, over the
-    channel window. That drawing is why the channel line is not on the chart; without one, its absence is unexplained."""
+    """one line per base (precedence round e; the rectangle ranks after the channel line): a member-drawn row ranked
+    AHEAD of the family's setup drawing in the one-line-per-base order puts a breakout line (where the chart draws
+    it) within ONE_BASE_ATR x ATR14 of the judged level (the rectangle: its top edge), over the yielding window
+    (_yield_window). That drawing is why the setup drawing is not on the chart; without one, its absence is
+    unexplained."""
     from api.services import auto_structures as AS
     order = list(AS.ONE_LINE_PER_BASE_PRIORITY)
-    ahead = set(order[:order.index("draw:donchian_breakout")])
+    ahead = set(order[:order.index(PATTERN_IDS[case["family"]])])
     want, atr = _want_key(case["family"], case), MP.atr14(bars)
-    w0, w1 = int(bars[max(0, len(bars) - 1 - _DONCHIAN_WINDOW)]["t"]), int(bars[-1]["t"])
+    w0, w1 = _yield_window(case, bars)
     for row in _drawn_rows(payload):
         if row.get("pattern_id") not in ahead:
             continue
@@ -374,6 +415,73 @@ def retired_failures(case, payload, bars) -> list:
     return out
 
 
+def _setup_rows(payload, pid):
+    """The DRAWN rows of `pid` on the member's `setup_draws` key (the only key a setup drawing is served on)."""
+    from api.services import auto_structures as AS
+    drawn = getattr(AS, "_drawn_incumbent", None) or (lambda r: not _ex(r).get("stale"))
+    return [r for r in (payload.get("setup_draws") or []) if r.get("pattern_id") == pid and drawn(r)]
+
+
+def _det_misses(case, det, row, bars, atr):
+    """Why `row` is not the judged `det`: its shape, its anchor count, and every anchor in order -- the price within
+    min(TOL_ATR x ATR14, TOL_PCT x price), the bar within max(SPAN_BARS_MIN, SPAN_FRAC x span) sessions."""
+    g = row.get("geometry") or {}
+    an = g.get("anchors") or []
+    if g.get("shape") != det["shape"]:
+        return [f"shape {g.get('shape')!r} vs judged {det['shape']!r}"]
+    if len(an) != len(det["anchors"]):
+        return [f"{len(an)} anchors vs judged {len(det['anchors'])}"]
+    n = (_idx(bars, MP.ymd(case, det["end"])) or 0) - (_idx(bars, MP.ymd(case, det["start"])) or 0)
+    out: list = []
+    for k, (a, w) in enumerate(zip(an, det["anchors"])):
+        wp = _unscale(case, w["price"])
+        _near(f"anchor {k} price", a.get("price"), wp, _price_tol(wp, atr, case), out)
+        _span_near(f"anchor {k} bar", bars, a.get("t", 0), MP.ymd(case, w["d"]), n, out)
+    return out
+
+
+def setup_line_failures(case, payload, bars) -> list:
+    """The setup lens (round-2 / round-3 setup drawings, the rectangle): (1) the judged drawing is still a drawn row of
+    the family's id on the member's `setup_draws`; (2) every judged det (one row each: the crosses draw two, the 50-day
+    and the 200-day curve) is matched by its own row with the judged shape, anchor count and every anchor within
+    tolerance; (3) for a drawing the one-line-per-base pass settles (the rectangle), no drawn row ranked ahead of it
+    puts a breakout line within ONE_BASE_ATR x ATR14 of its top edge over an overlapping span. The other setup ids are
+    outside ONE_LINE_PER_BASE_PRIORITY: the member path does not settle them against other drawings, so (3) is not
+    asserted for them."""
+    from api.services import auto_structures as AS
+    pid = PATTERN_IDS[case["family"]]
+    atr = MP.atr14(bars)
+    rows = _setup_rows(payload, pid)
+    if not rows:
+        drawn = sorted({r.get("pattern_id") for r in payload.get("setup_draws") or []})
+        return [f"(1) no {pid} drawing on the member's setup_draws (setup rows served: {drawn or 'none'}; "
+                f"setup_draws key {'present' if 'setup_draws' in payload else 'ABSENT'})"]
+    out: list = []
+    free, mine = list(rows), []
+    for j, det in enumerate(case["expect"]["dets"]):
+        if not free:
+            out.append(f"(2) judged det {j}: no row left to match it")
+            continue
+        miss, row = min(((_det_misses(case, det, r, bars, atr), r) for r in free), key=lambda x: len(x[0]))
+        if miss:
+            out.extend(f"(2) det {j}: {m}" for m in miss)
+        else:
+            free.remove(row)
+            mine.append(row)
+    if pid in AS.ONE_LINE_PER_BASE_PRIORITY and mine:
+        order = list(AS.ONE_LINE_PER_BASE_PRIORITY)
+        ahead = set(order[:order.index(pid)])
+        for p0, s0, e0 in AS._breakout_lines(mine[0]):
+            for r in _drawn_rows(payload):
+                if r.get("pattern_id") not in ahead:
+                    continue
+                for p, s, e in AS._breakout_lines(r):
+                    if s <= e0 and s0 <= e and abs(float(p) - p0) <= ONE_BASE_ATR * atr:
+                        out.append(f"(3) extra member drawing on the same base: {r.get('pattern_id')} line {p:.4f} "
+                                   f"within {ONE_BASE_ATR} ATR of the judged {p0:.4f}")
+    return out
+
+
 def failures(case, payload, bars) -> list:
     fam = case["family"]
     atr = MP.atr14(bars)
@@ -381,8 +489,11 @@ def failures(case, payload, bars) -> list:
     if fam == "sr":
         _check_sr(case, payload, atr, out)
         return out
+    if fam in SETUP_LINE_FAMILIES:
+        return setup_line_failures(case, payload, bars)
     pid = PATTERN_IDS[fam]
-    rows = _rows_of(payload, pid)
+    # a setup drawing is served on the member's `setup_draws` key and nowhere else
+    rows = _setup_rows(payload, pid) if fam in SETUP_FAMILIES else _rows_of(payload, pid)
     if fam == "textbook":
         rows = [r for r in rows if isinstance(_ex(r).get("metrics_textbook"), dict)]
     if not rows:
