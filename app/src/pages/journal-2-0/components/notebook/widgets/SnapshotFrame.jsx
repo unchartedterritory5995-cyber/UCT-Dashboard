@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
@@ -10,6 +10,10 @@ import { savePreset, NAME_MAX } from '../../../lib/notebookSets'
 import {
   fetchWidgetPayload, refreshParams, requestParamsOf, refreshFailureText, OFFLINE_SENTENCE,
 } from '../../../lib/notebookWidgetsFetch'
+import {
+  BUILT_KIND, BUILT_CHANGE_KEYS, runBuilt, builtRefreshParams, viewerSettingsOf, failureText, overridableFilter,
+  loadAccounts, loadVocabulary, loadCatalog,
+} from '../../../lib/builtWidgets'
 import styles from './SnapshotFrame.module.css'
 
 /**
@@ -34,12 +38,13 @@ export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
   onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
-  changeKeys = [], settings = {}, onChange,
+  changeKeys = [], settings = {}, onChange, changeContext = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [change, setChange] = useState(null)   // the settings being edited, or null when closed
   const [message, setMessage] = useState('')
   const [naming, setNaming] = useState(null)   // the preset name being typed, or null when closed
+  const [loaded, setLoaded] = useState({})      // Change's choices, read when it opened, by field
   // Spec §6 (final review M-10): offline, See it now is DISABLED with the reason as its title, and it is
   // enabled again on the browser's online event.
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
@@ -73,7 +78,8 @@ export default function SnapshotFrame({
     }
     if (!mounted.current) return
     setBusy(false)
-    if (!result?.ok) setMessage(refreshFailureText(result?.reason))
+    // `quiet`: a failure with nothing to say (a built widget's superseded run). `text`: the run's own sentence.
+    if (!result?.ok && !result?.quiet) setMessage(result?.text || refreshFailureText(result?.reason))
   }
 
   // R58 (UX I-10): Change asks for this widget again with other settings (its request keys), through the same
@@ -87,7 +93,21 @@ export default function SnapshotFrame({
     if (!mounted.current) return
     setBusy(false)
     if (result?.ok) setChange(null)
-    else setMessage(result?.message || refreshFailureText(result?.reason))
+    else if (!result?.quiet) setMessage(result?.message || refreshFailureText(result?.reason))
+  }
+
+  // Change opens: a field that reads its choices (a built widget's ranges, accounts and filter values) asks for
+  // them now; a read that fails leaves the field with what it already shows.
+  const openChange = () => {
+    setChange({ ...settings })
+    setMessage('')
+    for (const k of changeKeys) {
+      const F = CHANGE_FIELDS[k]
+      if (!F?.load || (F.enabled && !F.enabled(changeContext))) continue
+      Promise.resolve().then(() => F.load(changeContext)).then((opts) => {
+        if (mounted.current && Array.isArray(opts)) setLoaded((l) => ({ ...l, [k]: opts }))
+      }, () => {})
+    }
   }
 
   // Task 17 (wave 5): this widget's SETTINGS saved under a name, listed under "My presets" in the / menu.
@@ -141,7 +161,7 @@ export default function SnapshotFrame({
           </button>
         )}
         {editable && onChange && changeKeys.length > 0 && change === null && (
-          <button type="button" className={styles.btn} onClick={() => { setChange({ ...settings }); setMessage('') }}>
+          <button type="button" className={styles.btn} onClick={openChange}>
             Change
           </button>
         )}
@@ -157,6 +177,10 @@ export default function SnapshotFrame({
           {changeKeys.map((k) => {
             const F = CHANGE_FIELDS[k]
             const set = (v) => setChange((c) => ({ ...c, [k]: F.upper ? v.toUpperCase().replace(/\s+/g, '') : v }))
+            if (F.load) {
+              return <LoadedField key={k} name={k} F={F} change={change} setChange={setChange} set={set}
+                loaded={loaded[k]} ctx={changeContext} />
+            }
             return F.options ? (
               <select key={k} className={styles.presetInput} aria-label={F.label} value={change[k] || ''}
                 onChange={(e) => set(e.target.value)}>
@@ -193,6 +217,44 @@ export default function SnapshotFrame({
   )
 }
 
+/** A Change field whose choices are read when Change opens (`F.load`): a select, or a multi-select (`multiple`).
+ *  The value already chosen is always one of its options, so a read still in flight never blanks it. `reveals`
+ *  names the choice that shows more fields (a built widget's "Fixed dates" shows From and To). */
+function LoadedField({ name, F, change, setChange, set, loaded, ctx }) {
+  const enabled = !F.enabled || F.enabled(ctx)
+  const cur = change[name]
+  if (F.multiple) {
+    const values = Array.isArray(cur) ? cur.map(String) : []
+    const opts = [...(Array.isArray(loaded) ? loaded : [])]
+    for (const v of values) if (!opts.some(([o]) => o === v)) opts.push([v, v])
+    return (
+      <select multiple className={styles.presetInput} aria-label={F.label} value={values} disabled={!enabled}
+        title={enabled ? undefined : F.disabledWhy}
+        onChange={(e) => setChange((c) => ({ ...c, [name]: [...e.target.selectedOptions].map((o) => o.value) }))}>
+        {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+      </select>
+    )
+  }
+  const opts = [...(Array.isArray(loaded) ? loaded : []), ...(F.extra || [])]
+  if (typeof cur === 'string' && cur && !opts.some(([v]) => v === cur)) opts.unshift([cur, F.pending?.(ctx) || cur])
+  const shown = F.reveals && cur === F.reveals.value ? F.reveals.keys : []
+  return (
+    <Fragment>
+      <select className={styles.presetInput} aria-label={F.label} value={typeof cur === 'string' ? cur : ''}
+        disabled={!enabled} onChange={(e) => set(e.target.value)}>
+        <option value="">{F.empty || F.label}</option>
+        {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+      </select>
+      {shown.map((rk) => (
+        <input key={rk} className={styles.presetInput} type={CHANGE_FIELDS[rk].type} aria-label={CHANGE_FIELDS[rk].label}
+          value={change[rk] || ''} onChange={(e) => setChange((c) => ({ ...c, [rk]: e.target.value }))} />
+      ))}
+    </Fragment>
+  )
+}
+
+const upperFirst = (t) => (typeof t === 'string' && t ? t[0].toUpperCase() + t.slice(1) : '')
+
 /** R58 (UX I-10): the settings a member can change, per request key: its label and its control. */
 const CHANGE_FIELDS = {
   symbol: { label: 'Symbol', placeholder: 'NVDA', upper: true },
@@ -200,12 +262,52 @@ const CHANGE_FIELDS = {
   from: { label: 'From', type: 'date' },
   to: { label: 'To', type: 'date' },
   month: { label: 'Month', type: 'month' },
+  // Wave 8 (Task 8.13): a built widget's viewer settings (spec 5.6). The choices come from the server: the range
+  // tokens and their labels from the catalog, the accounts from GET /api/j2/accounts, the filter's values from the
+  // member's own vocabulary. "" keeps the widget's own choice (its range; all accounts).
+  range: {
+    label: 'Date range', empty: "The widget's own range", extra: [['fixed', 'Fixed dates']],
+    reveals: { value: 'fixed', keys: ['from', 'to'] }, pending: (ctx) => upperFirst(ctx?.rangeLabel),
+    load: () => loadCatalog().then((c) => (Array.isArray(c?.ranges) ? c.ranges : [])
+      .filter((r) => r && typeof r.token === 'string').map((r) => [r.token, upperFirst(r.label || r.token)])),
+  },
+  accountId: {
+    label: 'Accounts', empty: 'All my accounts', pending: (ctx) => ctx?.scopeLabel,
+    load: () => loadAccounts().then((list) => list.map((a) => [a.id, a.name])),
+  },
+  filter: {
+    label: 'Filter values', multiple: true,
+    disabledWhy: 'This widget has no filter you can change from the note.',
+    enabled: (ctx) => overridableFilter(ctx?.def) !== null,
+    load: (ctx) => loadVocabulary(overridableFilter(ctx?.def)?.field).then((vals) => vals
+      .map((v) => (v && typeof v === 'object' ? [String(v.id), String(v.name || v.id)] : [String(v), String(v)]))),
+  },
+}
+
+/** A built widget's settings as Change edits them: the range as its token, or "fixed" with From and To. */
+function builtChangeState(params) {
+  const v = viewerSettingsOf(params)
+  return {
+    range: v.range?.token || (v.range ? 'fixed' : ''),
+    from: v.range?.from || '',
+    to: v.range?.to || '',
+    accountId: v.accountId || '',
+    filter: v.filter ? v.filter.map(String) : [],
+  }
+}
+
+/** A built widget's failed run as the frame reads it: the spec 5.10 sentence, or `quiet` when there is none to
+ *  show (a superseded run: a newer one is already in flight). */
+function builtFailure(got) {
+  const text = failureText(got?.code, got?.message)
+  return text ? { ok: false, reason: got?.code || 'failed', text, message: text } : { ok: false, quiet: true }
 }
 
 /** The request keys a kind's Change edits, read from its registry paramsSchema: a frozen `range` is asked for with
  *  from/to, a `listLabel` with list, a `month` with month, and a `symbol` with symbol (a trade recap's symbol is
  *  its trade's, never a setting: its request key is the trade). A trade or a screen is chosen from the / menu. */
 export function changeKeysOf(kind) {
+  if (kind === BUILT_KIND) return [...BUILT_CHANGE_KEYS]
   const keys = new Set((widgetMeta(kind)?.paramsSchema || []).map((f) => f.key))
   return [
     ...(keys.has('symbol') && !keys.has('tradeId') ? ['symbol'] : []),
@@ -272,13 +374,42 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     }
     return got
   }, [kind])
+  // Wave 8 (Task 8.13): a BUILT widget re-runs through POST /api/j2/widget-definitions/run, and the server echoes
+  // every key the note keeps, so the write is the payload plus the member's share switch (builtRefreshParams). It
+  // writes through the SAME ref, so a share switch made while the request ran wins.
+  const onBuiltRefresh = useCallback(async () => {
+    const got = await runBuilt(paramsRef.current)
+    if (!got.ok) return builtFailure(got)
+    const write = writeRef.current
+    if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+    writeThrough(paramsRef, write, builtRefreshParams(paramsRef.current, got.data))
+    return { ok: true }
+  }, [])
+  // Change asks the same run with the member's new settings; the server echoes them, so they are stored as asked.
+  const onBuiltChange = useCallback(async (next) => {
+    const n = next || {}
+    let range = null
+    if (n.range === 'fixed') {
+      if (!n.from || !n.to) return { ok: false, reason: 'invalid', message: 'Pick a start and an end date.' }
+      range = { from: n.from, to: n.to }
+    } else if (typeof n.range === 'string' && n.range) range = { token: n.range }
+    const filter = Array.isArray(n.filter) && n.filter.length ? n.filter.map(String) : null
+    const got = await runBuilt({ ...paramsRef.current, range, accountId: n.accountId || null, filter })
+    if (!got.ok) return builtFailure(got)
+    const write = writeRef.current
+    if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+    writeThrough(paramsRef, write, builtRefreshParams(paramsRef.current, got.data))
+    return { ok: true }
+  }, [])
   const onShareChange = useCallback((value) => {
     const write = writeRef.current
     if (typeof write === 'function') writeThrough(paramsRef, write, { ...paramsRef.current, share: value === true })
   }, [])
   const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current, uid }), [kind, uid])
+  const built = kind === BUILT_KIND
   return {
-    title: meta?.title || kind,
+    // A built widget carries its member-given title; every kind falls back to its own name.
+    title: (typeof params.title === 'string' && params.title) || meta?.title || kind,
     asOf: params.asOf,
     account: meta?.account === true,
     share: params.share === true,
@@ -287,13 +418,15 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     tooLarge: params.tooLarge === true,
     tooLargeText: typeof params.empty === 'string' ? params.empty : null,
     editable: canWrite,
-    onRefresh: canWrite ? onRefresh : undefined,
+    onRefresh: canWrite ? (built ? onBuiltRefresh : onRefresh) : undefined,
     onShareChange: canWrite ? onShareChange : undefined,
     changeKeys: changeKeysOf(kind),
-    settings: requestParamsOf(params),
-    onChange: canWrite ? onChange : undefined,
-    // Only an editable snapshot offers it, and only while wave 5 is on.
-    onSavePreset: canWrite && meta && widgetsWaveOn(5) ? onSavePreset : undefined,
+    settings: built ? builtChangeState(params) : requestParamsOf(params),
+    onChange: canWrite ? (built ? onBuiltChange : onChange) : undefined,
+    changeContext: built ? { def: params.def, scopeLabel: params.scopeLabel, rangeLabel: params.rangeLabel } : null,
+    // Only an editable snapshot offers it, and only while wave 5 is on. A built widget's settings belong to its
+    // definition, so it offers no preset (spec 5.6).
+    onSavePreset: canWrite && meta && !built && widgetsWaveOn(5) ? onSavePreset : undefined,
   }
 }
 

@@ -56,6 +56,8 @@ const IDS = [
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
   // Wave 6 (Task 20).
   'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+  // Wave 8 (Task 8.13): the generic built-widget kind.
+  'builtWidget',
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
@@ -68,7 +70,8 @@ const G040_KINDS = ['screener', 'cot', 'modelbook']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
 const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
-  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']
+  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+  'builtWidget']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // The ids a /charts board can hold — everything except the capture-only kinds.
@@ -96,6 +99,7 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -119,6 +123,7 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -142,6 +147,7 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
@@ -190,6 +196,7 @@ describe('widget registry — metadata pins', () => {
       myScreenToday: { w: 6, h: 8, minW: 3, minH: 4 },
       roomBuzzOnMyNames: { w: 6, h: 8, minW: 3, minH: 4 },
       myEarningsReactions: { w: 6, h: 8, minW: 3, minH: 4 },
+      builtWidget: { w: 6, h: 8, minW: 3, minH: 4 },
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -485,6 +492,21 @@ const CAPTURE_FIXTURES = {
     asOf: '2026-10-20T14:05:00Z', source: 'market', partial: false, share: false,
     rows: [{ symbol: 'TSLA', day: '2026-10-15', epsActual: 0.73, epsEst: 0.68, revActual: 25100000000, revEst: 24800000000, nextDayPct: -4.6 }],
   },
+  // Wave 8 (Task 8.13): the built payload's keys (widget_engine/payload.py), figures included, so the plain-text pin
+  // proves none of them reaches the search line.
+  builtWidget: {
+    asOf: '2026-10-24T14:05:00Z', source: 'manual', sourceKey: 'closed_trades', view: 'table', title: 'Net P&L by setup',
+    summary: 'Net P&L, split by setup, for closed trades in the last 90 days, all accounts. 47 trades.',
+    defId: 'd-81f', defRev: 3, latestRev: 4, def: { v: 1, source: 'closed_trades', measures: [{ key: 'net_pnl' }] },
+    scopeLabel: 'All my accounts', rangeLabel: 'Last 90 days', range: { token: 'last_90d' }, accountId: 'acc-77',
+    filter: ['Flag'], count: 47, capped: false, sample: false, notice: 'Running from the saved copy in this note.',
+    truncated: 0, measures: [{ label: 'Net P&L', unit: 'trades', kind: 'sum', fmt: 'money' }],
+    value: { v1: 2140.55, n1: 47, s1: '', n: 47 }, compare: { v1: 1500.25, n1: 40, s1: '', n: 40 }, compareLabel: 'previous 90 days',
+    rows: [{ label: 'Flag', label2: null, v1: 1873.21, n1: 31, s1: '', n: 31, flagged: false }],
+    series: [], points: [], cells: [], coverage: [{ have: 9, total: 47, hint: 'stops' }],
+    footnotes: ['Max drawdown: within your newest 5,000 trades.'], labelKind: 'account', label2Kind: 'account',
+    sourceDetail: 'Your closed trades in the Journal.', share: false,
+  },
 }
 
 /** Notebook widgets (Task 6): the exact search lines, and a guard that no account figure leaks. */
@@ -504,6 +526,7 @@ const NOTEBOOK_WIDGET_LINES = {
   myScreenToday: '[my screen today: Tight flags · 1 hit]',
   roomBuzzOnMyNames: '[room buzz on my names: 2 names]',
   myEarningsReactions: '[my earnings reactions: 1 name]',
+  builtWidget: '[widget: Net P&L by setup · as of 2026-10-24]',
 }
 
 describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
@@ -532,9 +555,12 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
     const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900', '987654', '123456',
       // wave 6: prices, R, P&L, day P&L, expectancy, counts of mentions and people, EPS, revenue, moves, and the request ids
       '181', '196', '2.4', '7654', '4567', '2345', '0.85', '0.58', '37', '23', '0.73', '0.68', '251', '248', '4.6', '224',
-      'tr-9f1c', 'u:abc123', '3742', '3699']
+      'tr-9f1c', 'u:abc123', '3742', '3699',
+      // wave 8: a built widget's figures, counts and ids (its title is the member's own words and is kept)
+      '2140', '1873', '47', '31', 'd-81f', 'acc-77', '5,000']
     for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
-      'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']) {
+      'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+      'builtWidget']) {
       const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
       for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)
     }
@@ -562,6 +588,23 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
       const norm = normalizeParams(id, CAPTURE_FIXTURES[id])
       for (const k of Object.keys(CAPTURE_FIXTURES[id])) expect(norm, `${id}.${k} dropped`).toHaveProperty(k)
     }
+  })
+
+  it('builtWidget (wave 8): capture-only, in no menu, a json range, and a search line with the title and a day only', () => {
+    const w = WIDGET_REGISTRY.builtWidget
+    expect(w.captureOnly).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false)).toBe(true)
+    const byKey = Object.fromEntries(w.paramsSchema.map((f) => [f.key, f.type]))
+    // `range` is the plan range OBJECT the server echoes; a string field would store "[object Object]"
+    expect(byKey).toMatchObject({ range: 'json', def: 'json', value: 'json', rows: 'json', footnotes: 'json', filter: 'json',
+      defRev: 'number', count: 'number', capped: 'boolean', labelKind: 'string', label2Kind: 'string' })
+    const norm = normalizeParams('builtWidget', CAPTURE_FIXTURES.builtWidget)
+    expect(norm.range).toEqual({ token: 'last_90d' })
+    const line = paramsPlainText('builtWidget', norm)
+    expect(line).toBe('[widget: Net P&L by setup · as of 2026-10-24]')
+    // no digit from a figure: every digit in the line is the day's
+    expect(line.replace('2026-10-24', '')).not.toMatch(/\d/)
+    expect(paramsPlainText('builtWidget', { asOf: '2026-10-24T14:05:00Z' })).toBe('[widget: widget · as of 2026-10-24]')
   })
 })
 

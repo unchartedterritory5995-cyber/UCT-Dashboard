@@ -39,8 +39,9 @@ IMPLIED_MOVE_BUDGET_S = 6.0
 IMPLIED_MOVE_WORKERS = 4
 
 #: The generic phase 2 kind a widget built in the builder is stored as (wave 8). Its payload is built by
-#: `widget_engine.payload.build_payload`, never by `build()`; its KIND_WAVE / ACCOUNT_KINDS / KIND_TITLE rows
-#: land with the client row (Task 8.13).
+#: `widget_engine.payload.build_payload`, never by `build()`: it has no `_BUILDERS` row, and the phase 1 GET
+#: route answers it as an unknown kind. Its KIND_WAVE / ACCOUNT_KINDS / KIND_TITLE rows landed with the client
+#: row (Task 8.13), so the client/server/public-table rails compare one set on every side.
 BUILT_KIND = "builtWidget"
 
 #: Kind -> the release wave whose flag gates its menu entry and server read.
@@ -60,12 +61,13 @@ KIND_WAVE: dict[str, int] = {
     "myScreenToday": 6,
     "roomBuzzOnMyNames": 6,
     "myEarningsReactions": 6,
+    BUILT_KIND: 8,
 }
 
 #: Kinds that read the member's own account (never shown on a public page).
 ACCOUNT_KINDS = frozenset({
     "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
-    "tradeRecap", "myPnlCalendar", "mySetupEdge",
+    "tradeRecap", "myPnlCalendar", "mySetupEdge", BUILT_KIND,
 })
 
 
@@ -89,6 +91,7 @@ KIND_TITLE: dict[str, str] = {
     "myScreenToday": "My screen today",
     "roomBuzzOnMyNames": "Room buzz on my names",
     "myEarningsReactions": "My earnings reactions",
+    BUILT_KIND: "Widget",
 }
 
 

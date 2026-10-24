@@ -1,0 +1,22 @@
+/* Built widget embed (wave 8, Task 8.13): the strip under the body. The toggle is a snapshot frame button
+   (`btn`), so it carries the touch-tier 44 px floor with the frame's other controls. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.labels {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.tools {
+  display: flex;
+  justify-content: flex-end;
+}
+.notice {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}

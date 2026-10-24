@@ -629,6 +629,15 @@ describe('snapshot widget items (Task 8)', () => {
     expect(off).toContain('My watchlist today')
   })
 
+  it('slash_snapshot_items_skip_built: a built widget is never a bare / item, even with wave 8 on', () => {
+    latchNotebookFlags({ ...WAVES_ON, notebook_widgets_w8_enabled: true })
+    const all = snapshotWidgetItems('')
+    expect(all.length).toBeGreaterThan(0)                                  // control: the menu answers
+    expect(all.map((i) => i.title)).not.toContain('Widget')
+    expect(snapshotWidgetItems('widget')).toEqual([])
+    expect(snapshotWidgetItems('a widget you built')).toEqual([])
+  })
+
   it('a wave turns on only its own kinds', () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     const t = snapshotWidgetItems('').map((i) => i.title)

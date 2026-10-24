@@ -183,6 +183,10 @@ const KIND_FIXTURES = {
     data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'NVDA', mentions: 3, people: 2 }] } },
   myEarningsReactions: { settings: {},
     data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'TSLA', nextDayPct: -4 }], partial: false } },
+  // Wave 8: a built widget offers no preset (its settings are its definition's); a stored one still strips to nothing.
+  builtWidget: { settings: {},
+    data: { asOf: '2026-10-24T14:00:00Z', source: 'manual', defId: 'd-1', defRev: 2, title: 'Net P&L by setup',
+      range: { token: 'last_30d' }, accountId: 'acc-1', filter: ['Flag'], rows: [{ label: 'Flag', v1: 1 }] } },
 }
 
 describe('presets store settings only', () => {
