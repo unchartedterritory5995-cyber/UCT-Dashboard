@@ -109,7 +109,12 @@ def textbook_numbers_enabled() -> bool:
 #: taken as the buy point, PLSE; a "0% deep" range labelled at all, TECH). A member gets `metrics_textbook`
 #: once AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED is on; a row whose stamped round differs keeps the confirmed
 #: base metrics label (fail closed). None withholds it from every member again.
-MEMBER_TEXTBOOK_ROUND = 1
+#: 2: RELEASED -- round 2 draws the bc:base top line at the buy point - $0.10 (`metrics_textbook.line`, the base
+#: high) instead of on the highest body, so the line and the printed buy point are one price. It passed a blind
+#: paired check against the round-1 drawing on 2026-10-23 (two packets of 25 cases where the two disagreed by more
+#: than 0.5 ATR, four judges: the round-2 drawing preferred in 100 of 100 judgments, mean score 2.82 and 2.72). The
+#: printed numbers are unchanged from round 1.
+MEMBER_TEXTBOOK_ROUND = 2
 #: The textbook keys a member's row loses while MEMBER_TEXTBOOK_ROUND does not match.
 _TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
 
