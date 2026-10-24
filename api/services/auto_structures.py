@@ -557,13 +557,16 @@ MEMBER_BASE_FORMING_ROUND = 1
 #: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]), and
 #: base_draw.state_drawing does not draw it at all (base_draw.DRAWN_STATES); None stays as the fail-closed gate.
 MEMBER_BASE_TIGHT_ROUND = None
-#: The STATELESS base (a bc:base row with no `state`: the judged base with its "Buy point X" line, before any
-#: breakout). None: WITHDRAWN from members 2026-10-24 after recertification A failed it on the strict textbook
-#: rubric three rounds running (lab recert/A_bases: r1 pooled 1.58; r2 packet A 2.08 with the textbook gate; r3
-#: packets A 2.22 and B 2.26 with the base's own floors, the last fix round PROTOCOL allows). Admins keep it. The
-#: breakout / extended states passed r2 and are unaffected. Re-release = a new passed blind round, with this set
-#: to that round (an int).
-MEMBER_BASE_STATELESS_ROUND = None
+#: The STATELESS base (a bc:base row with no `state`: the base with its "Buy point X" line, before any breakout).
+#: 6: RELEASED 2026-10-24 as the PLAIN base (base_draw.plain_drawing, PLAIN_ROUND, lab base_rebuild): a new geometry
+#: rebuilt from the textbook after recertification A failed the round-4/5 drawing three rounds running (r1 pooled
+#: 1.58; r2 A 2.08; r3 A 2.22 / B 2.26). Its pre-registered held-out round on the same strict rubric passed: packets
+#: A 2.74, B 2.86, C 2.56, D 2.62 (every one >= 96% of cases >= 2), pooled 2.695 [2.60, 2.79]. A member gets a
+#: stateless row only when it is the plain base stamped with this round (_member_base_state_ok), and base_draw_row
+#: draws the plain base only while this equals base_draw.PLAIN_ROUND. ROLLBACK: MEMBER_BASE_ROUND (5) serves the old
+#: round-5 stateless drawing again (the failed one); None withholds the stateless base from members altogether. The
+#: base STATES are drawn before it and never read it, so no literal here changes a state row.
+MEMBER_BASE_STATELESS_ROUND = 6
 
 
 def _member_base_state_ok(bd) -> bool:
@@ -571,7 +574,16 @@ def _member_base_state_ok(bd) -> bool:
     equal to its stamped `state_round`. Any other state is False (fail closed)."""
     st = bd.get("state")
     if st is None and "state" not in bd:
-        return type(MEMBER_BASE_STATELESS_ROUND) is int
+        # the stateless base of the released round: a plain base (base_draw.plain_drawing) stamped with that round;
+        # under any other int (a rollback to the old drawing's release) the old stateless drawing (no plain_round)
+        pr = bd.get("plain_round")
+        rnd = MEMBER_BASE_STATELESS_ROUND
+        if type(rnd) is not int:
+            return False
+        if pr is not None:
+            return type(pr) is int and pr == rnd
+        from api.services.pattern_engine import base_draw
+        return rnd != base_draw.PLAIN_ROUND
     rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
            "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
     sr = bd.get("state_round")
@@ -1101,6 +1113,15 @@ def base_draw_row(sym: str, bars: list):
                 # draw that range back (a price held flat after a gap reads as a base "forming")
                 if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
                     d = None
+                if d is not None:
+                    return _base_row(sym, d, cur_round)
+            # no base STATE here (the states are asked exactly as before, so every state row is unchanged). While
+            # the released stateless round is the PLAIN base (base_draw.PLAIN_ROUND, lab base_rebuild) the stateless
+            # row is the plain drawing, or nothing where it does not draw; under any other literal (None = withheld,
+            # MEMBER_BASE_ROUND = a rollback) it is the round-5 drawing exactly as before
+            if MEMBER_BASE_STATELESS_ROUND == base_draw.PLAIN_ROUND and type(MEMBER_BASE_STATELESS_ROUND) is int:
+                p = base_draw.plain_drawing(b, len(b) - 1)
+                return _base_row(sym, p, cur_round) if p is not None else None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1305,8 +1326,9 @@ def base_textbook_gate_fails(b, row):
 #: one-day spike, a shelf under an older higher peak, a short shelf straight after a parabolic run, a flat or barely
 #: turning 200-day and a right side drifting well under the pivot, so it also needs a REAL ceiling, a real stage-2
 #: uptrend and a right side within TG3_FORMING_BELOW of the pivot. The breakout states keep r2's gate unchanged
-#: (they passed it). The stateless base took the same floors in r3 (plus a lone-high floor) and still failed; it is
-#: withheld from members (MEMBER_BASE_STATELESS_ROUND) and keeps r2's gate only.
+#: (they passed it). The stateless base took the same floors in r3 (plus a lone-high floor) and still failed; it was
+#: rebuilt as the plain base (base_draw.plain_drawing, MEMBER_BASE_STATELESS_ROUND 6), whose own geometry carries its
+#: textbook floors, and this gate does not touch a stateless row.
 TG3_WICK_ATR = 0.6          # the region's high at most this many ATR(14) above its highest candle body
 TG3_PRIOR_BARS = 120        # no high in the 120 sessions before the region above its high x (1 + 3%)
 TG3_PRIOR_PCT = 0.03
@@ -1354,8 +1376,8 @@ def _textbook_base_floors(b, s, e, i, hi, a):
 def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
     """(detections, structures) without any TEXTBOOK_GATE_IDS row that fails a textbook floor
     (`base_textbook_gate_fails`). A bc:base row is gated only when it carries a base STATE (breakout / extended /
-    forming): the stateless base is withheld from members by its own literal, so a re-release starts from the
-    drawing its judged cases record, with this gate re-decided by that release's round. Members only; order kept; the daily bars are read only when such a row is present,
+    forming): the stateless base is the plain base (base_draw.plain_drawing, released at MEMBER_BASE_STATELESS_ROUND
+    6), whose own geometry is its textbook floors, judged blind as served WITHOUT this gate. Members only; order kept; the daily bars are read only when such a row is present,
     at the last COMPLETE session. Removal only and fail OPEN: unreadable bars or an unreadable row keep the row."""
     det, st = list(detections or []), list(structures or [])
     if not any((r or {}).get("pattern_id") in TEXTBOOK_GATE_IDS for r in det + st):
@@ -1374,7 +1396,7 @@ def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
         if (r or {}).get("pattern_id") not in TEXTBOOK_GATE_IDS:
             return False
         if (r or {}).get("pattern_id") == BASE_DRAW_ID and not _is_base_state_row(r):
-            return False    # the stateless base is withheld (MEMBER_BASE_STATELESS_ROUND), never gated here
+            return False    # the stateless base (the plain base) carries its own floors; it is judged ungated here
         try:
             return base_textbook_gate_fails(b, r) is not None
         except Exception:  # noqa: BLE001 -- an unreadable row is kept, as the floor keeps it
@@ -2934,18 +2956,19 @@ def member_drawn_for(sym: str):
     return drawn
 
 
-# ================================================================ textbook support / resistance (members: WITHDRAWN)
+# ================================================================ textbook support / resistance (members: round r7)
 #: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
 #: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
 #: constant, so a new drawing round cannot release itself. Fail closed.
-#: None: WITHDRAWN from members 2026-10-24 (admins keep it under AUTO_STRUCTURES_SR_ENABLED). Round r2 first passed
-#: two packets of 25 (2.52 / 2.36) on a looser rubric. The recertification on the strict Edwards & Magee / Bulkowski
-#: rubric (four pre-registered packets of 25 per round, two fresh blind judges each) failed it, 2.04 / 1.98 / 2.02 /
-#: 2.20, pooled 2.06, mostly for an important nearby level left undrawn. Both permitted fix rounds failed too: r3
-#: pooled 2.055, r4 2.56 / 2.02 / 2.24 / 2.36, pooled 2.295 (bar: every packet >= 2.3 and >= 70% of charts >= 2,
-#: pooled >= 2.4). Evidence: lab/recert/D_levels_candles. Setting this back to a round string needs a new passed
-#: blind round of that round (tests/golden_judged: sr.json is "withdrawn" until then).
-MEMBER_SR_ROUND = None
+#: "r7": RELEASED 2026-10-24. Round r2 was withdrawn the same day after the strict Edwards & Magee / Bulkowski
+#: recertification failed it (pooled 2.06), and the fix rounds r3 (2.055), r4 (2.295), r5 (2.00) and r6 (2.345, every
+#: packet passed, pooled short) failed too. r7 = r6's model (two-touch levels, a broken level drawn in its new role
+#: only after a held retest, at most 3 levels) plus the serving rule that a chart with fewer than 2 levels gets no
+#: layer at all; it passed on 100 fresh charts, four pre-registered packets of 25 with two fresh blind judges each:
+#: 2.42 / 2.52 / 2.36 / 2.50, pooled 2.45 (bar: every packet >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). About
+#: half of liquid charts (51.8% measured) get a layer. Evidence: lab/recert/D_levels_candles/r7. Setting this to
+#: None withdraws it again (tests/golden_judged: sr.json is "released" at r7).
+MEMBER_SR_ROUND = "r7"
 #: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
 #: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
 SR_MIN_BARS = 261
@@ -3025,7 +3048,7 @@ def _sr_payload(d: dict) -> dict:
         "asof_t": int(d["asof"]),
         "atr": d["atr"],
         "zones": [{k: z[k] for k in ("role", "bot", "top", "label", "touches", "first_t", "last_t",
-                                     "broken_retested")} for z in d["zones"]],
+                                     "broken_retested", "state")} for z in d["zones"]],
         "trendlines": [{k: t[k] for k in ("side", "t1", "p1", "t2", "p2", "slope_per_bar", "label", "touches",
                                           "last_touch_t")} for t in d["trendlines"]],
     }
@@ -3036,7 +3059,8 @@ def _sr_payload(d: dict) -> dict:
 
 def _sr_withheld(bars: list, why: str) -> dict:
     """The block for a chart the released layer looked at and draws nothing on, by rule ("out_of_frame": outside
-    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer"."""
+    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer". (A chart
+    with fewer than 2 levels carries "too_few_levels", from sr_levels.draw itself.)"""
     from api.services.pattern_engine import sr_levels
     return {"round": sr_levels.SR_ROUND, "asof_t": int(bars[-1]["t"]), "atr": None, "zones": [], "trendlines": [],
             "withheld": why}

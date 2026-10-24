@@ -1,12 +1,11 @@
-"""Textbook support / resistance (drawing round r2): the PRODUCTION path and its gates.
+"""Textbook support / resistance (drawing round r7): the PRODUCTION path and its gates.
 
 1. Parity through the serving adapter: on every fixture chart in the judged frame, auto_structures.sr_compute (the
    {t,o,h,l,c,v} dicts the route reads) gives the frozen lab's answer, trimmed to the member payload.
 2. Gates: AUTO_STRUCTURES_SR_ENABLED off runs nothing and the route payload is byte-identical; a member gets the
-   layer only while MEMBER_SR_ROUND is a literal equal to the frozen round (fail closed). The literal is None since
-   2026-10-24 (WITHDRAWN: the strict recertification failed r2 and both fix rounds), so every member-door test below
-   runs with the round patched back in (`_round_released`) and proves the door still works for the day a new passed
-   round re-releases it; the source literal itself is railed to None; a pending
+   layer only while MEMBER_SR_ROUND is a literal equal to the frozen round (fail closed). The literal is "r7"
+   since 2026-10-24 (round r2 withdrawn the same day; r7 passed the strict recertification), railed in source; a
+   pending
    acquisition gets nothing; daily charts only; the judged frame only; only bars up to the last COMPLETED session;
    patterns win against the prices the response's own drawings put on the chart; one answer per (ticker, last
    completed session, served prices); any failure draws nothing; /api/auth/me carries the one client signal.
@@ -36,8 +35,8 @@ def _drawing_case():
 
 @pytest.fixture(autouse=True)
 def _round_released(monkeypatch):
-    """The member door as it behaves with a released round: the literal patched to the frozen round. The withdrawn
-    state itself is railed by test_the_member_round_literal_is_withdrawn_in_source."""
+    """The member door with the round released (a no-op while the source literal equals the frozen round, which
+    test_the_member_round_literal_is_released_in_source rails)."""
     monkeypatch.setattr(AS, "MEMBER_SR_ROUND", S.SR_ROUND)
 
 
@@ -75,25 +74,27 @@ def test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame():
 def test_the_member_payload_carries_exactly_the_judged_fields():
     c = _drawing_case()
     p = AS.sr_compute(_dicts(c["bars"]), ())
-    assert set(p) == {"round", "asof_t", "atr", "zones", "trendlines"} and p["round"] == "r2"
-    assert set(p["zones"][0]) == {"role", "bot", "top", "label", "touches", "first_t", "last_t", "broken_retested"}
+    assert set(p) == {"round", "asof_t", "atr", "zones", "trendlines"} and p["round"] == "r7"
+    assert set(p["zones"][0]) == {"role", "bot", "top", "label", "touches", "first_t", "last_t", "broken_retested",
+                                  "state"}
+    assert p["zones"][0]["state"] in ("intact", "confirmed")
     assert p["zones"][0]["label"].startswith(("Support ", "Resistance "))
     assert p["asof_t"] == int(c["bars"][-1][0])
 
 
 # ---------------------------------------------------------------- 2. gates
-def test_the_member_round_literal_is_withdrawn_in_source(monkeypatch, sr_on, bars_of):
-    """WITHDRAWN 2026-10-24: the literal in source is None (never a reference to sr_levels.SR_ROUND, so a drawing
-    round cannot release itself), and with it a member gets no layer while the team keeps it under the flag."""
+def test_the_member_round_literal_is_released_in_source(monkeypatch, sr_on, bars_of):
+    """RELEASED 2026-10-24 at r7: the literal in source is the string "r7" (never a reference to sr_levels.SR_ROUND,
+    so a drawing round cannot release itself), equal to the frozen round, and with it a member gets the layer."""
     src = open(AS.__file__, encoding="utf-8").read()
     lits = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Assign)
             and any(getattr(t, "id", None) == "MEMBER_SR_ROUND" for t in n.targets)]
-    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value is None
-    assert S.SR_ROUND == "r2"
+    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == "r7"
+    assert S.SR_ROUND == "r7"
     monkeypatch.setattr(AS, "MEMBER_SR_ROUND", lits[0].value.value)     # the source value, not the patched one
     monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: ([], []))
-    assert AS.levels_sr_available(member=True) is False
-    assert AS.levels_sr_for("ZZZ", member=True, served=[]) is None
+    assert AS.levels_sr_available(member=True) is True
+    assert AS.levels_sr_for("ZZZ", member=True, served=[]) is not None
     assert AS.levels_sr_available(member=False) is True and AS.levels_sr_for("ZZZ") is not None
 
 
@@ -118,7 +119,7 @@ def test_flag_off_runs_nothing(monkeypatch, bars_of):
     assert AS.levels_sr_for("ZZZ", member=True, served=[]) == {"x": 1} and seen and computed
 
 
-@pytest.mark.parametrize("rnd", [None, True, 2, "r1", "r3", "R2", " r2"])
+@pytest.mark.parametrize("rnd", [None, True, 7, "r2", "r6", "R7", " r7"])
 def test_a_member_gets_nothing_unless_the_literal_is_the_frozen_round(monkeypatch, sr_on, bars_of, rnd):
     monkeypatch.setattr(AS, "MEMBER_SR_ROUND", rnd)
     assert AS._member_sr_ok() is False
@@ -150,7 +151,7 @@ def test_outside_the_judged_frame_nothing_is_drawn_and_the_block_says_why(monkey
         AS._SR_CACHE.clear()
         monkeypatch.setattr(AS, "_shelf_bars", lambda sym, b=bars: b)
         p = AS.levels_sr_for("ZZZ", member=True, served=[])
-        assert p == {"round": "r2", "asof_t": bars[-1]["t"], "atr": None, "zones": [], "trendlines": [],
+        assert p == {"round": "r7", "asof_t": bars[-1]["t"], "atr": None, "zones": [], "trendlines": [],
                      "withheld": "out_of_frame"}
     assert computed == []                                          # nothing was drawn out of frame
     AS._SR_CACHE.clear()
@@ -283,7 +284,7 @@ def test_route_flag_on_adds_only_the_levels_sr_key(monkeypatch, calls, bars_of, 
     on = json.loads(_payload(user).content)
     sr = on.pop("levels_sr")
     assert on == off
-    assert sr["round"] == "r2" and sr["zones"]
+    assert sr["round"] == "r7" and sr["zones"]
 
 
 def test_route_member_passes_its_own_drawings_as_the_pattern_prices(monkeypatch, calls, bars_of, sr_on):
