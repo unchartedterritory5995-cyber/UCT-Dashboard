@@ -101,6 +101,25 @@ def test_a_withdrawn_drawing_is_not_served_to_members(monkeypatch):
     assert payload.get("levels_sr", {}).get("zones")
 
 
+def _cups(payload):
+    return [r for r in payload.get("structures", []) if r["pattern_id"] == "bc:cup-with-handle"]
+
+
+def test_the_withdrawn_cup_is_not_served_to_members_and_comes_back_with_its_round(monkeypatch):
+    """Owner decision 4 (2026-10-24): the cup is withdrawn from members (strict blind 1.98 on n = 20 is not
+    certifiable). With MEMBER_CUP_TIER_ROUND None a judged cup chart serves the member no cup; the re-enable control
+    (the literal back to the judged round, which is what a passed n >= 60 packet would ship) serves it again."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "cup")
+    assert fam["member_literal"] == "MEMBER_CUP_TIER_ROUND" and AS.MEMBER_CUP_TIER_ROUND is None
+    case = next(c for c in fam["cases"] if c["id"] == "cup-d1-001")
+    payload, _bars = MP.member_payload(monkeypatch, case)
+    assert not _cups(payload)
+    monkeypatch.setattr(AS, "MEMBER_CUP_TIER_ROUND", fam["judged_round"])     # re-enable control
+    payload, _bars = MP.member_payload(monkeypatch, case)
+    assert _cups(payload)
+
+
 @pytest.mark.parametrize("family,case", RETIRED, ids=_ids(RETIRED))
 def test_a_retired_judged_drawing_stays_off_the_member_chart(family, case, monkeypatch):
     payload, bars = MP.member_payload(monkeypatch, case)
@@ -259,9 +278,10 @@ def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     every = fams | {f["family"] for f in WITHDRAWN_FAMS}   # a family withdrawn by a recertification still replays
-    assert {"base", "double_bottom", "shelf", "cup", "inside_day", "donchian_breakout"} <= fams, fams
+    assert {"base", "double_bottom", "shelf", "inside_day", "donchian_breakout"} <= fams, fams
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
-    assert {"sr", "remount", "u_and_r", "textbook"} <= every, every
+    # cup: withdrawn 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20; re-ships on an n >= 60 packet)
+    assert {"sr", "remount", "u_and_r", "textbook", "cup"} <= every, every
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
 
 
@@ -338,8 +358,12 @@ def test_decoding_then_re_encoding_a_fixture_gives_it_back_exactly():
 def test_a_stale_cup_box_is_served_only_when_the_cup_tier_draws_it(monkeypatch):
     """lab cup_served: a cup box the team display rounds mark stale is served (in the tier's form) only when the
     round-4 cup tier DRAWS it. The same judged chart with the tier's stamp withheld, or with no stamp, serves no cup."""
+    from api.services import auto_structures as AS
     from api.services.pattern_engine import cup_tier
-    case = next(c for f, c in RELEASED if c["id"] == "cup-d1-001")   # a team-stale box (rim_broken), tier-drawn
+    # the cup is withdrawn from members (owner decision 4): replayed with its member literal at the judged round
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "cup")
+    monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
+    case = next(c for f, c in WITHDRAWN if c["id"] == "cup-d1-001")   # a team-stale box (rim_broken), tier-drawn
     payload, _bars = MP.member_payload(monkeypatch, case)
     assert [r for r in payload["structures"] if r["pattern_id"] == "bc:cup-with-handle"]
     real = cup_tier.stamp

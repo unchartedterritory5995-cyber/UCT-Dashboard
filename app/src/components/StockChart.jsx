@@ -20331,6 +20331,7 @@ export default function StockChart({
           showLevelsSr={uctIntelLayers.supportResistance}
           setupDraws={autoStructuresScope != null ? patternSetupDraws : null}
           showSetupDraws={uctIntelOn && uctIntelLayers.setups}
+          showCautionDraws={uctIntelOn && uctIntelLayers.caution}
           enabled={patternsActive}
           showDealStatus={uctIntelOn}
           showLabels={uctIntelLayers.labels}
@@ -20355,6 +20356,7 @@ export default function StockChart({
           onRemove={handleUctIntelRemove}
           setups={uctIntelSetups}
           setupsList={setupsReleased === true}
+          setupDraws={autoStructuresScope != null ? patternSetupDraws : null}
           admin={autoStructuresScope === 'all' ? {
             showAll: showAllDrawings, onShowAll: setShowAllDrawings,
             showLevels: showPatternLevels, onShowLevels: setShowPatternLevels,

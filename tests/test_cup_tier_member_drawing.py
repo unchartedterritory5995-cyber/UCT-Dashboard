@@ -38,6 +38,15 @@ def flat_base_released(monkeypatch):
     monkeypatch.setattr(_as, "MEMBER_FLAT_BASE_ROUND", 1)
     monkeypatch.setattr(_as, "MEMBER_BC_FLAT_BASE_ROUND", "team")
 
+
+@pytest.fixture(autouse=True)
+def cup_released(monkeypatch):
+    """The cup is WITHDRAWN from members since 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20 is not
+    certifiable; MEMBER_CUP_TIER_ROUND = None). This module tests the mechanism a released cup runs through, so it
+    sets the literal back to the judged round in memory; tests/test_cup_withdrawn_from_members.py rails the
+    withdrawal and its re-enable control."""
+    monkeypatch.setattr(auto_structures, "MEMBER_CUP_TIER_ROUND", auto_structures.CUP_TIER_JUDGED_ROUND)
+
 CUP = "bc:cup-with-handle"
 #: The drawing round the blind packets confirmed (lab cup_draw_v4). Pinned as a literal.
 CONFIRMED_ROUND = 4
@@ -84,9 +93,10 @@ def _bars(n=260):
 def test_the_confirmed_round_is_4_and_the_drawing_code_is_round_4():
     """Pinned to the round the blind check confirmed; if the drawing code moves on, the second line goes red and
     members stop getting the cup (fail closed) until the new round is confirmed by hand."""
-    assert auto_structures.MEMBER_CUP_TIER_ROUND == CONFIRMED_ROUND
+    # the SOURCE literal is withdrawn (None, railed elsewhere); the judged round it re-ships at stays 4
+    assert auto_structures.CUP_TIER_JUDGED_ROUND == CONFIRMED_ROUND
     assert cup_tier.DRAW_ROUND == CONFIRMED_ROUND
-    assert type(auto_structures.MEMBER_CUP_TIER_ROUND) is int
+    assert type(auto_structures.CUP_TIER_JUDGED_ROUND) is int
 
 
 def test_the_cup_is_in_the_member_set_and_still_trusted_for_admins():

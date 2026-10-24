@@ -210,6 +210,7 @@ const WisdomAdmin = lazy(() => import('./pages/admin/wisdom/WisdomAdmin'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
+const MeasuredEdgeMethod = lazy(() => import('./pages/MeasuredEdgeMethod'))
 const ProvenanceDemo = lazy(() => import('./pages/ProvenanceDemo'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
@@ -494,6 +495,9 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/methodology" element={<Methodology />} />
+            {/* The "Measured edge" chip's Method link (owner decision 2): how the outcome replay works. Public,
+                same class as /methodology; the path is api/services/measured_edge.METHOD_URL. */}
+            <Route path="/methodology/measured-edge" element={<MeasuredEdgeMethod />} />
             {/* ⚰️ /provenance-demo lived HERE, public/no-gate, until 2026-09-25 — it
                 was "same class as /methodology" only while /api/provenance/quote was
                 itself public. OI-17 gated the sibling market-data endpoints on
