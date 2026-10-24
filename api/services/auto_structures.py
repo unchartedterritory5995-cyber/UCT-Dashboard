@@ -1491,29 +1491,48 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
 #: (fail closed). None turns the gate off (the drawing as it was before the recert), which is NOT the hide lever:
 #: hiding the drawing is MEMBER_INSIDE_DAY_ROUND = None.
 MEMBER_INSIDE_DAY_GATE_ROUND = 1
+#: The INTERIM textbook gate round for the flat top, the shelf pivot and the double bottom (coordinator ruling
+#: 2026-10-24, recert B): each failed the strict blind round 1 as served (pooled 2.01 / 1.57 / 2.005); with this gate
+#: the report-only blind packets scored 2.46 / 2.52 / 2.55. Removal-only, fail closed, like the inside-day gate:
+#: it must equal textbook_gate.PIVOT_GATE_ROUND or every row of the three ids is withheld; None turns it off.
+#: Hiding a drawing is its own member literal (MEMBER_FLAT_TOP_ROUND / MEMBER_SHELF_PIVOT_ROUND /
+#: MEMBER_DOUBLE_BOTTOM_ROUND = None), not this one.
+MEMBER_PIVOT_GATE_ROUND = 1
+
+
+def _textbook_gates():
+    """{pattern id: (member literal, the module's round, the failing-rules function)} for every gated id."""
+    from api.services.pattern_engine import textbook_gate as tg
+    out = {INSIDE_DAY_DRAW_ID: (MEMBER_INSIDE_DAY_GATE_ROUND, tg.INSIDE_DAY_GATE_ROUND, tg.inside_day_fails)}
+    for pid in tg.PIVOT_GATE_IDS:
+        out[pid] = (MEMBER_PIVOT_GATE_ROUND, tg.PIVOT_GATE_ROUND, tg.pivot_fails)
+    return out
 
 
 def member_textbook_gate(sym: str, detections, structures) -> tuple:
-    """(detections, structures) without any inside-day drawing the strict textbook gate withholds
-    (pattern_engine.textbook_gate.inside_day_fails: an established uptrend, a true and tight inside bar, not
-    extended, the trigger and stop on the bars' own extremes). Applied on the MEMBER path LAST, after every
-    precedence pass and the shelf, so the member chart is the served chart minus the withheld rows -- exactly
-    what the blind round judged. The daily bars are read only when such a row is present, at the last COMPLETE
-    session. Fails CLOSED: unreadable bars, a short history or a malformed row withhold the drawing. Order is
-    kept; never raises."""
+    """(detections, structures) without any gated drawing the strict textbook gate withholds
+    (pattern_engine.textbook_gate: the inside day, and -- as interim guards -- the flat top, the shelf pivot and
+    the double bottom). Applied on the MEMBER path LAST, after every precedence pass and the shelf, so the member
+    chart is the served chart minus the withheld rows -- exactly what the blind rounds judged. The daily bars are
+    read only when a gated row is present, at the last COMPLETE session, and each row is judged on the bars ending
+    at its own drawing's end_t. A gate whose literal is None is off; a literal that disagrees with the module's
+    round withholds every row of its ids. Fails CLOSED: unreadable bars, a short history or a malformed row
+    withhold the drawing. Order is kept; never raises."""
     det, st = list(detections or []), list(structures or [])
-    pid = INSIDE_DAY_DRAW_ID
-    if not any((r or {}).get("pattern_id") == pid for r in det + st):
+    try:
+        gates = _textbook_gates()
+    except Exception:  # noqa: BLE001 -- no gate module: withhold every gated row rather than serve it unchecked
+        _log.warning("[auto-structures] textbook gate unavailable for %s", sym, exc_info=True)
+        return ([r for r in det if (r or {}).get("pattern_id") not in _TEXTBOOK_GATED_IDS],
+                [r for r in st if (r or {}).get("pattern_id") not in _TEXTBOOK_GATED_IDS])
+    live = {pid: g for pid, g in gates.items() if g[0] is not None}
+    present = {(r or {}).get("pattern_id") for r in det + st} & set(live)
+    if not present:
         return det, st
-    want = MEMBER_INSIDE_DAY_GATE_ROUND
-    if want is None:
-        return det, st
-    drop_all = ([r for r in det if (r or {}).get("pattern_id") != pid],
-                [r for r in st if (r or {}).get("pattern_id") != pid])
+    drop_all = ([r for r in det if (r or {}).get("pattern_id") not in present],
+                [r for r in st if (r or {}).get("pattern_id") not in present])
     try:
         from api.services.pattern_engine import textbook_gate
-        if not (type(want) is int and want == textbook_gate.INSIDE_DAY_GATE_ROUND):
-            return drop_all
         b = list(_daily_bars(sym) or [])
         if b and last_bar_forming(b[-1]["t"]):
             b = b[:-1]
@@ -1522,17 +1541,25 @@ def member_textbook_gate(sym: str, detections, structures) -> tuple:
         ts = [int(x["t"]) for x in bars]
 
         def keep(r):
-            if (r or {}).get("pattern_id") != pid:
+            pid = (r or {}).get("pattern_id")
+            if pid not in present:
                 return True
-            d = ((r.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
-            end = d.get("end_t")
-            if end is None or int(end) not in ts:
+            want, rnd, fails = live[pid]
+            if not (type(want) is int and want == rnd):
                 return False
-            return not textbook_gate.inside_day_fails(bars[:ts.index(int(end)) + 1], r)
+            end = textbook_gate.end_of(r)
+            if end is None or end not in ts:
+                return False
+            return not fails(bars[:ts.index(end) + 1], r)
         return [r for r in det if keep(r)], [r for r in st if keep(r)]
-    except Exception:  # noqa: BLE001 -- fail closed: an unverified inside day is not drawn
-        _log.warning("[auto-structures] textbook gate failed for %s; inside-day withheld", sym, exc_info=True)
+    except Exception:  # noqa: BLE001 -- fail closed: an unverified drawing is not drawn
+        _log.warning("[auto-structures] textbook gate failed for %s; gated rows withheld", sym, exc_info=True)
         return drop_all
+
+
+#: The ids the textbook gate can withhold (the fallback when the gate module itself cannot be imported).
+_TEXTBOOK_GATED_IDS = frozenset({"draw:inside-day", "uct_flat_top_breakout", "draw:shelf-pivot",
+                                 "draw:double-bottom"})
 
 
 #: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).

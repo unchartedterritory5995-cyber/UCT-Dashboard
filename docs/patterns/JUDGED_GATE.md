@@ -25,8 +25,8 @@ For each case the gate asserts:
 | fixture file | drawing | member literal it was judged at |
 |---|---|---|
 | `base.json` | `bc:base` | `MEMBER_BASE_ROUND = 4` |
-| `double_bottom.json` | `draw:double-bottom` | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` |
-| `shelf.json` | `draw:shelf-pivot` | `MEMBER_SHELF_PIVOT_ROUND = "r4"` |
+| `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
+| `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
@@ -65,9 +65,26 @@ each, packets 2.34 / 2.54 / 2.64 / 2.82, pooled 2.585): all 32 round-3 inside-da
 The round's 3-scored cases that pass the one-line-per-base check were added in their place (32 of 56; the other 24
 share their base with a pullback, base or channel line on the member chart and are not fixtures).
 
+Retired 2026-10-24 (recert B interim ruling) under rule `textbook_gate`: 17 shelf and 16 double-bottom cases. The
+shelf pivot, the double bottom and the flat top each failed the strict textbook round 1 as served (pooled 1.57 /
+2.005 / 2.01), and the coordinator ruled their fix gates live at once as interim removal-only guards
+(`pattern_engine.textbook_gate.pivot_fails`, `MEMBER_PIVOT_GATE_ROUND = 1`). With the gate, the report-only blind
+packet E (two fresh judges, the same strict rubric) scored shelf 2.52 (n 25, 100% at 2 or more), double bottom 2.55
+(n 20, 95%) and flat top 2.46 (n 25, 96%). Each retired case's reason names the rules its ungated row fails, and the
+rule (`judged._pivot_gate_holds`) replays the member route on the same chart with the gate off and asserts the gate
+fails the family's row there, so a case whose drawing goes missing for any other reason is red. The packet E cases
+both judges scored 3 were added (shelf 12, double bottom 11). The flat top has no golden fixture; its gate is railed
+by `tests/test_textbook_pivot_gate.py` (parity with the lab rule on real served rows of all three types). A formal
+fix round (four packets of 25) is still to run; a type that fails it is hidden.
+
+Un-retired the same day: 3 donchian cases (`a-002`, `b-001`, `b-005`) whose yielding was to a base line the interim
+gate now withholds. With no base line left on the chart, the channel line is drawn as judged again, and the cases are
+back under the drawn-as-judged test.
+
 Retired 2026-10-24 under `one_line_per_base` (precedence round e): 11 donchian cases. Round e was a blind paired round:
 25 shared-base charts, 2 fresh judges. On a shared base, the base-family line was preferred over the donchian channel
-line in 84% of 50 judgments (95% CI 72-94%). So the channel line yields to a drawn base line within 1 ATR
+line in 84% of 50 judgments (95% CI 72-94%). So the channel line yields to a drawn base line within 1 ATR (8 cases
+remain retired after the 3 un-retired above)
 (`auto_structures.ONE_LINE_PER_BASE_PRIORITY`).
 
 The rule (`judged._base_line_holds`) still asserts on each chart that the yielding has a cause: a drawn row ranked
