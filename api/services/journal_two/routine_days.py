@@ -105,10 +105,13 @@ def schedule_on(schedules: list[tuple[str, dict]], day: date) -> dict | None:
     return best[1] if best else None
 
 
-def is_scheduled(schedule: dict | None, day: date, traded: frozenset[str]) -> bool:
+def is_scheduled(schedule: dict | None, day: date, traded: frozenset[str], *,
+                 today: date | None = None) -> bool:
     """`every`: a session. `weekdays`: a session on a chosen weekday (Monday = 0). `traded`: a day
-    with trades. Past the calendar's horizon a session is a weekday (`trading_days.is_session`).
-    No schedule, or an unknown kind, is never scheduled."""
+    with trades, and (ruling W9-R8) a session on or after `today`, so a pre-market routine can be
+    ticked before the first trade; a past session with no trade is not scheduled. Past the
+    calendar's horizon a session is a weekday (`trading_days.is_session`). No schedule, or an
+    unknown kind, is never scheduled."""
     if not schedule:
         return False
     kind = schedule.get("kind")
@@ -118,7 +121,9 @@ def is_scheduled(schedule: dict | None, day: date, traded: frozenset[str]) -> bo
         days = schedule.get("days") or ()
         return trading_days.is_session(day) and day.weekday() in days
     if kind == "traded":
-        return day.isoformat() in traded
+        if day.isoformat() in traded:
+            return True
+        return today is not None and day >= today and trading_days.is_session(day)
     return False
 
 
@@ -140,9 +145,15 @@ def partial_label(ds: DayState) -> str | None:
 
 
 def _needed(done_share: float, n: int) -> int:
-    # The shares are exact binary fractions, so this is exact; the epsilon only guards a caller's
-    # float drift (0.7500000001 must not need one more tick).
-    return math.ceil(done_share * n - 1e-9)
+    # `done_share` is one of DONE_SHARES (checked by the caller), all exact binary fractions, so
+    # the product is exact and ceil needs no tolerance.
+    return math.ceil(done_share * n)
+
+
+def _is_tick(v) -> bool:
+    """Ruling W9-R6: a tick counts when it is True or the integer 1 (the schema stores INTEGER).
+    0 and False are unticked; anything else is ignored and reads unticked."""
+    return v is True or (type(v) is int and v == 1)
 
 
 def day_state(*, items: list[Item], schedule: dict | None, ticks: dict[str, bool], skipped: bool,
@@ -157,10 +168,10 @@ def day_state(*, items: list[Item], schedule: dict | None, ticks: dict[str, bool
         raise ValueError("Pick how much of the routine counts as done.")
     applicable = items_on(items, day)
     ticks = ticks or {}
-    ticked = sum(1 for it in applicable if ticks.get(it.id) is True)
+    ticked = sum(1 for it in applicable if _is_tick(ticks.get(it.id)))
     of = len(applicable)
     iso = day.isoformat()
-    if day < created or not is_scheduled(schedule, day, traded) or of == 0:
+    if day < created or not is_scheduled(schedule, day, traded, today=today) or of == 0:
         return DayState(iso, "off", ticked, of)
     if skipped:
         return DayState(iso, "skipped", ticked, of)
@@ -320,7 +331,8 @@ def _routine_consistency(rows):
             continue
         denom += 1
         done += r["state"] == "done"
-    return MeasureValue(_num(done / denom) if denom else None, denom, None)
+    # Ruling W9-R7: no surface shows a consistency of 0, so none done reads "no data".
+    return MeasureValue(_num(done / denom) if denom and done else None, denom, None)
 
 
 def _routine_completion_pct(rows):
@@ -332,7 +344,8 @@ def _routine_completion_pct(rows):
 def _routine_days_done(rows):
     sched = _scheduled_rows(rows)
     done = sum(1 for r in sched if r["state"] == "done")
-    return MeasureValue(_num(float(done)) if sched else None, len(sched), None)
+    # Ruling W9-R7: a count of 0 is never shown.
+    return MeasureValue(_num(float(done)) if done else None, len(sched), None)
 
 
 def _routine_best_run(rows):

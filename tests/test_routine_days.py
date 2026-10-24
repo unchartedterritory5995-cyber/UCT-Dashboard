@@ -499,3 +499,69 @@ def test_routine_measures_catalog_shape():
         assert x.theme == "process" and x.unit == "days"
         assert x.sources == frozenset({"routine_history"})
         assert x.min_n == shared_measures.DEFAULT_MIN_N
+
+
+# ── fix round 1 ────────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw_items", [
+    [],                                                    # no items at all
+    [_item("a", to="2026-11-01"), _item("b", to="2026-11-10")],   # every item removed
+    [_item("a", frm="2026-12-01")],                        # an item that starts later
+], ids=["no-items", "all-removed", "starts-later"])
+def test_a_day_with_no_applicable_item_is_off(raw_items):
+    items = _items(*raw_items)
+    day = date(2026, 11, 24)
+    s = _state(day, items=items, ticks={"a": True, "b": True})
+    assert (s.state, s.of) == ("off", 0)
+    assert rd.partial_label(s) is None
+    # Between two done days it neither breaks the run nor enters consistency.
+    done = rd.DayState("2026-11-23", "done", 1, 1)
+    after = rd.DayState("2026-11-25", "done", 1, 1)
+    with_off = [done, s, after]
+    without = [done, after]
+    assert rd.runs(with_off, strict=False) == rd.runs(without, strict=False) == rd.Runs(2, 2)
+    assert rd.runs(with_off, strict=True) == rd.Runs(2, 2)
+    assert rd.consistency(with_off, strict=False) == rd.consistency(without, strict=False)
+
+
+@pytest.mark.parametrize("value,ticked", [
+    (True, True), (1, True), (False, False), (0, False),
+    (2, False), (1.0, False), ("1", False), (None, False), ("true", False),
+])
+def test_tick_values_true_or_integer_one_count(value, ticked):
+    s = _state(date(2026, 11, 23), ticks={"a": value})
+    assert s.state == ("done" if ticked else "not_done")
+    assert s.ticked == (1 if ticked else 0)
+
+
+def test_traded_schedule_today_and_later_sessions_are_open():
+    sched = {"kind": "traded"}
+    today = date(2026, 11, 25)
+    assert _state(today, schedule=sched, today=today).state == "open"
+    assert _state(date(2026, 11, 27), schedule=sched, today=today).state == "open"
+    assert _state(today, schedule=sched, today=today, ticks={"a": True}).state == "done"
+    # A past session without a trade stays off; a non-session future day stays off.
+    assert _state(date(2026, 11, 24), schedule=sched, today=today).state == "off"
+    assert _state(date(2026, 11, 26), schedule=sched, today=today).state == "off"
+    assert _state(date(2026, 11, 28), schedule=sched, today=today).state == "off"
+    states = _hist(date(2026, 11, 23), date(2026, 11, 27), schedules=[("2026-01-01", sched)],
+                   today=today, traded=frozenset({"2026-11-23"}))
+    assert [(s.day, s.state) for s in states] == [
+        ("2026-11-23", "not_done"), ("2026-11-24", "off"), ("2026-11-25", "open"),
+        ("2026-11-27", "open")]
+
+
+def test_an_unticked_negative_item_leaves_the_day_not_done():
+    items = _items(_item("n", text="No revenge trades", negative=True))
+    assert _state(date(2026, 11, 23), items=items).state == "not_done"
+    assert _state(date(2026, 11, 23), items=items, ticks={"n": True}).state == "done"
+
+
+def test_no_zero_on_the_measure_path():
+    none_done = _rows(0, 0, 4)
+    assert rd.ROUTINE_MEASURES["routine_consistency"].fn(none_done).value is None
+    assert rd.ROUTINE_MEASURES["routine_consistency"].fn(none_done).n == 4
+    assert rd.ROUTINE_MEASURES["routine_days_done"].fn(none_done).value is None
+    assert rd.ROUTINE_MEASURES["routine_days_done"].fn(_rows(2, 0, 1)).value == 2.0
+    # Completion % is not covered by W9-R7 here and keeps its 0.0.
+    assert rd.ROUTINE_MEASURES["routine_completion_pct"].fn(none_done).value == 0.0

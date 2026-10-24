@@ -86,9 +86,10 @@ def clean_value(kind: str, raw: Any) -> float:
 # ── display ────────────────────────────────────────────────────────────────────────────────────
 
 def _num_text(v: float) -> str:
-    if v == int(v):
-        return str(int(v))
-    return format(v, ".10g")
+    """Fixed notation, at most 2 decimals, never an exponent: 6.5 -> "6.5", 1e9 -> "1000000000",
+    0.123 -> "0.12", -2.0 -> "-2"."""
+    text = f"{round(v, 2):.2f}".rstrip("0").rstrip(".")
+    return "0" if text in ("-0", "") else text
 
 
 def _with_unit(text: str, unit: str | None) -> str:
@@ -153,8 +154,10 @@ def buckets(kind: str, values: list[float], unit: str | None) -> list[Bucket]:
         return out
     a, b = distinct[k // 3], distinct[2 * k // 3]
     at, bt = _edge_text(kind, a), _edge_text(kind, b)
+    # A hyphen beside a minus sign reads wrongly ("-5--2"), so a negative edge uses "to".
+    middle = f"{at} to {bt}" if a < 0 or b < 0 else f"{at}-{bt}"
     return [Bucket(f"Under {at}{suffix}", None, a),
-            Bucket(f"{at}-{bt}{suffix}", a, b),
+            Bucket(f"{middle}{suffix}", a, b),
             Bucket(f"{bt}{suffix} or more", b, None)]
 
 
@@ -218,8 +221,9 @@ def _tracker_latest(rows):
 
 
 def _tracker_entries(rows):
+    # Ruling W9-R7: a count of 0 is never shown (matches routine_days_done).
     n = len(_entries(rows))
-    return MeasureValue(float(n), n, None)
+    return MeasureValue(float(n) if n else None, n, None)
 
 
 def _m(key, label, meaning, kind, fn):

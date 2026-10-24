@@ -182,3 +182,44 @@ def test_tracker_measures_catalog_shape():
         assert x.sources == frozenset({"tracker_history"})
         assert x.min_n == shared_measures.DEFAULT_MIN_N
         assert math.isfinite(x.fn(_rows(("2026-11-23", 1.0))).value)
+
+
+# ── fix round 1 ────────────────────────────────────────────────────────────────────────────────
+
+def test_tracker_entries_zero_is_no_data():
+    mv = tk.TRACKER_MEASURES["tracker_entries"].fn([])
+    assert (mv.value, mv.n) == (None, 0)
+    assert tk.TRACKER_MEASURES["tracker_entries"].fn(_rows(("2026-11-23", None))).value is None
+
+
+def test_negative_bucket_edges_read_to():
+    bs = tk.buckets("number", [-9, -7, -5, -3, -2, -1], None)
+    # k = 6: edges at index 2 and 4 -> -5 and -2.
+    assert [b.label for b in bs] == ["Under -5", "-5 to -2", "-2 or more"]
+    # Neither edge negative (0 and 4): the plain hyphen stays.
+    plain = tk.buckets("number", [-3, -1, 0, 2, 4, 6], "R")
+    assert [x.label for x in plain] == ["Under 0 R", "0-4 R", "4 R or more"]
+
+
+def test_negative_edge_with_one_negative_side_reads_to():
+    bs = tk.buckets("number", [-6, -4, -2, 1, 3, 5], None)
+    # edges at index 2 and 4 -> -2 and 3
+    assert [b.label for b in bs] == ["Under -2", "-2 to 3", "3 or more"]
+
+
+@pytest.mark.parametrize("value,text", [
+    (1e9, "1000000000"), (-1e9, "-1000000000"), (0.000001, "0"), (1e-7, "0"),
+    (0.125, "0.12"), (6.5, "6.5"), (-2.0, "-2"), (123456789.987, "123456789.99"),
+    (-0.001, "0"),
+])
+def test_number_text_never_uses_an_exponent(value, text):
+    out = tk.format_value("number", value, None)
+    assert out == text and "e" not in out
+
+
+def test_bucket_labels_never_use_an_exponent():
+    bs = tk.buckets("number", [1e8, 5e8, 1e9, 2.5e-5, 3e-6, 7e-8], None)
+    import re
+    labels = [b.label for b in bs]
+    assert labels == ["Under 0", "0-500000000", "500000000 or more"]
+    assert not any(re.search(r"\de", lab) for lab in labels)
