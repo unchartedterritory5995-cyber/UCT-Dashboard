@@ -49,6 +49,11 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
     // Deal status (DEAL_STATUS_ENABLED): the stock is pending acquisition, so the server sent
     // no drawings and this small marker instead. null whenever absent.
     dealStatus: data?.deal_status?.pending ? data.deal_status : null,
+    // Gate SIGNALS for the UCT Intelligence panel's released-layer toggles (uctIntelligence.layerAvailability):
+    // undefined while the server sends no such key (the layer is not released to this viewer), the payload
+    // otherwise. `levels_sr` is the textbook support/resistance layer; `candle_marks` the candlestick markers.
+    levelsSr: data && Object.prototype.hasOwnProperty.call(data, 'levels_sr') ? data.levels_sr : undefined,
+    candleMarks: data && Object.prototype.hasOwnProperty.call(data, 'candle_marks') ? data.candle_marks : undefined,
     count: data?.count || 0,
     isLoading,
     error,

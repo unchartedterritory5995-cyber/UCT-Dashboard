@@ -71,6 +71,8 @@ import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
 import LearnedDrawn from './patternShapes/LearnedDrawn'
+import SupportResistanceLayer from './patternShapes/SupportResistanceLayer'
+import { hasLevelsSr } from './patternShapes/srLevelsGeometry'
 import { LabelLayoutContext } from './patternShapes/labelLayoutContext'
 import { computeLabelLayout } from './patternLabelLayout'
 import EmaSegment from './patternShapes/EmaSegment'
@@ -484,6 +486,15 @@ export function rowView(row) {
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
+ *   showLabels:        draw the base metrics text (buy point / depth / stage / volume); default true
+ *   showLearned:       draw the `drawn` block when present (admin "Learned levels" toggle); default true
+ *   showDealStatus:    show the deal-status notice even while `enabled` is false; default false
+ *   (The UCT Intelligence indicator, uctIntelligence.js, drives the last three. A released support /
+ *    resistance or candlestick layer is gated there by the payload key's presence.)
+ *   levelsSr:          the textbook support / resistance block (`levels_sr` on the response, server-gated by
+ *                      AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND) or null
+ *   showLevelsSr:      draw `levelsSr`; default true. The UCT Intelligence indicator's "Support & resistance"
+ *                      toggle drives this (uctIntelligence effectiveLayers().supportResistance)
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
@@ -546,6 +557,11 @@ export default function PatternOverlay({
   trustedOnly = false,
   dealStatus = null,
   candles = null,
+  showLabels = true,
+  showLearned = true,
+  showDealStatus = false,
+  levelsSr = null,
+  showLevelsSr = true,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -582,15 +598,21 @@ export default function PatternOverlay({
 
   // Pending acquisition (server deal_status, DEAL_STATUS_ENABLED): the server withheld every
   // drawing and buy-point label; say why instead of drawing nothing silently.
-  if (enabled && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
+  // `showDealStatus` (the UCT Intelligence indicator is on): the notice shows even while the drawings
+  // layer itself is off, so a member who added the indicator always learns why nothing is drawn.
+  if ((enabled || showDealStatus) && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
 
-  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
-  if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
+  // `showLearned` (admin panel toggle; default true = today's behaviour) withholds the learned block.
+  // `enabled` is the pattern drawings' switch (Auto patterns); the support / resistance layer has its own
+  // (`showLevelsSr`, the UCT Intelligence "Support & resistance" toggle), so it draws with Auto patterns off too.
+  const hasDrawn = enabled && showLearned && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  const hasSr = showLevelsSr && hasLevelsSr(levelsSr)
+  if (!chart || !series || (!enabled && !hasSr) || (!detections?.length && !hasDrawn && !hasSr)) return null
 
-  const drawable = selectDrawable(detections, {
+  const drawable = enabled ? selectDrawable(detections, {
     tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null, trustedOnly,
-  })
-  if (!drawable.length && !hasDrawn) return null
+  }) : []
+  if (!drawable.length && !hasDrawn && !hasSr) return null
 
   // Coordinate helpers — lightweight-charts caches internally so re-creating these per render is cheap.
   const tToX = (t) => {
@@ -614,7 +636,9 @@ export default function PatternOverlay({
     if (typeof spacing === 'number' && spacing > 0) barHalfWidthPx = spacing / 2
   } catch { /* keep the default */ }
 
-  const views = drawable.map(rowView)
+  // `showLabels` false (the panel's "Pattern labels & numbers" toggle): the drawings stay, the buy point /
+  // depth / stage / volume text block does not, and the label layout reserves no room for it.
+  const views = showLabels ? drawable.map(rowView) : drawable.map((d) => ({ ...rowView(d), metricsLines: null }))
   // Candle extents in px, only when a metrics block needs placing (a base row with metrics) -- read lazily.
   let candlePx = null
   const readCandles = () => {
@@ -637,6 +661,7 @@ export default function PatternOverlay({
   const labelLayout = computeLabelLayout({
     views, drawn: hasDrawn ? drawn : null, tToX, priceToY,
     pane: { w: size.width, h: size.height }, candles: readCandles, halfW: barHalfWidthPx,
+    levelsSr: hasSr ? levelsSr : null,
   })
 
   return (
@@ -665,6 +690,9 @@ export default function PatternOverlay({
       </defs>
       {hasDrawn && (
         <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} droppedLabels={labelLayout.droppedLearned} />
+      )}
+      {hasSr && (
+        <SupportResistanceLayer levelsSr={levelsSr} tToX={tToX} priceToY={priceToY} dy={labelLayout.srDy} />
       )}
       {views.map((v) => {
         const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v

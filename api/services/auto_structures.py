@@ -449,15 +449,23 @@ BASE_DRAW_ID = "bc:base"
 #: The base drawing round the blind check confirmed for members. Round 1 passed 2026-10-18 (packets
 #: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]); round 2 (the pivot on the base's highest body, no base
 #: straight after a parabolic run) passed its own blind check 2026-10-21 (packets A 2.76 [2.60, 2.90] and
-#: B 2.78 [2.64, 2.90]) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
+#: B 2.78 [2.64, 2.90]); round 4 (round 2 unchanged wherever round 2 draws, plus a textbook consolidation
+#: round 2 missed only on a single touch or a lip reached from above) passed its own pre-registered blind
+#: packets 2026-10-23 (A 2.86 [2.72, 2.98] and B 2.96 [2.90, 3.00], and a regression packet where round 2
+#: draws: 25 of 25 identical) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
 #: the drawing code moves ahead of this round, every bc:base row carries THIS round's drawing
 #: (`extras.draw_member`) and a member is served exactly the row this round draws (`_base_member_row`),
 #: until the new round passes its own blind check and this is changed by hand. While the two are equal
-#: there is no carrier. Setting this back to 1 restores the round-1 member drawing byte for byte (the
-#: carrier path below; railed by tests/test_base_draw_member_parity.py).
-MEMBER_BASE_ROUND = 2
-#: The one later round whose rows carry the round-1 drawing beside their own (extras.draw_member).
-_BASE_R1_CARRIER = 2
+#: there is no carrier. Setting this back to 2 restores the round-2 member drawing byte for byte, and to 1
+#: the round-1 one (the carrier path below; railed by tests/test_base_draw_r4_member_parity.py and
+#: tests/test_base_draw_member_parity.py).
+MEMBER_BASE_ROUND = 4
+#: The (member round, row round) pairs where a row of a later drawing round carries the member round's
+#: drawing of the same bars beside its own (extras.draw_member): round-2 rows carrying round 1 (the round-1
+#: era), and round-4 rows carrying round 2 (members on round 2 while round 4 is admin-only) or round 1 (a
+#: rollback of the literal to 1). Round 3 failed its held-out check and is never drawn. Any other pairing
+#: is dropped.
+_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
 
@@ -466,8 +474,8 @@ def _base_member_row(row):
     """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
 
     A row stamped with the member round is served as it is. A row of a later round is served as the
-    member round drew the SAME bars -- only while the member round is 1 and the row is of the one known
-    carrier round (_BASE_R1_CARRIER) -- and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
+    member round drew the SAME bars -- only for a known (member round, row round) pair (_BASE_CARRIERS) --
+    and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
     "draw_base": <that round's drawing or None>}; the member gets `_base_row` rebuilt from that drawing
     (byte-identical to the row the member round's code built), or nothing when that round drew nothing.
     Any other round, a missing or malformed carrier drops the row. The row passed in is not modified."""
@@ -479,7 +487,7 @@ def _base_member_row(row):
         return None
     if rnd == MEMBER_BASE_ROUND:
         return row
-    if not (MEMBER_BASE_ROUND == 1 and rnd == _BASE_R1_CARRIER):
+    if (MEMBER_BASE_ROUND, rnd) not in _BASE_CARRIERS:
         return None
     mem = ex.get("draw_member")
     if not isinstance(mem, dict) or set(mem) != {"round", "draw_base"}:
@@ -1265,6 +1273,185 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         return [s for s in (structures or []) if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
 
 
+#: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).
+#: The pairwise passes above each settle one pair of drawings; this pass closes the rest: the detector rows
+#: (flat_base, bull_flag, uct_flat_top_breakout) against each other and against the base boxes and the
+#: named shapes. Where two drawn rows of different ids put breakout lines within ONE_LINE_PER_BASE_ATR ATR
+#: of each other over overlapping spans, they are one base drawn twice, and the member keeps exactly one:
+#: the row that comes FIRST in this order. The order, and why (blind-judged scores, two pre-registered packets each, as drawn,
+#: on the 1-3 scale):
+#:   1. bc:cup-with-handle    -- a whole-base drawing (pivot, handle, rim reference): 2.42 / 2.50. It already
+#:                               outranks bc:flat-base (member_cup_precedence) and bc:base.
+#:   2. draw:double-bottom    -- a whole-base drawing (region, both lows, pivot): 2.46 / 2.32. It already
+#:                               outranks bc:base. Below the cup: lower on the weaker packet (2.32 < 2.42).
+#:   3. uct_flat_top_breakout -- the "flat top" ceiling with its touches: 2.60 / 2.57, the best-scoring
+#:                               line-only drawing. Below the two shapes because a line names only the
+#:                               base's ceiling, while a shape also names its extent and its low.
+#:   4. bc:flat-base          -- the base box's pivot line (box off): 2.40 / 2.30.
+#:   5. flat_base             -- the flat-base detector's drawing of the SAME base as bc:flat-base (the two
+#:                               duplicate to the cent). It passed inside the team-set packets with no
+#:                               per-type score on record, so the type with two recorded packets wins.
+#:   6. bc:base               -- scores best of all (2.76 / 2.78) but is the additive drawing: it already
+#:                               yields to every drawing above (member_base_precedence, a wider cover rule),
+#:                               so here it can only meet a bull_flag, which it outranks on score.
+#:   7. bull_flag             -- the flag's entry (2.43 / 2.40) is a continuation trigger at the top of the
+#:                               base. Where it sits on the base's own breakout line, the base's line is the
+#:                               one that names the base, so the flag yields to every drawing above.
+#: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
+#: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
+ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag")
+#: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
+ONE_LINE_PER_BASE_ATR = 1.0
+#: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
+ONE_LINE_PER_BASE_CENT = 0.01 + 1e-9
+
+
+def _stamped_atr(rows):
+    """The widest finite, positive ATR any of `rows` carries in its own drawing stamp (a bc:base, a named
+    shape, the cup tier), or None."""
+    vals = []
+    for r in rows:
+        ex = ((r or {}).get("geometry") or {}).get("extras") or {}
+        for k in ("draw_base", "draw_shape", "cup_tier"):
+            d = ex.get(k)
+            if isinstance(d, dict) and _finite(d.get("atr")) and float(d["atr"]) > 0:
+                vals.append(float(d["atr"]))
+    return max(vals) if vals else None
+
+
+def _breakout_lines(row) -> list:
+    """[(price, start_t, end_t)] -- every BREAKOUT line (pivot / entry / ceiling / box top) the member's chart
+    draws for `row`, as PatternOverlay.rowView draws it: a bc:base or named-shape pivot, the flat-top
+    ceiling, a box's `draw_pivot`, a detector's drawn entry (`draw_entry`; never for the "flagging" tier)
+    and `draw_pivot`, and a flat_base box top while the box draws. A rim reference, a low or a stop is not
+    a breakout line. A line without a finite price and a readable span draws nothing and is not listed."""
+    r = row or {}
+    pid = r.get("pattern_id")
+    g = r.get("geometry") or {}
+    ex = g.get("extras") or {}
+    out = []
+
+    def add(p, s, e):
+        if _finite(p):
+            try:
+                out.append((float(p), int(s), int(e)))
+            except (TypeError, ValueError):
+                pass
+
+    def stamp(key, price_key):
+        d = ex.get(key)
+        if isinstance(d, dict):
+            add(d.get(price_key), d.get("start_t"), d.get("end_t"))
+
+    def box_top(a, b, price):
+        try:
+            add(price, min(int(a["t"]), int(b["t"])), max(int(a["t"]), int(b["t"])))
+        except (KeyError, TypeError, ValueError):
+            pass
+
+    if pid == BASE_DRAW_ID:
+        stamp("draw_base", "pivot")
+    elif pid in SHAPE_DRAW_IDS:
+        stamp("draw_shape", "pivot")
+    elif pid == "uct_flat_top_breakout":
+        stamp("draw_flat_top", "price")
+    elif pid in ("bc:flat-base", CUP_ID):
+        stamp("draw_pivot", "price")
+    elif pid in ("flat_base", "bull_flag"):
+        if r.get("draw_entry") and not _flagging_flag(r):
+            p = ex.get("draw_entry_price")
+            add(p if p is not None and _finite(p) else (r.get("levels") or {}).get("entry"),
+                r.get("start_t"), r.get("end_t"))
+        stamp("draw_pivot", "price")
+        if pid == "flat_base" and g.get("shape") == "base_box" and ex.get("draw_box") is not False:
+            # the box's top edge as PatternOverlay.drawGeometry draws it (draw_anchors capped, else the box)
+            da, an = ex.get("draw_anchors"), g.get("anchors")
+            if isinstance(da, list) and len(da) >= 2 and all(isinstance(x, dict) for x in da[:2]):
+                if _finite(da[0].get("price")) and _finite(da[1].get("price")):
+                    box_top(da[0], da[1], max(float(da[0]["price"]), float(da[1]["price"])))
+            elif isinstance(an, list) and len(an) >= 2 and all(isinstance(x, dict) for x in an[:2]):
+                box_top(an[0], an[1], ex.get("top"))
+    return out
+
+
+def daily_atr14(sym: str):
+    """The mean true range of the last 14 daily sessions of `sym` (the measure the one-line-per-base pass
+    compares lines with), or None under 15 bars or on any failure. Never raises."""
+    try:
+        b = _daily_bars(sym)
+        if len(b) < 15:
+            return None
+        trs = [max(float(b[j]["h"]), float(b[j - 1]["c"])) - min(float(b[j]["l"]), float(b[j - 1]["c"]))
+               for j in range(len(b) - 14, len(b))]
+        a = sum(trs) / len(trs)
+        return a if _finite(a) and a > 0 else None
+    except Exception:  # noqa: BLE001 -- no ATR: the pass fails closed
+        return None
+
+
+def member_one_line_per_base(detections, structures, atr=None) -> tuple:
+    """(detections, structures) with at most ONE drawn breakout line per base. Applied on the MEMBER path
+    only, after member_rows, the freshness filter and the pairwise precedences.
+
+    The rows considered are the DRAWN rows (`_drawn_incumbent`: a stale row is served but never drawn, so it
+    neither covers nor is removed) of ONE_LINE_PER_BASE_PRIORITY that draw at least one breakout line
+    (`_breakout_lines`). In priority order (ties: detections before structures, then input order) each row is
+    kept unless one of its lines lies within ONE_LINE_PER_BASE_ATR x `atr` of a line of an already-KEPT row
+    of ANOTHER id over an overlapping span; then the whole row is dropped. Two rows of the SAME id are left
+    to that drawing's own judged rules (the bull_flag overlap pass, one flat top per scan): this pass only
+    settles one base drawn by two different drawings. A kept row is returned as it came in (the same
+    object: nothing moved or altered), every other row is untouched, and order is kept; with nothing to drop
+    the two inputs come back as lists of the very same rows.
+
+    `atr` is a number or a zero-argument callable, read only when two rows' lines overlap in span (a chart
+    with nothing to compare reads nothing). Without a finite, positive `atr` the widest ATR a candidate row
+    carries in its own stamp is used (`_stamped_atr`); with none at all, only lines at the same cent count
+    as one line, so the pass still removes exact duplicates and never guesses a width (a guessed width
+    would hide distinct drawings whenever the bars read failed). On any unexpected error it fails closed:
+    only the highest-priority candidate row is kept. Never raises."""
+    dets, sts = list(detections or []), list(structures or [])
+    rank = {pid: i for i, pid in enumerate(ONE_LINE_PER_BASE_PRIORITY)}
+    cands = []
+    try:
+        for i, r in enumerate(dets + sts):
+            pid = (r or {}).get("pattern_id")
+            if pid in rank and _drawn_incumbent(r):
+                ls = _breakout_lines(r)
+                if ls:
+                    cands.append((rank[pid], i, r, ls))
+        if len(cands) < 2:
+            return dets, sts
+
+        def overlap(a, b):
+            return a[1] <= b[2] and b[1] <= a[2]
+
+        if not any(cands[x][2].get("pattern_id") != cands[y][2].get("pattern_id") and overlap(a, b)
+                   for x in range(len(cands)) for y in range(x + 1, len(cands))
+                   for a in cands[x][3] for b in cands[y][3]):
+            return dets, sts
+        w = atr() if callable(atr) else atr
+        if not (_finite(w) and float(w) > 0):
+            w = _stamped_atr([c[2] for c in cands])
+        width = float(w) * ONE_LINE_PER_BASE_ATR if w is not None else ONE_LINE_PER_BASE_CENT
+        kept, drop = [], set()
+        for _rk, _i, r, ls in sorted(cands, key=lambda c: (c[0], c[1])):
+            pid = r.get("pattern_id")
+            if any(kp != pid and overlap(a, b) and abs(a[0] - b[0]) <= width
+                   for kp, k in kept for a in ls for b in k):
+                drop.add(id(r))
+            else:
+                kept.append((pid, ls))
+    except Exception:  # noqa: BLE001 -- fail closed: one breakout line rather than two
+        if not cands:
+            return dets, sts
+        top = min(cands, key=lambda c: (c[0], c[1]))[2]
+        drop = {id(c[2]) for c in cands if c[2] is not top}
+    if not drop:
+        return dets, sts
+    return [r for r in dets if id(r) not in drop], [r for r in sts if id(r) not in drop]
+
+
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
 #: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
 #: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
@@ -1658,6 +1845,19 @@ def _scan_universe() -> frozenset:
     return _SCAN_UNIVERSE[0]
 
 
+def _base_as_member_round(row):
+    """A bc:base row of a later drawing round that carries the member round's drawing (`_BASE_CARRIERS`) as the
+    member round's own row, or None where the member round draws nothing on those bars: the member's chart
+    holds the member round's line, never the admin round's. Any other row is returned as it is."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if (row or {}).get("pattern_id") != BASE_DRAW_ID or not isinstance(ex, dict):
+        return row
+    rnd = ex.get("draw_round")
+    if type(rnd) is not int or (MEMBER_BASE_ROUND, rnd) not in _BASE_CARRIERS:
+        return row
+    return _base_member_row(row)
+
+
 def shelf_member_facts(sym: str, bars: list):
     """(served, lines) for daily `bars` (completed sessions, oldest first, the last one the as-of bar): the
     drawings the member path serves on that chart -- [(pattern_id, [drawn prices], (start_t, end_t) or None)] --
@@ -1716,7 +1916,7 @@ def shelf_member_facts(sym: str, bars: list):
         for p in (ex.get("pivot"), ex.get("top")):
             if _finite(p):
                 lines.append((det["pattern_id"], float(p), True))
-    st = _structure_rows(sym, bd)
+    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd)) if r is not None]
     served_st = member_rows(st)
     after_cup = member_cup_precedence(served_st)
     after_base = member_base_precedence(dets_ok, after_cup)
@@ -2033,3 +2233,157 @@ def member_drawn_for(sym: str):
     if not isinstance(drawn, dict) or drawn.get("learned_round") != rnd:
         return None
     return drawn
+
+
+# ================================================================ textbook support / resistance (members: round r2)
+#: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
+#: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
+#: constant ("r2"), so a new drawing round cannot release itself. Fail closed. Round r2 passed blind judging on two
+#: fresh packets of 25 random liquid held-out charts (A 2.52 with 96% of charts >= 2, B 2.36 with 84%; bar 2.3 and
+#: 70%) and its DEV lookahead check. Set it to None to withdraw the layer from members (admins keep it under the flag).
+MEMBER_SR_ROUND = "r2"
+#: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
+#: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
+SR_MIN_BARS = 261
+SR_MIN_CLOSE = 5.0
+SR_MIN_DOLLAR_VOLUME = 20e6
+#: One computed answer per (ticker, scope), reused while the last completed session and the served pattern prices
+#: are unchanged.
+_SR_CACHE: dict = {}
+_SR_LOCK = threading.Lock()
+
+
+def sr_enabled() -> bool:
+    """AUTO_STRUCTURES_SR_ENABLED, read PER CALL; unset means OFF. Off, nothing below runs and every payload is
+    exactly what it was before the layer existed. The kill switch is this flag."""
+    return os.environ.get("AUTO_STRUCTURES_SR_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def _member_sr_ok() -> bool:
+    """True only while MEMBER_SR_ROUND is a str equal to sr_levels.SR_ROUND. Anything else (None, a bool, an int, a
+    newer drawing round) is False: fail closed."""
+    try:
+        from api.services.pattern_engine import sr_levels
+        rnd = MEMBER_SR_ROUND
+        return type(rnd) is str and rnd == sr_levels.SR_ROUND
+    except Exception:  # noqa: BLE001 -- an unreadable round serves nothing
+        return False
+
+
+def levels_sr_available(*, member: bool) -> bool:
+    """The ONE client-visible signal: the released member S/R layer exists for this scope. A member: the flag AND
+    the member round literal (the member door also needs members_enabled); an admin: the flag. Never raises."""
+    try:
+        return sr_enabled() and (not member or _member_sr_ok())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def sr_in_frame(bars) -> bool:
+    if len(bars or []) < SR_MIN_BARS:
+        return False
+    last = bars[-1]
+    return last["c"] > SR_MIN_CLOSE and last["c"] * last["v"] >= SR_MIN_DOLLAR_VOLUME
+
+
+def sr_served_prices(rows) -> list:
+    """Every price a served member drawing puts on the chart (the lab's served-pattern replay: auto_structures
+    _row_lines of each row the chart DRAWS -- a stale row other than the "flagging" tier is sent but never drawn and
+    covers nothing), plus a served shelf pivot's line. Sorted, rounded to 4 places, de-duplicated."""
+    out = set()
+    for r in rows or ():
+        try:
+            if not _drawn_incumbent(r):
+                continue
+            ex = (r.get("geometry") or {}).get("extras") or {}
+            if r.get("pattern_id") == SHELF_PIVOT_ID:
+                p = (ex.get("draw_shelf") or {}).get("price")
+                vals = [p] if _finite(p) else []
+            else:
+                vals, _span = _row_lines(r)
+        except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
+            continue
+        for v in vals:
+            out.add(round(float(v), 4))
+    return sorted(out)
+
+
+def _sr_payload(d: dict) -> dict:
+    """The member payload: the drawing round, the as-of session, ATR(14), the zones and the trendlines, and the
+    reason a chart draws nothing on purpose ("pinned")."""
+    out = {
+        "round": d["round"],
+        "asof_t": int(d["asof"]),
+        "atr": d["atr"],
+        "zones": [{k: z[k] for k in ("role", "bot", "top", "label", "touches", "first_t", "last_t",
+                                     "broken_retested")} for z in d["zones"]],
+        "trendlines": [{k: t[k] for k in ("side", "t1", "p1", "t2", "p2", "slope_per_bar", "label", "touches",
+                                          "last_touch_t")} for t in d["trendlines"]],
+    }
+    if d.get("withheld"):
+        out["withheld"] = d["withheld"]
+    return out
+
+
+def _sr_withheld(bars: list, why: str) -> dict:
+    """The block for a chart the released layer looked at and draws nothing on, by rule ("out_of_frame": outside
+    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer"."""
+    from api.services.pattern_engine import sr_levels
+    return {"round": sr_levels.SR_ROUND, "asof_t": int(bars[-1]["t"]), "atr": None, "zones": [], "trendlines": [],
+            "withheld": why}
+
+
+def sr_compute(bars: list, prices) -> dict | None:
+    """The layer for completed daily `bars` (oldest first, the last one the as-of bar) and the served pattern
+    prices, or None with too little history. The judged frame is levels_sr_for's to check (once, before any work).
+    RAISES on a failure (the caller draws nothing)."""
+    from api.services.pattern_engine import sr_levels
+    rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in bars]
+    d = sr_levels.draw(rows, None, list(prices))
+    return None if d is None else _sr_payload(d)
+
+
+def levels_sr_for(sym: str, *, member: bool = False, served=None):
+    """The `levels_sr` block for `sym`'s daily chart, or None (no key). Gated: AUTO_STRUCTURES_SR_ENABLED (default
+    off; nothing runs while it is off) and, for a member, MEMBER_SR_ROUND equal to the frozen round. `served`: the
+    drawings this response serves (member path) -- their prices win (patterns win); None (team path) = the drawings
+    the MEMBER path serves on this chart, replayed from the bars (shelf_member_facts). Reads only bars up to the last
+    COMPLETED session (an unknown session clock draws nothing). Outside the judged frame, or with too little history,
+    the block is present with no zones or lines and `withheld` naming why, so the key itself means "released to this
+    viewer" (the UCT Intelligence indicator's "Support & resistance" toggle reads its presence). One computed answer
+    per (ticker, last completed session, served prices). Any failure -> None (no key). Never raises."""
+    try:
+        if not sr_enabled():
+            return None
+        if member and not _member_sr_ok():
+            return None
+        sym = (sym or "").upper()
+        bars = _shelf_bars(sym)          # the last COMPLETED session's 600-bar window (>= sr_levels.BARS_NEEDED)
+        if not bars:
+            return None
+        if not sr_in_frame(bars):
+            return _sr_withheld(bars, "out_of_frame")
+        key = int(bars[-1]["t"])
+        scope = "member" if member else "team"
+        if served is not None:
+            prices = tuple(sr_served_prices(served))
+            with _SR_LOCK:
+                hit = _SR_CACHE.get((sym, scope))
+            if hit and hit[0] == key and hit[1] == prices:
+                return hit[2]
+        else:
+            with _SR_LOCK:
+                hit = _SR_CACHE.get((sym, scope))
+            if hit and hit[0] == key:
+                return hit[2]
+            facts, _lines = shelf_member_facts(sym, bars)
+            prices = tuple(sorted({round(float(v), 4) for _pid, ls, _span in facts for v in ls}))
+        out = sr_compute(bars, prices)
+        if out is None:
+            out = _sr_withheld(bars, "short_history")
+        with _SR_LOCK:
+            _SR_CACHE[(sym, scope)] = (key, prices, out)
+        return out
+    except Exception as e:  # noqa: BLE001 -- any failure draws no level
+        _log.debug("[sr-levels] %s failed: %s", sym, e)
+        return None

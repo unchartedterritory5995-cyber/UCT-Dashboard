@@ -732,6 +732,16 @@ _PATTERN_METADATA = {
 # admin/Gate-5, feedback) is unchanged.
 
 
+def setup_definition(setup_id) -> Optional[str]:
+    """The first sentence of a pattern id's metadata description, or None. Pure; never raises."""
+    import re
+    desc = ((_PATTERN_METADATA.get(str(setup_id or "")) or {}).get("description") or "").strip()
+    if not desc:
+        return None
+    first = re.split(r"(?<=[.!?])\s+", desc, maxsplit=1)[0].strip()
+    return first or None
+
+
 @router.get("/catalog")
 def get_pattern_catalog(_user: dict = Depends(require_paid)):
     """Name and direction (bullish / bearish / neutral) for every pattern id.
@@ -788,6 +798,10 @@ def get_detections(
         # 2026-10-05). None when the id has no entry; the client then falls back.
         verdicts = [{**v, "setup_name": (_PATTERN_METADATA.get(v.get("setup") or "") or {}).get("name")}
                     for v in verdicts]
+        # The one-line definition the chart's UCT Intelligence "Setups" list shows beside each name: the
+        # FIRST SENTENCE of the same metadata entry's description (one authority). Additive key; None when
+        # the id has no entry. Internal ids never reach a non-admin here (dropped above).
+        verdicts = [{**v, "setup_definition": setup_definition(v.get("setup"))} for v in verdicts]
         # Seam 24: how many setups were EVALUATED in the same window, confirmed
         # and rejected alike. A member seeing an empty tab cannot otherwise tell
         # "we looked and nothing qualified" from "nothing was ever looked at" --
@@ -854,6 +868,12 @@ def get_detections(
                 # the inside-day drawing: daily charts only, and an incumbent breakout line near its
                 # trigger wins over it (members only)
                 boxes = auto_structures.member_inside_day_precedence(rows, boxes, tf)
+                # one breakout line per base across detections AND structures: where two drawn rows put
+                # their breakout lines within 1 ATR over the same bars, only the higher-priority row stays
+                # (auto_structures.ONE_LINE_PER_BASE_PRIORITY; members only; ATR read only when needed)
+                rows, boxes = auto_structures.member_one_line_per_base(
+                    rows, boxes, atr=lambda: auto_structures.daily_atr14(sym))
+                mout["detections"], mout["count"] = rows, len(rows)
                 # base metrics (AUTO_STRUCTURES_METRICS_ENABLED + MEMBER_METRICS_ROUND): off = unchanged
                 boxes = auto_structures.with_metrics(sym, boxes, member=True)
                 # the shelf pivot (released r4: AUTO_STRUCTURES_SHELF_ENABLED + MEMBER_SHELF_PIVOT_ROUND + the member
@@ -869,6 +889,13 @@ def get_detections(
                 drawn = auto_structures.member_drawn_for(sym)
                 if drawn is not None:
                     mout["drawn"] = drawn
+                # textbook support / resistance (released r2: AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND): daily
+                # charts only; a zone or line near a price this response's drawings put on the chart is withheld
+                # (patterns win). Off: no `levels_sr` key, the payload is byte-identical.
+                if (tf or "D").upper() == "D":
+                    sr = auto_structures.levels_sr_for(sym, member=True, served=list(rows) + list(boxes))
+                    if sr is not None:
+                        mout["levels_sr"] = sr
             return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
@@ -896,6 +923,12 @@ def get_detections(
                 drawn = auto_structures.drawn_for(sym)
                 if drawn is not None:
                     out["drawn"] = drawn
+            # textbook support / resistance (AUTO_STRUCTURES_SR_ENABLED): daily charts only, computed against the
+            # drawings the MEMBER path serves, so the team chart shows what a member would see
+            if (tf or "D").upper() == "D":
+                sr = auto_structures.levels_sr_for(sym)
+                if sr is not None:
+                    out["levels_sr"] = sr
     return out
 
 
