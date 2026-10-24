@@ -738,3 +738,10 @@ def test_b_cannot_undelete_as_soft_deleted_routine(R):
         R.undelete(B, r["id"], now=at("2026-11-04"))
     assert R.get(A, r["id"]) is None
     assert R.undelete(A, r["id"], now=at("2026-11-04"))["deleted"] is False
+
+
+def test_bad_ids_get_a_request_shape_sentence(R):
+    for bad in (5, ["ok", 7]):
+        with pytest.raises(R.RoutineError) as e:
+            R.read_days(A, bad, ["today"], now=at("2026-11-02"))
+        assert e.value.sentence == R.S_BAD_IDS

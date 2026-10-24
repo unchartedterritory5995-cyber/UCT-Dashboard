@@ -83,6 +83,7 @@ S_OFF_DAY = "This routine didn't run that day."
 S_BAD_SKIP = "Choose skipped or not skipped."
 S_BAD_FILTER = "Choose active, archived or deleted routines."
 S_TOO_MANY_IDS = "Ask for at most 30 routines at once."
+S_BAD_IDS = "Pick up to 30 routines."
 S_TOO_MANY_DAYS = "Ask for at most 31 days at once."
 
 DEFAULT_SETTINGS: dict = {"done_share": 1.0, "strict": False, "reminder": None}
@@ -976,7 +977,7 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
     At most READ_IDS_MAX ids and READ_DAYS_MAX days. `"today"` is the session on or after today
     ET. Foreign, unknown and deleted ids are absent."""
     if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
-        raise RoutineError(S_NOT_FOUND)
+        raise RoutineError(S_BAD_IDS)
     if not isinstance(days, list):
         raise RoutineError(S_BAD_DAY)
     want_ids = list(dict.fromkeys(i for i in ids if i))
