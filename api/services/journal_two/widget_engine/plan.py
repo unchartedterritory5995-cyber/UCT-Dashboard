@@ -441,9 +441,11 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         _need(all(isinstance(x, (str, bool)) or _is_number(x) for x in values))
         _check_filter_values(op, getattr(fields[name], "type", None), values)
         # W9-R21: a field with fixed codes (a routine day's state) stores the CODE, never a label.
-        choices = getattr(fields[name], "choices", None)
-        if choices and any(v not in choices for v in values):
-            raise PlanError(S_FILTER_VALUE_TYPE)
+        if getattr(fields[name], "strict_choices", False):
+            choices = fields[name].choices
+            allowed = {v for v, _label in (choices() if callable(choices) else choices or ())}
+            if any(v not in allowed for v in values):
+                raise PlanError(S_FILTER_VALUE_TYPE)
         over = f.get("overridable", False)
         _need(isinstance(over, bool))
         clean = {"field": name, "op": f["op"], "values": list(values), "overridable": over}

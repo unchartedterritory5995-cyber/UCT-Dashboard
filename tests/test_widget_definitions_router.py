@@ -583,3 +583,47 @@ def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch):
     r = c.post(BASE + "/examples", json={"ids": [tool["id"], plain_id]})
     assert r.status_code == 200 and r.json()["cards"][tool["id"]]["sample"] is False
     assert tool["id"] in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+
+
+def _served_codes(c, source, field):
+    static = c.get(BASE + "/vocabulary").json()
+    src = next(s for s in static["sources"] if s["key"] == source)
+    return next(f for f in src["fields"] if f["key"] == field)["values"]
+
+
+def test_vocabulary_serves_the_routine_state_codes_and_the_validator_agrees(conn, monkeypatch):
+    """W9-R23: `state` and `routine_done` serve their codes with labels, derived from the source
+    constants; every served code passes the filter validator and every label is refused."""
+    from api.services.journal_two.widget_engine import sources as wsources
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    c = _client()
+    rid = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    cases = {
+        ("trading_days", "routine_done"): (wsources.STATE_CODES, lambda v: raw_plan(
+            source="trading_days", measures=("avg_day_pnl",),
+            filters=[{"field": "routine_done", "op": "in", "values": [v], "ref": rid}],
+            range={"from": "2026-10-19", "to": "2026-10-23"})),
+        ("routine_history", "state"): (wsources.HISTORY_STATES, lambda v: raw_plan(
+            source="routine_history", measures=("routine_days_done",),
+            filters=[{"field": "state", "op": "in", "values": [v]}], range={"token": "last_30d"})),
+    }
+    for (source, field), (codes, mk) in cases.items():
+        served = _served_codes(c, source, field)
+        assert served == [{"value": k, "label": wsources.STATE_LABELS[k]} for k in codes]
+        assert {s["label"] for s in served} <= {"Done", "Not done", "Skipped", "Off day", "Open"}
+        for s in served:
+            assert wplan.validate_plan(mk(s["value"]), wsources.CATALOG)["filters"][0]["values"] \
+                == [s["value"]]
+            with pytest.raises(wplan.PlanError) as e:
+                wplan.validate_plan(mk(s["label"]), wsources.CATALOG)
+            assert e.value.sentence == wplan.S_FILTER_VALUE_TYPE
+    # moving the source moves what is served AND what the validator accepts
+    monkeypatch.setattr(wsources, "STATE_LABELS", {**wsources.STATE_LABELS, "done": "Finished"})
+    monkeypatch.setattr(wsources, "HISTORY_STATES", ("done", "skipped"))
+    served = _served_codes(c, "routine_history", "state")
+    assert served == [{"value": "done", "label": "Finished"},
+                      {"value": "skipped", "label": "Skipped"}]
+    with pytest.raises(wplan.PlanError):
+        wplan.validate_plan(cases[("routine_history", "state")][1]("not_done"), wsources.CATALOG)
+    assert _served_codes(c, "trading_days", "routine_done")[0] == {"value": "done",
+                                                                   "label": "Finished"}

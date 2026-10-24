@@ -334,6 +334,33 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
 
 # -- the catalog and the shelf --------------------------------------------------------------------
 
+def _field_values(f: Any) -> list[dict] | None:
+    """The values a member picks from for a field with a fixed list (its buckets, or yes/no), each
+    with the label a group shows. None: the list is the member's own (`?field=`) or typed.
+    (The I-8 shape; W9-R23 serves the routine state codes through `choices`.)"""
+    choices = getattr(f, "choices", None)
+    choices = choices() if callable(choices) else choices
+    if choices:
+        return [{"value": v, "label": label} for v, label in choices]
+    if f.type == "bool":
+        vals: tuple = (True, False)
+    elif f.bucket:
+        vals = tuple(f.bucket)
+    else:
+        return None
+    return [{"value": v, "label": f.fmt(v) if f.fmt else str(v)} for v in vals]
+
+
+def _field_row(f: Any) -> dict:
+    row = {"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
+           "split": bool(f.split), "filter": bool(getattr(f, "filterable", True)),
+           "refKind": getattr(f, "ref_kind", None)}
+    values = _field_values(f)
+    if values is not None:
+        row["values"] = values
+    return row
+
+
 def _static_vocabulary(tools: bool = False) -> dict:
     """The catalog. With `tools` False (wave 9 off) no routine or tracker source, no field that
     names one (`refKind`) and no routine or tracker measure is listed."""
@@ -348,10 +375,8 @@ def _static_vocabulary(tools: bool = False) -> dict:
             continue
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
-            "fields": [{"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
-                        "split": bool(f.split), "filter": bool(getattr(f, "filterable", True)),
-                        "refKind": getattr(f, "ref_kind", None)}
-                       for f in s.fields.values() if tools or not getattr(f, "ref_kind", None)],
+            "fields": [_field_row(f) for f in s.fields.values()
+                       if tools or not getattr(f, "ref_kind", None)],
             "measures": sorted(cat.measures_for(s.key)),
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,

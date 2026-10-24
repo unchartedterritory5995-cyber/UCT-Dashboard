@@ -79,6 +79,16 @@ def state_label(code: Any) -> str:
     return STATE_LABELS.get(code, str(code))
 
 
+def _state_choices() -> tuple[tuple[str, str], ...]:
+    """W9-R23: `routine_done`'s codes with their labels, derived (read when served)."""
+    return tuple((c, STATE_LABELS[c]) for c in STATE_CODES)
+
+
+def _history_choices() -> tuple[tuple[str, str], ...]:
+    """W9-R23: routine history's `state` codes with their labels, derived (read when served)."""
+    return tuple((c, STATE_LABELS[c]) for c in HISTORY_STATES)
+
+
 @dataclass(frozen=True)
 class Field:
     """One whitelisted field. `sql` is a static fragment (None: Python only); `py(row)` computes
@@ -107,8 +117,11 @@ class Field:
     ref_kind: str | None = None
     #: False for a split-only field (a filter on it is refused)
     filterable: bool = True
-    #: the only values a filter on it may hold (codes, W9-R21)
-    choices: tuple | None = None
+    #: the values a member picks from for a filter, as `((value, label), ...)` or a callable returning
+    #: that (read when the vocabulary is served; the I-8 shape)
+    choices: Any = None
+    #: W9-R21/R23: a filter on it may hold only the values of `choices` (codes, never labels)
+    strict_choices: bool = False
     #: a row key holding a group's sort position (tracker buckets read low to high)
     order_from: str | None = None
 
@@ -584,7 +597,8 @@ DAY_FIELDS: dict[str, Field] = {f.key: f for f in [
     # W9-R21: codes stored, labels shown; an off day is its own group, a day before the routine
     # existed is left out of the split (and counted).
     _f("routine_done", "Routine done", "enum", split=True, ref_kind="routine",
-       bucket=STATE_CODES, choices=STATE_CODES, fmt=state_label, missing="no routine yet"),
+       bucket=STATE_CODES, choices=_state_choices, strict_choices=True, fmt=state_label,
+       missing="no routine yet"),
     _f("tracker_value", "Tracker value", "number", ref_kind="tracker",
        missing="no value for this tracker"),
     _f("tracker_bucket", "Tracker value range", "enum", split=True, ref_kind="tracker",
@@ -905,7 +919,8 @@ ROUTINE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("routine", "Routine", "enum", split=True, label_from="routine_name"),
     _f("item", "Item", "enum", split=True, label_from="item_text", filterable=False),
     # W9-R21: the stored values are the codes; "Done" is only how a group reads
-    _f("state", "State", "enum", split=True, bucket=HISTORY_STATES, choices=HISTORY_STATES,
+    _f("state", "State", "enum", split=True, bucket=HISTORY_STATES, choices=_history_choices,
+       strict_choices=True,
        fmt=state_label),
     _f("consistency", "Consistency", "number"),
 ]}

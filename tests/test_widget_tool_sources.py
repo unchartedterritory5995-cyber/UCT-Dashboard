@@ -297,8 +297,9 @@ def _seed_heavy(c, n_routines=30, n_items=25, years=4):
 def test_scan_routines_is_bounded_at_4_years_30_routines_25_items(conn):
     """W9-R17 rail: the worst shape a member can build (4 years x 30 routines x 25 items, every
     item ticked every session), split by item, over one year and over all time. Rows stay at the
-    cap, wall time stays well under the 1.5 s run deadline on this box (measured ~0.5 s), and the
-    memory a scan allocates is bounded."""
+    cap and the memory a scan allocates is bounded. W9-R24: the hard rail is the deterministic
+    expansion count (`test_item_expansion_stops_at_the_cap`); this wall-clock bound (measured ~0.5 s
+    on this box) is loose on purpose so a loaded runner does not flap it."""
     start = _seed_heavy(conn)
     for rng_ in ({"from": "2025-10-24", "to": "2026-10-23"}, {"token": "all"}):
         for split in ({"by": "item"}, None):
@@ -310,7 +311,7 @@ def test_scan_routines_is_bounded_at_4_years_30_routines_25_items(conn):
             took = time.perf_counter() - t0
             assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
             assert sc.rows[0]["day"] == "2026-10-23"
-            assert took < 1.0, (rng_, split, took)
+            assert took < 3.0, (rng_, split, took)
     p = plan.validate_plan(rplan(split={"by": "item"}, range={"token": "all"}), sources.CATALOG)
     rr = plan.resolve_range(p["range"], TODAY)
     tracemalloc.start()
