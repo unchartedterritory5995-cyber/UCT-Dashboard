@@ -1,5 +1,0 @@
-tree: 4f50a8ba72b347714f6d450d66fc48f4a2258e83
-working tree: product files clean (uncommitted: test-only files under app/src/pages/journal-2-0/a11y/, not in dist)
-build: cd app && npm run build (exit 0)
-measure: python tools/notebook_perf_budgets.py --dist app/dist (exit 0)
-accepted ceiling (R-T3-T8-R1): 2,237,383 B

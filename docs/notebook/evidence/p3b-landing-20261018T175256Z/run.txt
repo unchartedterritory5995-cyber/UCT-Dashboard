@@ -1,4 +1,0 @@
-tree: 2aa3601a46c3efd9da4badabbd6ba3f337f8d5c8 (merge of origin/master 88e55ab52e)
-bytes: python tools/notebook_perf_budgets.py --dist app/dist after npm run build -> exit 0, 2,238,561 B (budget 2,260,793 B; prior 2,238,552 B, +9 B, branch files unchanged by the merge so the delta is the 16 incoming master commits)
-fixtures: python tools/notebook_contract_fixtures.py --check -> exit 0, OK 322, no re-record needed
-rails: 30 pytest files -> 2115 passed, 6 failed, all known base reds (flag_parse x2, switch_rehearsal TERMINAL_LINKS, address_space agent_conversations+tsdr_lessons, user_definitions_auth duplicate screener sentence, bridges_pin_the_root daily_prep_probe)
