@@ -1,6 +1,7 @@
 /* Built widget embed (wave 8, Task 8.13): the strip under the body. The toggle is a snapshot frame button
    (`btn`), so it carries the touch-tier 44 px floor with the frame's other controls. */
 .wrap {
+  position: relative; /* the anchored drill panel is positioned inside the widget */
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -561,7 +561,7 @@ EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
         "rows": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
         "series": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
         "points": ("x", "y", "d", "r"),
-        "cells": ("label", "v1", "n1", "s1"),
+        "cells": ("label", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3"),
     },
 }
 

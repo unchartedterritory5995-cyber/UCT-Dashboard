@@ -1,11 +1,19 @@
-// Wave 8 (Task 8.14): the seven chart views of a placed built widget, drawn from params alone. Asserted by RENDERED
-// TEXT (and, for the heat map, the SVG it draws), never by component state.
+// Wave 8 (Task 8.14 + fix round 1): the seven chart views of a placed built widget, drawn from params alone.
+// Asserted by RENDERED TEXT and by the SVG drawn (sizes in real pixels, shapes, order), never by component state.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import BuiltWidgetEmbed from '../BuiltWidgetEmbed'
+import BarView from './BarView'
+import HeatView, { TEXT_MIN_CELL, MAX_CELL } from './HeatView'
+import LineView from './LineView'
+import ScatterView from './ScatterView'
+import CompareView, { changeText } from './CompareView'
+import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
 import { fmtValue, countText, compactValue, tableModelOf } from './builtModel'
-import { TEXT_MIN_CELL } from './HeatView'
+import { W, TAP, textW } from './svg'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -15,6 +23,7 @@ const BASE = {
   sourceDetail: 'Your closed trades in the Journal.', share: false,
 }
 const MONEY = [M('Net P&L', 'money')]
+const RATE = M('Win rate', 'pct', 'decisive', 'rate')
 const ROWS = [
   { label: 'Flag', label2: null, v1: 1500, n1: 20, s1: '', n: 20, flagged: false },
   { label: 'Pullback', label2: null, v1: -200, n1: 4, s1: '', n: 4, flagged: false },
@@ -28,8 +37,8 @@ const SEVEN = {
     { label: '2026-08', v1: 100, n1: 3, s1: '', n: 3 }, { label: '2026-09', v1: null, n1: 0, s1: '', n: 0 },
     { label: '2026-10', v1: -50, n1: 2, s1: '', n: 2 }] },
   scatter: { view: 'scatter', measures: [M('R', 'r'), M('Net P&L', 'money')], value: { v1: 1, n1: 2, n: 2 }, points: [
-    { x: 1.5, y: 300, d: '2026-10-02', r: 'win' }, { x: -1, y: -120, d: '2026-10-03', r: 'loss' },
-    { x: null, y: 40, d: '2026-10-04', r: 'be' }] },
+    { x: 1.5, y: 300, d: '2026-10-02', r: 'win' }, { x: -1, y: -12345.67, d: '2026-10-03', r: 'loss' },
+    { x: 0, y: 0, d: '2026-10-05', r: 'be' }, { x: null, y: 40, d: '2026-10-04', r: 'be' }] },
   heat: { view: 'heat', measures: MONEY, value: { v1: 1, n1: 3, n: 3 }, cells: [
     { label: '2026-10-20', v1: 400, n1: 2, s1: '' }, { label: '2026-10-21', v1: -150, n1: 1, s1: '' },
     { label: '2026-10-22', v1: null, n1: 0, s1: '' }] },
@@ -39,10 +48,34 @@ const SEVEN = {
   progress: { view: 'progress', measures: MONEY, value: { v1: 250, n1: 9, s1: '', n: 9 } },
 }
 const attrsOf = (p) => widgetEmbedNode('builtWidget', { ...BASE, ...p }).attrs
+const P = (p) => ({ ...BASE, ...p })
+const CSS = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/widgets/builtViews/builtViews.module.css'), 'utf8')
+const ruleBody = (sel) => {
+  const m = new RegExp(`(^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(CSS)
+  return m ? m[2] : ''
+}
+const pxOf = (sel) => Number((/font-size:\s*(\d+)px/.exec(ruleBody(sel)) || [])[1])
+/** A year of weekday cells (53 weeks). */
+const yearCells = () => {
+  const cells = []
+  const start = Date.UTC(2025, 9, 27)
+  for (let i = 0; i < 365; i += 1) {
+    const d = new Date(start + i * 86400000)
+    if (d.getUTCDay() === 0 || d.getUTCDay() === 6) continue
+    cells.push({ label: d.toISOString().slice(0, 10), v1: i % 3 === 0 ? -10 : 25, n1: 1, s1: '' })
+  }
+  return cells
+}
+/** n weeks of weekday cells. */
+const weeks = (n) => yearCells().slice(0, n * 5)
+/** Make the touch tier match (every matchMedia query answers true, so useIsTouch is true). */
+const asTouch = () => vi.stubGlobal('matchMedia', (q) => ({
+  matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
+}))
 
 let fetchSpy
 beforeEach(() => { fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy) })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('built widget views', () => {
   it('renders_from_params_without_fetch (each of the seven new views)', () => {
@@ -77,7 +110,7 @@ describe('built widget views', () => {
     expect(screen.getByText('No data for 2026-09.')).toBeInTheDocument()
     r.unmount()
     r = one('scatter')
-    expect(screen.getByTestId('built-scatter-view').querySelectorAll('circle[class*="dot"]').length).toBe(2)
+    expect(screen.getByTestId('built-scatter-view').querySelectorAll('[data-result]').length).toBe(3)
     expect(screen.getByText(/1 trade has no data for one of the two values and is not plotted/)).toBeInTheDocument()
     r.unmount()
     r = one('list')
@@ -92,10 +125,294 @@ describe('built widget views', () => {
     r.unmount()
   })
 
+  // ── R-31: real pixels ─────────────────────────────────────────────────────────────────────────────────────
+
+  it('R-31: with nothing to measure (jsdom) a chart is laid out at W, in real pixels (viewBox width = width)', () => {
+    for (const [V, p, id] of [[BarView, SEVEN.bar, 'built-bar-view'], [LineView, SEVEN.line, 'built-line-view'],
+      [ScatterView, SEVEN.scatter, 'built-scatter-view']]) {
+      const { unmount } = render(<V params={P(p)} />)
+      const svg = screen.getByTestId(id)
+      expect(svg.getAttribute('width'), id).toBe(String(W))
+      expect(svg.getAttribute('viewBox').split(' ')[2], id).toBe(String(W))   // scale 1: 12 px text is 12 px
+      unmount()
+    }
+  })
+
+  it('R-31: the MEASURED width is the layout width (a 340 px container is a 340 px chart, not a shrunk 600 one)', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 340, height: 200, left: 0, top: 0,
+      right: 340, bottom: 200, x: 0, y: 0 })
+    let fire = null
+    vi.stubGlobal('ResizeObserver', class { constructor(cb) { fire = cb } observe() {} disconnect() {} })
+    render(<BarView params={P(SEVEN.bar)} />)
+    const svg = screen.getByTestId('built-bar-view')
+    expect(svg.getAttribute('width')).toBe('340')
+    expect(svg.getAttribute('viewBox').split(' ')[2]).toBe('340')
+    expect(typeof fire).toBe('function')                                       // it keeps watching the box
+  })
+
+  it('R-31: an injected narrow width (340) keeps text at its CSS size and labels inside their column', () => {
+    const long = { ...SEVEN.bar, rows: [{ label: 'A very long setup name that will not fit at all', v1: 10, n1: 1, s1: '', n: 1 }] }
+    render(<BarView params={P(long)} width={340} />)
+    const svg = screen.getByTestId('built-bar-view')
+    expect(svg.getAttribute('viewBox')).toMatch(/^0 0 340 /)
+    const label = svg.querySelector('text[class*="label"]')
+    expect(label.textContent.endsWith('…')).toBe(true)
+    // the clipped label fits the space left of its anchor at 12 px
+    expect(textW(label.textContent, 12)).toBeLessThanOrEqual(Number(label.getAttribute('x')))
+    // the floors the CSS sets, at every width (a viewBox at scale 1 renders them as written)
+    expect(pxOf('.tick')).toBeGreaterThanOrEqual(11)
+    expect(pxOf('.tick')).toBeLessThanOrEqual(12)
+    expect(/font-size:\s*12px/.test(ruleBody('.label,\n.value,\n.valueDim,\n.tick'))).toBe(true)
+    expect(pxOf('.heatText')).toBeGreaterThanOrEqual(10)
+  })
+
+  // ── heat map ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  it('heat: a short range is a small map, not stretched past its natural grid, and cells stay at 56 px or less', () => {
+    render(<HeatView params={P(SEVEN.heat)} width={1200} />)
+    const svg = screen.getByTestId('built-heat-view')
+    const cell = Number(svg.getAttribute('data-cell-size'))
+    expect(cell).toBe(MAX_CELL)
+    expect(Number(svg.getAttribute('width'))).toBeLessThan(300)                // one week, not 1200 px of colour
+    expect(svg.getAttribute('width')).not.toBe('100%')
+    expect(Number(svg.querySelector('[data-heat-value="pos"] rect').getAttribute('width'))).toBe(MAX_CELL)
+  })
+
+  it('heat: the 32 px text rule is decided on the RENDERED cell size', () => {
+    const p = P({ view: 'heat', measures: MONEY, value: { v1: 1, n1: 1, n: 1 }, cells: weeks(20) })
+    const narrow = render(<HeatView params={p} width={340} />)
+    let svg = narrow.getByTestId('built-heat-view')
+    expect(Number(svg.getAttribute('data-cell-size'))).toBeLessThan(TEXT_MIN_CELL)
+    expect(svg.querySelector('[data-heat-value="pos"] text').textContent).toBe('+')
+    expect(svg.querySelector('[data-heat-value="neg"] text').textContent).toBe('\u2212')
+    narrow.unmount()
+    const wide = render(<HeatView params={p} width={1400} />)
+    svg = wide.getByTestId('built-heat-view')
+    expect(Number(svg.getAttribute('data-cell-size'))).toBeGreaterThanOrEqual(TEXT_MIN_CELL)
+    expect(svg.querySelector('[data-heat-value="pos"] text').textContent).toBe('+25')
+  })
+
+  it('heat: a year scrolls at the 14 px floor rather than shrinking text below 10 px', () => {
+    render(<HeatView params={P({ view: 'heat', measures: MONEY, value: { v1: 1, n1: 1, n: 1 }, cells: yearCells() })} width={340} />)
+    const svg = screen.getByTestId('built-heat-view')
+    expect(Number(svg.getAttribute('data-cell-size'))).toBe(14)
+    expect(Number(svg.getAttribute('width'))).toBeGreaterThan(340)            // the box scrolls (chartBox overflow-x)
+    expect(/overflow-x:\s*auto/.test(ruleBody('.chartBox'))).toBe(true)
+  })
+
+  it('heat_cell_has_text_label_and_pattern_for_negative, its text on an opaque backing above the hatch', () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf(SEVEN.heat)} />)
+    const heat = screen.getByTestId('built-heat-view')
+    const pattern = heat.querySelector('pattern')
+    expect(pattern).not.toBeNull()
+    const neg = heat.querySelector('[data-heat-value="neg"]')
+    const pos = heat.querySelector('[data-heat-value="pos"]')
+    expect(neg.querySelector('text').textContent).toBe('-150')
+    expect(pos.querySelector('text').textContent).toBe('+400')
+    const kids = [...neg.children]
+    const hatchAt = kids.findIndex((k) => k.getAttribute('fill') === `url(#${pattern.id})`)
+    const backAt = kids.findIndex((k) => k.hasAttribute('data-heat-back'))
+    const textAt = kids.findIndex((k) => k.tagName.toLowerCase() === 'text')
+    expect(hatchAt).toBeGreaterThan(-1)
+    expect(backAt).toBeGreaterThan(hatchAt)                                    // the backing covers the hatch...
+    expect(textAt).toBeGreaterThan(backAt)                                     // ...and the text sits on the backing
+    expect([...pos.querySelectorAll('rect')].some((r) => (r.getAttribute('fill') || '').startsWith('url('))).toBe(false)
+    expect(neg.getAttribute('aria-label')).toBe('2026-10-21: -$150.00')
+    // contrast: the backing is the page surface and the text the page ink (both themed tokens), never the fill
+    expect(/fill:\s*var\(--bg-surface\)/.test(ruleBody('.heatTextBack'))).toBe(true)
+    expect(/fill:\s*var\(--text-bright\)/.test(ruleBody('.heatText'))).toBe(true)
+    // every cell has a ring for focus and hover, drawn last
+    for (const g of heat.querySelectorAll('[data-heat-value]')) {
+      expect(g.lastElementChild.hasAttribute('data-ring')).toBe(true)
+    }
+  })
+
+  it('heat: a hidden cell says Not enough (with its count), an unknown one no data; aria says by day or by month', () => {
+    const cells = [{ label: '2026-10-20', v1: null, n1: 3, s1: 'hide' }, { label: '2026-10-21', v1: null, n1: 0, s1: '' }]
+    const r = render(<HeatView params={P({ view: 'heat', measures: [RATE], value: { v1: 1, n1: 1, n: 1 }, cells })} width={600} />)
+    const svg = r.getByTestId('built-heat-view')
+    expect(svg.getAttribute('aria-label')).toBe('Win rate by day')
+    const hidden = svg.querySelector('[data-heat-value="hidden"] text')
+    expect([...hidden.querySelectorAll('tspan')].map((t) => t.textContent)).toEqual(['Not', 'enough', '(3)'])
+    expect(svg.textContent).not.toContain('n/a')
+    expect([...svg.querySelector('[data-heat-value="none"] text').querySelectorAll('tspan')].map((t) => t.textContent))
+      .toEqual(['no', 'data'])
+    r.unmount()
+    render(<HeatView params={P({ view: 'heat', measures: MONEY, value: { v1: 1, n1: 1, n: 1 },
+      cells: [{ label: '2026-09', v1: 5, n1: 1, s1: '' }, { label: '2026-10', v1: -5, n1: 1, s1: '' }] })} />)
+    expect(screen.getByTestId('built-heat-view').getAttribute('aria-label')).toBe('Net P&L by month')
+  })
+
+  it('heat with more than one measure shades the first, says so, and Show as table keeps them all', () => {
+    const cells = [{ label: '2026-10-20', v1: 400, n1: 2, s1: '', v2: 0.5, n2: 2, s2: '' }]
+    render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'heat', measures: [MONEY[0], RATE], value: { v1: 1, n1: 1, n: 1 }, cells })} />)
+    expect(screen.getByTestId('built-heat-showing').textContent).toBe('Showing Net P&L. Show as table for the rest.')
+    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+    const alt = screen.getByTestId('built-table-alt')
+    expect([...alt.querySelectorAll('thead th')].map((t) => t.textContent)).toEqual(['Period', 'Net P&L', 'Win rate', 'Win rate (n)'])
+    expect([...alt.querySelectorAll('tbody td')].map((t) => t.textContent)).toEqual(['2026-10-20', '+$400.00', '50.0%', '2 decisive trades'])
+  })
+
+  // ── scatter, line, small samples, counts, extra measures ────────────────────────────────────────────────
+
+  it('scatter tells the result by SHAPE (filled, ring, dash), and the legend draws the shapes', () => {
+    render(<ScatterView params={P(SEVEN.scatter)} />)
+    const svg = screen.getByTestId('built-scatter-view')
+    expect(svg.querySelector('[data-result="win"] [data-shape]').getAttribute('data-shape')).toBe('dot')
+    expect(svg.querySelector('[data-result="loss"] [data-shape]').getAttribute('data-shape')).toBe('ring')
+    expect(svg.querySelector('[data-result="be"] [data-shape]').getAttribute('data-shape')).toBe('dash')
+    expect(/fill:\s*none/.test(ruleBody('.ring'))).toBe(true)                  // hollow
+    const legend = screen.getByTestId('built-scatter-legend')
+    expect([...legend.querySelectorAll('[data-shape]')].map((n) => n.getAttribute('data-shape'))).toEqual(['dot', 'ring', 'dash'])
+    expect(legend.textContent).toBe('WinLossBreakeven')
+  })
+
+  it('scatter leaves room on the left for its widest money tick', () => {
+    render(<ScatterView params={P(SEVEN.scatter)} />)
+    const svg = screen.getByTestId('built-scatter-view')
+    const min = svg.querySelector('[data-axis="min"]')
+    expect(min.textContent).toBe('-$12,345.67')
+    // a right-anchored tick ending at x needs x >= its width
+    expect(Number(min.getAttribute('x'))).toBeGreaterThanOrEqual(textW(min.textContent, 11))
+  })
+
+  it('line: points carry a tooltip and every value in their name, and the y axis shows its min and max', () => {
+    render(<LineView params={P(SEVEN.line)} />)
+    const svg = screen.getByTestId('built-line-view')
+    expect(svg.querySelector('[data-axis="max"]').textContent).toBe('+$100.00')
+    expect(svg.querySelector('[data-axis="min"]').textContent).toBe('-$50.00')
+    const marks = svg.querySelectorAll('g[aria-label]')
+    expect(marks[0].getAttribute('aria-label')).toBe('2026-08: +$100.00')
+    expect(marks[0].querySelector('title').textContent).toBe('2026-08: +$100.00')
+  })
+
+  it('small_badge_under_20, visible in Line and Heat too (not only in aria)', () => {
+    const rows = [{ label: 'Flag', v1: 0.6, n1: 12, s1: 'small', n: 12 }]
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [RATE], value: { v1: 0.6, n1: 12, s1: 'small', n: 12 }, rows })} />)
+    const bar = screen.getByTestId('built-bar-view')
+    expect(within(bar).getByText('60.0%')).toBeInTheDocument()
+    expect(within(bar).getByText('small sample')).toBeInTheDocument()
+    r.unmount()
+    const l = render(<LineView params={P({ view: 'line', measures: [RATE], value: {}, series: [
+      { label: '2026-09', v1: 0.6, n1: 12, s1: 'small' }, { label: '2026-10', v1: 0.5, n1: 30, s1: '' }] })} />)
+    const smallLine = l.getByTestId('built-line-small')
+    expect(within(smallLine).getByText('small sample')).toBeInTheDocument()
+    expect(smallLine.textContent).toContain('2026-09')
+    expect(smallLine.textContent).not.toContain('2026-10')
+    expect(l.getByTestId('built-line-view').querySelectorAll('circle[data-small]').length).toBe(1)
+    l.unmount()
+    const h = render(<HeatView params={P({ view: 'heat', measures: [RATE], value: {}, cells: [
+      { label: '2026-10-20', v1: 0.6, n1: 12, s1: 'small' }, { label: '2026-10-21', v1: 0.5, n1: 30, s1: '' }] })} />)
+    expect(within(h.getByTestId('built-heat-small')).getByText('small sample')).toBeInTheDocument()
+    expect(h.getByTestId('built-heat-small').textContent).toContain('2026-10-20')
+    expect(h.getByTestId('built-heat-view').querySelectorAll('[data-small]').length).toBe(1)
+    h.unmount()
+    render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'compare', measures: [RATE], value: { v1: 0.6, n1: 12, s1: 'small', n: 12 }, compare: null })} />)
+    expect(screen.getByText('small sample')).toBeInTheDocument()
+    expect(screen.getByText('from 12 decisive trades')).toBeInTheDocument()
+  })
+
+  it('per-row counts for an average or rate: in the bar tooltip and name, the table N column, line and heat names', () => {
+    const rows = [{ label: 'Flag', v1: 0.6, n1: 12, s1: 'small', n: 12 }, { label: 'VCP', v1: 0.4, n1: 25, s1: '', n: 25 }]
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [RATE, MONEY[0]], value: {},
+      rows: rows.map((x) => ({ ...x, v2: 10, n2: x.n1, s2: '' })) })} />)
+    const flag = r.getByTestId('built-bar-view').querySelector('g[aria-label^="Flag"]')
+    expect(flag.getAttribute('aria-label')).toBe('Flag: Win rate 60.0%, small sample, from 12 decisive trades; Net P&L +$10.00')
+    expect(flag.querySelector('title').textContent).toBe(flag.getAttribute('aria-label'))
+    fireEvent.click(r.getByRole('button', { name: 'Show as table' }))
+    const alt = r.getByTestId('built-table-alt')
+    expect([...alt.querySelectorAll('thead th')].map((t) => t.textContent)).toEqual(['Group', 'Win rate', 'Win rate (n)', 'Net P&L'])
+    expect([...alt.querySelectorAll('tbody tr')][1].textContent).toContain('25 decisive trades')
+    r.unmount()
+    // a day unit counts days
+    const d = render(<LineView params={P({ view: 'line', measures: [M('Average day', 'money', 'days', 'average')], value: {},
+      series: [{ label: '2026-10', v1: 50, n1: 9, s1: '' }] })} />)
+    expect(d.getByTestId('built-line-view').querySelector('g[aria-label]').getAttribute('aria-label'))
+      .toBe('2026-10: +$50.00, from 9 days')
+    d.unmount()
+    render(<HeatView params={P({ view: 'heat', measures: [RATE], value: {}, cells: [{ label: '2026-10-20', v1: 0.5, n1: 30, s1: '' }] })} />)
+    expect(screen.getByTestId('built-heat-view').querySelector('[data-heat-value]').getAttribute('aria-label'))
+      .toBe('2026-10-20: 50.0%, from 30 decisive trades')
+  })
+
+  it('bar draws up to three measures as grouped bars with a legend', () => {
+    const rows = [{ label: 'Flag', v1: 100, n1: 2, s1: '', v2: 0.5, n2: 2, s2: '', v3: -1, n3: 2, s3: '' }]
+    render(<BarView params={P({ view: 'bar', measures: [MONEY[0], RATE, M('Total R', 'r')], value: {}, rows })} />)
+    const svg = screen.getByTestId('built-bar-view')
+    expect([1, 2, 3].map((k) => svg.querySelectorAll(`rect[data-measure="${k}"]`).length)).toEqual([1, 1, 1])
+    expect(screen.getByTestId('built-bar-legend').textContent)
+      .toBe('Bars top to bottom: 1 Net P&L · 2 Win rate · 3 Total R. Each measure is on its own scale.')
+    expect(within(svg).getByText('-1.0R')).toBeInTheDocument()
+  })
+
+  it('line draws up to three series with distinct dash patterns and a legend (never colour alone)', () => {
+    const series = [{ label: '2026-09', v1: 1, n1: 1, s1: '', v2: 2, n2: 1, s2: '' }, { label: '2026-10', v1: 3, n1: 1, s1: '', v2: 1, n2: 1, s2: '' }]
+    render(<LineView params={P({ view: 'line', measures: [MONEY[0], M('Total R', 'r')], value: {}, series })} />)
+    const lines = [...screen.getByTestId('built-line-view').querySelectorAll('polyline')]
+    const dashes = new Set(lines.map((l) => l.getAttribute('stroke-dasharray') || 'solid'))
+    expect(dashes.size).toBe(2)
+    const legend = screen.getByTestId('built-line-legend')
+    expect(legend.textContent).toContain('Net P&L')
+    expect(legend.textContent).toContain('Total R')
+    expect(new Set([...legend.querySelectorAll('line')].map((l) => l.getAttribute('stroke-dasharray') || 'solid')).size).toBe(2)
+  })
+
+  // ── touch targets ───────────────────────────────────────────────────────────────────────────────────────
+
+  it('on touch every SVG hit area is 44 px or more (bar rows, line bands, scatter points, heat cells)', () => {
+    asTouch()
+    const b = render(<BarView params={P(SEVEN.bar)} onDrill={() => {}} />)
+    for (const h of b.getByTestId('built-bar-view').querySelectorAll('[data-hit]')) expect(Number(h.getAttribute('height'))).toBeGreaterThanOrEqual(TAP)
+    b.unmount()
+    const l = render(<LineView params={P({ ...SEVEN.line, series: Array.from({ length: 40 }, (_, i) => ({ label: `d${i}`, v1: i, n1: 1, s1: '' })) })} onDrill={() => {}} width={340} />)
+    for (const h of l.getByTestId('built-line-view').querySelectorAll('[data-hit]')) expect(Number(h.getAttribute('width'))).toBeGreaterThanOrEqual(TAP)
+    l.unmount()
+    const sc = render(<ScatterView params={P(SEVEN.scatter)} onDrill={() => {}} />)
+    for (const h of sc.getByTestId('built-scatter-view').querySelectorAll('[data-hit]')) expect(Number(h.getAttribute('r')) * 2).toBeGreaterThanOrEqual(TAP)
+    sc.unmount()
+    const hm = render(<HeatView params={P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })} onDrill={() => {}} width={340} />)
+    expect(Number(hm.getByTestId('built-heat-view').getAttribute('data-cell-size'))).toBeGreaterThanOrEqual(TAP)
+  })
+
+  it('a drillable table row is 44 px tall on touch: its cells carry the height (a row ignores min-height)', () => {
+    const touch = /@media \(max-width: 1024px\) \{([\s\S]*)\}\s*$/.exec(CSS)?.[1] || ''
+    expect(/\.drillRow > td\s*\{\s*height:\s*var\(--tap-min\);/.test(touch)).toBe(true)
+    // and the list rows and figures keep their min-height floor there
+    expect(/\.listRow,[\s\S]*\.metricBody,[\s\S]*min-height:\s*var\(--tap-min\)/.test(touch)).toBe(true)
+  })
+
+  // ── compare, progress, cells ────────────────────────────────────────────────────────────────────────────
+
+  it('compare: no change against a capped profit factor; a rate changes in points; bars keep their thickness', () => {
+    expect(changeText(5, 3, 'pf')).toBe('')
+    expect(changeText(4, 5, 'pf')).toBe('')
+    expect(changeText(2.5, 2, 'pf')).toBe('+0.50')
+    expect(changeText(0.55, 0.5, 'pct')).toBe('+5.0 pts')
+    expect(changeText(0.45, 0.5, 'pct')).toBe('-5.0 pts')
+    render(<CompareView params={P({ view: 'compare', measures: [M('Profit factor', 'pf', 'trades', 'rate')],
+      value: { v1: 5, n1: 30, s1: '', n: 30 }, compare: { v1: 2, n1: 30, s1: '', n: 30 }, compareLabel: 'Sep' })} />)
+    expect(screen.getByText('5+')).toBeInTheDocument()
+    expect(screen.queryByText(/^Change/)).toBeNull()
+    const bars = screen.getByTestId('built-compare-view').querySelector('svg')
+    expect(bars.getAttribute('height')).toBe('24')
+    expect(bars.getAttribute('preserveAspectRatio')).toBe('none')
+  })
+
+  it('R-32: while shared, Progress shows a percentage of target and never the target number', () => {
+    const p = P({ view: 'progress', share: true, def: { display: { target: 987654 } }, measures: MONEY,
+      value: { v1: 493827, n1: 9, s1: '', n: 9 } })
+    const r = render(<ProgressView params={p} />)
+    expect(r.container.innerHTML).not.toMatch(/987,?654/)
+    expect(screen.getByText('50% of target')).toBeInTheDocument()
+    r.unmount()
+    // control: private, the member sees their own target
+    render(<ProgressView params={{ ...p, share: false }} />)
+    expect(screen.getByText('of +$987,654.00')).toBeInTheDocument()
+  })
+
   it('hide_cell_shows_not_enough_with_count (trades, and days for a day unit)', () => {
     const rows = [{ label: 'Flag', v1: null, n1: 3, s1: 'hide', n: 3 }, { label: 'VCP', v1: 5, n1: 30, s1: '', n: 30 }]
-    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [M('Win rate', 'pct', 'decisive', 'rate')],
-      value: { v1: 0.5, n1: 33, n: 33 }, rows })} />)
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [RATE], value: { v1: 0.5, n1: 33, n: 33 }, rows })} />)
     expect(screen.getByText('Not enough trades yet (3)')).toBeInTheDocument()
     expect(screen.getByTestId('built-bar-view').querySelectorAll('rect[class*="bar"]').length).toBe(1)  // no bar for it
     r.unmount()
@@ -104,35 +421,18 @@ describe('built widget views', () => {
     expect(screen.getByText('Not enough days yet (2)')).toBeInTheDocument()
   })
 
-  it('small_badge_under_20 (a value kept, with the badge, in a chart and in a number)', () => {
-    const rows = [{ label: 'Flag', v1: 0.6, n1: 12, s1: 'small', n: 12 }]
-    const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [M('Win rate', 'pct', 'decisive', 'rate')],
-      value: { v1: 0.6, n1: 12, s1: 'small', n: 12 }, rows })} />)
-    const bar = screen.getByTestId('built-bar-view')
-    expect(within(bar).getByText('60.0%')).toBeInTheDocument()
-    expect(within(bar).getByText('small sample')).toBeInTheDocument()
-    r.unmount()
-    render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'compare', measures: [M('Win rate', 'pct', 'decisive', 'rate')],
-      value: { v1: 0.6, n1: 12, s1: 'small', n: 12 }, compare: null })} />)
-    expect(screen.getByText('small sample')).toBeInTheDocument()
-    expect(screen.getByText('from 12 decisive trades')).toBeInTheDocument()   // its count, in its own unit
-  })
-
   it('coverage_sentence_and_add_stops_link', () => {
     const coverage = [{ have: 9, total: 47, hint: 'Add stops to see R for more trades' }]
     const r = render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'number', measures: [M('Expectancy (R)', 'r', 'trades', 'average')],
       value: { v1: 0.4, n1: 9, s1: 'small', n: 47 }, coverage })} />)
     expect(screen.getByText(/from 9 of 47 trades \(38 have no stop\)/)).toBeInTheDocument()
-    const link = screen.getByRole('link', { name: 'Add stops to see R for more trades' })
-    expect(link).toHaveAttribute('href', '/journal/trades?seg=closed')
+    expect(screen.getByRole('link', { name: 'Add stops to see R for more trades' })).toHaveAttribute('href', '/journal/trades?seg=closed')
     r.unmount()
-    // a chart view says it under the chart, one line per short measure
     render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'bar', measures: [M('Expectancy (R)', 'r', 'trades', 'average')],
       value: { v1: 0.4, n1: 9, n: 47 }, coverage, rows: [{ label: 'Flag', v1: 0.4, n1: 9, s1: '', n: 20 }] })} />)
     const note = screen.getByTestId('built-coverage')
     expect(note.textContent).toContain('Expectancy (R): from 9 of 47 trades (38 have no stop)')
     expect(within(note).getByRole('link', { name: 'Add stops to see R for more trades' })).toBeInTheDocument()
-    // control: a measure known on every row says only its count
     expect(countText({ n1: 47 }, 1, M('Net P&L', 'money'), [{ have: 47, total: 47, hint: null }]))
       .toEqual({ text: 'from 47 trades', hint: null })
   })
@@ -146,8 +446,17 @@ describe('built widget views', () => {
     expect(within(bar).getByText('1.40')).toBeInTheDocument()
     expect(fmtValue(5, 'pf')).toBe('5+')
     expect(fmtValue(4.99, 'pf')).toBe('4.99')
-    expect(fmtValue(5, 'ratio')).toBe('5.00')                                  // only profit factor is capped
+    expect(fmtValue(5, 'ratio')).toBe('5.00')
     expect(compactValue(5, 'pf')).toBe('5+')
+  })
+
+  it('compactValue never says +0 for a value that is not zero', () => {
+    expect(compactValue(0.3, 'money')).toBe('+0.30')
+    expect(compactValue(-0.04, 'money')).toBe('-0.04')
+    expect(compactValue(0.6, 'money')).toBe('+1')
+    expect(compactValue(0.02, 'r')).toBe('+0.02R')
+    expect(compactValue(0, 'money')).toBe('0')
+    for (const v of [0.001, 0.2, 0.49, -0.3]) expect(compactValue(v, 'money')).not.toMatch(/^[+-]?0$/)
   })
 
   it('nan_shows_no_data_never_zero', () => {
@@ -160,46 +469,21 @@ describe('built widget views', () => {
       value: { v1: NaN, n1: 0, n: 0 }, compare: { v1: Infinity, n1: 0, n: 0 } })} />)
     expect(screen.getAllByText('no data').length).toBe(2)
     expect(r2.container.textContent).not.toContain('$0.00')
-    expect(screen.queryByText(/Change/)).toBeNull()                            // no change against a missing number
+    expect(screen.queryByText(/Change/)).toBeNull()
     r2.unmount()
     render(<BuiltWidgetEmbed attrs={attrsOf(SEVEN.heat)} />)
-    const heat = screen.getByTestId('built-heat-view')
-    const unknown = heat.querySelector('[data-heat-value="none"]')
+    const unknown = screen.getByTestId('built-heat-view').querySelector('[data-heat-value="none"]')
     expect(unknown.getAttribute('aria-label')).toBe('2026-10-22: no data')
-    expect(unknown.textContent).toBe('no data')
   })
 
-  it('heat_cell_has_text_label_and_pattern_for_negative', () => {
-    render(<BuiltWidgetEmbed attrs={attrsOf(SEVEN.heat)} />)
-    const heat = screen.getByTestId('built-heat-view')
-    const pattern = heat.querySelector('pattern')
-    expect(pattern).not.toBeNull()
-    const neg = heat.querySelector('[data-heat-value="neg"]')
-    const pos = heat.querySelector('[data-heat-value="pos"]')
-    // a big cell carries its value as text; a loss is ALSO hatched (never colour alone)
-    expect(neg.textContent).toBe('-150')
-    expect(pos.textContent).toBe('+400')
-    expect([...neg.querySelectorAll('rect')].some((r) => r.getAttribute('fill') === `url(#${pattern.id})`)).toBe(true)
-    expect([...pos.querySelectorAll('rect')].some((r) => (r.getAttribute('fill') || '').startsWith('url('))).toBe(false)
-    expect(neg.getAttribute('aria-label')).toBe('2026-10-21: -$150.00')
-  })
-
-  it('a heat cell smaller than 32 px shows only its sign', () => {
-    // a year of days: 53 weeks across the width makes every cell well under 32 px
-    const cells = []
-    const start = Date.UTC(2025, 9, 27)
-    for (let i = 0; i < 365; i += 1) {
-      const d = new Date(start + i * 86400000)
-      if (d.getUTCDay() === 0 || d.getUTCDay() === 6) continue
-      cells.push({ label: d.toISOString().slice(0, 10), v1: i % 3 === 0 ? -10 : 25, n1: 1, s1: '' })
-    }
-    render(<BuiltWidgetEmbed attrs={attrsOf({ view: 'heat', measures: MONEY, value: { v1: 1, n1: 1, n: 1 }, cells })} />)
-    const heat = screen.getByTestId('built-heat-view')
-    const rect = heat.querySelector('[data-heat-value="pos"] rect')
-    expect(Number(rect.getAttribute('width'))).toBeLessThan(TEXT_MIN_CELL)
-    expect(heat.querySelector('[data-heat-value="pos"]').textContent).toBe('+')
-    expect(heat.querySelector('[data-heat-value="neg"]').textContent).toBe('−')
-    expect(heat.querySelector('[data-heat-value="neg"]').getAttribute('aria-label')).toMatch(/: -\$10\.00$/)
+  it('bar: "Flagged" sits on its own line under the label, never running into the bars', () => {
+    render(<BarView params={P({ ...SEVEN.bar, rows: [{ ...ROWS[0], flagged: true }] })} />)
+    const svg = screen.getByTestId('built-bar-view')
+    const label = svg.querySelector('text[class*="label"]')
+    const flagged = within(svg).getByText('Flagged')
+    expect(flagged.tagName.toLowerCase()).toBe('text')
+    expect(flagged.getAttribute('x')).toBe(label.getAttribute('x'))           // the label column's right edge
+    expect(Number(flagged.getAttribute('y'))).toBeGreaterThan(Number(label.getAttribute('y')))
   })
 
   it('R-25 canary: a SHARED bar or heat view draws no account name, and the drill still asks by the real one', () => {
@@ -210,16 +494,13 @@ describe('built widget views', () => {
       { label: CANARY, v1: 10, n1: 1, s1: '' }, { label: 'Main', v1: -20, n1: 1, s1: '' }] }
     for (const p of [bar, heat]) {
       const shared = render(<BuiltWidgetEmbed attrs={attrsOf({ ...p, share: true })} />)
-      expect(shared.container.textContent, p.view).not.toContain(CANARY)
-      expect(shared.container.innerHTML, p.view).not.toContain(CANARY)   // nor in an aria-label
+      expect(shared.container.innerHTML, p.view).not.toContain(CANARY)       // text, titles and aria-labels
       expect(shared.container.textContent, p.view).toContain('Account 1')
       shared.unmount()
-      // control: unshared, the member sees their own account names
       const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...p, share: false })} />)
       expect(own.container.innerHTML, p.view).toContain(CANARY)
       own.unmount()
     }
-    // every view reads its rows through ONE path: the drill cell is the real label while the shown one is numbered
     const model = tableModelOf({ ...BASE, ...bar, share: true })
     expect(model.rows.map((r) => r.label)).toEqual(['Account 1', 'Account 2'])
     expect(model.rows.map((r) => r.drill)).toEqual([{ label: CANARY }, { label: 'Main' }])

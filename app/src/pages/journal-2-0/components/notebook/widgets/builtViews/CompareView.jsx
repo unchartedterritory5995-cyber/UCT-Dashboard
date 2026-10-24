@@ -1,4 +1,4 @@
-import { measuresOf, cellOf, fmtValue, SMALL_SAMPLE } from './builtModel'
+import { measuresOf, cellOf, fmtValue, cellSpeech, PF_CAP, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup } from './cellGroup'
 import { CountLine } from './Counts'
 import styles from './builtViews.module.css'
@@ -8,8 +8,20 @@ import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
  * Built widgets (wave 8, Task 8.14): the Compare view. Each measure for this period beside the period it is
  * compared with ("vs <compareLabel>"), as two inline-SVG bars (`<rect>`) and the change between them. Rendered
  * from params alone. ⛔ An unknown on either side says so ("no data", "Not enough trades yet (n)"), and then no
- * change is worked out: a change against a missing number is not a number.
+ * change is worked out: a change against a missing number is not a number. Nor against a CAPPED one: a profit
+ * factor at its cap ("5+") is "5 or more", so a difference from it is not known. A rate's change is in points
+ * ("+5.0 pts"), never a percent of a percent.
  */
+
+/** The change from `then` to `now`, as text, or '' when it is not a number one can know. */
+export function changeText(now, then, fmt) {
+  if (typeof now !== 'number' || typeof then !== 'number') return ''
+  if (fmt === 'pf' && (now >= PF_CAP || then >= PF_CAP)) return ''
+  const diff = now - then
+  if (fmt === 'pct') return `${diff > 0 ? '+' : ''}${(diff * 100).toFixed(1)} pts`
+  const t = fmtValue(diff, fmt === 'pf' ? 'ratio' : fmt)
+  return diff > 0 && !t.startsWith('+') ? `+${t}` : t
+}
 const BAR_W = 220
 const BAR_H = 10
 
@@ -28,16 +40,12 @@ export default function CompareView({ params, onDrill }) {
         const now = cellOf(value, i, m)
         const then = compare ? cellOf(compare, i, m) : null
         const label = m.label || `Measure ${i}`
-        const both = typeof now.value === 'number' && typeof then?.value === 'number'
-        const diff = both ? now.value - then.value : null
-        let change = ''
-        if (diff !== null) {
-          const t = fmtValue(diff, m.fmt === 'pf' ? 'ratio' : m.fmt)
-          change = diff > 0 && !t.startsWith('+') ? `+${t}` : t
-        }
+        const change = changeText(now.value, then?.value, m.fmt)
+        const diff = change ? now.value - then.value : null
         const extent = Math.max(Math.abs(now.value ?? 0), Math.abs(then?.value ?? 0)) || 1
         const drill = typeof onDrill === 'function' ? (el) => onDrill({}, label, el) : null
-        const mark = group.itemProps(k, drill, `${label}: ${now.text}, vs ${vsLabel}: ${then ? then.text : 'no data'}`)
+        const mark = group.itemProps(k, drill, `${label}: ${cellSpeech(now, m)}, vs ${vsLabel}: ${then ? cellSpeech(then, m) : 'no data'}`
+          + `${change ? `, change ${change}` : ''}`)
         return (
           <div key={`m${i}`} className={styles.metric}>
             <span className={`${styles.metricBody} ${drill ? styles.drillable : ''}`} {...mark}>
@@ -46,7 +54,9 @@ export default function CompareView({ params, onDrill }) {
                 {now.text}
                 {now.small && <span className={styles.badge}>{SMALL_SAMPLE}</span>}
               </span>
-              <svg className={styles.compareBars} viewBox={`0 0 ${BAR_W} ${BAR_H * 2 + 4}`} width="100%" aria-hidden="true">
+              {/* Fixed thickness at any width: the bars stretch across, never thicker (preserveAspectRatio none). */}
+              <svg className={styles.compareBars} viewBox={`0 0 ${BAR_W} ${BAR_H * 2 + 4}`} width="100%"
+                height={BAR_H * 2 + 4} preserveAspectRatio="none" aria-hidden="true">
                 {typeof now.value === 'number' && (
                   <rect x={0} y={0} height={BAR_H} width={Math.max(1, (Math.abs(now.value) / extent) * BAR_W)}
                     className={now.value < 0 ? styles.barNeg : styles.barPos} />

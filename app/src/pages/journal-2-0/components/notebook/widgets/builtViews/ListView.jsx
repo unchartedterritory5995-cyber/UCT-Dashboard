@@ -1,4 +1,4 @@
-import { tableModelOf, measuresOf, SMALL_SAMPLE } from './builtModel'
+import { tableModelOf, measuresOf, cellSpeech, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
@@ -26,6 +26,7 @@ export default function ListView({ params, onDrill }) {
         const v = r.values[0]?.value
         return (
           <li key={r.key} className={`${styles.listRow} ${onDrill ? styles.drillable : ''}`}
+            title={`${what}: ${r.values.map((c, k) => `${measures[k]?.label || ''} ${cellSpeech(c, measures[k])}`.trim()).join('; ')}`}
             {...group.itemProps(i, drillFor(onDrill, r, what), what, { native: true })}>
             <span className={styles.listLabel}>
               {r.label}

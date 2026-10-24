@@ -189,6 +189,15 @@ def test_scatter_and_heat_trim_oldest_first():
     assert set(cells[0]) == {"label", "v1", "n1", "s1"}
 
 
+def test_heat_cells_carry_every_measure_so_show_as_table_lists_them():
+    # Task 8.14 fix 1 (item 8): the map shades measure 1; the table alternative lists every measure, so the cells
+    # carry each slot the plan has (and no more: a one-measure map stays as small as before).
+    hp = vplan(raw_plan(split={"by": "day"}, view={"type": "heat"}, measures=("net_pnl", "win_rate")))
+    out = build(hp, result_of([group("2026-10-01", (5.0, 0.5), key="2026-10-01")], total=(5.0, 0.5)),
+                scan_of(count=1))
+    assert out["cells"] == [{"label": "2026-10-01", "v1": 5.0, "n1": 1, "s1": "", "v2": 0.5, "n2": 1, "s2": ""}]
+
+
 def test_scatter_result_codes():
     sp = vplan(raw_plan(view={"type": "scatter"}, measures=("net_pnl", "total_r")))
     gs = [group("A", (1.0, 1.0), key="0", result="Win", day="2026-10-01"),

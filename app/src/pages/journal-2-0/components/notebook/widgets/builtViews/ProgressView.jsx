@@ -8,6 +8,8 @@ import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
  * Built widgets (wave 8, Task 8.14): the Progress view. The first measure against the widget's target (the plan's
  * `display.target`, a number the member set), as an inline-SVG bar (`<rect>`). ⛔ An unknown value fills nothing
  * and says why; it is never drawn as 0% of the way there.
+ * ⛔ Ruling R-32: while SHARED the target number is not drawn (it is a plan value, from `def`, and a shared body is
+ * the archive image a public page shows): the bar and "<n>% of target" only.
  */
 const BAR_W = 600
 const BAR_H = 16
@@ -28,13 +30,17 @@ export default function ProgressView({ params, onDrill }) {
   const label = m.label || 'Measure 1'
   const known = typeof c.value === 'number'
   const frac = known && target ? Math.max(0, Math.min(1, c.value / target)) : null
-  const of = target === null ? 'No target saved with this widget.' : `of ${fmtValue(target, m.fmt)}`
-  const pct = frac === null ? '' : `${Math.round((known && target ? c.value / target : 0) * 100)}%`
+  const shared = p.share === true
+  const pct = frac === null ? '' : `${Math.round((c.value / target) * 100)}%`
+  let of
+  if (target === null) of = 'No target saved with this widget.'
+  else if (shared) of = pct ? `${pct} of target` : 'of target'
+  else of = `of ${fmtValue(target, m.fmt)}`
   const drill = typeof onDrill === 'function' ? (el) => onDrill({}, label, el) : null
   return (
     <div className={styles.progress} data-testid="built-progress-view" {...group.groupProps}>
       <span className={`${styles.metricBody} ${drill ? styles.drillable : ''}`}
-        {...group.itemProps(0, drill, `${label}: ${c.text} ${of}${pct ? `, ${pct}` : ''}`)}>
+        {...group.itemProps(0, drill, `${label}: ${c.text} ${of}${pct && !shared ? `, ${pct}` : ''}`)}>
         <span className={styles.metricLabel}>{label}</span>
         <span className={`${styles.metricValue} ${c.hidden ? styles.metricHidden : toneOf(c.value)}`}>
           {c.text}
@@ -42,9 +48,10 @@ export default function ProgressView({ params, onDrill }) {
         </span>
         <span className={styles.compareLine}>
           <span>{of}</span>
-          {pct && <span>{pct}</span>}
+          {pct && !shared && <span>{pct}</span>}
         </span>
-        <svg className={styles.chart} viewBox={`0 0 ${BAR_W} ${BAR_H}`} width="100%" aria-hidden="true">
+        <svg className={styles.chart} viewBox={`0 0 ${BAR_W} ${BAR_H}`} width="100%" height={BAR_H}
+          preserveAspectRatio="none" aria-hidden="true">
           <rect x={0} y={0} width={BAR_W} height={BAR_H} rx={4} className={styles.track} />
           {frac !== null && frac > 0 && (
             <rect x={0} y={0} width={Math.max(2, frac * BAR_W)} height={BAR_H} rx={4} className={styles.barPos} />

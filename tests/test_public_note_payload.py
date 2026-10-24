@@ -1536,6 +1536,16 @@ def test_built_shown_with_share_has_no_def_summary_or_filter_values():
         assert params["measures"] == [{"label": "Net P&L", "unit": "usd", "kind": "sum", "fmt": "money"}]
 
 
+def test_built_heat_cells_publish_every_measure_slot_and_nothing_else():
+    # Task 8.14 fix 1: a heat map's cells carry every measure (the table alternative lists them all).
+    node = _built(True)
+    node["attrs"]["params"]["cells"] = [{"label": "2026-10-20", "v1": 1.0, "n1": 3, "s1": "", "v2": 0.5, "n2": 2,
+                                         "s2": "small", "v3": None, "n3": None, "s3": None, "tradeId": "CANARY-DEF-9f1"}]
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["cells"] == [{"label": "2026-10-20", "v1": 1.0, "n1": 3, "s1": "", "v2": 0.5, "n2": 2, "s2": "small",
+                                "v3": None, "n3": None, "s3": None}]
+
+
 def test_built_footnotes_and_source_detail_never_reach_public_output():
     """Review obligation: the payload carries both keys; neither is in the allowlist, so neither is published."""
     for mode in ("share", "publish"):

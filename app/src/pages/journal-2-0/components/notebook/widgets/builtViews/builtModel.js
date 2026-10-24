@@ -15,8 +15,8 @@ export const ADD_STOPS_HREF = '/journal/trades?seg=closed'
 export const ADD_STOPS_HINT = 'Add stops to see R for more trades'
 /** An empty closed-trades widget's door (spec 5.9). */
 export const LOG_TRADE_HREF = '/journal/trades'
-/** A drilled trade opens in the Journal (TradeJournalTab's `openTrade`). */
-export const tradeHref = (id) => `/journal?j2tab=journal&openTrade=${encodeURIComponent(String(id))}`
+/** A drilled trade opens on its own page (ruling R-30: the equity trade route, App.jsx `/journal-2-0/trade/:id`). */
+export const tradeHref = (id) => `/journal-2-0/trade/${encodeURIComponent(String(id))}`
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const finite = (v) => typeof v === 'number' && Number.isFinite(v)
@@ -55,6 +55,22 @@ export function countText(value, i, measure, coverage) {
   return { text: finite(n) ? `from ${n} ${countNoun(measure?.unit, n)}` : '', hint }
 }
 
+/** Spec 5.2: an average or a rate is never read without its count. */
+export const isCounted = (measure) => measure?.kind === 'average' || measure?.kind === 'rate'
+
+/** "from 12 decisive trades" for one cell of an average or rate (its `n`, in the measure's own unit); '' for a
+ *  sum, a count or an extreme, and '' when the count is unknown (never a guessed one). */
+export function fromText(cell, measure) {
+  if (!isCounted(measure) || !finite(cell?.n)) return ''
+  return `from ${cell.n} ${countNoun(measure?.unit, cell.n)}`
+}
+
+/** One cell as a screen reader (and a tooltip) reads it: value, the badge, and an average's count. */
+export function cellSpeech(cell, measure) {
+  const from = fromText(cell, measure)
+  return `${cell?.text ?? NO_DATA}${cell?.small ? `, ${SMALL_SAMPLE}` : ''}${from ? `, ${from}` : ''}`
+}
+
 /** One value as text, by the measure's `fmt`. Never throws; a non-finite value is "no data". */
 export function fmtValue(v, fmt) {
   if (!finite(v)) return NO_DATA
@@ -77,12 +93,14 @@ export function compactValue(v, fmt) {
   if (!finite(v)) return NO_DATA
   const sign = v > 0 ? '+' : v < 0 ? '-' : ''
   const a = Math.abs(v)
-  const short = (x) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}m` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : `${Math.round(x)}`)
+  // ⛔ Never "+0" for a value that is not zero: under 0.5 it keeps two decimals.
+  const short = (x) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}m` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k`
+    : x > 0 && x < 0.5 ? x.toFixed(2) : `${Math.round(x)}`)
   switch (fmt) {
     case 'money': return `${sign}${short(a)}`
     case 'money_plain': return short(a)
     case 'pct': return `${Math.round(v * 100)}%`
-    case 'r': return `${sign}${a.toFixed(1)}R`
+    case 'r': return `${sign}${a > 0 && a < 0.05 ? a.toFixed(2) : a.toFixed(1)}R`
     case 'pf': return v >= PF_CAP ? '5+' : v.toFixed(1)
     case 'ratio': return v.toFixed(1)
     default: return `${sign}${short(a)}`
@@ -99,9 +117,10 @@ export function cellOf(row, i, measure) {
   if (s === 'hide') {
     // A count it does not know is left out, never written as a zero.
     const text = `Not enough ${unitWord(measure?.unit)} yet${finite(n) ? ` (${n})` : ''}`
-    return { text, hidden: true, small: false, value: null }
+    return { text, hidden: true, small: false, value: null, n: finite(n) ? n : null }
   }
-  return { text: fmtValue(v, measure?.fmt), small: s === 'small' && finite(v), hidden: false, value: finite(v) ? v : null }
+  return { text: fmtValue(v, measure?.fmt), small: s === 'small' && finite(v), hidden: false, value: finite(v) ? v : null,
+    n: finite(n) ? n : null }
 }
 
 /** Ruling R-25 on the client: a SHARED widget's body becomes the archive image a public page shows, so it never
@@ -193,13 +212,19 @@ export function tableModelOf(raw) {
   const list = listOf(p, view)
   const rawList = listOf(raw, view)
   const total = TOTAL_VIEWS.has(view)
-  const slots = view === 'heat' ? measures.slice(0, 1) : measures
+  // Every measure, for every view (a heat map shades the first; the table lists them all). An average or a rate
+  // gets its own count column beside it (spec 5.2: never read without its count).
+  const slots = measures
   const hasLabel2 = list.some((r) => typeof r.label2 === 'string' && r.label2)
+  const countCell = (c, m) => plain(finite(c.n) ? `${c.n} ${countNoun(m?.unit, c.n)}` : NO_DATA)
   return {
     columns: [
       { key: 'label', label: view === 'line' || view === 'heat' ? 'Period' : 'Group' },
       ...(hasLabel2 ? [{ key: 'label2', label: 'Then' }] : []),
-      ...slots.map((m, i) => ({ key: `v${i + 1}`, label: m.label || `Measure ${i + 1}` })),
+      ...slots.flatMap((m, i) => [
+        { key: `v${i + 1}`, label: m.label || `Measure ${i + 1}` },
+        ...(isCounted(m) ? [{ key: `n${i + 1}`, label: `${m.label || `Measure ${i + 1}`} (n)` }] : []),
+      ]),
     ],
     rows: list.map((r, i) => {
       const label = typeof r.label === 'string' && r.label ? r.label : '(none)'
@@ -210,7 +235,8 @@ export function tableModelOf(raw) {
         flagged: r.flagged === true,
         label, label2, values,
         drill: total ? {} : drillCellOf(view, rawList[i]),
-        cells: [plain(label), ...(hasLabel2 ? [plain(label2)] : []), ...values],
+        cells: [plain(label), ...(hasLabel2 ? [plain(label2)] : []),
+          ...values.flatMap((c, k) => [c, ...(isCounted(slots[k]) ? [countCell(c, slots[k])] : [])])],
       }
     }),
   }

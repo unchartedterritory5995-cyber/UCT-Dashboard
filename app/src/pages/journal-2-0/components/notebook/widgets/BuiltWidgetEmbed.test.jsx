@@ -3,7 +3,10 @@
 // seven chart views have their own file (builtViews/builtViews.test.jsx). Asserted by RENDERED TEXT.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
-import BuiltWidgetEmbed, { SAVED_COPY_SENTENCE, ARCHIVED_SENTENCE } from './BuiltWidgetEmbed'
+import BuiltWidgetEmbed, {
+  SAVED_COPY_SENTENCE, ARCHIVED_SENTENCE, CHECK_FAILED_SENTENCE, UNAVAILABLE_SENTENCE,
+} from './BuiltWidgetEmbed'
+import { anchorPosition } from './builtViews/DrillPanel'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openMyTools } from '../myTools/openMyTools.js'
@@ -11,6 +14,11 @@ import { openMyTools } from '../myTools/openMyTools.js'
 // Ruling R-2: Tasks 8.15 and 8.17 replace these placeholder doors; here they are mocked, so the test sees the call.
 vi.mock('../widgetBuilder/openWidgetBuilder.js', () => ({ openWidgetBuilder: vi.fn(() => true) }))
 vi.mock('../myTools/openMyTools.js', () => ({ openMyTools: vi.fn(() => true) }))
+// Wave 8's flag, switchable per test (a 404 while it is dark is the wave, not a deleted widget).
+const flags = vi.hoisted(() => ({ w8: true }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({
+  ...(await orig()), widgetsWaveOn: (w) => (w === 8 ? flags.w8 : false),
+}))
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -33,8 +41,15 @@ const TABLE = { ...BASE, view: 'table', measures: [M('Net P&L', 'money')], value
 const attrsOf = (p) => widgetEmbedNode('builtWidget', p).attrs
 
 let fetchSpy
-beforeEach(() => { fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy); openWidgetBuilder.mockClear(); openMyTools.mockClear() })
+beforeEach(() => {
+  fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy); openWidgetBuilder.mockClear(); openMyTools.mockClear()
+  flags.w8 = true
+})
 afterEach(() => vi.unstubAllGlobals())
+/** Make the touch tier match (useIsTouch answers true). */
+const asTouch = () => vi.stubGlobal('matchMedia', (q) => ({
+  matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
+}))
 
 /** A fetch answer the client reads (`ok`, `status`, `json()`). */
 const answer = (data, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => data })
@@ -132,9 +147,11 @@ describe('BuiltWidgetEmbed', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
     const alt = screen.getByTestId('built-table-alt')
     const head = [...alt.querySelectorAll('thead th')].map((th) => th.textContent)
-    expect(head).toEqual(['Group', 'Net P&L', 'Win rate', 'Expectancy'])
+    // an average or a rate gets its count column, in its own unit (spec 5.2)
+    expect(head).toEqual(['Group', 'Net P&L', 'Win rate', 'Win rate (n)', 'Expectancy', 'Expectancy (n)'])
     const cells = [...alt.querySelectorAll('tbody td')].map((td) => td.textContent)
-    expect(cells).toEqual(['All', '+$2,140.00', '55.0% (small sample)', 'Not enough trades yet (3)'])
+    expect(cells).toEqual(['All', '+$2,140.00', '55.0% (small sample)', '12 decisive trades',
+      'Not enough trades yet (3)', '3 trades'])
   })
 
   it('an empty payload shows its sentence, never a zero or a blank chart', () => {
@@ -204,11 +221,11 @@ describe('BuiltWidgetEmbed', () => {
     expect(body.cell).toEqual({ label: '__proto__' })
     expect(body).toMatchObject({ defId: 'd-1', defRev: 1, snapshotCount: 47, snapshotAt: ASOF })
     expect(document.activeElement).toBe(within(panel).getByRole('button', { name: 'Close' }))
-    // the panel traps focus: Tab from its last control wraps inside it
-    const focusables = panel.querySelectorAll('a[href], button:not([disabled])')
-    act(() => focusables[focusables.length - 1].focus())
-    fireEvent.keyDown(focusables[focusables.length - 1], { key: 'Tab' })
-    expect(panel.contains(document.activeElement)).toBe(true)
+    // a NON-modal dialog anchored inside the widget
+    expect(panel.hasAttribute('aria-modal')).toBe(false)
+    expect(screen.getByTestId('built-widget-embed').contains(panel)).toBe(true)
+    expect(panel.style.left).not.toBe('')
+    expect(panel.style.top).not.toBe('')
     fireEvent.keyDown(document.activeElement, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(marks[1])                  // focus is back on the bar that opened it
@@ -251,7 +268,7 @@ describe('BuiltWidgetEmbed', () => {
       .toBe('That account is no longer in your Journal; showing all accounts. Live data; the snapshot was taken on Oct 24')
     // each trade links into the Journal; the flagged one says so
     const first = within(panel).getByRole('link', { name: 'SYM0 long' })
-    expect(first).toHaveAttribute('href', '/journal?j2tab=journal&openTrade=t-0')
+    expect(first).toHaveAttribute('href', '/journal-2-0/trade/t-0')        // ruling R-30
     const flagged = within(panel).getByRole('link', { name: 'SYM1 long' }).closest('li')
     expect(within(flagged).getByText('Flagged')).toBeInTheDocument()
     expect(within(first.closest('li')).queryByText('Flagged')).toBeNull()
@@ -312,14 +329,14 @@ describe('BuiltWidgetEmbed', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(0)                       // nothing is read until the menu opens
     openMenu()
     expect(urlOf(0)).toBe('/api/j2/widget-definitions/d-1')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'How this is made' }))
+    fireEvent.click(screen.getByRole('button', { name: 'How this is made' }))
     const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
     expect(within(sheet).getByText('Net P&L of every closed trade in the last 90 days.')).toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('button', { name: 'Edit widget' }))
     await waitFor(() => expect(openWidgetBuilder).toHaveBeenCalledTimes(1))
     expect(openWidgetBuilder).toHaveBeenCalledWith({ editor, from: { defId: 'd-1', getPos } })
     openMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Manage…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Manage…' }))
     await waitFor(() => expect(openMyTools).toHaveBeenCalledTimes(1))
     expect(openMyTools).toHaveBeenCalledWith({ editor, defId: 'd-1' })
   })
@@ -327,7 +344,7 @@ describe('BuiltWidgetEmbed', () => {
   it('a firm example says Edit a copy, and is not read from the member\'s widgets', async () => {
     render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defId: 'shelf:pnl-by-setup' })} editable onUpdateParams={() => true} />)
     openMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'How this is made' }))
+    fireEvent.click(screen.getByRole('button', { name: 'How this is made' }))
     const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
     expect(within(sheet).getByRole('button', { name: 'Edit a copy' })).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Edit widget' })).toBeNull()
@@ -343,7 +360,7 @@ describe('BuiltWidgetEmbed', () => {
     const onUpdateParams = vi.fn(() => true)
     render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defRev: 2, summary: OLD })} editable onUpdateParams={onUpdateParams} />)
     openMenu()
-    const item = await screen.findByRole('menuitem', { name: 'Updated version available' })
+    const item = await screen.findByRole('button', { name: 'Updated version available' })
     fireEvent.click(item)
     const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
     // the new sentence beside the one this note runs
@@ -365,7 +382,7 @@ describe('BuiltWidgetEmbed', () => {
     render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defRev: 2 })} editable onUpdateParams={() => true} />)
     openMenu()
     await waitFor(() => expect(screen.queryByText('Checking this widget…')).toBeNull())
-    expect(screen.queryByRole('menuitem', { name: 'Updated version available' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Updated version available' })).toBeNull()
   })
 
   it('archived_shows_restore', async () => {
@@ -375,7 +392,7 @@ describe('BuiltWidgetEmbed', () => {
     render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
     openMenu()
     expect(await screen.findByText(ARCHIVED_SENTENCE)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
     await waitFor(() => expect(screen.queryByText(ARCHIVED_SENTENCE)).toBeNull())
     const post = fetchSpy.mock.calls.findIndex(([, init]) => init?.method === 'POST')
     expect(urlOf(post)).toBe('/api/j2/widget-definitions/d-1/unarchive')
@@ -407,5 +424,97 @@ describe('BuiltWidgetEmbed', () => {
       footnotes: ['Max drawdown: within your newest 5,000 trades.'] })} />)
     expect(screen.getByText('Based on your newest 5,000 trades.')).toBeInTheDocument()
     expect(screen.getByTestId('built-footnotes').textContent).toBe('Max drawdown: within your newest 5,000 trades.')
+  })
+  it('the desktop drill panel closes on an outside click or when focus leaves it, leaving focus where it went', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<><button type="button">Elsewhere</button><BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} /></>)
+    const marks = screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]')
+    fireEvent.click(marks[0])
+    await screen.findByRole('dialog')
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Elsewhere' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // focus leaving it closes it too
+    fireEvent.click(marks[0])
+    const panel = await screen.findByRole('dialog')
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' })
+    fireEvent.blur(within(panel).getByRole('button', { name: 'Close' }), { relatedTarget: elsewhere })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // control: focus moving INSIDE the panel keeps it open
+    fireEvent.click(marks[0])
+    const again = await screen.findByRole('dialog')
+    const link = await within(again).findByRole('link', { name: 'SYM0 long' })
+    fireEvent.blur(within(again).getByRole('button', { name: 'Close' }), { relatedTarget: link })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('the anchored panel sits under its mark, clamped inside the widget', () => {
+    const box = { left: 100, top: 50, width: 500 }
+    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360)).toEqual({ left: 50, top: 74, width: 360 })
+    // a mark near the right edge: the panel is pulled back so its right edge stays inside
+    expect(anchorPosition(box, { left: 560, bottom: 120 }, 360)).toEqual({ left: 140, top: 74, width: 360 })
+    // a widget narrower than the panel: full width, at the left
+    expect(anchorPosition({ left: 0, top: 0, width: 300 }, { left: 250, bottom: 40 }, 360)).toEqual({ left: 0, top: 44, width: 300 })
+  })
+
+  it('a mouse or touch drill returns focus to the MARK when it closes, not to the editor that held it', async () => {
+    asTouch()
+    fetchSpy.mockImplementation(() => answer({ rows: [], more: 0, count: 0, live: false, note: null }))
+    render(<><div contentEditable suppressContentEditableWarning data-testid="editor" tabIndex={0}>note text</div>
+      <BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} /></>)
+    const editor = screen.getByTestId('editor')
+    act(() => editor.focus())                                       // the member was typing in the note
+    const mark = screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]')[0]
+    fireEvent.click(mark)                                           // a tap: no keyboard focus moved to the mark
+    const sheet = await screen.findByRole('dialog')
+    fireEvent.click(within(sheet).getByRole('button', { name: /close/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(mark)
+    expect(document.activeElement).not.toBe(editor)
+  })
+
+  it('the ⋯ menu is a plain popover of buttons: Escape returns focus to ⋯, Tab out closes it', async () => {
+    fetchSpy.mockImplementation(() => answer({ id: 'd-1', rev: 1, placedRev: 1, etag: 3, archived: false, summary: 's' }))
+    render(<><BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} /><button type="button">After</button></>)
+    const more = screen.getByRole('button', { name: 'More for this widget' })
+    fireEvent.click(more)
+    const pop = screen.getByTestId('built-menu')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    expect(more).not.toHaveAttribute('aria-haspopup', 'menu')
+    expect(more).toHaveAttribute('aria-expanded', 'true')
+    expect(document.activeElement).toBe(within(pop).getByRole('button', { name: 'How this is made' }))
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(screen.queryByTestId('built-menu')).toBeNull()
+    expect(document.activeElement).toBe(more)
+    fireEvent.click(more)
+    const pop2 = screen.getByTestId('built-menu')
+    fireEvent.blur(within(pop2).getByRole('button', { name: 'Manage…' }), { relatedTarget: screen.getByRole('button', { name: 'After' }) })
+    expect(screen.queryByTestId('built-menu')).toBeNull()
+  })
+
+  it('a menu read that fails, or offline, says it could not check; a 404 while wave 8 is dark says Not available', async () => {
+    fetchSpy.mockImplementation(() => answer({ detail: 'boom' }, 500))
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(CHECK_FAILED_SENTENCE)).toBeInTheDocument()
+    expect(CHECK_FAILED_SENTENCE).toBe("Couldn't check for updates.")
+    r.unmount()
+    // offline: no request, the same sentence
+    fetchSpy.mockClear()
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    const off = render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(CHECK_FAILED_SENTENCE)).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(0)
+    off.unmount()
+    online.mockRestore()
+    // dark wave: a 404 is the wave
+    flags.w8 = false
+    fetchSpy.mockImplementation(() => answer({ detail: 'Not Found' }, 404))
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(UNAVAILABLE_SENTENCE)).toBeInTheDocument()
+    expect(UNAVAILABLE_SENTENCE).toBe('Not available right now.')
+    expect(screen.queryByText(SAVED_COPY_SENTENCE)).toBeNull()
   })
 })

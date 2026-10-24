@@ -19,6 +19,7 @@ import DrillPanel from './builtViews/DrillPanel'
 import HowMadeSheet, { UPDATED_VERSION } from './builtViews/HowMadeSheet'
 import { CoverageNote, Footnotes } from './builtViews/Counts'
 import { LOG_TRADE_HREF } from './builtViews/builtModel'
+import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import styles from './BuiltWidgetEmbed.module.css'
 
 /**
@@ -43,6 +44,10 @@ const VIEWS = {
 }
 export const SAVED_COPY_SENTENCE = 'Running from the saved copy in this note.'
 export const ARCHIVED_SENTENCE = 'Archived widget'
+/** The menu's read failed, or the browser is offline: the member is told the check did not happen. */
+export const CHECK_FAILED_SENTENCE = "Couldn't check for updates."
+/** A 404 while wave 8 is dark is the wave, not the widget (lib/builtWidgets FAILURE_COPY.unavailable). */
+export const UNAVAILABLE_SENTENCE = 'Not available right now.'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -50,11 +55,12 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const subtitleOf = (p) => (isRecord(p.def?.display) && typeof p.def.display.subtitle === 'string'
   ? p.def.display.subtitle.trim() : '')
 
-/** The ⋯ menu of an editable placed widget: How this is made, Manage…, and what GET /{defId} says about the
- *  widget itself, read when the menu first opens (an update, an archived widget, or a widget that is gone). */
+/** The ⋯ menu of an editable placed widget: a plain popover of buttons (How this is made, Manage…) and what
+ *  GET /{defId} says about the widget itself, read when it first opens (an update, an archived widget, or a widget
+ *  that is gone). Escape closes it and returns focus to ⋯; Tab out of it or a click outside closes it. */
 function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
   const [open, setOpen] = useState(false)
-  const [status, setStatus] = useState(null)       // null | loading | {ok, def} | missing | error
+  const [status, setStatus] = useState(null)       // null | loading | {ok, def} | missing | dark | error
   const [how, setHow] = useState(false)
   const [message, setMessage] = useState('')
   const wrapRef = useRef(null)
@@ -64,10 +70,10 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
   const defId = typeof params.defId === 'string' && params.defId ? params.defId : null
   const shelf = defId !== null && defId.startsWith('shelf:')
 
-  // The menu takes focus when it opens (its first item), and a click outside closes it.
+  // The popover takes focus when it opens (its first button), and a click outside closes it.
   useEffect(() => {
     if (!open) return undefined
-    wrapRef.current?.querySelector('[role="menuitem"]')?.focus()
+    wrapRef.current?.querySelector('[data-built-menu] button')?.focus()
     const away = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
@@ -80,14 +86,16 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
     getJson(`${DEFS_URL}/${encodeURIComponent(defId)}`).then((got) => {
       if (!mounted.current) return
       if (got.ok) setStatus({ kind: 'ok', def: got.data })
-      else setStatus({ kind: got.code === 'unavailable' ? 'missing' : 'error' })
+      // A 404 is a widget that is gone, unless wave 8 is dark: then it is the wave (and nothing is "gone").
+      else if (got.code === 'unavailable') setStatus({ kind: widgetsWaveOn(8) ? 'missing' : 'dark' })
+      else setStatus({ kind: 'error' })
     })
   }
   const toggle = () => {
     const next = !open
     setOpen(next)
     setMessage('')
-    if (next && (status === null || status.kind === 'error')) load()
+    if (next && (status === null || status.kind === 'error' || status.kind === 'dark')) load()
   }
   const closeMenu = () => { setOpen(false); buttonRef.current?.focus() }
 
@@ -120,28 +128,35 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
 
   return (
     <span className={styles.menuWrap} ref={wrapRef}>
-      <button ref={buttonRef} type="button" className={`${s.btn} ${styles.menuButton}`} aria-haspopup="menu"
+      <button ref={buttonRef} type="button" className={`${s.btn} ${styles.menuButton}`}
         aria-expanded={open} aria-label="More for this widget" onClick={toggle}>
         <UIcon name="more" size={14} gold={false} />
       </button>
       {open && (
-        <div className={styles.menu} role="menu" aria-label="Widget menu" data-testid="built-menu"
-          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu() } }}>
-          <button type="button" role="menuitem" className={styles.menuItem}
+        <div className={styles.menu} data-built-menu="" data-testid="built-menu"
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu() } }}
+          onBlur={(e) => {
+            // Tab out (focus moving anywhere outside ⋯ and its popover) closes it.
+            const next = e.relatedTarget
+            if (next && wrapRef.current && !wrapRef.current.contains(next)) setOpen(false)
+          }}>
+          <button type="button" className={styles.menuItem}
             onClick={() => { setOpen(false); setHow(true) }}>How this is made</button>
-          <button type="button" role="menuitem" className={styles.menuItem} onClick={manage}>Manage…</button>
+          <button type="button" className={styles.menuItem} onClick={manage}>Manage…</button>
           {status?.kind === 'loading' && <p className={styles.menuNote} role="status">Checking this widget…</p>}
           {latest && (
-            <button type="button" role="menuitem" className={styles.menuItem}
+            <button type="button" className={styles.menuItem}
               onClick={() => { setOpen(false); setHow(true) }}>{UPDATED_VERSION}</button>
           )}
           {archived && (
             <>
               <p className={styles.menuNote}>{ARCHIVED_SENTENCE}</p>
-              <button type="button" role="menuitem" className={styles.menuItem} onClick={restore}>Restore</button>
+              <button type="button" className={styles.menuItem} onClick={restore}>Restore</button>
             </>
           )}
           {status?.kind === 'missing' && <p className={styles.menuNote}>{SAVED_COPY_SENTENCE}</p>}
+          {status?.kind === 'dark' && <p className={styles.menuNote}>{UNAVAILABLE_SENTENCE}</p>}
+          {status?.kind === 'error' && <p className={styles.menuNote} role="status">{CHECK_FAILED_SENTENCE}</p>}
           {message && <p className={s.message} role="status">{message}</p>}
         </div>
       )}
@@ -157,12 +172,27 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
 
 export default function BuiltWidgetEmbed({
   attrs, height = 260, editable = false, onUpdateParams, uid, editor = null, getPos = null, shareView = false,
+  chartWidth,
 }) {
   const p = attrs?.params || {}
   const frame = useSnapshotFrame(BUILT_KIND, attrs, { editable, onUpdateParams, uid })
   const [asTable, setAsTable] = useState(false)
   const [drill, setDrill] = useState(null)        // {cell, what, opener, n}
   const drillSeq = useRef(0)
+  const wrapRef = useRef(null)
+  // Focus goes back to the mark AFTER the drill has unmounted: a Sheet restores focus to whatever held it when it
+  // opened (the editor, after a click), and this effect runs after that cleanup, so the mark always wins.
+  const refocus = useRef(null)
+  useEffect(() => {
+    if (drill || !refocus.current) return
+    const el = refocus.current
+    refocus.current = null
+    if (el.isConnected && typeof el.focus === 'function') el.focus()
+  }, [drill])
+  const closeDrill = (back) => {
+    refocus.current = back ? drill?.opener || null : null
+    setDrill(null)
+  }
   // The write after an awaited run reads the CURRENT params and host (as useSnapshotFrame's refresh does), so a
   // share switch made while the run was out wins and a note that turned read-only gets no write.
   const paramsRef = useRef(p)
@@ -202,7 +232,7 @@ export default function BuiltWidgetEmbed({
       </p>
     )
   } else if (asTable && canToggle) body = <TableAlt params={p} onDrill={onDrill} />
-  else body = <View params={p} onDrill={onDrill} />
+  else body = <View params={p} onDrill={onDrill} width={chartWidth} />
 
   const menu = frame.editable && !shared && !shareView
     ? <BuiltMenu params={p} editor={editor} getPos={getPos} onApplyLatest={applyLatest} />
@@ -211,7 +241,7 @@ export default function BuiltWidgetEmbed({
   return (
     <div style={{ height }} role="figure" aria-label={embedAutoCaption(attrs)} data-testid="built-widget-embed">
       <SnapshotFrame {...frame} sourceLine={sourceLine} menu={menu}>
-        <div className={styles.wrap}>
+        <div className={styles.wrap} ref={wrapRef}>
           {labels && <p className={styles.labels}>{labels}</p>}
           {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
           {body}
@@ -227,7 +257,7 @@ export default function BuiltWidgetEmbed({
           )}
           {drill && (
             <DrillPanel key={drill.n} params={p} cell={drill.cell} what={drill.what} opener={drill.opener}
-              onClose={() => setDrill(null)} detached={shared} />
+              onClose={closeDrill} detached={shared} container={wrapRef} />
           )}
         </div>
       </SnapshotFrame>

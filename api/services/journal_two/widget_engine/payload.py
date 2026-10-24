@@ -166,12 +166,15 @@ def _from_result(result: Any, view: str) -> dict:
                 "r": _RESULT_CODE.get(g.result),
             })
     elif view == "heat":
+        # one cell per day; every measure the plan has (the map shades the first, "Show as table" lists them all)
         for g in sorted(groups, key=lambda g: g.key):
-            c = g.values.cells[0] if g.values.cells else None
-            cells.append({"label": _label(g.label),
-                          "v1": None if c is None else nw._num(c.value),
-                          "n1": None if c is None else _int(c.n),
-                          "s1": None if c is None else (c.sample or "")})
+            cs = list(g.values.cells)[:SLOTS] or [None]
+            cell: dict[str, Any] = {"label": _label(g.label)}
+            for i, c in enumerate(cs):
+                cell[f"v{i + 1}"] = None if c is None else nw._num(c.value)
+                cell[f"n{i + 1}"] = None if c is None else _int(c.n)
+                cell[f"s{i + 1}"] = None if c is None else (c.sample or "")
+            cells.append(cell)
     elif view in ("table", "bar", "list"):
         rows = [_row(g) for g in groups]          # already sorted and cut to top N by aggregate
     coverage = [{"have": _int(c.have) or 0, "total": _int(c.total) or 0, "hint": c.hint}
