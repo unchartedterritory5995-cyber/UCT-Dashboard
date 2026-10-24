@@ -376,3 +376,26 @@ def test_every_member_drawing_asks_the_one_trend_helper():
     for fn in (BD.base_drawing, BD.breakout_drawing, BD.forming_drawing):
         src = inspect.getsource(fn)
         assert "trend_ok_at(" in src and "trend_ok([" not in src, fn.__name__
+
+
+def test_the_shelf_outranks_a_forming_state_row(monkeypatch):
+    # blind paired round shelf_vs_forming (2026-10-24): where a forming row would displace a shelf, the shelf is
+    # drawn and the forming row is dropped; every OTHER drawing (a breakout state, a bull flag) still hides the shelf
+    form = auto_structures._base_row("X", BD.forming_drawing(_bars(FORMING), _last(_bars(FORMING))), BD.BASE_DRAW_ROUND)
+    b = _bars(BASE + [(2, 92.6)])
+    brk = auto_structures._base_row("X", BD.breakout_drawing(b, _last(b)), BD.BASE_DRAW_ROUND)
+    assert auto_structures._is_forming_state_row(form) and not auto_structures._is_forming_state_row(brk)
+    shelf = {"id": "s", "pattern_id": "draw:shelf-pivot", "geometry": {"extras": {"draw_shelf": {"price": 1.0}}}}
+    seen = []
+
+    def fake(sym, member=False, chart_served=()):
+        seen.append(list(chart_served))
+        return None if any(auto_structures._drawn_incumbent(r) for r in chart_served) else shelf
+    monkeypatch.setattr(auto_structures, "shelf_pivot_row", fake)
+    monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
+    assert auto_structures.member_shelf_over_forming("X", [], [form]) == [shelf]          # forming dropped
+    assert seen[-1] == []                                                                  # it was not served
+    assert auto_structures.member_shelf_over_forming("X", [], [brk]) == [brk]             # breakout still wins
+    flag = _flag_at(form, 89.0)
+    assert auto_structures.member_shelf_over_forming("X", [flag], [form]) == [form]       # no shelf: forming stays
+    assert auto_structures.member_shelf_over_forming("X", [], []) == [shelf]

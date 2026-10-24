@@ -893,11 +893,10 @@ def get_detections(
                     rows, boxes, atr=lambda: auto_structures.daily_atr14(sym))
                 mout["detections"], mout["count"] = rows, len(rows)
                 # the shelf pivot (released r4: AUTO_STRUCTURES_SHELF_ENABLED + MEMBER_SHELF_PIVOT_ROUND + the member
-                # set): daily charts only, and hidden whenever the chart already serves any drawing
+                # set): daily charts only, and hidden whenever the chart already serves any drawing -- except a "Base
+                # forming" state row, which the shelf outranks (blind paired round shelf_vs_forming)
                 if (tf or "D").upper() == "D":
-                    shelf = auto_structures.shelf_pivot_row(sym, member=True, chart_served=list(rows) + list(boxes))
-                    if shelf is not None:
-                        boxes = list(boxes) + auto_structures.member_rows([shelf])
+                    boxes = auto_structures.member_shelf_over_forming(sym, rows, boxes)
                 if boxes:
                     mout["structures"] = boxes
                 # the learned levels + trendlines: WITHHELD from members (MEMBER_LEARNED_LINES_ROUND = None,
