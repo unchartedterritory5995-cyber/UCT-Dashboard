@@ -1647,3 +1647,64 @@ def test_built_attrs_canary_pins_what_passes_today():
     assert kept.get("frozen") is False and "ATTR-CANARY-FROZEN" not in blob
     node["attrs"]["frozen"] = True
     assert find_embed(reduce(doc(node), "share"))["attrs"]["frozen"] is True
+
+
+# ── Task 9.11: routine and tracker blocks show the private account line ──
+
+_ACCT_CANARIES = ("ROUTINE-NAME-CANARY-9911", "ROUTINE-ID-CANARY-9911", "DAYSTATE-CANARY-9911", "ATTR-CANARY-9911")
+
+
+def _acct_block(widget_id: str, share) -> dict:
+    node = _widget(widget_id)
+    a = node["attrs"]
+    a["params"] = {"routineId": "ROUTINE-ID-CANARY-9911", "trackerId": "ROUTINE-ID-CANARY-9911",
+                   "day": "2026-10-20", "bind": "today", "display": "DAYSTATE-CANARY-9911",
+                   "days": {"2026-10-20": "DAYSTATE-CANARY-9911"}}
+    if share is not None:
+        a["params"]["share"] = share
+    a["searchText"] = "ROUTINE-NAME-CANARY-9911"
+    a["caption"] = "ATTR-CANARY-9911"
+    a["tradeRef"] = "ATTR-CANARY-9911"
+    a["ta"] = {"v": 1, "setupTag": "ATTR-CANARY-9911"}
+    return node
+
+
+def test_account_line_blocks_set_and_vendor_rows():
+    assert pnp.ACCOUNT_LINE_BLOCKS == frozenset({"routine", "tracker"})
+    assert "ACCOUNT_LINE_BLOCKS" in pnp.__all__
+    for wid in ("routine", "tracker"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private"
+        assert pnp.market_data_verdict("widgetEmbed", wid) == pnp.NEUTRAL
+        assert not pnp._is_account_kind(wid)                      # the share switch can never open it
+        assert pnp._neutral_for_embed(wid) == pnp._neutral(ACCOUNT_LINE)
+    assert pnp._neutral_for_embed("tickerCard") == pnp._neutral(pnp.NEUTRAL_LINE)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+@pytest.mark.parametrize("widget_id", ["routine", "tracker"])
+def test_routine_and_tracker_account_line_in_share_publish_gallery(mode, widget_id):
+    for share in (None, False, "true", 1, True):
+        out = reduce(doc(_acct_block(widget_id, share)), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+        assert "widgetEmbed" not in types_in(out), (mode, widget_id, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _ACCT_CANARIES), (mode, widget_id, share)
+
+
+@pytest.mark.parametrize("widget_id", ["routine", "tracker"])
+def test_routine_and_tracker_dropped_in_example_mode(widget_id):
+    for share in (None, False, True):
+        out = reduce(doc(_acct_block(widget_id, share)), "example")
+        assert "widgetEmbed" not in types_in(out), (widget_id, share)
+        assert ACCOUNT_LINE not in texts_in(out) and pnp.NEUTRAL_LINE not in texts_in(out)
+        assert not any(c in json.dumps(out) for c in _ACCT_CANARIES), (widget_id, share)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_no_routine_name_or_day_state_in_public_output(mode):
+    body = doc(_acct_block("routine", True), p(t("keep")), _acct_block("tracker", True))
+    blob = json.dumps(reduce(body, mode))
+    for canary in _ACCT_CANARIES:
+        assert canary not in blob, (mode, canary)
+    for key in ("routineId", "trackerId", "bind", "display", "days", "searchText"):
+        assert key not in blob, (mode, key)

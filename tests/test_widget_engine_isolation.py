@@ -253,3 +253,59 @@ def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_dat
     auth_db.get_connection().execute("SELECT 1").fetchone()
     sqlite3.connect(":memory:").close()
     assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen
+
+
+# ── Task 9.11: routine and tracker blocks on public pages ──
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_another_members_routine_and_tracker_ids_are_the_account_line_and_read_no_database(monkeypatch, tmp_path, mode):
+    """A hand-made body naming member B's routine and tracker ids reduces to the account line (dropped in an
+    example note) and a public reduction opens no database connection. B's rows exist first; the spy is proved
+    live by firing both seams once."""
+    import copy
+    import json
+    import sqlite3
+    from api.services.journal_two import public_note_payload as pnp
+
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "iso911.db"))
+    auth_db.init_db()
+    c = auth_db.get_connection()
+    add_user(c, B)
+    c.commit()
+
+    seen: list[str] = []
+    real_get, real_connect = auth_db.get_connection, sqlite3.connect
+
+    def spy_get(*a, **k):
+        seen.append("auth_db.get_connection")
+        return real_get(*a, **k)
+
+    def spy_connect(*a, **k):
+        seen.append("sqlite3.connect")
+        return real_connect(*a, **k)
+
+    monkeypatch.setattr(auth_db, "get_connection", spy_get)
+    monkeypatch.setattr(sqlite3, "connect", spy_connect)
+
+    for widget_id, foreign in (("routine", "B-ROUTINE-ID-9911"), ("tracker", "B-TRACKER-ID-9911")):
+        for share in (None, False, "true", True):
+            params = {"routineId": foreign, "trackerId": foreign, "day": "2026-10-20",
+                      "name": "B-ROUTINE-NAME-9911", "days": {"2026-10-20": "B-DAYSTATE-9911"}}
+            if share is not None:
+                params["share"] = share
+            body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {
+                "v": 1, "widgetId": widget_id, "mode": "snapshot", "params": params,
+                "searchText": "B-ROUTINE-NAME-9911", "caption": "B-ATTR-9911"}}]}
+            out = pnp.reduce(copy.deepcopy(body), mode=mode, owner_id="A", note_id="N",
+                             attachment_base="/b/", facts={}, note_links=None)
+            blob = json.dumps(out)
+            for leak in (foreign, "B-ROUTINE-NAME-9911", "B-DAYSTATE-9911", "B-ATTR-9911"):
+                assert leak not in blob, (mode, widget_id, share, leak)
+            assert "widgetEmbed" not in blob, (mode, widget_id, share)
+            if mode != "example":
+                assert pnp.ACCOUNT_NEUTRAL_LINE in blob, (mode, widget_id, share)
+    assert seen == [], seen
+
+    auth_db.get_connection().execute("SELECT 1").fetchone()
+    sqlite3.connect(":memory:").close()
+    assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen

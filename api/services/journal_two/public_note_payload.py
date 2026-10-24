@@ -291,6 +291,10 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeReview"): "private",
     # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
     ("widgetEmbed", "moodCheckIn"): "private",
+    # Notebook widgets phase 2, wave 9 (W9-R4): a routine and a tracker are the member's own account items.
+    # Not snapshot kinds and not "member-optin": `params.share` can never reveal them, in any mode.
+    ("widgetEmbed", "routine"): "private",
+    ("widgetEmbed", "tracker"): "private",
     # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
     # account kinds to "member-optin"; until then they are the neutral private line.
     ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
@@ -1356,13 +1360,19 @@ def _is_neutral(node: Any, line: str | None = None) -> bool:
     return found is not None and (line is None or found == line)
 
 
+# W9-R4: trader blocks that print the ACCOUNT line (not the market line) when they are neutral. Deliberately
+# not in `_is_account_kind`, which is the share-switch door: nothing here can ever be switched on.
+ACCOUNT_LINE_BLOCKS = frozenset({"routine", "tracker"})
+
+
 def _is_account_kind(widget_id: Any) -> bool:
     return MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "member-optin"
 
 
 def _neutral_for_embed(widget_id: Any) -> dict:
     """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
-    return _neutral(ACCOUNT_NEUTRAL_LINE if _is_account_kind(widget_id) else NEUTRAL_LINE)
+    account = _is_account_kind(widget_id) or (isinstance(widget_id, str) and widget_id in ACCOUNT_LINE_BLOCKS)
+    return _neutral(ACCOUNT_NEUTRAL_LINE if account else NEUTRAL_LINE)
 
 
 def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
@@ -1892,7 +1902,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
