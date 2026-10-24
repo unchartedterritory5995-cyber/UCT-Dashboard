@@ -854,6 +854,12 @@ def get_detections(
                 # the inside-day drawing: daily charts only, and an incumbent breakout line near its
                 # trigger wins over it (members only)
                 boxes = auto_structures.member_inside_day_precedence(rows, boxes, tf)
+                # one breakout line per base across detections AND structures: where two drawn rows put
+                # their breakout lines within 1 ATR over the same bars, only the higher-priority row stays
+                # (auto_structures.ONE_LINE_PER_BASE_PRIORITY; members only; ATR read only when needed)
+                rows, boxes = auto_structures.member_one_line_per_base(
+                    rows, boxes, atr=lambda: auto_structures.daily_atr14(sym))
+                mout["detections"], mout["count"] = rows, len(rows)
                 # base metrics (AUTO_STRUCTURES_METRICS_ENABLED + MEMBER_METRICS_ROUND): off = unchanged
                 boxes = auto_structures.with_metrics(sym, boxes, member=True)
                 # the shelf pivot (released r4: AUTO_STRUCTURES_SHELF_ENABLED + MEMBER_SHELF_PIVOT_ROUND + the member

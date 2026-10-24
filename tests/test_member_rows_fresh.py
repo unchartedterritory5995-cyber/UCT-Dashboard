@@ -79,7 +79,10 @@ def _ft(rid, sym, start_t, end_t, seen, as_of):
 
 
 def _flag(rid, sym, start_t, end_t, seen):
-    return _det(rid, sym, "bull_flag", start_t, end_t, seen, {"draw_round": 9})
+    # drawn entry 40.0, clear of the flat top's 50.0 ceiling: this file tests WHICH SCAN is served, so its
+    # rows must not also be one base drawn twice (auto_structures.member_one_line_per_base would keep
+    # only the flat top; that rule is railed in tests/test_one_line_per_base.py)
+    return _det(rid, sym, "bull_flag", start_t, end_t, seen, {"draw_round": 9, "draw_entry_price": 40.0})
 
 
 ET = ZoneInfo("America/New_York")
