@@ -251,6 +251,8 @@ def write_balances(
                        broker_total_equity = ?, broker_cash = ?,
                        broker_buying_power = ?, broker_market_value = ?,
                        account_size = ?,
+                       -- A broker's net-liq is a real size, whatever its value: marked set.
+                       account_size_set = 1,
                        broker_balance_synced_at = ?, updated_at = ?
                  WHERE id = ? AND user_id = ?
                 """,

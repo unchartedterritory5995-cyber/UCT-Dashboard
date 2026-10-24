@@ -16,7 +16,7 @@ The layer, end to end (`evaluate`):
   3. RANKER (`ranker_scores`): a frozen gradient-boosted tree ensemble (api/data/shelf_pivot_ranker.json),
      evaluated here in pure Python; a candidate needs score >= THR.
   4. RULES (`eligible`): the shelf rules (ceiling source, touches, near price, recovered, not too deep, not
-     falling, not a down-trend) and the level rules at the SNAPPED level L (the median of the test bars' nearest
+     falling, not a down-trend, above a RISING 200-day: base_draw.trend_ok) and the level rules at the SNAPPED level L (the median of the test bars' nearest
      tops at the densest cluster of highs / body tops): touch groups separated by a real retreat, a middle test,
      a recent test, not falling away, not chop, a tight cluster, tight touch groups, something in the recent
      range reached the line, a gap-down level was retested, and never within / next to a served base.
@@ -523,6 +523,10 @@ def shelf_eligible(H, C, i, a, cand, served_lines, p=SHELF):
         return False, 'falling'
     if f['c_sma50'] < 0 and sma50_slope(C, i) < p['DOWN50_SLOPE']:
         return False, 'downtrend'
+    # no bullish shelf under or on a FALLING 200-day: the base drawing's own trend floor (one rule, one place)
+    from api.services.pattern_engine import base_draw
+    if not base_draw.trend_ok(C, i):
+        return False, 'below_or_falling_200'
     if f['adv120'] < p['MIN_ADV120']:
         return False, 'no_prior_advance'
     return True, 'ok'

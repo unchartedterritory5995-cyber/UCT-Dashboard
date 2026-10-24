@@ -18,7 +18,7 @@ from api.services import barspack
 from api.services.pattern_engine import shelf_pivot as S
 from api.services.pattern_engine.detectors import registry as REG
 
-from tests.test_shelf_pivot_parity import cases
+from tests.test_shelf_pivot_parity import cases, expect
 
 _ASOF = [None]
 
@@ -73,12 +73,27 @@ ROUND4_DRAWN = {
 }
 
 
+#: Fixture charts where the recorded member chart served a base drawing under a FALLING 200-day: the trend floor
+#: (base_draw.trend_ok, 2026-10-23) now draws nothing there, so that row and its line leave the chart. Measured on
+#: all 427 charts: this is the only served drawing the floor removes (every other floored chart lost only its shelf
+#: line, which `expect` accounts for).
+FLOORED_SERVED = {
+    "held/none/225": "bc:base",
+}
+
+
 def _drawn_view(c, round4=True, flagging_withheld=True):
     """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
-    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there), and
-    (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag taken out of served and its line withheld."""
+    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there),
+    the FLOORED_SERVED row and its line removed, and (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag
+    taken out of served and its line withheld."""
     served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
     lines = [tuple(x) for x in c["lines"]]
+    floored = FLOORED_SERVED.get(c["id"])
+    if floored is not None:
+        assert sum(x[0] == floored for x in served) == 1, c["id"]
+        served = [x for x in served if x[0] != floored]
+        lines = [x for x in lines if x[0] != floored]
     if flagging_withheld and c["id"] in FLAGGING_WITHHELD:
         gone = [x for x in served if x[0] == "bull_flag"]
         assert len(gone) == 1, c["id"]
@@ -114,7 +129,7 @@ def _reproduce(round4, flagging_withheld=True):
         if sorted(map(tuple, lines)) != sorted(want_lines):
             bad.append((c["id"], "lines"))
         r = S.evaluate(c["bars"], served, lines)
-        e = c["expect"]
+        e = expect(c)
         got = None if r["pick"] is None else {k: r["pick"][k] for k in ("P", "left", "disp_left")}
         if round4 and c["id"] in ROUND4_DRAWN:
             # the recorded answer drew a shelf line; with the round-4 base served, the layer draws nothing
@@ -125,8 +140,32 @@ def _reproduce(round4, flagging_withheld=True):
     return bad
 
 
-def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
+def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env, monkeypatch):
+    # the recorded member views predate the bc:base STATES (base_draw.state_drawing); a served state row is a
+    # drawing like any other, so the shelf yields to it (test_a_served_base_state_row_hides_the_shelf). Here the
+    # states are held off so the recorded view is compared exactly.
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
     assert _reproduce(round4=True) == []
+
+
+def test_a_served_base_state_row_only_ever_hides_the_shelf(member_path_env, monkeypatch):
+    """A live base STATE row is a served drawing: where one changes the shelf layer's answer, the shelf yields
+    (draws nothing). It never moves the shelf line to another price."""
+    from api.services.pattern_engine import base_draw
+    real = base_draw.state_drawing
+    changed = 0
+    for c in cases():
+        _ASOF[0] = int(c["bars"][-1][0])
+        monkeypatch.setattr(base_draw, "state_drawing", real)
+        r = S.evaluate(c["bars"], *AS.shelf_member_facts(c["ticker"], _dicts(c["bars"])))
+        monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
+        r0 = S.evaluate(c["bars"], *AS.shelf_member_facts(c["ticker"], _dicts(c["bars"])))
+        pick = lambda x: None if x["pick"] is None else (x["pick"]["P"], x["pick"]["left"])
+        if pick(r) != pick(r0):
+            changed += 1
+            assert r["pick"] is None, c["id"]
+    assert changed >= 1
 
 
 def test_a_rollback_to_base_round_two_reproduces_the_recorded_member_view(member_path_env, monkeypatch):

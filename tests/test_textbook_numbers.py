@@ -475,13 +475,14 @@ def test_flag_on_an_admin_sees_the_textbook_numbers(monkeypatch):
 
 def test_the_member_textbook_round_is_released():
     """Round 1 passed its blind A/B (2026-10-23, new preferred 20-2) and was released by hand, after the two
-    defects that check found (PLSE, TECH below) were fixed. Moving either literal is a deliberate act."""
-    assert auto_structures.MEMBER_TEXTBOOK_ROUND == 1 and type(auto_structures.MEMBER_TEXTBOOK_ROUND) is int
-    assert tn.TEXTBOOK_ROUND == 1
+    defects that check found (PLSE, TECH below) were fixed. Round 2 (the top line drawn at the buy point - $0.10)
+    passed its own blind paired check the same day. Moving either literal is a deliberate act."""
+    assert auto_structures.MEMBER_TEXTBOOK_ROUND == 2 and type(auto_structures.MEMBER_TEXTBOOK_ROUND) is int
+    assert tn.TEXTBOOK_ROUND == 2
 
 
 @pytest.mark.parametrize("member_round,shown", [
-    (None, False), (1, True), (2, False), ("1", False), (True, False), (1.0, False)])
+    (None, False), (1, False), (2, True), (3, False), ("2", False), (True, False), (2.0, False)])
 def test_a_member_sees_the_textbook_numbers_only_on_the_released_round(monkeypatch, member_round, shown):
     b = _synth()
     _flags(monkeypatch, True, True)
