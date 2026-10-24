@@ -351,3 +351,28 @@ def test_forming_needs_a_rising_200_day(monkeypatch):
     assert BD.forming_drawing(b, _last(b)) is not None                    # control
     monkeypatch.setattr(BD, "trend_ok", lambda closes, i: False)
     assert BD.forming_drawing(b, _last(b)) is None
+
+
+def test_breakout_needs_a_rising_200_day_on_the_as_of_bar(monkeypatch):
+    # the kept base was drawn (and trend-gated) up to PERSIST_BARS sessions earlier; the state is served on bar i,
+    # so trend_ok must hold THERE too. The rule is made to fail on the as-of bar only: every earlier bar (where
+    # base_drawing draws the base) still passes, so only a check on bar i can withhold the state.
+    for legs, state in ((BASE + [(2, 92.6)], "breakout"), (BASE + [(4, 96.0)], "extended")):
+        b = _bars(legs)
+        i = _last(b)
+        assert BD.breakout_drawing(b, i)["state"] == state                     # control
+        real = BD.trend_ok
+        monkeypatch.setattr(BD, "trend_ok", lambda closes, k, _i=i: k != _i and real(closes, k))
+        # the kept base is still drawn at its own earlier bar under the patched rule
+        assert any(BD.base_drawing(b, i - k) is not None for k in range(1, BD.PERSIST_BARS + 1))
+        assert BD.breakout_drawing(b, i) is None
+        assert BD.state_drawing(b, i) is None or BD.state_drawing(b, i)["state"] not in ("breakout", "extended")
+        monkeypatch.setattr(BD, "trend_ok", real)
+
+
+def test_every_member_drawing_asks_the_one_trend_helper():
+    # one shared helper, not three copies: base, breakout and forming all go through trend_ok_at
+    import inspect
+    for fn in (BD.base_drawing, BD.breakout_drawing, BD.forming_drawing):
+        src = inspect.getsource(fn)
+        assert "trend_ok_at(" in src and "trend_ok([" not in src, fn.__name__
