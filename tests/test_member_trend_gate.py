@@ -184,6 +184,21 @@ def test_member_trend_gate_reads_no_bars_without_a_gated_row_and_a_read_error_le
     monkeypatch.setattr(AS, "_daily_bars", lambda sym: UP[:219])
     assert AS.member_trend_gate("SYN", det, st) == (other, [])
     assert AS.MEMBER_TREND_GATED_IDS == frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout"})
+    # an EMPTY read is unknown too (a missing sync must not blank the rows)
+    monkeypatch.setattr(AS, "_daily_bars", lambda sym: [])
+    assert AS.member_trend_gate("SYN", det, st) == (det, st)
+
+
+def test_member_trend_gate_reads_the_last_COMPLETE_session_not_the_forming_bar(monkeypatch):
+    """A live price crossing the average must not blink the rows: the forming bar is dropped, as base_draw_row
+    drops it. Control: the same bar counted as complete does remove them."""
+    crash = dict(UP[-1], t=UP[-1]["t"] + 1, o=1.0, h=1.0, l=1.0, c=1.0)
+    monkeypatch.setattr(AS, "_daily_bars", lambda sym: UP + [crash])
+    det, st = [_row("flat_base")], [_row("bc:flat-base")]
+    monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: t == crash["t"])
+    assert AS.member_trend_gate("SYN", det, st) == (det, st)
+    monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    assert AS.member_trend_gate("SYN", det, st) == ([], [])
 
 
 @pytest.fixture
@@ -201,3 +216,11 @@ def test_the_member_route_applies_the_gate(member_route, monkeypatch):
     assert [r["pattern_id"] for r in _get(PAID_MEMBER).json().get("structures", [])] == ["bc:flat-base"]
     monkeypatch.setattr(AS, "_daily_bars", lambda sym: DOWN)
     assert "structures" not in _get(PAID_MEMBER).json()
+
+
+def test_the_member_route_gates_DETECTIONS_too(member_route, monkeypatch):
+    _store(monkeypatch, [_row("flat_base")])
+    monkeypatch.setattr(AS, "_daily_bars", lambda sym: UP)
+    assert "flat_base" in [r["pattern_id"] for r in _get(PAID_MEMBER).json()["detections"]]
+    monkeypatch.setattr(AS, "_daily_bars", lambda sym: DOWN)
+    assert "flat_base" not in [r["pattern_id"] for r in _get(PAID_MEMBER).json()["detections"]]

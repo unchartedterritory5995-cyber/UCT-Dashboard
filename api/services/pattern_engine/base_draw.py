@@ -361,7 +361,7 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
             return None
         # rounds 2 and 4 (the member rounds): no bullish base under a falling 200-day (round 1, the lab port,
         # is unchanged)
-        if rnd != 1 and not trend_ok([_f(x, "c") for x in bars], i):
+        if rnd != 1 and not trend_ok([_f(x, "c") for x in bars[:i + 1]], i):
             return None
         if rnd == 4:
             # round 4 IS round 2 wherever round 2 draws; its own pass runs only where round 2 draws nothing

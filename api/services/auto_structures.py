@@ -1400,17 +1400,21 @@ MEMBER_TREND_GATED_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_b
 def member_trend_gate(sym: str, detections, structures) -> tuple:
     """(detections, structures) without any MEMBER_TREND_GATED_IDS row while the daily close of `sym` is not above a
     RISING 200-day average (base_draw.trend_ok): a bullish base under a falling 200-day is a pause in a
-    downtrend, not a base to buy. The daily bars are read only when such a row is present. Too short a history
-    (under 220 sessions) drops them; a bar READ ERROR keeps them (the gate only removes what it can show is a
-    downtrend, and a store outage must not blank every base on the site). Every other row is untouched. Members
-    only; order kept."""
+    downtrend, not a base to buy. The daily bars are read only when such a row is present, and the trend is read
+    at the last COMPLETE session (a forming bar is dropped, as base_draw_row does), so a live price crossing the
+    average cannot blink these rows on and off or disagree with the other base layers on the same chart. Too
+    short a history (under 220 sessions) drops them; a bar READ ERROR or an EMPTY read keeps them (the gate only
+    removes what it can show is a downtrend, and a store outage must not blank every base on the site). Every
+    other row is untouched. Members only; order kept."""
     det, st = list(detections or []), list(structures or [])
     if not any((r or {}).get("pattern_id") in MEMBER_TREND_GATED_IDS for r in det + st):
         return det, st
     try:
         from api.services.pattern_engine import base_draw
-        b = _daily_bars(sym)
-        ok = base_draw.trend_ok([float(x["c"]) for x in b], len(b) - 1)
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        ok = base_draw.trend_ok([float(x["c"]) for x in b], len(b) - 1) if b else True
     except Exception:  # noqa: BLE001 -- unknown is not a downtrend: the rows stay as they were
         _log.warning("[auto-structures] trend read failed for %s; base rows left ungated", sym, exc_info=True)
         ok = True
