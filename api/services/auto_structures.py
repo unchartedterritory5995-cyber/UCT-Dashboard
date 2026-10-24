@@ -800,8 +800,9 @@ def cup_tier_stamp(det: dict, bars: list) -> None:
     sessions; an unknown or failing session clock stamps NOTHING). Adds that one key and nothing
     else; a row the tier does not stamp is untouched. Display only. Never raises.
 
-    Only rows the admin display rounds did NOT mark stale reach this stamp (structures_for drops a
-    stale box first). Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
+    Rows the admin display rounds mark stale are stamped too since lab cup_served (2026-10-23) and are
+    served only when the tier draws them (`_tier_drawn_stale_cup`); before it, structures_for dropped them.
+    Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
     fires (failed_breakout 297, gap_island 176, rim_broken 173, short_of_rim 164, ...) and round 4
     withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member
     can be served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc), served recognition 8 of 8."""
@@ -1875,6 +1876,30 @@ def structures_for(sym: str) -> list:
     return out
 
 
+def _tier_drawn_stale_cup(det: dict, bars: list):
+    """A bc:cup-with-handle row the TEAM display rounds marked stale, served in the cup tier's member form when
+    the round-4 tier DRAWS it (stamped, nothing withheld, `_confirmed_cup_tier`); else None (the row stays dropped).
+
+    lab cup_served (2026-10-23, PREREG bf403e59...): the team verdicts (failed_breakout, rim_broken, gap_island,
+    short_of_rim, prior_peak, spike_rim, ...) read the DETECTOR'S cup -- its start, its lip HIGH, its box top --
+    and the member never sees that geometry: a served cup is redrawn wholesale from the tier's own anchors, with
+    the tier's own gates and withholds. They dropped 18 of the 29 judged-3 cup charts. Serving the stale boxes
+    the tier draws passed a fresh blind packet (25 such cups, two judges: mean 2.30 [2.12, 2.48], 96% >= 2;
+    25 still-withheld contrast charts 2.06). The team reason is kept as `extras.team_stale_reason`. Never raises."""
+    try:
+        if (det or {}).get("pattern_id") != CUP_ID:
+            return None
+        cup_tier_stamp(det, bars)
+        ex = det["geometry"]["extras"]
+        ex["team_stale_reason"] = ex.pop("stale_reason", None)
+        ex.pop("stale", None)
+        if not _confirmed_cup_tier(det):
+            return None
+        return _cup_tier_member_row(det)
+    except Exception:  # noqa: BLE001 -- fail closed: the stale row stays dropped
+        return None
+
+
 def _structure_rows(sym: str, bars: list) -> list:
     """The structures rows for daily `bars` ({t,o,h,l,c,v}, oldest first): structures_for's body, uncached.
     May raise (structures_for turns that into no rows)."""
@@ -1889,6 +1914,10 @@ def _structure_rows(sym: str, bars: list) -> list:
             # A stale box (extras.stale, e.g. a failed cup breakout) is not
             # served: dropping it here keeps the overlay unchanged.
             if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                # ... except a cup the round-4 cup tier DRAWS: served in the tier's own form (lab cup_served)
+                det = _tier_drawn_stale_cup(det, bars)
+                if det is not None:
+                    out.append(det)
                 continue
             # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
             cup_tier_stamp(det, bars)
