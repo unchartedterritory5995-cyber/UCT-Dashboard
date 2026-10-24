@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Mapping, Protocol
 
+from api.services.journal_two.json_depth import _json_depth_exceeds
+
 PLAN_VERSION = 1
 
 RANGE_TOKENS = (
@@ -32,7 +34,11 @@ RANGE_TOKENS = (
 VIEWS = ("number", "compare", "table", "bar", "line", "scatter", "heat", "list", "progress")
 SOURCES = ("closed_trades", "open_positions", "trading_days")
 # Used when a field does not declare its own `ops`.
-DEFAULT_OPS = ("is", "is_not", "in", "not_in", "gt", "gte", "lt", "lte", "between", "contains")
+DEFAULT_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "in", "not_in", "has_any",
+               "contains", "is")
+_COMPARE_OPS = frozenset({"eq", "gt", "gte", "lt", "lte"})
+_LIST_OPS = frozenset({"in", "not_in", "has_any"})
+FIELD_TYPES = ("number", "text", "tag", "enum", "bool", "day")
 SORT_DIRS = ("asc", "desc")
 COMPARE_MODES = ("previous", "all", "range")
 
@@ -76,7 +82,13 @@ S_BAD_DATE = "Dates need to look like 2026-10-24."
 S_SORT_MEASURE = "Sort by one of the measures you picked."
 S_SORT_DIR = "Sort must be lowest first or highest first."
 S_ACCOUNTS = "Pick all your accounts or one account."
-S_NO_EARLIER = "There's no earlier period to compare with."
+S_NO_EARLIER = ("Comparing with the period before needs a date range, "
+                "not all time or a number of trades.")
+S_FILTER_LOW_HIGH_COUNT = "This filter needs a low value and a high value."
+S_FILTER_LOW_ABOVE_HIGH = "The low value is above the high value."
+S_FILTER_NEEDS_VALUE = "Pick at least one value for this filter."
+S_FILTER_ONE_VALUE = "This filter takes exactly one value."
+S_FILTER_VALUE_TYPE = "That value doesn't fit this field."
 S_TARGET = "The target must be a number."
 
 
@@ -115,6 +127,7 @@ class ResolvedRange:
     to_day: str
     last_n: int | None
     label: str
+    token: str | None = None  # the range token, or None for a fixed range
 
 
 # -- small helpers --------------------------------------------------------------
@@ -206,7 +219,6 @@ def upgrade_plan(raw: dict) -> dict:
 
 def plan_size_ok(raw: Any) -> bool:
     """Compact JSON at most 16,384 bytes and JSON depth at most 16."""
-    from api.services.journal_two.notes import _json_depth_exceeds
     try:
         blob = json.dumps(raw, separators=(",", ":"), ensure_ascii=False)
     except (TypeError, ValueError):
@@ -217,6 +229,54 @@ def plan_size_ok(raw: Any) -> bool:
 
 
 # -- validate -------------------------------------------------------------------
+
+def _valid_day(s: str) -> bool:
+    try:
+        date.fromisoformat(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _fits(ftype: str | None, v: Any) -> bool:
+    """Does one filter value match the field's declared type? (None = untyped.)"""
+    if ftype == "number":
+        return _is_number(v)
+    if ftype in ("text", "tag", "enum"):
+        return isinstance(v, str)
+    if ftype == "bool":
+        return isinstance(v, bool)
+    if ftype == "day":
+        return isinstance(v, str) and bool(_DAY_RE.fullmatch(v)) and _valid_day(v)
+    return True
+
+
+def _check_filter_values(op: str, ftype: str | None, values: list) -> None:
+    """Per-op value counts first, then value types against the field's type."""
+    if op == "between":
+        if len(values) != 2:
+            raise PlanError(S_FILTER_LOW_HIGH_COUNT)
+    elif op in _LIST_OPS:
+        if not values:
+            raise PlanError(S_FILTER_NEEDS_VALUE)
+    elif len(values) != 1:  # contains, is, eq, gt, gte, lt, lte
+        raise PlanError(S_FILTER_ONE_VALUE)
+    if op == "contains":
+        ok = ftype in (None, "text", "tag", "enum") and isinstance(values[0], str)
+    elif op == "is":
+        ok = ftype in (None, "bool") and isinstance(values[0], bool)
+    elif op == "between" or op in _COMPARE_OPS:
+        if ftype == "day":
+            ok = all(_fits("day", v) for v in values)
+        else:
+            ok = ftype in (None, "number") and all(_is_number(v) for v in values)
+    else:
+        ok = all(_fits(ftype, v) for v in values)
+    if not ok:
+        raise PlanError(S_FILTER_VALUE_TYPE)
+    if op == "between" and values[0] > values[1]:
+        raise PlanError(S_FILTER_LOW_ABOVE_HIGH)
+
 
 _TOP_KEYS = {"v", "source", "accounts", "range", "filters", "measures", "split",
              "view", "sort", "compare", "display"}
@@ -273,13 +333,17 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         if not isinstance(name, str) or name not in fields:
             raise PlanError(S_UNKNOWN_FIELD)
         ops = getattr(fields[name], "ops", None) or DEFAULT_OPS
-        if f.get("op") not in ops:
+        op = f.get("op")
+        # A non-string op is refused BEFORE the membership test: `ops` may be a
+        # set, and `["x"] in frozenset()` raises TypeError instead of answering.
+        if not isinstance(op, str) or op not in ops:
             raise PlanError(S_UNKNOWN_OP)
         values = f.get("values", [])
         _need(isinstance(values, list))
         if len(values) > MAX_FILTER_VALUES:
             raise PlanError(S_TOO_MANY_VALUES)
         _need(all(isinstance(x, (str, bool)) or _is_number(x) for x in values))
+        _check_filter_values(op, getattr(fields[name], "type", None), values)
         over = f.get("overridable", False)
         _need(isinstance(over, bool))
         filters.append({"field": name, "op": f["op"], "values": list(values),
@@ -390,6 +454,9 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         "filters": filters, "measures": measures, "split": split, "view": view,
         "sort": sort, "compare": compare, "display": display,
     }
+    # Defaults add bytes: a raw plan just under the cap can grow past it.
+    if not plan_size_ok(plan):
+        raise PlanError(S_TOO_LARGE)
     reason = catalog.view_allowed(plan)
     if reason:
         raise PlanError(reason)
@@ -418,6 +485,8 @@ def _fmt_day(d: date, with_year: bool) -> str:
 
 
 def _fmt_span(a: date, b: date) -> str:
+    if a == b:
+        return _fmt_day(a, True)
     if a.year == b.year:
         return f"{_fmt_day(a, False)} to {_fmt_day(b, True)}"
     return f"{_fmt_day(a, True)} to {_fmt_day(b, True)}"
@@ -444,9 +513,9 @@ def resolve_range(rng: dict, today: date) -> ResolvedRange:
     tok = norm["token"]
     label = _TOKEN_LABELS[tok]
     if tok in _LAST_N_TRADES:
-        return ResolvedRange(None, t.isoformat(), _LAST_N_TRADES[tok], label)
+        return ResolvedRange(None, t.isoformat(), _LAST_N_TRADES[tok], label, tok)
     if tok == "all":
-        return ResolvedRange(None, t.isoformat(), None, label)
+        return ResolvedRange(None, t.isoformat(), None, label, tok)
     if tok == "today":
         a, b = t, t
     elif tok == "this_week":
@@ -470,18 +539,73 @@ def resolve_range(rng: dict, today: date) -> ResolvedRange:
         a, b = date(t.year, 1, 1), t
     else:  # last_12m
         a, b = _one_year_before(t) + timedelta(days=1), t
-    return ResolvedRange(a.isoformat(), b.isoformat(), None, label)
+    return ResolvedRange(a.isoformat(), b.isoformat(), None, label, tok)
+
+
+def _last_day_of_month(y: int, m: int) -> int:
+    nxt = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+    return (nxt - timedelta(days=1)).day
+
+
+def _add_months(d: date, months: int) -> date:
+    """`d` moved by whole months, the day clamped to the target month's last day."""
+    y, m0 = divmod(d.year * 12 + (d.month - 1) + months, 12)
+    m = m0 + 1
+    return date(y, m, min(d.day, _last_day_of_month(y, m)))
+
+
+def _span_label(a: date, b: date) -> str:
+    """'August 2026' for a whole month, 'Q2 2026' for a whole quarter, else the span."""
+    if a.day == 1 and b == _add_months(a, 1) - timedelta(days=1):
+        return f"{a.strftime('%B')} {a.year}"
+    if a == _quarter_start(a) and b == _add_months(a, 3) - timedelta(days=1):
+        return f"Q{(a.month - 1) // 3 + 1} {a.year}"
+    return _fmt_span(a, b)
 
 
 def previous_range(r: ResolvedRange) -> ResolvedRange:
-    """The same number of days, ending the day before `r` starts."""
+    """The period before `r`, aligned to the calendar its token names (R-11).
+
+    today -> the previous trading session; this/last week, month and quarter ->
+    the same stretch of the period before; ytd -> the same span a year earlier;
+    last_12m -> the 12 months before; trailing days and fixed ranges -> the same
+    number of days ending the day before `r` starts. `all` and last-N-trades
+    have no earlier period.
+    """
     if r.from_day is None or r.last_n is not None:
         raise PlanError(S_NO_EARLIER)
     a, b = date.fromisoformat(r.from_day), date.fromisoformat(r.to_day)
+    tok = r.token
+
+    def out(na: date, nb: date, label: str) -> ResolvedRange:
+        return ResolvedRange(na.isoformat(), nb.isoformat(), None, label, None)
+
+    if tok == "today":
+        from api.services.journal_two import trading_days
+        d = trading_days.session_on_or_before(a - timedelta(days=1))
+        return out(d, d, _fmt_day(d, True))
+    if tok in ("this_week", "last_week"):
+        na, nb = a - timedelta(days=7), b - timedelta(days=7)
+        return out(na, nb, f"the week of {_fmt_day(na, False)}")
+    if tok in ("this_month", "last_month", "this_quarter", "last_quarter"):
+        step = 1 if tok.endswith("month") else 3
+        na = _add_months(a, -step)
+        if tok.startswith("last_"):   # a whole period: through its last day
+            nb = _add_months(na, step) - timedelta(days=1)
+        else:                          # period to date: the same day of it
+            nb = _add_months(b, -step)
+        return out(na, nb, _span_label(na, nb))
+    if tok == "ytd":
+        na, nb = date(a.year - 1, 1, 1), _one_year_before(b)
+        return out(na, nb, _fmt_span(na, nb))
+    if tok == "last_12m":
+        nb = a - timedelta(days=1)
+        na = _one_year_before(nb) + timedelta(days=1)
+        return out(na, nb, _fmt_span(na, nb))
     length = (b - a).days
     nb = a - timedelta(days=1)
     na = nb - timedelta(days=length)
-    return ResolvedRange(na.isoformat(), nb.isoformat(), None, _fmt_span(na, nb))
+    return out(na, nb, _span_label(na, nb))
 
 
 # -- summary + name + hash ------------------------------------------------------

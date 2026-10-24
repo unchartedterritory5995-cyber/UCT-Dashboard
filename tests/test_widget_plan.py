@@ -19,6 +19,8 @@ from api.services.journal_two.widget_engine import plan as P
 @dataclass(frozen=True)
 class _Field:
     label: str
+    type: str | None = None
+    ops: frozenset | None = None
 
 
 @dataclass(frozen=True)
@@ -38,8 +40,12 @@ class _Measure:
 class _Catalog:
     sources: dict = field(default_factory=lambda: {
         "closed_trades": _Source("Closed trades", {
-            "setup": _Field("Setup"), "side": _Field("Side"),
-            "ticker": _Field("Ticker"), "hour_et": _Field("ET hour")}),
+            "setup": _Field("Setup", "text"), "side": _Field("Side", "enum"),
+            "ticker": _Field("Ticker", "text"), "hour_et": _Field("ET hour", "number"),
+            "flagged": _Field("Flagged", "bool"), "exit_day": _Field("Exit day", "day"),
+            "r_mult": _Field("R multiple", "number"), "tags": _Field("Tags", "tag"),
+            # a field that declares its ops as a SET (I-1: an unhashable op crashed here)
+            "venue": _Field("Venue", "enum", frozenset({"in", "not_in"}))}),
         "open_positions": _Source("Open positions", {
             "setup": _Field("Setup"), "ticker": _Field("Ticker")}),
         "trading_days": _Source("Trading days", {"weekday": _Field("Weekday")}),
@@ -139,7 +145,54 @@ REFUSALS = [
      "Sort by one of the measures you picked."),
     ("bad accounts", minimal(accounts="_all_"), "Pick all your accounts or one account."),
     ("previous of all", minimal(range={"token": "all"}, compare={"mode": "previous"}),
-     "There's no earlier period to compare with."),
+     "Comparing with the period before needs a date range, not all time or a number of trades."),
+    # R-12: still refused for last-N-trades, with the same member sentence
+    ("previous of last 20 trades", minimal(range={"token": "last_20_trades"},
+                                           compare={"mode": "previous"}),
+     "Comparing with the period before needs a date range, not all time or a number of trades."),
+    # I-1: a non-string op against a field whose ops is a frozenset is refused, not a TypeError
+    ("unhashable op", minimal(filters=[{"field": "venue", "op": ["x"], "values": ["a"]}]),
+     "That filter comparison isn't supported."),
+    # M-4: per-op value counts and value types
+    ("between one value", minimal(filters=[_f("r_mult", "between", [1])]),
+     "This filter needs a low value and a high value."),
+    ("between three values", minimal(filters=[_f("r_mult", "between", [1, 2, 3])]),
+     "This filter needs a low value and a high value."),
+    ("between low above high", minimal(filters=[_f("r_mult", "between", [3, 1])]),
+     "The low value is above the high value."),
+    ("between text", minimal(filters=[_f("r_mult", "between", ["a", "b"])]),
+     "That value doesn't fit this field."),
+    ("between days reversed", minimal(filters=[_f("exit_day", "between",
+                                                  ["2026-10-24", "2026-10-01"])]),
+     "The low value is above the high value."),
+    ("in with no values", minimal(filters=[_f("side", "in", [])]),
+     "Pick at least one value for this filter."),
+    ("not_in with no values", minimal(filters=[_f("side", "not_in", [])]),
+     "Pick at least one value for this filter."),
+    ("has_any with no values", minimal(filters=[_f("tags", "has_any", [])]),
+     "Pick at least one value for this filter."),
+    ("contains two values", minimal(filters=[_f("ticker", "contains", ["A", "B"])]),
+     "This filter takes exactly one value."),
+    ("contains a number", minimal(filters=[_f("ticker", "contains", [5])]),
+     "That value doesn't fit this field."),
+    ("is with no values", minimal(filters=[_f("flagged", "is", [])]),
+     "This filter takes exactly one value."),
+    ("is a string", minimal(filters=[_f("flagged", "is", ["yes"])]),
+     "That value doesn't fit this field."),
+    ("gt two values", minimal(filters=[_f("r_mult", "gt", [1, 2])]),
+     "This filter takes exactly one value."),
+    ("gte a string", minimal(filters=[_f("r_mult", "gte", ["1"])]),
+     "That value doesn't fit this field."),
+    ("eq on a text field", minimal(filters=[_f("setup", "eq", [1])]),
+     "That value doesn't fit this field."),
+    ("in number field with text", minimal(filters=[_f("hour_et", "in", ["ten"])]),
+     "That value doesn't fit this field."),
+    ("in text field with number", minimal(filters=[_f("setup", "in", [7])]),
+     "That value doesn't fit this field."),
+    ("in day field with bad day", minimal(filters=[_f("exit_day", "in", ["2026-02-30"])]),
+     "That value doesn't fit this field."),
+    ("in bool field with text", minimal(filters=[_f("flagged", "in", ["true"])]),
+     "That value doesn't fit this field."),
     ("bad compare mode", minimal(compare={"mode": "yesterday"}), "That comparison isn't available."),
     ("unknown key", minimal(colour="red"), "This widget's settings couldn't be read."),
     ("missing source", {"v": 1, "measures": [{"key": "net_pnl"}]},
@@ -230,7 +283,7 @@ def test_defaults_range_last_90d():
 
 
 def test_partial_sub_objects_get_defaults():
-    out = P.validate_plan(minimal(filters=[{"field": "side", "op": "is", "values": ["long"]}],
+    out = P.validate_plan(minimal(filters=[{"field": "side", "op": "in", "values": ["long"]}],
                                   sort={"top": 5}, display={"title": "Mine"}), CAT)
     assert out["filters"][0]["overridable"] is False
     assert out["sort"] == {"measure": 0, "dir": "desc", "top": 5}
@@ -308,6 +361,7 @@ def test_fixed_range_and_leap_day():
 
 
 def test_previous_range_same_length():
+    """Trailing-day tokens and fixed ranges: the same length, immediately before."""
     r = P.resolve_range({"token": "last_90d"}, SAT)
     prev = P.previous_range(r)
     assert prev.to_day == "2026-07-26" and prev.from_day == "2026-04-28"
@@ -315,14 +369,102 @@ def test_previous_range_same_length():
     def span(x):
         return (date.fromisoformat(x.to_day) - date.fromisoformat(x.from_day)).days
     assert span(prev) == span(r) == 89
-    wk = P.previous_range(P.resolve_range({"token": "this_week"}, SAT))
-    assert (wk.from_day, wk.to_day) == ("2026-10-13", "2026-10-18")
-    day = P.previous_range(P.resolve_range({"token": "today"}, SAT))
-    assert (day.from_day, day.to_day) == ("2026-10-23", "2026-10-23")
+    seven = P.previous_range(P.resolve_range({"token": "last_7d"}, SAT))
+    assert (seven.from_day, seven.to_day) == ("2026-10-11", "2026-10-17")
+    thirty = P.previous_range(P.resolve_range({"token": "last_30d"}, SAT))
+    assert (thirty.from_day, thirty.to_day) == ("2026-08-26", "2026-09-24")
+    fixed = P.previous_range(P.resolve_range({"from": "2026-10-01", "to": "2026-10-24"}, SAT))
+    assert (fixed.from_day, fixed.to_day, fixed.label) == (
+        "2026-09-07", "2026-09-30", "Sep 7 to Sep 30, 2026")
     for tok in ("all", "last_20_trades"):
         with pytest.raises(P.PlanError) as ei:
             P.previous_range(P.resolve_range({"token": tok}, SAT))
-        assert str(ei.value) == "There's no earlier period to compare with."
+        assert str(ei.value) == P.S_NO_EARLIER
+
+
+def test_resolved_range_carries_its_token():
+    assert P.resolve_range({"token": "this_month"}, SAT).token == "this_month"
+    assert P.resolve_range({"from": "2026-10-01", "to": "2026-10-02"}, SAT).token is None
+
+
+@pytest.mark.parametrize("today,token,frm,to,label", [
+    # Saturday 2026-10-24
+    (SAT, "today", "2026-10-23", "2026-10-23", "Oct 23, 2026"),
+    (SAT, "this_week", "2026-10-12", "2026-10-17", "the week of Oct 12"),
+    (SAT, "last_week", "2026-10-05", "2026-10-11", "the week of Oct 5"),
+    (SAT, "this_month", "2026-09-01", "2026-09-24", "Sep 1 to Sep 24, 2026"),
+    (SAT, "last_month", "2026-08-01", "2026-08-31", "August 2026"),
+    (SAT, "this_quarter", "2026-07-01", "2026-07-24", "Jul 1 to Jul 24, 2026"),
+    (SAT, "last_quarter", "2026-04-01", "2026-06-30", "Q2 2026"),
+    (SAT, "ytd", "2025-01-01", "2025-10-24", "Jan 1 to Oct 24, 2025"),
+    (SAT, "last_12m", "2024-10-25", "2025-10-24", "Oct 25, 2024 to Oct 24, 2025"),
+    # Monday 'today' -> the previous Friday session
+    (date(2026, 10, 19), "today", "2026-10-16", "2026-10-16", "Oct 16, 2026"),
+    # year boundary: Monday 2026-01-05 (Jan 1 is a holiday, Jan 2 a session)
+    (date(2026, 1, 5), "today", "2026-01-02", "2026-01-02", "Jan 2, 2026"),
+    (date(2026, 1, 5), "this_week", "2025-12-29", "2025-12-29", "the week of Dec 29"),
+    (date(2026, 1, 5), "last_week", "2025-12-22", "2025-12-28", "the week of Dec 22"),
+    (date(2026, 1, 5), "this_month", "2025-12-01", "2025-12-05", "Dec 1 to Dec 5, 2025"),
+    (date(2026, 1, 5), "last_month", "2025-11-01", "2025-11-30", "November 2025"),
+    (date(2026, 1, 5), "this_quarter", "2025-10-01", "2025-10-05", "Oct 1 to Oct 5, 2025"),
+    (date(2026, 1, 5), "last_quarter", "2025-07-01", "2025-09-30", "Q3 2025"),
+    (date(2026, 1, 5), "ytd", "2025-01-01", "2025-01-05", "Jan 1 to Jan 5, 2025"),
+    (date(2026, 1, 5), "last_12m", "2024-01-06", "2025-01-05", "Jan 6, 2024 to Jan 5, 2025"),
+    # month-end clamp: Mar 31 this_month -> Feb 1..Feb 28 (a whole month)
+    (date(2026, 3, 31), "this_month", "2026-02-01", "2026-02-28", "February 2026"),
+    # Feb 29 ytd -> the year before ends Feb 28
+    (date(2028, 2, 29), "ytd", "2027-01-01", "2027-02-28", "Jan 1 to Feb 28, 2027"),
+])
+def test_previous_range_calendar_aligned(today, token, frm, to, label):
+    prev = P.previous_range(P.resolve_range({"token": token}, today))
+    assert (prev.from_day, prev.to_day, prev.last_n, prev.label) == (frm, to, None, label)
+
+
+def test_one_day_span_reads_as_one_day():
+    r = P.resolve_range({"from": "2026-01-04", "to": "2026-01-04"}, SAT)
+    assert r.label == "Jan 4, 2026"
+
+
+@pytest.mark.parametrize("flt", [
+    {"field": "r_mult", "op": "between", "values": [1, 2.5]},
+    {"field": "r_mult", "op": "between", "values": [2, 2]},
+    {"field": "exit_day", "op": "between", "values": ["2026-10-01", "2026-10-24"]},
+    {"field": "exit_day", "op": "gte", "values": ["2026-10-01"]},
+    {"field": "side", "op": "in", "values": ["long", "short"]},
+    {"field": "side", "op": "not_in", "values": ["short"]},
+    {"field": "tags", "op": "has_any", "values": ["a+", "breakout"]},
+    {"field": "ticker", "op": "contains", "values": ["NV"]},
+    {"field": "flagged", "op": "is", "values": [False]},
+    {"field": "r_mult", "op": "eq", "values": [1]},
+    {"field": "r_mult", "op": "lt", "values": [-0.5]},
+    {"field": "hour_et", "op": "in", "values": [9, 10]},
+    {"field": "venue", "op": "in", "values": ["arca"]},
+])
+def test_valid_filters_pass(flt):
+    out = P.validate_plan(minimal(filters=[dict(flt, overridable=False)]), CAT)
+    assert out["filters"][0]["values"] == flt["values"]
+
+
+def test_size_cap_applies_to_the_default_filled_plan():
+    """M-2: a raw plan just under 16,384 B that crosses it once defaults are filled."""
+    def size(p):
+        return len(json.dumps(p, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+    # 'overridable' omitted on purpose: the validator adds it to each of the 8 filters.
+    filters = [{"field": "setup", "op": "in", "values": ["x"]} for _ in range(8)]
+    raw = minimal(filters=filters)
+    target = 16_380
+    i = 0
+    while size(raw) + 203 <= target:     # each 200-char value costs 203 bytes
+        raw["filters"][i % 8]["values"].append("x" * 200)
+        i += 1
+    pad = target - size(raw) - 3
+    if pad >= 0:
+        raw["filters"][0]["values"].append("y" * pad)
+    assert 16_300 <= size(raw) <= 16_384 and P.plan_size_ok(raw)
+    assert size(raw) + 8 * len(',"overridable":false') > 16_384   # the defaults cross it
+    with pytest.raises(P.PlanError) as ei:
+        P.validate_plan(raw, CAT)
+    assert str(ei.value) == "This widget is too large to save."
 
 
 # -- summary + default name + hash -------------------------------------------

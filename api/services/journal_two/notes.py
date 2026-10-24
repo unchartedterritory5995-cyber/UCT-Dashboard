@@ -994,18 +994,9 @@ TOO_DEEP_BODY_DETAIL = (
     "open. Move part of it out a level, then try again.")
 
 
-def _json_depth_exceeds(obj: Any, cap: int) -> bool:
-    """True when `obj` nests dicts/lists more than `cap` deep (the outermost counts 1).
-    Iterative, and stops at the first level past the cap."""
-    stack = [(obj, 1)]
-    while stack:
-        x, d = stack.pop()
-        if isinstance(x, (dict, list)):
-            if d > cap:
-                return True
-            children = x.values() if isinstance(x, dict) else x
-            stack.extend((v, d + 1) for v in children if isinstance(v, (dict, list)))
-    return False
+# The helper moved to a pure module (widget plan validation uses it without the
+# notes service); re-exported here under the same name so callers are unchanged.
+from api.services.journal_two.json_depth import _json_depth_exceeds  # noqa: E402,F401
 
 
 # ⛔ THIS SENTENCE REACHES A MEMBER VERBATIM (the import wizard's "Needs attention"
