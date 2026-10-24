@@ -2510,13 +2510,18 @@ def member_drawn_for(sym: str):
     return drawn
 
 
-# ================================================================ textbook support / resistance (members: round r2)
+# ================================================================ textbook support / resistance (members: WITHDRAWN)
 #: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
 #: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
-#: constant ("r2"), so a new drawing round cannot release itself. Fail closed. Round r2 passed blind judging on two
-#: fresh packets of 25 random liquid held-out charts (A 2.52 with 96% of charts >= 2, B 2.36 with 84%; bar 2.3 and
-#: 70%) and its DEV lookahead check. Set it to None to withdraw the layer from members (admins keep it under the flag).
-MEMBER_SR_ROUND = "r2"
+#: constant, so a new drawing round cannot release itself. Fail closed.
+#: None: WITHDRAWN from members 2026-10-24 (admins keep it under AUTO_STRUCTURES_SR_ENABLED). Round r2 first passed
+#: two packets of 25 (2.52 / 2.36) on a looser rubric. The recertification on the strict Edwards & Magee / Bulkowski
+#: rubric (four pre-registered packets of 25 per round, two fresh blind judges each) failed it, 2.04 / 1.98 / 2.02 /
+#: 2.20, pooled 2.06, mostly for an important nearby level left undrawn. Both permitted fix rounds failed too: r3
+#: pooled 2.055, r4 2.56 / 2.02 / 2.24 / 2.36, pooled 2.295 (bar: every packet >= 2.3 and >= 70% of charts >= 2,
+#: pooled >= 2.4). Evidence: lab/recert/D_levels_candles. Setting this back to a round string needs a new passed
+#: blind round of that round (tests/golden_judged: sr.json is "withdrawn" until then).
+MEMBER_SR_ROUND = None
 #: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
 #: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
 SR_MIN_BARS = 261

@@ -26,6 +26,11 @@ RELEASED = [(f["family"], c) for f in FAMILIES if f["status"] == "released" for 
 #: drawing must now be ABSENT from the member chart, and the rule must still hold there (judged.retired_failures).
 RETIRED = [(f["family"], c) for f in FAMILIES if f["status"] == "released" for c in f["cases"] if "retired" in c]
 PENDING = [f for f in FAMILIES if f["status"] == "pending_port"]
+#: Families WITHDRAWN from members after a recertification failed them (member literal None, admins keep the layer).
+#: Their judged cases are still replayed, with the member literal set back to the judged round, so the code stays
+#: guarded for the day a new passed round re-releases it; and the literal itself must stay None.
+WITHDRAWN_FAMS = [f for f in FAMILIES if f["status"] == "withdrawn"]
+WITHDRAWN = [(f["family"], c) for f in WITHDRAWN_FAMS for c in f["cases"] if "retired" not in c]
 
 #: Judged cases the CURRENT master does not reproduce, each a finding with its measured cause. Kept RED-visible as
 #: strict xfails: the gate still fails the moment any OTHER case regresses, and fails here too once one of these is
@@ -64,6 +69,32 @@ def test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it(family, case, monk
     assert not bad, f"{case['id']} (judge scores {case['judge_scores']}):\n  " + "\n  ".join(bad)
 
 
+@pytest.mark.parametrize("family,case", WITHDRAWN, ids=_ids(WITHDRAWN))
+def test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set(family, case, monkeypatch):
+    from api.services import auto_structures as AS
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == family)
+    monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
+    payload, bars = MP.member_payload(monkeypatch, case)
+    bad = JG.failures(case, payload, bars)
+    assert not bad, f"{case['id']} (judge scores {case['judge_scores']}):\n  " + "\n  ".join(bad)
+
+
+def test_a_withdrawn_drawing_is_not_served_to_members(monkeypatch):
+    """A withdrawn family's member literal stays None (re-release = a new passed blind round), and with it None the
+    member chart carries none of that layer even though the same chart draws it when the round is set."""
+    from api.services import auto_structures as AS
+    assert WITHDRAWN_FAMS, "no withdrawn family: delete this test with the last one"
+    for f in WITHDRAWN_FAMS:
+        assert getattr(AS, f["member_literal"]) is None, (f["family"], getattr(AS, f["member_literal"]))
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "sr")
+    case = next(c for c in fam["cases"] if c["expect"]["zones"])
+    payload, _bars = MP.member_payload(monkeypatch, case)
+    assert "levels_sr" not in payload
+    monkeypatch.setattr(AS, "MEMBER_SR_ROUND", fam["judged_round"])     # control: the door is real
+    payload, _bars = MP.member_payload(monkeypatch, case)
+    assert payload.get("levels_sr", {}).get("zones")
+
+
 @pytest.mark.parametrize("family,case", RETIRED, ids=_ids(RETIRED))
 def test_a_retired_judged_drawing_stays_off_the_member_chart(family, case, monkeypatch):
     payload, bars = MP.member_payload(monkeypatch, case)
@@ -73,8 +104,13 @@ def test_a_retired_judged_drawing_stays_off_the_member_chart(family, case, monke
 
 # ---------------------------------------------------------------------------- the gate can fail
 def _first_green(fam, monkeypatch, need=lambda c: True):
-    """The first case of `fam` the current code reproduces (a control needs a chart that starts green)."""
-    for f, c in RELEASED:
+    """The first case of `fam` the current code reproduces (a control needs a chart that starts green). A withdrawn
+    family is replayed with its member literal set to the judged round."""
+    from api.services import auto_structures as AS
+    for wf in WITHDRAWN_FAMS:
+        if wf["family"] == fam:
+            monkeypatch.setattr(AS, wf["member_literal"], wf["judged_round"])
+    for f, c in RELEASED + WITHDRAWN:
         if f == fam and c["id"] not in KNOWN_RED and need(c):
             payload, bars = MP.member_payload(monkeypatch, c)
             if JG.failures(c, payload, bars) == []:
@@ -149,8 +185,8 @@ def test_a_textbook_line_off_the_buy_point_is_caught(monkeypatch):
 def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
-    assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook", "remount",
-            "u_and_r"} <= fams, fams
+    assert {"base", "double_bottom", "shelf", "cup", "inside_day", "textbook", "remount", "u_and_r"} <= fams, fams
+    assert "sr" in fams | {f["family"] for f in WITHDRAWN_FAMS}
     assert any("line" in c["expect"] for f, c in RELEASED if f == "textbook"), "no textbook round-2 line case"
 
 
