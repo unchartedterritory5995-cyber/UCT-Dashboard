@@ -19,7 +19,8 @@ import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTru
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { SkipLinkPortal } from '../../../components/skipLinks'
-import { getTemplate, templateWantsTicker } from '../lib/notebookTemplates'
+import { getTemplateAsync, preloadTemplates } from '../lib/templatesLoader'
+import { templateWantsTicker } from '../lib/templateWantsTicker'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
@@ -305,6 +306,8 @@ export default function NotebookTab() {
   // ⛔ Best-effort and never awaited into the render path — an instrument that
   // can break the Notebook is worse than no instrument.
   useEffect(() => { reportOptIn().catch(() => {}) }, [])
+  // Task 7.2: warm the template catalog once idle, so a template pick or deep link is usually instant.
+  useEffect(() => preloadTemplates(), [])
 
   // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
   // Trash" destination. NOT a lazy one-time initializer: NotebookTab does
@@ -1836,6 +1839,16 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
+  // Research Home's "New thesis": the catalog loads on demand (Task 7.2), so the template is awaited.
+  const createThesisNote = async () => {
+    try {
+      const tpl = await getTemplateAsync('thesis')
+      if (tpl) await handlePick(tpl)
+    } catch (e) {
+      console.warn('[notebook] the template catalog did not load; nothing was made', e)
+    }
+  }
+
   // Wave 11 lane 11D: "Trade-plan canvas" in the New note sheet -- a note whose
   // body is a board, made through the canvas's create door (`createTradeCanvasNote`
   // -> createNoteViaApi + settleNoteWrite), then the same tree bookkeeping and
@@ -1923,7 +1936,6 @@ export default function NotebookTab() {
   useEffect(() => {
     if (!newKey || noteId || creating || deepLinkRan.current) return
     deepLinkRan.current = true
-    const tpl = newKey === 'blank' ? null : getTemplate(newKey)
     const ticker = searchParams.get('ticker')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -1931,8 +1943,13 @@ export default function NotebookTab() {
       next.delete('ticker')
       return next
     }, { replace: true })
-    if (tpl) createFromTemplate(tpl, { ticker })
-    else if (newKey === 'blank') {
+    if (newKey !== 'blank') {
+      // Task 7.2: the catalog loads on demand. The params were stripped above BEFORE the await, so a
+      // slow or failed load can never loop; a key the catalog does not know still creates nothing.
+      getTemplateAsync(newKey)
+        .then((tpl) => { if (tpl) return createFromTemplate(tpl, { ticker }) })
+        .catch((e) => console.warn('[notebook] the template catalog did not load; nothing was made', e))
+    } else {
       // Same uppercase-and-trim normalization assembleTemplateContext applies
       // for the template path (templateContext.js) — kept consistent so a
       // deep-linked ticker behaves identically regardless of which "new
@@ -2332,7 +2349,7 @@ export default function NotebookTab() {
           <ResearchHome
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
-            onCreateThesis={() => handlePick(getTemplate('thesis'))}
+            onCreateThesis={createThesisNote}
             onImport={() => setImportOpen(true)}
             hasAnyNotes={hasAnyNotes}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.

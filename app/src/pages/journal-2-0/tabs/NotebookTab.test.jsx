@@ -334,6 +334,23 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.ticker).toBe('GH')
   })
 
+  it('Task 7.2: ?new=thesis (the catalog loads on demand) still creates a note titled by the thesis template', async () => {
+    renderTab('/journal/notebook?new=thesis&ticker=gh')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.tags).toEqual(['thesis'])
+    expect(lastPostBody.ticker).toBe('GH')
+    expect(lastPostBody.title).toMatch(/GH/)
+  })
+
+  it('Task 7.2: the New thesis action on Research Home awaits the catalog and creates the thesis note', async () => {
+    renderTab('/journal/notebook')
+    await screen.findByTestId('research-home')
+    lastPostBody = null
+    await act(async () => { await lastResearchHomeProps().onCreateThesis() })
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.tags).toEqual(['thesis'])
+  })
+
   it('an unknown ?new= key strips quietly without creating anything', async () => {
     renderTab('/journal/notebook?new=not-a-template')
     // give the effect a tick to run

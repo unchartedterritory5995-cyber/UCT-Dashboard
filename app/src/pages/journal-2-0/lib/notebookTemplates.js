@@ -1295,22 +1295,11 @@ function withWalkthrough(entry) {
 
 export const TEMPLATES = CATALOG.map(withWalkthrough)
 
-/** Lookup a template by its stable key. */
-/**
- * Lane KEYS3 (Q2): does this template ask for a ticker? DERIVED from the template's own title:
- * it does when a known ticker changes the title ("Investment Thesis" becomes "NVDA Thesis").
- * No second list beside the catalog. A note made from such a template with no ticker known
- * opens with focus in its Ticker field (tabs/NotebookTab.jsx).
- */
-export function templateWantsTicker(tpl) {
-  if (!tpl || typeof tpl.defaultTitle !== 'function') return false
-  try {
-    return tpl.defaultTitle({ ticker: 'ZZZZ' }) !== tpl.defaultTitle({})
-  } catch {
-    return false
-  }
-}
+// Task 7.2: `templateWantsTicker` lives in its own tiny module (the Notebook's entry code asks it
+// without loading this catalog); re-exported here so every other importer is unchanged.
+export { templateWantsTicker } from './templateWantsTicker'
 
+/** Lookup a template by its stable key. */
 export function getTemplate(key) {
   return TEMPLATES.find((t) => t.key === key) || null
 }
