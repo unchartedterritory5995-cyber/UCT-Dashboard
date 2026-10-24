@@ -617,7 +617,23 @@ def test_no_j2_notes_write(R):
         c.set_trace_callback(None)
         c.close()
     assert any("j2_routine_ticks" in s for s in seen)       # the trace saw the work
-    assert not [s for s in seen if "j2_notes" in s]
+    assert any("j2_notes" in s for s in seen)               # the used-in READ (Task 9.10) is allowed
+    # Every statement naming the notes table at all is a SELECT: a routine never writes a note.
+    assert _notes_non_reads(seen) == []
+
+
+def _notes_non_reads(seen: list[str]) -> list[str]:
+    """Statements naming j2_notes that are not a plain SELECT (a read or a JOIN is allowed)."""
+    return [s for s in seen if "j2_notes" in s and not s.lstrip().upper().startswith("SELECT")]
+
+
+def test_the_notes_write_matcher_catches_a_planted_write():
+    """Control: the matcher above can fail. A read passes; each write verb is caught."""
+    read = "SELECT n.id FROM j2_tool_uses u JOIN j2_notes n ON n.id = u.note_id"
+    assert _notes_non_reads([read]) == []
+    for w in ("INSERT INTO j2_notes (id) VALUES ('x')", "UPDATE j2_notes SET title = 'x'",
+              "  delete from j2_notes WHERE id = 'x'", "REPLACE INTO j2_notes (id) VALUES ('x')"):
+        assert _notes_non_reads([read, w]) == [w]
 
 
 # ── fix round 1 ────────────────────────────────────────────────────────────────────────────────

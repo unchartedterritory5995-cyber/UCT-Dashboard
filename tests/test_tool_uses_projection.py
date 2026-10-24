@@ -233,3 +233,178 @@ def test_my_note_naming_a_foreign_id_lists_nothing_for_me_either(conn):
     theirs = _def(conn, user_id=B)
     _note(conn, _built(theirs), user_id=A)
     assert wd.used_in_notes(A, theirs, conn=conn) == []
+
+
+# -- Task 9.10: routines and trackers -----------------------------------------------------
+
+def _tool(widget_id, key, tool_id, embed_id="e-1", **more):
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": widget_id, "embedId": embed_id, "mode": "snapshot",
+        "params": {key: tool_id, "day": "2026-11-04", **more}, "searchText": "[" + widget_id + "]"}}
+
+
+def _routine_node(rid, embed_id="e-1"):
+    return _tool("routine", "routineId", rid, embed_id)
+
+
+def _tracker_node(tid, embed_id="e-1"):
+    return _tool("tracker", "trackerId", tid, embed_id)
+
+
+def _routine(conn, user_id=A, name="Morning"):
+    from api.services.journal_two import routines as rs
+    return rs.create(user_id, name=name, items=[{"text": "Read the wire"}],
+                     schedule={"kind": "every"}, conn=conn)["id"]
+
+
+def _tracker(conn, user_id=A, name="Sleep"):
+    from api.services.journal_two import trackers as ts
+    return ts.create(user_id, name=name, kind="number", conn=conn)["id"]
+
+
+def _stores():
+    from api.services.journal_two import routines as rs, trackers as ts
+    return [("routine", rs, _routine, _routine_node, rs.get),
+            ("tracker", ts, _tracker, _tracker_node, ts.get)]
+
+
+def test_routine_and_tracker_blocks_recorded_on_save(conn):
+    rid, tid = _routine(conn), _tracker(conn)
+    n = _note(conn, _routine_node(rid, "e-1"), _tracker_node(tid, "e-2"), title="Monday")
+    assert sorted((r["kind"], r["tool_id"], r["rev"]) for r in _rows(conn, n["id"])) == sorted(
+        [("routine", rid, None), ("tracker", tid, None)])
+    for kind, store, _mk, _node, get in _stores():
+        tool = rid if kind == "routine" else tid
+        used = store.used_in_notes(A, tool, conn=conn)
+        assert [(u["noteId"], u["title"]) for u in used] == [(n["id"], "Monday")]
+        assert used[0]["updatedAt"]
+        assert get(A, tool, conn=conn)["usedIn"] == 1
+
+
+def test_a_routine_or_tracker_embed_naming_nothing_adds_nothing(conn):
+    bad = [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "routine", "params": {}}},
+        _routine_node(12345),
+        _routine_node(""),
+        _tracker_node(chr(0xD800)),
+        # the other kind's key on this kind's widget is not a use
+        _tool("routine", "trackerId", "x"), _tool("tracker", "routineId", "x"),
+    ]
+    n = _note(conn, *bad)
+    assert _rows(conn, n["id"]) == []
+
+
+def test_two_blocks_in_one_note_count_one_note(conn):
+    for kind, store, mk, node, get in _stores():
+        tool = mk(conn)
+        n = _note(conn, node(tool, "e-1"), node(tool, "e-2"), title=kind + " twice")
+        _note(conn, node(tool, "e-3"), title=kind + " once")
+        assert get(A, tool, conn=conn)["usedIn"] == 2
+        assert len(store.used_in_notes(A, tool, conn=conn)) == 2
+        assert len({r["tool_id"] for r in _rows(conn, n["id"])}) == 1
+
+
+def test_removing_block_clears_row(conn):
+    from api.services.journal_two import notes as svc
+    for kind, store, mk, node, get in _stores():
+        tool = mk(conn)
+        n = _note(conn, node(tool))
+        assert get(A, tool, conn=conn)["usedIn"] == 1
+        svc.update_note(A, n["id"], {"bodyJson": _doc({"type": "paragraph"})}, conn=conn)
+        assert _rows(conn, n["id"]) == []
+        assert get(A, tool, conn=conn)["usedIn"] == 0
+        assert store.used_in_notes(A, tool, conn=conn) == []
+
+
+def test_trashed_note_not_counted_for_routine_or_tracker(conn):
+    from api.services.journal_two import notes as svc
+    for kind, store, mk, node, get in _stores():
+        tool = mk(conn)
+        n = _note(conn, node(tool))
+        svc.delete_note(A, n["id"], conn=conn)
+        assert get(A, tool, conn=conn)["usedIn"] == 0
+        assert store.used_in_notes(A, tool, conn=conn) == []
+        svc.restore_note(A, n["id"], conn=conn)
+        assert get(A, tool, conn=conn)["usedIn"] == 1
+
+
+def test_a_sample_note_is_not_counted_for_a_routine_or_tracker(conn):
+    from api.services.journal_two import sample_marker
+    for kind, store, mk, node, get in _stores():
+        tool = mk(conn)
+        n = _note(conn, node(tool))
+        conn.execute("UPDATE j2_notes SET import_source = ? WHERE id = ?",
+                     (sample_marker.SAMPLE_SOURCE, n["id"]))
+        conn.commit()
+        assert get(A, tool, conn=conn)["usedIn"] == 0
+        assert store.used_in_notes(A, tool, conn=conn) == []
+
+
+def test_foreign_routine_id_in_my_note_not_counted_for_owner(conn):
+    for kind, store, mk, node, get in _stores():
+        theirs = mk(conn, user_id=B)
+        mine = _note(conn, node(theirs), user_id=A, title="Mine")
+        assert [r["tool_id"] for r in _rows(conn, mine["id"])] == [theirs]
+        assert get(B, theirs, conn=conn)["usedIn"] == 0
+        assert store.used_in_notes(B, theirs, conn=conn) == []
+        # I cannot list another member's tool through my own id either
+        assert store.used_in_notes(A, theirs, conn=conn) == []
+        # Control: B's own note with that tool does count for B, and only B sees it.
+        _note(conn, node(theirs), user_id=B, title="Theirs")
+        assert get(B, theirs, conn=conn)["usedIn"] == 1
+        assert [u["title"] for u in store.used_in_notes(B, theirs, conn=conn)] == ["Theirs"]
+
+
+def test_list_carries_the_same_count(conn):
+    from api.services.journal_two import routines as rs, trackers as ts
+    r1, r2 = _routine(conn, name="One"), _routine(conn, name="Two")
+    _note(conn, _routine_node(r1, "a"), _routine_node(r2, "b"))
+    _note(conn, _routine_node(r1, "c"))
+    assert {x["id"]: x["usedIn"] for x in rs.list_routines(A, conn=conn)} == {r1: 2, r2: 1}
+    t1 = _tracker(conn, name="One")
+    _note(conn, _tracker_node(t1))
+    own = {x["id"]: x["usedIn"] for x in ts.list_trackers(A, conn=conn)}
+    assert own[t1] == 1
+    assert all(v == 0 for k, v in own.items() if k != t1)
+
+
+def test_used_in_notes_of_an_unknown_id_is_empty(conn):
+    for kind, store, mk, node, get in _stores():
+        assert store.used_in_notes(A, "no-such-id", conn=conn) == []
+        assert store.used_in_notes(A, None, conn=conn) == []
+
+
+def _registry_widget_ids():
+    """The widget ids the registry declares, read by text: a top-level key written `  <id>:`
+    (two-space indent) and followed by a manifest call."""
+    import pathlib
+    import re
+    text = (pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "widgets" / "registry.js"
+            ).read_text(encoding="utf-8")
+    return set(re.findall(r"^  ([A-Za-z][A-Za-z0-9]*):\s*(?:blockManifest|snapshotManifest)\(", text, re.M))
+
+
+def test_tool_ids_match_registry():
+    from api.services.journal_two import notes
+    assert (notes._ROUTINE_ID, notes._TRACKER_ID) == ("routine", "tracker")
+    ids = _registry_widget_ids()
+    # Control: the extractor sees registered ids, so an empty answer cannot read as a pass.
+    assert notes._BUILT_WIDGET_ID in ids and "moodCheckIn" in ids
+    if not {"routine", "tracker"} & ids:
+        pytest.skip("the routine and tracker registry rows land in Tasks 9.13 and 9.14; "
+                    "this pin activates the moment either row exists")
+    assert {notes._ROUTINE_ID, notes._TRACKER_ID} <= ids
+    assert set(notes._TOOL_PARAM_KEY) == {notes._ROUTINE_ID, notes._TRACKER_ID}
+
+
+def test_a_use_row_pointing_at_another_members_note_is_not_listed(conn):
+    """The join re-checks the note's owner: a row (mine, kind, my tool) whose note is B's counts
+    for nothing, though no save can write one."""
+    for kind, store, mk, node, get in _stores():
+        tool = mk(conn)
+        theirs = _note(conn, user_id=B, title="Not mine")
+        conn.execute("INSERT INTO j2_tool_uses (user_id, note_id, kind, tool_id, rev)"
+                     " VALUES (?, ?, ?, ?, NULL)", (A, theirs["id"], kind, tool))
+        conn.commit()
+        assert get(A, tool, conn=conn)["usedIn"] == 0
+        assert store.used_in_notes(A, tool, conn=conn) == []

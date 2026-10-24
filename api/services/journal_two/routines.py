@@ -16,7 +16,8 @@ Rules this module keeps:
     ownership re-checked inside the transaction, upsert ONE row and answer the merged day, so
     two devices ticking different items of one day both survive.
   * The write window is `routine_days.write_window(today)` (ruling W9-R1).
-  * ⛔ This module contains no `j2_notes` SQL (Task 9.10 adds a read-only `used_in_notes` join).
+  * ⛔ The only `j2_notes` SQL here is the read-only `used_in_notes` join (Task 9.10), which counts
+    the member's own live, non-sample notes through `sample_marker.not_sample_sql`.
   * Recently deleted: 30 days. A member's rows deleted longer ago are hard-deleted, with their
     schedules, ticks, days and reminder claims, whenever that member lists their routines.
 
@@ -34,7 +35,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 
 from api.services import session_calendar
-from api.services.journal_two import routine_days, trading_days
+from api.services.journal_two import routine_days, sample_marker, trading_days
 from api.services.journal_two.filters import ANALYTICS_INCLUDED_SQL, _DAY
 from api.services.journal_two.notebook_widgets import _num
 from api.services.journal_two.timeutil import compute_trading_day_et
@@ -48,7 +49,7 @@ __all__ = [
     "RoutineError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_routines", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "traded_days", "set_tick", "set_skipped", "read_days",
-    "import_day_rules", "starters",
+    "import_day_rules", "starters", "used_in_notes",
 ]
 
 COUNT_CAP = 30
@@ -91,6 +92,18 @@ DEFAULT_SETTINGS: dict = {"done_share": 1.0, "strict": False, "reminder": None}
 TODAY_TOKEN = "today"
 
 _R = "j2_routines"
+
+# The member's live, non-sample notes that place one of the member's OWN routines (Task 9.10).
+# Ownership is on all three tables, as widget_definitions._USES_JOIN: `u.user_id` is the note
+# owner's, `n.user_id` re-checks it against the note, and `t.user_id` makes an id that is not
+# the member's routine count and list nothing. ⛔ The sample predicate is the one in sample_marker.
+_USES = "j2_tool_uses"
+_USES_JOIN = (
+    f" FROM {_USES} u JOIN j2_notes n ON n.id = u.note_id AND n.user_id = u.user_id"
+    f" JOIN {_R} t ON t.id = u.tool_id AND t.user_id = u.user_id"
+    f" WHERE u.user_id = ? AND u.kind = 'routine' AND n.deleted_at IS NULL"
+    " AND " + sample_marker.not_sample_sql("n")
+)
 _SCHED = "j2_routine_schedules"
 _TICKS = "j2_routine_ticks"
 _DAYS = "j2_routine_days"
@@ -415,7 +428,9 @@ def _settings(row: sqlite3.Row) -> dict:
         return dict(DEFAULT_SETTINGS)
 
 
-def _shape(c: sqlite3.Connection, row: sqlite3.Row, today: date) -> dict:
+def _shape(c: sqlite3.Connection, row: sqlite3.Row, today: date, used: int | None = None) -> dict:
+    if used is None:
+        used = _used_in_count(c, row["user_id"], row["id"])
     scheds = _schedules(c, row["user_id"], row["id"])
     out = {
         "id": row["id"],
@@ -428,12 +443,40 @@ def _shape(c: sqlite3.Connection, row: sqlite3.Row, today: date) -> dict:
         "etag": row["save_seq"],
         "createdDay": _created_day(row).isoformat(),
         "updatedAt": row["updated_at"],
-        "usedIn": 0,
+        "usedIn": used,
         "sourceTemplateKey": row["source_template_key"],
     }
     if row["deleted_at"] is not None:
         out["deletedAt"] = row["deleted_at"]
     return out
+
+
+def _used_in_count(c: sqlite3.Connection, user_id: str, rid: str) -> int:
+    return c.execute(
+        "SELECT COUNT(DISTINCT u.note_id)" + _USES_JOIN + " AND u.tool_id = ?", (user_id, rid)
+    ).fetchone()[0]
+
+
+def _used_in_counts(c: sqlite3.Connection, user_id: str) -> dict[str, int]:
+    return {r[0]: r[1] for r in c.execute(
+        "SELECT u.tool_id, COUNT(DISTINCT u.note_id)" + _USES_JOIN + " GROUP BY u.tool_id",
+        (user_id,))}
+
+
+def used_in_notes(user_id: str, rid: str, *,
+                  conn: sqlite3.Connection | None = None) -> list[dict]:
+    """`[{noteId, title, updatedAt}]`: the member's live, non-sample notes that place this
+    routine, newest first, one entry per note. Another member's note never appears, and an id
+    that is not one of the member's routines lists nothing."""
+    if not isinstance(rid, str) or not rid or not user_id:
+        return []
+    with _read(conn) as c:
+        rows = c.execute(
+            "SELECT n.id, n.title, n.updated_at" + _USES_JOIN + " AND u.tool_id = ?"
+            " GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC",
+            (user_id, rid),
+        ).fetchall()
+    return [{"noteId": r[0], "title": r[1], "updatedAt": r[2]} for r in rows]
 
 
 def _insert(c: sqlite3.Connection, user_id: str, name: str, items: list[dict], schedule: dict,
@@ -624,7 +667,8 @@ def list_routines(user_id: str, *, filter: Literal["active", "archived", "delete
     with _read(conn) as c:
         rows = c.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND {gates[filter]}"
                          " ORDER BY updated_at DESC, id DESC", (user_id,)).fetchall()
-        return [_shape(c, r, today) for r in rows]
+        used = _used_in_counts(c, user_id) if rows else {}
+        return [_shape(c, r, today, used.get(r["id"], 0)) for r in rows]
 
 
 def archive(user_id: str, rid: str, *, now: datetime | None = None,

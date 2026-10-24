@@ -31,7 +31,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 
-from api.services.journal_two import routine_days, tracker_days, trading_days
+from api.services.journal_two import routine_days, sample_marker, tracker_days, trading_days
 from api.services.journal_two.notebook_widgets import _num
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.tool_errors import ToolError
@@ -42,7 +42,7 @@ __all__ = [
     "READ_IDS_MAX", "READ_DAYS_MAX", "DAY_MIN", "DAY_AHEAD_MAX", "BUILTIN", "DEFAULT_SETTINGS",
     "TrackerError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_trackers", "archive", "unarchive", "soft_delete",
-    "undelete", "duplicate", "set_value", "read_days", "is_builtin",
+    "undelete", "duplicate", "set_value", "read_days", "is_builtin", "used_in_notes",
 ]
 
 COUNT_CAP = 30
@@ -97,6 +97,18 @@ _BUILTIN_SETTINGS: dict = {"days": "any"}
 TODAY_TOKEN = "today"
 
 _T = "j2_trackers"
+
+# The member's live, non-sample notes that place one of the member's OWN trackers (Task 9.10).
+# Ownership is on all three tables, as widget_definitions._USES_JOIN: `u.user_id` is the note
+# owner's, `n.user_id` re-checks it against the note, and `t.user_id` makes an id that is not
+# the member's tracker count and list nothing. ⛔ The sample predicate is the one in sample_marker.
+_USES = "j2_tool_uses"
+_USES_JOIN = (
+    f" FROM {_USES} u JOIN j2_notes n ON n.id = u.note_id AND n.user_id = u.user_id"
+    f" JOIN {_T} t ON t.id = u.tool_id AND t.user_id = u.user_id"
+    f" WHERE u.user_id = ? AND u.kind = 'tracker' AND n.deleted_at IS NULL"
+    " AND " + sample_marker.not_sample_sql("n")
+)
 _V = "j2_tracker_values"
 _TEMPLATE_KEY_MAX = 64
 _MISSING = object()
@@ -288,7 +300,9 @@ def _created_day(row: sqlite3.Row) -> str | None:
     return compute_trading_day_et(row["created_at"])
 
 
-def _shape(row: sqlite3.Row) -> dict:
+def _shape(row: sqlite3.Row, c: sqlite3.Connection | None = None, used: int | None = None) -> dict:
+    if used is None:
+        used = 0 if c is None else _used_in_count(c, row["user_id"], row["id"])
     out = {
         "id": row["id"],
         "name": row["name"],
@@ -299,7 +313,7 @@ def _shape(row: sqlite3.Row) -> dict:
         "deleted": row["deleted_at"] is not None,
         "etag": row["save_seq"],
         "readOnly": False,
-        "usedIn": 0,
+        "usedIn": used,
         "createdDay": _created_day(row),
         "updatedAt": row["updated_at"],
         "sourceTemplateKey": row["source_template_key"],
@@ -307,6 +321,34 @@ def _shape(row: sqlite3.Row) -> dict:
     if row["deleted_at"] is not None:
         out["deletedAt"] = row["deleted_at"]
     return out
+
+
+def _used_in_count(c: sqlite3.Connection, user_id: str, tid: str) -> int:
+    return c.execute(
+        "SELECT COUNT(DISTINCT u.note_id)" + _USES_JOIN + " AND u.tool_id = ?", (user_id, tid)
+    ).fetchone()[0]
+
+
+def _used_in_counts(c: sqlite3.Connection, user_id: str) -> dict[str, int]:
+    return {r[0]: r[1] for r in c.execute(
+        "SELECT u.tool_id, COUNT(DISTINCT u.note_id)" + _USES_JOIN + " GROUP BY u.tool_id",
+        (user_id,))}
+
+
+def used_in_notes(user_id: str, tid: str, *,
+                  conn: sqlite3.Connection | None = None) -> list[dict]:
+    """`[{noteId, title, updatedAt}]`: the member's live, non-sample notes that place this
+    tracker, newest first, one entry per note. Another member's note never appears, and an id
+    that is not one of the member's trackers lists nothing."""
+    if not isinstance(tid, str) or not tid or not user_id:
+        return []
+    with _read(conn) as c:
+        rows = c.execute(
+            "SELECT n.id, n.title, n.updated_at" + _USES_JOIN + " AND u.tool_id = ?"
+            " GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC",
+            (user_id, tid),
+        ).fetchall()
+    return [{"noteId": r[0], "title": r[1], "updatedAt": r[2]} for r in rows]
 
 
 def _builtin_shape(tid: str) -> dict:
@@ -362,13 +404,13 @@ def create(user_id: str, *, name: Any, kind: Any, unit: Any = None, settings: di
                     c.execute(f"UPDATE {_T} SET deleted_at = NULL, archived_at = NULL,"
                               " updated_at = ? WHERE id = ? AND user_id = ?",
                               (_iso(now_dt), have["id"], user_id))
-                    return _shape(_owned(c, user_id, have["id"]))
+                    return _shape(_owned(c, user_id, have["id"]), c)
             if have is not None:
-                return _shape(have)
+                return _shape(have, c)
         _check_cap(c, user_id)
         tid = _insert(c, user_id, clean_name, clean_kind, clean_unit, clean_settings,
                       _iso(now_dt), key)
-        return _shape(_owned(c, user_id, tid))
+        return _shape(_owned(c, user_id, tid), c)
 
 
 def get(user_id: str, tid: str, *, now: datetime | None = None,
@@ -379,7 +421,7 @@ def get(user_id: str, tid: str, *, now: datetime | None = None,
         return _builtin_shape(tid)
     with _read(conn) as c:
         row = _owned(c, user_id, tid)
-        return None if row is None else _shape(row)
+        return None if row is None else _shape(row, c)
 
 
 def update(user_id: str, tid: str, *, if_match: int, name: Any = None, unit: Any = _MISSING,
@@ -409,7 +451,7 @@ def update(user_id: str, tid: str, *, if_match: int, name: Any = None, unit: Any
         c.execute(f"UPDATE {_T} SET name = ?, unit = ?, settings_json = ?, updated_at = ?,"
                   " save_seq = save_seq + 1 WHERE id = ? AND user_id = ?",
                   (clean_name or row["name"], new_unit, _dump(new_settings), ts, tid, user_id))
-        return _shape(_owned(c, user_id, tid))
+        return _shape(_owned(c, user_id, tid), c)
 
 
 def _purge_old_deleted(c: sqlite3.Connection, user_id: str, now_dt: datetime) -> int:
@@ -445,7 +487,8 @@ def list_trackers(user_id: str, *, filter: Literal["active", "archived", "delete
     with _read(conn) as c:
         rows = c.execute(f"SELECT * FROM {_T} WHERE user_id = ? AND {gates[filter]}"
                          " ORDER BY updated_at DESC, id DESC", (user_id,)).fetchall()
-        own = [_shape(r) for r in rows]
+        used = _used_in_counts(c, user_id) if rows else {}
+        own = [_shape(r, c, used.get(r["id"], 0)) for r in rows]
     if filter == "active":
         return [_builtin_shape(b) for b in BUILTIN] + own
     return own
@@ -462,7 +505,7 @@ def archive(user_id: str, tid: str, *, now: datetime | None = None,
         if row["archived_at"] is None:
             c.execute(f"UPDATE {_T} SET archived_at = ?, updated_at = ? WHERE id = ? AND user_id = ?",
                       (ts, ts, tid, user_id))
-        return _shape(_owned(c, user_id, tid))
+        return _shape(_owned(c, user_id, tid), c)
 
 
 def unarchive(user_id: str, tid: str, *, now: datetime | None = None,
@@ -478,7 +521,7 @@ def unarchive(user_id: str, tid: str, *, now: datetime | None = None,
             _check_cap(c, user_id)
             c.execute(f"UPDATE {_T} SET archived_at = NULL, updated_at = ? WHERE id = ?"
                       " AND user_id = ?", (ts, tid, user_id))
-        return _shape(_owned(c, user_id, tid))
+        return _shape(_owned(c, user_id, tid), c)
 
 
 def soft_delete(user_id: str, tid: str, *, typed_name: Any, now: datetime | None = None,
@@ -513,7 +556,7 @@ def undelete(user_id: str, tid: str, *, now: datetime | None = None,
             raise NotFound()
         c.execute(f"UPDATE {_T} SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?",
                   (_iso(now_dt), tid, user_id))
-        return _shape(_owned(c, user_id, tid))
+        return _shape(_owned(c, user_id, tid), c)
 
 
 def duplicate(user_id: str, tid: str, *, now: datetime | None = None,
@@ -530,7 +573,7 @@ def duplicate(user_id: str, tid: str, *, now: datetime | None = None,
         name = (row["name"] + " copy")[:NAME_MAX]
         new_id = _insert(c, user_id, name, row["kind"], row["unit"], _settings(row),
                          _iso(now_dt), None)
-        return _shape(_owned(c, user_id, new_id))
+        return _shape(_owned(c, user_id, new_id), c)
 
 
 # ── values ─────────────────────────────────────────────────────────────────────────────────────

@@ -424,6 +424,10 @@ GUARDED = {
     "api/services/journal_two/widget_definitions.py": "a saved widget's \"used in N notes\" count and list: an "
                                                        "example note that places a widget is not a note the "
                                                        "member uses it in",
+    "api/services/journal_two/routines.py": "a routine's \"used in N notes\" count and list: an example note "
+                                             "that places a routine is not a note the member uses it in",
+    "api/services/journal_two/trackers.py": "a tracker's \"used in N notes\" count and list: an example note "
+                                             "that places a tracker is not a note the member uses it in",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.

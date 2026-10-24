@@ -102,6 +102,44 @@ def _tracker(c, **kw):
     return r.json()
 
 
+def _note_with(embeds, user_id=UID, title="Day"):
+    from api.services.journal_two import notes
+    body = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": w, "embedId": f"e-{i}", "mode": "snapshot",
+                                           "params": {key: tid, "day": TODAY}, "searchText": "[" + w + "]"}}
+        for i, (w, key, tid) in enumerate(embeds)]}
+    return notes.create_note(user_id, {"title": title, "bodyJson": body})
+
+
+def test_used_in_lists_notes():
+    from api.services.journal_two import notes
+    c = _client()
+    one, t = _routine(c), _tracker(c)
+    assert c.get(f"{RB}/{one['id']}/used-in").json() == {"notes": []}
+    assert c.get(f"{TB}/{t['id']}/used-in").json() == {"notes": []}
+    n1 = _note_with([("routine", "routineId", one["id"]), ("routine", "routineId", one["id"]),
+                     ("tracker", "trackerId", t["id"])], title="Monday")
+    n2 = _note_with([("routine", "routineId", one["id"])], title="Tuesday")
+    # another member's note naming my ids never shows up, and mine never shows for them
+    _note_with([("routine", "routineId", one["id"]), ("tracker", "trackerId", t["id"])],
+               user_id=OTHER, title="Theirs")
+    r = c.get(f"{RB}/{one['id']}/used-in")
+    assert r.status_code == 200 and "no-store" in r.headers["cache-control"]
+    got = r.json()["notes"]
+    assert {x["noteId"]: x["title"] for x in got} == {n1["id"]: "Monday", n2["id"]: "Tuesday"}
+    assert len(got) == 2, "a note that places the routine twice is listed once"
+    assert all(x["updatedAt"] for x in got)
+    assert [x["noteId"] for x in c.get(f"{TB}/{t['id']}/used-in").json()["notes"]] == [n1["id"]]
+    assert c.get(f"{RB}/{one['id']}").json()["usedIn"] == 2
+    assert c.get(f"{TB}/{t['id']}").json()["usedIn"] == 1
+    assert c.get(RB).json()["routines"][0]["usedIn"] == 2
+    # a trashed note drops out of the list
+    notes.delete_note(UID, n2["id"])
+    assert [x["noteId"] for x in c.get(f"{RB}/{one['id']}/used-in").json()["notes"]] == [n1["id"]]
+    # the other member sees none of them: my id is absent for them (the public 404)
+    assert _client({**PAID, "id": OTHER}).get(f"{RB}/{one['id']}/used-in").status_code == 404
+
+
 # -- dark, flag, paid ----------------------------------------------------------------------------
 
 def test_all_routes_404_when_w9_off(monkeypatch):

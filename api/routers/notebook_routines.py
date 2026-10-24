@@ -15,7 +15,7 @@ Routines (declared in this order, so the literal paths win over `/{rid}`):
   POST /{rid}/archive  /unarchive  /delete {typedName}  /undelete  /duplicate
   PUT  /{rid}/days/{day}/items/{item_id}   {ticked: bool}  -> the merged DayEntry
   PUT  /{rid}/days/{day}                   {skipped: bool} -> the merged DayEntry
-  GET  /{rid}/used-in           an empty list until Task 9.10
+  GET  /{rid}/used-in           the member's notes that place the routine (Task 9.10)
   GET  /{rid}/vs-pnl            day P&L on done days vs other days (Task 9.7)
 
 Trackers: the same shape without starters, import, ticks and skips, plus
@@ -339,7 +339,7 @@ def routine_used_in(rid: str, user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _read_rate(uid)
     _found(rstore.get(uid, rid))
-    return _ok({"notes": []})          # Task 9.10 fills this in
+    return _ok({"notes": _store(lambda: rstore.used_in_notes(uid, rid))})
 
 
 @routines_router.get("/{rid}/vs-pnl")
@@ -463,7 +463,7 @@ def tracker_used_in(tid: str, user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _read_rate(uid)
     _found(tstore.get(uid, tid))
-    return _ok({"notes": []})          # Task 9.10 fills this in
+    return _ok({"notes": _store(lambda: tstore.used_in_notes(uid, tid))})
 
 
 @trackers_router.get("/{tid}/vs-pnl")
