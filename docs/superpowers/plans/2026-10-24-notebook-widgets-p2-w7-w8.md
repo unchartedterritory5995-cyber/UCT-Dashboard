@@ -285,7 +285,7 @@
   - `previous_range(r: ResolvedRange) -> ResolvedRange` (same length, immediately before).
   - `summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str`, e.g. `"Net P&L, split by setup, for closed trades in the last 90 days, all accounts. 47 trades."`. `default_name(plan, catalog) -> str`, e.g. `"Net P&L by setup, last 90 days"`. These two are the ONE authority; the client shows what the server sent.
   - `plan_hash(plan: dict) -> str` (sha1 of canonical compact JSON, sorted keys).
-  - `Catalog` is defined in Task 8.5 (`sources.CATALOG`). This module takes it as a parameter, so it stays pure and imports no SQL.
+  - `class Catalog(Protocol)`, declared here: `sources: dict[str, Source-like]` (each with `fields: dict[str, Field-like]`), `measures: dict[str, Measure]`, `accents: tuple[str, ...]`, and `view_allowed(plan) -> str | None` (None, or the one-line reason the view is disabled). Task 8.5 provides `sources.CATALOG`. This module takes it as a parameter, so it stays pure and imports no SQL; this task's tests pass a small stub.
 
 - [ ] **Step 1: Write the failing tests:**
   - A parametrised `test_refuses(raw, sentence)` with one row per refusal above, each asserting the exact sentence (for example `"Pick up to 3 measures."`, `"Only one filter can be changed from the note."`, `"Top N must be between 1 and 40."`, `"The start date is after the end date."`).
@@ -323,7 +323,7 @@
   - Python-only fields (`r`, `size_quartile`, `hold_minutes`…) filter after the scan.
   - Every value is a `?` parameter. Identifiers come only from `Field.sql`.
 - `aggregate.evaluate(rows: list[dict], plan: dict, catalog) -> Result`. `Result(groups: list[Group], total: GroupValues, coverage: list[Coverage], footnotes: list[str])`. Grouping keys are compared as Python strings in a `dict`. A label is `_clip(str(key), 60)`. Sort and top N apply after grouping. `Coverage(have, total, hint)`, where `hint` is `"Add stops to see R for more trades"` when `have/total < 0.5` for a `needs=("r",)` measure.
-- `run_flagged_list(...)`: List views include flagged trades labelled `"Flagged"`. Aggregates never include them.
+- Flagged trades: `compile_scan` leaves out `ANALYTICS_INCLUDED_SQL` only for `view: list` and selects `analytics_excluded`. Each such row carries `flagged: True`, renders labelled "Flagged", and no measure ever counts it.
 
 - [ ] **Step 1: Write the failing tests** (`tests/test_widget_sources.py`, seeded sqlite through `db.ensure_schema`):
   - `test_closed_trades_net_is_pnl_minus_fees`.
@@ -350,21 +350,20 @@
 ### Task 8.6: The `builtWidget` server kind and its payload
 
 **Files:**
-- Modify: `api/services/journal_two/notebook_widgets.py` (`ACCOUNT_KINDS` `:61`, `KIND_TITLE` `:71`, `cap_payload` `:368`, `source_detail` `:2017`)
+- Modify: `api/services/journal_two/notebook_widgets.py` (`BUILT_KIND`, `cap_payload` `:368`, `source_detail` `:2017`)
 - Create: `api/services/journal_two/widget_engine/payload.py`
-- Modify: `api/routers/notebook_widgets.py` (`get_widget`: `builtWidget` answers the 404 body)
-- Modify: `tests/test_journal_styles_compose.py` (`:623`, `len(client) == 15` becomes 16 once Task 8.13 adds the client row; this task adds the server row and marks that test `xfail(strict=True)` with the reason "client row lands in Task 8.13")
+- Modify: `api/routers/notebook_widgets.py` (`get_widget`: `builtWidget` answers the 404 body before the wave lookup)
 - Test: `tests/test_built_widget_payload.py`, `tests/test_notebook_widgets_service.py`, `tests/test_notebook_widgets_router.py`
 
 **Interfaces:**
-- `ACCOUNT_KINDS` gains `"builtWidget"`. `KIND_TITLE["builtWidget"] = "Widget"`.
+- `BUILT_KIND = "builtWidget"`. The kind rows (`KIND_WAVE`, `ACCOUNT_KINDS`, `KIND_TITLE`) land with the client row in Task 8.13.
 - `cap_payload(payload, kind=None, list_key=None, trim_from="end")`. An explicit `list_key` wins over `LIST_KEY`. `trim_from="start"` drops the oldest items first. Existing callers are unchanged.
 - `source_detail("builtWidget", p)`: `"Your closed trades in the Journal."`, `"Your open positions in the Journal."` or `"Your trading days in the Journal (day P&L incl. options)."`, by `p["sourceKey"]`.
 - `payload.build_payload(*, result, plan, settings, def_id, def_rev, latest_rev, rng, scan, sample: bool, now) -> dict`. Its keys are fixed:
   - `asOf`, `source` (`broker|manual|mixed` by `notebook_widgets._origin` semantics), `sourceKey`, `view`, `title`, `summary`, `defId`, `defRev`, `latestRev`, `def` (the plan, or omitted and `defRef: {id, rev}` when over 4,096 B), `scopeLabel`, `rangeLabel`, `range`, `accountId`, `filter`, `count`, `capped`, `sample`, `notice`, `truncated`.
   - `measures`: `[{label, unit, kind, fmt}]`.
   - `value` / `compare`: `{v1,v2,v3,n1,n2,n3,s1,s2,s3,n}`, plus `compareLabel`.
-  - `rows`: `[{label, label2, v1,v2,v3, n1,n2,n3, s1,s2,s3, n}]`.
+  - `rows`: `[{label, label2, v1,v2,v3, n1,n2,n3, s1,s2,s3, n, flagged}]`. A List view's `label` is the symbol and `label2` the exit day.
   - `series`: the same row shape, ordered oldest first, one row per time bucket (a Line view splits by a time field only, so no nested series exists).
   - `points`: `[{x, y, d, r}]`, where `d` is the exit day and `r` is win, loss or be.
   - `cells`: `[{label, v1, n1, s1}]`.
@@ -384,12 +383,13 @@
   - `test_nan_in_result_is_null`.
   - `test_empty_sentence_per_source`: the exact §5.9 sentences for the three sources.
   - `test_capped_labels`.
+  - `test_last_n_trades_label_when_fewer`: `last_100_trades` for a member with 12 trades gives `count == 12` and `rangeLabel == "Last 100 trades (you have 12)"`.
   - `test_get_route_404_for_builtWidget`: with W8 on, `GET /api/j2/notebook-widgets/builtWidget` gives 404 with the same body as an unknown kind.
   - `test_cap_payload_existing_kinds_unchanged`: the existing cap tests stay green.
-- [ ] **Step 2:** Run `python -m pytest tests/test_built_widget_payload.py tests/test_notebook_widgets_service.py tests/test_notebook_widgets_router.py tests/test_journal_styles_compose.py -q`. Expected: FAIL.
+- [ ] **Step 2:** Run `python -m pytest tests/test_built_widget_payload.py tests/test_notebook_widgets_service.py tests/test_notebook_widgets_router.py -q`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run the same command. Expected: PASS (the compose test xfails strictly).
-- [ ] **Step 5:** Commit: `feat(notebook): builtWidget server kind and its fixed-key payload`.
+- [ ] **Step 4:** Run the same command. Expected: PASS.
+- [ ] **Step 5:** Commit: `feat(notebook): built widget payload with fixed keys and per-view trimming`.
 
 ### Task 8.7: Run: admission, deadline, cache and counters
 
@@ -406,7 +406,7 @@
 - `admit(user_id: str, lane: Literal["run","drill","preview","example"])`: a context manager over `_POOL.admit_inline()`, a builder semaphore, a preview semaphore (preview and example lanes) and a per-member count. Raises `EngineBusy` at once when any is full. Releases in `finally`.
 - `deadline(conn, seconds=DEADLINE_S, *, superseded: Callable[[], bool] = lambda: False)`: sets `conn.set_progress_handler(cb, 1000)` and clears it on exit. `cb` returns 1 past the deadline or when `superseded()` is true. `sqlite3.OperationalError("interrupted")` becomes `EngineTooLong` or `Superseded`.
 - `data_stamp(conn, user_id, source_key) -> str`. ⚠️ `j2_trades` has no `updated_at`, so the closed-trades stamp is `COUNT(*), MAX(rowid), TOTAL(pnl_dollar), TOTAL(fees), TOTAL(COALESCE(analytics_excluded,0)), TOTAL(LENGTH(COALESCE(setup,''))+LENGTH(COALESCE(mistake_tags,''))+LENGTH(COALESCE(emotion_tags,'')))` for the member, plus `MAX(computed_at)` of `j2_trade_excursions` and `MAX(updated_at)` of `j2_trade_adherence`. Open positions use `MAX(updated_at)` and `COUNT(*)` over `j2_positions`. Trading days use the trades stamp plus `j2_option_strategies MAX(updated_at)` and `j2_note_checkins COUNT(*), MAX(created_at)`. Known blind spot, documented in the docstring: a same-length relabel shows after the 300 s TTL at worst.
-- `run_plan(user_id: str, plan: dict, settings: dict, *, lane, def_id=None, def_rev=None, latest_rev=None, now=None, sample: bool = False) -> dict`: validate, merge settings (an overridable filter, `range`, `accountId`; a foreign `accountId` is dropped with the notice `"That account is no longer in your Journal; showing all accounts."`), compute the cache key, then `SingleFlight.run_here` on a module `SingleFlight(waiters=8, name="widget run")`, `admit`, `deadline`, scan, `aggregate.evaluate`, `payload.build_payload`. `sample=True` scans `sample_book.json` (Task 8.10) instead of the database, and is never cached across members.
+- `run_plan(user_id: str, plan: dict, settings: dict, *, lane, def_id=None, def_rev=None, latest_rev=None, now=None, sample: bool = False) -> dict`: validate, merge settings (an overridable filter, `range`, `accountId`; a foreign `accountId` is dropped with the notice `"That account is no longer in your Journal; showing all accounts."`), compute the cache key, then `SingleFlight.run_here` on a module `SingleFlight(waiters=8, name="widget run")`, `admit`, `deadline`, scan, `aggregate.evaluate`, `payload.build_payload`. `sample=True` reads the sample book instead of the database and is never cached across members; that branch's reader, `sample_rows`, lands in Task 8.10, and until then `sample=True` raises `NotImplementedError`.
 - `count_run(user_id)`: in memory, flushed with `daily_counters.take(day, [Charge("notebook_widget_runs", user_id, n, None)])` when 60 s have passed since that member's last flush. `daily_cap_reached(user_id) -> bool` = `daily_counters.value(day, …) + pending >= 1000`. Lane `run` only; a cache hit is not counted.
 - `preview_generation(user_id) -> int`: each preview increments the member's counter, and an older preview's `superseded()` sees a newer number.
 
@@ -508,6 +508,7 @@
 **Files:**
 - Create: `api/services/journal_two/widget_engine/shelf.json`, `shelf.py`, `sample_book.json`
 - Create: `tools/gen_widget_sample_book.py`
+- Modify: `api/services/journal_two/widget_engine/run.py` (`sample_rows`, `wants_sample`, `run_examples`)
 - Test: `tests/test_widget_shelf.py`, `tests/test_widget_sample_book.py`
 
 **Interfaces:**
@@ -586,37 +587,41 @@
 **Interfaces:**
 - `("widgetEmbed", "builtWidget"): "member-optin"`.
 - `EMBED_PARAM_KEYS["builtWidget"] = ("asOf","source","title","view","measures","value","compare","compareLabel","rows","series","points","cells","count","rangeLabel","capped","notice","truncated","tooLarge","empty","share")`. Never `def`, `defRef`, `defId`, `defRev`, `latestRev`, `summary`, `scopeLabel`, `filter`, `accountId`, `range`, `coverage` or `sample`.
-- `EMBED_ROW_KEYS["builtWidget"]`: `measures: ("label","unit","kind","fmt")`; `value` and `compare`: `("v1","v2","v3","n1","n2","n3","s1","s2","s3","n")`; `rows` and `series`: `("label","label2","v1","v2","v3","n1","n2","n3","s1","s2","s3","n")`; `points: ("x","y","d","r")`; `cells: ("label","v1","n1","s1")`.
+- `EMBED_ROW_KEYS["builtWidget"]`: `measures: ("label","unit","kind","fmt")`; `value` and `compare`: `("v1","v2","v3","n1","n2","n3","s1","s2","s3","n")`; `rows` and `series`: `("label","label2","v1","v2","v3","n1","n2","n3","s1","s2","s3","n","flagged")`; `points: ("x","y","d","r")`; `cells: ("label","v1","n1","s1")`.
 
 - [ ] **Step 1: Write the failing tests:**
   - `test_built_neutral_without_share` (share, publish, gallery and example modes).
   - `test_built_shown_with_share_has_no_def_summary_or_filter_values`: plant canary strings in the plan's filter values, summary and account name, and assert none appear in the output JSON.
   - `test_built_gallery_always_neutral`.
   - `test_share_string_true_is_neutral`.
-  - The existing derived id rail (every registry id has a row) is extended in Task 8.13.
+  - The vendors row lands before the registry row on purpose: `test_every_registered_widget_has_a_vendor_row` (`tests/test_public_note_payload.py`) reds a registry id without one, and nothing reds a vendors row without a registry id.
   - In `test_widget_engine_isolation.py`: a note body naming another member's `defId` reduces to the neutral line in every public mode and makes no database read (spy `get_connection`).
 - [ ] **Step 2:** Run `python -m pytest tests/test_public_note_payload.py tests/test_widget_engine_isolation.py -q`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Commit: `feat(notebook): built widgets neutral on public pages unless shared, result only`.
 
-### Task 8.13: The client kind, the refresh merge and the Change fields
+### Task 8.13: The kind rows on both sides, the refresh merge and the Change fields
 
 **Files:**
+- Modify: `api/services/journal_two/notebook_widgets.py` (`KIND_WAVE` `:42`: `"builtWidget": 8`; `ACCOUNT_KINDS` `:61`; `KIND_TITLE` `:71`: `"Widget"`)
 - Modify: `app/src/widgets/registry.js` (`builtWidget: snapshotManifest(...)` after `myEarningsReactions`)
 - Modify: `app/src/pages/journal-2-0/lib/notebookWidgets.js` (`WIDGET_KINDS` row)
 - Modify: `app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx` (`snapshotWidgetItems` `:611` skips `kind.built`)
 - Create: `app/src/pages/journal-2-0/lib/builtWidgets.js`
 - Modify: `app/src/pages/journal-2-0/components/notebook/widgets/SnapshotFrame.jsx` (`CHANGE_FIELDS` `:197`, `changeKeysOf` `:208`, `useSnapshotFrame` `:223`: refresh and change branch, `title` `:281`, `onSavePreset` `:296`)
-- Modify: `tests/test_journal_styles_compose.py` (remove the Task 8.6 xfail; `len(client) == 16`)
-- Test: `lib/builtWidgets.test.js`, `widgets/SnapshotFrame.built.test.jsx`, `src/widgets/registry.test.js`, `SlashMenu.items.test.jsx`, `tests/test_journal_styles_compose.py`, `tests/test_public_note_payload.py`
+- Create: `app/src/pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.jsx` + `.module.css`, `widgets/builtViews/{NumberView,TableView,TableAlt}.jsx` + `builtViews.module.css`
+- Modify: `app/src/pages/journal-2-0/components/notebook/widgets/snapshotEmbeds.js` (one row: `export { default as builtWidget } from './BuiltWidgetEmbed'`; `EMBED_COMPONENTS` picks it up from `WIDGET_KINDS`, `WidgetEmbedView.jsx:72`)
+- Modify: `tests/test_journal_styles_compose.py` (`:623` `len(client) == 16`; `:647` `len(rows) == 16`, `:650` `len(client) == 8`; the wave rail's count `== 16`)
+- Test: `lib/builtWidgets.test.js`, `widgets/SnapshotFrame.built.test.jsx`, `widgets/BuiltWidgetEmbed.test.jsx`, `src/widgets/registry.test.js`, `SlashMenu.items.test.jsx`, `tests/test_journal_styles_compose.py`, `tests/test_public_note_payload.py`
 
 **Interfaces:**
 - Registry: `builtWidget: snapshotManifest('Widget', 'defId defRev:n latestRev:n def:j defRef:j title summary view sourceKey measures:j value:j compare:j compareLabel rows:j series:j points:j cells:j coverage:j count:n scopeLabel rangeLabel range accountId filter:j capped:b sample:b notice truncated:n', (p, l) => \`[widget: ${p?.title || 'widget'}${_asOfDay(p)}]\`)`. Plain text never carries a number.
-- `WIDGET_KINDS` row: `{ id: 'builtWidget', wave: 8, group: 'review', title: 'Widget', built: 1, account: true, description: 'A widget you built' }`.
+- `WIDGET_KINDS` row: `{ id: 'builtWidget', wave: 8, group: 'review', title: 'Widget', built: 1, account: true, description: 'A widget you built' }`. Server: `KIND_WAVE["builtWidget"] = 8`, `"builtWidget"` in `ACCOUNT_KINDS`, `KIND_TITLE["builtWidget"] = "Widget"`, all in this commit, so the three compose rails stay green at every commit.
+- `BuiltWidgetEmbed({attrs, editable, onUpdateParams, uid})` renders through `useSnapshotFrame` + `SnapshotFrame` from `params` alone (no fetch on mount). This task draws `number` with `NumberView` and every other view with `TableView`, plus the "Show as table" toggle (`TableAlt`, an HTML `<table>` of the same rows). Task 8.14 adds the remaining views.
 - `lib/builtWidgets.js` (lazy; only `SnapshotFrame`, the builder, My tools and the `/` Mine rows import it):
   - `BUILT_KIND = 'builtWidget'`, `DEFS_URL = '/api/j2/widget-definitions'`.
-  - `postJson(path, body) -> Promise<{ok, data} | {ok:false, code, message}>`: never throws; `code: 'offline'` with no request when offline; `'unavailable'` on 404. Each `fetch` names `method: 'POST'` literally (the door rail reads methods, `lib/offline/doorEnumeration.test.js`).
+  - `postJson(path, body) -> Promise<{ok, data} | {ok:false, code, message}>`, `path` relative to `DEFS_URL` (`'/run'`, `'/drill'`…): never throws; `code: 'offline'` with no request when offline; `'unavailable'` on 404. Each `fetch` names `method: 'POST'` literally (the door rail reads methods, `lib/offline/doorEnumeration.test.js`).
   - `runBuilt(params) -> Promise<result>`: posts `{defId, defRev, def, settings: viewerSettingsOf(params)}`.
   - `builtRefreshParams(old, payload) -> params`: `{...payload, share: old.share === true}`. The server echoed every key, so nothing is copied from `old` except `share`.
   - `viewerSettingsOf(params) -> {range?, accountId?, filter?}`.
@@ -640,24 +645,23 @@
   - `no_preset_action_for_built`.
   - `slash_snapshot_items_skip_built`.
   - In `registry.test.js`: `builtWidget` is `captureOnly`, in no menu, and its plain text for fixture params is `[widget: Net P&L by setup · as of Oct 24]` with no digit from a figure.
-  - `tests/test_journal_styles_compose.py`: `len(client) == 16` and `KIND_TITLE == client`.
-- [ ] **Step 2:** Run `cd app && npx vitest run src/pages/journal-2-0/lib/builtWidgets.test.js src/pages/journal-2-0/components/notebook/widgets/SnapshotFrame src/widgets/registry.test.js src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx` and `python -m pytest tests/test_journal_styles_compose.py tests/test_public_note_payload.py -q`. Expected: FAIL.
+  - `tests/test_journal_styles_compose.py`: the three rails with the new counts.
+  - `BuiltWidgetEmbed.test.jsx`: `renders_number_and_table_from_params_without_fetch` (spy `fetch`: 0 calls), `other_views_fall_back_to_table`, `table_alt_matches_rows`.
+- [ ] **Step 2:** Run `cd app && npx vitest run src/pages/journal-2-0/lib/builtWidgets.test.js src/pages/journal-2-0/components/notebook/widgets/SnapshotFrame src/pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.test.jsx src/widgets/registry.test.js src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx` and `python -m pytest tests/test_journal_styles_compose.py tests/test_public_note_payload.py -q`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run both commands. Expected: PASS.
 - [ ] **Step 5:** Bytes: `cd app && npm run build`, then `python tools/notebook_perf_budgets.py --dist app/dist`. Expected: `VERDICT: PASS`.
-- [ ] **Step 6:** Commit: `feat(notebook): builtWidget client kind, server-echo refresh and viewer settings`.
+- [ ] **Step 6:** Commit: `feat(notebook): builtWidget kind rows, server-echo refresh, viewer settings, number and table views`.
 
-### Task 8.14: The embed, its views, drill-down and "How this is made"
+### Task 8.14: The remaining views, drill-down and "How this is made"
 
 **Files:**
-- Create: `app/src/pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.jsx` + `.module.css`
-- Create: `app/src/pages/journal-2-0/components/notebook/widgets/builtViews/{NumberView,CompareView,TableView,BarView,LineView,ScatterView,HeatView,ListView,ProgressView,TableAlt,DrillPanel,HowMadeSheet}.jsx` + `builtViews.module.css`
-- Modify: `app/src/pages/journal-2-0/components/notebook/widgets/snapshotEmbeds.js` (one row: `export { default as builtWidget } from './BuiltWidgetEmbed'`)
+- Modify: `app/src/pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.jsx` (view dispatch, ⋯ menu items)
+- Create: `app/src/pages/journal-2-0/components/notebook/widgets/builtViews/{CompareView,BarView,LineView,ScatterView,HeatView,ListView,ProgressView,DrillPanel,HowMadeSheet}.jsx`
 - Test: `widgets/BuiltWidgetEmbed.test.jsx`, `widgets/builtViews/*.test.jsx`, `src/styles/tapFloor.test.js`
 
 **Interfaces:**
-- `BuiltWidgetEmbed({attrs, editable, onUpdateParams, uid})` renders through `useSnapshotFrame` + `SnapshotFrame`, from `params` alone: no fetch on mount.
-- One view per `params.view`, each pure inline SVG (`<rect>`, `<polyline>`, `<circle>`), never a chart engine.
+- Still no fetch on mount. One view per `params.view` (Task 8.13's `TableView` fallback is removed), each pure inline SVG (`<rect>`, `<polyline>`, `<circle>`), never a chart engine.
 - Cells: a `"hide"` cell shows `"Not enough trades yet (<n>)"` (`days` for a day unit), a `"small"` cell shows a "small sample" badge, a null value shows "no data", and PF at the cap shows "5+". Every average or rate shows its count in its own unit ("from 9 of 47 trades (38 have no stop)" when `coverage.have < total`), plus the `coverage.hint` link "Add stops to see R for more trades" to `/journal/trades?seg=closed`. Compare shows "vs <compareLabel>".
 - `notice` and footnotes render under the body. An `empty` payload renders its §5.9 sentence, and for closed trades a "Log a trade" link to `/journal/trades`; never a zero or a blank chart.
 - "Show as table" toggles `TableAlt`, an HTML `<table>` of the same rows, for every chart view.
@@ -666,19 +670,19 @@
 - Heat map: each cell carries its value as text, or `+`/`−` when the cell is smaller than 32 px; negatives use a hatched `<pattern>`; the scale is a diverging blue-orange pair.
 - Grouping in the client uses `Map` only.
 - The ⋯ menu (frame header) for an editable placed widget offers:
-  - "How this is made", which opens `HowMadeSheet`: `params.summary` and an "Edit widget" button that calls `openWidgetBuilder({editor, from: {defId, getPos}})` from Task 8.15. For a `shelf:` widget the button reads "Edit a copy".
-  - "Manage…", which opens My tools (Task 8.17).
+  - "How this is made", which opens `HowMadeSheet`: `params.summary` and an "Edit widget" button that dynamically imports `widgetBuilder/openWidgetBuilder.js` (Task 8.15) and calls `openWidgetBuilder({editor, from: {defId, getPos}})`; this task's tests mock that module. For a `shelf:` widget the button reads "Edit a copy".
+  - "Manage…", which dynamically imports `myTools/openMyTools.js` (Task 8.17, mocked here) and opens it.
   - Lazily on open, `GET /{defId}`: when `rev > max(defRev, placedRev)` it shows "Updated version available", which previews the new summary beside the old and applies on click through `runBuilt({…, defRev: latestRev})`. When archived it shows "Archived widget" with Restore. When missing it shows "Running from the saved copy in this note."
 - ⛔ The archive image: while `share === true` the summary, subtitle and ⋯ controls are not rendered inside the archived body element, so filter values cannot be rasterised (`WidgetEmbedView.jsx:592`).
 
 - [ ] **Step 1: Write the failing tests:**
-  - `renders_from_params_without_fetch` (spy `fetch`: 0 calls) for each of the nine views.
+  - `renders_from_params_without_fetch` (spy `fetch`: 0 calls) for each of the seven new views.
   - `hide_cell_shows_not_enough_with_count`.
   - `small_badge_under_20`.
   - `coverage_sentence_and_add_stops_link`.
   - `pf_cap_shows_5_plus`.
   - `nan_shows_no_data_never_zero`.
-  - `table_alt_matches_rows`.
+  - `table_alt_available_for_every_chart_view`.
   - `drill_opens_on_enter_and_escape_returns_focus`.
   - `drill_absent_in_share_view`.
   - `drill_lists_40_and_more_and_flagged_label`.
@@ -693,7 +697,7 @@
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Bytes check. Expected: `VERDICT: PASS`.
-- [ ] **Step 6:** Commit: `feat(notebook): built widget embed, SVG views with table alternatives, drill-down`.
+- [ ] **Step 6:** Commit: `feat(notebook): built widget SVG views, drill-down and How this is made`.
 
 ### Task 8.15: The builder sheet
 
