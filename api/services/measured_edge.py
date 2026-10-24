@@ -13,8 +13,8 @@ MEASURED_EDGE maps a member row's `pattern_id` to its measured facts:
     holdout     bool   True only when the held-out check passed (the chip is never served without it)
     method_url  str    the in-app method page ("/methodology/measured-edge")
 
-⛔ IT STARTS EMPTY. The edges are being re-measured on current master; the list is filled from those results in a
-later commit, one reviewed entry per type. A type not listed carries nothing (no chip, no "no edge" chip).
+⛔ ONE REVIEWED ENTRY PER TYPE, from the outcome re-measurement of 2026-10-24 (one type: draw:channel). A type not
+listed carries nothing (no chip, no "no edge" chip). tests/test_measured_edge.py pins the exact list.
 
 The member payload carries `measured_edge` on a row only for a listed type (`with_badges`). A malformed entry serves
 nothing (fail closed). A bearish (caution-layer) row is never badged: there is no replay edge for any bearish type.
@@ -25,8 +25,14 @@ from __future__ import annotations
 
 import math
 
-#: pattern_id -> {lift_pp, ci, n, period, holdout, method_url}. EMPTY until the re-measured edges land.
-MEASURED_EDGE: dict = {}
+#: pattern_id -> {lift_pp, ci, n, period, holdout, method_url}. Filled from the outcome re-measurement of
+#: 2026-10-24 on current master (matched plain 20-day-high breakout baseline, dev + held-out periods). Exactly ONE
+#: type qualifies: the price channel. Every other type carries nothing.
+MEASURED_EDGE: dict = {
+    # dev n 896 + holdout n 314; held-out check passed
+    "draw:channel": {"lift_pp": 4.3, "ci": [2.3, 6.4], "n": 1210, "period": "Oct 2023 to Aug 2026",
+                     "holdout": True, "method_url": "/methodology/measured-edge"},
+}
 
 #: The in-app page that explains the replay (app route).
 METHOD_URL = "/methodology/measured-edge"

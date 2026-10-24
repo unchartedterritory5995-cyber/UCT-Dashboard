@@ -1,7 +1,7 @@
 // app/src/components/chart/measuredEdge.js — the "Measured edge" chip's text (owner decision 2, 2026-10-24).
 //
 // The server decides WHICH types carry a badge (api/services/measured_edge.py, MEASURED_EDGE, the one authority;
-// it ships EMPTY): a row has `measured_edge = {lift_pp, ci, n, period, holdout, method_url}` only for a listed
+// one reviewed entry per type): a row has `measured_edge = {lift_pp, ci, n, period, holdout, method_url}` only for a listed
 // type. This file only turns those facts into words. A row without the key shows nothing — never a "no edge" chip.
 //
 // ⛔ Words: describe history, never forecast the stock. Never "confidence", "probability" or "likely", and no

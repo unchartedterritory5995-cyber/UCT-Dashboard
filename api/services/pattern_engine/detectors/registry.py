@@ -535,7 +535,9 @@ SETUP_TAG_TEAM_SET: frozenset = frozenset({
 #: textbook rubric they failed the round as served and both fix rounds (gap support 0.92 -> 2.27 -> 2.14, trendline
 #: break 1.12 -> 1.86 -> 2.40 with a half under 2.3; pass = pooled 2.4, 70% >= 2, both halves >= 2.3). Admins keep
 #: them. Every other member tag must also meet its textbook check (pattern_engine.tag_textbook).
-SETUP_TAG_MEMBER_WITHHELD: frozenset = frozenset({"uct_gap_support", "uct_trendline_break"})
+#: The flag (uct_flag_htf) is WITHHELD from members since 2026-10-24: its outcome verdict is NEGATIVE (outcome replay
+#: 2026-10-24, against a matched plain breakout), and a buy setup that trails a plain breakout misleads. Admins keep it.
+SETUP_TAG_MEMBER_WITHHELD: frozenset = frozenset({"uct_gap_support", "uct_trendline_break", "uct_flag_htf"})
 SETUP_TAG_MEMBER_SET: frozenset = SETUP_TAG_TEAM_SET - SETUP_TAG_MEMBER_WITHHELD
 SETUP_TAG_MEMBER_DIRECTIONS: frozenset = frozenset({"bullish"})
 SETUP_TAG_DIRECTIONLESS: frozenset = frozenset({"nr7"})

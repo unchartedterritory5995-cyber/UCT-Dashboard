@@ -36,6 +36,18 @@ LITERALS = {
 }
 
 
+#: Withheld from members by an outcome verdict (literal None in source; railed by
+#: tests/test_negative_outcome_withheld.py). This module tests the mechanism a released round-2 drawing runs
+#: through, so the autouse fixture below sets each back to its round in memory.
+OUTCOME_WITHHELD = {"MEMBER_DARVAS_BOX_ROUND": 2}
+
+
+@pytest.fixture(autouse=True)
+def outcome_withheld_released(monkeypatch):
+    for name, rnd in OUTCOME_WITHHELD.items():
+        monkeypatch.setattr(AS, name, rnd)
+
+
 def _series():
     with open(FIXTURE, encoding="utf-8") as fh:
         return json.load(fh)["series"]
@@ -61,7 +73,18 @@ def _real_rows():
     return out
 
 
-ROWS = _real_rows()
+def _rows_released():
+    saved = {n: getattr(AS, n) for n in OUTCOME_WITHHELD}
+    try:
+        for n, rnd in OUTCOME_WITHHELD.items():
+            setattr(AS, n, rnd)
+        return _real_rows()
+    finally:
+        for n, v in saved.items():
+            setattr(AS, n, v)
+
+
+ROWS = _rows_released()
 
 
 def test_the_fixture_yields_a_real_row_for_every_setup():
@@ -74,7 +97,8 @@ def test_the_member_round_literals_are_written_in_source():
     for name in LITERALS:
         lits = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
                 and any(getattr(t, "id", None) == name for t in n.targets)]
-        assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == 2, name
+        want = None if name in OUTCOME_WITHHELD else 2
+        assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == want, name
     assert M.R2_DRAW_ROUND == 2
 
 

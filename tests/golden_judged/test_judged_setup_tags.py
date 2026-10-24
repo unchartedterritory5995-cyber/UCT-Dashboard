@@ -27,7 +27,13 @@ from tests.golden_judged import member_path as MP
 
 DOC = MP.load_family(os.path.join(MP.HERE, "fixtures_labels", "setup_tags.json.gz"))
 CASES = DOC["cases"]
-GOLDEN = [c for c in CASES if "expect" in c]
+#: Tags that passed their blind round but are WITHHELD from members by a NEGATIVE outcome verdict (outcome replay
+#: 2026-10-24, against a matched plain breakout): registry.SETUP_TAG_MEMBER_WITHHELD holds them. Their judged cases
+#: are replayed with the tag put back in the member set, so the code stays guarded for a re-release.
+OUTCOME_WITHHELD = {"uct_flag_htf"}
+JUDGED = [c for c in CASES if "expect" in c]
+GOLDEN = [c for c in JUDGED if c["expect"]["setup"] not in OUTCOME_WITHHELD]
+WITHHELD_CASES = [c for c in JUDGED if c["expect"]["setup"] in OUTCOME_WITHHELD]
 
 
 def served(case):
@@ -43,6 +49,22 @@ def test_a_judged_tag_is_still_served_to_members(case):
     want = (case["expect"]["setup"], MP.ymd(case, case["expect"]["day"]))
     got = served(case)
     assert want in got, f"{case['id']} (judge scores {case['judge_scores']}): judged {want}, members now get {got}"
+
+
+@pytest.mark.parametrize("case", WITHHELD_CASES, ids=[c["id"] for c in WITHHELD_CASES])
+def test_a_withheld_judged_tag_is_not_served_and_comes_back_when_re_enabled(case, monkeypatch):
+    from api.services.pattern_engine.detectors import registry as reg
+    want = (case["expect"]["setup"], MP.ymd(case, case["expect"]["day"]))
+    assert want not in served(case), f"{case['id']}: a withheld tag reached members"
+    monkeypatch.setattr(reg, "SETUP_TAG_MEMBER_SET", reg.SETUP_TAG_MEMBER_SET | OUTCOME_WITHHELD)   # re-enable
+    assert want in served(case), f"{case['id']}: re-enabled, the judged tag is still not served"
+
+
+def test_the_outcome_withheld_tags_are_in_the_withheld_set():
+    from api.services.pattern_engine.detectors import registry as reg
+    assert WITHHELD_CASES, "no judged case for a withheld tag: the replay control cannot run"
+    assert OUTCOME_WITHHELD <= set(reg.SETUP_TAG_MEMBER_WITHHELD)
+    assert not OUTCOME_WITHHELD & set(reg.SETUP_TAG_MEMBER_SET)
 
 
 def test_the_textbook_checks_agree_with_the_lab_on_every_judged_detection():
@@ -85,9 +107,10 @@ def test_the_fixtures_cover_every_member_tag_and_both_verdicts():
     from api.services.pattern_engine import tag_textbook as TT
     from api.services.pattern_engine.detectors import registry as reg
     per = {}
-    for c in GOLDEN:
+    for c in JUDGED:
         per[c["expect"]["setup"]] = per.get(c["expect"]["setup"], 0) + 1
-    assert set(per) == set(reg.SETUP_TAG_MEMBER_SET), sorted(set(reg.SETUP_TAG_MEMBER_SET) ^ set(per))
+    want = set(reg.SETUP_TAG_MEMBER_SET) | OUTCOME_WITHHELD
+    assert set(per) == want, sorted(want ^ set(per))
     assert len(GOLDEN) >= 100 and min(per.values()) >= 4, per
     par = [(p["setup"], p["keep"]) for c in CASES for p in c["parity"]]
     assert {s for s, _ in par} == set(TT.CHECKS)
