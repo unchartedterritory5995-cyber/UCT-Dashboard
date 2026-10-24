@@ -8,9 +8,12 @@ and keeps the rows the cell stands for:
 * `{}`                 -- every row the widget read;
 * `{label}`            -- the split's group whose label is `label` (`aggregate` labels a group
                           `_clip(str(key), 60)`, so a long or hostile member text is found by its clipped
-                          label); with no split, the list label (the symbol, or the day);
+                          label); with no split, the list label (the symbol, or the day).
+                          Two keys whose first 59 characters agree clip to the same label, so they
+                          share one bar AND one drill: the drill lists the rows of both;
 * `{label, label2}`    -- a two-way split's cell (the `then` field's label too);
-* `{d, x, y}`          -- a scatter point: the trade on day `d` whose two measures are `x` and `y`.
+* `{d, x, y}`          -- a scatter point: the trade on day `d` whose two measures are `x` and `y`,
+                          among the non-flagged trades only (the rows the plot drew).
 
 Rules it keeps:
 
@@ -23,7 +26,8 @@ Rules it keeps:
 * At most `MAX_ROWS` rows, newest first, plus `more` (how many were left out).
 * `live` is True when `snapshot_count` was given and the live count differs from it; `note` then says
   "Live data; the snapshot was taken on <Mon D>" (the day from `snapshot_at`, else the sentence without
-  a day).
+  a day). A foreign or deleted `accountId` reads all accounts and `note` leads with
+  `run.S_ACCOUNT_GONE`, as `/run` says it; both sentences are joined with a space.
 * It runs under `run.admit(user_id, "drill")` and `run.deadline(conn)`: a full gate is `EngineBusy`, a
   slow read `EngineTooLong`. It is never cached and never counted against the daily run cap (the router
   counts it against the per-minute `notebook-widgets` scope).
@@ -106,6 +110,8 @@ def _matches(row: dict, plan: dict, src: Any, cell: dict) -> bool:
     if not cell:
         return True
     if "d" in cell:
+        if row.get("flagged"):
+            return False                                   # the scatter never drew a flagged trade
         if str(row.get("day") or "")[:10] != cell["d"][:10]:
             return False
         cells = [wmeasures.evaluate(wsources.CATALOG.measures[m["key"]], src.key, [row]).value
@@ -212,9 +218,12 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
     out_rows = [shape(r) for r in hits[:MAX_ROWS]]
     live = isinstance(snapshot_count, int) and not isinstance(snapshot_count, bool) \
         and snapshot_count != count
-    note = None
+    notes: list[str] = []
+    if requested and not acc:
+        notes.append(wrun.S_ACCOUNT_GONE)                  # as /run says it (fix round 1, M4)
     if live:
         day = _mon_d(snapshot_at) if snapshot_at else None
-        note = NOTE_LIVE.format(day=day) if day else NOTE_LIVE_NO_DAY
+        notes.append(NOTE_LIVE.format(day=day) if day else NOTE_LIVE_NO_DAY)
+    note = " ".join(notes) or None
     return {"rows": out_rows, "more": max(0, len(hits) - MAX_ROWS), "count": count,
             "live": live, "note": note}

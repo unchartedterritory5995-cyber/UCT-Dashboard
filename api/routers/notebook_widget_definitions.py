@@ -45,6 +45,7 @@ from api.services import auth_db
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import widget_definitions as wdefs
+from api.services.journal_two.json_depth import _json_depth_exceeds
 from api.services.journal_two.widget_engine import drill as wdrill
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run as wrun
@@ -54,6 +55,8 @@ from api.services.journal_two.widget_engine.plan import PlanError, PlanTooNew
 
 WAVE = 8
 MAX_BODY = 32 * 1024
+#: A body nesting deeper than this is refused before anything copies or walks it (fix round 1, I-1).
+MAX_BODY_DEPTH = 32
 
 RUN_RATE = "60/minute"
 SCOPE_RUN = "notebook-widgets"
@@ -67,7 +70,8 @@ S_FROZEN = "Running from the saved copy in this note."
 S_SUPERSEDED = "A newer preview replaced this one."
 S_BODY_TOO_LARGE = "That is too much to send at once."
 S_UNREADABLE_BODY = "That request couldn't be read."
-S_NEED_IF_MATCH = "Reload this widget, then save again."
+#: Ruling R-27: a missing If-Match is a 428 the client treats as a conflict.
+S_NEED_IF_MATCH = "Reload to see the newer version."
 S_NO_WIDGET = "That widget isn't available."
 S_VOCAB_FIELD = "That field isn't available here."
 
@@ -115,24 +119,35 @@ def _uid(user: dict) -> str:
 
 
 async def json_body(request: Request) -> dict:
-    """The request body as a JSON object, at most `MAX_BODY` bytes (413 `invalid` over it)."""
+    """The request body as a JSON object: at most `MAX_BODY` bytes (413 `invalid` over it) and at
+    most `MAX_BODY_DEPTH` levels of nesting (400 `invalid`, as is a body the parser recurses out on).
+
+    With no Content-Length (a chunked body) the stream is read only up to `MAX_BODY` + 1 bytes."""
     declared = request.headers.get("content-length")
     if declared is not None:
         try:
-            if int(declared) > MAX_BODY:
-                raise _err(413, "invalid", S_BODY_TOO_LARGE)
+            too_big = int(declared) > MAX_BODY
         except ValueError:
             raise _err(400, "invalid", S_UNREADABLE_BODY)
-    raw = await request.body()
+        if too_big:
+            raise _err(413, "invalid", S_BODY_TOO_LARGE)
+        raw = await request.body()
+    else:
+        buf = bytearray()
+        async for chunk in request.stream():
+            buf.extend(chunk)
+            if len(buf) > MAX_BODY:
+                break
+        raw = bytes(buf)
     if len(raw) > MAX_BODY:
         raise _err(413, "invalid", S_BODY_TOO_LARGE)
     if not raw.strip():
         return {}
     try:
         body = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):
         raise _err(400, "invalid", S_UNREADABLE_BODY)
-    if not isinstance(body, dict):
+    if not isinstance(body, dict) or _json_depth_exceeds(body, MAX_BODY_DEPTH):
         raise _err(400, "invalid", S_UNREADABLE_BODY)
     return body
 
@@ -178,7 +193,7 @@ def _if_match(request: Request) -> int:
     """The If-Match header as the widget's etag. Missing: 428; not a number: a stale tab (409)."""
     raw = request.headers.get("if-match")
     if raw is None or not raw.strip():
-        raise _err(428, "invalid", S_NEED_IF_MATCH)
+        raise _err(428, "conflict", S_NEED_IF_MATCH)
     v = raw.strip()
     if v.startswith("W/"):
         v = v[2:]

@@ -287,7 +287,8 @@ def test_put_requires_if_match_and_409_on_stale(conn):
     c = _client()
     url = f"{BASE}/{saved['id']}"
     r = c.put(url, json={"name": "New", "apply": "only"})
-    assert r.status_code == 428 and _code(r) == "invalid"
+    assert r.status_code == 428 and r.json()["detail"] == {
+        "code": "conflict", "message": "Reload to see the newer version."}         # ruling R-27
     r = c.put(url, json={"name": "New", "apply": "only"}, headers={"If-Match": str(saved["etag"] + 5)})
     assert r.status_code == 409 and r.json()["detail"] == {
         "code": "conflict", "message": "Changed in another tab. Reload to see the newer version."}
@@ -297,7 +298,8 @@ def test_put_requires_if_match_and_409_on_stale(conn):
     stale = c.put(url, json={"name": "Again", "apply": "only"}, headers={"If-Match": str(saved["etag"])})
     assert stale.status_code == 409 and _code(stale) == "conflict"
     # restore takes If-Match too
-    assert c.post(f"{url}/revs/1/restore").status_code == 428
+    r = c.post(f"{url}/revs/1/restore")
+    assert r.status_code == 428 and _code(r) == "conflict"
     assert _code(c.post(f"{url}/revs/1/restore", headers={"If-Match": "0"})) == "conflict"
     rest = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(ok.json()["etag"])})
     assert rest.status_code == 200 and rest.json()["rev"] > ok.json()["rev"]
@@ -349,10 +351,15 @@ def test_bodies_over_32kb_refused(conn):
     big = {"def": raw_plan(), "pad": "x" * (wdr.MAX_BODY + 10)}
     r = _client().post(BASE + "/run", json=big)
     assert r.status_code == 413 and _code(r) == "invalid"
-    # a body sent with no declared length is measured too
+    # a chunked body (no declared length) is read only up to the cap, then refused
     data = json.dumps(big).encode()
-    r = _client().post(BASE + "/run", content=iter([data]), headers={"content-type": "application/json"})
+    chunks = [data[i:i + 4096] for i in range(0, len(data), 4096)]
+    def gen():
+        yield from chunks
+
+    r = _client().post(BASE + "/run", content=gen(), headers={"content-type": "application/json"})
     assert r.status_code == 413 and _code(r) == "invalid"
+    assert "content-length" not in {k.lower() for k in r.request.headers}
     assert _client().post(BASE + "/run", json={"def": raw_plan()}).status_code == 200
 
 
@@ -412,3 +419,31 @@ def test_402_sentence_is_distinct_from_the_phase1_router():
                     for kw in n.keywords if kw.arg == "detail" and isinstance(kw.value, ast.Constant)]
     assert details == ["Built widgets require a paid plan", "Notebook widgets require a paid plan"]
     assert re.fullmatch(r"[A-Z][a-z ]+ plan", details[0])
+
+
+
+@pytest.mark.parametrize("path", ["/preview", "/run", "/drill"])
+def test_deep_bodies_are_400_never_500(conn, path):
+    c = _client(); c.raise_server_exceptions = False
+    flat = "[" * 30000
+    r = c.post(BASE + path, content=flat.encode(), headers={"content-type": "application/json"})
+    assert r.status_code == 400 and r.json()["detail"] == {"code": "invalid",
+                                                           "message": wdr.S_UNREADABLE_BODY}
+    for key in ("plan", "def"):
+        body = ('{"' + key + '":' + '{"a":' * 5000 + '{}' + '}' * 5000 + '}').encode()
+        assert len(body) < wdr.MAX_BODY
+        r = c.post(BASE + path, content=body, headers={"content-type": "application/json"})
+        assert r.status_code == 400 and _code(r) == "invalid", (path, key)
+
+
+def test_depth_cap_is_at_the_limit_not_below(conn):
+    """A body exactly MAX_BODY_DEPTH deep is read; one level more is refused."""
+    def nest(n):
+        return '{"x": ' * (n - 1) + '{}' + '}' * (n - 1)
+    c = _client()
+    ok = c.post(BASE + "/examples", content=('{"ids": [], "pad": ' + nest(wdr.MAX_BODY_DEPTH - 1) + '}').encode(),
+                headers={"content-type": "application/json"})
+    assert ok.status_code == 200
+    bad = c.post(BASE + "/examples", content=('{"ids": [], "pad": ' + nest(wdr.MAX_BODY_DEPTH) + '}').encode(),
+                 headers={"content-type": "application/json"})
+    assert bad.status_code == 400 and _code(bad) == "invalid"

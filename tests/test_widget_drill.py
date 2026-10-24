@@ -119,6 +119,11 @@ def test_foreign_account_is_treated_as_all_accounts(conn):
     add_trade(conn, OTHER, day="2026-10-20", symbol="THEIRS")
     out = _drill(raw_plan(), settings={"accountId": "not-mine"})
     assert [r["symbol"] for r in out["rows"]] == ["MINE"]
+    assert out["note"] == run.S_ACCOUNT_GONE
+    both = _drill(raw_plan(), settings={"accountId": "not-mine"}, snapshot_count=9,
+                  snapshot_at="2026-10-20")
+    assert both["note"] == run.S_ACCOUNT_GONE + " Live data; the snapshot was taken on Oct 20"
+    assert _drill(raw_plan())["note"] is None
 
 
 def test_live_note_when_count_differs(conn):
@@ -168,3 +173,11 @@ def test_bad_cell_is_a_sentence(conn, cell):
     with pytest.raises(PlanError) as e:
         _drill(raw_plan(), cell)
     assert e.value.sentence == wdrill.S_BAD_CELL
+
+
+def test_scatter_point_never_matches_a_flagged_trade(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="P1")
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="FLG", excluded=1)
+    plan = raw_plan(measures=("net_pnl", "total_r"), view={"type": "scatter"})
+    out = _drill(plan, {"d": "2026-10-20", "x": 100.0, "y": 2.0})
+    assert [r["symbol"] for r in out["rows"]] == ["P1"] and out["count"] == 1
