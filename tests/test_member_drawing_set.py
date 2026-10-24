@@ -311,11 +311,13 @@ def test_a_stale_or_unconfirmed_bull_flag_is_never_served_to_a_member(monkeypatc
     assert {"r14", "r15", "r16"} <= set(admin_ids)
 
 
-def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_as_flagging(monkeypatch):
+def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_does_not(monkeypatch):
     """End to end through the REAL display.draw_geometry (the round-9 test fixtures): a flag every
     verdict passes is stamped with the round and served as confirmed; a short-pole flag is stale,
-    never stamped with the round, and reaches a member ONLY through its "flagging" stamp -- the same
-    row with that stamp removed is dropped (test_flag_tiers.py covers the tier itself)."""
+    never stamped with the round, and carries only the "flagging" stamp. Flagging tier withheld from
+    members 2026-10-24 (blind textbook score 1.28): the member gets the confirmed flag only; the admin
+    gets all three. Control: the one-literal re-enable (MEMBER_FLAGGING_ROUND = 9) serves the flagging
+    row again and still drops the unstamped one (test_flag_tiers.py covers the tier itself)."""
     good, _ = _drawn(*_flag_after(TALL_LEG))
     bad, _ = _drawn(*_flag_after(SHORT_LEG))
     assert not good.get("stale") and good["draw_round"] == CONFIRMED_ROUND
@@ -329,11 +331,15 @@ def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
-    assert [r["id"] for r in body["detections"]] == ["g", "b"]
+    assert [r["id"] for r in body["detections"]] == ["g"]
     assert body["detections"][0]["geometry"]["extras"]["draw_pole"] == good["draw_pole"]
-    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
     admin = _get(ADMIN).json()
     assert [r["id"] for r in admin["detections"]] == ["g", "b", "u"]
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", 9)      # control: the re-enable
+    body = _get(PAID_MEMBER).json()
+    assert [r["id"] for r in body["detections"]] == ["g", "b"]
+    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
+    assert [r["id"] for r in _get(ADMIN).json()["detections"]] == ["g", "b", "u"]
 
 
 def test_a_flag_drawn_by_a_newer_round_is_not_served_until_confirmed(monkeypatch):
