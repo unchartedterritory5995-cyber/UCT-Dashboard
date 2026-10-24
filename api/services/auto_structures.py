@@ -2856,8 +2856,15 @@ _SETUP_DRAW_FUNCS = (
 #: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%); owner
 #: released 2026-10-24: its literal is 1 and its id is in DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET. Withdrawing it is
 #: one literal: set it to None (or take the id out of either registry set) and member_rows drops it.
-MEMBER_REMOUNT_ROUND = 3
-MEMBER_U_AND_R_ROUND = 2
+#: WITHDRAWN 2026-10-24 (remount and u_and_r: None). Recertification C re-judged both on the strict textbook rubric
+#: (four pre-registered packets of 25 random liquid charts 2023-06..2026-10, two fresh blind judges each; bar: every
+#: packet mean >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). remount round 3: 2.04 / 1.96 / 2.02 / 1.80, pooled
+#: 1.96 (chop lines, marginal or light-volume reclaims, brief losses); its fix round (lab textbook gate) 2.06 / 2.14 /
+#: 2.40 / 1.96, pooled 2.14. u_and_r round 2: 1.96 / 2.06 / 1.92 / 1.76, pooled 1.93 (marginal reclaims, lower-high
+#: downtrends); a fix round could not field 100 eligible held-out charts. Evidence: lab/recert/C_setups. The ids stay
+#: in both registry sets (the team chart keeps them); setting a literal back needs a new passed blind round.
+MEMBER_REMOUNT_ROUND = None
+MEMBER_U_AND_R_ROUND = None
 MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
 #: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
