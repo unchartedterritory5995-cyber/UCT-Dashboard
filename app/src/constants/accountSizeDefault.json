@@ -1,3 +1,4 @@
 {
-  "unsetAccountSize": 100000
+  "unsetAccountSize": 100000,
+  "defaultSizeSentence": "No account size on file — these numbers use a default account size ($100,000), not your real one"
 }

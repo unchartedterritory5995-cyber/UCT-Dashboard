@@ -6,11 +6,14 @@ import DefaultSizeMarker from './DefaultSizeMarker'
 
 // Round B fix 2, finding 9: a surface computing on the default size says so.
 describe('DefaultSizeMarker', () => {
-  it("shows 'Default size' with the Portfolio Risk page's sentence when the size is the default", () => {
+  it("shows 'Default size' with the server's sentence (the pinned client copy) when the size is the default", () => {
     render(<DefaultSizeMarker settings={{ accountSize: 100000, accountSizeIsDefault: true }} />)
     const el = screen.getByText('Default size')
-    expect(el.getAttribute('title')).toBe(
-      'No account size on file — these numbers use a default account size, not your real one.')
+    // DEFAULTS.defaultSizeSentence is pinned to voice_position_sizing.default_size_sentence() by
+    // tests/test_account_size_authority.py; the marker restates nothing (R2-3).
+    const DEFAULTS = JSON.parse(readFileSync(resolve(__dirname, '../../constants/accountSizeDefault.json'), 'utf8'))
+    expect(el.getAttribute('title')).toBe(DEFAULTS.defaultSizeSentence)
+    expect(DEFAULTS.defaultSizeSentence).toContain('($100,000)')
   })
   it("renders nothing for the member's own size or a payload without the answer", () => {
     const { container } = render(<>

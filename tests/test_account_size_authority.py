@@ -217,3 +217,15 @@ def test_the_client_unset_size_is_the_servers():
     from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
     path = REPO / "app" / "src" / "constants" / "accountSizeDefault.json"
     assert json.loads(path.read_text(encoding="utf-8"))["unsetAccountSize"] == UNSET_ACCOUNT_SIZE
+
+
+def test_the_client_default_size_sentence_is_the_servers():
+    """R2-3: the client's one copy of the default-size sentence (DefaultSizeMarker's hover text, the
+    Portfolio Risk notice) lives in accountSizeDefault.json and must equal
+    voice_position_sizing.default_size_sentence(); no component restates it."""
+    import json
+    from api.services.voice_position_sizing import default_size_sentence
+    path = REPO / "app" / "src" / "constants" / "accountSizeDefault.json"
+    assert json.loads(path.read_text(encoding="utf-8"))["defaultSizeSentence"] == default_size_sentence()
+    for rel in ("app/src/components/account/DefaultSizeMarker.jsx", "app/src/pages/PortfolioHeat.jsx"):
+        assert "No account size on file" not in (REPO / rel).read_text(encoding="utf-8"), rel
