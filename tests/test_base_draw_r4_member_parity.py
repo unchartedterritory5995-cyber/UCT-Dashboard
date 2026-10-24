@@ -51,6 +51,12 @@ def round_two_members(monkeypatch):
 
 
 @pytest.fixture
+def round_four_members(monkeypatch):
+    """The rollback state from round 5: the member literal moved back to 4, in memory only."""
+    monkeypatch.setattr(auto_structures, "MEMBER_BASE_ROUND", 4)
+
+
+@pytest.fixture
 def complete_sessions(monkeypatch):
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
 
@@ -64,7 +70,7 @@ def test_the_golden_is_from_round_two_and_is_not_vacuous():
 
 
 def test_a_rollback_to_round_two_serves_byte_for_byte_the_round_two_view(round_two_members):
-    assert auto_structures.MEMBER_BASE_ROUND == 2 and base_draw.BASE_DRAW_ROUND == 4
+    assert auto_structures.MEMBER_BASE_ROUND == 2 and base_draw.BASE_DRAW_ROUND == 5
     got, counts = SW.run(auto_structures)
     assert set(got) == set(GOLDEN["digests"])
     bad = sorted(k for k, d in GOLDEN["digests"].items() if got[k] != d)
@@ -87,19 +93,22 @@ def test_on_real_bars_a_rollback_to_round_two_serves_the_round_two_row_byte_for_
             drew2 += 1
         elif d4 is not None:
             only4 += 1
-            # the admin sees round 4's drawing; the member sees nothing
-            assert row["geometry"]["extras"] == {"draw_base": d4, "draw_round": 4,
+            # the admin sees round 5's drawing (round 4's, unless the floor refuses it); the member sees nothing
+            if base_draw.floor_refuses(b, len(b) - 1, d4):
+                assert row is None and served == [], c["id"]
+                continue
+            assert row["geometry"]["extras"] == {"draw_base": d4, "draw_round": 5,
                                                  "draw_member": {"round": 2, "draw_base": None}}
             assert auto_structures.admin_base_rows([row]) == [row] and served == []
     assert drew2 >= 100 and only4 >= 80, (drew2, only4)
 
 
 def test_on_real_bars_members_get_round_two_wherever_it_draws_and_round_four_where_it_does_not(
-        complete_sessions):
-    """At literal 4. Wherever round 2 draws, the member view (metrics included) is the round-2 code's row with
-    ONLY the round stamp moved (2 -> 4); where only round 4 draws, it is round 4's drawing with the lab's own
-    metrics; where neither draws, nothing."""
-    assert auto_structures.MEMBER_BASE_ROUND == 4
+        round_four_members, complete_sessions):
+    """At literal 4 (a rollback from round 5, carried by the round-5 rows). Wherever round 2 draws, the member
+    view (metrics included) is the round-2 code's row with ONLY the round stamp moved (2 -> 4); where only round 4
+    draws, it is round 4's drawing with the lab's own metrics; where neither draws, nothing."""
+    assert auto_structures.MEMBER_BASE_ROUND == 4 and base_draw.BASE_DRAW_ROUND == 5
     same = new = none = 0
     for c in cases():
         b = _bars(c)
@@ -138,4 +147,4 @@ def test_nothing_a_member_renders_reads_the_round_stamp():
 
 
 def test_the_carrier_pairs_are_exactly_the_known_ones():
-    assert auto_structures._BASE_CARRIERS == frozenset({(1, 2), (1, 4), (2, 4)})
+    assert auto_structures._BASE_CARRIERS == frozenset({(1, 2), (1, 4), (2, 4), (1, 5), (2, 5), (4, 5)})

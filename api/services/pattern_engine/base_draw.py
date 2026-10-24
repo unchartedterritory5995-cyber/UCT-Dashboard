@@ -45,6 +45,20 @@ Two drawing rounds live here, chosen by `draw_round`:
     where round 2 draws (25 of 25 identical). Parity-railed against the lab rule in
     tests/test_base_draw_round4.py. Round 3 (a shelf under a higher peak) failed held-out and is
     not drawable here; the number is not reused.
+  * ROUND 5 (BASE_DRAW_ROUND) -- the depth-floor lab round, "not a dead range". A REMOVAL-ONLY guard: round 4's
+    drawing UNCHANGED, or nothing where `floor_refuses` says the drawn region is not a base at all --
+      SHALLOW  depth (pivot - base low) / pivot under base_metrics.MIN_LABEL_DEPTH_PCT (the label's own
+               too_shallow floor, read, never restated: the drawing and its label withhold together);
+      DEAD     the region's median true range (a fraction of the prior close) under FLOOR_DEAD_VOL_RATIO of
+               the stock's own median over the FLOOR_NORM_BARS sessions before the region, AND the depth under
+               FLOOR_DEAD_DEPTH_NORM of those normal daily ranges; applied only with at least FLOOR_NORM_MIN
+               readable sessions before the region.
+    Every gate above is in ATR units, so a gap-then-flat range whose ATR collapsed clears them all; this floor
+    is in the stock's own normal units. It covers the round-2 path too: wherever round 2 draws, round 4 IS
+    that drawing, and round 5 reads round 4's. Pre-registered: no approved case dropped; the refused set
+    scored 0.90 of 3 by blind judges. Parity-railed against the lab rule in tests/test_base_draw_round5.py.
+    Every OTHER member base drawing (the base boxes, the detectors, the shapes, the shelf pivot) is put through
+    the same floor on the member path: auto_structures.member_base_floor.
 Members are served the round auto_structures.MEMBER_BASE_ROUND names (a literal).
 """
 from __future__ import annotations
@@ -52,9 +66,9 @@ from __future__ import annotations
 #: The base drawing round this code IS. A row drawn by `base_drawing` carries extras.draw_round =
 #: BASE_DRAW_ROUND; the member set serves only the confirmed round (auto_structures.MEMBER_BASE_ROUND,
 #: a literal). Bump it with every new base drawing.
-BASE_DRAW_ROUND = 4
+BASE_DRAW_ROUND = 5
 #: Every round this module can draw (round 3 is not one: it failed its held-out check).
-DRAW_ROUNDS = (1, 2, 4)
+DRAW_ROUNDS = (1, 2, 4, 5)
 #: The labels the judges saw.
 PIVOT_LABEL = "pivot"
 LOW_LABEL = "base low"
@@ -128,6 +142,18 @@ TB_HH_TOL_ATR = 0.5
 TB_LEFT_CLEAR_BARS = 30
 #: No candle body in those TB_LEFT_CLEAR_BARS sessions above the pivot + BODY_TOL ATR.
 TB_LEFT_BODY_CLEAR = True
+
+# -- round 5 only: the floor (the depth-floor lab round, pre-registered and frozen) --
+#: The shallowest drawn base, (pivot - base low) / pivot, is the label's own floor
+#: (base_metrics.MIN_LABEL_DEPTH_PCT), read per call by `_floor_min_depth`: never restated here.
+#: A region whose median true range (as a fraction of the prior close) is under this share of the stock's own
+#: median over the FLOOR_NORM_BARS sessions before the region ...
+FLOOR_DEAD_VOL_RATIO = 0.30
+#: ... AND whose depth is under this many of those normal daily ranges is a dead range, not a base.
+FLOOR_DEAD_DEPTH_NORM = 1.5
+FLOOR_NORM_BARS = 252
+#: Fewer readable sessions before the region than this: the volatility test is not applied.
+FLOOR_NORM_MIN = 60
 
 
 def _f(b, k):
@@ -333,6 +359,47 @@ def _textbook_drawing(bars, i):
         return None
 
 
+def _floor_min_depth() -> float:
+    """Round 5's SHALLOW floor as a fraction: base_metrics.MIN_LABEL_DEPTH_PCT (a percentage), read per call."""
+    from api.services import base_metrics
+    return base_metrics.MIN_LABEL_DEPTH_PCT / 100.0
+
+
+def _trp(b, j):
+    """Bar j's true range as a fraction of the prior close, or None when that close is not positive."""
+    pc = _f(b[j - 1], "c")
+    return (max(_f(b[j], "h"), pc) - min(_f(b[j], "l"), pc)) / pc if pc > 0 else None
+
+
+def _median(xs):
+    xs = sorted(xs)
+    n = len(xs)
+    return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2.0
+
+
+def floor_refuses(bars, i, d) -> bool:
+    """Round 5: True when drawing `d` ({start_t, pivot, low}) at bar `i` is not a base -- too shallow, or a
+    volatility-collapsed range with no correction. Reads bars[:i+1] only. A drawing whose region start is not
+    found before bar `i` refuses nothing; an unreadable volatility norm skips the DEAD test only."""
+    lip = next((m for m in range(i, -1, -1) if int(bars[m]["t"]) == int(d["start_t"])), None)
+    if lip is None or lip >= i:
+        return False
+    piv, low = float(d["pivot"]), float(d["low"])
+    depth = (piv - low) / piv if piv > 0 else None
+    if depth is None or depth < _floor_min_depth():
+        return True
+    inside = [x for x in (_trp(bars, j) for j in range(max(1, lip + 1), i + 1)) if x is not None]
+    norm = [x for x in (_trp(bars, j) for j in range(max(1, lip - FLOOR_NORM_BARS), lip)) if x is not None]
+    if len(norm) < FLOOR_NORM_MIN:
+        return False
+    in_atrp = _median(inside) if inside else None
+    n_atrp = _median(norm)
+    # a zero median is unreadable (no ratio), exactly as in the lab rule
+    if not in_atrp or not n_atrp:
+        return False
+    return in_atrp / n_atrp < FLOOR_DEAD_VOL_RATIO and depth / n_atrp < FLOOR_DEAD_DEPTH_NORM
+
+
 def base_drawing(bars: list, i: int, draw_round: int | None = None):
     """The base drawing at bar `i` from bars[:i+1] only, or None:
     {pivot, start_t (the lip), end_t (bar i), low, low_t, bars, atr (ATR(14) at bar i), label,
@@ -345,6 +412,10 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
             return None
         if not isinstance(i, int) or isinstance(i, bool) or i < MIN_LEN + 5 or i >= len(bars):
             return None
+        if rnd == 5:
+            # round 5 IS round 4, minus the drawings the floor refuses
+            d4 = base_drawing(bars, i, draw_round=4)
+            return None if d4 is not None and floor_refuses(bars[:i + 1], i, d4) else d4
         if rnd == 4:
             # round 4 IS round 2 wherever round 2 draws; its own pass runs only where round 2 draws nothing
             d2 = base_drawing(bars, i, draw_round=2)

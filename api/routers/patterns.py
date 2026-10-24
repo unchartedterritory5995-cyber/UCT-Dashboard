@@ -860,6 +860,9 @@ def get_detections(
             mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                # the base floor: a dead or ultra-shallow range is not drawn as a base by any member door (bc:base
+                # applies it in its own drawing round; every other member base row here)
+                rows, boxes = auto_structures.member_base_floor(sym, rows, boxes)
                 # a served (stamped) cup outranks a bc:flat-base covering the same base (members only)
                 boxes = auto_structures.member_cup_precedence(boxes)
                 # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
@@ -881,7 +884,8 @@ def get_detections(
                 if (tf or "D").upper() == "D":
                     shelf = auto_structures.shelf_pivot_row(sym, member=True, chart_served=list(rows) + list(boxes))
                     if shelf is not None:
-                        boxes = list(boxes) + auto_structures.member_rows([shelf])
+                        boxes = list(boxes) + auto_structures.member_base_floor(
+                            sym, [], auto_structures.member_rows([shelf]))[1]
                 if boxes:
                     mout["structures"] = boxes
                 # the learned levels + trendlines: WITHHELD from members (MEMBER_LEARNED_LINES_ROUND = None,
