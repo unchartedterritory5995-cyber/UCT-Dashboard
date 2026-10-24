@@ -161,7 +161,7 @@ import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
-import { useAutoStructuresScope } from './chart/autoStructuresGate'
+import { useAutoStructuresScope, useLevelsSrAvailable } from './chart/autoStructuresGate'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
@@ -6131,6 +6131,13 @@ export default function StockChart({
   // overlay draws trusted only (no experimental, levels, base boxes or learned drawer: the server sends
   // a member no `drawn` block, and the overlay's `drawn` prop is passed for scope 'all' only).
   const autoStructuresScope = useAutoStructuresScope()
+  // Textbook support / resistance (`levels_sr`, AUTO_STRUCTURES_SR_ENABLED, daily charts): drawn only while the
+  // server reports the released layer for this viewer (`levels_sr_enabled` -> useLevelsSrAvailable, the ONE client
+  // signal). LEVELS_SR_TOGGLE_HOOK: the UCT Intelligence indicator (feat/uct-intelligence-indicator) shows its
+  // "Support & resistance" toggle only while useLevelsSrAvailable() is true, and that toggle's state replaces this
+  // constant. Until the indicator lands the layer draws whenever it is available (it rides the Patterns toggle).
+  const levelsSrAvailableHere = useLevelsSrAvailable()
+  const LEVELS_SR_TOGGLE_HOOK = true
   const autoStructuresOn = autoStructuresScope === 'all'
   // TEAM DRAWING SET (owner direction 2026-10-17): an admin's chart draws the team set by default
   // (the trusted tier + the learned levels/trendlines); "All" shows every tier and the Levels layer.
@@ -6141,7 +6148,7 @@ export default function StockChart({
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
-  const { detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus } = usePatternDetections(
+  const { detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus, levelsSr: patternLevelsSr } = usePatternDetections(
     sym, resolvedTf, patternsActive, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
@@ -20290,6 +20297,8 @@ export default function StockChart({
           detections={patternDetections}
           drawn={autoStructuresScope === 'all' ? patternDrawn : null}
           dealStatus={autoStructuresScope != null ? patternDealStatus : null}
+          levelsSr={autoStructuresScope != null && levelsSrAvailableHere ? patternLevelsSr : null}
+          showLevelsSr={LEVELS_SR_TOGGLE_HOOK}
           enabled={patternsActive}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}

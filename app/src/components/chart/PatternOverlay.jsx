@@ -71,6 +71,8 @@ import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
 import LearnedDrawn from './patternShapes/LearnedDrawn'
+import SupportResistanceLayer from './patternShapes/SupportResistanceLayer'
+import { hasLevelsSr } from './patternShapes/srLevelsGeometry'
 import { LabelLayoutContext } from './patternShapes/labelLayoutContext'
 import { computeLabelLayout } from './patternLabelLayout'
 import EmaSegment from './patternShapes/EmaSegment'
@@ -484,6 +486,10 @@ export function rowView(row) {
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
+ *   levelsSr:          the textbook support / resistance block (`levels_sr` on the response, server-gated by
+ *                      AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND) or null
+ *   showLevelsSr:      draw `levelsSr`; default true. The UCT Intelligence indicator's "Support & resistance"
+ *                      toggle drives this (StockChart's LEVELS_SR_TOGGLE_HOOK)
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
@@ -546,6 +552,8 @@ export default function PatternOverlay({
   trustedOnly = false,
   dealStatus = null,
   candles = null,
+  levelsSr = null,
+  showLevelsSr = true,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -585,12 +593,13 @@ export default function PatternOverlay({
   if (enabled && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
 
   const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
-  if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
+  const hasSr = showLevelsSr && hasLevelsSr(levelsSr)
+  if (!enabled || !chart || !series || (!detections?.length && !hasDrawn && !hasSr)) return null
 
   const drawable = selectDrawable(detections, {
     tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null, trustedOnly,
   })
-  if (!drawable.length && !hasDrawn) return null
+  if (!drawable.length && !hasDrawn && !hasSr) return null
 
   // Coordinate helpers — lightweight-charts caches internally so re-creating these per render is cheap.
   const tToX = (t) => {
@@ -637,6 +646,7 @@ export default function PatternOverlay({
   const labelLayout = computeLabelLayout({
     views, drawn: hasDrawn ? drawn : null, tToX, priceToY,
     pane: { w: size.width, h: size.height }, candles: readCandles, halfW: barHalfWidthPx,
+    levelsSr: hasSr ? levelsSr : null,
   })
 
   return (
@@ -665,6 +675,9 @@ export default function PatternOverlay({
       </defs>
       {hasDrawn && (
         <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} droppedLabels={labelLayout.droppedLearned} />
+      )}
+      {hasSr && (
+        <SupportResistanceLayer levelsSr={levelsSr} tToX={tToX} priceToY={priceToY} dy={labelLayout.srDy} />
       )}
       {views.map((v) => {
         const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v

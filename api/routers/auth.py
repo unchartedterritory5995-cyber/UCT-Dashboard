@@ -752,13 +752,25 @@ def _auto_structures_flag(is_admin: bool, is_paid: bool = False) -> dict:
     is on; `auto_structures_members_enabled: True` for a PAID non-admin while
     AUTO_STRUCTURES_MEMBERS_ENABLED is on too (trusted tier only, filtered by the
     patterns route); `{}` otherwise. Read PER CALL through the SAME predicates the
-    patterns route asks (`auto_structures.enabled` / `.members_enabled`). Never raises."""
+    patterns route asks (`auto_structures.enabled` / `.members_enabled`). Plus
+    `levels_sr_enabled: True` beside either key while the textbook support / resistance
+    layer is released for that scope (AUTO_STRUCTURES_SR_ENABLED, and for a member the
+    MEMBER_SR_ROUND literal: `auto_structures.levels_sr_available`) -- the ONE client
+    signal a chart control (the "Support & resistance" toggle) gates on. Never raises."""
     try:
         from api.services import auto_structures
         if is_admin:
-            return {"auto_structures_enabled": True} if auto_structures.enabled() else {}
+            if not auto_structures.enabled():
+                return {}
+            out = {"auto_structures_enabled": True}
+            if auto_structures.levels_sr_available(member=False):
+                out["levels_sr_enabled"] = True
+            return out
         if is_paid and auto_structures.members_enabled():
-            return {"auto_structures_members_enabled": True}
+            out = {"auto_structures_members_enabled": True}
+            if auto_structures.levels_sr_available(member=True):
+                out["levels_sr_enabled"] = True
+            return out
         return {}
     except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
         return {}

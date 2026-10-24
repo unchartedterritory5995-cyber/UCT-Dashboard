@@ -869,6 +869,13 @@ def get_detections(
                 drawn = auto_structures.member_drawn_for(sym)
                 if drawn is not None:
                     mout["drawn"] = drawn
+                # textbook support / resistance (released r2: AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND): daily
+                # charts only; a zone or line near a price this response's drawings put on the chart is withheld
+                # (patterns win). Off: no `levels_sr` key, the payload is byte-identical.
+                if (tf or "D").upper() == "D":
+                    sr = auto_structures.levels_sr_for(sym, member=True, served=list(rows) + list(boxes))
+                    if sr is not None:
+                        mout["levels_sr"] = sr
             return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
@@ -896,6 +903,12 @@ def get_detections(
                 drawn = auto_structures.drawn_for(sym)
                 if drawn is not None:
                     out["drawn"] = drawn
+            # textbook support / resistance (AUTO_STRUCTURES_SR_ENABLED): daily charts only, computed against the
+            # drawings the MEMBER path serves, so the team chart shows what a member would see
+            if (tf or "D").upper() == "D":
+                sr = auto_structures.levels_sr_for(sym)
+                if sr is not None:
+                    out["levels_sr"] = sr
     return out
 
 

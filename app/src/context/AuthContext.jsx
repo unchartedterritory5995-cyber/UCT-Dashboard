@@ -85,6 +85,10 @@ export function AuthProvider({ children }) {
   // Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED): present ONLY for a paid
   // non-admin while both flags are on; trusted tier only (the server filters the rows).
   const [autoStructuresMembersEnabled, setAutoStructuresMembersEnabled] = useState(false)
+  // Textbook support / resistance (AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND): present ONLY beside
+  // one of the two keys above while the released S/R layer exists for this account's scope. The ONE
+  // client signal a chart control gates on (autoStructuresGate.levelsSrAvailable).
+  const [levelsSrEnabled, setLevelsSrEnabled] = useState(false)
   // TERM-077 — watchlist "copy or link, chosen at import". Enablement gate,
   // default FALSE; the server sends the key only when it is on.
   const [watchlistCopyOrLinkEnabled, setWatchlistCopyOrLinkEnabled] = useState(false)
@@ -189,6 +193,7 @@ export function AuthProvider({ children }) {
     ['research_fmp_depth_enabled', (d) => d.research_fmp_depth_enabled === true, setResearchFmpDepthEnabled],
     ['auto_structures_enabled', (d) => d.auto_structures_enabled === true, setAutoStructuresEnabled],
     ['auto_structures_members_enabled', (d) => d.auto_structures_members_enabled === true, setAutoStructuresMembersEnabled],
+    ['levels_sr_enabled', (d) => d.levels_sr_enabled === true, setLevelsSrEnabled],
     // Not a boolean: the server's derived list. `readFeatureStatus` returns null for
     // anything it cannot vouch for, so a missing field reads as "not measured".
     ['feature_status', readFeatureStatus, setFeatureStatus],
@@ -397,7 +402,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

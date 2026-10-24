@@ -49,6 +49,8 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
     // Deal status (DEAL_STATUS_ENABLED): the stock is pending acquisition, so the server sent
     // no drawings and this small marker instead. null whenever absent.
     dealStatus: data?.deal_status?.pending ? data.deal_status : null,
+    // Textbook support / resistance (AUTO_STRUCTURES_SR_ENABLED, daily charts): zones + trendlines, or null.
+    levelsSr: data?.levels_sr || null,
     count: data?.count || 0,
     isLoading,
     error,

@@ -2033,3 +2033,143 @@ def member_drawn_for(sym: str):
     if not isinstance(drawn, dict) or drawn.get("learned_round") != rnd:
         return None
     return drawn
+
+
+# ================================================================ textbook support / resistance (members: round r2)
+#: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
+#: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
+#: constant ("r2"), so a new drawing round cannot release itself. Fail closed. Round r2 passed blind judging on two
+#: fresh packets of 25 random liquid held-out charts (A 2.52 with 96% of charts >= 2, B 2.36 with 84%; bar 2.3 and
+#: 70%) and its DEV lookahead check. Set it to None to withdraw the layer from members (admins keep it under the flag).
+MEMBER_SR_ROUND = "r2"
+#: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
+#: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
+SR_MIN_BARS = 261
+SR_MIN_CLOSE = 5.0
+SR_MIN_DOLLAR_VOLUME = 20e6
+#: One computed answer per (ticker, scope), reused while the last completed session and the served pattern prices
+#: are unchanged.
+_SR_CACHE: dict = {}
+_SR_LOCK = threading.Lock()
+
+
+def sr_enabled() -> bool:
+    """AUTO_STRUCTURES_SR_ENABLED, read PER CALL; unset means OFF. Off, nothing below runs and every payload is
+    exactly what it was before the layer existed. The kill switch is this flag."""
+    return os.environ.get("AUTO_STRUCTURES_SR_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def _member_sr_ok() -> bool:
+    """True only while MEMBER_SR_ROUND is a str equal to sr_levels.SR_ROUND. Anything else (None, a bool, an int, a
+    newer drawing round) is False: fail closed."""
+    try:
+        from api.services.pattern_engine import sr_levels
+        rnd = MEMBER_SR_ROUND
+        return type(rnd) is str and rnd == sr_levels.SR_ROUND
+    except Exception:  # noqa: BLE001 -- an unreadable round serves nothing
+        return False
+
+
+def levels_sr_available(*, member: bool) -> bool:
+    """The ONE client-visible signal: the released member S/R layer exists for this scope. A member: the flag AND
+    the member round literal (the member door also needs members_enabled); an admin: the flag. Never raises."""
+    try:
+        return sr_enabled() and (not member or _member_sr_ok())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def sr_in_frame(bars) -> bool:
+    if len(bars or []) < SR_MIN_BARS:
+        return False
+    last = bars[-1]
+    return last["c"] > SR_MIN_CLOSE and last["c"] * last["v"] >= SR_MIN_DOLLAR_VOLUME
+
+
+def sr_served_prices(rows) -> list:
+    """Every price a served member drawing puts on the chart (the lab's served-pattern replay: auto_structures
+    _row_lines of each row the chart DRAWS -- a stale row other than the "flagging" tier is sent but never drawn and
+    covers nothing), plus a served shelf pivot's line. Sorted, rounded to 4 places, de-duplicated."""
+    out = set()
+    for r in rows or ():
+        try:
+            if not _drawn_incumbent(r):
+                continue
+            ex = (r.get("geometry") or {}).get("extras") or {}
+            if r.get("pattern_id") == SHELF_PIVOT_ID:
+                p = (ex.get("draw_shelf") or {}).get("price")
+                vals = [p] if _finite(p) else []
+            else:
+                vals, _span = _row_lines(r)
+        except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
+            continue
+        for v in vals:
+            out.add(round(float(v), 4))
+    return sorted(out)
+
+
+def _sr_payload(d: dict) -> dict:
+    """The member payload: the drawing round, the as-of session, ATR(14), the zones and the trendlines, and the
+    reason a chart draws nothing on purpose ("pinned")."""
+    out = {
+        "round": d["round"],
+        "asof_t": int(d["asof"]),
+        "atr": d["atr"],
+        "zones": [{k: z[k] for k in ("role", "bot", "top", "label", "touches", "first_t", "last_t",
+                                     "broken_retested")} for z in d["zones"]],
+        "trendlines": [{k: t[k] for k in ("side", "t1", "p1", "t2", "p2", "slope_per_bar", "label", "touches",
+                                          "last_touch_t")} for t in d["trendlines"]],
+    }
+    if d.get("withheld"):
+        out["withheld"] = d["withheld"]
+    return out
+
+
+def sr_compute(bars: list, prices) -> dict | None:
+    """The layer for completed daily `bars` (oldest first, the last one the as-of bar) and the served pattern
+    prices, or None with too little history. The judged frame is levels_sr_for's to check (once, before any work).
+    RAISES on a failure (the caller draws nothing)."""
+    from api.services.pattern_engine import sr_levels
+    rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in bars]
+    d = sr_levels.draw(rows, None, list(prices))
+    return None if d is None else _sr_payload(d)
+
+
+def levels_sr_for(sym: str, *, member: bool = False, served=None):
+    """The `levels_sr` block for `sym`'s daily chart, or None (no key). Gated: AUTO_STRUCTURES_SR_ENABLED (default
+    off; nothing runs while it is off) and, for a member, MEMBER_SR_ROUND equal to the frozen round. `served`: the
+    drawings this response serves (member path) -- their prices win (patterns win); None (team path) = the drawings
+    the MEMBER path serves on this chart, replayed from the bars (shelf_member_facts). Reads only bars up to the last
+    COMPLETED session (an unknown session clock draws nothing). One computed answer per (ticker, last completed
+    session, served prices). Any failure -> None. Never raises."""
+    try:
+        if not sr_enabled():
+            return None
+        if member and not _member_sr_ok():
+            return None
+        sym = (sym or "").upper()
+        bars = _shelf_bars(sym)          # the last COMPLETED session's 600-bar window (>= sr_levels.BARS_NEEDED)
+        if not bars or not sr_in_frame(bars):
+            return None
+        key = int(bars[-1]["t"])
+        scope = "member" if member else "team"
+        if served is not None:
+            prices = tuple(sr_served_prices(served))
+            with _SR_LOCK:
+                hit = _SR_CACHE.get((sym, scope))
+            if hit and hit[0] == key and hit[1] == prices:
+                return hit[2]
+        else:
+            with _SR_LOCK:
+                hit = _SR_CACHE.get((sym, scope))
+            if hit and hit[0] == key:
+                return hit[2]
+            facts, _lines = shelf_member_facts(sym, bars)
+            prices = tuple(sorted({round(float(v), 4) for _pid, ls, _span in facts for v in ls}))
+        out = sr_compute(bars, prices)
+        with _SR_LOCK:
+            _SR_CACHE[(sym, scope)] = (key, prices, out)
+        return out
+    except Exception as e:  # noqa: BLE001 -- any failure draws no level
+        _log.debug("[sr-levels] %s failed: %s", sym, e)
+        return None

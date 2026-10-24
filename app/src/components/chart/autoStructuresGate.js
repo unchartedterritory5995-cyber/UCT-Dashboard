@@ -29,6 +29,20 @@ export function autoStructuresAllowed(auth) {
   return autoStructuresScope(auth) === 'all'
 }
 
+/**
+ * The released textbook support / resistance layer exists for this viewer: a scope above AND the server's
+ * `levels_sr_enabled` (AUTO_STRUCTURES_SR_ENABLED, and for a member the frozen MEMBER_SR_ROUND literal).
+ * The ONE predicate a chart control -- the UCT Intelligence indicator's "Support & resistance" toggle --
+ * gates on. The server still decides what each response carries (`levels_sr`); this only says the layer exists.
+ */
+export function levelsSrAvailable(auth) {
+  return autoStructuresScope(auth) != null && auth.levelsSrEnabled === true
+}
+
+export function useLevelsSrAvailable() {
+  return levelsSrAvailable(useContext(AuthContext))
+}
+
 export function useAutoStructuresScope() {
   return autoStructuresScope(useContext(AuthContext))
 }

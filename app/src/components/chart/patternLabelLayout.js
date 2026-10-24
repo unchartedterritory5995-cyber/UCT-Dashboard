@@ -5,8 +5,9 @@
 // (top-left of its base, above or just inside the box), and which learned labels lose their TEXT because
 // they would print over a pattern or metrics label. No line, box or number is moved. Pure; no React.
 import { learnedLabelItems } from './patternShapes/learnedGeometry'
+import { srLabelItems } from './patternShapes/srLevelsGeometry'
 import {
-  textBox, placeMetricsBlock, stackLabels, droppedLearnedLabels, levelLabelPosition,
+  textBox, placeMetricsBlock, stackLabels, stackLabelsAround, droppedLearnedLabels, levelLabelPosition,
 } from './patternShapes/labelLayout'
 
 /**
@@ -66,11 +67,12 @@ function shelfLabelPosition(spec, tToX, priceToY) {
 }
 
 /**
- * The label layout for one render: which pattern labels move (dy), where each metrics block goes, and
+ * The label layout for one render: which pattern labels move (dy), where each metrics block goes, which
+ * textbook support / resistance labels move (srDy: they yield to pattern and metrics text, never push it), and
  * which learned labels lose their text. Pattern and metrics text always win over learned text. Labels
  * only -- no line, box or number is touched. Pure — exported for tests.
  */
-export function computeLabelLayout({ views, drawn, tToX, priceToY, pane = null, candles = null, halfW = 4 }) {
+export function computeLabelLayout({ views, drawn, tToX, priceToY, pane = null, candles = null, halfW = 4, levelsSr = null }) {
   const items = []
   for (const v of views) {
     for (const spec of patternLabelSpecs(v)) {
@@ -103,7 +105,12 @@ export function computeLabelLayout({ views, drawn, tToX, priceToY, pane = null, 
     })
   }
 
+  const metricsRects = Object.values(metrics).map((m) => m.rect)
+  const sr = srLabelItems(levelsSr, tToX, priceToY).map((l) => ({ id: l.key, box: textBox(l.x, l.y, l.text) }))
+  const srDy = sr.length ? stackLabelsAround(sr, [...patternBoxes, ...metricsRects]) : {}
+  const srBoxes = sr.map(({ id, box }) => (srDy[id] ? { ...box, y0: box.y0 + srDy[id], y1: box.y1 + srDy[id] } : box))
+
   const learned = learnedLabelItems(drawn, tToX, priceToY).map((l) => ({ key: l.key, box: textBox(l.x, l.y, l.text) }))
-  const winners = [...Object.values(metrics).map((m) => m.rect), ...patternBoxes]
-  return { dy, metrics, droppedLearned: droppedLearnedLabels(learned, winners) }
+  const winners = [...metricsRects, ...patternBoxes, ...srBoxes]
+  return { dy, metrics, srDy, droppedLearned: droppedLearnedLabels(learned, winners) }
 }
