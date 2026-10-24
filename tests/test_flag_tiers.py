@@ -3,14 +3,17 @@
 The team says "flag", "flagging", "flag out" for any stock pausing after a move. On the team's broad
 flag vocabulary, held out by date, drawing the flags that fail ONLY display.FLAGGING_RELAXED lifted
 Youden's J by +0.135 [+0.108, +0.161]; their geometry measured at chance against the team's lines.
-So they reach a member as a second, lighter tier, stamped on its own key (extras.flagging), with no
-entry line. What this file holds:
+So they draw as a second, lighter tier, stamped on its own key (extras.flagging), with no entry line.
+Flagging tier withheld from members 2026-10-24: blind textbook score 1.28 (24% of cases >= 2)
+(auto_structures.MEMBER_FLAGGING_ROUND = None); admins and the team keep both tiers. Re-enabling it for
+members is that one literal (set it back to 9). What this file holds:
 
   1. the relaxed reasons are DERIVED from the three verdicts' own source, never restated;
   2. tier 1 is unchanged byte-for-byte: 1,200 seeded synthetic scans hash identically to the golden
      written from the pre-tier code (tests/fixtures/flag_tiers_golden.json), the stamp removed;
-  3. a member gets a tier-2 row only when it is stamped exactly; every near miss is dropped;
-  4. admins see both tiers; a flagging flag never sits over a confirmed flag's bars;
+  3. a member gets NO tier-2 row while the tier is withheld; re-enabled (in memory), only an exactly
+     stamped row, and every near miss is dropped;
+  4. admins see both tiers, members the confirmed one; a flagging flag never sits over a confirmed flag's bars;
   5. a crash in the relaxed run leaves the strict result alone and stamps nothing.
 Synthetic bars only (public repo).
 """
@@ -112,12 +115,20 @@ def test_a_real_short_pole_flag_is_stamped_flagging_and_a_real_confirmed_one_is_
     assert t1["draw_round"] == display.BULL_FLAG_DRAW_ROUND and "flagging" not in t1
 
 
-def test_a_stamped_flagging_row_reaches_a_member():
+def test_a_stamped_flagging_row_is_withheld_from_a_member(monkeypatch):
+    """Flagging tier withheld from members 2026-10-24: blind textbook score 1.28."""
     row = _row("t2", **_tier2_extras())
+    assert auto_structures._flagging_flag(row)                             # it IS the tier
+    assert auto_structures.member_rows([row]) == []                        # withheld
+    for lit in (True, 8, 10, "9", 9.0):                                    # fail closed: only int 9 re-enables
+        monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", lit)
+        assert auto_structures.member_rows([row]) == [], lit
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", 9)      # control: the one-literal re-enable
     assert auto_structures.member_rows([row]) == [row]
 
 
-def test_every_near_miss_of_the_flagging_stamp_is_dropped():
+def test_every_near_miss_of_the_flagging_stamp_is_dropped(monkeypatch):
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", 9)      # re-enabled, so a miss is the stamp
     good = _tier2_extras()
 
     def variant(**patch):
@@ -164,14 +175,24 @@ class _Del:
 _DEL = _Del()
 
 
-def test_the_member_flagging_round_is_a_literal_9():
-    assert auto_structures.MEMBER_FLAGGING_ROUND == 9
+def test_the_member_flagging_round_is_a_literal_none_and_the_tier_round_a_literal_9():
+    """Withheld 2026-10-24 by a literal None written in source (re-enable: set it to 9); the tier itself is
+    still recognised by its own literal round 9."""
+    tree = ast.parse(open(auto_structures.__file__, encoding="utf-8").read())
+    for name, val in (("MEMBER_FLAGGING_ROUND", None), ("FLAGGING_TIER_ROUND", 9)):
+        lits = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in n.targets)]
+        assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant), name
+        got = lits[0].value.value
+        assert (got is None) if val is None else (type(got) is int and got == val), name
+    assert auto_structures.MEMBER_FLAGGING_ROUND is None
+    assert auto_structures.FLAGGING_TIER_ROUND == 9
     assert auto_structures.MEMBER_FLAGGING_TIER == display.FLAGGING_TIER == "flagging"
 
 
 # -- 4. admins see both; the route ------------------------------------------------------------------
 
-def test_flag_on_members_get_both_tiers_and_admins_get_every_row(monkeypatch):
+def test_flag_on_members_get_the_confirmed_tier_only_and_admins_get_every_row(monkeypatch):
     t1, _ = _drawn(*_flag_after(TALL_LEG))
     t2 = _tier2_extras()
     unstamped = {k: v for k, v in t2.items() if k != "flagging"}
@@ -181,11 +202,15 @@ def test_flag_on_members_get_both_tiers_and_admins_get_every_row(monkeypatch):
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     member = _get(PAID_MEMBER).json()["detections"]
-    assert [r["id"] for r in member] == ["t1", "t2"]
+    assert [r["id"] for r in member] == ["t1"]                            # flagging tier withheld 2026-10-24
     assert "flagging" not in member[0]["geometry"]["extras"]
-    assert member[1]["geometry"]["extras"]["flagging"]["tier"] == "flagging"
     admin = _get(ADMIN).json()["detections"]
-    assert [r["id"] for r in admin] == ["t1", "t2", "u"]
+    assert [r["id"] for r in admin] == ["t1", "t2", "u"]                   # admins: both tiers, unchanged
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", 9)      # control: the one-literal re-enable
+    member = _get(PAID_MEMBER).json()["detections"]
+    assert [r["id"] for r in member] == ["t1", "t2"]
+    assert member[1]["geometry"]["extras"]["flagging"]["tier"] == "flagging"
+    assert [r["id"] for r in _get(ADMIN).json()["detections"]] == ["t1", "t2", "u"]
 
 
 # -- 5. overlap: tier 2 never over tier 1, and one tier 2 per run ------------------------------------

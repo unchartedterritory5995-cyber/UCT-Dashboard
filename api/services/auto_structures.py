@@ -250,9 +250,10 @@ def member_rows(rows) -> list:
     finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
     drawing code or never stamped at all, is dropped. Fail closed.
 
-    The one other bull_flag a member gets is the "flagging" tier (`_flagging_flag`): a flag the
-    round-9 code stopped ONLY on a relaxed verdict, stamped `extras.flagging` with tier "flagging"
-    and the member round. PatternOverlay draws it light, with no entry line.
+    The "flagging" tier (`_flagging_flag`: a flag the round-9 code stopped ONLY on a relaxed verdict,
+    stamped `extras.flagging`) is WITHHELD from members since 2026-10-24 (blind textbook score 1.28):
+    `_member_flagging_flag` is False while MEMBER_FLAGGING_ROUND is None, so a member gets the
+    confirmed tier only. Admins and the team still get both tiers (they never pass through here).
 
     A uct_flat_top_breakout passed its blind check as the "flat top" ceiling drawn
     under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
@@ -296,7 +297,7 @@ def member_rows(rows) -> list:
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
-                 or _confirmed_flag(r) or _flagging_flag(r))
+                 or _confirmed_flag(r) or _member_flagging_flag(r))
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
@@ -1616,11 +1617,16 @@ def _confirmed_flag(row) -> bool:
     return type(rnd) is int and rnd == MEMBER_BULL_FLAG_ROUND
 
 
-#: The "flagging" tier's own member round (lab flag_vocab, 2026-10-18: on the team's broad flag
-#: vocabulary, held out by date, drawing these flags lifted Youden's J +0.135 [+0.108, +0.161]).
-#: A literal on purpose, like MEMBER_BULL_FLAG_ROUND: a new drawing round stops the tier for
-#: members until it is re-measured and this is changed by hand.
-MEMBER_FLAGGING_ROUND = 9
+#: The drawing round a "flagging"-tier stamp must carry to BE that tier (the round the tier was
+#: built and measured on). A literal on purpose, like MEMBER_BULL_FLAG_ROUND: a new drawing round is
+#: not recognised as the tier until this is changed by hand. Recognition only -- it releases nothing.
+FLAGGING_TIER_ROUND = 9
+#: The "flagging" tier's MEMBER release literal. Flagging tier withheld from members 2026-10-24: blind
+#: textbook score 1.28 (24% of cases scoring >= 2). None: no member gets a flagging-tier row (the
+#: confirmed round-9 tier is unaffected; admins and the team keep seeing both). Fail closed: anything
+#: but an int equal to FLAGGING_TIER_ROUND serves nothing. RE-ENABLING IT IS THIS ONE LITERAL: set it
+#: back to 9.
+MEMBER_FLAGGING_ROUND = None
 #: The tier name the stamp must carry.
 MEMBER_FLAGGING_TIER = "flagging"
 
@@ -1628,9 +1634,10 @@ MEMBER_FLAGGING_TIER = "flagging"
 def _flagging_flag(row) -> bool:
     """True when a bull_flag row is the "flagging" tier as display.draw_geometry stamps it: the
     strict round stopped it (`stale`, no `draw_round`) on a relaxed reason only
-    (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and the member round
-    as an int. Anything else -- no stamp, another round, another tier, a stale reason outside the
-    relaxed set, a row that is ALSO stamped confirmed -- is False. Fail closed."""
+    (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and FLAGGING_TIER_ROUND
+    as an int. Recognition only: whether a MEMBER gets it is `_member_flagging_flag`. Anything
+    else -- no stamp, another round, another tier, a stale reason outside the relaxed set, a row
+    that is ALSO stamped confirmed -- is False. Fail closed."""
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
     if ex.get("stale") is not True or "draw_round" in ex:
         return False
@@ -1640,7 +1647,15 @@ def _flagging_flag(row) -> bool:
     if not isinstance(stamp, dict) or stamp.get("tier") != MEMBER_FLAGGING_TIER:
         return False
     rnd = stamp.get("draw_round")
-    return type(rnd) is int and rnd == MEMBER_FLAGGING_ROUND
+    return type(rnd) is int and rnd == FLAGGING_TIER_ROUND
+
+
+def _member_flagging_flag(row) -> bool:
+    """True when a member may be served this "flagging"-tier row: MEMBER_FLAGGING_ROUND (read PER CALL)
+    is an int equal to FLAGGING_TIER_ROUND AND the row is the tier (`_flagging_flag`). While the literal
+    is None (withheld 2026-10-24) this is always False. Fail closed."""
+    want = MEMBER_FLAGGING_ROUND
+    return type(want) is int and want == FLAGGING_TIER_ROUND and _flagging_flag(row)
 
 
 def _pivot_only(row) -> bool:
