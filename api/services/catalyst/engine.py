@@ -1150,10 +1150,18 @@ def _run_refresh_inner(hunt: Optional[bool] = None) -> dict:
     #                         happening? real move / volume / hard catalyst).
     kept: list[dict] = []
     excluded: dict[str, str] = {}
+    # 3. deal status (DEAL_STATUS_ENABLED) — a stock already pinned at an agreed buyout
+    #    price is not a catalyst trade; it is rejected here with its reason logged like
+    #    any other gate. Flag off: the set is empty and nothing is consulted.
+    from api.services import deal_status
+    deal_on = deal_status.enabled()
+    deal_pending = deal_status.consumer_pending() if deal_on else frozenset()
     for c in candidates:
         passed, reason = filters.quality_gate(c)
         if passed:
             passed, reason = filters.is_real_catalyst(c)
+        if passed and deal_pending and deal_status.is_pending(c.get("ticker"), deal_pending):
+            passed, reason = False, "pending acquisition"
         if passed:
             kept.append(c)
         else:
@@ -1189,6 +1197,12 @@ def _run_refresh_inner(hunt: Optional[bool] = None) -> dict:
     for c in candidates:
         c["tag"] = tagging.assign_tag(c)
         c["is_new"] = (c.get("ticker") or "").upper() not in recent_ranked
+        # Same-day announcement the deal store has not folded in yet: a hunter M&A hit
+        # whose own headline is a DEFINITIVE agreement for THIS ticker as the target
+        # earns no M&A bonus (a rumour, talks or the acquirer's side still do).
+        if deal_on and c.get("hunter_confirmed") and c.get("catalyst_type") == "M&A":
+            c["deal_definitive"] = deal_status.definitive_target(
+                c.get("ticker"), c.get("hunter_headline"))
         c["score"] = scoring.score(c)
     scored = [c for c in candidates if c.get("tag")]
     summary["scored"] = len(scored)

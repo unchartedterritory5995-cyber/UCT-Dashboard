@@ -161,7 +161,12 @@ import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
-import { useAutoStructuresScope } from './chart/autoStructuresGate'
+import { useAutoStructuresScope, useSetupsPanelReleased } from './chart/autoStructuresGate'
+import {
+  UCT_INTELLIGENCE_ROW, readUctIntelligence, layerAvailability, effectiveLayers,
+  setUctIntelligenceLayer, removeUctIntelligence,
+} from './chart/uctIntelligence'
+import UctIntelligencePanel, { useChartSetups } from './chart/UctIntelligencePanel'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
@@ -3362,9 +3367,9 @@ export default function StockChart({
     if (!deskCallLevels || !deskEnabled) return undefined
     const style = { entry: ['#60a5fa', 0], stop: ['#f87171', 2], target: ['#4ade80', 2] }
     for (const l of deskCallLevels.levels) {
-      const [color, lineStyle] = style[l.kind] || ['#c9a84c', 2]
+      const [color, styleCode] = style[l.kind] || ['#c9a84c', 2]
       deskCallLinesRef.current.push(series.createPriceLine({
-        price: Number(l.price), color, lineWidth: 1, lineStyle, axisLabelVisible: true,
+        price: Number(l.price), color, lineWidth: 1, lineStyle: styleCode, axisLabelVisible: true,
         title: `${deskCallLevels.trader} ${l.kind}`,
       }))
     }
@@ -6138,13 +6143,43 @@ export default function StockChart({
   const [showAllDrawings, setShowAllDrawings] = useState(false)
   const autoStructuresTrustedOnly = autoStructuresScope === 'trusted' || (autoStructuresOn && !showAllDrawings)
   const patternsActive = showPatterns && autoStructuresScope != null && !disablePatterns
+  // ── UCT Intelligence indicator (uctIntelligence.js) ── `showPatterns` above stays the ONE switch for
+  // Auto patterns (toolbar button and panel toggle both write it). Only a chart that ADDED the indicator
+  // differs from before: it keeps fetching while Auto patterns is off, so the deal-status notice and the
+  // gate signals still arrive. A chart that never added it fetches exactly when it always did.
+  const uctIntel = readUctIntelligence(cs)
+  const uctIntelAvailable = autoStructuresScope != null && !disablePatterns
+  const uctIntelOn = uctIntel.added && uctIntelAvailable
+  const patternsFetch = patternsActive || uctIntelOn
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
-  const { detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus } = usePatternDetections(
-    sym, resolvedTf, patternsActive, 50,
+  // Admin panel toggle for the learned drawer's lines; per-tab, default ON (today's behaviour).
+  const [showLearnedLines, setShowLearnedLines] = useState(true)
+  const {
+    detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus,
+    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks,
+  } = usePatternDetections(
+    sym, resolvedTf, patternsFetch, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
+  const setupsReleased = useSetupsPanelReleased()
+  const uctIntelAvailability = layerAvailability({
+    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupsReleased,
+  })
+  const uctIntelLayers = effectiveLayers(cs, uctIntelAvailability)
+  const uctIntelSetups = useChartSetups(sym, uctIntelOn && uctIntelLayers.setups)
+  const handleUctIntelLayer = useCallback((key, value) => {
+    if (key === 'autoPatterns') { handleTogglePatterns(value); return }
+    const next = setUctIntelligenceLayer(cs, key, value)
+    if (next !== cs) handleUpdateChartSettings({ ...next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings, handleTogglePatterns])
+  const handleUctIntelRemove = useCallback(() => {
+    setShowPatterns(false)
+    handleUpdateChartSettings({ ...removeUctIntelligence(cs), preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+  // Offered in the toolbar's Indicators library only while the pattern layer exists for this viewer.
+  const uctIntelLibraryRows = useMemo(() => (uctIntelAvailable ? [UCT_INTELLIGENCE_ROW] : null), [uctIntelAvailable])
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -20290,7 +20325,12 @@ export default function StockChart({
           detections={patternDetections}
           drawn={autoStructuresScope === 'all' ? patternDrawn : null}
           dealStatus={autoStructuresScope != null ? patternDealStatus : null}
+          levelsSr={autoStructuresScope != null ? patternLevelsSr : null}
+          showLevelsSr={uctIntelLayers.supportResistance}
           enabled={patternsActive}
+          showDealStatus={uctIntelOn}
+          showLabels={uctIntelLayers.labels}
+          showLearned={showLearnedLines}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}
           barTimes={patternBarTimes}
@@ -20299,6 +20339,22 @@ export default function StockChart({
           trustedOnly={autoStructuresTrustedOnly}
           lastPrice={patternLastPrice}
           candles={patternsActive ? ohlcData : null}
+        />
+      )}
+      {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern
+          layer exists for this viewer. The released-layer toggles inside it appear from their gates. */}
+      {uctIntelOn && (
+        <UctIntelligencePanel
+          state={uctIntel}
+          availability={uctIntelAvailability}
+          onSetLayer={handleUctIntelLayer}
+          onRemove={handleUctIntelRemove}
+          setups={uctIntelSetups}
+          admin={autoStructuresScope === 'all' ? {
+            showAll: showAllDrawings, onShowAll: setShowAllDrawings,
+            showLevels: showPatternLevels, onShowLevels: setShowPatternLevels,
+            showLearned: showLearnedLines, onShowLearned: setShowLearnedLines,
+          } : null}
         />
       )}
       {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
@@ -20499,6 +20555,7 @@ export default function StockChart({
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
+            libraryExtraRows={uctIntelLibraryRows}
             showLevels={showPatternLevels}
             onToggleLevels={setShowPatternLevels}
             showAllDrawings={showAllDrawings}

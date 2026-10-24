@@ -110,6 +110,35 @@ export function stackLabels(items) {
 }
 
 /**
+ * Vertical offsets that move each of `items` clear of the FIXED boxes and of each other (top-down; a label that
+ * collides moves down just below what it hit). The fixed boxes never move -- this is how a lower-priority layer's
+ * labels (textbook support / resistance) yield to pattern and metrics text instead of pushing it.
+ * @param {Array<{id:string, box:object}>} items
+ * @param {Array<object>} fixed
+ * @returns {Object<string, number>}  id -> dy (only for moved labels)
+ */
+export function stackLabelsAround(items, fixed) {
+  const order = items
+    .map((it, i) => ({ ...it, i }))
+    .filter((it) => it.box)
+    .sort((a, b) => a.box.y0 - b.box.y0 || a.i - b.i)
+  const placed = (fixed || []).filter(Boolean).slice()
+  const dy = {}
+  for (const it of order) {
+    let off = 0
+    for (let guard = 0; guard < placed.length + 2; guard++) {
+      const b = { ...it.box, y0: it.box.y0 + off, y1: it.box.y1 + off }
+      const hit = placed.find((p) => boxesOverlap(b, p))
+      if (!hit) break
+      off = hit.y1 + 1 - it.box.y0
+    }
+    if (off) dy[it.id] = off
+    placed.push({ ...it.box, y0: it.box.y0 + off, y1: it.box.y1 + off })
+  }
+  return dy
+}
+
+/**
  * Which learned labels lose their text: any whose box touches a winner (the metrics block or a pattern
  * label). Their lines are untouched; only the text is dropped.
  * @param {Array<{key:string, box:object}>} learned

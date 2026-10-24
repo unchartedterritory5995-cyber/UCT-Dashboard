@@ -254,6 +254,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "bc:base",
     "draw:inside-day",
     "draw:double-bottom",
+    "draw:shelf-pivot",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -298,8 +299,8 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: (auto_structures.member_base_precedence). A bc:base row
 #: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
 #: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
-#: Members are on round 2 (the pivot on the base's highest body) since 2026-10-21; a row stamped with any
-#: other round is dropped. Were the drawing code ever ahead of the member round, the member would be served
+#: Members are on round 4 (round 2 -- the pivot on the base's highest body -- wherever round 2 draws, plus
+#: a textbook consolidation round 2 missed) since 2026-10-23; a row stamped with any other round is dropped. Were the drawing code ever ahead of the member round, the member would be served
 #: the member round's drawing that every row then carries in extras.draw_member
 #: (auto_structures._base_member_row).
 #: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup
@@ -333,10 +334,17 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: NEITHER set: admin-only, experimental, and only while AUTO_STRUCTURES_SHAPES_ENABLED is on. A shape is
 #: released by setting its auto_structures.MEMBER_<SHAPE>_ROUND literal to its blind-confirmed round AND
 #: adding its id here and to DISPLAY_TEAM_SET; until then member_rows drops it (fail closed).
+#: draw:shelf-pivot (api/services/pattern_engine/shelf_pivot.py, drawing round "r4") is ONE labelled horizontal
+#: level where price has stalled repeatedly and trades near it now. It passed blind judging round 4 (2.66 /
+#: 2.60), the independent verifier (conditions C1-C5 built) and the owner's live eye check (2026-10-22), and was
+#: released to members 2026-10-23. It reaches a member only while AUTO_STRUCTURES_SHELF_ENABLED is on,
+#: auto_structures.MEMBER_SHELF_PIVOT_ROUND equals the frozen round, its row carries that draw_round beside a
+#: well-formed draw_shelf, the chart is daily on completed sessions inside the judged liquidity frame, and the
+#: chart serves no other drawing (auto_structures.shelf_pivot_row / member_rows). Fail closed.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
-    "draw:double-bottom",
+    "draw:double-bottom", "draw:shelf-pivot",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

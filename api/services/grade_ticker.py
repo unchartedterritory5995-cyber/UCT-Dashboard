@@ -182,6 +182,19 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     band = _regime_band(regime.get("regime") or regime.get("label"))
     regime_note = regime.get("narration") or f"Regime {band}."
 
+    # ── pending acquisition (DEAL_STATUS_ENABLED): no grade, the reason instead ──
+    from api.services import deal_status
+    if deal_status.is_pending(sym):
+        return _verdict(ok=True, symbol=sym, verdict="SKIP", regime=band,
+                        regime_note=regime_note, setup=None, grade=None,
+                        entry=None, stop=None, size_pct=None, account_risk_pct=None,
+                        first_target=None,
+                        basis=(f"{deal_status.PENDING_LABEL}: {sym} is pinned to an agreed "
+                               "buyout price, so there is no setup to grade."),
+                        hard_flags=["pending_acquisition"],
+                        sources=[f"regime classifier ({band})",
+                                 "deal status (pending acquisition)"])
+
     try:
         quote = quote_fn(sym) or {}
     except Exception:  # noqa: BLE001

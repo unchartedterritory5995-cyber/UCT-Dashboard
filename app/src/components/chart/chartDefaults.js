@@ -20,6 +20,7 @@ import { explicitLegendMode } from './legendMode'
 import { explicitBarInfoFields } from './barInfoFields'
 import { adoptOverlayAverages } from './maAdoption'
 import { migrateLegacyCotGroups } from './legacyCotGroups'
+import { sanitizeUctIntelligence } from './uctIntelligence'
 import { sanitizeInfoValues, INFO_VALUES_KEY } from './engine/infoValues'
 
 export const CHART_DEFAULTS = {
@@ -697,6 +698,9 @@ function mergeChartSettingsRaw(userSettings) {
     },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    // The UCT Intelligence indicator's own block (uctIntelligence.js). NO default and no key at all when
+    // absent or malformed, so a chart that never added it merges byte-identically to before.
+    ...(sanitizeUctIntelligence(parsed.uctIntelligence) ? { uctIntelligence: sanitizeUctIntelligence(parsed.uctIntelligence) } : {}),
     showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
     showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
     darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },

@@ -294,7 +294,10 @@ export default function EarningsResearchModal({
     </>
   ) : null
 
-  const gradeChip = grade ? (
+  // A pending acquisition carries no letter: the chip says why instead of grading it.
+  const gradeChip = grade?.pending_acquisition ? (
+    <VerdictChip size="sm" tone="neutral" label={grade.label || 'Pending acquisition'} />
+  ) : grade ? (
     <VerdictChip
       size="sm"
       tone="neutral"

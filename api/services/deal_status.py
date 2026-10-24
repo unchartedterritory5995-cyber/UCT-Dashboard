@@ -628,3 +628,53 @@ def chart_marker(sym: str):
     return {"pending": True, "label": CHART_LABEL, "source": list(st["source"]),
             "since": st.get("since"), "price": st.get("price"),
             "confidence": st.get("confidence")}
+
+
+# ---------------------------------------------------------------------------
+# Consumers that PICK names to show (scans, leaders, notable picks, grades)
+# ---------------------------------------------------------------------------
+
+#: What a member sees in place of a grade, a pick or a scan row for a pending target.
+PENDING_LABEL = "Pending acquisition"
+
+
+def _norm(sym) -> str:
+    """One spelling for a comparison: upper case, class shares with a hyphen (BRK.B -> BRK-B)."""
+    return str(sym or "").strip().upper().replace(".", "-").replace("/", "-")
+
+
+def consumer_pending() -> frozenset:
+    """The pending set a candidate-picking consumer excludes, in `_norm` spelling.
+
+    Flag OFF: empty WITHOUT consulting anything (every consumer byte-identical to before).
+    Flag ON: `pending_deal_symbols()`, the one shared answer. Any error: empty, logged
+    (fail safe: a bug excludes nothing)."""
+    if not enabled():
+        return frozenset()
+    try:
+        return frozenset(_norm(s) for s in pending_deal_symbols() if s)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] consumer pending set failed, excluding nothing: %s", exc)
+        return frozenset()
+
+
+def is_pending(sym, pending=None) -> bool:
+    """True when `sym` is a pending acquisition for a consumer. `pending` is a set a caller
+    already read with `consumer_pending()` (one read per run); None reads it now."""
+    p = consumer_pending() if pending is None else pending
+    return bool(p) and _norm(sym) in p
+
+
+def definitive_target(sym, headline) -> bool:
+    """True when `headline` announces a DEFINITIVE agreement with `sym` as the TARGET (the
+    same parser the news source uses). Rumours, talks, bids and the acquirer's side are
+    False. Never raises: an error is False (logged)."""
+    s = _norm(sym)
+    if not s or not headline:
+        return False
+    try:
+        return any(k == "definitive" and _norm(x) == s
+                   for x, k, _p in parse_headline(str(headline), [s]))
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] headline read failed for %s: %s", s, exc)
+        return False

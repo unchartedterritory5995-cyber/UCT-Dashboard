@@ -134,3 +134,19 @@ describe('the metrics render beside the pivot line', () => {
     expect(draw([row]).container.querySelector('[data-role="base-metrics"]')).toBeNull()
   })
 })
+
+describe('UCT Intelligence "Pattern labels & numbers" off (showLabels=false)', () => {
+  it('the drawing stays and the metrics text is gone; default (prop absent) still prints it', () => {
+    const rows = [base({ metrics: METRICS })]
+    const on = draw(rows).container
+    expect(on.querySelector('[data-role="base-metrics"]')).not.toBeNull()
+    const drawnShapes = on.querySelectorAll('[data-detection]').length
+    const off = render(
+      <PatternOverlay chart={makeDailyChart(DAILY)} series={series} containerRef={containerRef()}
+        enabled={true} tf="D" barTimes={DAILY} detections={rows} trustedOnly={true} showLabels={false} />,
+    ).container
+    expect(off.querySelector('[data-role="base-metrics"]')).toBeNull()
+    expect(off.querySelectorAll('[data-detection]').length).toBe(drawnShapes)
+    expect(drawnShapes).toBeGreaterThan(0)
+  })
+})

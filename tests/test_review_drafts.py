@@ -371,6 +371,10 @@ def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch()
         "api/routers/notebook_plan_grades.py",
         # asks `plan_grading_enabled()` before grading (the two tests above)
         "api/services/journal_two/review_drafts.py",
+        # the post-trade review block's read (`trade_review`) calls `grade_payload` only inside
+        # `if plan_grading.enabled():`, else answers {"needs": "plan grading"}; proved by the
+        # off / on-control pair in tests/test_trader_blocks_review.py over a real plan note
+        "api/services/journal_two/trader_blocks.py",
     }
     callers = set()
     for path in sorted((repo / "api").rglob("*.py")):
@@ -396,6 +400,8 @@ def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch()
     assert "dependencies=[Depends(_require_enabled)]" in router
     drafts = (repo / "api/services/journal_two/review_drafts.py").read_text(encoding="utf-8")
     assert "plan_grading_enabled()" in drafts
+    blocks = (repo / "api/services/journal_two/trader_blocks.py").read_text(encoding="utf-8")
+    assert "if plan_grading.enabled():" in blocks
 
 
 # ── fin-data M6: the draft carries how many trades the leak finder could not read ────────────

@@ -159,3 +159,11 @@ describe('PatternOverlay — team set (trustedOnly)', () => {
     expect(selectDrawable(rows(), { tf: 'D', trustedOnly: true, showLevels: true }).map((d) => d.id)).toEqual(['t1', 't2'])
   })
 })
+
+describe('UCT Intelligence admin "Learned levels & trendlines" off (showLearned=false)', () => {
+  it('withholds the learned layer; the prop absent keeps it', () => {
+    expect(renderOverlay({ detections: [], drawn }).container.querySelector('[data-layer="learned"]')).not.toBeNull()
+    expect(renderOverlay({ detections: [], drawn, showLearned: false }).container
+      .querySelector('[data-layer="learned"]')).toBeNull()
+  })
+})

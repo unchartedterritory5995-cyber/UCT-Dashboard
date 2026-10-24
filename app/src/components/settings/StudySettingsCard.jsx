@@ -17,6 +17,7 @@ import Input from '../ui/Input'
 import Select from '../ui/Select'
 import styles from '../../pages/Settings.module.css'
 import { useStudyProfile, putStudyProfile } from '../../pages/study/useStudy'
+import LoadFailed from '../../pages/journal-2-0/components/LoadFailed'
 
 export const GOALS = [20, 50, 100]
 export const DEFAULT_GOAL = 50
@@ -42,7 +43,7 @@ function writeSoundPref(on) {
 
 export default function StudySettingsCard() {
   const { studyEnabled } = useAuth() || {}
-  const { data, mutate } = useStudyProfile(studyEnabled !== false)
+  const { data, error, mutate } = useStudyProfile(studyEnabled !== false)
   const profile = data?.profile || null
   const [status, setStatus] = useState('')
   const [sound, setSound] = useState(readSoundPref)
@@ -67,7 +68,8 @@ export default function StudySettingsCard() {
 
   return (
     <TileCard icon="book" title="Study">
-      {data === undefined && <div className={styles.prefDesc}>Loading your Study settings…</div>}
+      <LoadFailed what="your Study settings" error={error} onRetry={() => mutate?.()} />
+      {data === undefined && !error && <div className={styles.prefDesc}>Loading your Study settings…</div>}
       {data === null && <div className={styles.prefDesc}>Study is not available on this account yet.</div>}
       {profile && (
         <div className={styles.section}>
