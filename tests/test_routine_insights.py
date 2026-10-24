@@ -497,3 +497,285 @@ def test_suggestions_only_the_members_trades(I):
             trade(c, B, day="2026-10-26", pnl=10.0)
         c.commit()
     assert _sug(I, item, "2026-10-26") == ["i0"]
+
+
+# ── fix round 1 ────────────────────────────────────────────────────────────────────────────────
+
+def strategy_at(c, uid, *, day, pnl, entry, closed=None, account=None, status="closed"):
+    sid = str(uuid.uuid4())
+    c.execute(
+        "INSERT INTO j2_option_strategies (id, user_id, account_id, underlying, strategy_type,"
+        " direction, net_entry, entry_date, status, closed_at, pnl_dollar, result, created_at,"
+        " updated_at, trading_day_et) VALUES (?, ?, ?, 'NVDA', 'long_call', 'bullish', 100, ?, ?,"
+        " ?, ?, ?, ?, ?, ?)",
+        (sid, uid, account, entry, status, closed, pnl, "Win" if pnl > 0 else "Loss", STAMP,
+         STAMP, day if status != "open" else None))
+    return sid
+
+
+LIMIT = [{"text": "Limit", "suggest": {"rule": "under_daily_loss_limit"}}]
+COOL = [{"text": "Cool off", "suggest": {"rule": "no_trade_after_loss", "n": 10}}]
+REVENGE = [{"text": "No revenge", "suggest": {"rule": "no_revenge"}}]
+
+
+def test_i1_two_accounts_and_a_trade_without_one_gives_no_limit_suggestion(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        acc = _account(c, A, size=10000.0, pct=2.0)
+        _account(c, A, size=5000.0, pct=None)
+        trade(c, A, day=d, pnl=-50.0, account=acc)
+        c.commit()
+    assert _sug(I, LIMIT, d) == ["i0"]                      # non-vacuity: attributed, holds
+    with _conn() as c:
+        trade(c, A, day=d, pnl=-10.0)                       # no account, two accounts: unknown
+        c.commit()
+    assert _sug(I, LIMIT, d) == []
+
+
+def test_i1_single_account_takes_the_trades_without_an_account(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        _account(c, A, size=10000.0, pct=2.0)               # the member's only account
+        trade(c, A, day=d, pnl=-150.0)                      # no account id
+        c.commit()
+    assert _sug(I, LIMIT, d) == ["i0"]
+    with _conn() as c:
+        trade(c, A, day=d, pnl=-100.0)                      # -250 in the only account
+        c.commit()
+    assert _sug(I, LIMIT, d) == []
+
+
+def test_m7_loss_limit_counts_options_too(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        acc = _account(c, A, size=10000.0, pct=2.0)         # limit $200
+        trade(c, A, day=d, pnl=-150.0, account=acc)
+        c.commit()
+    assert _sug(I, LIMIT, d) == ["i0"]
+    with _conn() as c:
+        strategy_at(c, A, day=d, pnl=-100.0, entry=f"{d}T14:00:00Z",
+                    closed=f"{d}T19:00:00Z", account=acc)   # the day is -250 incl. options
+        c.commit()
+    assert _sug(I, LIMIT, d) == []
+    assert "incl. options" in I.RULE_TEXT["under_daily_loss_limit"]
+    assert set(I.RULE_TEXT) == set(I.SUGGEST_RULES)
+
+
+def test_i2_an_option_opened_two_minutes_after_a_loss(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        trade(c, A, day=d, pnl=-50.0, entry="T14:00:00Z", exit_="T14:30:00Z")
+        c.commit()
+    assert _sug(I, COOL, d) == ["i0"]
+    with _conn() as c:
+        strategy_at(c, A, day=d, pnl=20.0, entry=f"{d}T14:32:00Z", closed=f"{d}T15:30:00Z")
+        c.commit()
+    assert _sug(I, COOL, d) == []
+
+
+def test_i2_a_date_only_option_gives_no_timing_suggestion(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        trade(c, A, day=d, pnl=20.0, entry="T14:00:00Z", exit_="T14:30:00Z")
+        c.commit()
+    assert _sug(I, COOL, d) == ["i0"] and _sug(I, REVENGE, d) == ["i0"]
+    with _conn() as c:
+        strategy_at(c, A, day=d, pnl=20.0, entry=d, closed=f"{d}T19:00:00Z")
+        c.commit()
+    assert _sug(I, COOL, d) == [] and _sug(I, REVENGE, d) == []
+
+
+def test_i2_an_option_loss_then_a_same_symbol_reentry_is_revenge(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        strategy_at(c, A, day=d, pnl=-80.0, entry=f"{d}T14:00:00Z", closed=f"{d}T14:30:00Z")
+        trade(c, A, day=d, pnl=20.0, entry="T15:40:00Z", exit_="T16:00:00Z", symbol="NVDA")
+        c.commit()
+    assert _sug(I, REVENGE, d) == ["i0"]                     # 70 minutes later: outside 60
+    with _conn() as c:
+        trade(c, A, day=d, pnl=20.0, entry="T14:50:00Z", exit_="T15:00:00Z", symbol="NVDA")
+        c.commit()
+    assert _sug(I, REVENGE, d) == []
+
+
+def test_i3_an_estimated_entry_reads_as_date_only(I):
+    d = "2026-10-26"
+    with _conn() as c:
+        trade(c, A, day=d, pnl=20.0, entry="T14:00:00Z", exit_="T14:30:00Z")
+        c.commit()
+    assert _sug(I, COOL, d) == ["i0"]
+    pid = str(uuid.uuid4())
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares,"
+            " original_shares, entry_price, stop_price, context_at_entry, created_at, updated_at,"
+            " closed_at, entry_estimated) VALUES (?, ?, 'AMD', 'Long', ?, 5, 5, 100, 95, '{}',"
+            " ?, ?, ?, 1)", (pid, A, f"{d}T14:40:00Z", STAMP, STAMP, f"{d}T15:30:00Z"))
+        trade(c, A, day=d, pnl=20.0, entry="T14:40:00Z", exit_="T15:30:00Z", symbol="AMD")
+        c.execute("UPDATE j2_trades SET position_id = ? WHERE symbol = 'AMD'", (pid,))
+        c.commit()
+    assert _sug(I, COOL, d) == [] and _sug(I, REVENGE, d) == []
+    stop = [{"text": "Stops", "suggest": {"rule": "stop_every_trade"}}]
+    assert _sug(I, stop, d) == ["i0"]                        # only the timing rules refuse
+
+
+def test_i4_win_rate_no_decided_trades_sentence(I):
+    r = routine()
+    with _conn() as c:
+        for d in sessions(6):
+            tick_all(c, A, r, d)
+            trade(c, A, day=d, pnl=0.0)                      # breakeven only
+        c.commit()
+    got = I.routine_vs_pnl(A, r["id"], now=NOW)
+    assert got["done"]["n"] == 6
+    assert got["winRate"]["done"]["text"] == "No decided trades yet."
+    assert got["winRate"]["done"]["avg"] is None and got["winRate"]["done"]["n"] == 0
+    assert got["winRate"]["other"]["text"] == "No days with trades yet."
+
+
+def test_i5_the_comparison_equals_a_built_widget_split_by_routine_done(I, monkeypatch):
+    from api.services.journal_two import notebook_widgets as nw
+    from api.services.journal_two.widget_engine import run as wrun
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-ins-test",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    wrun._reset_state()
+    r = routine()
+    days = sessions(12)
+    nets = [95.0, 13.5, -40.0, 210.25, 7.0, -3.0, 120.0, 55.5, -80.0, 33.0, 1.0, 18.0]
+    with _conn() as c:
+        for i, (d, p) in enumerate(zip(days, nets)):
+            if i % 2 == 0:
+                tick_all(c, A, r, d)
+            trade(c, A, day=d, pnl=p)
+        # a Friday that is done, with a Saturday-stamped trade the scan folds into it
+        tick_all(c, A, r, "2026-10-23")
+        trade(c, A, day="2026-10-23", pnl=40.0)
+        trade(c, A, day="2026-10-24", pnl=-17.0)
+        c.commit()
+    ours = I.routine_vs_pnl(A, r["id"], now=NOW)
+    raw = {"v": 2, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}],
+           "split": {"by": "routine_done", "ref": r["id"]},
+           "range": {"from": days[0], "to": "2026-10-27"}}
+    out = wrun.run_plan(A, raw, {}, lane="run", now=NOW)
+    wrun._reset_state()
+    done = [p for i, p in enumerate(nets) if i % 2 == 0] + [40.0 - 17.0]
+    assert ours["done"]["avg"] == pytest.approx(sum(done) / len(done))
+    groups = {g["label"]: g for g in out["rows"]}
+    assert groups["Done"]["v1"] == pytest.approx(ours["done"]["avg"])
+    assert groups["Done"]["n1"] == ours["done"]["n"] == 7
+    assert out["footnotes"]                          # the weekend trade was folded into Friday
+
+
+def test_i6_history_for_since_bounds_the_build_and_names_archived_day(I):
+    from api.services.journal_two import routines, trading_days
+    r = routine()
+    since = date(2026, 10, 20)
+    calls = []
+    real = routines.routine_days.history
+
+    def spy(**kw):
+        calls.append(kw["created"])
+        return real(**kw)
+    with _conn() as c:
+        full = routines.history_for(c, A, r["id"], date(2026, 10, 27), date(2026, 10, 28))
+        routines.routine_days.history = spy
+        try:
+            got = routines.history_for(c, A, r["id"], date(2026, 10, 27), date(2026, 10, 28),
+                                       since=since)
+        finally:
+            routines.routine_days.history = real
+    floor = trading_days.nth_session_before(since, routines.HISTORY_SINCE_LOOKBACK)
+    assert calls == [floor] and floor > date(2026, 8, 3)
+    h = got[r["id"]]
+    assert h.states[0].day == floor.isoformat()
+    assert full[r["id"]].states[0].day == "2026-08-03"
+    tail = {s.day: s.state for s in full[r["id"]].states if s.day >= floor.isoformat()}
+    assert {s.day: s.state for s in h.states} == tail
+    assert h.archived_at is None
+    routines.archive(A, r["id"], now=datetime(2026, 10, 22, 2, 0, tzinfo=timezone.utc))
+    with _conn() as c:
+        h2 = routines.history_for(c, A, r["id"], date(2026, 10, 27), date(2026, 10, 28))
+    assert h2[r["id"]].archived_at == date(2026, 10, 21)       # 22:00 ET on the 21st
+
+
+def test_m1_a_ticks_answer_equals_read_days_with_suggestions(I):
+    from api.services.journal_two import routines
+    r, ids = _rules_routine()
+    d = "2026-10-26"
+    with _conn() as c:
+        trade(c, A, day=d, pnl=50.0)
+        c.commit()
+    ans = routines.set_tick(A, r["id"], d, ids["Read the wire"], True, now=NOW)
+    read = routines.read_days(A, [r["id"]], [d], now=NOW)["routines"][r["id"]]["days"][d]
+    assert ans["suggested"] and ans == read
+
+
+def test_m2_a_rule_is_read_once_per_day(I, monkeypatch):
+    calls = []
+    real = I._holds
+    monkeypatch.setattr(I, "_holds", lambda *a, **k: (calls.append(a[:2]), real(*a, **k))[1])
+    two = [{"text": "Stops", "suggest": {"rule": "stop_every_trade"}},
+           {"text": "Stops again", "suggest": {"rule": "stop_every_trade"}},
+           {"text": "Max 3", "suggest": {"rule": "max_trades", "n": 3}}]
+    with _conn() as c:
+        trade(c, A, day="2026-10-26", pnl=10.0)
+        c.commit()
+    assert _sug(I, two, "2026-10-26") == ["i0", "i1", "i2"]
+    assert calls == [("stop_every_trade", None), ("max_trades", 3)]
+
+
+def test_m3_facts_read_the_wanted_days_only(I):
+    seen = []
+    with _conn() as c:
+        trade(c, A, day="2026-09-15", pnl=10.0)
+        c.commit()
+        c.set_trace_callback(seen.append)
+        got = I.day_facts(c, A, ["2026-08-04", "2026-10-26"], now=NOW)
+        c.set_trace_callback(None)
+    assert got == {"2026-08-04": None, "2026-10-26": None}
+    trades_sql = [s for s in seen if "FROM j2_trades" in s]
+    assert trades_sql and all("BETWEEN" not in s and " IN (" in s for s in trades_sql)
+
+
+def test_m4_no_suggestion_on_an_off_or_skipped_day_or_for_a_ticked_item(I):
+    from api.services.journal_two import routines
+    r, ids = _rules_routine()
+    stop = ids["Stop on every trade"]
+    with _conn() as c:
+        for d in ("2026-10-23", "2026-10-26", "2026-10-25"):     # Fri, Mon, a Sunday
+            trade(c, A, day=d, pnl=10.0)
+        c.commit()
+    got = _read(r["id"], ["2026-10-23", "2026-10-26", "2026-10-25"], NOW)
+    assert stop in got["2026-10-23"] and stop in got["2026-10-26"]   # non-vacuity
+    assert got["2026-10-25"] == []                                    # off: not a session
+    routines.set_skipped(A, r["id"], "2026-10-23", True, now=NOW)
+    routines.set_tick(A, r["id"], "2026-10-26", stop, True, now=NOW)
+    got = _read(r["id"], ["2026-10-23", "2026-10-26"], NOW)
+    assert got["2026-10-23"] == []                                    # skipped
+    assert stop not in got["2026-10-26"] and got["2026-10-26"]        # ticked: not suggested
+
+
+def test_m5_a_dismissed_revenge_pair_is_honoured(I):
+    from api.services.journal_two import routine_days
+    d = "2026-10-26"
+    with _conn() as c:
+        trade(c, A, day=d, pnl=-50.0, entry="T14:00:00Z", exit_="T14:30:00Z", symbol="TSLA")
+        trade(c, A, day=d, pnl=10.0, entry="T14:50:00Z", exit_="T15:00:00Z", symbol="TSLA")
+        c.commit()
+        refs = [f"id:{x}" for (x,) in c.execute(
+            "SELECT id FROM j2_trades ORDER BY entry_date")]
+    assert _sug(I, REVENGE, d) == []
+    items = routine_days.parse_items([{**REVENGE[0], "id": "i0", "from": "2026-01-01"}])
+    with _conn() as c:
+        got = I.suggestions(c, A, items, [d], now=NOW,
+                            suppressed_pairs={f"{refs[0]}->{refs[1]}"})
+    assert got[d] == ["i0"]
+
+
+def test_m6_a_deleted_tracker_is_none(I):
+    from api.services.journal_two import trackers
+    t = _tracker()
+    assert I.tracker_vs_pnl(A, t["id"], now=NOW) is not None
+    trackers.archive(A, t["id"], now=NOW)
+    trackers.soft_delete(A, t["id"], typed_name="Sleep", now=NOW)
+    assert I.tracker_vs_pnl(A, t["id"], now=NOW) is None

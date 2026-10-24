@@ -903,6 +903,7 @@ class RoutineHistory:
     name: str
     created: date
     archived: bool
+    archived_at: date | None           # the ET day it was archived (ruling W9-R20 reads it)
     strict: bool
     uses_traded: bool
     items: tuple                       # routine_days.Item, every version
@@ -910,14 +911,20 @@ class RoutineHistory:
     states: tuple                      # routine_days.DayState, oldest first
 
 
+#: With `since`, history starts this many sessions before it (a consistency window of 20 and
+#: room for a run line), so a caller asking about a recent span never builds years of days.
+HISTORY_SINCE_LOOKBACK = 40
+
+
 def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], upto: date,
-                today: date) -> dict[str, RoutineHistory]:
+                today: date, *, since: date | None = None) -> dict[str, RoutineHistory]:
     """The PUBLIC door to a routine's history (ruling W9-R15): for each of `rids` (one id or a
     list) that is the session member's and not deleted (archived ones keep their history), its
     day states oldest first, from the later of its created day and the MAX_HISTORY_SESSIONS-th
-    session back, to `min(upto, today)`. Every day the routine runs or could run is there,
-    `off` included; a caller keeps the states it counts. Foreign, unknown, deleted and
-    unreadable ids are absent. Reads only; one query per child table for all ids."""
+    session back, to `min(upto, today)`. With `since`, from the later of its created day and the
+    HISTORY_SINCE_LOOKBACK-th session before `since` (I-6). Every day the routine runs or could
+    run is there, `off` included; a caller keeps the states it counts. Foreign, unknown, deleted
+    and unreadable ids are absent. Reads only; one query per child table for all ids."""
     ids = [rids] if isinstance(rids, str) else list(dict.fromkeys(rids or []))
     ids = [i for i in ids if isinstance(i, str) and i]
     if not ids or not user_id:
@@ -940,10 +947,20 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
         ctx = ctxs.get(rid)
         if ctx is None:
             continue
+        if since is None:
+            states = ctx.states_upto(cut, today)
+        else:
+            lo = max(ctx.created, trading_days.nth_session_before(since, HISTORY_SINCE_LOOKBACK))
+            states = routine_days.history(
+                items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
+                skipped_days=ctx.skipped, created=lo, upto=cut, today=today,
+                traded=ctx.traded, done_share=ctx.settings["done_share"])
+        arch_day = compute_trading_day_et(ctx.row["archived_at"]) if ctx.archived else None
         out[rid] = RoutineHistory(
             id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
+            archived_at=date.fromisoformat(arch_day[:10]) if arch_day else None,
             strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
-            items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(ctx.states_upto(cut, today)))
+            items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
     return out
 
 
@@ -1094,7 +1111,8 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
 def _suggested(c: sqlite3.Connection, user_id: str, ctxs: dict[str, _Ctx], days: list[str],
                now_dt: datetime) -> dict[str, dict[str, list[str]]]:
     """rid -> day -> suggested item ids. The day's trades are read ONCE for every routine, and
-    only when some routine has an opted-in item."""
+    only when some routine has an opted-in item. M-4: never on a day the routine is off or
+    skipped, and never an item already ticked (today before its close is never eligible)."""
     from api.services.journal_two import routine_insights   # it imports this module
     if not days:
         return {}
@@ -1103,9 +1121,23 @@ def _suggested(c: sqlite3.Connection, user_id: str, ctxs: dict[str, _Ctx], days:
     if not wanted:
         return {}
     facts = routine_insights.day_facts(c, user_id, days, now=now_dt)
-    return {rid: routine_insights.suggestions(c, user_id, list(ctx.items), days, now=now_dt,
-                                              facts=facts)
-            for rid, ctx in wanted.items()}
+    today = trading_days.today_et(now_dt)
+    out: dict[str, dict[str, list[str]]] = {}
+    for rid, ctx in wanted.items():
+        raw = routine_insights.suggestions(c, user_id, list(ctx.items), days, now=now_dt,
+                                           facts=facts)
+        per: dict[str, list[str]] = {}
+        for d, iids in raw.items():
+            if not iids:
+                per[d] = []
+                continue
+            if ctx.day_state(date.fromisoformat(d), today).state in ("off", "skipped"):
+                per[d] = []
+                continue
+            ticked = ctx.ticks.get(d) or {}
+            per[d] = [i for i in iids if ticked.get(i) is not True]
+        out[rid] = per
+    return out
 
 
 # ── import ─────────────────────────────────────────────────────────────────────────────────────

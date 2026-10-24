@@ -39,22 +39,35 @@ from api.services.journal_two import tracker_days, trackers, trading_days
 from api.services.journal_two.filters import ANALYTICS_INCLUDED_SQL, _DAY
 from api.services.journal_two.measures import DEFAULT_MIN_N, SMALL_SAMPLE_N
 from api.services.journal_two.notebook_widgets import _num
+from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.timeutil import _is_date_only, _parse, compute_trading_day_et
 from api.services.journal_two.widget_definitions import _read
 
 CAVEAT = "A comparison, not proof."
 S_NO_DAYS = "No days with trades yet."
 S_NOT_ENOUGH = "Not enough days yet ({n})"
+S_NO_DECIDED = "No decided trades yet."
 SUGGEST_LINE = "From your trades: looks done"
 
 SUGGEST_RULES = ("stop_every_trade", "max_trades", "under_daily_loss_limit",
                  "no_trade_after_loss", "no_revenge")
+#: What each rule reads, in member words (the block's explanation of a suggestion).
+RULE_TEXT = {
+    "stop_every_trade": "Every trade that day had a stop.",
+    "max_trades": "Your trades that day, options included, were within your limit.",
+    "under_daily_loss_limit": ("Your day net P&L (incl. options) stayed above your daily loss "
+                               "limit."),
+    "no_trade_after_loss": "No new trade, options included, soon after a losing exit.",
+    "no_revenge": "No re-entry in the same symbol soon after a loss.",
+}
 MAX_TRADES_MIN, MAX_TRADES_MAX = 1, 20
 AFTER_LOSS_DEFAULT_MIN = 10
 AFTER_LOSS_MAX_MIN = 1000              # the store's own bound on a stored `n`
 
 MINUS = "−"
 _COUNTED_OTHER = ("not_done", "skipped")
+#: `filters._DAY` for the `t` alias (derived, never restated).
+_DAY_T = _DAY.replace("trading_day_et", "t.trading_day_et").replace("exit_date", "t.exit_date")
 
 
 # ── small helpers ──────────────────────────────────────────────────────────────────────────────
@@ -119,7 +132,8 @@ def _rate_group(pairs: list[tuple[float, float]]) -> dict:
     """(wins, decisive) per day; days with no decisive trade are not counted (breakeven out)."""
     days = [(w, d) for w, d in pairs if d > 0]
     n = len(days)
-    short = _short(n)
+    # W9-R7: days with trades but none decided is its own sentence, never "0%" or "(0)".
+    short = S_NO_DECIDED if (n == 0 and pairs) else _short(n)
     avg = None if short else _num(sum(w for w, _ in days) / sum(d for _, d in days))
     return {"avg": avg, "n": n, "sample": _sample(n),
             "text": short or f"{_pct(avg)} win rate ({_days(n)})"}
@@ -299,45 +313,87 @@ def _timed(iso: Any) -> datetime | None:
     return dt
 
 
+def _near(days: Iterable[str]) -> list[str]:
+    """Each day and its neighbours: a stored UTC instant can be the ET day before or after."""
+    out: set[str] = set()
+    for d in days:
+        dd = date.fromisoformat(d)
+        out.update((dd + timedelta(days=k)).isoformat() for k in (-1, 0, 1))
+    return sorted(out)
+
+
+def _marks(xs: list) -> str:
+    return ",".join("?" for _ in xs)
+
+
 def day_facts(conn: sqlite3.Connection, user_id: str, days: Iterable[str], *,
               now: datetime) -> dict[str, dict | None]:
-    """day -> the day's trades and loss limits, for each eligible day that had a trade; None for
-    every other day. Two queries for all days (equity trades, option strategies) plus one for the
-    member's accounts."""
+    """day -> the facts the rules read, for each eligible day (past, or today after its close)
+    that had a trade; None for every other day. Reads only the wanted days (an IN list, M-3): one
+    query for equity trades, one for option strategies, one for the member's accounts.
+
+    A day's facts:
+      * `count`: equity trades plus option strategies closed that day ("Trades that day");
+      * `trades`: the equity trades (stops);
+      * `events`: everything with a time that day, for the timing rules (I-2): the equity trades
+        and each option strategy opened or closed that day;
+      * `nets` / `unattributed` / `limits`: the day's net per account (equity after fees plus
+        closed strategies, ruling W9-R22), whether part of it has no account that can be named
+        (I-1: two or more accounts and a trade without one), and each account's limit in dollars."""
     now_dt = _now(now)
+    want_list = [str(x) for x in days]
+    out: dict[str, dict | None] = {d: None for d in dict.fromkeys(want_list)}
     keep: list[str] = []
-    for d in dict.fromkeys(days):
+    for d in dict.fromkeys(want_list):
         try:
-            dd = date.fromisoformat(str(d))
+            dd = date.fromisoformat(d)
         except ValueError:
             continue
-        if _eligible(dd, now_dt):
-            keep.append(dd.isoformat())
-    out: dict[str, dict | None] = {d: None for d in dict.fromkeys(str(x) for x in days)}
+        if dd.isoformat() == d and _eligible(dd, now_dt):
+            keep.append(d)
     if not keep:
         return out
-    lo, hi = min(keep), max(keep)
     wanted = set(keep)
-    trades: dict[str, list[dict]] = {}
-    for tid, sym, entry, exit_, ep, stop, pnl, fees, acc, day in conn.execute(
-            "SELECT id, symbol, entry_date, exit_date, entry_price, original_stop, pnl_dollar,"
-            f" COALESCE(fees, 0), account_id, {_DAY} FROM j2_trades WHERE user_id = ?"
-            f" {ANALYTICS_INCLUDED_SQL} AND {_DAY} BETWEEN ? AND ?", (user_id, lo, hi)):
-        if day in wanted:
-            trades.setdefault(day, []).append({
-                "id": tid, "symbol": sym, "entry_date": entry, "exit_date": exit_,
-                "entry_price": ep, "stop": stop, "account": acc,
-                "net": float(pnl or 0) - float(fees or 0)})
-    strategies: dict[str, int] = {}
-    wide_lo = (date.fromisoformat(lo) - timedelta(days=1)).isoformat()
-    wide_hi = (date.fromisoformat(hi) + timedelta(days=1)).isoformat() + "~"
-    for tday, closed in conn.execute(
-            "SELECT trading_day_et, closed_at FROM j2_option_strategies WHERE user_id = ?"
-            " AND status != 'open' AND (trading_day_et BETWEEN ? AND ? OR closed_at BETWEEN ? AND ?)",
-            (user_id, lo, hi, wide_lo, wide_hi)):
-        day = tday or compute_trading_day_et(closed)
-        if day in wanted:
-            strategies[day] = strategies.get(day, 0) + 1
+    facts = {d: {"trades": [], "count": 0, "events": [], "book": []} for d in keep}
+    for r in conn.execute(
+            "SELECT t.id, t.symbol, t.entry_date, t.exit_date, t.entry_price, t.original_stop,"
+            " t.pnl_dollar, COALESCE(t.fees, 0) AS fees, t.account_id, t.source, t.external_id,"
+            f" COALESCE(p.entry_estimated, 0) AS est, {_DAY_T} AS day"
+            " FROM j2_trades t LEFT JOIN j2_positions p"
+            " ON p.id = t.position_id AND p.user_id = t.user_id"
+            " WHERE t.user_id = ? AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)"
+            f" AND {_DAY_T} IN ({_marks(keep)})", (user_id, *keep)):
+        f = facts.get(r["day"])
+        if f is None:
+            continue
+        net = float(r["pnl_dollar"] or 0) - float(r["fees"] or 0)
+        t = {"ref": trade_ref_for_row(r), "symbol": r["symbol"], "entry_date": r["entry_date"],
+             "exit_date": r["exit_date"], "entry_price": r["entry_price"],
+             "stop": r["original_stop"], "net": net, "estimated": bool(r["est"])}
+        f["trades"].append(t)
+        f["events"].append(t)
+        f["count"] += 1
+        f["book"].append((r["account_id"], net))
+    near = _near(keep)
+    for r in conn.execute(
+            "SELECT id, underlying, entry_date, closed_at, status, pnl_dollar, account_id,"
+            " trading_day_et FROM j2_option_strategies WHERE user_id = ?"
+            f" AND (trading_day_et IN ({_marks(keep)})"
+            f" OR substr(closed_at, 1, 10) IN ({_marks(near)})"
+            f" OR substr(entry_date, 1, 10) IN ({_marks(near)}))",
+            (user_id, *keep, *near, *near)):
+        closed = r["status"] != "open"
+        closed_day = ((r["trading_day_et"] or compute_trading_day_et(r["closed_at"]))
+                      if closed else None)
+        entry_day = compute_trading_day_et(r["entry_date"])
+        net = float(r["pnl_dollar"] or 0)
+        ev = {"ref": f"opt:{r['id']}", "symbol": r["underlying"], "entry_date": r["entry_date"],
+              "exit_date": r["closed_at"] if closed else None, "net": net, "estimated": False}
+        for day in {closed_day, entry_day} & wanted:
+            facts[day]["events"].append(ev)
+        if closed_day in wanted:
+            facts[closed_day]["count"] += 1
+            facts[closed_day]["book"].append((r["account_id"], net))
     accs = conn.execute("SELECT * FROM j2_accounts WHERE user_id = ?", (user_id,)).fetchall()
     limits: dict[str, float] = {}
     for a in accs:
@@ -347,15 +403,24 @@ def day_facts(conn: sqlite3.Connection, user_id: str, days: Iterable[str], *,
             limits[a["id"]] = pct / 100.0 * size
     only = accs[0]["id"] if len(accs) == 1 else None
     for d in keep:
-        eq = trades.get(d, [])
-        n_opt = strategies.get(d, 0)
-        if not eq and not n_opt:
+        f = facts[d]
+        if not f["count"] and not f["events"]:
             continue
-        out[d] = {"trades": eq, "count": len(eq) + n_opt, "limits": limits, "only": only}
+        nets: dict[str, float] = {}
+        unattributed = False
+        for acc, net in f.pop("book"):
+            acc = acc or only
+            if acc is None:
+                unattributed = True
+                continue
+            nets[acc] = nets.get(acc, 0.0) + net
+        f.update(nets=nets, unattributed=unattributed, limits=limits, memo={})
+        out[d] = f
     return out
 
 
-def _holds(rule: str, n: int | None, f: dict) -> bool:
+def _holds(rule: str, n: int | None, f: dict,
+           suppressed_pairs: frozenset[str] = frozenset()) -> bool:
     eq: list[dict] = f["trades"]
     if rule == "stop_every_trade":
         return bool(eq) and not any(placeholder_stop.is_placeholder_stop(t["stop"],
@@ -364,40 +429,47 @@ def _holds(rule: str, n: int | None, f: dict) -> bool:
     if rule == "max_trades":
         return 1 <= f["count"] <= int(n)
     if rule == "under_daily_loss_limit":
-        if not f["limits"]:
-            return False                       # no account has a limit: no suggestion
-        nets: dict[str, float] = {}
-        for t in eq:
-            acc = t["account"] or f["only"]
-            nets[acc] = nets.get(acc, 0.0) + t["net"]
-        return all(nets.get(acc, 0.0) > -limit for acc, limit in f["limits"].items())
-    timed = [(t, _timed(t["entry_date"]), _timed(t["exit_date"])) for t in eq]
-    if not eq or any(e is None or x is None for _, e, x in timed):
-        return False                           # a date-only trade: the rule cannot be read
+        if not f["limits"] or f["unattributed"]:
+            return False      # no account has a limit, or part of the day has no account (I-1)
+        return all(f["nets"].get(acc, 0.0) > -limit for acc, limit in f["limits"].items())
+    timed = []
+    for ev in f["events"]:
+        entry = None if ev["estimated"] else _timed(ev["entry_date"])
+        exit_ = _timed(ev["exit_date"]) if ev["exit_date"] else None
+        if entry is None or (ev["exit_date"] and exit_ is None):
+            return False      # a date-only or estimated time: the rule cannot be read (I-2, I-3)
+        timed.append((ev, entry, exit_))
+    if not timed:
+        return False
     if rule == "no_trade_after_loss":
         window = timedelta(minutes=int(n))
         for loss, _, lx in timed:
-            if loss["net"] >= 0:
+            if lx is None or loss["net"] >= 0:
                 continue
             for other, oe, _ in timed:
                 if other is not loss and lx <= oe <= lx + window:
                     return False
         return True
     if rule == "no_revenge":
-        found = revenge_detect.detect([{"id": t["id"], "symbol": t["symbol"],
-                                        "entry_date": t["entry_date"],
-                                        "exit_date": t["exit_date"],
-                                        "pnlDollarNet": t["net"]} for t in eq])
+        found = revenge_detect.detect(
+            [{"tradeRef": ev["ref"], "symbol": ev["symbol"], "entry_date": ev["entry_date"],
+              "exit_date": ev["exit_date"], "pnlDollarNet": ev["net"]}
+             for ev, _, x in timed if x is not None],
+            suppressed_pairs=suppressed_pairs)
         return not found["flags"]
     return False
 
 
 def suggestions(conn: sqlite3.Connection, user_id: str, routine_items: list, days: list[str], *,
-                now: datetime, facts: dict | None = None) -> dict[str, list[str]]:
+                now: datetime, facts: dict | None = None,
+                suppressed_pairs: frozenset[str] | set[str] = frozenset()) -> dict[str, list[str]]:
     """day -> the ids of the opted-in items (valid that day) whose rule holds, for a day that is
     past (or today after its close) and had at least one trade; an empty list otherwise. Computed
     at read time and never written. `facts` (from `day_facts`) lets a caller read the day's
-    trades once for many routines."""
+    trades once for many routines; each rule's answer is memoized per (rule, n, day) in them
+    (M-2). `suppressed_pairs` are the member's dismissed revenge pairs (`revenge_detect` pair
+    keys, the analytics shape `id:<trade id>` / `ext:<id>` / `opt:<strategy id>`)."""
+    sup = frozenset(suppressed_pairs or ())
     f_all = facts if facts is not None else day_facts(conn, user_id, days, now=now)
     out: dict[str, list[str]] = {}
     for d in dict.fromkeys(str(x) for x in days):
@@ -406,6 +478,7 @@ def suggestions(conn: sqlite3.Connection, user_id: str, routine_items: list, day
         if not f:
             continue
         day = date.fromisoformat(d)
+        memo = f.setdefault("memo", {})
         for it in routine_items or []:
             if isinstance(it, routine_days.Item):
                 if not routine_days.items_on([it], day):
@@ -416,6 +489,11 @@ def suggestions(conn: sqlite3.Connection, user_id: str, routine_items: list, day
             else:
                 continue
             rn = _rule_of(it)
-            if rn is not None and _holds(rn[0], rn[1], f):
+            if rn is None:
+                continue
+            key = (rn[0], rn[1], sup)
+            if key not in memo:
+                memo[key] = _holds(rn[0], rn[1], f, sup)
+            if memo[key]:
                 out[d].append(iid)
     return out
