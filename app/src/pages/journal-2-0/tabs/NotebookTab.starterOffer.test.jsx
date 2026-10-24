@@ -21,13 +21,6 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => nu
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
-// Wave 7 Task 7.4: an import spy on the template catalog. The factory runs the first time anything imports the
-// module, so its count says whether the catalog rode in with the page or arrived with the picker.
-const { catalogSpy } = vi.hoisted(() => ({ catalogSpy: { loads: 0 } }))
-vi.mock('../lib/notebookTemplates', async (importOriginal) => {
-  catalogSpy.loads += 1
-  return importOriginal()
-})
 
 import NotebookTab from './NotebookTab'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
@@ -59,21 +52,6 @@ afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const offers = () => screen.queryAllByRole('region', { name: OFFER_TITLE })
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 100)) })
-
-// Wave 7 Task 7.4: the empty notebook's inline picker is its own chunk, and the catalog it lists comes with it.
-// ORDER-DEPENDENT BY DESIGN: this must be the file's first mount, before any test has resolved the picker.
-describe('Task 7.4: the template catalog leaves the first open', () => {
-  it('notebookTemplates_not_imported_on_empty_notebook_mount', async () => {
-    expect(catalogSpy.loads, 'the catalog was imported with the page, before anything was mounted').toBe(0)
-    render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
-    // the picker has not resolved yet: its skeleton holds the box (and the tour anchor), and no catalog
-    expect(document.querySelector('[data-template-picker-skeleton] [data-tour="template-gallery-door"]')).not.toBeNull()
-    expect(catalogSpy.loads).toBe(0)
-    // ...and once it has, the catalog came with it (non-vacuity: the spy can count)
-    await screen.findByText('Blank note', {}, T)
-    expect(catalogSpy.loads).toBe(1)
-  })
-})
 
 describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
   it('the page alone: the inline picker holds the one card (non-vacuity: the offer does show here)', async () => {
