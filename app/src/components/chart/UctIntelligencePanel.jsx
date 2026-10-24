@@ -4,7 +4,7 @@
 // ⛔ A GATED LAYER'S TOGGLE IS NOT RENDERED UNTIL ITS LAYER IS RELEASED (`availability`), never shown
 // disabled: a switch that does nothing is the defect, not a teaser. Admin-only layers sit in their own
 // "Admin" section, rendered only when the host passes `admin`.
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 
 const EMPTY = Object.freeze([])
@@ -25,11 +25,24 @@ export function useChartSetups(sym, enabled) {
     : null
   // No polling: the judge confirms setups on daily bars, so one read per chart mount is the honest cadence.
   const { data, error, isLoading } = useSWR(key, fetcher, { dedupingInterval: 30_000 })
+  const setups = useMemo(() => chartSetupRows(data), [data])
   return {
-    setups: Array.isArray(data?.verdicts) ? data.verdicts : EMPTY,
+    setups,
     loading: Boolean(key && isLoading && !data),
     error: Boolean(key && error),
   }
+}
+
+/** The rows the Setups list shows: the judge's confirmed verdicts, then the server's `setup_tags`
+ *  (blind-confirmed setups and bar events from the last three sessions, present only while the
+ *  server releases them; filtered there, never here). A tag naming a setup already confirmed is
+ *  not listed twice. */
+export function chartSetupRows(data) {
+  const verdicts = Array.isArray(data?.verdicts) ? data.verdicts : EMPTY
+  const tags = Array.isArray(data?.setup_tags) ? data.setup_tags : EMPTY
+  if (!tags.length) return verdicts
+  const seen = new Set(verdicts.map((v) => v?.setup))
+  return [...verdicts, ...tags.filter((t) => t && !seen.has(t.setup))]
 }
 
 /** The member-facing name: the server's `setup_name`, else the id title-cased (the Technical tab's rule). */

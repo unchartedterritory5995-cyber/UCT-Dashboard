@@ -466,3 +466,42 @@ def drop_internal(rows, key: str = "pattern_id") -> list:
         if pid not in INTERNAL_PATTERN_IDS:
             out.append(r)
     return out
+
+
+# ---------------------------------------------------------------------------
+# SETUP TAGS — the chart's UCT Intelligence "Setups" list (text only, never drawn)
+# ---------------------------------------------------------------------------
+#: ⛔ TAGS ARE NOT DRAWINGS. A tag is a name and a one-line definition beside the chart
+#: (api/services/setup_tags.py), served on GET /api/patterns/{sym}?confirmed_only=true as
+#: `setup_tags` while AUTO_STRUCTURES_SETUP_TAGS_ENABLED is on. Nothing here changes what a
+#: detector fires on, its confidence, its drawing tier or the display sets above.
+#:
+#: TEAM TAG SET (admins): every id below, both directions.
+#:   * blind-confirmed recognition setups (each passed its pre-registered blind recognition
+#:     check: two fresh packets, or an independent adjudication, at >= 75% precision of decided):
+#:     launch pad v4, gap support, capitulation, go signal, flag / HTF (guarded), MA reclaim,
+#:     trendline break, flat-top breakout ftb4. They stay INTERNAL_PATTERN_IDS everywhere else;
+#:     this set is the only path that names them to a member.
+#:     uct_episodic_pivot_v2 is deliberately NOT here: the confirmed episodic-pivot tier is not
+#:     the shipped detector, whose own blind evidence is one packet.
+#:   * deterministic bar events, each shown only where its TEXTBOOK definition holds
+#:     (setup_tags.TEXTBOOK): kicker, oops reversal, slingshot, highest volume in a year,
+#:     NR7, outside bar, episodic pivot. power_earnings_gap is NOT here: its gap is at least
+#:     three sessions old by construction (it needs 3+ post-gap sessions), so it can never be
+#:     a last-3-sessions event, and it cannot verify the earnings link it is named for.
+SETUP_TAG_TEAM_SET: frozenset = frozenset({
+    "uct_launch_pad_v4", "uct_gap_support", "uct_capitulation", "uct_go_signal",
+    "uct_flag_htf", "uct_ma_reclaim", "uct_trendline_break", "uct_flat_top_breakout_ftb4",
+    "uct_kicker", "uct_oops_reversal", "uct_slingshot", "uct_hve",
+    "nr7", "outside_bar", "episodic_pivot",
+})
+#: MEMBER TAG SET: the ids a paid member may be shown, and ONLY a row whose `direction` is in
+#: SETUP_TAG_MEMBER_DIRECTIONS (bullish), or an id in SETUP_TAG_DIRECTIONLESS (NR7 is a range
+#: fact with no direction; it is never bearish). A bearish row (a down-close HVE, a bearish
+#: outside bar) stays admin-only. Fail closed: a row with no direction is dropped.
+SETUP_TAG_MEMBER_SET: frozenset = SETUP_TAG_TEAM_SET
+SETUP_TAG_MEMBER_DIRECTIONS: frozenset = frozenset({"bullish"})
+SETUP_TAG_DIRECTIONLESS: frozenset = frozenset({"nr7"})
+assert SETUP_TAG_MEMBER_SET <= SETUP_TAG_TEAM_SET, "a member tag must be in the team tag set"
+assert SETUP_TAG_DIRECTIONLESS <= SETUP_TAG_MEMBER_SET
+assert not SETUP_TAG_TEAM_SET & DISPLAY_TEAM_SET, "a tag is never a drawing"

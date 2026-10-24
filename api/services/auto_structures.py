@@ -83,6 +83,20 @@ def metrics_enabled() -> bool:
     return os.environ.get("AUTO_STRUCTURES_METRICS_ENABLED", "0").strip().lower() in _TRUTHY
 
 
+def setup_tags_enabled() -> bool:
+    """AUTO_STRUCTURES_SETUP_TAGS_ENABLED, read PER CALL; unset means OFF. Rides
+    AUTO_STRUCTURES_ENABLED like the member flag, so unsetting the master closes this door too.
+    While off, GET /api/patterns/{sym} carries no `setup_tags` key (byte-identical payload)."""
+    return enabled() and (
+        os.environ.get("AUTO_STRUCTURES_SETUP_TAGS_ENABLED", "0").strip().lower() in _TRUTHY)
+
+
+#: The setup-tag round a member may be shown (setup_tags.TAGS_ROUND stamps every tag). A literal ON
+#: PURPOSE, like the drawing rounds: when the tag rules or their definitions move to a new round,
+#: members stop getting tags until this is changed by hand (admins still see them).
+MEMBER_SETUP_TAGS_ROUND = 1
+
+
 #: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps
 #: `extras.metrics_round`). A literal ON PURPOSE, like the drawing rounds: None until a blind packet
 #: confirms the printed numbers, so members get NO metrics (fail closed) while admins see them under the
