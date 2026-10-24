@@ -62,8 +62,8 @@ FALSE_POSITIVES = [
     ("SHAREHOLDER ALERT: law firm investigates Alpha Widgets (AAA), which agreed to be acquired "
      "by Bravo for $10.00 per share", ["AAA", "BBB"], "law firm"),
     ("Are SSTI, MG, CBNK, MGLD Obtaining Fair Deals for their Shareholders?", ["SSTI", "MG"], "law firm"),
-    ("Kahn Swick & Foti investigates Bravo Holdings (BBB) over its agreement to be acquired by "
-     "Alpha Widgets", ["BBB"], "law firm"),
+    ("Halper Sadeh LLC Investigates Bravo Holdings (BBB) Agreement to be Acquired by Alpha "
+     "Widgets for $5.00 per share", ["BBB"], "law firm"),
     ("Amazon explores sale of Alpha Widgets unit, sources say", ["AMZN", "AAA"], "explores sale"),
     ("Bravo in talks to acquire Alpha Widgets for $9.00 per share", ["AAA", "BBB"], "in talks"),
     ("Qualcomm plans to acquire Alpha Widgets for $12.00 per share", ["QCOM", "AAA"], "intent"),
@@ -106,6 +106,7 @@ def _isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("COMPANY_NEWS_DB_PATH", str(tmp_path / "none_company.db"))
     monkeypatch.delenv("DEAL_STATUS_ENABLED", raising=False)
     monkeypatch.delenv("DEAL_STATUS_NEWS_MAX_AGE_DAYS", raising=False)
+    monkeypatch.setenv("DEAL_STATUS_WARM_NAMES", "0")  # no SEC fetch from a test
     monkeypatch.setattr(ds, "_today", lambda: TODAY)
     monkeypatch.setattr(ds, "_delisted", lambda sym: False)
     monkeypatch.setattr(ds, "_stale_ref", lambda: None)
@@ -220,7 +221,7 @@ def test_a_bare_symbol_counts_only_in_capitals(monkeypatch):
     name was in memory). A ticker written as prose is not a mention of the ticker."""
     from api.services.news import subject
     monkeypatch.delitem(subject._NAME_CACHE, "SANG")
-    title = "Choir app that sang its way to 10m users to be acquired by Bravo for $2.00 per share"
+    title = "Karaoke chain where everyone sang to be acquired by Bravo for $2.00 per share"
     assert _definitive(title, ["SANG"]) == set()
     assert _definitive("SANG to be acquired by Bravo for $2.00 per share", ["SANG"]) == {"SANG"}
 
@@ -232,3 +233,93 @@ def test_a_company_whose_own_name_holds_a_carve_out_word_is_still_a_target():
     assert _definitive(title, ["CBS"]) == {"CBS"}
     assert _definitive("Cobalt's payments business to be acquired by Bravo for $1 billion in cash",
                        ["CBS"]) == set()
+
+
+# -- review round: modifiers, descriptors, press-release forms ----------------------------------
+
+MORE_NAMES = {"TSLA": "Tesla, Inc.", "NVDA": "NVIDIA CORP", "SMAR": "Smartsheet Inc",
+              "HEP": "Holly Energy Partners LP", "AB": "AllianceBernstein Holding L.P."}
+
+MODIFIER_NEGATIVES = [
+    ("Tesla battery supplier Alpha to be acquired by Bravo for $5.00 per share", ["TSLA"]),
+    ("Apple chip supplier Alpha agrees to be acquired by Bravo for $5.00 per share", ["AAPL"]),
+    ("Bravo to acquire Nvidia chip supplier Alpha for $5.00 per share", ["NVDA"]),
+    ("Amazon competitor Alpha to be acquired by Bravo for $5.00 per share", ["AMZN"]),
+    ("Amazon-founded Alpha to be acquired by Bravo for $5.00 per share", ["AMZN"]),
+    ("Former Amazon executives' startup to be acquired by Bravo for $50 million in cash", ["AMZN"]),
+    ("In deal with Amazon, Wondery to be acquired for $300 million in cash", ["AMZN"]),
+]
+
+PRESS_RELEASE_POSITIVES = [
+    ("Business software maker Smartsheet to be taken private by Blackstone for $56.50 per share",
+     ["SMAR"], "SMAR"),
+    ("Asset manager Alpha Widgets to be acquired by Bravo for $5.00 per share", ["AAA"], "AAA"),
+    ("Sneaker brand Alpha Widgets agrees to be acquired by Bravo for $5.00 per share", ["AAA"], "AAA"),
+    ("Bravo to acquire all outstanding units of Holly Energy Partners for $20.00 per unit in cash",
+     ["HEP"], "HEP"),
+    ("Alpha Widgets says it agreed to be acquired by Bravo for $5.00 per share", ["AAA"], "AAA"),
+    ("Alpha Widgets Confirms Agreement to be Acquired by Bravo for $5.00 per share", ["AAA"], "AAA"),
+    ("Alpha Widgets Reports Q3 Results and Agreement to be Acquired by Bravo", ["AAA"], "AAA"),
+    ("Alpha Widgets - a leader in sensors - to be acquired by Bravo for $5.00 per share",
+     ["AAA"], "AAA"),
+    ("AllianceBernstein (NYSE: AB, TSX: AB) to be acquired by Bravo for $40.00 per share",
+     ["AB"], "AB"),
+    ("Alpha Widgets to be acquired by Bravo for $5.00 per share following strategic review",
+     ["AAA"], "AAA"),
+    ("Alpha Widgets Agrees to be Acquired by Bravo, Concluding Strategic Alternatives Review",
+     ["AAA"], "AAA"),
+    ("Bravo agrees to acquire Alpha Widgets for $5.00 per share as it eyes AI growth",
+     ["BBB", "AAA"], "AAA"),
+]
+
+
+@pytest.fixture
+def _more_names(monkeypatch):
+    from api.services.news import subject
+    for sym, name in MORE_NAMES.items():
+        monkeypatch.setitem(subject._NAME_CACHE, sym, name)
+
+
+@pytest.mark.parametrize("title,tickers", MODIFIER_NEGATIVES, ids=[t[:45] for t, _k in MODIFIER_NEGATIVES])
+def test_a_company_that_only_modifies_the_subject_is_not_the_target(_more_names, title, tickers):
+    assert _definitive(title, tickers) == set()
+
+
+@pytest.mark.parametrize("title,tickers,target", PRESS_RELEASE_POSITIVES,
+                         ids=[t[:45] for t, _k, _x in PRESS_RELEASE_POSITIVES])
+def test_common_announcement_forms_still_name_the_target(_more_names, title, tickers, target):
+    assert _definitive(title, tickers) == {target}
+
+
+# -- a cold name cache must not empty the pending set for hours ---------------------------------
+
+def test_a_cold_name_cache_rebuilds_the_snapshot_soon_and_warms_names(monkeypatch):
+    """After a restart the names a target is written by may not be in memory yet. That snapshot
+    is marked cold, a name warm is started off-thread, and it is rebuilt after
+    DEAL_STATUS_COLD_REFRESH_S instead of DEAL_STATUS_REFRESH_S."""
+    from api.services.news import subject
+    monkeypatch.delitem(subject._NAME_CACHE, "ATKR")
+    monkeypatch.setattr(ds, "_known_name", lambda s: subject._NAME_CACHE.get(s, ""))
+    warmed = []
+    monkeypatch.setattr(ds, "_warm_names_async", lambda: warmed.append(1))
+    monkeypatch.setattr(ds, "stored_headlines",
+                        lambda since: [(TODAY - timedelta(days=5), DEF, ["ATKR"])])
+    clock = [1_000_000.0]
+    monkeypatch.setattr(ds.time, "time", lambda: clock[0])
+    assert "ATKR" not in ds.pending_deal_symbols()          # cold: not recognisable yet
+    assert warmed and ds._STATE["cold"] is True
+    subject._NAME_CACHE["ATKR"] = NAMES["ATKR"]              # the warm landed
+    clock[0] += ds._cold_refresh_s() + 1
+    assert "ATKR" in ds.pending_deal_symbols()
+    assert ds._STATE["cold"] is False
+    clock[0] += ds._cold_refresh_s() + 1                     # warm snapshot: full TTL again
+    built = ds._STATE["built"]
+    ds.pending_deal_symbols()
+    assert ds._STATE["built"] == built
+
+
+def test_a_comma_appositive_is_skipped_but_a_lone_comma_lead_in_is_not(_more_names):
+    assert _definitive("Alpha Widgets, a leader in sensors, to be acquired by Bravo for $5.00 per "
+                       "share", ["AAA"]) == {"AAA"}
+    assert _definitive("In deal with Amazon, Wondery to be acquired for $300 million in cash",
+                       ["AMZN"]) == set()

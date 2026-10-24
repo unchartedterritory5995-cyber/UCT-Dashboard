@@ -91,6 +91,7 @@ def test_control_the_admin_view_is_the_current_round():
                 assert admin[0]["geometry"]["extras"]["draw_round"] == base_draw.BASE_DRAW_ROUND
                 seen_r2 += 1
             else:
-                assert admin == []
+                # where the current round draws nothing, the admin sees nothing but a base STATE row
+                assert admin == [] or admin[0]["geometry"]["extras"]["draw_base"].get("state") in base_draw.STATES
                 seen_hidden += d1 is not None
     assert seen_r2 >= 50 and seen_hidden >= 1

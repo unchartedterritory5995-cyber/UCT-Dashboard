@@ -197,9 +197,16 @@ _SPECULATIVE = re.compile(
     r"potential|possible|unsolicited|hostile|non[\s-]binding|proposal|propos(?:es|ed)|bid|bids|"
     r"counter[\s-]?offer|considers|investigat(?:es|ing|ion|ions|e)|law\s+firm|class\s+action|"
     r"lawsuit|shareholders?\s+alert|investors?\s+alert|stockholders?\s+alert|fair\s+(?:deals?|price|value)|"
-    r"fair\s+to\s+(?:share|stock)holders|strategic\s+(?:alternatives|review|options)|mulls?|eyes|"
-    r"seeks?\s+(?:a\s+)?buyers?|plans?\s+to|intends?\s+to|letter\s+of\s+intent|"
-    r"memorandum\s+of\s+understanding)\b|\?", re.I)
+    r"fair\s+to\s+(?:share|stock)holders|letter\s+of\s+intent|memorandum\s+of\s+understanding)\b|\?",
+    re.I)
+# Weaker signals ("eyes", "plans to", "strategic review", "seeks a buyer"): speculative on their own,
+# but a headline that ALSO carries a definitive marker or the target-side verb is the announcement
+# ("..., Concluding Strategic Alternatives Review", "... as it eyes AI growth").
+_SOFT_SPECULATIVE = re.compile(
+    r"\b(?:strategic\s+(?:alternatives|review|options)|mulls?|eyes|seeks?\s+(?:a\s+)?buyers?|"
+    r"plans?\s+to|intends?\s+to)\b", re.I)
+_STRONG = re.compile(r"\bdefinitive\b|\bagree(?:s|d|ment)?\b|\benter(?:s|ed)?\s+into\b|"
+                     r"tender\s+offer|merger\s+agreement", re.I)
 _END = re.compile(
     r"\b(?:complet(?:es|ed|ion)|closes|closed|closing\s+of|finaliz(?:es|ed)|terminat(?:es|ed|ion)|"
     r"called\s+off|abandon(?:s|ed)|walks?\s+away|scrap(?:s|ped)?|delist(?:s|ed|ing)?|falls?\s+through|"
@@ -253,22 +260,31 @@ def _named_in(sym: str, text: str) -> bool:
     return bool(name) and subject._name_hit(subject._aliases(sym, name), text)
 
 
-# A mention followed by one of these names a PARENT, a backer or a neighbour, not the company
-# the headline is about: "Qualcomm's Arduino to be acquired", "Uber-backed X", "Uber rival X".
-_NOT_SUBJECT_AFTER = re.compile(
-    r"(?:['’]s\b|-(?:backed|owned|led|controlled|funded|based|linked)\b|"
-    r"\s+(?:unit|division|subsidiary|rival|peer|partner|supplier|spin-?off|affiliate|veteran|"
-    r"founder|executive|ceo|chief)\b)", re.I)
-# Words that make the thing changing hands a PIECE of a company (a stake, a unit, assets, a
-# supply contract), never the listed company itself: never a pending acquisition of anyone.
+# The only words allowed between the subject's own mention and the verb: corporate suffixes and
+# the verb phrase of a press release ("Atkore Inc.", "Luxfer Enters Into Agreement", "X says it
+# agreed"). Anything else means the mention MODIFIES some other company, which is the one
+# changing hands: a parent ("Qualcomm's Arduino"), a backer ("Uber-backed X"), a neighbour
+# ("Uber rival X", "Tesla battery supplier X"), a lead-in ("In deal with Amazon, Wondery").
+_HEAD_TAIL_OK = frozenset("""
+inc incorporated corp corporation co company companies ltd limited plc holdings holding group
+nv sa ag se llc lp trust technologies technology systems solutions industries international
+enterprises partners class the and a an its it has have had is are was will now officially
+formally also today enters entered entering enter signs signed sign signing announces announced
+announce announcing reaches reached reach agrees agreed agree confirms confirmed confirm says said
+reports reported report into definitive merger agreement agreements deal plan to that results
+q1 q2 q3 q4 first second third fourth quarter fiscal full year
+""".split())
+# Parenthesised tickers and paired appositives ("X - a leader in sensors - to be acquired",
+# "X, a leader in sensors, to be acquired") are skipped when reading what follows a mention.
+_PARENS = re.compile(r"[(\[][^)\]]*[)\]]|\s[-–—]\s[^-–—]*\s[-–—]\s|,[^,]*,")
+# Words that make the thing changing hands a PIECE of a company: a stake, a unit, assets.
+# Read only in an acquirer-side OBJECT before the target ("stake in X", "the assets of X");
+# "all outstanding units/shares of X" is the whole company.
 _CARVE_OUT = re.compile(
     r"\b(?:stakes?|minority|unit|units|division|divisions|business(?:es)?|brands?|"
     r"subsidiar(?:y|ies)|segments?|assets?|portfolio|operations|product\s+lines?)\b", re.I)
-# Where the subject of a target-side headline starts: after a lead-in ("UPDATE:", "Report -",
-# "X says"). A colon inside "(NASDAQ: SYM)" is not a lead-in.
-_LEAD_IN = re.compile(
-    r"[;|]|:(?!\s*[A-Z][A-Z0-9.\-]{0,6}\s*[)\]])|\s[-–—]\s|"
-    r"\b(?:says|said|reports?|reported|confirms?|announces?\s+that)\b", re.I)
+_WHOLE_COMPANY = re.compile(r"\b(?:all\s+(?:of\s+the\s+)?)?(?:outstanding|common)\s+(?:units|shares|stock)\b",
+                            re.I)
 # Where the object of an acquirer-side verb ends: "<acq> to acquire <TARGET> for $N from Y".
 _OBJECT_END = re.compile(
     r"\s+(?:for|from|at|in|amid|after|as|with|via|valued|worth|to\s+create|to\s+form|"
@@ -286,7 +302,7 @@ def _mentions(sym: str, text: str) -> list:
     from api.services.news import subject
     s = re.escape(sym)
     out = [m.span() for m in re.finditer(rf"\${s}(?![A-Za-z0-9])", text, re.I)]
-    out += [m.span() for m in re.finditer(rf"[(\[]\s*(?:{_EXCH}\s*:?\s*)?{s}\s*[)\]]", text, re.I)]
+    out += [m.span() for m in re.finditer(rf"[(\[]\s*(?:{_EXCH}\s*:?\s*)?{s}\s*[)\],]", text, re.I)]
     if sym not in subject._AMBIGUOUS and len(sym) >= 3:
         out += [m.span() for m in re.finditer(rf"(?<![A-Za-z0-9$.]){s}(?![A-Za-z0-9.])", text)]
     name = _known_name(sym)
@@ -300,35 +316,44 @@ def _mentions(sym: str, text: str) -> list:
     return sorted(out)
 
 
+def _at_head(span: str, end: int) -> bool:
+    """True when nothing but corporate suffixes, a ticker in parentheses, punctuation and the
+    press-release verb phrase sits between a mention ending at `end` and the end of `span`."""
+    words = re.findall(r"[A-Za-z0-9]+", _PARENS.sub(" ", span[end:]))
+    return all(w.lower() in _HEAD_TAIL_OK or w.isdigit() for w in words)
+
+
 def _subject_mentions(sym: str, text: str) -> list:
-    """`_mentions` minus the ones that name a parent, backer or neighbour (`_NOT_SUBJECT_AFTER`)."""
-    return [(a, b) for a, b in _mentions(sym, text) if not _NOT_SUBJECT_AFTER.match(text, b)]
+    """`_mentions` of `sym` that can be the head of `text`: only suffixes / the verb phrase
+    follow it (`_at_head`), so it is not a parent, backer or neighbour of the real subject."""
+    return [(a, b) for a, b in _mentions(sym, text) if _at_head(text, b)]
 
 
-def _subject_of(syms, span: str) -> list:
-    """The ONE company `span` is about: the tagged symbol whose own mention sits LAST (closest
-    to the verb that follows the span), so "Uber rival Alpha to be acquired" is about Alpha.
-    Nothing when the span hands over a piece of a company (`_CARVE_OUT`) or names none."""
+def _subject_of(syms, span: str, *, object_side: bool = False) -> list:
+    """The ONE company `span` is about: the tagged symbol mentioned at its HEAD, closest to the
+    verb, so "Uber rival Alpha to be acquired" is about Alpha and "Tesla supplier Alpha" is not
+    about Tesla. On the acquirer side a carve-out before the target ("stake in X", "assets of X")
+    means a piece of the company changes hands, which is nobody's acquisition."""
     if not span.strip():
         return []
-    # The carve-out is read with every tagged company's OWN name blanked out, so "Alpha
-    # Business Systems to be acquired" is not mistaken for the sale of a business unit.
-    masked = list(span)
-    for s in syms:
-        for a, b in _mentions(s, span):
-            masked[a:b] = " " * (b - a)
-    if _CARVE_OUT.search("".join(masked)):
-        return []
-    best, at = [], -1
+    best, at, start = [], -1, 0
     for s in syms:
         ms = _subject_mentions(s, span)
         if not ms:
             continue
-        end = ms[-1][1]
-        if end > at:
-            best, at = [s], end
-        elif end == at:
+        a, b = ms[-1]
+        if b > at:
+            best, at, start = [s], b, a
+        elif b == at:
             best.append(s)
+    if best and object_side:
+        # read with every tagged company's OWN name blanked ("Alpha Business Systems")
+        prefix = list(span[:start])
+        for s in syms:
+            for a, b in _mentions(s, span[:start]):
+                prefix[a:b] = " " * (b - a)
+        if _CARVE_OUT.search(_WHOLE_COMPANY.sub(" ", "".join(prefix))):
+            return []
     return best
 
 
@@ -341,10 +366,11 @@ def parse_headline(title: str, tickers) -> list:
     ACQUIRER on "<private co> to be acquired by Amazon", and the old sole-tag fallback made
     the acquirer pending):
       * target side ("<TARGET> (agrees|enters into a definitive agreement) to be acquired by"):
-        the tagged company the subject names last before the verb;
+        the tagged company at the HEAD of the subject, right before the verb;
       * acquirer side ("<ACQ> agrees to acquire <TARGET> for ...", "tender offer for <TARGET>"):
-        the tagged company named in the verb's object, and never one named before the verb;
-      * a stake, a unit, assets or a product deal (`_CARVE_OUT`) is nobody's acquisition;
+        the tagged company at the head of the verb's object, never one named before the verb;
+      * a stake, a unit, assets or a product deal (`_CARVE_OUT`) is nobody's acquisition, and
+        a company that only modifies the subject ("Apple supplier X") is not the subject;
       * rumours, talks, explorations, proposals and law-firm "investigates" items are nothing.
     A headline it cannot attribute to a target yields no 'definitive' event."""
     t = (title or "").strip()
@@ -368,14 +394,10 @@ def parse_headline(title: str, tickers) -> list:
         return [(s, "end", None) for s in hits]
     if _SPECULATIVE.search(t):
         return []
+    if _SOFT_SPECULATIVE.search(t) and not (tm or _STRONG.search(t)):
+        return []
     if tm and (am is None or tm.start() <= am.start()):
-        span = t[:tm.start()]
-        cut = None
-        for cut in _LEAD_IN.finditer(span):
-            pass
-        if cut is not None:
-            span = span[cut.end():]
-        return [(s, "definitive", price) for s in _subject_of(syms, span)]
+        return [(s, "definitive", price) for s in _subject_of(syms, t[:tm.start()])]
     if am and _DEFINITIVE.search(t):
         acquirer = t[:am.start()]
         obj = t[am.end():]
@@ -383,7 +405,7 @@ def parse_headline(title: str, tickers) -> list:
         if stop is not None:
             obj = obj[:stop.start()]
         named_acq = {s for s in syms if _mentions(s, acquirer)}
-        hits = [s for s in _subject_of(syms, obj) if s not in named_acq]
+        hits = [s for s in _subject_of(syms, obj, object_side=True) if s not in named_acq]
         return [(s, "definitive", price) for s in hits]
     # A deal-worded, non-speculative headline: confirms an ALREADY pending deal only, and only
     # for a company it names (a tag alone, or the acquirer's own name, confirms nothing).
@@ -776,16 +798,70 @@ def _snapshot() -> dict:
     today = _today()
     now = time.time()
     with _LOCK:
-        if _STATE.get("day") == today and now - _STATE.get("built", 0) < _refresh_s():
+        ttl = _cold_refresh_s() if _STATE.get("cold") else _refresh_s()
+        if _STATE.get("day") == today and now - _STATE.get("built", 0) < ttl:
             return _STATE["snap"]
+    headlines = stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS))
+    cold = _names_cold(headlines)
+    if cold:
+        _warm_names_async()
     snap = {"day": today, "hand": hand_deals(), "mirror": mirror_list(),
-            "news": fold_news(stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS))),
-            "stale_ref": _stale_ref()}
+            "news": fold_news(headlines), "stale_ref": _stale_ref()}
     with _LOCK:
         if _STATE.get("snap") is not snap:
             _SYM_CACHE.clear()
-        _STATE.update(day=today, built=now, snap=snap)
+        _STATE.update(day=today, built=now, snap=snap, cold=cold)
     return snap
+
+
+# -- company names: the target must be NAMED, so a cold name cache must not empty the set ------
+
+def _cold_refresh_s() -> float:
+    try:
+        return max(30.0, float(os.environ.get("DEAL_STATUS_COLD_REFRESH_S", "300")))
+    except ValueError:
+        return 300.0
+
+
+def _names_cold(headlines) -> bool:
+    """True when some deal-shaped headline tags a symbol whose company name is not in memory:
+    after a restart the parser could not yet recognise a target written by name ("Atkore Inc.
+    to be acquired ..."), so the snapshot is rebuilt soon instead of in DEAL_STATUS_REFRESH_S."""
+    try:
+        for _day, title, tickers in headlines:
+            if not (_TARGET_SIDE.search(title or "") or _ACQUIRER_SIDE.search(title or "")):
+                continue
+            if any(t and not _known_name(str(t).upper()) for t in (tickers or [])):
+                return True
+    except Exception:  # noqa: BLE001
+        return False
+    return False
+
+
+_WARM_LOCK = threading.Lock()
+
+
+def _warm_names_async() -> None:
+    """Load SEC's ticker -> name map (one cached document, already used by the news subject test)
+    on a daemon thread, never on the caller's: a slow SEC never delays a chart. Off with
+    DEAL_STATUS_WARM_NAMES=0."""
+    if os.environ.get("DEAL_STATUS_WARM_NAMES", "1").strip().lower() not in _TRUTHY:
+        return
+    if not _WARM_LOCK.acquire(blocking=False):
+        return
+
+    def run():
+        try:
+            from api.services import sec_filings
+            sec_filings._name_map()
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("[deal-status] name warm failed: %s", exc)
+        finally:
+            _WARM_LOCK.release()
+    try:
+        threading.Thread(target=run, name="deal-status-name-warm", daemon=True).start()
+    except Exception:  # noqa: BLE001
+        _WARM_LOCK.release()
 
 
 def _not_pending(sym: str) -> dict:
