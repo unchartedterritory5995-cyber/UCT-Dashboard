@@ -35,17 +35,9 @@ KNOWN_RED: dict = {}
 _PRECEDENCE = ("judged drawing never served on this chart: a member drawing that outranks it on the same base "
                "(member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; "
                "already so at the drawing's release commit")
-_CUP_STALE = ("judged cup never served: auto_structures.box_to_detection marks the bc:cup-with-handle box stale "
-              "(team-pivot verdicts: failed_breakout / rim_broken / gap_island / short_of_rim / prior_peak / "
-              "spike_rim) and _structure_rows drops it BEFORE cup_tier_stamp; already so at the cup tier's "
-              "release commit")
 for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
              "inside-day-a2-004", "inside-day-b2-012", "textbook-g1-01", "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
-for _cid in ("cup-d1-001", "cup-d1-005", "cup-d1-009", "cup-d1-010", "cup-d1-018", "cup-d1-019", "cup-d1-021",
-             "cup-d1-024", "cup-d1-025", "cup-d2-003", "cup-d2-004", "cup-d2-007", "cup-d2-010", "cup-d2-013",
-             "cup-d2-018", "cup-d2-019", "cup-d2-024", "cup-d2-025"):
-    KNOWN_RED[_cid] = _CUP_STALE
 for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
     KNOWN_RED[_cid] = ("judged double bottom never served: withheld on the member chart (the release's stale-"
                        "breakout condition, auto_structures._db_breakout_stale); already so at the release commit")
@@ -230,3 +222,17 @@ def test_decoding_then_re_encoding_a_fixture_gives_it_back_exactly():
         again = EN.encode_bars(rows, c["bars"]["scale"])
         for k in ("c", "o", "h", "l", "v", "dp", "q", "d"):
             assert again[k] == c["bars"][k], (c["id"], k)
+
+
+def test_a_stale_cup_box_is_served_only_when_the_cup_tier_draws_it(monkeypatch):
+    """lab cup_served: a cup box the team display rounds mark stale is served (in the tier's form) only when the
+    round-4 cup tier DRAWS it. The same judged chart with the tier's stamp withheld, or with no stamp, serves no cup."""
+    from api.services.pattern_engine import cup_tier
+    case = next(c for f, c in RELEASED if c["id"] == "cup-d1-001")   # a team-stale box (rim_broken), tier-drawn
+    payload, _bars = MP.member_payload(monkeypatch, case)
+    assert [r for r in payload["structures"] if r["pattern_id"] == "bc:cup-with-handle"]
+    real = cup_tier.stamp
+    for fake in (lambda b: {**real(b), "withheld": "handle_deep"}, lambda b: None):
+        monkeypatch.setattr(cup_tier, "stamp", fake)
+        payload, _bars = MP.member_payload(monkeypatch, case)
+        assert not [r for r in payload["structures"] if r["pattern_id"] == "bc:cup-with-handle"]

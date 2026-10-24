@@ -497,20 +497,23 @@ BASE_DRAW_ID = "bc:base"
 #: B 2.78 [2.64, 2.90]); round 4 (round 2 unchanged wherever round 2 draws, plus a textbook consolidation
 #: round 2 missed only on a single touch or a lip reached from above) passed its own pre-registered blind
 #: packets 2026-10-23 (A 2.86 [2.72, 2.98] and B 2.96 [2.90, 3.00], and a regression packet where round 2
-#: draws: 25 of 25 identical) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
+#: draws: 25 of 25 identical); round 5 (round 4 unchanged, minus the drawings base_draw.floor_refuses says
+#: are not a base: under the label's own 3% depth floor, or a volatility-collapsed range with no correction) is a
+#: REMOVAL-ONLY guard, pre-registered 2026-10-23 (no approved case dropped; the refused set scored 0.90 of 3 by
+#: blind judges), and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
 #: the drawing code moves ahead of this round, every bc:base row carries THIS round's drawing
 #: (`extras.draw_member`) and a member is served exactly the row this round draws (`_base_member_row`),
 #: until the new round passes its own blind check and this is changed by hand. While the two are equal
-#: there is no carrier. Setting this back to 2 restores the round-2 member drawing byte for byte, and to 1
-#: the round-1 one (the carrier path below; railed by tests/test_base_draw_r4_member_parity.py and
-#: tests/test_base_draw_member_parity.py).
-MEMBER_BASE_ROUND = 4
+#: there is no carrier. Setting this back to 4 restores the round-4 member drawing, to 2 the round-2 one byte
+#: for byte, and to 1 the round-1 one (the carrier path below; railed by tests/test_base_draw_round5.py,
+#: tests/test_base_draw_r4_member_parity.py and tests/test_base_draw_member_parity.py).
+MEMBER_BASE_ROUND = 5
 #: The (member round, row round) pairs where a row of a later drawing round carries the member round's
 #: drawing of the same bars beside its own (extras.draw_member): round-2 rows carrying round 1 (the round-1
 #: era), and round-4 rows carrying round 2 (members on round 2 while round 4 is admin-only) or round 1 (a
-#: rollback of the literal to 1). Round 3 failed its held-out check and is never drawn. Any other pairing
-#: is dropped.
-_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
+#: rollback of the literal to 1), and round-5 rows carrying round 4, 2 or 1 (a rollback of the literal to
+#: any of them). Round 3 failed its held-out check and is never drawn. Any other pairing is dropped.
+_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4), (1, 5), (2, 5), (4, 5)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
 #: The base STATES (base_draw.state_drawing, lab base_persist_forming) a member may be drawn, each by the
@@ -801,8 +804,9 @@ def cup_tier_stamp(det: dict, bars: list) -> None:
     sessions; an unknown or failing session clock stamps NOTHING). Adds that one key and nothing
     else; a row the tier does not stamp is untouched. Display only. Never raises.
 
-    Only rows the admin display rounds did NOT mark stale reach this stamp (structures_for drops a
-    stale box first). Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
+    Rows the admin display rounds mark stale are stamped too since lab cup_served (2026-10-23) and are
+    served only when the tier draws them (`_tier_drawn_stale_cup`); before it, structures_for dropped them.
+    Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
     fires (failed_breakout 297, gap_island 176, rim_broken 173, short_of_rim 164, ...) and round 4
     withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member
     can be served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc), served recognition 8 of 8."""
@@ -1007,6 +1011,10 @@ def base_draw_row(sym: str, bars: list):
             if d is None:
                 # where no base is drawn: the base STATES (breakout persistence, 3 weeks tight, base forming)
                 d = base_draw.state_drawing(b, len(b) - 1)
+                # ... put through the same depth floor: a state drawn where round 5 refused the range must not
+                # draw that range back (a price held flat after a gap reads as a base "forming")
+                if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
+                    d = None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1017,6 +1025,86 @@ def base_draw_row(sym: str, bars: list):
         return row
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
+
+
+#: The member base rows drawn by code other than base_draw (a base_catalog box, a detector, a shape drawer,
+#: the shelf pivot): the base floor (base_draw.floor_refuses, round 5's removal-only guard) is applied to them
+#: HERE, on the member path, so a dead or ultra-shallow range is not drawn as a base by ANY door (the shelf
+#: pivot too: `_member_floor_ids`). bc:base is not listed: its drawing code (round 5) already applies the floor,
+#: and base_draw_row applies it to the base STATE drawings; one guard is asked once per door.
+MEMBER_FLOOR_IDS = frozenset({"bc:flat-base", "bc:cup-with-handle", "draw:double-bottom", "flat_base",
+                              "uct_flat_top_breakout"})
+
+
+def _member_floor_ids() -> frozenset:
+    """MEMBER_FLOOR_IDS and the shelf pivot (SHELF_PIVOT_ID is declared further down this module)."""
+    return MEMBER_FLOOR_IDS | {SHELF_PIVOT_ID}
+
+
+def _floor_region(row):
+    """(start_t, pivot) of a member base row: the row's own start and the pivot it draws (the drawn pivot line,
+    flat top, shape pivot or shelf line; else the box top or the entry level). None when unreadable."""
+    try:
+        ex = (row.get("geometry") or {}).get("extras") or {}
+        piv = None
+        for key, field in (("draw_pivot", "price"), ("draw_flat_top", "price"), ("draw_shape", "pivot"),
+                           ("draw_shelf", "price")):
+            d = ex.get(key)
+            if isinstance(d, dict) and _finite(d.get(field)):
+                piv = float(d[field])
+                break
+        if piv is None:
+            for v in (ex.get("top"), (row.get("levels") or {}).get("entry")):
+                if _finite(v):
+                    piv = float(v)
+                    break
+        if piv is None or row.get("start_t") is None:
+            return None
+        return int(row["start_t"]), piv
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def member_base_floor(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any `_member_floor_ids()` row whose drawn region the base floor refuses
+    (base_draw.floor_refuses on the row's start, its drawn pivot and the region's lowest low through the newest
+    complete session). Members only; order kept. The daily bars are read only when such a row is present.
+    REMOVAL-ONLY and fail OPEN, as the floor itself: unreadable bars or an unreadable row keep the row."""
+    ids = _member_floor_ids()
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in ids for r in det + st):
+        return det, st
+    try:
+        from api.services.pattern_engine import base_draw
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return det, st
+        i = len(b) - 1
+        ts = [int(x["t"]) for x in b]
+    except Exception:  # noqa: BLE001 -- the floor is removal-only: no bars, nothing removed
+        _log.warning("[auto-structures] floor read failed for %s; base rows kept", sym, exc_info=True)
+        return det, st
+
+    def refused(r):
+        if (r or {}).get("pattern_id") not in ids:
+            return False
+        reg = _floor_region(r)
+        if reg is None or reg[0] not in ts:
+            return False
+        s = ts.index(reg[0])
+        if s >= i:
+            return False
+        low = min(float(x["l"]) for x in b[s:])
+        if not reg[1] > low:
+            return False        # a pivot at or under the region's own low is not a region this can read
+        try:
+            return base_draw.floor_refuses(b, i, {"start_t": reg[0], "pivot": reg[1], "low": low})
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return False
+
+    return [r for r in det if not refused(r)], [r for r in st if not refused(r)]
 
 
 def shapes_enabled() -> bool:
@@ -1890,6 +1978,30 @@ def structures_for(sym: str) -> list:
     return out
 
 
+def _tier_drawn_stale_cup(det: dict, bars: list):
+    """A bc:cup-with-handle row the TEAM display rounds marked stale, served in the cup tier's member form when
+    the round-4 tier DRAWS it (stamped, nothing withheld, `_confirmed_cup_tier`); else None (the row stays dropped).
+
+    lab cup_served (2026-10-23, PREREG bf403e59...): the team verdicts (failed_breakout, rim_broken, gap_island,
+    short_of_rim, prior_peak, spike_rim, ...) read the DETECTOR'S cup -- its start, its lip HIGH, its box top --
+    and the member never sees that geometry: a served cup is redrawn wholesale from the tier's own anchors, with
+    the tier's own gates and withholds. They dropped 18 of the 29 judged-3 cup charts. Serving the stale boxes
+    the tier draws passed a fresh blind packet (25 such cups, two judges: mean 2.30 [2.12, 2.48], 96% >= 2;
+    25 still-withheld contrast charts 2.06). The team reason is kept as `extras.team_stale_reason`. Never raises."""
+    try:
+        if (det or {}).get("pattern_id") != CUP_ID:
+            return None
+        cup_tier_stamp(det, bars)
+        ex = det["geometry"]["extras"]
+        ex["team_stale_reason"] = ex.pop("stale_reason", None)
+        ex.pop("stale", None)
+        if not _confirmed_cup_tier(det):
+            return None
+        return _cup_tier_member_row(det)
+    except Exception:  # noqa: BLE001 -- fail closed: the stale row stays dropped
+        return None
+
+
 def _structure_rows(sym: str, bars: list) -> list:
     """The structures rows for daily `bars` ({t,o,h,l,c,v}, oldest first): structures_for's body, uncached.
     May raise (structures_for turns that into no rows)."""
@@ -1904,6 +2016,10 @@ def _structure_rows(sym: str, bars: list) -> list:
             # A stale box (extras.stale, e.g. a failed cup breakout) is not
             # served: dropping it here keeps the overlay unchanged.
             if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                # ... except a cup the round-4 cup tier DRAWS: served in the tier's own form (lab cup_served)
+                det = _tier_drawn_stale_cup(det, bars)
+                if det is not None:
+                    out.append(det)
                 continue
             # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
             cup_tier_stamp(det, bars)
