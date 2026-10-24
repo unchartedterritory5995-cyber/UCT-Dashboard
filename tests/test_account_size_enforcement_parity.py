@@ -47,8 +47,16 @@ def conn(tmp_path, monkeypatch):
     c.close()
 
 
+def _today_et_noon():
+    """Noon ET today as a UTC ISO stamp. Pinned to the ET session day, never the wall clock: base
+    pre-trade matches `substr(exit_date, 1, 10)` to the ET day, so a raw UTC "now" after 8pm ET
+    lands on tomorrow and the daily-loss check reads no trade (a function of the hour)."""
+    from api.services.journal_two.calendar import et_today
+    return f"{et_today()}T16:00:00+00:00"
+
+
 def _trade(conn, uid, aid):
-    now = datetime.now(timezone.utc).isoformat()
+    now = _today_et_noon()
     conn.execute(
         "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price,"
         " entry_date, exit_price, exit_date, original_stop, setup, notes, pnl_dollar, pnl_percent,"
@@ -177,16 +185,16 @@ def test_coach_sizing_curve(conn, kind):
 def test_calendar_pct(conn, kind):
     from api.services.journal_two import calendar as cal
     uid, acct, _ = _make(conn, kind)
-    now = datetime.now(timezone.utc)
-    out = cal.get_calendar(uid, view="month", year=now.year, month=now.month, account_id=acct, conn=conn)
+    day = datetime.fromisoformat(_today_et_noon())
+    out = cal.get_calendar(uid, view="month", year=day.year, month=day.month, account_id=acct, conn=conn)
     assert out["days"][-1]["pnlPercent"] == pytest.approx(CAL_PCT[kind])
 
 
 def test_calendar_all_accounts_pct(conn):
     from api.services.journal_two import calendar as cal
     uid, _acct, _ = _make(conn, "B")
-    now = datetime.now(timezone.utc)
-    out = cal.get_calendar(uid, view="month", year=now.year, month=now.month, account_id=None, conn=conn)
+    day = datetime.fromisoformat(_today_et_noon())
+    out = cal.get_calendar(uid, view="month", year=day.year, month=day.month, account_id=None, conn=conn)
     assert out["days"][-1]["pnlPercent"] == pytest.approx(-2500 / 140_000)
 
 
