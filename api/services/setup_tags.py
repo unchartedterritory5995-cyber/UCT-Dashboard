@@ -50,7 +50,7 @@ _log = logging.getLogger(__name__)
 
 #: The tag rules and definitions below, as one versioned round. Members are served tags only while
 #: this equals auto_structures.MEMBER_SETUP_TAGS_ROUND (a literal there, changed by hand).
-TAGS_ROUND = 1
+TAGS_ROUND = 2
 #: Completed daily sessions a tag may be from: the newest and the two before it.
 TAG_WINDOW_SESSIONS = 3
 #: Bars fetched per ticker: enough for the deepest detector slice plus the two older NR7 /
@@ -230,6 +230,12 @@ def compute_tags(sym: str, bars: list) -> list:
                 _run(pid, own, ctx)
         else:
             _run(pid, reg.bars_for(pid, bars, base), ctx_full)
+
+    # Round 2 (recertification C, 2026-10-24): the tag a session names must also meet its TEXTBOOK check on the
+    # bars around it (pattern_engine.tag_textbook), judged on the newest in-window detection exactly as the blind
+    # packets were. Only removes.
+    from api.services.pattern_engine import tag_textbook
+    found = {pid: v for pid, v in found.items() if tag_textbook.keep(pid, bars, v[0])}
 
     out = []
     for pid, (t, direction) in found.items():

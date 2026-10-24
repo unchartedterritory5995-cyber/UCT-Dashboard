@@ -116,6 +116,15 @@ and the judged key; the gate replays `single_candle(usable_bars(bars[-400:]))` a
 `candle_matches`. Re-baselining follows the same rule as the chart families: only with a new passed blind round,
 together with `MEMBER_CANDLE_ROUND`.
 
+`tests/golden_judged/test_judged_setup_tags.py` guards the member setup and event TAGS on the chart (the chip naming
+a setup or event on one of the last three sessions). Recertification C (2026-10-24) judged them blind on a 0-3 placement
+rubric over three rounds; the eleven checks that passed are `api/services/pattern_engine/tag_textbook.py` at
+`TAGS_ROUND = 2`, and gap support and trendline break (which failed) are withheld from members. Each case in
+`fixtures_labels/setup_tags.json.gz` stores the 320 bars `compute_tags` saw. A case both judges scored 3 must still be
+served through `compute_tags` then `member_tags`, and every detection's `parity` verdict (the lab's own check) must
+match `tag_textbook.keep`; a detection the lab refused must not be served. Re-baselining follows the same rule, together
+with `MEMBER_SETUP_TAGS_ROUND`.
+
 ## When it goes red
 
 A red case is a member-visible drawing that no longer matches what was judged. Read the message: it names the case,
