@@ -1137,6 +1137,7 @@ between two readings from the same tree.
 | `051061f454` | 7.4 fix | tests only | 0 | | (no app source) |
 | `4df0a57973` | 7.5 | emoji data on the first colon | -8,319 | 2,184,580 recorded; **2,184,409** clean re-read | 7.5; 7.6 |
 | `7326462770` | 7.4 fix | failed catalog load said in the hub sheet | **+191** | 2,184,600 | 7.6 (clean, against 2,184,409) |
+| `befa188ea5` | 7.5 follow-up | a code comment in `EmojiMenu.jsx` (minified away) | 0 | | inside the next row's reading |
 | `381cc1c6ab` | 7.6 | `SavedViewEditor` through `lazyDialog` | **-980** | 2,183,620 | 7.6 (clean) |
 | `9da984743b` | 8.1 (other agent) | wave 8 dark release flag | **+33** | | 7.6 (clean: tip 2,177,601 minus 2,177,568, the strip change read before this commit) |
 | `476f691122` | 7.6 | `NoteConnectorsTrustStrip` through `lazyView`, null fallback | **-6,052** | **2,177,601** (tip) | 7.6 (clean) |
