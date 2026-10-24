@@ -18,7 +18,7 @@ from api.services import barspack
 from api.services.pattern_engine import shelf_pivot as S
 from api.services.pattern_engine.detectors import registry as REG
 
-from tests.test_shelf_pivot_parity import cases
+from tests.test_shelf_pivot_parity import cases, expect
 
 _ASOF = [None]
 
@@ -62,11 +62,26 @@ ROUND4_DRAWN = {
 }
 
 
+#: Fixture charts where the recorded member chart served a base drawing under a FALLING 200-day: the trend floor
+#: (base_draw.trend_ok, 2026-10-23) now draws nothing there, so that row and its line leave the chart. Measured on
+#: all 427 charts: this is the only served drawing the floor removes (every other floored chart lost only its shelf
+#: line, which `expect` accounts for).
+FLOORED_SERVED = {
+    "held/none/225": "bc:base",
+}
+
+
 def _drawn_view(c, round4=True):
-    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld, and
-    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there)."""
+    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
+    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there), and
+    the FLOORED_SERVED row and its line removed."""
     served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
     lines = [tuple(x) for x in c["lines"]]
+    floored = FLOORED_SERVED.get(c["id"])
+    if floored is not None:
+        assert sum(x[0] == floored for x in served) == 1, c["id"]
+        served = [x for x in served if x[0] != floored]
+        lines = [x for x in lines if x[0] != floored]
     add = ROUND4_DRAWN.get(c["id"]) if round4 else None
     if add is not None:
         assert not any(x[0] == add[0] for x in served), c["id"]
@@ -96,7 +111,7 @@ def _reproduce(round4):
         if sorted(map(tuple, lines)) != sorted(want_lines):
             bad.append((c["id"], "lines"))
         r = S.evaluate(c["bars"], served, lines)
-        e = c["expect"]
+        e = expect(c)
         got = None if r["pick"] is None else {k: r["pick"][k] for k in ("P", "left", "disp_left")}
         if round4 and c["id"] in ROUND4_DRAWN:
             # the recorded answer drew a shelf line; with the round-4 base served, the layer draws nothing
