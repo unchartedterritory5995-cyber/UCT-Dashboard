@@ -401,10 +401,24 @@ def test_vi_a_declared_prefix_matching_NOTHING_is_stale(app, monkeypatch):
     assert res["ok"] is False
 
 
-def _dist_registrations_from_main_py() -> dict[str, str]:
+#: The `app.<attr>(path, ...)` calls that register a path. Only these are
+#: required to resolve: `@app.exception_handler(SomeError)` is not a path.
+_ROUTE_ATTRS = frozenset({"get", "post", "put", "patch", "delete", "head", "options",
+                          "api_route", "route", "websocket", "mount"})
+
+
+class UnresolvedDistPath(AssertionError):
+    pass
+
+
+def _dist_registrations_from_main_py(src: str | None = None) -> dict[str, str]:
     """`{path: "route"|"mount"}` for what api/main.py registers ONLY under
-    `if os.path.exists(DIST):`, read by AST -- never typed here."""
-    tree = ast.parse((REPO / "api" / "main.py").read_text(encoding="utf-8"))
+    `if os.path.exists(DIST):`, read by AST -- never typed here.
+
+    ⛔ A path expression it cannot resolve (an f-string, a call, an imported
+    name) RAISES, naming the line, instead of being skipped: a skipped route is
+    one the census never sees."""
+    tree = ast.parse(src if src is not None else (REPO / "api" / "main.py").read_text(encoding="utf-8"))
 
     def is_dist_guard(test):
         return (isinstance(test, ast.Call) and isinstance(test.func, ast.Attribute)
@@ -413,24 +427,94 @@ def _dist_registrations_from_main_py() -> dict[str, str]:
 
     out: dict[str, str] = {}
 
+    # Module-level string constants, so a path written as a NAME
+    # (`@app.api_route(LIVE_TRADING_ROOM_PATH + "/terms", ...)`) is resolved
+    # instead of silently skipped. A literal-only reader missed the six
+    # /live-trading-room routes for weeks, and the census only met them when a
+    # local build happened to exist.
+    consts: dict[str, str] = {}
+
+    def resolve(expr):
+        if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+            return expr.value
+        if isinstance(expr, ast.Name):
+            return consts.get(expr.id)
+        if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add):
+            left, right = resolve(expr.left), resolve(expr.right)
+            return left + right if left is not None and right is not None else None
+        return None
+
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            val = resolve(node.value)
+            if val is not None:
+                consts[node.targets[0].id] = val
+
+    def norm(path):
+        # classify() strips a trailing slash, so the policy cannot (and need not)
+        # declare `/x/` apart from `/x`.
+        return path if path == rlp.SPA_CATCH_ALL else (path.rstrip("/") or "/")
+
+    unresolved: list[str] = []
+
+    def path_of(call):
+        """The resolved path of an `app.<route attr>(path, ...)` call, else None."""
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Name) and call.func.value.id == "app"
+                and call.func.attr in _ROUTE_ATTRS and call.args):
+            return None
+        path = resolve(call.args[0])
+        if path is None:
+            unresolved.append(f"main.py:{call.lineno} app.{call.func.attr}({ast.unparse(call.args[0])})")
+        return path
+
     def collect(node):
         for sub in ast.walk(node):
             if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for dec in sub.decorator_list:
-                    if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
-                            and isinstance(dec.func.value, ast.Name) and dec.func.value.id == "app"
-                            and dec.args and isinstance(dec.args[0], ast.Constant)):
-                        out[dec.args[0].value] = "route"
-            if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
-                    and sub.func.attr == "mount" and isinstance(sub.func.value, ast.Name)
-                    and sub.func.value.id == "app" and sub.args
-                    and isinstance(sub.args[0], ast.Constant)):
-                out[sub.args[0].value] = "mount"
+                    path = path_of(dec)
+                    if path is not None:
+                        out[norm(path)] = "route"
+            if isinstance(sub, ast.Call) and getattr(sub.func, "attr", None) == "mount":
+                path = path_of(sub)
+                if path is not None:
+                    out[norm(path)] = "mount"
 
     for node in tree.body:
         if isinstance(node, ast.If) and is_dist_guard(node.test):
             collect(node)
+    if unresolved:
+        raise UnresolvedDistPath(
+            "these DIST-guard registrations have a path the census reader cannot resolve, so it "
+            "would never see them; write the path as a literal or a module-level string constant: "
+            + "; ".join(unresolved))
     return out
+
+
+def test_vi_the_DIST_reader_resolves_every_path_in_main_py():
+    # The real file: every app.<route>(path) under the DIST guard resolved (no raise).
+    assert rlp.SPA_CATCH_ALL in _dist_registrations_from_main_py()
+
+
+def test_THE_CONTROL_an_unresolvable_DIST_path_fails_by_name():
+    src = "\n".join([
+        "import os",
+        "P = '/known'",
+        "if os.path.exists(DIST):",
+        "    @app.get(P + '/ok')",
+        "    def ok(): pass",
+        "    @app.get(f'/x/{P}')",
+        "    def bad(): pass",
+        "    app.mount(make_path(), None)",
+        "    @app.exception_handler(ValueError)",
+        "    def handler(): pass",
+    ]) + "\n"
+    with pytest.raises(UnresolvedDistPath) as exc:
+        _dist_registrations_from_main_py(src)
+    msg = str(exc.value)
+    assert "main.py:6 app.get(f'/x/{P}')" in msg and "main.py:8 app.mount(make_path())" in msg, msg
+    assert "exception_handler" not in msg, msg     # not a path, so not required to resolve
 
 
 def _dist_only_from_main_py() -> set[str]:
@@ -477,6 +561,48 @@ def test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_prox
     res = rlp.census(_production_shape(app))
     assert res["ok"], _fmt(res)
     assert res["dist_served"] and res["proxy_served"], res
+
+
+def _app_with_a_built_dist(app, dist_dir):
+    """The real app as production serves it: main.py's OWN `if
+    os.path.exists(DIST):` blocks, executed against a throwaway FastAPI with
+    DIST pointed at a temporary bundle. Not a list of paths restated here, and
+    never app/dist: what registers is whatever main.py registers."""
+    import api.main as m
+    for sub in ("assets", "fonts", "live-trading-room"):
+        (dist_dir / sub).mkdir(parents=True, exist_ok=True)
+    (dist_dir / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    tree = ast.parse(MAIN_SRC())
+    blocks = [n for n in tree.body if isinstance(n, ast.If)
+              and isinstance(n.test, ast.Call) and isinstance(n.test.func, ast.Attribute)
+              and n.test.func.attr == "exists" and len(n.test.args) == 1
+              and isinstance(n.test.args[0], ast.Name) and n.test.args[0].id == "DIST"]
+    assert blocks, "found no DIST guard in api/main.py"
+    built = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    scope = dict(vars(m))
+    scope.update(app=built, DIST=str(dist_dir))
+    for block in blocks:
+        exec(compile(ast.Module(body=[block], type_ignores=[]), str(REPO / "api" / "main.py"), "exec"), scope)
+    whole = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    dist_paths = {getattr(r, "path", None) for r in built.routes}
+    whole.router.routes.extend(r for r in app.routes if getattr(r, "path", None) not in dist_paths)
+    whole.router.routes.extend(built.routes)
+    return whole, built
+
+
+def MAIN_SRC():
+    return (REPO / "api" / "main.py").read_text(encoding="utf-8")
+
+
+def test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt(app, tmp_path):
+    whole, built = _app_with_a_built_dist(app, tmp_path / "dist")
+    paths = {getattr(r, "path", None) for r in built.routes}
+    # non-vacuity: the executed block really registered the bundle's routes
+    assert rlp.SPA_CATCH_ALL in paths and "/live-trading-room" in paths, sorted(p for p in paths if p)
+    res = rlp.census(whole)
+    assert res["dist_served"] is True, res
+    assert not res["unclassified"], _fmt(res)
+    assert not res["stale"] and not res["dist_only_undeclared"], _fmt(res)
 
 
 def test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one(app):
@@ -535,3 +661,47 @@ def test_the_render_pages_are_EXEMPT_so_enforcement_cannot_fail_a_discord_render
     assert "render" not in rlp.FAMILIES
     # the control: an ordinary market-data read is still limited
     assert rlp.classify("/api/ticker-meta/NVDA")[0] != rlp.KIND_EXEMPT
+
+
+# ── chosen families, pinned ──────────────────────────────────────────────────
+#
+# The census proves every route is in SOME family; it cannot see a prefix
+# moved to the WRONG one (say /api/study into the 60/minute intake tier).
+# Each row is a concrete request path and the family it was placed in on
+# purpose, with the reason in rate_limit_policy.py beside the prefix.
+PINNED_FAMILIES = [
+    ("/api/study/today", "community-content"),
+    ("/api/study/attempts/12/step", "community-content"),
+    ("/api/study/admin/items/si_a/bars", "study-review"),
+    ("/api/study/admin/review", "study-review"),
+    ("/api/wisdom/archive/ticker/NVDA", "research"),
+    ("/api/wisdom/team-calls", "research"),
+    ("/api/wisdom/archive/image/img_1", "archive-images"),
+    ("/api/tsdr-lessons/link-transcript", "internal"),
+    ("/api/time-and-sales/status", "admin-ops"),
+]
+
+
+def _family_of(path, index=None):
+    hit = rlp.classify(path, index)
+    assert hit is not None and hit[0] == rlp.KIND_FAMILY, (path, hit)
+    return hit[1]
+
+
+@pytest.mark.parametrize("path,family", PINNED_FAMILIES)
+def test_each_new_prefix_is_in_the_family_it_was_placed_in(path, family):
+    assert _family_of(path) == family
+
+
+def test_THE_CONTROL_the_pin_sees_a_prefix_moved_to_another_family(monkeypatch):
+    # Move /api/study into public-intake in a copy of the table: the pin's
+    # lookup must then answer the new family, or the rows above prove nothing.
+    fams = dict(rlp.FAMILIES)
+    cc = fams["community-content"]
+    fams["community-content"] = cc._replace(
+        prefixes=tuple(p for p in cc.prefixes if p != "/api/study"))
+    pi = fams["public-intake"]
+    fams["public-intake"] = pi._replace(prefixes=pi.prefixes + ("/api/study",))
+    moved = rlp.build_index(fams)
+    assert _family_of("/api/study/today", moved) == "public-intake"
+    assert _family_of("/api/study/today") == "community-content"

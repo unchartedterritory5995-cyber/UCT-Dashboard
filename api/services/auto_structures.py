@@ -577,7 +577,8 @@ def _confirmed_inside_day(row) -> bool:
 
 #: The named base-shape drawing rows (lab base_shapes, api/services/pattern_engine/shape_draw.py). A row of
 #: one of these ids is built ONLY beside a drawing (`shape_draw_rows`). Keep PatternOverlay.SHAPE_DRAW_IDS equal.
-SHAPE_DRAW_IDS = ("draw:saucer", "draw:ascending-base", "draw:double-bottom", "draw:ipo-base")
+SHAPE_DRAW_IDS = ("draw:saucer", "draw:ascending-base", "draw:double-bottom", "draw:ipo-base",
+                  "draw:cup-no-handle", "draw:htf")
 #: The drawing round each shape's blind check confirmed for members -- None: NOT confirmed. Literals ON
 #: PURPOSE, never shape_draw's *_DRAW_ROUND constants: a member gets a shape only after its round passed the
 #: two pre-registered blind packets (lab base_shapes/PREREG.txt) and someone set the literal by hand. To
@@ -592,6 +593,11 @@ MEMBER_DOUBLE_BOTTOM_ROUND = 2
 #: The IPO base is EXPERIMENTAL (base_catalog.EXPERIMENTAL_STRUCTURES): no lift measurement exists, so it
 #: stays admin-only whatever its drawing scores.
 MEMBER_IPO_BASE_ROUND = None
+#: The rare-pattern admin preview's two new shapes (api/services/pattern_engine/rare_draw.py). None: NOT
+#: released. They are released only by a later commit that sets the literal by hand, after the release rule in
+#: api/services/rare_preview.py is met (>= 12 owner approvals at >= 80%); nothing sets them automatically.
+MEMBER_CUP_NO_HANDLE_ROUND = None
+MEMBER_HTF_ROUND = None
 #: The drawn labels the judges see.
 MEMBER_SHAPE_LABELS = ("pivot", "base low")
 
@@ -603,6 +609,8 @@ def _member_shape_round(pid):
         "draw:ascending-base": MEMBER_ASCENDING_BASE_ROUND,
         "draw:double-bottom": MEMBER_DOUBLE_BOTTOM_ROUND,
         "draw:ipo-base": MEMBER_IPO_BASE_ROUND,
+        "draw:cup-no-handle": MEMBER_CUP_NO_HANDLE_ROUND,
+        "draw:htf": MEMBER_HTF_ROUND,
     }.get(pid)
 
 
@@ -984,7 +992,12 @@ def shape_draw_rows(sym: str, bars: list) -> list:
         if not b:
             return []
         sym = (sym or "").upper()
+        # while the rare-pattern preview is on it OWNS the saucer and IPO base rows (one row per shape on a
+        # chart, at the preview's round); off, this loop is exactly what it was
+        skip = RARE_SHAPE_OWNED if rare_preview_enabled() else ()
         for pid, fn, name in _SHAPE_FUNCS:
+            if pid in skip:
+                continue
             try:
                 if pid == "draw:ipo-base":
                     if first_t is None:
@@ -1024,6 +1037,146 @@ def shape_draw_rows(sym: str, bars: list) -> list:
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out
+
+
+# ================================================================ rare-pattern admin preview (dark)
+def rare_preview_enabled() -> bool:
+    """AUTO_STRUCTURES_RARE_PREVIEW_ENABLED, read PER CALL; unset means OFF. While on, structures_for appends
+    the rare-pattern preview rows (rare_preview_rows) and the daily universe scan records every instance for
+    the owner's approve / reject flow (api/services/rare_preview.py). Off, nothing below runs: structures_for,
+    shape_draw_rows and the scan are byte-identical to before. The rows are ADMIN-ONLY either way: their ids are
+    in neither registry display set and their member literals are None, so member_rows drops every one."""
+    return os.environ.get("AUTO_STRUCTURES_RARE_PREVIEW_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+#: The preview's row ids, in the order rows are built. Patterns rare enough that blind 2 x 25 rounds cannot be
+#: filled from the held-out pool; they go to the owner one live instance at a time instead.
+RARE_PREVIEW_IDS = ("draw:cup-no-handle", "draw:htf", "draw:ipo-base", "draw:saucer")
+#: The SHAPE_DRAW_IDS rows the preview takes over from shape_draw_rows while it is on.
+RARE_SHAPE_OWNED = ("draw:ipo-base", "draw:saucer")
+#: Display names, one per preview id.
+RARE_PREVIEW_NAMES = {"draw:cup-no-handle": "Cup without handle", "draw:htf": "High tight flag",
+                      "draw:ipo-base": "IPO base", "draw:saucer": "Saucer"}
+#: The base-low label per preview id (the high tight flag's low is the flag's low, not a base low).
+_RARE_LOW_LABELS = {"draw:htf": "flag low"}
+
+#: The IPO base's backfill guard counts first stored dates over tickers whose first daily bar is on/after this
+#: date (a listing is recent by definition).
+IPO_FIRST_DATES_SINCE = 20190101
+#: How long one census of first stored dates is reused.
+IPO_FIRST_DATES_TTL_S = 6 * 3600
+_ipo_first_dates = {"at": 0.0, "by_date": None}
+_ipo_first_dates_lock = threading.Lock()
+
+
+def _ipo_first_t_shared(first_t):
+    """How many tickers in the bars store have their first stored daily bar on `first_t` (this series
+    included), or None when the census cannot be read. A date shared by many tickers is a store backfill
+    boundary, not a listing day (base_catalog.ipo_listing_is_backfill); None makes the IPO base drawing withhold
+    (fail closed). One indexed query per IPO_FIRST_DATES_TTL_S. Never raises."""
+    try:
+        with _ipo_first_dates_lock:
+            now = time.time()
+            if _ipo_first_dates["by_date"] is None or now - _ipo_first_dates["at"] > IPO_FIRST_DATES_TTL_S:
+                from collections import Counter
+                from api.services import bars_sqlite
+                firsts = bars_sqlite.recent_first_trade(IPO_FIRST_DATES_SINCE) or {}
+                _ipo_first_dates["by_date"] = Counter(int(v) for v in firsts.values())
+                _ipo_first_dates["at"] = now
+            got = _ipo_first_dates["by_date"].get(int(first_t))
+        return int(got) if got else None
+    except Exception:  # noqa: BLE001 -- unknown fails closed in the drawing
+        _log.debug("[auto-structures] first-date census failed", exc_info=True)
+        return None
+
+
+def rare_preview_drawings(bars: list, first_t=None) -> list:
+    """[(pattern_id, drawing)] for every preview shape that fires on the LAST bar of `bars` ({t,o,h,l,c,v},
+    oldest first; the caller has already dropped a forming session). Each drawing carries `buy_point` (the
+    ceiling bar's high + $0.10, textbook_numbers.buy_point) and `label` "Buy point <price>". `first_t` is the
+    series' first stored bar, or None when the series is too long to be a recent listing (no IPO base then).
+    Reads only `bars`. A failing shape costs that shape only. Never raises."""
+    out = []
+    try:
+        from api.services import textbook_numbers
+        from api.services.pattern_engine import rare_draw, shape_draw
+        b = list(bars or [])
+        if not b:
+            return []
+        i = len(b) - 1
+        for pid in RARE_PREVIEW_IDS:
+            try:
+                if pid == "draw:cup-no-handle":
+                    d = rare_draw.cup_no_handle_drawing(b, i)
+                elif pid == "draw:htf":
+                    d = rare_draw.high_tight_flag_drawing(b, i)
+                elif pid == "draw:ipo-base":
+                    if first_t is None:
+                        continue
+                    d = shape_draw.ipo_base_drawing(b, i, first_t=first_t, rnd=shape_draw.IPO_PREVIEW_ROUND,
+                                                    first_t_shared=_ipo_first_t_shared(first_t))
+                else:
+                    d = shape_draw.saucer_drawing(b, i)
+            except Exception:  # noqa: BLE001 -- a failing shape costs that shape only
+                _log.debug("[auto-structures] rare preview %s failed", pid, exc_info=True)
+                continue
+            if d is None:
+                continue
+            d = dict(d)
+            if pid in ("draw:ipo-base", "draw:saucer"):
+                # these drawings already withhold a spike top / lip, so their pivot IS the ceiling high
+                d["buy_point"] = textbook_numbers.buy_point(d["pivot"])
+                d["pivot"] = d["buy_point"]
+                d["buy_label"] = "%s · Buy point %.2f" % (RARE_PREVIEW_NAMES[pid], d["buy_point"])
+            if not _finite(d.get("buy_point")):
+                continue
+            d["label"] = "Buy point %.2f" % float(d["buy_point"])
+            d["low_label"] = _RARE_LOW_LABELS.get(pid, d.get("low_label") or "base low")
+            out.append((pid, d))
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return []
+    return out
+
+
+def rare_preview_rows(sym: str, bars: list) -> list:
+    """The rare-pattern preview rows for the latest COMPLETE daily bar of `bars` ({t,o,h,l,c,v}, oldest first):
+    one ADMIN-ONLY row per preview shape that fires there (`rare_preview_drawings`). A forming session
+    (last_bar_forming) is dropped first. The IPO base needs the series' first stored bar, which `bars` (the
+    store's latest STRUCTURE_BARS) reaches only when it holds fewer than that. Each row's `levels.entry` is the
+    buy point. Never raises."""
+    try:
+        b = list(bars or [])
+        first_t = int(b[0]["t"]) if b and len(b) < STRUCTURE_BARS else None
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return []
+        sym = (sym or "").upper()
+        out = []
+        for pid, d in rare_preview_drawings(b, first_t=first_t):
+            out.append({
+                "id": f"{pid}:{sym}:{d['start_t']}:{d['end_t']}",
+                "sym": sym,
+                "tf": "D",
+                "pattern_id": pid,
+                "pattern_name": RARE_PREVIEW_NAMES[pid],
+                "category": "base",
+                "direction": "bullish",
+                "start_t": d["start_t"],
+                "end_t": d["end_t"],
+                "geometry": {
+                    "shape": "shape_draw",
+                    "anchors": [{"t": d["start_t"], "price": d["pivot"]}, {"t": d["end_t"], "price": d["low"]}],
+                    "extras": {"draw_shape": d, "draw_round": d["draw_round"], "rare_preview": True},
+                },
+                "levels": {"entry": d["buy_point"]},
+                "confidence": None,
+                "status": "forming",
+                **display_policy(pid),
+            })
+        return out
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return []
 
 
 def inside_day_draw_row(sym: str, bars: list):
@@ -1420,16 +1573,22 @@ def _structure_rows(sym: str, bars: list) -> list:
         # the named base-shape drawings (lab base_shapes): admin-only rows, behind their own flag
         if shapes_enabled():
             out.extend(shape_draw_rows(sym, bars))
+        # the rare-pattern admin preview: admin-only rows, behind their own flag
+        if rare_preview_enabled():
+            out.extend(rare_preview_rows(sym, bars))
     return out
 
 
-# ================================================================ shelf pivot (dark)
+# ================================================================ shelf pivot (members: round r4)
 #: The shelf-pivot row id (api/services/pattern_engine/shelf_pivot.py).
 SHELF_PIVOT_ID = "draw:shelf-pivot"
-#: The shelf-pivot drawing round a member may be served -- None: NOT released. A literal ON PURPOSE, never
+#: The shelf-pivot drawing round a member may be served. A literal ON PURPOSE, never
 #: shelf_pivot.SHELF_PIVOT_ROUND: a member gets the line only while this equals that frozen constant ("r4")
 #: AND the id is in registry.DISPLAY_MEMBER_SET and the trusted set it must sit in (member_rows). Fail closed.
-MEMBER_SHELF_PIVOT_ROUND = None
+#: RELEASED to members 2026-10-23 at round "r4": blind judging round 4 (2.66 / 2.60), the independent verifier
+#: (SHIP WITH CONDITIONS C1-C5, built in 785c6ae448 + c059a0d61b) and the owner's live eye check (C6, 18 live
+#: shelf lines, 2026-10-22). Set it back to None to withdraw the line from members.
+MEMBER_SHELF_PIVOT_ROUND = "r4"
 #: The frame the drawing round was judged on; outside it there is no line.
 SHELF_WINDOW = 600
 SHELF_MIN_BARS = 261

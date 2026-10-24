@@ -121,7 +121,8 @@ describe('a named base shape draws its region, pivot, low and points', () => {
 
 describe('shapeDrawing (pure)', () => {
   it('reads a well-formed stamp for every shape id', () => {
-    expect(SHAPE_DRAW_IDS).toEqual(['draw:saucer', 'draw:ascending-base', 'draw:double-bottom', 'draw:ipo-base'])
+    expect(SHAPE_DRAW_IDS).toEqual(['draw:saucer', 'draw:ascending-base', 'draw:double-bottom', 'draw:ipo-base',
+      'draw:cup-no-handle', 'draw:htf'])
     for (const pid of SHAPE_DRAW_IDS) {
       const s = shapeDrawing(row(pid))
       expect(s.pivot).toBe(48.1)

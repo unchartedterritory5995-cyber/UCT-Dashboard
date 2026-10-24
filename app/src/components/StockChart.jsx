@@ -3362,9 +3362,9 @@ export default function StockChart({
     if (!deskCallLevels || !deskEnabled) return undefined
     const style = { entry: ['#60a5fa', 0], stop: ['#f87171', 2], target: ['#4ade80', 2] }
     for (const l of deskCallLevels.levels) {
-      const [color, lineStyle] = style[l.kind] || ['#c9a84c', 2]
+      const [color, styleCode] = style[l.kind] || ['#c9a84c', 2]
       deskCallLinesRef.current.push(series.createPriceLine({
-        price: Number(l.price), color, lineWidth: 1, lineStyle, axisLabelVisible: true,
+        price: Number(l.price), color, lineWidth: 1, lineStyle: styleCode, axisLabelVisible: true,
         title: `${deskCallLevels.trader} ${l.kind}`,
       }))
     }

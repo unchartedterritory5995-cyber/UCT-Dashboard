@@ -27,7 +27,11 @@ const GOLD = '#dcbb5e'
 const STATUS_RANK = { approved: 0, draft: 1, rejected: 2 }
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
-  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  if (!r.ok) {
+    const e = new Error(`HTTP ${r.status}`)
+    e.status = r.status
+    throw e
+  }
   return r.json()
 })
 
@@ -45,7 +49,15 @@ async function post(id, body) {
 
 function GalleryCard({ item, houseSettings, onChanged }) {
   const barsKey = `/api/study/admin/items/${encodeURIComponent(item.id)}/bars`
-  const { data: stored, error } = useSWR(barsKey, fetcher, { revalidateOnFocus: false })
+  // No automatic retry: a gallery mounts a whole subject's cards at once, and
+  // retrying each failed one three times multiplies the reads that hit the
+  // rate limit in the first place. A failed card offers Retry instead.
+  const { data: stored, error, mutate: retryBars } = useSWR(barsKey, fetcher, {
+    revalidateOnFocus: false, shouldRetryOnError: false,
+  })
+  // 404 is the route's own answer for an item with no stored chart; any other
+  // failure (a 429, a 5xx, the network) says nothing about the data.
+  const noStoredBars = error?.status === 404
   const bars = useMemo(() => {
     if (!stored || !Array.isArray(stored.bars) || !stored.bars.length) return null
     return appendForwardBars(normalizeBars(stored), stored.forward)
@@ -107,8 +119,13 @@ function GalleryCard({ item, houseSettings, onChanged }) {
             settingsOverride={settingsOverride}
             markers={markers}
           />
-        ) : (
+        ) : noStoredBars ? (
           <div className={styles.gNoBars}>No stored bars</div>
+        ) : (
+          <div className={styles.gNoBars}>
+            Could not load the bars ({error.message}).{' '}
+            <button type="button" className={styles.gBtn} onClick={() => retryBars()}>Retry</button>
+          </div>
         )}
       </div>
       <div className={styles.gGrades} role="group" aria-label={`Grade ${item.sym} ${item.asof}`}>

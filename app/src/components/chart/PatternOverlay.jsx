@@ -128,7 +128,8 @@ export const FLAT_TOP_ID = 'uct_flat_top_breakout'
 export const BASE_DRAW_ID = 'bc:base'
 export const INSIDE_DAY_DRAW_ID = 'draw:inside-day'
 // The named base-shape drawing rows (auto_structures.SHAPE_DRAW_IDS -- keep the two lists equal).
-export const SHAPE_DRAW_IDS = ['draw:saucer', 'draw:ascending-base', 'draw:double-bottom', 'draw:ipo-base']
+export const SHAPE_DRAW_IDS = ['draw:saucer', 'draw:ascending-base', 'draw:double-bottom', 'draw:ipo-base',
+  'draw:cup-no-handle', 'draw:htf']
 
 const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v)
 
