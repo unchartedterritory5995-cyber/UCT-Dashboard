@@ -35,6 +35,21 @@ from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, authorize
 
+
+#: The member bull_flag literal AS SHIPPED, read before any test patches it. Since 2026-10-24 (recert E) it is
+#: None: every bull flag is withheld from members. The tests below exercise the round-9 gate MECHANISM, so they
+#: run under the one-literal re-enable (MEMBER_BULL_FLAG_ROUND = 9, in memory); the shipped default is railed in
+#: tests/test_bull_flag_withheld_from_members.py.
+SHIPPED_MEMBER_BULL_FLAG_ROUND = auto_structures.MEMBER_BULL_FLAG_ROUND
+
+
+@pytest.fixture
+def round9_flag_released(monkeypatch):
+    monkeypatch.setattr(auto_structures, "MEMBER_BULL_FLAG_ROUND", 9)
+
+
+pytestmark = pytest.mark.usefixtures("round9_flag_released")
+
 NOW = int(time.time())
 #: Scan times: the newest scan two minutes ago, older scans one and two days back.
 SCAN_NEW = NOW - 120

@@ -245,10 +245,11 @@ def member_rows(rows) -> list:
     with the box off, so a member gets one only in that shape (`_pivot_only`): a box
     whose stamp failed or never ran would draw the full box, which nobody judged.
 
-    A bull_flag passed its blind check as drawn by ONE drawing round
-    (MEMBER_BULL_FLAG_ROUND), so a member gets one only while it is that round's
-    finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
-    drawing code or never stamped at all, is dropped. Fail closed.
+    A bull_flag reaches a member only while MEMBER_BULL_FLAG_ROUND is an int equal to the
+    row's drawing round (`_confirmed_flag`): a stale flag, or one stamped by other drawing
+    code or never stamped at all, is dropped. Fail closed. Since 2026-10-24 that literal is
+    None (recert E: no bull flag drawing passes the strict textbook bar), so NO bull flag
+    reaches a member.
 
     The "flagging" tier (`_flagging_flag`: a flag the round-9 code stopped ONLY on a relaxed verdict,
     stamped `extras.flagging`) is WITHHELD from members since 2026-10-24 (blind textbook score 1.28):
@@ -1685,11 +1686,14 @@ def member_one_line_per_base(detections, structures, atr=None) -> tuple:
     return [r for r in dets if id(r) not in drop], [r for r in sts if id(r) not in drop]
 
 
-#: The bull_flag drawing round the blind check confirmed for members: round 9,
-#: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
-#: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
-#: stop getting bull_flag until that round is confirmed and this is changed by hand.
-MEMBER_BULL_FLAG_ROUND = 9
+#: The bull_flag drawing round members are served. Round 9 (8d033ec7d2, lab/geometry_eval
+#: REPORT_BULLFLAG_R9.md) passed an older geometry rubric and then scored 1.62 on the strict textbook
+#: rubric (flag_textbook_r2); a rebuilt textbook flag (recert E, 2026-10-24) scored 2.34 / 2.36 / 2.22 /
+#: 2.50, pooled 2.355, and FAILED the protocol bar (every packet >= 2.3, pooled >= 2.4), and no fresh fix
+#: round could be filled on the member universe. So EVERY bull flag is withheld from members: None.
+#: Admins and the team still see both tiers (they never pass through member_rows). A literal ON PURPOSE,
+#: not display.BULL_FLAG_DRAW_ROUND: re-enabling is this one line, and only after a drawing round passes.
+MEMBER_BULL_FLAG_ROUND = None
 
 
 def _confirmed_flag(row) -> bool:

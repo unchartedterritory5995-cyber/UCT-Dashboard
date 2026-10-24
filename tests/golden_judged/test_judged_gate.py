@@ -41,8 +41,10 @@ _PRECEDENCE = ("judged drawing never served on this chart: a member drawing that
                "(member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; "
                "already so at the drawing's release commit")
 for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
-             "inside-day-a2-004", "inside-day-b2-012", "textbook-g1-01", "textbook-g1-12"):
+             "inside-day-a2-004", "textbook-g1-01", "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
+# inside-day-b2-012 left KNOWN_RED 2026-10-24: the member drawing that outranked it was the round-9 confirmed
+# bull_flag, and every bull flag was withheld from members that day (recert E; MEMBER_BULL_FLAG_ROUND = None).
 for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
     KNOWN_RED[_cid] = ("judged double bottom never served: withheld on the member chart (the release's stale-"
                        "breakout condition, auto_structures._db_breakout_stale); already so at the release commit")
