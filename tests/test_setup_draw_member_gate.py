@@ -1,0 +1,229 @@
+"""Setup drawings (remount, u_and_r, donchian_breakout): the dark flag and the member gate.
+
+AUTO_STRUCTURES_G4_SETUPS_ENABLED off runs nothing and no payload carries `setup_draws`. On: an admin (the team
+chart) is served all three setups; a member is served ONLY remount and u_and_r -- each needs its member-round literal
+equal to the frozen round AND to the row's own stamp, the id in registry.DISPLAY_MEMBER_SET and the trusted tier.
+donchian_breakout's literal is None and its id is in neither display set (owner ruling pending), so two separate
+locks keep it from members; each is proved to be load-bearing on its own.
+"""
+import ast
+import json
+
+import pytest
+
+from api.routers import patterns as patterns_router
+from api.services import auto_structures as AS
+from api.services.pattern_engine import setup_draw
+from api.services.pattern_engine.detectors import registry as REG
+
+from tests.authclients import ADMIN, PAID_MEMBER
+from tests.test_member_drawing_set import _get, _store
+from tests.test_setup_draw_parity import EXPECTED, ROWS
+
+FLAG = "AUTO_STRUCTURES_G4_SETUPS_ENABLED"
+MEMBER_SETUPS = {"draw:remount", "draw:u_and_r"}
+ALL_SETUPS = set(AS.SETUP_DRAW_IDS)
+
+
+def _bars_at(i):
+    """The fixture series up to as-of index i as the route's dicts; volume scaled x100 so the chart sits inside the
+    judged liquidity frame (a constant volume scale changes no volume RATIO, so the drawing is the same)."""
+    return [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": float(r[5]) * 100} for r in ROWS[:i + 1]]
+
+
+def _first(setup):
+    return min(int(k) for k, v in EXPECTED.items() if setup in v)
+
+
+def _real_rows():
+    """One REAL row per setup, each built by setup_draw_rows from the as-of bar where the fixture draws it."""
+    out = []
+    for key, pid, _name in AS._SETUP_DRAW_FUNCS:
+        rows = [r for r in AS.setup_draw_rows("ZZZ", _bars_at(_first(key))) if r["pattern_id"] == pid]
+        assert len(rows) == 1, key
+        out.append(rows[0])
+    return out
+
+
+@pytest.fixture
+def setups_on(monkeypatch):
+    monkeypatch.setenv(FLAG, "1")
+    rows = _real_rows()
+    calls = []
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: calls.append(sym) or _bars_at(_first("remount")))
+    monkeypatch.setattr(AS, "setup_draw_rows", lambda sym, bars: [dict(r) for r in rows])
+    AS._SETUP_CACHE.clear()
+    yield calls
+    AS._SETUP_CACHE.clear()
+
+
+# -- the literals and the sets ------------------------------------------------------------------
+
+def test_the_member_round_literals_are_written_in_source():
+    """Literals ON PURPOSE (never a reference to setup_draw's constants, so a new drawing round cannot release
+    itself): remount 3, u_and_r 2, donchian None."""
+    tree = ast.parse(open(AS.__file__, encoding="utf-8").read())
+    want = {"MEMBER_REMOUNT_ROUND": 3, "MEMBER_U_AND_R_ROUND": 2, "MEMBER_DONCHIAN_BREAKOUT_ROUND": None}
+    for name, val in want.items():
+        lits = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in n.targets)]
+        assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == val, name
+    assert AS.MEMBER_REMOUNT_ROUND == setup_draw.REMOUNT_DRAW_ROUND == 3
+    assert AS.MEMBER_U_AND_R_ROUND == setup_draw.U_AND_R_DRAW_ROUND == 2
+    assert AS.MEMBER_DONCHIAN_BREAKOUT_ROUND is None and setup_draw.DONCHIAN_DRAW_ROUND == 1
+
+
+def test_the_registry_sets():
+    for pid in MEMBER_SETUPS:
+        assert pid in REG.DISPLAY_MEMBER_SET and pid in REG.DISPLAY_TEAM_SET and pid in REG.DISPLAY_TRUSTED
+        assert REG.display_policy(pid)["display_tier"] == "trusted"
+    d = "draw:donchian_breakout"
+    assert d not in REG.DISPLAY_MEMBER_SET and d not in REG.DISPLAY_TEAM_SET
+    assert REG.display_policy(d)["display_tier"] == "experimental"
+
+
+# -- the flag ---------------------------------------------------------------------------------
+
+def test_flag_off_runs_nothing(monkeypatch):
+    monkeypatch.delenv(FLAG, raising=False)
+    calls = []
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: calls.append(sym) or _bars_at(_first("remount")))
+    AS._SETUP_CACHE.clear()
+    assert AS.g4_setups_enabled() is False
+    assert AS.setup_draws_for("ZZZ") is None and AS.setup_draws_for("ZZZ", member=True) is None
+    assert calls == []
+    monkeypatch.setenv(FLAG, "1")                              # control: the same stub DOES run when on
+    assert AS.setup_draws_for("ZZZ") and calls
+    AS._SETUP_CACHE.clear()
+
+
+def _route_env(monkeypatch, flag_on):
+    for k in ("AUTO_STRUCTURES_ENABLED", "AUTO_STRUCTURES_MEMBERS_ENABLED"):
+        monkeypatch.setenv(k, "1")
+    for k in ("AUTO_STRUCTURES_SHELF_ENABLED", "AUTO_STRUCTURES_SR_ENABLED", "AUTO_STRUCTURES_METRICS_ENABLED"):
+        monkeypatch.delenv(k, raising=False)
+    if flag_on:
+        monkeypatch.setenv(FLAG, "1")
+    else:
+        monkeypatch.delenv(FLAG, raising=False)
+    _store(monkeypatch, [])
+    monkeypatch.setattr(AS, "structures_for", lambda sym: [])
+    monkeypatch.setattr(AS, "drawn_for", lambda sym: None)
+    monkeypatch.setattr(AS, "deal_hold", lambda sym: None)
+
+
+def test_flag_off_no_payload_carries_the_key(monkeypatch, setups_on):
+    _route_env(monkeypatch, flag_on=False)
+    for user in (ADMIN, PAID_MEMBER):
+        body = _get(user).json()
+        assert "setup_draws" not in body, user
+    assert setups_on == []
+
+
+def test_flag_on_the_team_chart_gets_all_three(monkeypatch, setups_on):
+    _route_env(monkeypatch, flag_on=True)
+    body = _get(ADMIN).json()
+    assert {r["pattern_id"] for r in body["setup_draws"]} == ALL_SETUPS
+    assert all(r["geometry"]["shape"] == "horizontal_line" for r in body["setup_draws"])
+
+
+def test_flag_on_a_member_gets_only_remount_and_u_and_r(monkeypatch, setups_on):
+    _route_env(monkeypatch, flag_on=True)
+    body = _get(PAID_MEMBER).json()
+    assert {r["pattern_id"] for r in body["setup_draws"]} == MEMBER_SETUPS
+    assert "structures" not in body or not any(r["pattern_id"] in ALL_SETUPS for r in body["structures"])
+
+
+def test_a_member_whose_door_is_off_gets_no_key(monkeypatch, setups_on):
+    _route_env(monkeypatch, flag_on=True)
+    monkeypatch.setenv("AUTO_STRUCTURES_MEMBERS_ENABLED", "0")
+    assert "setup_draws" not in _get(PAID_MEMBER).json()
+
+
+def test_only_daily_charts(monkeypatch, setups_on):
+    _route_env(monkeypatch, flag_on=True)
+    url = "/api/patterns/ZZZ?tf=W&confirmed_only=false&include_structures=true"
+    for user in (ADMIN, PAID_MEMBER):
+        assert "setup_draws" not in _get(user, url).json()
+
+
+# -- member_rows, lock by lock --------------------------------------------------------------------
+
+def _by_id(rows):
+    return {r["pattern_id"]: r for r in rows}
+
+
+def test_member_rows_serves_exactly_the_released_setups():
+    rows = _real_rows()
+    assert {r["pattern_id"] for r in AS.member_rows(rows)} == MEMBER_SETUPS
+
+
+def test_donchian_lock_one_the_literal(monkeypatch):
+    """With donchian in BOTH sets (as a release would put it) it is still dropped while its literal is None."""
+    d = _by_id(_real_rows())["draw:donchian_breakout"]
+    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET | {d["pattern_id"]}))
+    trusted = {**d, "display_tier": "trusted"}
+    assert AS.member_rows([trusted]) == []
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)          # control: the release opens it
+    assert AS.member_rows([trusted]) == [trusted]
+
+
+def test_donchian_lock_two_the_sets(monkeypatch):
+    """With the literal set to its round, it is still dropped while its id is outside the member set / tier."""
+    d = _by_id(_real_rows())["draw:donchian_breakout"]
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)
+    assert AS.member_rows([d]) == []                                       # experimental tier, not in the set
+    assert AS.member_rows([{**d, "display_tier": "trusted"}]) == []        # trusted but not in the member set
+
+
+@pytest.mark.parametrize("pid,lit", [("draw:remount", "MEMBER_REMOUNT_ROUND"), ("draw:u_and_r", "MEMBER_U_AND_R_ROUND")])
+def test_a_released_setup_is_withdrawn_by_its_literal_or_a_wrong_round(monkeypatch, pid, lit):
+    row = _by_id(_real_rows())[pid]
+    assert AS.member_rows([row]) == [row]
+    rnd = getattr(AS, lit)
+    monkeypatch.setattr(AS, lit, None)
+    assert AS.member_rows([row]) == []                                     # the withdraw lever
+    monkeypatch.setattr(AS, lit, rnd + 1)
+    assert AS.member_rows([row]) == []                                     # a round nobody judged
+    monkeypatch.setattr(AS, lit, rnd)
+    stale = json.loads(json.dumps(row))
+    stale["geometry"]["extras"]["draw_round"] = rnd + 1
+    assert AS.member_rows([stale]) == []                                   # the row's own stamp disagrees
+    stale["geometry"]["extras"]["draw_setup"]["draw_round"] = rnd + 1
+    assert AS.member_rows([stale]) == []                                   # a whole row of an unjudged round
+    bad = json.loads(json.dumps(row))
+    bad["geometry"]["extras"]["draw_setup"]["level"] = float("nan")
+    assert AS.member_rows([bad]) == []                                     # malformed drawing
+    untrusted = {**row, "display_tier": "experimental"}
+    assert AS.member_rows([untrusted]) == []                               # tier
+    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET - {pid}))
+    assert AS.member_rows([row]) == []                                     # not in the member set
+
+
+# -- the rows ---------------------------------------------------------------------------------
+
+def test_a_row_carries_the_judged_line_exactly():
+    for key, pid, _ in AS._SETUP_DRAW_FUNCS:
+        i = _first(key)
+        want = EXPECTED[str(i)][key]
+        row = _by_id(AS.setup_draw_rows("ZZZ", _bars_at(i)))[pid]
+        # volume scaled x100 changes only the absolute volumes, never the line
+        assert row["geometry"]["anchors"] == want["det"]["geometry"]["anchors"]
+        assert row["geometry"]["shape"] == want["det"]["geometry"]["shape"]
+        assert row["geometry"]["extras"]["draw_round"] == setup_draw.DRAW_ROUNDS[key]
+        assert row["levels"] == {"entry": want["level"]}
+
+
+def test_outside_the_judged_frame_there_is_no_drawing():
+    i = _first("remount")
+    thin = [{**b, "v": 1.0} for b in _bars_at(i)]                          # dollar volume far under $20M
+    assert AS.setup_draw_rows("ZZZ", thin) == []
+    assert AS.setup_draw_rows("ZZZ", _bars_at(i)[-200:]) == []             # under 261 bars
+
+
+def test_one_answer_per_ticker_and_completed_session(monkeypatch, setups_on):
+    built = []
+    monkeypatch.setattr(AS, "setup_draw_rows", lambda sym, bars: built.append(sym) or [])
+    AS._SETUP_CACHE.clear()
+    assert AS.setup_draws_for("ZZZ") == [] and AS.setup_draws_for("ZZZ", member=True) == []
+    assert built == ["ZZZ"]
