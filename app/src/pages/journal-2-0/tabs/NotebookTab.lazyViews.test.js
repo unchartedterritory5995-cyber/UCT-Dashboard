@@ -20,6 +20,8 @@ const LAZY = [
   '../components/notebook/NoteCalendarView',
   '../components/notebook/NoteTimelineView',
   '../components/notebook/NoteTasksView',
+  // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
+  '../components/notebook/BulkActionBar',
   '../components/notebook/import/ImportWizard',
   '../components/notebook/export/ExportDialog',
   // Wave 9 lane 9D: the folder Publish confirmation, on demand through `lazyDialog`. It shipped

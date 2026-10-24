@@ -22,6 +22,13 @@ import { fileURLToPath } from 'node:url'
  */
 
 const mockRefresh = vi.fn()
+// Wave 7 Task 7.3: the bulk bar's module is fetched on the FIRST selection, not on mount. The factory
+// runs the first time anything imports the module, so this counter is the observable "was it loaded".
+const bulkBarLoads = vi.hoisted(() => ({ factoryRuns: 0 }))
+vi.mock('../components/notebook/BulkActionBar', async (importOriginal) => {
+  bulkBarLoads.factoryRuns += 1
+  return importOriginal()
+})
 const NOTES = [
   { id: 'n1', title: 'First note', tags: ['earnings'], updatedAt: '2026-09-18T00:00:00Z' },
   { id: 'n2', title: 'Second note', tags: ['swing'], updatedAt: '2026-09-17T00:00:00Z' },
@@ -251,6 +258,28 @@ function declOf(body, prop) {
   }
   return found
 }
+
+// ⛔ ORDER MATTERS IN THIS FILE: this describe runs FIRST, so the first test sees a module nobody has
+// imported yet and the second is the first selection (it awaits the chunk). After it the lazy bar is
+// resolved for the rest of the file, which is why every later test may read it synchronously.
+describe('NotebookTab — the bulk bar loads on the first selection (Task 7.3)', () => {
+  it('bulk_bar_module_not_loaded_without_selection', async () => {
+    renderTab()
+    expect(box('First note')).toBeInTheDocument()   // non-vacuity: the list and its checkboxes rendered
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    expect(toolbar()).toBeNull()
+    expect(bulkBarLoads.factoryRuns).toBe(0)
+  })
+
+  it('bulk_bar_appears_after_first_select', async () => {
+    renderTab()
+    expect(bulkBarLoads.factoryRuns).toBe(0)
+    fireEvent.click(box('First note'))
+    expect(await screen.findByRole('group', { name: 'Actions for the selected notes' })).toBeInTheDocument()
+    expect(bulkBarLoads.factoryRuns).toBe(1)
+    expect(within(toolbar()).getByText('1 selected')).toBeInTheDocument()
+  })
+})
 
 describe('NotebookTab — selecting notes', () => {
   it('every card in the list view carries a checkbox; the board view carries none', () => {

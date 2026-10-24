@@ -40,7 +40,6 @@ import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../lib
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
-import BulkActionBar from '../components/notebook/BulkActionBar'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
@@ -96,11 +95,13 @@ import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 // Each chunk loads through `lazyChunk`: a failed fetch is retried once in place, and a
 // second failure (a deploy since this tab loaded) reloads the page the way every lazy
 // route in App.jsx already does (review M-5).
-function lazyView(load, label) {
+// `fallback` (Task 7.3): a view that is not a page region -- the bulk bar -- passes `null` so nothing
+// flashes while its chunk loads; every other view keeps the skeleton.
+function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
   function LazyNotebookView(props) {
     return (
-      <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
+      <Suspense fallback={fallback === undefined ? <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div> : fallback}>
         <Chunk {...props} />
       </Suspense>
     )
@@ -129,6 +130,9 @@ function lazyDialog(load, label) {
   return LazyNotebookDialog
 }
 
+// Task 7.3: the bulk bar is fetched on the FIRST selection (it is only rendered while
+// `selectionOn && selection.count > 0`), so a member who never ticks a note never pays for it.
+const BulkActionBar = lazyView(() => import('../components/notebook/BulkActionBar'), 'bulk actions', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
