@@ -39,6 +39,9 @@ def two(monkeypatch, tmp_path):
     # A child row of B's keyed on A's trade ref must never reach A.
     c.execute("INSERT INTO j2_trade_excursions (user_id, trade_ref, symbol, true_r, computed_at)"
               " VALUES (?, ?, 'NVDA', 99.0, 'x')", (B, f"id:{a_tids[0]}"))
+    c.execute("INSERT INTO j2_trade_adherence (user_id, trade_ref, setup, checked_rule_ids,"
+              " total_rules, adherence_pct, updated_at) VALUES (?, ?, 'Shared', '[]', 2, 0.9, 'x')",
+              (B, f"id:{a_tids[0]}"))
     c.execute("INSERT INTO j2_trade_plan_links (user_id, trade_ref, symbol, source_kind,"
               " match_tier, plan_json, matched_at) VALUES (?, ?, 'NVDA', 'note', 'exact', '{}', 'x')",
               (B, f"id:{a_tids[0]}"))
@@ -117,6 +120,7 @@ def test_member_a_never_sees_member_b(two, source, mode):
     if source == "closed_trades":
         first = next(r for r in sc_all.rows if r["day"] == DAYS[0])
         assert first["r"] is None and first["plan_linked"] is False, "B's child rows reached A"
+        assert first["adherence_pct"] is None, "B's adherence row reached A"
     if source == "trading_days":
         by_day = {r["day"]: r for r in sc_all.rows}
         assert by_day[DAYS[0]]["mood"] == 2.0 and by_day["2026-10-22"]["mood"] is None
@@ -148,3 +152,37 @@ def test_b_sees_only_b(two):
     _sc, res = run(c, raw_plan(measures=("net_pnl",), range=RANGE, split={"by": "setup"}), uid=B)
     assert {g.label for g in res.groups} == {"Shared", "B only"}
     assert res.total.cells[0].value == pytest.approx(7777 * 3 + 3 + 8888 * 3)
+
+
+@pytest.mark.parametrize("source", ["closed_trades", "open_positions"])
+def test_split_by_account_shows_only_a_accounts(two, source):
+    c, acc_a, acc_b = two
+    measures = {"closed_trades": ("trades",), "open_positions": ("open_positions",)}[source]
+    _sc, res = run(c, raw_plan(source=source, measures=measures, range=RANGE,
+                               split={"by": "account"}), uid=A)
+    assert [(g.key, g.label) for g in res.groups] == [(acc_a, "Main")]
+    assert all(g.key != acc_b for g in res.groups)
+
+
+def test_own_account_narrows_for_real(two):
+    """Non-vacuous: A has a second account with different rows, so narrowing must change the
+    answer, and B's account id must still read as all of A's accounts."""
+    c, acc_a, acc_b = two
+    acc_a2 = add_account(c, A, "Second", size=5_000)
+    add_trade(c, A, day=DAYS[0], pnl=40.0, setup="Shared", account=acc_a2)
+    add_position(c, A, symbol="SEC", setup="Shared", mark=101.0, account=acc_a2)
+    base = dict(measures=("net_pnl", "trades"), range=RANGE)
+    _sc, all_res = run(c, raw_plan(**base), uid=A)
+    _sc, a1 = run(c, raw_plan(**base, accounts={"id": acc_a}), uid=A)
+    _sc, a2 = run(c, raw_plan(**base, accounts={"id": acc_a2}), uid=A)
+    _sc, ab = run(c, raw_plan(**base, accounts={"id": acc_b}), uid=A)
+    assert all_res.total.cells[0].value == pytest.approx(343.0)
+    assert a1.total.cells[0].value == pytest.approx(303.0)
+    assert a2.total.cells[0].value == pytest.approx(40.0) and a2.total.cells[1].value == 1
+    assert digest(ab) == digest(all_res)
+    _sc, p2 = run(c, raw_plan(source="open_positions", measures=("open_positions",),
+                              range=RANGE, accounts={"id": acc_a2}), uid=A)
+    assert p2.total.cells[0].value == 1
+    _sc, d2 = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",), range=RANGE,
+                              accounts={"id": acc_a2}), uid=A)
+    assert d2.total.cells[0].value == pytest.approx(40.0)

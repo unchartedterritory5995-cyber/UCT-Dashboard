@@ -84,7 +84,7 @@ def test_member_text_is_never_sql_text(source, field, op):
                 rng = plan.ResolvedRange("2026-09-01", "2026-10-23", None, "x")
             sql, params = wcompile.compile_scan(src, p, {}, rng, UID)
             assert value not in sql, (source, field, op, value)
-            if fld.sql is None:
+            if not wcompile.sql_filterable(fld):
                 assert value not in params            # filtered in Python, never in SQL
             elif op == "contains":
                 assert ("%" + wcompile.escape_like(value) + "%") in params

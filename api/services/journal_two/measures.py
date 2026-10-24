@@ -46,7 +46,7 @@ _DAYS_SOURCE = frozenset({"trading_days"})
 _NO_SOURCE: frozenset[str] = frozenset()
 
 Theme = Literal["results", "winloss", "risk", "time", "process"]
-Unit = Literal["trades", "decisive", "days", "entries"]
+Unit = Literal["trades", "decisive", "days", "entries", "positions"]  # positions: 8.5 adapter
 Kind = Literal["sum", "count", "rate", "average", "extreme"]
 
 

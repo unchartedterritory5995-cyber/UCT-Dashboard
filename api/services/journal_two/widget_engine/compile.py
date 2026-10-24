@@ -92,10 +92,17 @@ def _marks(n: int) -> str:
     return ",".join("?" * n)
 
 
+def sql_filterable(fld: Any) -> bool:
+    """Is a filter on `fld` applied in SQL? Not when the field has no SQL fragment, and not
+    when some rows have no value for it (`Field.missing`, e.g. a date-only trade's ET hour):
+    those rows are filtered in Python so the aggregator can say how many it left out."""
+    return bool(getattr(fld, "sql", None)) and not getattr(fld, "missing", None)
+
+
 def filter_fragment(fld: Any, op: str, values: list) -> tuple[str, list] | None:
     """One filter's ` AND ...` fragment, or None when the field is filtered after the scan."""
     expr = getattr(fld, "sql", None)
-    if not expr:
+    if not sql_filterable(fld):
         return None
     if op not in (getattr(fld, "ops", None) or ()):
         raise PlanError(S_UNKNOWN_OP)
@@ -142,8 +149,21 @@ def _range(rng: Any) -> tuple[str, list]:
     return f" AND {_DAY} <= ?", [rng.to_day]
 
 
-def scan_limit(rng: Any) -> int:
-    if rng.last_n is not None:
+def last_n_after_filters(source: Any, plan: dict, rng: Any) -> bool:
+    """Ruling (fix round 1, Minor 8): "last N trades" means the newest N that pass every
+    filter. When a filter runs only in Python, or the view is a list (whose flagged rows must
+    not use up N), the scan reads normally and the N are kept after filtering."""
+    if rng.last_n is None:
+        return False
+    if ((plan.get("view") or {}).get("type")) == "list":
+        return True
+    fields = getattr(source, "fields", {}) or {}
+    return any(not sql_filterable(fields.get(f.get("field")))
+               for f in plan.get("filters") or [])
+
+
+def scan_limit(rng: Any, *, after_filters: bool = False) -> int:
+    if rng.last_n is not None and not after_filters:
         return max(1, min(int(rng.last_n), LAST_N_MAX))
     return SCAN_LIMIT
 
@@ -164,7 +184,8 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         a_sql, a_params = _account_fragment("t.account_id", acc, user_id)
         f_sql, f_params = _filters(source, plan)
         r_sql, r_params = _range(rng)
-        sql += a_sql + f_sql + r_sql + f" ORDER BY {_DAY} DESC, t.id DESC LIMIT {scan_limit(rng)}"
+        limit = scan_limit(rng, after_filters=last_n_after_filters(source, plan, rng))
+        sql += a_sql + f_sql + r_sql + f" ORDER BY {_DAY} DESC, t.id DESC LIMIT {limit}"
         return sql, params + a_params + f_params + r_params
     if key == "open_positions":
         sql = (f"SELECT {POSITION_COLUMNS} FROM j2_positions p"

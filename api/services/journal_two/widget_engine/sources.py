@@ -43,7 +43,7 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    RANGE_TOKENS, S_NO_EARLIER, VIEWS, ResolvedRange,
+    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
@@ -411,9 +411,24 @@ def scan_closed(conn: sqlite3.Connection, plan: dict, settings: dict | None,
     acc = owned_account_id(conn, user_id, wcompile.account_param(plan, settings))
     sql, params = wcompile.compile_scan(CLOSED, plan, settings, rng, user_id)
     raw = _dicts(conn.execute(sql, params))
-    capped = rng.last_n is None and len(raw) > wcompile.SCAN_ROWS
+    over = len(raw) > wcompile.SCAN_ROWS
     raw = raw[:wcompile.SCAN_ROWS]
     rows = _closed_rows(conn, user_id, raw)
+    capped = rng.last_n is None and over
+    if wcompile.last_n_after_filters(CLOSED, plan, rng):
+        # Keep the newest N rows that pass every filter; a flagged row (list view) is shown
+        # but does not use up one of the N.
+        from api.services.journal_two.widget_engine import aggregate
+        kept = aggregate.apply_filters(rows, plan, CLOSED)
+        out, n = [], 0
+        for r in kept:
+            if n >= int(rng.last_n):
+                break
+            out.append(r)
+            if not r.get("flagged"):
+                n += 1
+        rows = out
+        capped = over and n < int(rng.last_n)
     return Scan("closed_trades", rows, capped, rows[-1]["day"] if rows else None, len(rows), acc)
 
 
@@ -468,6 +483,11 @@ def _position_rows(conn: sqlite3.Connection, user_id: str, raw: list[dict],
         if mark is not None and entry is not None and shares is not None:
             unreal = round((mark - entry) * shares * (1 if r.get("side") == "Long" else -1), 2)
         risk = _risk(r.get("entry_price"), r.get("stop_price"), r.get("shares"))
+        if risk is not None and entry is not None:
+            stop = _num(r.get("stop_price"))
+            # Risk is only the LOSS-side distance: a stop on the profit side risks nothing.
+            if stop is not None and (stop >= entry if r.get("side") == "Long" else stop <= entry):
+                risk = 0.0
         price = mark if mark is not None else entry
         value = None if price is None or shares is None else abs(price * shares)
         out.append({
@@ -501,13 +521,10 @@ def scan_positions(conn: sqlite3.Connection, plan: dict, settings: dict | None,
     sql, params = wcompile.compile_scan(POSITIONS, plan, settings, rng, user_id)
     raw = _dicts(conn.execute(sql, params))
     capped = len(raw) > wcompile.SCAN_ROWS
-    rows, estimated = _position_rows(conn, user_id, raw[:wcompile.SCAN_ROWS], today)
-    notes = []
-    if estimated and _uses(plan, "days_open"):
-        notes.append(DAYS_OPEN_ESTIMATED.format(
-            n=estimated, positions=_plural(estimated, "position", "positions"),
-            have=_plural(estimated, "has", "have"), are=_plural(estimated, "is", "are")))
-    return Scan("open_positions", rows, capped, None, len(rows), acc, notes)
+    rows, _estimated = _position_rows(conn, user_id, raw[:wcompile.SCAN_ROWS], today)
+    # The estimated-entry footnote is the aggregator's: it counts only the positions that
+    # survive every filter (fix round 1, Minor 1).
+    return Scan("open_positions", rows, capped, None, len(rows), acc)
 
 
 def _uses(plan: dict, key: str) -> bool:
@@ -536,6 +553,9 @@ DAY_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("had_day_note", "Had a day note", "bool", split=True,
        fmt=_yes_no("Had a day note", "No day note")),
 ]}
+
+
+OFF_SESSION_FOLDED = "{n} {trades} dated on a weekend or holiday {is_} counted on the session before."
 
 
 def _first_day(conn: sqlite3.Connection, user_id: str, acc: str | None) -> date | None:
@@ -615,36 +635,71 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
     capped = lo < floor
     sr = trading_days.sessions(max(lo, floor), hi)
     days = sr.days
-    if len(days) > MAX_SESSIONS:
+    truncated = len(days) > MAX_SESSIONS
+    if truncated:
         days, capped = days[-MAX_SESSIONS:], True
     if not days:
         return Scan("trading_days", [], capped, None, 0, acc)
     lo_s, hi_s = days[0].isoformat(), days[-1].isoformat()
-    bounded = ResolvedRange(lo_s, hi_s, None, rng.label, rng.token)
-    sql, params = wcompile.compile_scan(DAYS, plan, {"accountId": acc}, bounded, user_id)
-    equity = {r["day"]: r for r in _dicts(conn.execute(sql, params)) if r.get("day")}
+    # Trades and closes are read over the CALENDAR span, so one stamped on a weekend or a
+    # holiday inside the range is counted (on the session before) and the range's total
+    # still equals the calendar's.
+    span_lo = lo_s if truncated else max(lo, floor).isoformat()
+    span_hi = hi.isoformat()
+    session_keys = {d.isoformat() for d in days}
+    folded = 0
 
-    # Closed option strategies, exactly as the calendar folds them into a day's P&L.
-    sql_lo = (days[0] - timedelta(days=1)).isoformat() + "T00:00:00Z"
-    sql_hi = (days[-1] + timedelta(days=1)).isoformat() + "T23:59:59Z"
+    def _session_of(d: str) -> str | None:
+        if d in session_keys:
+            return d
+        try:
+            prev = trading_days.session_on_or_before(date.fromisoformat(d[:10])).isoformat()
+        except ValueError:
+            return None
+        return prev if prev >= lo_s else lo_s      # before the first session: the first one
+
+    bounded = ResolvedRange(span_lo, span_hi, None, rng.label, rng.token)
+    sql, params = wcompile.compile_scan(DAYS, plan, {"accountId": acc}, bounded, user_id)
+    equity = [r for r in _dicts(conn.execute(sql, params)) if r.get("day")]
+
+    # Closed option strategies, the calendar's own fetch, folded the way the calendar folds them.
+    sql_lo = (date.fromisoformat(span_lo) - timedelta(days=1)).isoformat() + "T00:00:00Z"
+    sql_hi = (hi + timedelta(days=1)).isoformat() + "T23:59:59Z"
     strategies = j2_calendar._fetch_strategies_in_window(
-        user_id, sql_lo, sql_hi, conn, account_id=acc, et_lo=lo_s, et_hi=hi_s)
+        user_id, sql_lo, sql_hi, conn, account_id=acc, et_lo=span_lo, et_hi=span_hi)
     bucket: dict[str, dict[str, Any]] = {}
-    for d, e in equity.items():
+    extremes: dict[str, list[float]] = {}
+    for e in equity:
+        d = _session_of(e["day"])
+        if d is None:
+            continue
+        if d != e["day"]:
+            folded += int(e.get("n") or 0)
         b = bucket.setdefault(d, j2_calendar._empty_bucket(d))
         b["pnlDollar"] += float(e.get("net") or 0.0)
         b["tradeCount"] += int(e.get("n") or 0)
         b["winners"] += int(e.get("wins") or 0)
         b["losers"] += int(e.get("losses") or 0)
-    j2_calendar._union_strategy_aggregates(bucket, strategies, lo_s, hi_s)
-    extremes: dict[str, list[float]] = {}
-    for d, e in equity.items():
         extremes.setdefault(d, []).extend(
             v for v in (_num(e.get("best")), _num(e.get("worst"))) if v is not None)
-    for s in strategies:
-        d = j2_calendar._row_et_day(s, "closed_at")
-        v = _num(s["pnl_dollar"])
-        if d and lo_s <= d <= hi_s and v is not None:
+    for st in strategies:
+        raw_day = j2_calendar._row_et_day(st, "closed_at")
+        if not raw_day or not (span_lo <= raw_day <= span_hi):
+            continue
+        d = _session_of(raw_day)
+        if d is None:
+            continue
+        if d != raw_day:
+            folded += 1
+        b = bucket.setdefault(d, j2_calendar._empty_bucket(d))
+        b["pnlDollar"] += float(st["pnl_dollar"] or 0)
+        b["tradeCount"] += 1
+        if st["result"] == "Win":
+            b["winners"] += 1
+        elif st["result"] == "Loss":
+            b["losers"] += 1
+        v = _num(st["pnl_dollar"])
+        if v is not None:
             extremes.setdefault(d, []).append(v)
 
     checkins = _checkins(conn, user_id, lo_s, hi_s)
@@ -678,6 +733,10 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             "label2": _weekday(k),
         })
     notes = []
+    if folded:
+        notes.append(OFF_SESSION_FOLDED.format(
+            n=folded, trades=_plural(folded, "trade", "trades"),
+            is_=_plural(folded, "is", "are")))
     if sr.beyond_from is not None:
         notes.append(trading_days.beyond_note(sr.beyond_from))
     return Scan("trading_days", rows, capped, rows[-1]["day"], len(rows), acc, notes)
@@ -709,6 +768,9 @@ S_VIEW_SCATTER_TRADES = "A scatter plot works for closed trades only."
 S_VIEW_LIST = "A list shows each row. Remove the split to use it."
 S_VIEW_PROGRESS = "A progress bar needs a target."
 S_SPLIT_FIELD = "That field can't be used to split a widget."
+#: Ruling R-17: open positions are always what is open now.
+S_POSITIONS_NO_COMPARE = ("Open positions are a snapshot of right now, so there is no earlier "
+                          "period to compare.")
 
 
 class WidgetCatalog:
@@ -745,6 +807,8 @@ class WidgetCatalog:
                     return S_SPLIT_FIELD
         vtype = (plan.get("view") or {}).get("type")
         n_measures = len(plan.get("measures") or [])
+        if src.key in RIGHT_NOW_SOURCES and (vtype == "compare" or plan.get("compare")):
+            return S_POSITIONS_NO_COMPARE
         if vtype in ("number", "compare", "progress") and split:
             return S_VIEW_ONE_NUMBER
         if vtype == "compare":

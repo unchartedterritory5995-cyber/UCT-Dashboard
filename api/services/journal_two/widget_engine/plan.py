@@ -617,6 +617,19 @@ def _range_label(rng: dict) -> str:
     return _fmt_span(a, b)
 
 
+#: Ruling R-17: open positions are always what is open now; the stored range is ignored for them.
+RIGHT_NOW_SOURCES = frozenset({"open_positions"})
+RIGHT_NOW = "right now"
+
+
+def range_label_for(plan: dict, rng: "ResolvedRange") -> str:
+    """The range a widget shows: 'Right now' for open positions (never a date span), else
+    the resolved range's own label. Task 8.6's payload reads its `rangeLabel` from here."""
+    if plan.get("source") in RIGHT_NOW_SOURCES:
+        return RIGHT_NOW[:1].upper() + RIGHT_NOW[1:]
+    return rng.label
+
+
 def _range_phrase(rng: dict) -> str:
     label = _range_label(rng)
     tok = rng.get("token")
@@ -654,7 +667,8 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
     if filt:
         parts.append("filtered by " + _join_and([_field_label(plan, catalog, f) for f in filt]))
     src = _lower_first(_label(catalog.sources.get(plan["source"]), plan["source"]))
-    for_clause = f"for {src} {_range_phrase(plan['range'])}"
+    when = RIGHT_NOW if plan.get("source") in RIGHT_NOW_SOURCES else _range_phrase(plan["range"])
+    for_clause = f"for {src} {when}"
     head = _measure_labels(plan, catalog)
     head = ", ".join([head, *parts, for_clause]) if parts else f"{head} {for_clause}"
     tail = []
@@ -684,7 +698,8 @@ def default_name(plan: dict, catalog: Catalog) -> str:
         if split.get("then"):
             by.append(_field_label(plan, catalog, split["then"]))
         name += " by " + " and ".join(by)
-    name += ", " + _range_label(plan["range"])
+    name += ", " + (RIGHT_NOW if plan.get("source") in RIGHT_NOW_SOURCES
+                    else _range_label(plan["range"]))
     return name[:MAX_TEXT]
 
 

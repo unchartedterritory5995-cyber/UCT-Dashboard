@@ -338,7 +338,7 @@ def test_positions_entry_estimated_excluded_from_days_open_and_counted(conn):
     assert by["AAA"]["days_open"] == 10.0 and by["EST"]["days_open"] is None
     assert total(res) == 10.0 and res.total.cells[0].have == 1
     assert ("1 position has an estimated entry date and is not counted in days open."
-            in sc.footnotes)
+            in res.footnotes)
 
 
 def test_positions_unrealised_none_without_broker_mark(conn):
@@ -501,3 +501,108 @@ def test_end_to_end_validated_plan_compiles_scans_and_aggregates(conn):
     assert total(res, 0) == pytest.approx(240.0)
     assert res.groups[0].values.cells[1].value == 0.5
     assert res.groups[0].values.cells[1].sample == "hide"     # 2 decisive trades < min_n 5
+
+
+# ── fix round 1 ──────────────────────────────────────────────────────────────────────────────
+
+def test_open_positions_are_right_now_never_a_range():
+    p = plan.validate_plan(raw_plan(source="open_positions", measures=("open_positions",),
+                                    range={"token": "last_30d"}), sources.CATALOG)
+    assert plan.summary(p, sources.CATALOG, 2, "positions") == (
+        "Open positions for open positions right now, all accounts. 2 positions.")
+    assert plan.default_name(p, sources.CATALOG) == "Open positions, right now"
+    rng = plan.resolve_range(p["range"], TODAY)
+    assert plan.range_label_for(p, rng) == "Right now"
+    p2 = plan.validate_plan(raw_plan(range={"token": "last_30d"}), sources.CATALOG)
+    assert plan.range_label_for(p2, plan.resolve_range(p2["range"], TODAY)) == "last 30 days"
+
+
+@pytest.mark.parametrize("extra", [{"view": {"type": "compare"}}, {"compare": {"mode": "previous"}},
+                                   {"compare": {"mode": "all"}}])
+def test_open_positions_refuse_compare(extra):
+    with pytest.raises(plan.PlanError) as e:
+        plan.validate_plan(raw_plan(source="open_positions", measures=("open_positions",),
+                                    range={"token": "last_30d"}, **extra), sources.CATALOG)
+    assert e.value.sentence == sources.S_POSITIONS_NO_COMPARE
+
+
+def test_estimated_footnote_counts_only_positions_that_pass_the_filters(conn):
+    add_position(conn, UID, symbol="EST", estimated=1, stop=100.0)       # placeholder stop
+    add_position(conn, UID, symbol="EST2", estimated=1)
+    add_position(conn, UID, symbol="OK")
+    _sc, res = run(conn, raw_plan(source="open_positions", measures=("avg_days_open",),
+                                  filters=[{"field": "had_stop", "op": "is", "values": [True]}]))
+    assert ("1 position has an estimated entry date and is not counted in days open."
+            in res.footnotes)
+    _sc, res = run(conn, raw_plan(source="open_positions", measures=("avg_days_open",),
+                                  filters=[{"field": "symbol", "op": "in", "values": ["OK"]}]))
+    assert not any("estimated" in n for n in res.footnotes)
+
+
+def test_hour_filter_leaves_out_date_only_and_counts_them(conn):
+    for d in ("2026-10-19", "2026-10-20", "2026-10-21"):
+        add_trade(conn, UID, day=d, hour=None, entry_iso=d, exit_iso=d)
+    add_trade(conn, UID, day="2026-10-22", hour=10)
+    _sc, res = run(conn, raw_plan(measures=("trades",), filters=[
+        {"field": "hour_et", "op": "between", "values": [9, 11]}]))
+    assert total(res) == 1
+    assert "3 trades have no time and are left out." in res.footnotes
+
+
+def test_trading_days_fold_weekend_stamps_into_the_session_before(conn):
+    add_trade(conn, UID, day="2026-10-16", pnl=10.0)                     # Friday
+    add_trade(conn, UID, day="2026-10-17", pnl=50.0)                     # Saturday stamp
+    add_strategy(conn, UID, day="2026-10-18", pnl=-5.0, result="Loss")   # Sunday close
+    add_trade(conn, UID, day="2026-10-20", pnl=7.0)
+    sc, res = run(conn, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                 range={"from": "2026-10-01", "to": "2026-10-31"}))
+    rows = {r["day"]: r for r in sc.rows}
+    assert "2026-10-17" not in rows and "2026-10-18" not in rows
+    assert rows["2026-10-16"]["day_net"] == pytest.approx(55.0)
+    assert rows["2026-10-16"]["trade_count"] == 3
+    cal = j2_calendar.get_calendar(UID, view="month", year=2026, month=10, conn=conn)
+    cal_total = sum(d["pnlDollar"] for d in cal["days"])
+    assert sum(r["day_net"] or 0 for r in sc.rows) == pytest.approx(cal_total)
+    assert "2 trades dated on a weekend or holiday are counted on the session before." in sc.footnotes
+
+
+def test_last_n_with_a_python_only_filter_keeps_the_newest_n_after_filtering(conn):
+    for i in range(30):                                   # 30 trades with R > 1, newest first...
+        add_trade(conn, UID, day=(date(2026, 8, 1) + timedelta(days=i)).isoformat(), r=2.0,
+                  commit=False)
+    for i in range(30):                                   # ...buried under 30 newer with R < 1
+        add_trade(conn, UID, day=(date(2026, 9, 5) + timedelta(days=i)).isoformat(), r=0.5,
+                  commit=False)
+    conn.commit()
+    raw = raw_plan(measures=("trades",), range={"token": "last_20_trades"},
+                   filters=[{"field": "r", "op": "gt", "values": [1]}])
+    p = plan.validate_plan(raw, sources.CATALOG)
+    sql, _ = wcompile.compile_scan(sources.CLOSED, p, {}, plan.resolve_range(p["range"], TODAY), UID)
+    assert sql.endswith("LIMIT 5001")
+    sc, res = run(conn, raw)
+    assert total(res) == 20 and len(sc.rows) == 20
+    assert min(r["day"] for r in sc.rows) == "2026-08-11"      # the newest 20 of the 30
+
+
+def test_last_n_list_view_flagged_rows_do_not_use_up_n(conn):
+    for i in range(12):
+        add_trade(conn, UID, day=f"2026-10-{i + 1:02d}", excluded=1 if i % 3 == 0 else 0)
+    sc, res = run(conn, raw_plan(view={"type": "list"}, range={"token": "last_20_trades"}))
+    assert sum(1 for g in res.groups if not g.flagged) == 8 and len(res.groups) == 12
+    for i in range(30):
+        add_trade(conn, UID, day=(date(2026, 9, 1) + timedelta(days=i)).isoformat(), commit=False)
+    conn.commit()
+    sc, res = run(conn, raw_plan(view={"type": "list"}, range={"token": "last_20_trades"}))
+    assert sum(1 for g in res.groups if not g.flagged) == 20
+    assert sum(1 for g in res.groups if g.flagged) == 4
+
+
+def test_open_risk_is_zero_for_a_stop_on_the_profit_side(conn):
+    add_position(conn, UID, symbol="LNG", side="Long", entry=100.0, stop=105.0, shares=10)
+    add_position(conn, UID, symbol="SHT", side="Short", entry=100.0, stop=95.0, shares=10)
+    add_position(conn, UID, symbol="RSK", side="Long", entry=100.0, stop=90.0, shares=10)
+    sc, res = run(conn, raw_plan(source="open_positions", measures=("open_risk",)))
+    by = {r["symbol"]: r for r in sc.rows}
+    assert by["LNG"]["risk_dollars"] == 0.0 and by["SHT"]["risk_dollars"] == 0.0
+    assert by["LNG"]["had_stop"] is True
+    assert total(res) == 100.0

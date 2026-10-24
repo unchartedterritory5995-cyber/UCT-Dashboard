@@ -27,6 +27,8 @@ S_HOLD_MINUTES_NO_TIMES = ("Hold time in minutes needs entry and exit times; you
                            "dates only")
 S_HOLD_MINUTES_SOME = "{n} {trades} {have} dates only and {are} not in the hold-time filter."
 S_SPLIT_MISSING = "{n} {rows} {have} {missing} and {are} not in this split."
+#: The same fact for a filter: rows with no value for the field cannot pass it (fix round 1).
+S_FILTER_MISSING = "{n} {rows} {have} {missing} and {are} left out."
 
 _NONE_KEY = "\x00none"
 _SINGULAR = {"trades": "trade", "positions": "position", "days": "day"}
@@ -134,8 +136,36 @@ def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str]) -> 
                 notes.append(S_HOLD_MINUTES_SOME.format(
                     n=missing, trades=_noun(src.unit, missing),
                     have=_plural(missing, "has", "have"), are=_plural(missing, "is", "are")))
+        elif fld.missing:
+            # A filter on a field some rows have no value for (a date-only trade has no ET
+            # hour) leaves those rows out; say how many, as the split does.
+            gone = sum(1 for r in kept if not r.get("flagged") and r.get(fld.key) is None
+                       and not matches(fld, f["op"], values, None))
+            if gone:
+                notes.append(S_FILTER_MISSING.format(
+                    n=gone, rows=_noun(src.unit, gone), have=_plural(gone, "has", "have"),
+                    missing=fld.missing, are=_plural(gone, "is", "are")))
         kept = [r for r in kept if matches(fld, f["op"], values, r.get(fld.key))]
     return kept
+
+
+def apply_filters(rows: list[dict], plan: dict, src: Any) -> list[dict]:
+    """Every filter of `plan` over `rows`, in Python (no footnotes)."""
+    return _apply_filters(rows, plan, src, [])
+
+
+def _estimated_note(plan: dict, rows: list[dict]) -> str | None:
+    """Open positions: how many of the rows that passed every filter have an estimated
+    entry date, when the widget reads days open."""
+    from api.services.journal_two.widget_engine import sources as wsources
+    if not wsources._uses(plan, "days_open"):
+        return None
+    n = sum(1 for r in rows if r.get("entry_estimated"))
+    if not n:
+        return None
+    return wsources.DAYS_OPEN_ESTIMATED.format(
+        n=n, positions=_plural(n, "position", "positions"), have=_plural(n, "has", "have"),
+        are=_plural(n, "is", "are"))
 
 
 # ── grouping ───────────────────────────────────────────────────────────────────────────────────
@@ -233,6 +263,10 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any) -> Result:
 
     kept = _apply_filters(rows, plan, src, notes)
     counted = [r for r in kept if not r.get("flagged")]
+    if source_key == "open_positions":
+        note = _estimated_note(plan, counted)
+        if note:
+            notes.append(note)
 
     groups: list[Group] = []
     split = plan.get("split")
