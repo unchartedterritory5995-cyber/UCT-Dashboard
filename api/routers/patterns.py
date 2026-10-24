@@ -920,6 +920,10 @@ def get_detections(
                 # daily charts only, drawn by the UCT Intelligence "Setups" toggle. Off: no `setup_draws` key.
                 if (tf or "D").upper() == "D":
                     sd = auto_structures.setup_draws_for(sym, member=True)
+                    # one breakout line per base across the setup lines too: the donchian channel line yields to a
+                    # drawn base line within 1 ATR (auto_structures.ONE_LINE_PER_BASE_PRIORITY; members only)
+                    sd = auto_structures.member_setup_one_line_per_base(
+                        rows, boxes, sd, atr=lambda: auto_structures.daily_atr14(sym))
                     if sd is not None:
                         mout["setup_draws"] = sd
             return mout

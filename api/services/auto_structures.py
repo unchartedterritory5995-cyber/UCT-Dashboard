@@ -1471,10 +1471,16 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
 #:   7. bull_flag             -- the flag's entry (2.43 / 2.40) is a continuation trigger at the top of the
 #:                               base. Where it sits on the base's own breakout line, the base's line is the
 #:                               one that names the base, so the flag yields to every drawing above.
+#:   8. draw:donchian_breakout -- the 55-bar channel high (a `setup_draws` row, settled by
+#:                               member_setup_one_line_per_base). Its line lands on a base's ceiling by
+#:                               construction; a blind paired round (2026-10-24, precedence round e) found no
+#:                               clear winner against the base drawings, so the base drawing already shown
+#:                               stays and the channel line shows only where no line above it is within 1 ATR.
 #: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
 #: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
+DONCHIAN_DRAW_ID = "draw:donchian_breakout"
 ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
-                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag")
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID)
 #: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
 ONE_LINE_PER_BASE_ATR = 1.0
 #: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
@@ -1556,6 +1562,14 @@ def _breakout_lines(row) -> list:
         stamp("draw_flat_top", "price")
     elif pid in ("bc:flat-base", CUP_ID):
         stamp("draw_pivot", "price")
+    elif pid == DONCHIAN_DRAW_ID:
+        # HorizontalLine.jsx: one line at the mean of the first two anchors; its span is the row's (channel high
+        # bar to the as-of bar)
+        an = g.get("anchors")
+        if isinstance(an, list) and an and all(isinstance(x, dict) for x in an[:2]):
+            ps = [x.get("price") for x in an[:2]]
+            if all(_finite(v) for v in ps):
+                add(sum(float(v) for v in ps) / len(ps), r.get("start_t"), r.get("end_t"))
     elif pid in ("flat_base", "bull_flag"):
         if r.get("draw_entry") and not _flagging_flag(r):
             p = ex.get("draw_entry_price")
@@ -1651,8 +1665,9 @@ def member_one_line_per_base(detections, structures, atr=None) -> tuple:
             if pid in rank and _drawn_incumbent(r):
                 ls = _breakout_lines(r)
                 if ls:
-                    # a base STATE row ranks after every incumbent: it yields, it never removes one
-                    cands.append((len(rank) if _is_base_state_row(r) else rank[pid], i, r, ls))
+                    # a base STATE row ranks after every incumbent drawing (it yields, it never removes one), but
+                    # ahead of the donchian setup line (precedence round e: the base drawing shown stays)
+                    cands.append((rank[DONCHIAN_DRAW_ID] - 0.5 if _is_base_state_row(r) else rank[pid], i, r, ls))
         if len(cands) < 2:
             return dets, sts
 
@@ -1683,6 +1698,20 @@ def member_one_line_per_base(detections, structures, atr=None) -> tuple:
     if not drop:
         return dets, sts
     return [r for r in dets if id(r) not in drop], [r for r in sts if id(r) not in drop]
+
+
+def member_setup_one_line_per_base(detections, structures, setups, atr=None):
+    """`setups` (the member's `setup_draws` rows, or None) without a row that member_one_line_per_base would drop
+    beside the chart's already-settled `detections` and `structures`: the SAME pass, run once over all three, so
+    a setup drawing of ONE_LINE_PER_BASE_PRIORITY (the donchian channel line) yields wherever a higher-priority
+    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans. Setup ids outside the priority are kept
+    untouched; `detections` / `structures` are read, never changed. None stays None. Never raises."""
+    if setups is None:
+        return None
+    sl = list(setups)
+    _d, kept = member_one_line_per_base(detections, list(structures or []) + sl, atr=atr)
+    keep = {id(x) for x in kept}
+    return [x for x in sl if id(x) in keep]
 
 
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
