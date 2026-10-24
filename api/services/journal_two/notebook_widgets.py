@@ -38,6 +38,11 @@ ROW_CAP = 40
 IMPLIED_MOVE_BUDGET_S = 6.0
 IMPLIED_MOVE_WORKERS = 4
 
+#: The generic phase 2 kind a widget built in the builder is stored as (wave 8). Its payload is built by
+#: `widget_engine.payload.build_payload`, never by `build()`; its KIND_WAVE / ACCOUNT_KINDS / KIND_TITLE rows
+#: land with the client row (Task 8.13).
+BUILT_KIND = "builtWidget"
+
 #: Kind -> the release wave whose flag gates its menu entry and server read.
 KIND_WAVE: dict[str, int] = {
     "myWatchlistToday": 1,
@@ -99,22 +104,46 @@ class BoundedPool:
     straggler a request abandoned at its budget still counts against the ceiling until its own leaf
     timeout ends it. Pools are per process (a second web process doubles the ceiling)."""
 
-    def __init__(self, workers: int, name: str):
+    def __init__(self, workers: int, name: str, reserve: int = 0):
+        if not 0 <= reserve < workers:
+            raise ValueError(f"reserve must be in [0, {workers}), not {reserve!r}")
         self.workers = workers
+        self._reserve = reserve
         self._pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix=name)
         self._slots = threading.BoundedSemaphore(workers)
+        # Task 8.7: pool work (phase 1 kinds) holds at most `workers - reserve` permits, so the
+        # reserved ones are always there for inline admission (`admit_inline`).
+        self._phase1 = threading.BoundedSemaphore(workers - reserve)
 
     def try_submit(self, fn: Callable, *args: Any) -> Future | None:
-        slots = self._slots
+        phase1, slots = self._phase1, self._slots
+        if not phase1.acquire(blocking=False):
+            return None
         if not slots.acquire(blocking=False):
+            phase1.release()
             return None
         try:
             fut = self._pool.submit(fn, *args)
         except RuntimeError:                        # the pool is shut down (interpreter exit)
             slots.release()
+            phase1.release()
             return None
-        fut.add_done_callback(lambda _f: slots.release())
+
+        def _done(_f: Future) -> None:
+            slots.release()
+            phase1.release()
+
+        fut.add_done_callback(_done)
         return fut
+
+    def admit_inline(self) -> bool:
+        """Take one permit for work the CALLER runs on its own thread (a built-widget run, Task 8.7):
+        True at once, or False at once when every permit is held. Never queues. Pair with
+        `release_inline`. Inline work is bounded by `_slots` only, so it can use the reserve."""
+        return self._slots.acquire(blocking=False)
+
+    def release_inline(self) -> None:
+        self._slots.release()
 
     def shutdown(self) -> None:
         """Stop taking work and cancel what has not started (a test's teardown; never on a live path)."""
@@ -126,7 +155,10 @@ class BoundedPool:
 #: ⛔ journal_styles' slot builder keeps its OWN pool: a slot task waits on builder tasks, so sharing one
 #: bounded pool could deadlock when it is full.
 WIDGET_POOL_WORKERS = 8
-_POOL = BoundedPool(WIDGET_POOL_WORKERS, "nb-widget")
+#: Permits phase 1 kinds may never take: they are held for built-widget runs (Task 8.7), so phase 1
+#: holds at most 6 and a builder run is never starved by a saturated fan-out.
+WIDGET_POOL_RESERVE = 2
+_POOL = BoundedPool(WIDGET_POOL_WORKERS, "nb-widget", reserve=WIDGET_POOL_RESERVE)
 
 
 def _fan_out(fn: Callable, jobs: dict[str, tuple], *, per_request: int, budget_s: float) -> dict[str, Any]:
@@ -323,6 +355,14 @@ MISTAKES_MAX = 20
 TOO_LARGE_SENTENCE = "This widget's data was too large to save. Narrow it and try again."
 #: Scalars the too-large form keeps so the frame still says which widget and when.
 _TOO_LARGE_KEEP = ("asOf", "source", "sourceDetail", "symbol", "month", "range", "listLabel", "name")
+#: What a too-large BUILT widget also keeps: what "See it now" needs to run again (its frozen copy and pin)
+#: and what the frame shows. Each is bounded where it is made (`def` at 4,096 B, the labels by the plan's
+#: 200-character text cap), so these get their own, larger per-key ceiling.
+_BUILT_TOO_LARGE_KEEP = ("title", "view", "sourceKey", "defId", "defRev", "latestRev", "def", "defRef",
+                         "scopeLabel", "rangeLabel", "accountId", "filter", "sample", "notice")
+_BUILT_KEEP_MAX_BYTES = 4_400
+#: What the too-large form always keeps, whatever its size guard drops.
+_TOO_LARGE_FRAME = frozenset({"asOf", "source", "tooLarge", "empty"})
 
 
 def _payload_size(p: dict) -> int:
@@ -352,47 +392,85 @@ def _clip_member_text(payload: dict) -> dict:
     return out
 
 
-def _too_large(payload: dict) -> dict:
+def _too_large(payload: dict, kind: str | None = None) -> dict:
     out: dict[str, Any] = {}
     for k in _TOO_LARGE_KEEP:
         v = payload.get(k)
         if v is not None and _payload_size({k: v}) <= 200:
             out[k] = v
+    if kind == BUILT_KIND:
+        for k in _BUILT_TOO_LARGE_KEEP:
+            v = payload.get(k)
+            if k not in out and v is not None and _payload_size({k: v}) <= _BUILT_KEEP_MAX_BYTES:
+                out[k] = v
     out.setdefault("asOf", payload.get("asOf"))
     out.setdefault("source", payload.get("source"))
     out["tooLarge"] = True
     out["empty"] = TOO_LARGE_SENTENCE
+    # 8.6 review Minor 1: each built key is bounded on its own, but together they could pass the cap.
+    # Drop the largest optional key until the form fits; the frame keys are never dropped.
+    while _payload_size(out) > PAYLOAD_CAP_BYTES:
+        optional = [k for k in out if k not in _TOO_LARGE_FRAME]
+        if not optional:
+            break
+        del out[max(optional, key=lambda k: _payload_size({k: out[k]}))]
     return out
 
 
-def cap_payload(payload: dict, kind: str | None = None) -> dict:
+def cap_payload(payload: dict, kind: str | None = None, list_key: str | None = None,
+                trim_from: str = "end") -> dict:
     """Hold the compact JSON to `PAYLOAD_CAP_BYTES` across EVERY field (fix F1, audit I-2):
 
       1. clip the known unbounded member strings (`_clip_member_text`);
-      2. drop items from the end of the kind's one list (`LIST_KEY`; the first of `_ANY_LIST_KEYS` present
-         when no kind is given) and add what was dropped to `truncated` (a builder's boolean `truncated`
-         stays True);
+      2. drop items from one list and add what was dropped to `truncated` (a builder's boolean `truncated`
+         stays True). The list is `list_key` when given (a built widget names it by view), else the kind's
+         (`LIST_KEY`), else the first of `_ANY_LIST_KEYS` present when no kind is given. `trim_from="end"`
+         drops the last items (a list sorted best first); `"start"` drops the first (a series ordered
+         oldest first keeps its newest buckets);
       3. still over, or fitting only by dropping EVERY item: the too-large form, `tooLarge: true` and
          `TOO_LARGE_SENTENCE`. Never an oversized payload, and never every row gone without a sentence.
 
-    A payload that fits after step 1 is returned as it is."""
+    A payload that fits after step 1 is returned as it is.
+
+    How many items fit is found by bisection, not by dropping one at a time: the size grows strictly with
+    each item kept, so the answer is the same (railed), and a 5,000-row list costs a dozen serialisations
+    instead of thousands.
+
+    Each probe carries the `truncated` count it would write (ruling R-18). The old loop measured the
+    trimmed list without it, so a trim whose own count tipped it over the cap fell to the too-large form
+    and the member lost every row."""
+    if trim_from not in ("end", "start"):
+        raise ValueError(f"trim_from must be 'end' or 'start', not {trim_from!r}")
     out = _clip_member_text(payload)
     if _payload_size(out) <= PAYLOAD_CAP_BYTES:
         return out
-    key = LIST_KEY.get(kind) if kind else next((k for k in _ANY_LIST_KEYS if isinstance(out.get(k), list)), None)
+    if list_key is not None:
+        key = list_key
+    else:
+        key = LIST_KEY.get(kind) if kind else next((k for k in _ANY_LIST_KEYS if isinstance(out.get(k), list)), None)
     items = out.get(key) if key else None
     if isinstance(items, list) and items:
         prior = out.get("truncated")
-        kept = list(items)
-        while len(kept) > 1 and _payload_size({**out, key: kept}) > PAYLOAD_CAP_BYTES:
-            kept.pop()
-        trimmed = {**out, key: kept}
-        dropped = len(items) - len(kept)
-        if dropped:
-            trimmed["truncated"] = True if isinstance(prior, bool) and prior else int(prior or 0) + dropped
+        n = len(items)
+
+        def _trimmed(k: int) -> dict:
+            kept = list(items[n - k:]) if trim_from == "start" else list(items[:k])
+            t = {**out, key: kept}
+            if n - k:
+                t["truncated"] = True if isinstance(prior, bool) and prior else int(prior or 0) + (n - k)
+            return t
+
+        lo, hi = 0, n          # the largest count that fits lies in [lo, hi]; 0 always "fits" here
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if _payload_size(_trimmed(mid)) <= PAYLOAD_CAP_BYTES:
+                lo = mid
+            else:
+                hi = mid - 1
+        trimmed = _trimmed(max(lo, 1))
         if _payload_size(trimmed) <= PAYLOAD_CAP_BYTES:
             return trimmed
-    return _too_large(out)
+    return _too_large(out, kind)
 
 
 # -- the earnings window (tickerCard, myWatchlistToday, myNamesReporting) ------
@@ -2006,6 +2084,12 @@ _MARKET_DETAIL = {
     "roomBuzzOnMyNames": "Mentions: the UCT Discord room.",
     "myEarningsReactions": "Report dates: UCT calendar. Results vs estimates: company reports. Move: daily bars.",
 }
+#: A built widget's sentence, by the data it looks at (`sourceKey`). Fixed: the builder reads the Journal only.
+_BUILT_DETAIL = {
+    "closed_trades": "Your closed trades in the Journal.",
+    "open_positions": "Your open positions in the Journal.",
+    "trading_days": "Your trading days in the Journal (day P&L incl. options).",
+}
 _JOURNAL_DETAIL = {
     "myPnlStats": "Your trades in the Journal.",
     "myPnlCalendar": "Your trades in the Journal.",
@@ -2023,6 +2107,8 @@ def source_detail(kind: str, payload: dict) -> str | None:
     with nothing open, `source` is only `_origin([])`'s fallback, and naming a source for a list that holds
     nothing is a claim about nothing (fix F1b, review M-9)."""
     src = payload.get("source")
+    if kind == BUILT_KIND:
+        return _BUILT_DETAIL.get(payload.get("sourceKey"))
     if kind == "myPositionsRisk" and payload.get("empty"):
         return None
     if kind == "myPositionsRisk":

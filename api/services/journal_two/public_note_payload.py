@@ -305,6 +305,11 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeRecap"): "member-optin",
     ("widgetEmbed", "myPnlCalendar"): "member-optin",
     ("widgetEmbed", "mySetupEdge"): "member-optin",
+    # Notebook widgets phase 2: a member-built widget. Its figures are the member's own account data, so it is
+    # neutral unless `params.share` is the boolean True, and then only the result keys below (Task 8.12). The
+    # registry row (KIND_WAVE / ACCOUNT_KINDS) arrives with Task 8.13; this row lands first on purpose, because
+    # `test_every_registered_widget_has_a_vendor_row` reds a registry id without one and nothing reds the reverse.
+    ("widgetEmbed", "builtWidget"): "member-optin",
     ("widgetEmbed", "marketOnMyNames"): "mixed",
     ("widgetEmbed", "tickerFlow"): "mixed",
     ("widgetEmbed", "myScreenToday"): "mixed",
@@ -504,6 +509,13 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
                    "empty", "truncated", "tooLarge", "mistakesTruncated"),
     "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
     "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
+    # A built widget (Task 8.12): the RESULT only. NEVER `def`, `defRef`, `defId`, `defRev`, `latestRev`,
+    # `summary`, `scopeLabel`, `filter`, `accountId`, `range`, `coverage`, `sample`, and never `footnotes` or
+    # `sourceDetail` (the payload carries both; they name scope and provenance a stranger must not read).
+    # Railed in tests/test_public_note_payload.py.
+    "builtWidget": ("asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows",
+                    "series", "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge",
+                    "empty", "share", "labelKind", "label2Kind"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
@@ -542,6 +554,16 @@ EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
     "tradeRecap": {"bars": ("t", "o", "h", "l", "c"), "mistakes": SCALAR_ITEMS},
     "myPnlCalendar": {"days": ("day", "pnl"), "best": ("day", "pnl"), "worst": ("day", "pnl")},
     "mySetupEdge": {"rows": ("setup", "n", "expectancyR", "winRate", "thin")},
+    # A built widget (Task 8.12): fixed keys per list; an id, a nested object or a key a builder adds later stays home.
+    "builtWidget": {
+        "measures": ("label", "unit", "kind", "fmt"),
+        "value": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "compare": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "rows": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "series": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "points": ("x", "y", "d", "r"),
+        "cells": ("label", "v1", "n1", "s1"),
+    },
 }
 
 
@@ -565,6 +587,27 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
+def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
+    """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
+    field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
+    appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
+    map. An unknown kind value is left alone (it is only ever "account")."""
+    if widget_id != "builtWidget":
+        return
+    for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
+        if out.get(kind_key) != "account":
+            continue
+        numbering: dict[str, str] = {}
+        for list_key in ("rows", "series", "cells"):
+            for item in out.get(list_key) or []:
+                if not isinstance(item, dict) or item.get(field) is None:
+                    continue
+                name = str(item[field])
+                if name not in numbering:
+                    numbering[name] = f"Account {len(numbering) + 1}"
+                item[field] = numbering[name]
+
+
 def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
     """`params` reduced to what a stranger may read for this shown widget: the EMBED_PARAM_KEYS names, each
     structured value through EMBED_ROW_KEYS (ruling R60). Scalars pass as they are."""
@@ -585,6 +628,7 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
             # would still tell a stranger how many rows (or bars) the member has.
             out[k] = ([] if rows[k] == () else
                       [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
+    _relabel_accounts(widget_id, out)
     return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
@@ -1413,6 +1457,10 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
         kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
+        if widget_id == "builtWidget" and "frozen" in kept:
+            # Ruling R-26: `frozen` is a flag. A hand-made body could put anything there, so a built
+            # widget's public copy keeps only whether it is frozen.
+            kept["frozen"] = kept["frozen"] is True
         kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):

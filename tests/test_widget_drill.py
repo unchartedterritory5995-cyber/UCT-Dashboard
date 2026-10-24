@@ -1,0 +1,183 @@
+"""Task 8.11 (ruling R-23) -- drill-down: the rows behind one cell of a built widget.
+
+Seeded through `auth_db.init_db` (the Task 8.5 fixtures in `tests.test_widget_sources`) on a temp
+sqlite file; nothing here reaches `C:\\data`.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+
+from api.services.journal_two import notebook_widgets as nw
+from api.services.journal_two.widget_engine import drill as wdrill
+from api.services.journal_two.widget_engine import run
+from api.services.journal_two.widget_engine import sources as wsources
+from api.services.journal_two.widget_engine.plan import PlanError
+from tests.test_widget_sources import (  # noqa: F401 -- `conn` is a fixture used by name
+    UID, add_position, add_trade, add_user, conn, raw_plan,
+)
+
+NOW = datetime(2026, 10, 24, 15, 30, tzinfo=timezone.utc)
+OTHER = "u-wsrc-other"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_state(monkeypatch):
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-drill-test",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    run._reset_state()
+    yield
+    run._reset_state()
+
+
+def _drill(plan, cell=None, *, settings=None, uid=UID, **kw):
+    return wdrill.drill(uid, plan, settings or {}, cell if cell is not None else {}, now=NOW, **kw)
+
+
+def test_all_rows_capped_at_40_with_more(conn):
+    for i in range(45):
+        add_trade(conn, UID, day=f"2026-10-{1 + i % 20:02d}", pnl=10 + i, commit=False)
+    conn.commit()
+    out = _drill(raw_plan())
+    assert len(out["rows"]) == wdrill.MAX_ROWS == 40
+    assert out["more"] == 5 and out["count"] == 45
+    assert set(out["rows"][0]) == {"id", "symbol", "side", "day", "net", "r", "setup", "flagged"}
+    days = [r["day"] for r in out["rows"]]
+    assert days == sorted(days, reverse=True)                  # newest first
+
+
+def test_group_found_by_its_clipped_label(conn):
+    long_setup = "Breakout " + "x" * 120 + " __proto__ ' % ; --"
+    add_trade(conn, UID, day="2026-10-20", setup=long_setup, symbol="AAA")
+    add_trade(conn, UID, day="2026-10-21", setup="Flag", symbol="BBB")
+    plan = raw_plan(split={"by": "setup"}, view={"type": "bar"})
+    clipped = nw._clip(long_setup, 60)
+    out = _drill(plan, {"label": clipped})
+    assert [r["symbol"] for r in out["rows"]] == ["AAA"]
+    assert _drill(plan, {"label": long_setup})["rows"] == []   # the unclipped text is not a label
+    assert [r["symbol"] for r in _drill(plan, {"label": "Flag"})["rows"]] == ["BBB"]
+
+
+def test_flagged_trades_listed_and_labelled_but_not_counted(conn):
+    add_trade(conn, UID, day="2026-10-20", setup="Flag", symbol="OK1")
+    add_trade(conn, UID, day="2026-10-21", setup="Flag", symbol="FLG", excluded=1)
+    plan = raw_plan(split={"by": "setup"}, view={"type": "bar"})
+    out = _drill(plan, {"label": "Flag"})
+    by_sym = {r["symbol"]: r["flagged"] for r in out["rows"]}
+    assert by_sym == {"OK1": False, "FLG": True}
+    assert out["count"] == 1                                   # what the aggregate counted
+
+
+def test_two_way_split_uses_label2(conn):
+    add_trade(conn, UID, day="2026-10-20", setup="Flag", side="Long", symbol="L1")
+    add_trade(conn, UID, day="2026-10-21", setup="Flag", side="Short", symbol="S1")
+    plan = raw_plan(split={"by": "setup", "then": "side"}, view={"type": "table"})
+    assert [r["symbol"] for r in _drill(plan, {"label": "Flag", "label2": "Short"})["rows"]] == ["S1"]
+    assert len(_drill(plan, {"label": "Flag"})["rows"]) == 2
+
+
+def test_scatter_point(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="P1")
+    add_trade(conn, UID, day="2026-10-20", pnl=-50, r=-1.0, symbol="P2")
+    plan = raw_plan(measures=("net_pnl", "total_r"), view={"type": "scatter"})
+    out = _drill(plan, {"d": "2026-10-20", "x": 100.0, "y": 2.0})
+    assert [r["symbol"] for r in out["rows"]] == ["P1"]
+
+
+def test_tag_split_matches_any_of_the_rows_tags(conn):
+    add_trade(conn, UID, day="2026-10-20", mistakes=["FOMO", "it's 50%"], symbol="T1")
+    add_trade(conn, UID, day="2026-10-21", mistakes=["Late"], symbol="T2")
+    plan = raw_plan(split={"by": "mistake"}, view={"type": "bar"})
+    assert [r["symbol"] for r in _drill(plan, {"label": "it's 50%"})["rows"]] == ["T1"]
+
+
+def test_never_another_members_rows(conn, monkeypatch):
+    add_user(conn, OTHER)
+    mine = add_trade(conn, UID, day="2026-10-20", symbol="MINE")
+    theirs = add_trade(conn, OTHER, day="2026-10-20", symbol="THEIRS")
+    out = _drill(raw_plan())
+    assert [r["id"] for r in out["rows"]] == [mine]
+
+    # Defence in depth: even a scan that somehow handed back another member's row drops it.
+    real = wsources.scan
+
+    def leaky(c, plan, settings, rng, user_id, *, today=None):
+        sc = real(c, plan, settings, rng, user_id, today=today)
+        other = real(c, plan, settings, rng, OTHER, today=today)
+        return wsources.Scan(sc.source, sc.rows + other.rows, sc.capped, sc.earliest_day,
+                             sc.count + other.count, sc.account_id)
+
+    monkeypatch.setattr(wsources, "scan", leaky)
+    ids = [r["id"] for r in _drill(raw_plan())["rows"]]
+    assert ids == [mine] and theirs not in ids
+
+
+def test_foreign_account_is_treated_as_all_accounts(conn):
+    add_user(conn, OTHER)
+    add_trade(conn, UID, day="2026-10-20", symbol="MINE")
+    add_trade(conn, OTHER, day="2026-10-20", symbol="THEIRS")
+    out = _drill(raw_plan(), settings={"accountId": "not-mine"})
+    assert [r["symbol"] for r in out["rows"]] == ["MINE"]
+    assert out["note"] == run.S_ACCOUNT_GONE
+    both = _drill(raw_plan(), settings={"accountId": "not-mine"}, snapshot_count=9,
+                  snapshot_at="2026-10-20")
+    assert both["note"] == run.S_ACCOUNT_GONE + " Live data; the snapshot was taken on Oct 20"
+    assert _drill(raw_plan())["note"] is None
+
+
+def test_live_note_when_count_differs(conn):
+    for d in ("2026-10-20", "2026-10-21", "2026-10-22"):
+        add_trade(conn, UID, day=d)
+    same = _drill(raw_plan(), snapshot_count=3, snapshot_at="2026-10-20T15:00:00Z")
+    assert same["live"] is False and same["note"] is None
+    moved = _drill(raw_plan(), snapshot_count=2, snapshot_at="2026-10-20T15:00:00Z")
+    assert moved["live"] is True
+    assert moved["note"] == "Live data; the snapshot was taken on Oct 20"
+    assert _drill(raw_plan())["live"] is False                 # no snapshot count: nothing to compare
+
+
+def test_not_cached(conn):
+    add_trade(conn, UID, day="2026-10-20")
+    assert len(_drill(raw_plan())["rows"]) == 1
+    add_trade(conn, UID, day="2026-10-21")
+    assert len(_drill(raw_plan())["rows"]) == 2
+
+
+def test_runs_under_the_drill_lane(conn):
+    add_trade(conn, UID, day="2026-10-20")
+    with run.admit(UID, "run"), run.admit(UID, "run"):
+        with pytest.raises(run.EngineBusy):
+            _drill(raw_plan())
+    assert run._GATES.member == {}
+
+
+def test_days_and_positions_row_shapes(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=40)
+    out = _drill(raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                          range={"token": "last_7d"}), {"label": "2026-10-20"})
+    assert out["rows"] == [{"day": "2026-10-20", "net": 40.0, "trades": 1}]
+    days = _drill(raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                           range={"token": "last_7d"}))["rows"]
+    assert {"day": "2026-10-20", "net": 40.0, "trades": 1} in days
+    add_position(conn, UID, symbol="AAPL")
+    pos = _drill(raw_plan(source="open_positions", measures=("open_positions",)))["rows"]
+    assert pos and pos[0]["symbol"] == "AAPL" and "id" in pos[0] and pos[0]["flagged"] is False
+
+
+@pytest.mark.parametrize("cell", [
+    {"label": 3}, {"nope": 1}, {"d": "2026-10-20", "x": 1}, {"label2": "x"}, "label",
+    {"d": "2026-10-20", "x": float("inf"), "y": 1},
+])
+def test_bad_cell_is_a_sentence(conn, cell):
+    with pytest.raises(PlanError) as e:
+        _drill(raw_plan(), cell)
+    assert e.value.sentence == wdrill.S_BAD_CELL
+
+
+def test_scatter_point_never_matches_a_flagged_trade(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="P1")
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="FLG", excluded=1)
+    plan = raw_plan(measures=("net_pnl", "total_r"), view={"type": "scatter"})
+    out = _drill(plan, {"d": "2026-10-20", "x": 100.0, "y": 2.0})
+    assert [r["symbol"] for r in out["rows"]] == ["P1"] and out["count"] == 1

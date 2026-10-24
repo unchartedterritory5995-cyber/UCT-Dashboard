@@ -204,6 +204,13 @@ _DIRECT_USER_TABLES = (
     # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
     # was never opened this is a "no such table" no-op.
     "options_spread_book",
+    # Notebook widgets phase 2 (Task 8.8) -- the member's saved widgets and every
+    # revision of each. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_widget_definitions",
+    "j2_widget_definition_revs",
+    # Notebook widgets phase 2 (Task 8.9) -- the "used in" projection: which of the member's
+    # notes hold which of their saved tools. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_tool_uses",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

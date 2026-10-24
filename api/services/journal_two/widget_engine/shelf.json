@@ -1,0 +1,834 @@
+{
+  "version": 1,
+  "examples": [
+    {
+      "id": "shelf:equity-curve",
+      "name": "Equity curve",
+      "description": "Net P&L day by day over the last 90 days.",
+      "keywords": [
+        "equity",
+        "p&l curve",
+        "account growth",
+        "running p&l"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "day"
+        },
+        "view": {
+          "type": "line",
+          "auto": false
+        },
+        "display": {
+          "title": "Equity curve",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:daily-pnl-bars",
+      "name": "Daily P&L bars",
+      "description": "One bar for each day you traded, last 30 days.",
+      "keywords": [
+        "daily p&l",
+        "day by day",
+        "bars",
+        "daily results"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_30d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "day"
+        },
+        "view": {
+          "type": "bar",
+          "auto": false
+        },
+        "display": {
+          "title": "Daily P&L bars",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:r-equity-curve",
+      "name": "R equity curve",
+      "description": "R made or lost day by day, over the trades whose R is known.",
+      "keywords": [
+        "r curve",
+        "r multiple",
+        "risk units",
+        "total r"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "total_r"
+          }
+        ],
+        "split": {
+          "by": "day"
+        },
+        "view": {
+          "type": "line",
+          "auto": false
+        },
+        "display": {
+          "title": "R equity curve",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:win-rate",
+      "name": "Win rate",
+      "description": "Share of wins among wins and losses, against the period before.",
+      "keywords": [
+        "hit rate",
+        "batting average",
+        "win %",
+        "win percentage",
+        "accuracy"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "win_rate"
+          }
+        ],
+        "view": {
+          "type": "compare",
+          "auto": false
+        },
+        "compare": {
+          "mode": "previous"
+        },
+        "display": {
+          "title": "Win rate",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:profit-factor",
+      "name": "Profit factor",
+      "description": "Money won divided by money lost, after fees.",
+      "keywords": [
+        "PF",
+        "gross profit vs loss",
+        "profitability"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "profit_factor"
+          },
+          {
+            "key": "trades"
+          }
+        ],
+        "display": {
+          "title": "Profit factor",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:expectancy",
+      "name": "Expectancy",
+      "description": "Average result per trade, in dollars and in R.",
+      "keywords": [
+        "edge",
+        "EV",
+        "avg R",
+        "expected value",
+        "per trade"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "expectancy"
+          },
+          {
+            "key": "expectancy_r"
+          }
+        ],
+        "display": {
+          "title": "Expectancy",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:avg-win-vs-loss",
+      "name": "Average win vs average loss",
+      "description": "Your average win, your average loss and the ratio between them.",
+      "keywords": [
+        "payoff",
+        "reward to risk",
+        "win size",
+        "loss size"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "avg_win"
+          },
+          {
+            "key": "avg_loss"
+          },
+          {
+            "key": "payoff"
+          }
+        ],
+        "display": {
+          "title": "Average win vs average loss",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:performance-by-symbol",
+      "name": "Performance by symbol",
+      "description": "Your 10 best symbols by net P&L, with trades and wins.",
+      "keywords": [
+        "tickers",
+        "by ticker",
+        "symbols",
+        "best stocks"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "trades"
+          },
+          {
+            "key": "wins"
+          },
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "symbol"
+        },
+        "view": {
+          "type": "table",
+          "auto": false
+        },
+        "sort": {
+          "measure": 2,
+          "dir": "desc",
+          "top": 10
+        },
+        "display": {
+          "title": "Performance by symbol",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:max-drawdown",
+      "name": "Max drawdown",
+      "description": "The deepest drop of your running P&L from its high, by day.",
+      "keywords": [
+        "DD",
+        "drawdown",
+        "peak to trough",
+        "worst run"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "all"
+        },
+        "measures": [
+          {
+            "key": "max_drawdown"
+          }
+        ],
+        "display": {
+          "title": "Max drawdown",
+          "titleAuto": false,
+          "accent": "red"
+        }
+      }
+    },
+    {
+      "id": "shelf:pnl-by-time-of-day",
+      "name": "P&L by time of day",
+      "description": "Net P&L by the ET hour you closed. Trades with dates only are left out and counted.",
+      "keywords": [
+        "hour",
+        "time of day",
+        "intraday",
+        "session time"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "hour_et"
+        },
+        "view": {
+          "type": "bar",
+          "auto": false
+        },
+        "display": {
+          "title": "P&L by time of day",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:pnl-by-weekday",
+      "name": "P&L by weekday",
+      "description": "Net P&L for each day of the week.",
+      "keywords": [
+        "day of week",
+        "monday",
+        "friday",
+        "weekday"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "weekday"
+        },
+        "view": {
+          "type": "bar",
+          "auto": false
+        },
+        "display": {
+          "title": "P&L by weekday",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:pnl-by-hold-time",
+      "name": "P&L by hold time",
+      "description": "Net P&L by how long you held: same day, 1 day, 2-5 days and longer.",
+      "keywords": [
+        "holding period",
+        "hold time",
+        "duration",
+        "day trades vs swing"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "hold_bucket"
+        },
+        "view": {
+          "type": "bar",
+          "auto": false
+        },
+        "display": {
+          "title": "P&L by hold time",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:r-multiple-distribution",
+      "name": "R-multiple distribution",
+      "description": "How many trades landed in each R bucket.",
+      "keywords": [
+        "r distribution",
+        "histogram",
+        "r buckets",
+        "outcomes"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "trades"
+          }
+        ],
+        "split": {
+          "by": "r_bucket"
+        },
+        "view": {
+          "type": "bar",
+          "auto": false
+        },
+        "display": {
+          "title": "R-multiple distribution",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:r-vs-pnl-scatter",
+      "name": "R vs P&L scatter",
+      "description": "Each trade as a point: its R across, its net P&L up, coloured by result.",
+      "keywords": [
+        "mae",
+        "mfe",
+        "excursion",
+        "scatter",
+        "each trade",
+        "r vs p&l"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "total_r"
+          },
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "view": {
+          "type": "scatter",
+          "auto": false
+        },
+        "display": {
+          "title": "R vs P&L scatter",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:best-trades",
+      "name": "Best trades",
+      "description": "Your 10 biggest trades by net P&L.",
+      "keywords": [
+        "biggest winners",
+        "top trades",
+        "best trades",
+        "winners"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          },
+          {
+            "key": "total_r"
+          }
+        ],
+        "view": {
+          "type": "list",
+          "auto": false
+        },
+        "sort": {
+          "measure": 0,
+          "dir": "desc",
+          "top": 10
+        },
+        "display": {
+          "title": "Best trades",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:recent-trades",
+      "name": "Recent trades",
+      "description": "Your last 20 closed trades with net P&L and R.",
+      "keywords": [
+        "latest trades",
+        "last trades",
+        "trade log",
+        "recent"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_20_trades"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          },
+          {
+            "key": "total_r"
+          }
+        ],
+        "view": {
+          "type": "list",
+          "auto": false
+        },
+        "display": {
+          "title": "Recent trades",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:accounts-side-by-side",
+      "name": "Accounts side by side",
+      "description": "Each account's trades, win rate and net P&L.",
+      "keywords": [
+        "accounts",
+        "compare accounts",
+        "by account",
+        "brokers"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "trades"
+          },
+          {
+            "key": "win_rate"
+          },
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "account"
+        },
+        "view": {
+          "type": "table",
+          "auto": false
+        },
+        "display": {
+          "title": "Accounts side by side",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:long-vs-short",
+      "name": "Long vs short",
+      "description": "Trades, win rate and net P&L for longs and for shorts.",
+      "keywords": [
+        "long",
+        "short",
+        "side",
+        "direction"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "trades"
+          },
+          {
+            "key": "win_rate"
+          },
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "split": {
+          "by": "side"
+        },
+        "view": {
+          "type": "table",
+          "auto": false
+        },
+        "display": {
+          "title": "Long vs short",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:exit-quality",
+      "name": "Exit quality",
+      "description": "How long your wins and losses ran, and how many R each gave.",
+      "keywords": [
+        "exits",
+        "holding losers",
+        "cutting winners",
+        "exit"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "trades"
+          },
+          {
+            "key": "avg_hold_days"
+          },
+          {
+            "key": "expectancy_r"
+          }
+        ],
+        "split": {
+          "by": "result"
+        },
+        "view": {
+          "type": "table",
+          "auto": false
+        },
+        "display": {
+          "title": "Exit quality",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:month-in-review",
+      "name": "Month in review",
+      "description": "This month's net P&L, trades and win rate.",
+      "keywords": [
+        "month",
+        "monthly",
+        "this month",
+        "recap"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "this_month"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          },
+          {
+            "key": "trades"
+          },
+          {
+            "key": "win_rate"
+          }
+        ],
+        "display": {
+          "title": "Month in review",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:weekly-scorecard",
+      "name": "Weekly scorecard",
+      "description": "This week's net P&L, win rate and trades against last week.",
+      "keywords": [
+        "report card",
+        "review",
+        "week",
+        "weekly"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "this_week"
+        },
+        "measures": [
+          {
+            "key": "net_pnl"
+          },
+          {
+            "key": "win_rate"
+          },
+          {
+            "key": "trades"
+          }
+        ],
+        "view": {
+          "type": "compare",
+          "auto": false
+        },
+        "compare": {
+          "mode": "previous"
+        },
+        "display": {
+          "title": "Weekly scorecard",
+          "titleAuto": false,
+          "accent": "gold"
+        }
+      }
+    },
+    {
+      "id": "shelf:fees-drag",
+      "name": "Fees drag",
+      "description": "What fees took: fees beside your gross and net P&L.",
+      "keywords": [
+        "fees",
+        "commissions",
+        "costs",
+        "friction"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "last_90d"
+        },
+        "measures": [
+          {
+            "key": "fees"
+          },
+          {
+            "key": "gross_pnl"
+          },
+          {
+            "key": "net_pnl"
+          }
+        ],
+        "display": {
+          "title": "Fees drag",
+          "titleAuto": false,
+          "accent": "orange"
+        }
+      }
+    },
+    {
+      "id": "shelf:loss-streak",
+      "name": "Loss streak",
+      "description": "Your current streak, your longest loss streak and your longest win streak.",
+      "keywords": [
+        "streak",
+        "losing streak",
+        "tilt",
+        "in a row"
+      ],
+      "plan": {
+        "v": 1,
+        "source": "closed_trades",
+        "range": {
+          "token": "all"
+        },
+        "measures": [
+          {
+            "key": "current_streak"
+          },
+          {
+            "key": "max_loss_streak"
+          },
+          {
+            "key": "max_win_streak"
+          }
+        ],
+        "display": {
+          "title": "Loss streak",
+          "titleAuto": false,
+          "accent": "red"
+        }
+      }
+    }
+  ]
+}
