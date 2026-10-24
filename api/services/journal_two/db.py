@@ -2132,7 +2132,9 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_journal_rules ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
     # Notebook widgets phase 2 (Task 8.8): the member's saved widgets and their revisions
     # (widget_definitions.py). `plan_json` is stored as the member saved it and is never
-    # rewritten in bulk; `last_answer` holds "update_all" or "save_new". ⛔ user-scoped:
+    # rewritten in bulk; `last_answer` holds "update_all" or "save_new"; `save_seq` is the
+    # If-Match token (bumped on every save, ruling R-15); a revision's `origin` is the note a
+    # save came from (NULL from My tools, ruling R-16). ⛔ user-scoped:
     # both are purged with the account (account_purge._DIRECT_USER_TABLES).
     """CREATE TABLE IF NOT EXISTS j2_widget_definitions (
         id                TEXT PRIMARY KEY,
@@ -2148,7 +2150,8 @@ _PHASE_2_ALTERS = [
         archived_at       TEXT,
         deleted_at        TEXT,
         source_gallery_id TEXT,
-        source_version    INTEGER
+        source_version    INTEGER,
+        save_seq          INTEGER NOT NULL DEFAULT 1
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_widget_definitions_user"
     " ON j2_widget_definitions(user_id, archived_at, deleted_at)",
@@ -2160,6 +2163,7 @@ _PHASE_2_ALTERS = [
         summary       TEXT NOT NULL,
         saved_at      TEXT NOT NULL,
         named         TEXT,
+        origin        TEXT,
         PRIMARY KEY (definition_id, rev)
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_widget_definition_revs_user"

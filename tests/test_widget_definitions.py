@@ -155,47 +155,158 @@ def test_update_all_sets_placed_rev_save_new_creates_copy(W):
 def test_coalesce_within_60s_and_new_rev_after(W):
     d = _mk(W)
     t1 = T0 + timedelta(minutes=2)
-    W.update(A, d["id"], if_match=1, plan=plan("win_rate"), apply="update_all",
-             catalog=CAT, now=t1)                                        # rev 2, placed 2
-    # an "update everywhere" save 59 s later rewrites revision 2 in place
-    a = W.update(A, d["id"], if_match=2, plan=plan(), apply="update_all",
+    r = W.update(A, d["id"], if_match=d["etag"], plan=plan("win_rate"), apply="update_all",
+                 catalog=CAT, now=t1)                                    # rev 2, placed 2
+    # an "update everywhere" save 59 s later rewrites revision 2 in place (etag still moves)
+    a = W.update(A, d["id"], if_match=r["etag"], plan=plan(), apply="update_all",
                  catalog=CAT, now=t1 + timedelta(seconds=59))
-    assert a["rev"] == 2 and a["placedRev"] == 2
+    assert a["rev"] == 2 and a["placedRev"] == 2 and a["etag"] == r["etag"] + 1
     revs = W.revs(A, d["id"])
-    assert [r["rev"] for r in revs] == [2, 1]
+    assert [x["rev"] for x in revs] == [2, 1]
     assert revs[0]["plan"]["measures"] == [{"key": "net_pnl"}]
     # 61 s after THAT save: a new revision
     t2 = t1 + timedelta(seconds=59 + 61)
-    b = W.update(A, d["id"], if_match=2, plan=plan("win_rate"), apply="update_all",
+    b = W.update(A, d["id"], if_match=a["etag"], plan=plan("win_rate"), apply="update_all",
                  catalog=CAT, now=t2)
     assert b["rev"] == 3
     # an "only here" save never rewrites the PLACED revision (3): a new one instead...
-    c = W.update(A, d["id"], if_match=3, plan=plan(), apply="only",
+    c = W.update(A, d["id"], if_match=b["etag"], plan=plan(), apply="only",
                  catalog=CAT, now=t2 + timedelta(seconds=5))
     assert c["rev"] == 4 and c["placedRev"] == 3
     assert W.resolve_for_run(A, d["id"], 3)[0]["measures"] == [{"key": "win_rate"}]
     # ...and the next "only" save within 60 s of revision 4 (not placed) coalesces into it
-    e = W.update(A, d["id"], if_match=4, plan=plan("win_rate"), apply="only",
+    e = W.update(A, d["id"], if_match=c["etag"], plan=plan("win_rate"), apply="only",
                  catalog=CAT, now=t2 + timedelta(seconds=30))
     assert e["rev"] == 4
     # a NAMED latest revision is never rewritten: the next save is a new one
     W.name_rev(A, d["id"], 4, "Before earnings")
-    f = W.update(A, d["id"], if_match=4, plan=plan(), apply="only",
+    f = W.update(A, d["id"], if_match=e["etag"], plan=plan(), apply="only",
                  catalog=CAT, now=t2 + timedelta(seconds=40))
     assert f["rev"] == 5
-    named = {r["rev"]: r["named"] for r in W.revs(A, d["id"])}
+    named = {x["rev"]: x["named"] for x in W.revs(A, d["id"])}
     assert named[4] == "Before earnings"
+
+
+def test_two_tabs_inside_the_coalesce_window_second_gets_conflict(W):
+    """R-15: a coalesced save keeps `rev`, so If-Match compares the etag (save_seq)."""
+    d = _mk(W)
+    r = W.update(A, d["id"], if_match=d["etag"], plan=plan("win_rate"), apply="only",
+                 catalog=CAT, now=T0 + timedelta(seconds=120))
+    seen = r["etag"]                                   # both tabs read this
+    a = W.update(A, d["id"], if_match=seen, name="Tab A name", apply="only",
+                 catalog=CAT, now=T0 + timedelta(seconds=130))
+    assert a["rev"] == r["rev"]                        # coalesced: same member-visible rev
+    before = _rows("SELECT * FROM j2_widget_definitions WHERE id = ?", (d["id"],))
+    revs_before = _rows("SELECT * FROM j2_widget_definition_revs WHERE definition_id = ?", (d["id"],))
+    with pytest.raises(W.Conflict) as e:
+        W.update(A, d["id"], if_match=seen, name="Tab B name", apply="only",
+                 catalog=CAT, now=T0 + timedelta(seconds=140))
+    assert e.value.sentence == "Changed in another tab. Reload to see the newer version."
+    assert _rows("SELECT * FROM j2_widget_definitions WHERE id = ?", (d["id"],)) == before
+    assert _rows("SELECT * FROM j2_widget_definition_revs WHERE definition_id = ?",
+                 (d["id"],)) == revs_before
+    assert W.get(A, d["id"])["name"] == "Tab A name"
+    # restore_rev compares the etag too
+    with pytest.raises(W.Conflict):
+        W.restore_rev(A, d["id"], 1, if_match=seen, catalog=CAT, now=T0 + timedelta(seconds=150))
+
+
+def test_two_notes_only_saves_never_coalesce(W):
+    """R-16: saves from two different notes inside 60 s are two revisions."""
+    d = _mk(W)
+    x = W.update(A, d["id"], if_match=d["etag"], plan=plan("win_rate"), apply="only",
+                 origin="note-x", catalog=CAT, now=T0 + timedelta(seconds=120))
+    assert x["rev"] == 2                               # note X now stores def_rev=2
+    y = W.update(A, d["id"], if_match=x["etag"], plan=plan("net_pnl"), apply="only",
+                 origin="note-y", catalog=CAT, now=T0 + timedelta(seconds=150))
+    assert y["rev"] == 3
+    p, ran, _ = W.resolve_for_run(A, d["id"], 2)
+    assert ran == 2 and p["measures"] == [{"key": "win_rate"}]
+    # the same note saving again inside the window coalesces with its own revision
+    y2 = W.update(A, d["id"], if_match=y["etag"], plan=plan("win_rate"), apply="only",
+                  origin="note-y", catalog=CAT, now=T0 + timedelta(seconds=160))
+    assert y2["rev"] == 3
+    # My tools (no origin) never coalesces with a note's revision
+    m = W.update(A, d["id"], if_match=y2["etag"], plan=plan(), apply="only",
+                 catalog=CAT, now=T0 + timedelta(seconds=170))
+    assert m["rev"] == 4
+    m2 = W.update(A, d["id"], if_match=m["etag"], plan=plan("win_rate"), apply="only",
+                  catalog=CAT, now=T0 + timedelta(seconds=180))
+    assert m2["rev"] == 4
+
+
+def test_restore_refuses_a_too_new_current_widget(W):
+    d = _mk(W)
+    r = W.update(A, d["id"], if_match=d["etag"], plan=plan("win_rate"), apply="only",
+                 catalog=CAT, now=T0 + timedelta(seconds=120))
+    c = _conn()
+    try:
+        c.execute("UPDATE j2_widget_definitions SET plan_version = 9, plan_json = ? WHERE id = ?",
+                  (json.dumps({"v": 9}), d["id"]))
+        c.commit()
+    finally:
+        c.close()
+    with pytest.raises(W.PlanTooNew):
+        W.restore_rev(A, d["id"], 1, if_match=r["etag"], catalog=CAT, now=T0 + timedelta(seconds=300))
+    assert W.get(A, d["id"])["rev"] == 2
+
+
+def test_list_reads_without_a_write_unless_there_is_something_to_purge(W, monkeypatch):
+    d = _mk(W)
+    calls = []
+    real = W._write
+
+    def spy(conn):
+        calls.append(1)
+        return real(conn)
+    monkeypatch.setattr(W, "_write", spy)
+    assert [x["id"] for x in W.list_defs(A, now=T0)] == [d["id"]]
+    assert calls == []
+    monkeypatch.setattr(W, "_write", real)
+    W.archive(A, d["id"], now=T0)
+    W.soft_delete(A, d["id"], typed_name="Setups", now=T0)
+    monkeypatch.setattr(W, "_write", spy)
+    W.list_defs(A, deleted=True, now=T0 + timedelta(days=1))
+    assert calls == []                                 # deleted, but not 30 days ago
+    W.list_defs(A, deleted=True, now=T0 + timedelta(days=31))
+    assert calls == [1]
+
+
+def test_write_with_a_caller_connection_commits_unless_the_caller_holds_a_transaction(W):
+    c = _conn()
+    try:
+        d = W.create(A, "Own txn", plan(), catalog=CAT, now=T0, conn=c)
+        assert not c.in_transaction                    # committed by the call
+        c.execute("BEGIN IMMEDIATE")
+        W.archive(A, d["id"], now=T0, conn=c)
+        assert c.in_transaction                        # joined; the caller commits
+        c.rollback()
+    finally:
+        c.close()
+    assert W.get(A, d["id"])["archived"] is False
+
+
+def test_name_rev_sentence_and_save_new_copy_name(W):
+    d = _mk(W, name="Setups")
+    with pytest.raises(W.WidgetError) as e:
+        W.name_rev(A, d["id"], 1, 42)
+    assert e.value.sentence == "Give this version a name."
+    copy = W.update(A, d["id"], if_match=d["etag"], apply="save_new", catalog=CAT, now=T0)
+    assert copy["name"] == "Setups copy"
+    long = _mk(W, name="x" * 200)
+    c2 = W.update(A, long["id"], if_match=long["etag"], apply="save_new", catalog=CAT, now=T0)
+    assert len(c2["name"]) == 200 and c2["name"] == "x" * 200
 
 
 def test_keeps_50_unnamed_plus_named(W):
     d = _mk(W)
     W.name_rev(A, d["id"], 1, "The first one")
-    rev = 1
+    etag = d["etag"]
     for i in range(1, 60):
-        out = W.update(A, d["id"], if_match=rev, plan=plan("win_rate" if i % 2 else "net_pnl"),
+        out = W.update(A, d["id"], if_match=etag, plan=plan("win_rate" if i % 2 else "net_pnl"),
                        apply="only", catalog=CAT, now=T0 + timedelta(minutes=2 * i))
-        rev = out["rev"]
-    assert rev == 60
+        etag = out["etag"]
+    assert out["rev"] == 60
     kept = W.revs(A, d["id"])
     unnamed = [r["rev"] for r in kept if r["named"] is None]
     named = [r["rev"] for r in kept if r["named"] is not None]

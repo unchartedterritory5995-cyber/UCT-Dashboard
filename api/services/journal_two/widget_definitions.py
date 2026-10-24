@@ -11,8 +11,13 @@ Two tables (db._PHASE_2_ALTERS), both purged with the account:
 Rules this module keeps:
   * Ownership: every read and write is `WHERE id = ? AND user_id = ?`. A foreign or deleted
     id is absent: reads return None, writes raise `NotFound`.
-  * If-Match: a write carries the revision the member's tab last saw; any other revision is
-    `Conflict` (409, "Changed in another tab. Reload to see the newer version.").
+  * If-Match (ruling R-15): every widget carries `save_seq`, returned as `etag`, bumped on
+    EVERY save -- a new revision, a save coalesced into the same revision, a restore, a
+    rename. The HTTP If-Match header carries `etag`, and `if_match` is compared with
+    `save_seq`, never with `rev`: a coalesced save keeps `rev`, so `rev` cannot tell two
+    tabs apart inside the coalesce window. Any other value is `Conflict` (409, "Changed in
+    another tab. Reload to see the newer version.") and nothing is written. `rev` and
+    `placedRev` stay the member-visible revision numbers.
   * Plans are stored as the member saved them. A stored plan is upgraded in memory on read
     (`plan.upgrade_plan`) and written back only on a member save; nothing here rewrites
     stored plans in bulk. A plan newer than the server knows is returned with
@@ -23,10 +28,18 @@ Rules this module keeps:
     ⛔ A save never coalesces into the PLACED revision unless it is an "update everywhere"
     save: placements run `max(def_rev, placed_rev)`, so rewriting the placed revision in
     place would change what every placed copy shows behind an "only here" save.
+    ⛔ Ruling R-16: a save coalesces only with a revision saved from the SAME place -- the
+    same note (`origin`, the note id) or both from My tools (`origin` None). Two notes'
+    "only here" saves are never merged into one revision.
   * Count cap: `COUNT_CAP` widgets that are neither archived nor deleted per member.
   * Delete: only from archived, only when the typed name equals the name, and soft
     (`deleted_at`). A member's own rows deleted more than `RECENTLY_DELETED_DAYS` ago are
     hard-deleted, with their revisions, whenever that member lists their widgets.
+
+Connections: every function takes `conn=`. With no connection it opens one and closes it.
+A caller connection that is NOT in a transaction is used for this call's own write
+transaction, which is committed (or rolled back) before returning; a caller connection that
+IS already in a transaction is joined, and committing it is left to the caller.
 
 Time is injected (`now=`) everywhere a rule reads the clock, so tests never sleep.
 The catalog is looked up lazily (`sources.CATALOG`, Task 8.5) and every entry point that
@@ -75,6 +88,7 @@ S_ARCHIVE_FIRST = "Archive this widget before deleting it."
 S_TYPE_NAME = "Type the widget's name exactly to delete it."
 S_BAD_APPLY = "Choose how to save this widget."
 S_BAD_NAME = "Give the widget a name."
+S_BAD_REV_NAME = "Give this version a name."
 
 _DEFS = "j2_widget_definitions"
 _REVS = "j2_widget_definition_revs"
@@ -150,6 +164,9 @@ def _begin_immediate(conn: sqlite3.Connection, tries: int = 2, backoff: float = 
 
 @contextmanager
 def _write(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
+    """A write transaction. No `conn`: open, BEGIN IMMEDIATE, commit, close. A caller `conn`
+    outside a transaction: BEGIN IMMEDIATE and commit on it (it stays open). A caller `conn`
+    already in a transaction: join it; the caller commits."""
     owned = conn is None
     c = conn or auth_db.get_connection()
     began = False
@@ -180,11 +197,11 @@ def _read(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
             c.close()
 
 
-def _clean_name(name: Any) -> str:
+def _clean_name(name: Any, refusal: str = S_BAD_NAME) -> str:
     if name is None:
         return ""
     if not isinstance(name, str):
-        raise WidgetError(S_BAD_NAME)
+        raise WidgetError(refusal)
     return name.strip()[:MAX_TEXT]
 
 
@@ -254,6 +271,7 @@ def _shape(row: sqlite3.Row, summary_text: str | None) -> dict:
         "plan": plan,
         "rev": row["rev"],
         "placedRev": row["placed_rev"],
+        "etag": row["save_seq"],
         "archived": row["archived_at"] is not None,
         "usedIn": 0,                 # counted by Task 8.9
         "lastAnswer": row["last_answer"],
@@ -290,19 +308,19 @@ def _prune(c: sqlite3.Connection, user_id: str, def_id: str, keep: tuple[int, ..
 
 def _insert_new(c: sqlite3.Connection, user_id: str, name: str, plan: dict, summary_text: str,
                 ts: str, source_gallery_id: str | None = None,
-                source_version: int | None = None) -> str:
+                source_version: int | None = None, origin: str | None = None) -> str:
     def_id = str(uuid.uuid4())
     c.execute(
         f"INSERT INTO {_DEFS} (id, user_id, name, plan_json, plan_version, rev, placed_rev,"
         " last_answer, created_at, updated_at, archived_at, deleted_at, source_gallery_id,"
-        " source_version) VALUES (?, ?, ?, ?, ?, 1, 1, NULL, ?, ?, NULL, NULL, ?, ?)",
+        " source_version, save_seq) VALUES (?, ?, ?, ?, ?, 1, 1, NULL, ?, ?, NULL, NULL, ?, ?, 1)",
         (def_id, user_id, name, _dump(plan), int(plan.get("v", PLAN_VERSION)), ts, ts,
          source_gallery_id, source_version),
     )
     c.execute(
-        f"INSERT INTO {_REVS} (user_id, definition_id, rev, plan_json, summary, saved_at, named)"
-        " VALUES (?, ?, 1, ?, ?, ?, NULL)",
-        (user_id, def_id, _dump(plan), summary_text, ts),
+        f"INSERT INTO {_REVS} (user_id, definition_id, rev, plan_json, summary, saved_at, named,"
+        " origin) VALUES (?, ?, 1, ?, ?, ?, NULL, ?)",
+        (user_id, def_id, _dump(plan), summary_text, ts, origin),
     )
     return def_id
 
@@ -340,12 +358,14 @@ def get(user_id: str, def_id: str, *, conn: sqlite3.Connection | None = None) ->
 
 def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
            plan: dict | None = None, apply: Literal["update_all", "save_new", "only"],
-           catalog: Any = None, now: datetime | None = None,
+           origin: str | None = None, catalog: Any = None, now: datetime | None = None,
            conn: sqlite3.Connection | None = None) -> dict:
     """Save a change. `update_all` moves every placement to the new revision; `only` leaves
     placements where they are; `save_new` makes a new widget and leaves this one as it is
     (only its remembered answer changes). Returns the widget written (the new one for
-    `save_new`)."""
+    `save_new`). `if_match` is the widget's `etag` (`save_seq`). `origin` is the note id the
+    save came from, None from My tools; a save coalesces only with a revision of the same
+    origin (ruling R-16). A `save_new` copy with no name given is called "<name> copy"."""
     if apply not in APPLY_ANSWERS:
         raise WidgetError(S_BAD_APPLY)
     cat = None
@@ -354,6 +374,8 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
         cat = _catalog(catalog)
         valid = validate_plan(plan, cat)
     clean = _clean_name(name) if name is not None else None
+    if not isinstance(origin, str) or not origin:
+        origin = None
     ts_dt = _now(now)
     ts = _iso(ts_dt)
     with _write(conn) as c:
@@ -362,7 +384,7 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
             raise NotFound()
         if _too_new(row):
             raise PlanTooNew()
-        if isinstance(if_match, bool) or not isinstance(if_match, int) or if_match != row["rev"]:
+        if isinstance(if_match, bool) or not isinstance(if_match, int) or if_match != row["save_seq"]:
             raise Conflict()
 
         if valid is not None:
@@ -378,8 +400,9 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
         if apply == "save_new":
             _check_cap(c, user_id)
             src_plan = valid if valid is not None else json.loads(plan_json)
-            new_id = _insert_new(c, user_id, new_name, src_plan, summary_text, ts,
-                                 row["source_gallery_id"], row["source_version"])
+            copy_name = clean or (row["name"] + " copy")[:MAX_TEXT]
+            new_id = _insert_new(c, user_id, copy_name, src_plan, summary_text, ts,
+                                 row["source_gallery_id"], row["source_version"], origin)
             c.execute(f"UPDATE {_DEFS} SET last_answer = 'save_new' WHERE id = ? AND user_id = ?",
                       (def_id, user_id))
             return _get_in(c, user_id, new_id)
@@ -390,6 +413,7 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
             latest is not None and latest["named"] is None and saved is not None
             and 0 <= (ts_dt - saved).total_seconds() <= COALESCE_S
             and (row["rev"] != row["placed_rev"] or apply == "update_all")
+            and latest["origin"] == origin
         )
         if coalesce:
             new_rev = row["rev"]
@@ -402,14 +426,15 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
             new_rev = row["rev"] + 1
             c.execute(
                 f"INSERT INTO {_REVS} (user_id, definition_id, rev, plan_json, summary, saved_at,"
-                " named) VALUES (?, ?, ?, ?, ?, ?, NULL)",
-                (user_id, def_id, new_rev, plan_json, summary_text, ts),
+                " named, origin) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)",
+                (user_id, def_id, new_rev, plan_json, summary_text, ts, origin),
             )
         placed = new_rev if apply == "update_all" else row["placed_rev"]
         answer = "update_all" if apply == "update_all" else row["last_answer"]
         c.execute(
             f"UPDATE {_DEFS} SET name = ?, plan_json = ?, plan_version = ?, rev = ?,"
-            " placed_rev = ?, last_answer = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            " placed_rev = ?, last_answer = ?, updated_at = ?, save_seq = save_seq + 1"
+            " WHERE id = ? AND user_id = ?",
             (new_name, plan_json, plan_version, new_rev, placed, answer, ts, def_id, user_id),
         )
         _prune(c, user_id, def_id, (new_rev, placed))
@@ -439,8 +464,15 @@ def list_defs(user_id: str, *, archived: bool = False, deleted: bool = False,
         gate = "d.deleted_at IS NULL AND d.archived_at IS NOT NULL"
     else:
         gate = "d.deleted_at IS NULL AND d.archived_at IS NULL"
-    with _write(conn) as c:
-        _purge_old_deleted(c, user_id, now_dt)
+    cutoff = _iso(now_dt - timedelta(days=RECENTLY_DELETED_DAYS))
+    with _read(conn) as c:
+        stale = c.execute(
+            f"SELECT 1 FROM {_DEFS} WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?"
+            " LIMIT 1", (user_id, cutoff)).fetchone()
+    if stale is not None:                       # a short write only when there is work
+        with _write(conn) as c:
+            _purge_old_deleted(c, user_id, now_dt)
+    with _read(conn) as c:
         rows = c.execute(
             f"SELECT d.*, r.summary AS _summary FROM {_DEFS} d LEFT JOIN {_REVS} r"
             "  ON r.definition_id = d.id AND r.user_id = d.user_id AND r.rev = d.rev"
@@ -474,7 +506,7 @@ def revs(user_id: str, def_id: str, *, conn: sqlite3.Connection | None = None) -
 def name_rev(user_id: str, def_id: str, rev: int, name: str | None, *,
              conn: sqlite3.Connection | None = None) -> dict:
     """Name a revision (kept for good) or, with an empty name, unname it."""
-    clean = _clean_name(name) or None
+    clean = _clean_name(name, S_BAD_REV_NAME) or None
     with _write(conn) as c:
         row = _owned(c, user_id, def_id)
         if row is None or isinstance(rev, bool) or not isinstance(rev, int):
@@ -491,13 +523,16 @@ def name_rev(user_id: str, def_id: str, rev: int, name: str | None, *,
 def restore_rev(user_id: str, def_id: str, rev: int, *, if_match: int, catalog: Any = None,
                 now: datetime | None = None, conn: sqlite3.Connection | None = None) -> dict:
     """Save an old revision's plan as a NEW revision (never coalesced). Placements stay
-    where they are, as with an "only" save."""
+    where they are, as with an "only" save. `if_match` is the `etag`; a widget whose current
+    plan is newer than the server knows is refused (`PlanTooNew`), as `update` is."""
     ts = _iso(_now(now))
     with _write(conn) as c:
         row = _owned(c, user_id, def_id)
         if row is None:
             raise NotFound()
-        if isinstance(if_match, bool) or not isinstance(if_match, int) or if_match != row["rev"]:
+        if _too_new(row):
+            raise PlanTooNew()
+        if isinstance(if_match, bool) or not isinstance(if_match, int) or if_match != row["save_seq"]:
             raise Conflict()
         if isinstance(rev, bool) or not isinstance(rev, int):
             raise NotFound()
@@ -512,13 +547,13 @@ def restore_rev(user_id: str, def_id: str, rev: int, *, if_match: int, catalog: 
         plan_json = _dump(plan)
         new_rev = row["rev"] + 1
         c.execute(
-            f"INSERT INTO {_REVS} (user_id, definition_id, rev, plan_json, summary, saved_at, named)"
-            " VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            f"INSERT INTO {_REVS} (user_id, definition_id, rev, plan_json, summary, saved_at, named,"
+            " origin) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)",
             (user_id, def_id, new_rev, plan_json, old["summary"], ts),
         )
         c.execute(
-            f"UPDATE {_DEFS} SET plan_json = ?, plan_version = ?, rev = ?, updated_at = ?"
-            " WHERE id = ? AND user_id = ?",
+            f"UPDATE {_DEFS} SET plan_json = ?, plan_version = ?, rev = ?, updated_at = ?,"
+            " save_seq = save_seq + 1 WHERE id = ? AND user_id = ?",
             (plan_json, int(plan.get("v", PLAN_VERSION)), new_rev, ts, def_id, user_id),
         )
         _prune(c, user_id, def_id, (new_rev, row["placed_rev"]))
