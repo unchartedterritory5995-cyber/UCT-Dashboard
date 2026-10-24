@@ -45,6 +45,21 @@ from tests.test_bull_flag_r9 import SHORT_LEG, TALL_LEG, _flag_after
 from tests.test_drawing_geometry_v2 import _bars
 from tests.test_team_drawing_set_r4 import _flag_det
 
+
+#: The member bull_flag literal AS SHIPPED, read before any test patches it. Since 2026-10-24 (recert E) it is
+#: None: every bull flag is withheld from members. The tests below exercise the round-9 gate MECHANISM, so they
+#: run under the one-literal re-enable (MEMBER_BULL_FLAG_ROUND = 9, in memory); the shipped default is railed in
+#: tests/test_bull_flag_withheld_from_members.py.
+SHIPPED_MEMBER_BULL_FLAG_ROUND = auto_structures.MEMBER_BULL_FLAG_ROUND
+
+
+@pytest.fixture
+def round9_flag_released(monkeypatch):
+    monkeypatch.setattr(auto_structures, "MEMBER_BULL_FLAG_ROUND", 9)
+
+
+pytestmark = pytest.mark.usefixtures("round9_flag_released")
+
 MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout",
               "bc:base", "bc:cup-with-handle", "draw:inside-day", "draw:double-bottom", "draw:shelf-pivot",
               "draw:remount", "draw:u_and_r",
@@ -227,11 +242,11 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     assert set(registry.DISPLAY_MEMBER_SET) - bc - drawings <= set(registry.list_pattern_ids())
 
 
-def test_the_confirmed_bull_flag_round_is_round_9_and_the_drawing_code_is_round_9():
-    """The member gate is pinned to the round the blind check confirmed (8d033ec7d2); the drawing
-    code on this branch IS that round. If the drawing code moves on, the second line goes red and
-    members stop getting bull_flag (fail closed) until the new round is confirmed."""
-    assert auto_structures.MEMBER_BULL_FLAG_ROUND == CONFIRMED_ROUND
+def test_the_shipped_member_bull_flag_literal_is_none_and_the_drawing_code_is_round_9():
+    """Shipped: no bull flag reaches a member (recert E, 2026-10-24: round 9 scored 1.62 on the strict textbook
+    rubric and the rebuilt flag failed the bar), so the member literal is None. The drawing code is still round 9,
+    which is what the one-literal re-enable these tests run under releases."""
+    assert SHIPPED_MEMBER_BULL_FLAG_ROUND is None
     assert display.BULL_FLAG_DRAW_ROUND == CONFIRMED_ROUND
 
 

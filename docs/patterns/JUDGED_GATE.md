@@ -27,13 +27,18 @@ For each case the gate asserts:
 | `base.json` | `bc:base` | `MEMBER_BASE_ROUND = 4` |
 | `double_bottom.json` | `draw:double-bottom` | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` |
 | `shelf.json` | `draw:shelf-pivot` | `MEMBER_SHELF_PIVOT_ROUND = "r4"` |
-| `sr.json` | `levels_sr` zones and trendline sides | `MEMBER_SR_ROUND = "r2"` |
+| `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json` | `draw:inside-day` | `MEMBER_INSIDE_DAY_ROUND = 3` |
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10) | `MEMBER_TEXTBOOK_ROUND = 2` (the 10 round-1 buy-point cases are kept: round 2 changed no printed number) |
 | `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
 | `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, **not released** (owner has not ruled) | `MEMBER_DONCHIAN_BREAKOUT_ROUND = None` (`pending_port`) |
+
+A `withdrawn` file is a released drawing a later recertification failed: its member literal is `None` (admins
+keep the layer) and `test_a_withdrawn_drawing_is_not_served_to_members` keeps it there. Its judged cases are still
+replayed with the literal set back to the judged round, so the code stays guarded for the day a new passed round
+re-releases it; re-releasing is a re-baseline (below) that flips the status back to `released`.
 
 Unpassed rounds are not fixtures. A `pending_port` file is a drawing that passed but is not released: it is carried so
 the gate covers it the day it ships. `test_a_pending_drawing_is_still_not_released_to_members` goes red when its

@@ -3,7 +3,10 @@
 1. Parity through the serving adapter: on every fixture chart in the judged frame, auto_structures.sr_compute (the
    {t,o,h,l,c,v} dicts the route reads) gives the frozen lab's answer, trimmed to the member payload.
 2. Gates: AUTO_STRUCTURES_SR_ENABLED off runs nothing and the route payload is byte-identical; a member gets the
-   layer only while MEMBER_SR_ROUND is the literal "r2" equal to the frozen round (fail closed); a pending
+   layer only while MEMBER_SR_ROUND is a literal equal to the frozen round (fail closed). The literal is None since
+   2026-10-24 (WITHDRAWN: the strict recertification failed r2 and both fix rounds), so every member-door test below
+   runs with the round patched back in (`_round_released`) and proves the door still works for the day a new passed
+   round re-releases it; the source literal itself is railed to None; a pending
    acquisition gets nothing; daily charts only; the judged frame only; only bars up to the last COMPLETED session;
    patterns win against the prices the response's own drawings put on the chart; one answer per (ticker, last
    completed session, served prices); any failure draws nothing; /api/auth/me carries the one client signal.
@@ -29,6 +32,13 @@ def _dicts(bars):
 def _drawing_case():
     return next(c for c in cases() if c["expect"]["zones"] and len(c["bars"]) >= AS.SR_MIN_BARS
                 and AS.sr_in_frame(_dicts(c["bars"])) and not c["pattern_pivots"])
+
+
+@pytest.fixture(autouse=True)
+def _round_released(monkeypatch):
+    """The member door as it behaves with a released round: the literal patched to the frozen round. The withdrawn
+    state itself is railed by test_the_member_round_literal_is_withdrawn_in_source."""
+    monkeypatch.setattr(AS, "MEMBER_SR_ROUND", S.SR_ROUND)
 
 
 @pytest.fixture
@@ -72,14 +82,19 @@ def test_the_member_payload_carries_exactly_the_judged_fields():
 
 
 # ---------------------------------------------------------------- 2. gates
-def test_the_member_round_literal_is_the_frozen_round_r2_in_source():
-    """A str literal written in source (never a reference to sr_levels.SR_ROUND, so a new drawing round cannot
-    release itself)."""
+def test_the_member_round_literal_is_withdrawn_in_source(monkeypatch, sr_on, bars_of):
+    """WITHDRAWN 2026-10-24: the literal in source is None (never a reference to sr_levels.SR_ROUND, so a drawing
+    round cannot release itself), and with it a member gets no layer while the team keeps it under the flag."""
     src = open(AS.__file__, encoding="utf-8").read()
     lits = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Assign)
             and any(getattr(t, "id", None) == "MEMBER_SR_ROUND" for t in n.targets)]
-    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == "r2"
-    assert S.SR_ROUND == "r2" == AS.MEMBER_SR_ROUND
+    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value is None
+    assert S.SR_ROUND == "r2"
+    monkeypatch.setattr(AS, "MEMBER_SR_ROUND", lits[0].value.value)     # the source value, not the patched one
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: ([], []))
+    assert AS.levels_sr_available(member=True) is False
+    assert AS.levels_sr_for("ZZZ", member=True, served=[]) is None
+    assert AS.levels_sr_available(member=False) is True and AS.levels_sr_for("ZZZ") is not None
 
 
 def test_flag_off_runs_nothing(monkeypatch, bars_of):
