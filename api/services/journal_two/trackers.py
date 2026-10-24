@@ -25,6 +25,7 @@ Rules this module keeps:
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -33,11 +34,12 @@ from typing import Any, Literal
 from api.services.journal_two import routine_days, tracker_days, trading_days
 from api.services.journal_two.notebook_widgets import _num
 from api.services.journal_two.timeutil import compute_trading_day_et
+from api.services.journal_two.tool_errors import ToolError
 from api.services.journal_two.widget_definitions import _begin_immediate, _read, _write
 
 __all__ = [
     "COUNT_CAP", "NAME_MAX", "KIND", "RECENT_MAX", "DAYS_CHOICES", "RECENTLY_DELETED_DAYS",
-    "READ_IDS_MAX", "READ_DAYS_MAX", "BUILTIN", "DEFAULT_SETTINGS",
+    "READ_IDS_MAX", "READ_DAYS_MAX", "DAY_MIN", "DAY_AHEAD_MAX", "BUILTIN", "DEFAULT_SETTINGS",
     "TrackerError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly",
     "create", "get", "update", "list_trackers", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "set_value", "read_days", "is_builtin",
@@ -51,6 +53,10 @@ DAYS_CHOICES = ("trading", "any")
 RECENTLY_DELETED_DAYS = 30
 READ_IDS_MAX = 30
 READ_DAYS_MAX = 31
+#: W9-R9, as routines: a day outside [DAY_MIN, today + DAY_AHEAD_MAX] is refused with S_BAD_DAY.
+DAY_MIN = date(1990, 1, 1)
+DAY_AHEAD_MAX = 366
+_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 BUILTIN: dict[str, dict] = {
     "checkin:mood": {"name": "Check-in mood", "kind": "scale", "readOnly": True},
@@ -83,6 +89,7 @@ S_ARCHIVE_FIRST = "Archive this tracker before deleting it."
 S_TYPE_NAME = "Type the tracker's name exactly to delete it."
 S_BAD_FILTER = "Choose active, archived or deleted trackers."
 S_TOO_MANY_IDS = "Ask for at most 30 trackers at once."
+S_BAD_IDS = "Pick up to 30 trackers."
 S_TOO_MANY_DAYS = "Ask for at most 31 days at once."
 
 DEFAULT_SETTINGS: dict = {"days": "trading"}
@@ -95,16 +102,9 @@ _TEMPLATE_KEY_MAX = 64
 _MISSING = object()
 
 
-class TrackerError(ValueError):
-    """A refusal whose message is a member sentence (`.sentence`), with an HTTP status and code.
-    The same shape as `routines.RoutineError`."""
-
-    status = 400
-    code = "invalid"
-
-    def __init__(self, sentence: str):
-        super().__init__(sentence)
-        self.sentence = sentence
+class TrackerError(ToolError):
+    """A refusal whose message is a member sentence (`.sentence`), with an HTTP status and code
+    (the shared `tool_errors.ToolError` shape, ruling W9-R10; a sibling of `RoutineError`)."""
 
 
 class NotFound(TrackerError):
@@ -171,13 +171,17 @@ def _parse_ts(s: str | None) -> datetime | None:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
-def _parse_day(v: Any) -> date:
-    if not isinstance(v, str) or len(v) != 10:
+def _parse_day(v: Any, today: date) -> date:
+    """A strict `YYYY-MM-DD` (no ISO week dates) within [DAY_MIN, today + DAY_AHEAD_MAX]."""
+    if not isinstance(v, str) or not _DAY_RE.match(v):
         raise TrackerError(S_BAD_DAY)
     try:
-        return date.fromisoformat(v)
+        d = date.fromisoformat(v)
     except ValueError:
         raise TrackerError(S_BAD_DAY) from None
+    if not DAY_MIN <= d <= today + timedelta(days=DAY_AHEAD_MAX):
+        raise TrackerError(S_BAD_DAY)
+    return d
 
 
 def _dump(v: Any) -> str:
@@ -214,7 +218,7 @@ def _clean_unit(unit: Any) -> str | None:
     if unit is None:
         return None
     if not isinstance(unit, str):
-        raise TrackerError(S_BAD_SETTINGS)
+        raise TrackerError(S_UNIT)
     clean = unit.strip()
     if len(clean) > tracker_days.UNIT_MAX:
         raise TrackerError(S_UNIT)
@@ -332,6 +336,23 @@ def create(user_id: str, *, name: Any, kind: Any, unit: Any = None, settings: di
         if key is not None:
             have = c.execute(f"SELECT * FROM {_T} WHERE user_id = ? AND source_template_key = ?",
                              (user_id, key)).fetchone()
+            if have is not None and have["deleted_at"] is not None:
+                # W9-R12: a template key found on a deleted row restores that row live (out of
+                # Recently deleted and out of the archive, the cap checked); past the 30 days
+                # it is purged and the template starts afresh.
+                when = _parse_ts(have["deleted_at"])
+                if when is None or now_dt - when > timedelta(days=RECENTLY_DELETED_DAYS):
+                    c.execute(f"DELETE FROM {_V} WHERE user_id = ? AND tracker_id = ?",
+                              (user_id, have["id"]))
+                    c.execute(f"DELETE FROM {_T} WHERE id = ? AND user_id = ?",
+                              (have["id"], user_id))
+                    have = None
+                else:
+                    _check_cap(c, user_id)
+                    c.execute(f"UPDATE {_T} SET deleted_at = NULL, archived_at = NULL,"
+                              " updated_at = ? WHERE id = ? AND user_id = ?",
+                              (_iso(now_dt), have["id"], user_id))
+                    return _shape(_owned(c, user_id, have["id"]))
             if have is not None:
                 return _shape(have)
         _check_cap(c, user_id)
@@ -382,14 +403,14 @@ def update(user_id: str, tid: str, *, if_match: int, name: Any = None, unit: Any
 
 
 def _purge_old_deleted(c: sqlite3.Connection, user_id: str, now_dt: datetime) -> int:
+    """One DELETE per table: this member's values of trackers deleted before the cutoff, then
+    those trackers."""
     cutoff = _iso(now_dt - timedelta(days=RECENTLY_DELETED_DAYS))
-    ids = [r[0] for r in c.execute(
-        f"SELECT id FROM {_T} WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
-        (user_id, cutoff))]
-    for tid in ids:
-        c.execute(f"DELETE FROM {_V} WHERE user_id = ? AND tracker_id = ?", (user_id, tid))
-        c.execute(f"DELETE FROM {_T} WHERE id = ? AND user_id = ?", (tid, user_id))
-    return len(ids)
+    c.execute(f"DELETE FROM {_V} WHERE user_id = ? AND tracker_id IN (SELECT id FROM {_T}"
+              " WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?)",
+              (user_id, user_id, cutoff))
+    return c.execute(f"DELETE FROM {_T} WHERE user_id = ? AND deleted_at IS NOT NULL"
+                     " AND deleted_at < ?", (user_id, cutoff)).rowcount
 
 
 def list_trackers(user_id: str, *, filter: Literal["active", "archived", "deleted"] = "active",
@@ -527,9 +548,11 @@ def set_value(user_id: str, tid: str, day: str, value: Any, *, now: datetime | N
     """Log one day's value; `None` clears it. Answers that day's `TrackerDay`
     `{day, value, text, writable}`."""
     _refuse_builtin(tid)
-    d = _parse_day(day)
     now_dt = _now(now)
     today = trading_days.today_et(now_dt)
+    d = _parse_day(day, today)
+    if not routine_days.in_window(d, today):    # M1: refused before the write lock is taken
+        raise OutsideWindow()
     owned = conn is None
     from api.services import auth_db
     c = conn or auth_db.get_connection()
@@ -543,8 +566,6 @@ def set_value(user_id: str, tid: str, day: str, value: Any, *, now: datetime | N
             raise NotFound()
         if row["archived_at"] is not None:
             raise ReadOnly()
-        if not routine_days.in_window(d, today):
-            raise OutsideWindow()
         meta = _shape(row)
         if meta["settings"]["days"] == "trading" and not trading_days.is_session(d):
             raise TrackerError(S_TRADING_ONLY)
@@ -573,20 +594,37 @@ def set_value(user_id: str, tid: str, day: str, value: Any, *, now: datetime | N
 
 # ── the batched read ───────────────────────────────────────────────────────────────────────────
 
-def _checkin_values(c: sqlite3.Connection, user_id: str, dim: str, lo: str,
-                    hi: str) -> dict[str, float]:
-    """day -> value for one check-in dimension, by the shared check-in rule. Imported here so
-    the widget engine may later import this module without a cycle."""
+def _checkin_values(c: sqlite3.Connection, user_id: str, lo: str,
+                    hi: str) -> dict[str, dict[str, float]]:
+    """dim ("mood" / "focus") -> day -> value, by the shared check-in rule, from ONE call.
+    Imported here so the widget engine may later import this module without a cycle."""
     from api.services.journal_two.widget_engine.sources import _checkins
-    return {d: v[dim] for d, v in _checkins(c, user_id, lo, hi).items() if v.get(dim) is not None}
+    out: dict[str, dict[str, float]] = {"mood": {}, "focus": {}}
+    for d, v in _checkins(c, user_id, lo, hi).items():
+        for dim in out:
+            if v.get(dim) is not None:
+                out[dim][d] = v[dim]
+    return out
 
 
-def _stored_values(c: sqlite3.Connection, user_id: str, tid: str) -> dict[str, float]:
-    return {r[0]: r[1] for r in c.execute(
-        f"SELECT day, value FROM {_V} WHERE user_id = ? AND tracker_id = ?", (user_id, tid))}
+def _stored_values(c: sqlite3.Connection, user_id: str, tids: list[str],
+                   hi: str) -> dict[str, dict[str, float]]:
+    """tracker id -> day -> value for days on or before `hi`, in ONE query."""
+    out: dict[str, dict[str, float]] = {t: {} for t in tids}
+    if not tids:
+        return out
+    marks = ",".join("?" for _ in tids)
+    for tid, d, v in c.execute(
+            f"SELECT tracker_id, day, value FROM {_V} WHERE user_id = ?"
+            f" AND tracker_id IN ({marks}) AND day <= ?", (user_id, *tids, hi)):
+        out[tid][d] = v
+    return out
 
 
 def _summary(meta: dict, values: dict[str, float], days: list[date], today: date) -> dict:
+    """W9-R13: recent, average, latest and n come from the RECENT_MAX newest of `values`, which
+    the queries already bound to days on or before the latest requested day (the ONE place that
+    bound lives), so a past note's summary never moves."""
     recent_days = sorted(values)[-RECENT_MAX:]
     recent = [{"day": d, "value": _num(values[d])} for d in recent_days]
     rows = [{"tracker": meta["id"], "day": r["day"], "value": r["value"]} for r in recent]
@@ -598,18 +636,20 @@ def _summary(meta: dict, values: dict[str, float], days: list[date], today: date
             "recent": recent,
             "average": _num(avg),
             "latest": dict(latest) if latest else None,
-            "n": len(recent)}
+            # W9-R7: no entries is no count, never a 0.
+            "n": len(recent) or None}
 
 
 def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | None = None,
               conn: sqlite3.Connection | None = None) -> dict:
     """`{"resolved": {"today": day}?, "trackers": {id: {"tracker", "days": {day: TrackerDay},
-    "recent": [{day, value}] (newest RECENT_MAX, oldest first), "average", "latest", "n"}}}`.
-    At most READ_IDS_MAX ids and READ_DAYS_MAX days. `"today"` is the session on or after today
-    ET, as for routines. Foreign, unknown and deleted ids are absent; the built-ins answer the
-    caller's own check-ins."""
+    "recent": [{day, value}] (newest RECENT_MAX on or before the latest requested day, oldest
+    first), "average", "latest", "n"}}}`. At most READ_IDS_MAX ids and READ_DAYS_MAX days.
+    `"today"` is the session on or after today ET, as for routines. Foreign, unknown and deleted
+    ids are absent; the built-ins answer the caller's own check-ins. One tracker query, one value
+    query and at most one check-in query, whatever the number of ids."""
     if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
-        raise TrackerError(S_NOT_FOUND)
+        raise TrackerError(S_BAD_IDS)
     if not isinstance(days, list):
         raise TrackerError(S_BAD_DAY)
     want_ids = list(dict.fromkeys(i for i in ids if i))
@@ -628,10 +668,11 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
             out["resolved"] = {TODAY_TOKEN: t.isoformat()}
             resolved.append(t)
         else:
-            resolved.append(_parse_day(d))
+            resolved.append(_parse_day(d, today))
     resolved = sorted(set(resolved))
     if not want_ids:
         return out
+    upto = (resolved[-1] if resolved else today).isoformat()
     with _read(conn) as c:
         own_ids = [i for i in want_ids if not is_builtin(i)]
         by_id: dict[str, sqlite3.Row] = {}
@@ -640,14 +681,14 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
             by_id = {r["id"]: r for r in c.execute(
                 f"SELECT * FROM {_T} WHERE user_id = ? AND deleted_at IS NULL"
                 f" AND id IN ({marks})", (user_id, *own_ids))}
+        stored = _stored_values(c, user_id, [i for i in own_ids if i in by_id], upto)
+        checkins = (_checkin_values(c, user_id, DAY_MIN.isoformat(), upto)
+                    if any(is_builtin(i) for i in want_ids) else None)
         for tid in want_ids:
             if is_builtin(tid):
-                meta = _builtin_shape(tid)
-                values = _checkin_values(c, user_id, _BUILTIN_DIM[tid], "0001-01-01",
-                                         "9999-12-31")
+                meta, values = _builtin_shape(tid), checkins[_BUILTIN_DIM[tid]]
             elif tid in by_id:
-                meta = _shape(by_id[tid])
-                values = _stored_values(c, user_id, tid)
+                meta, values = _shape(by_id[tid]), stored[tid]
             else:
                 continue
             out["trackers"][tid] = _summary(meta, values, resolved, today)

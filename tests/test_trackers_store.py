@@ -255,7 +255,7 @@ def test_null_clears_the_day(T):
     assert out == {"day": "2026-11-05", "value": None, "text": None, "writable": True}
     assert _count("j2_tracker_values") == 0
     day = T.read_days(A, [t["id"]], ["2026-11-05"], now=NOW)["trackers"][t["id"]]
-    assert day["days"]["2026-11-05"]["value"] is None and day["n"] == 0
+    assert day["days"]["2026-11-05"]["value"] is None and day["n"] is None   # W9-R7
     assert day["latest"] is None and day["average"] is None
 
 
@@ -421,3 +421,132 @@ def test_no_j2_notes_write(T):
     # And every statement naming the notes table at all is a SELECT.
     assert [s for s in seen if re.search(r"\bj2_notes\b", s)
             and not s.lstrip().upper().startswith("SELECT")] == []
+
+
+# ── review round 1 ─────────────────────────────────────────────────────────────────────────────
+
+def test_both_stores_refuse_through_one_tool_error_base(T):
+    from api.services.journal_two import routines
+    from api.services.journal_two.tool_errors import ToolError
+    assert issubclass(T.TrackerError, ToolError) and issubclass(routines.RoutineError, ToolError)
+    for mod in (T, routines):
+        for name in ("NotFound", "Conflict", "OutsideWindow", "ReadOnly"):
+            assert issubclass(getattr(mod, name), ToolError)
+    e = T.NotFound()
+    assert isinstance(e, ToolError) and (e.status, e.code, e.sentence) == (404, "not_found",
+                                                                          "Not available.")
+
+
+@pytest.mark.parametrize("bad", ["2026-W45-5", "2026-11-6", "20261106", "9999-12-31",
+                                 "0001-01-01", "1989-12-31"])
+def test_bad_days_refused_on_read_and_write(T, bad):
+    t = make(T, kind="number", settings={"days": "any"})
+    with pytest.raises(T.TrackerError) as e:
+        T.set_value(A, t["id"], bad, 1, now=NOW)
+    assert e.value.sentence == "Dates need to look like 2026-10-24."
+    with pytest.raises(T.TrackerError) as e:
+        T.read_days(A, [t["id"]], [bad], now=NOW)
+    assert e.value.sentence == "Dates need to look like 2026-10-24."
+    assert _count("j2_tracker_values") == 0
+
+
+def test_day_range_edges_are_read(T):
+    t = make(T, kind="number")
+    far = (date(2026, 11, 6) + timedelta(days=366)).isoformat()
+    out = T.read_days(A, [t["id"]], ["1990-01-01", far], now=NOW)["trackers"][t["id"]]
+    assert set(out["days"]) == {"1990-01-01", far}
+    with pytest.raises(T.TrackerError):
+        T.read_days(A, [t["id"]], [(date(2026, 11, 6) + timedelta(days=367)).isoformat()],
+                    now=NOW)
+
+
+def test_bad_ids_get_a_request_sentence(T):
+    for bad in ("x", [1], None):
+        with pytest.raises(T.TrackerError) as e:
+            T.read_days(A, bad, ["today"], now=NOW)
+        assert e.value.sentence == "Pick up to 30 trackers."
+
+
+def test_non_string_unit_is_the_unit_sentence(T):
+    for bad in (5, ["kg"], True):
+        with pytest.raises(T.TrackerError) as e:
+            make(T, kind="number", unit=bad)
+        assert e.value.sentence == "A unit can be at most 16 characters."
+    assert _count("j2_trackers") == 0
+
+
+def _statements(T, ids, days):
+    c = _conn()
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        out = T.read_days(A, ids, days, now=NOW, conn=c)
+    finally:
+        c.set_trace_callback(None)
+        c.close()
+    return out, [s for s in seen if s.lstrip().upper().startswith("SELECT")]
+
+
+def test_batched_read_statement_count_does_not_grow_with_trackers(T):
+    _note(A, "n1", "2026-11-05T20:00:00+00:00")
+    _checkin(A, "n1", "2026-11-05", 4, 2)
+    made = [make(T, name=f"T{i}", kind="number") for i in range(6)]
+    for t in made:
+        T.set_value(A, t["id"], "2026-11-05", 3, now=NOW)
+    days = ["today", "2026-11-05", "2026-11-04"]
+    one, few = _statements(T, [made[0]["id"], "checkin:mood"], days)
+    six, many = _statements(T, [t["id"] for t in made] + ["checkin:mood", "checkin:focus"],
+                            days)
+    assert len(six["trackers"]) == 8 and len(one["trackers"]) == 2
+    assert len(many) == len(few) == 3          # trackers, values, check-ins
+    assert sum("j2_note_checkins" in s for s in many) == 1
+    assert sum("j2_tracker_values" in s for s in many) == 1
+    assert six["trackers"]["checkin:focus"]["days"]["2026-11-05"]["value"] == 2.0
+    assert all(six["trackers"][t["id"]]["days"]["2026-11-05"]["value"] == 3.0 for t in made)
+
+
+def test_template_key_create_restores_a_deleted_tracker_live(T):
+    t = make(T, kind="yesno", source_template_key="slept-8h")
+    T.set_value(A, t["id"], "2026-11-05", 1, now=NOW)
+    T.archive(A, t["id"], now=NOW)
+    T.soft_delete(A, t["id"], typed_name="Sleep", now=NOW)
+    back = make(T, name="Other", kind="number", source_template_key="slept-8h",
+                now=NOW + timedelta(days=2))
+    assert back["id"] == t["id"] and back["deleted"] is False and back["archived"] is False
+    assert back["kind"] == "yesno" and T.get(A, t["id"])["deleted"] is False
+    assert _count("j2_tracker_values") == 1                       # its history came back too
+    # the cap is checked on the way back
+    T.archive(A, t["id"], now=NOW)
+    T.soft_delete(A, t["id"], typed_name="Sleep", now=NOW)
+    fill = [make(T, name=f"F{i}", kind="number") for i in range(30)]
+    with pytest.raises(T.TrackerError) as e:
+        make(T, kind="yesno", source_template_key="slept-8h", now=NOW + timedelta(days=2))
+    assert e.value.sentence == T.S_CAP
+    assert [x["id"] for x in T.list_trackers(A, filter="deleted", now=NOW)] == [t["id"]]
+    # past the 30 days it is gone, and the template starts afresh
+    T.archive(A, fill[0]["id"], now=NOW)
+    fresh = make(T, kind="yesno", source_template_key="slept-8h", now=NOW + timedelta(days=31))
+    assert fresh["id"] != t["id"] and _count("j2_tracker_values") == 0
+
+
+def test_summary_is_as_of_the_latest_requested_day(T):
+    t = make(T, kind="number", now=at("2026-10-01"))
+    for day, v in (("2026-10-12", 1), ("2026-10-13", 2), ("2026-10-14", 3), ("2026-10-15", 10),
+                   ("2026-10-16", 20)):
+        T.set_value(A, t["id"], day, v, now=at(day))
+    got = T.read_days(A, [t["id"]], ["2026-10-14"], now=at("2026-10-16"))["trackers"][t["id"]]
+    assert [r["day"] for r in got["recent"]] == ["2026-10-12", "2026-10-13", "2026-10-14"]
+    assert got["latest"] == {"day": "2026-10-14", "value": 3.0}
+    assert got["n"] == 3 and math.isclose(got["average"], 2.0)
+    later = T.read_days(A, [t["id"]], ["2026-10-14", "2026-10-16"],
+                        now=at("2026-10-16"))["trackers"][t["id"]]
+    assert later["n"] == 5 and later["latest"]["value"] == 20.0
+    # the built-ins follow the same rule: a check-in after the requested day is not counted
+    _note(A, "n-14", "2026-10-14T20:00:00+00:00")
+    _note(A, "n-15", "2026-10-15T20:00:00+00:00")
+    _checkin(A, "n-14", "2026-10-14", 2, None)
+    _checkin(A, "n-15", "2026-10-15", 5, None)
+    mood = T.read_days(A, ["checkin:mood"], ["2026-10-14"],
+                       now=at("2026-10-16"))["trackers"]["checkin:mood"]
+    assert mood["recent"] == [{"day": "2026-10-14", "value": 2.0}] and mood["n"] == 1
+    assert mood["latest"] == {"day": "2026-10-14", "value": 2.0}

@@ -37,6 +37,7 @@ from api.services.journal_two import routine_days, trading_days
 from api.services.journal_two.filters import ANALYTICS_INCLUDED_SQL, _DAY
 from api.services.journal_two.notebook_widgets import _num
 from api.services.journal_two.timeutil import compute_trading_day_et
+from api.services.journal_two.tool_errors import ToolError
 from api.services.journal_two.widget_definitions import _begin_immediate, _read, _write
 
 __all__ = [
@@ -104,15 +105,9 @@ _RULE_MAX = 40
 _TEMPLATE_KEY_MAX = 64
 
 
-class RoutineError(ValueError):
-    """A refusal whose message is a member sentence (`.sentence`), with an HTTP status and code."""
-
-    status = 400
-    code = "invalid"
-
-    def __init__(self, sentence: str):
-        super().__init__(sentence)
-        self.sentence = sentence
+class RoutineError(ToolError):
+    """A refusal whose message is a member sentence (`.sentence`), with an HTTP status and code
+    (the shared `tool_errors.ToolError` shape, ruling W9-R10)."""
 
 
 class NotFound(RoutineError):
@@ -464,6 +459,20 @@ def create(user_id: str, *, name: Any, items: list[dict], schedule: dict,
         if key is not None:
             have = c.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND source_template_key = ?",
                              (user_id, key)).fetchone()
+            if have is not None and have["deleted_at"] is not None:
+                # W9-R12: a template key found on a deleted row restores that row live (out of
+                # Recently deleted and out of the archive, the cap checked); past the 30 days
+                # it is purged and the template starts afresh.
+                when = _parse_ts(have["deleted_at"])
+                if when is None or now_dt - when > timedelta(days=RECENTLY_DELETED_DAYS):
+                    _purge_ids(c, user_id, [have["id"]])
+                    have = None
+                else:
+                    _check_cap(c, user_id)
+                    c.execute(f"UPDATE {_R} SET deleted_at = NULL, archived_at = NULL,"
+                              " updated_at = ? WHERE id = ? AND user_id = ?",
+                              (_iso(now_dt), have["id"], user_id))
+                    return _shape(c, _owned(c, user_id, have["id"]), today)
             if have is not None:
                 return _shape(c, have, today)
         _check_cap(c, user_id)
@@ -570,11 +579,15 @@ def _purge_old_deleted(c: sqlite3.Connection, user_id: str, now_dt: datetime) ->
     ids = [r[0] for r in c.execute(
         f"SELECT id FROM {_R} WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
         (user_id, cutoff))]
+    _purge_ids(c, user_id, ids)
+    return len(ids)
+
+
+def _purge_ids(c: sqlite3.Connection, user_id: str, ids: list[str]) -> None:
     for rid in ids:
         for table in _CHILDREN:
             c.execute(f"DELETE FROM {table} WHERE user_id = ? AND routine_id = ?", (user_id, rid))
         c.execute(f"DELETE FROM {_R} WHERE id = ? AND user_id = ?", (rid, user_id))
-    return len(ids)
 
 
 def list_routines(user_id: str, *, filter: Literal["active", "archived", "deleted"] = "active",

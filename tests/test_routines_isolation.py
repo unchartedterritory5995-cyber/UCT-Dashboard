@@ -103,7 +103,7 @@ def test_member_b_cannot_see_or_touch_as_tracker(T):
     assert e.value.sentence == "Not available." and e.value.status == 404
     with pytest.raises(T.NotFound):
         T.set_value(B, a["id"], "2026-11-03", None, now=NOW)
-    for call in (T.archive, T.unarchive, T.undelete, T.duplicate):
+    for call in (T.archive, T.unarchive, T.duplicate):
         with pytest.raises(T.NotFound):
             call(B, a["id"], now=NOW)
     with pytest.raises(T.NotFound):
@@ -115,6 +115,26 @@ def test_member_b_cannot_see_or_touch_as_tracker(T):
     assert got["name"] == "A's" and got["etag"] == 1
     day = T.read_days(A, [a["id"]], ["2026-11-03"], now=NOW)["trackers"][a["id"]]
     assert day["days"]["2026-11-03"]["value"] == 7.0
+    # A's tracker in Recently deleted: B's undelete is still NotFound, and A's stays deleted
+    T.archive(A, a["id"], now=NOW)
+    T.soft_delete(A, a["id"], typed_name="A's", now=NOW)
+    with pytest.raises(T.NotFound):
+        T.undelete(B, a["id"], now=NOW)
+    assert [t["id"] for t in T.list_trackers(A, filter="deleted", now=NOW)] == [a["id"]]
+
+
+def test_bs_list_never_purges_as_deleted_trackers(T):
+    from datetime import timedelta
+    a = _mk_tracker(T, A, "A's")
+    T.set_value(A, a["id"], "2026-11-03", 7, now=NOW)
+    T.archive(A, a["id"], now=NOW)
+    T.soft_delete(A, a["id"], typed_name="A's", now=NOW)
+    _mk_tracker(T, B, "B's")
+    T.list_trackers(B, now=NOW + timedelta(days=31))      # past A's 30 days
+    assert _rows("j2_trackers", A) == 1 and _rows("j2_tracker_values", A) == 1
+    T.list_trackers(A, now=NOW + timedelta(days=31))      # only A's own list purges A's
+    assert _rows("j2_trackers", A) == 0 and _rows("j2_tracker_values", A) == 0
+    assert _rows("j2_trackers", B) == 1
 
 
 def test_tracker_read_naming_both_answers_only_the_callers(T):

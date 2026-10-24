@@ -74,6 +74,33 @@ def test_create_get_owned_only(R):
     assert [(x[0], json.loads(x[1])) for x in rows] == [("2026-11-02", EVERY)]
 
 
+def test_template_key_create_restores_a_deleted_routine_live(R):
+    """W9-R12: the template key finds a deleted row and brings it back live, the cap checked;
+    past the 30 days it is purged and the template starts afresh."""
+    one = make(R, source_template_key="eod")
+    R.archive(A, one["id"], now=at("2026-11-02"))
+    R.soft_delete(A, one["id"], typed_name="Morning", now=at("2026-11-02"))
+    back = make(R, source_template_key="eod", name="Other", day="2026-11-04")
+    assert back["id"] == one["id"] and back["deleted"] is False and back["archived"] is False
+    assert R.get(A, one["id"], now=at("2026-11-04"))["id"] == one["id"]
+    R.archive(A, one["id"], now=at("2026-11-04"))
+    R.soft_delete(A, one["id"], typed_name="Morning", now=at("2026-11-04"))
+    fill = [make(R, name=f"F{i}", day="2026-11-04") for i in range(30)]
+    with pytest.raises(R.RoutineError) as e:
+        make(R, source_template_key="eod", day="2026-11-05")
+    assert e.value.sentence == "You have 30 routines. Archive one in My tools to make room."
+    assert [r["id"] for r in R.list_routines(A, filter="deleted", now=at("2026-11-05"))] == [
+        one["id"]]
+    R.archive(A, fill[0]["id"], now=at("2026-11-05"))
+    fresh = make(R, source_template_key="eod", day="2026-12-07")
+    assert fresh["id"] != one["id"]
+    with _conn() as c:
+        assert c.execute("SELECT COUNT(*) FROM j2_routines WHERE id = ?",
+                         (one["id"],)).fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM j2_routine_schedules WHERE routine_id = ?",
+                         (one["id"],)).fetchone()[0] == 0
+
+
 def test_cap_30_sentence(R):
     for i in range(30):
         make(R, name=f"R{i}")
