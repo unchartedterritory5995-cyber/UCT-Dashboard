@@ -171,5 +171,5 @@ def test_unreadable_bars_withhold_the_inside_day(monkeypatch):
 def test_the_member_route_calls_the_gate_after_the_shelf():
     src = open(os.path.join(HERE, "..", "api", "routers", "patterns.py"), encoding="utf-8").read()
     shelf = src.index("member_shelf_over_forming(sym, rows, boxes)")
-    gate = src.index("member_textbook_gate(sym, rows, boxes)")
+    gate = src.index("member_after_shelf(sym, rows, boxes)")   # the post-shelf passes: member_textbook_gate
     assert shelf < gate < src.index('mout["structures"] = boxes', gate)

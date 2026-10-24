@@ -404,6 +404,7 @@ def test_the_shelf_outranks_a_forming_state_row(monkeypatch):
     monkeypatch.setattr(auto_structures, "shelf_pivot_row", fake)
     monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
     monkeypatch.setattr(auto_structures, "member_base_floor", lambda sym, d, st: (list(d), list(st)))
+    monkeypatch.setattr(auto_structures, "member_after_shelf", lambda sym, d, st: (list(d), list(st)))
     assert auto_structures.member_shelf_over_forming("X", [], [form]) == [shelf]          # forming dropped
     assert seen[-1] == []                                                                  # it was not served
     assert auto_structures.member_shelf_over_forming("X", [], [brk]) == [brk]             # breakout still wins
@@ -420,3 +421,56 @@ def test_a_floor_refused_shelf_displaces_nothing(monkeypatch):
     monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
     monkeypatch.setattr(auto_structures, "member_base_floor", lambda sym, d, st: (list(d), []))
     assert auto_structures.member_shelf_over_forming("X", [], [form]) == [form]
+
+
+def _forming_and_shelf(monkeypatch):
+    """A forming state row, a shelf that draws and that the base floor keeps (member_rows passes it)."""
+    form = auto_structures._base_row("X", BD.forming_drawing(_bars(FORMING), _last(_bars(FORMING))), BD.BASE_DRAW_ROUND)
+    shelf = {"id": "s", "pattern_id": "draw:shelf-pivot",
+             "geometry": {"extras": {"draw_shelf": {"price": 1.0, "end_t": 20990101}}}}
+    monkeypatch.setattr(auto_structures, "shelf_pivot_row", lambda sym, member=False, chart_served=(): shelf)
+    monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
+    monkeypatch.setattr(auto_structures, "member_base_floor", lambda sym, d, st: (list(d), list(st)))
+    return form, shelf
+
+
+def test_a_shelf_a_later_member_gate_withholds_displaces_nothing(monkeypatch):
+    # recert A: on 11 judged "Base forming" charts the shelf displaced the forming row, then the recert B textbook
+    # gate (applied after the shelf) withheld the shelf, and the member chart drew NOTHING. The decision now reads the
+    # shelf AS FINALLY SERVED (member_after_shelf), so a withheld shelf leaves the forming row in place.
+    form, shelf = _forming_and_shelf(monkeypatch)
+    seen = []
+
+    def gate(sym, d, st):
+        seen.append([r.get("pattern_id") for r in st])
+        return list(d), [r for r in st if r.get("pattern_id") != "draw:shelf-pivot"]
+    monkeypatch.setattr(auto_structures, "member_textbook_gate", gate)
+    assert auto_structures.member_shelf_over_forming("X", [], [form]) == [form]
+    assert seen == [["draw:shelf-pivot"]]   # asked on the chart the shelf would be served on (forming dropped)
+    # the real gate, failing closed: the shelf's as-of session is not a bar the gate can read, so it is withheld
+    monkeypatch.undo()
+    form, shelf = _forming_and_shelf(monkeypatch)
+    monkeypatch.setattr(auto_structures, "_daily_bars", lambda sym: _bars(FORMING))
+    assert auto_structures.member_after_shelf("X", [], [shelf]) == ([], [])
+    assert auto_structures.member_shelf_over_forming("X", [], [form]) == [form]
+
+
+def test_a_shelf_every_later_member_gate_keeps_still_outranks_forming(monkeypatch):
+    # the blind result stands where BOTH would be served: the shelf wins, the forming row is dropped
+    form, shelf = _forming_and_shelf(monkeypatch)
+    monkeypatch.setattr(auto_structures, "member_textbook_gate", lambda sym, d, st: (list(d), list(st)))
+    assert auto_structures.member_shelf_over_forming("X", [], [form]) == [shelf]
+
+
+def test_the_passes_after_the_shelf_are_one_list():
+    # the route and the shelf's displacement decision ask the SAME helper; the route never calls a post-shelf
+    # gate beside it, so a gate added there cannot be missed by the decision
+    import inspect
+    import os
+    src = open(os.path.join(os.path.dirname(auto_structures.__file__), "..", "routers", "patterns.py"),
+               encoding="utf-8").read()
+    assert src.count("auto_structures.member_after_shelf(sym, rows, boxes)") == 1
+    assert "auto_structures.member_textbook_gate(" not in src
+    assert src.index("member_shelf_over_forming(sym, rows, boxes)") < src.index("member_after_shelf(sym, rows, boxes)")
+    assert "member_textbook_gate(" in inspect.getsource(auto_structures.member_after_shelf)
+    assert "member_after_shelf(" in inspect.getsource(auto_structures.member_shelf_over_forming)

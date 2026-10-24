@@ -586,14 +586,26 @@ def _is_forming_state_row(row) -> bool:
         return False
 
 
+def member_after_shelf(sym: str, rows, boxes) -> tuple:
+    """(rows, boxes) after every member pass the route applies AFTER the shelf pivot is placed -- today the strict
+    textbook gate (member_textbook_gate, recert B: it can withhold the shelf itself). THE ONE LIST of those passes:
+    the member route calls it, and member_shelf_over_forming asks it whether a shelf is still served, so a shelf
+    that a later gate removes can never displace a "Base forming" row (that left 11 judged forming charts with no
+    drawing at all). A pass added after the shelf goes HERE, never beside the route's call. Never raises (each
+    pass does not)."""
+    return member_textbook_gate(sym, rows, boxes)
+
+
 def member_shelf_over_forming(sym: str, rows, boxes) -> list:
     """The member chart's shelf pivot, where a judged shelf OUTRANKS a "Base forming" state row: the shelf is asked
     with the forming rows left out of the drawings it yields to (shelf_member_facts leaves them out too), and where
-    it draws, the forming rows are dropped and the shelf is added. Anywhere else the boxes are returned unchanged
-    (plus the shelf when one draws). Blind paired round lab shelf_vs_forming (2026-10-24, pre-registered: 50 charts
-    where a forming row displaced a shelf, two packets, four fresh judges): the shelf preferred on 88% (A) and 72%
-    (B) of charts, forming 8% / 12%; mean trust shelf 2.20 / 1.96 vs forming 1.36 / 1.38. Members only; daily
-    charts only (the caller asks only for D). Never raises."""
+    it is SERVED -- it draws, the round-5 base floor keeps it, and it survives every later member pass
+    (member_after_shelf) on the chart it would be served on -- the forming rows are dropped and the shelf is added.
+    Anywhere else the boxes are returned unchanged (a shelf no later pass keeps is not added: it would be withheld
+    anyway). Blind paired round lab shelf_vs_forming (2026-10-24, pre-registered: 50 charts where a forming row
+    displaced a shelf, two packets, four fresh judges): the shelf preferred on 88% (A) and 72% (B) of charts,
+    forming 8% / 12%; mean trust shelf 2.20 / 1.96 vs forming 1.36 / 1.38. Members only; daily charts only (the
+    caller asks only for D). Never raises."""
     boxes = list(boxes or [])
     try:
         served = [r for r in list(rows or []) + boxes if not _is_forming_state_row(r)]
@@ -605,7 +617,11 @@ def member_shelf_over_forming(sym: str, rows, boxes) -> list:
             shelf = member_base_floor(sym, [], shelf)[1]
         if not shelf:
             return boxes
-        return [b for b in boxes if not _is_forming_state_row(b)] + shelf
+        cand = [b for b in boxes if not _is_forming_state_row(b)] + shelf
+        # the shelf AS FINALLY SERVED: a shelf a later member pass withholds draws nothing, so it displaces nothing
+        if not any((r or {}).get("pattern_id") == SHELF_PIVOT_ID for r in member_after_shelf(sym, rows, cand)[1]):
+            return boxes
+        return cand
     except Exception as e:  # noqa: BLE001 -- the shelf layer never breaks a read
         _log.debug("[shelf-pivot] %s over forming failed: %s", sym, e)
         return boxes
