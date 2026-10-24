@@ -68,6 +68,17 @@ $5 close and $20M of dollar volume). Encoding: `tests/golden_judged/encode.py`; 
 anything shaped like a real date, and keeps the directory under 5 MB on disk. A fixture may be stored as
 `.json.gz` (deterministic, mtime 0); it is counted compressed and scanned decompressed.
 
+## Labels: the screener's candle names
+
+`tests/golden_judged/test_judged_candles.py` guards the candle LABELS the screener publishes (not a chart drawing,
+so these cases do not go through the member chart route). Each case in `fixtures_labels/candles.json` is a daily
+bar BOTH blind judges scored 3 for one candle name in the 2026-10-24 recertification of `CANDLE_RULES_ROUND = 2`
+(four pre-registered packets of 25, strict Nison / Bulkowski rubric: 2.54 / 2.50 / 2.48 / 2.32, pooled 2.46). The
+case stores the 400 daily bars the screener hands `candles.single_candle` (encoded exactly like the chart fixtures)
+and the judged key; the gate replays `single_candle(usable_bars(bars[-400:]))` and asserts the key is still in
+`candle_matches`. Re-baselining follows the same rule as the chart families: only with a new passed blind round,
+together with `MEMBER_CANDLE_ROUND`.
+
 ## When it goes red
 
 A red case is a member-visible drawing that no longer matches what was judged. Read the message: it names the case,
