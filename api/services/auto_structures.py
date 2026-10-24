@@ -1273,6 +1273,185 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         return [s for s in (structures or []) if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
 
 
+#: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).
+#: The pairwise passes above each settle one pair of drawings; this pass closes the rest: the detector rows
+#: (flat_base, bull_flag, uct_flat_top_breakout) against each other and against the base boxes and the
+#: named shapes. Where two drawn rows of different ids put breakout lines within ONE_LINE_PER_BASE_ATR ATR
+#: of each other over overlapping spans, they are one base drawn twice, and the member keeps exactly one:
+#: the row that comes FIRST in this order. The order, and why (blind-judged scores, two pre-registered packets each, as drawn,
+#: on the 1-3 scale):
+#:   1. bc:cup-with-handle    -- a whole-base drawing (pivot, handle, rim reference): 2.42 / 2.50. It already
+#:                               outranks bc:flat-base (member_cup_precedence) and bc:base.
+#:   2. draw:double-bottom    -- a whole-base drawing (region, both lows, pivot): 2.46 / 2.32. It already
+#:                               outranks bc:base. Below the cup: lower on the weaker packet (2.32 < 2.42).
+#:   3. uct_flat_top_breakout -- the "flat top" ceiling with its touches: 2.60 / 2.57, the best-scoring
+#:                               line-only drawing. Below the two shapes because a line names only the
+#:                               base's ceiling, while a shape also names its extent and its low.
+#:   4. bc:flat-base          -- the base box's pivot line (box off): 2.40 / 2.30.
+#:   5. flat_base             -- the flat-base detector's drawing of the SAME base as bc:flat-base (the two
+#:                               duplicate to the cent). It passed inside the team-set packets with no
+#:                               per-type score on record, so the type with two recorded packets wins.
+#:   6. bc:base               -- scores best of all (2.76 / 2.78) but is the additive drawing: it already
+#:                               yields to every drawing above (member_base_precedence, a wider cover rule),
+#:                               so here it can only meet a bull_flag, which it outranks on score.
+#:   7. bull_flag             -- the flag's entry (2.43 / 2.40) is a continuation trigger at the top of the
+#:                               base. Where it sits on the base's own breakout line, the base's line is the
+#:                               one that names the base, so the flag yields to every drawing above.
+#: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
+#: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
+ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag")
+#: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
+ONE_LINE_PER_BASE_ATR = 1.0
+#: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
+ONE_LINE_PER_BASE_CENT = 0.01 + 1e-9
+
+
+def _stamped_atr(rows):
+    """The widest finite, positive ATR any of `rows` carries in its own drawing stamp (a bc:base, a named
+    shape, the cup tier), or None."""
+    vals = []
+    for r in rows:
+        ex = ((r or {}).get("geometry") or {}).get("extras") or {}
+        for k in ("draw_base", "draw_shape", "cup_tier"):
+            d = ex.get(k)
+            if isinstance(d, dict) and _finite(d.get("atr")) and float(d["atr"]) > 0:
+                vals.append(float(d["atr"]))
+    return max(vals) if vals else None
+
+
+def _breakout_lines(row) -> list:
+    """[(price, start_t, end_t)] -- every BREAKOUT line (pivot / entry / ceiling / box top) the member's chart
+    draws for `row`, as PatternOverlay.rowView draws it: a bc:base or named-shape pivot, the flat-top
+    ceiling, a box's `draw_pivot`, a detector's drawn entry (`draw_entry`; never for the "flagging" tier)
+    and `draw_pivot`, and a flat_base box top while the box draws. A rim reference, a low or a stop is not
+    a breakout line. A line without a finite price and a readable span draws nothing and is not listed."""
+    r = row or {}
+    pid = r.get("pattern_id")
+    g = r.get("geometry") or {}
+    ex = g.get("extras") or {}
+    out = []
+
+    def add(p, s, e):
+        if _finite(p):
+            try:
+                out.append((float(p), int(s), int(e)))
+            except (TypeError, ValueError):
+                pass
+
+    def stamp(key, price_key):
+        d = ex.get(key)
+        if isinstance(d, dict):
+            add(d.get(price_key), d.get("start_t"), d.get("end_t"))
+
+    def box_top(a, b, price):
+        try:
+            add(price, min(int(a["t"]), int(b["t"])), max(int(a["t"]), int(b["t"])))
+        except (KeyError, TypeError, ValueError):
+            pass
+
+    if pid == BASE_DRAW_ID:
+        stamp("draw_base", "pivot")
+    elif pid in SHAPE_DRAW_IDS:
+        stamp("draw_shape", "pivot")
+    elif pid == "uct_flat_top_breakout":
+        stamp("draw_flat_top", "price")
+    elif pid in ("bc:flat-base", CUP_ID):
+        stamp("draw_pivot", "price")
+    elif pid in ("flat_base", "bull_flag"):
+        if r.get("draw_entry") and not _flagging_flag(r):
+            p = ex.get("draw_entry_price")
+            add(p if p is not None and _finite(p) else (r.get("levels") or {}).get("entry"),
+                r.get("start_t"), r.get("end_t"))
+        stamp("draw_pivot", "price")
+        if pid == "flat_base" and g.get("shape") == "base_box" and ex.get("draw_box") is not False:
+            # the box's top edge as PatternOverlay.drawGeometry draws it (draw_anchors capped, else the box)
+            da, an = ex.get("draw_anchors"), g.get("anchors")
+            if isinstance(da, list) and len(da) >= 2 and all(isinstance(x, dict) for x in da[:2]):
+                if _finite(da[0].get("price")) and _finite(da[1].get("price")):
+                    box_top(da[0], da[1], max(float(da[0]["price"]), float(da[1]["price"])))
+            elif isinstance(an, list) and len(an) >= 2 and all(isinstance(x, dict) for x in an[:2]):
+                box_top(an[0], an[1], ex.get("top"))
+    return out
+
+
+def daily_atr14(sym: str):
+    """The mean true range of the last 14 daily sessions of `sym` (the measure the one-line-per-base pass
+    compares lines with), or None under 15 bars or on any failure. Never raises."""
+    try:
+        b = _daily_bars(sym)
+        if len(b) < 15:
+            return None
+        trs = [max(float(b[j]["h"]), float(b[j - 1]["c"])) - min(float(b[j]["l"]), float(b[j - 1]["c"]))
+               for j in range(len(b) - 14, len(b))]
+        a = sum(trs) / len(trs)
+        return a if _finite(a) and a > 0 else None
+    except Exception:  # noqa: BLE001 -- no ATR: the pass fails closed
+        return None
+
+
+def member_one_line_per_base(detections, structures, atr=None) -> tuple:
+    """(detections, structures) with at most ONE drawn breakout line per base. Applied on the MEMBER path
+    only, after member_rows, the freshness filter and the pairwise precedences.
+
+    The rows considered are the DRAWN rows (`_drawn_incumbent`: a stale row is served but never drawn, so it
+    neither covers nor is removed) of ONE_LINE_PER_BASE_PRIORITY that draw at least one breakout line
+    (`_breakout_lines`). In priority order (ties: detections before structures, then input order) each row is
+    kept unless one of its lines lies within ONE_LINE_PER_BASE_ATR x `atr` of a line of an already-KEPT row
+    of ANOTHER id over an overlapping span; then the whole row is dropped. Two rows of the SAME id are left
+    to that drawing's own judged rules (the bull_flag overlap pass, one flat top per scan): this pass only
+    settles one base drawn by two different drawings. A kept row is returned as it came in (the same
+    object: nothing moved or altered), every other row is untouched, and order is kept; with nothing to drop
+    the two inputs come back as lists of the very same rows.
+
+    `atr` is a number or a zero-argument callable, read only when two rows' lines overlap in span (a chart
+    with nothing to compare reads nothing). Without a finite, positive `atr` the widest ATR a candidate row
+    carries in its own stamp is used (`_stamped_atr`); with none at all, only lines at the same cent count
+    as one line, so the pass still removes exact duplicates and never guesses a width (a guessed width
+    would hide distinct drawings whenever the bars read failed). On any unexpected error it fails closed:
+    only the highest-priority candidate row is kept. Never raises."""
+    dets, sts = list(detections or []), list(structures or [])
+    rank = {pid: i for i, pid in enumerate(ONE_LINE_PER_BASE_PRIORITY)}
+    cands = []
+    try:
+        for i, r in enumerate(dets + sts):
+            pid = (r or {}).get("pattern_id")
+            if pid in rank and _drawn_incumbent(r):
+                ls = _breakout_lines(r)
+                if ls:
+                    cands.append((rank[pid], i, r, ls))
+        if len(cands) < 2:
+            return dets, sts
+
+        def overlap(a, b):
+            return a[1] <= b[2] and b[1] <= a[2]
+
+        if not any(cands[x][2].get("pattern_id") != cands[y][2].get("pattern_id") and overlap(a, b)
+                   for x in range(len(cands)) for y in range(x + 1, len(cands))
+                   for a in cands[x][3] for b in cands[y][3]):
+            return dets, sts
+        w = atr() if callable(atr) else atr
+        if not (_finite(w) and float(w) > 0):
+            w = _stamped_atr([c[2] for c in cands])
+        width = float(w) * ONE_LINE_PER_BASE_ATR if w is not None else ONE_LINE_PER_BASE_CENT
+        kept, drop = [], set()
+        for _rk, _i, r, ls in sorted(cands, key=lambda c: (c[0], c[1])):
+            pid = r.get("pattern_id")
+            if any(kp != pid and overlap(a, b) and abs(a[0] - b[0]) <= width
+                   for kp, k in kept for a in ls for b in k):
+                drop.add(id(r))
+            else:
+                kept.append((pid, ls))
+    except Exception:  # noqa: BLE001 -- fail closed: one breakout line rather than two
+        if not cands:
+            return dets, sts
+        top = min(cands, key=lambda c: (c[0], c[1]))[2]
+        drop = {id(c[2]) for c in cands if c[2] is not top}
+    if not drop:
+        return dets, sts
+    return [r for r in dets if id(r) not in drop], [r for r in sts if id(r) not in drop]
+
+
 #: The bull_flag drawing round the blind check confirmed for members: round 9,
 #: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
 #: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
