@@ -84,3 +84,17 @@ def test_a_member_on_the_released_round_gets_the_line():
         assert tb["line"] >= ex["draw_base"]["pivot"]          # never under the body line it replaces
     finally:
         monkeypatch_.undo()
+
+
+def test_support_resistance_keeps_clear_of_the_drawn_buy_point_line():
+    """sr_served_prices lists every price a served drawing puts on the chart; round 2 draws the bc:base top line at
+    metrics_textbook.line, so that price must be listed (beside the body pivot) or a zone could land on the line."""
+    b = _hand(FLAT)
+    row = _base_row(b, 0, pivot=50.0, low=46.0)
+    row = tn.with_textbook([row], b)[0]
+    line = row["geometry"]["extras"]["metrics_textbook"]["line"]
+    assert line == 51.20
+    served = auto_structures.sr_served_prices([row])
+    assert 51.2 in served and 50.0 in served
+    plain = _base_row(b, 0, pivot=50.0, low=46.0)
+    assert 51.2 not in auto_structures.sr_served_prices([plain])      # no textbook numbers: the body line only

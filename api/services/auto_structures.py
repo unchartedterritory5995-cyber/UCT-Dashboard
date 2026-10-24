@@ -2306,6 +2306,11 @@ def sr_served_prices(rows) -> list:
                 vals = [p] if _finite(p) else []
             else:
                 vals, _span = _row_lines(r)
+                # textbook round 2: a bc:base row whose numbers carry `line` draws its top line THERE (the buy
+                # point - $0.10), not on draw_base.pivot. Added beside the body pivot, so S/R keeps clear of both.
+                tl = (ex.get("metrics_textbook") or {}).get("line") if r.get("pattern_id") == BASE_DRAW_ID else None
+                if _finite(tl):
+                    vals = list(vals) + [tl]
         except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
             continue
         for v in vals:
