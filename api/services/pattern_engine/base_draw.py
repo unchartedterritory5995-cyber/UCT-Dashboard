@@ -746,3 +746,220 @@ def state_drawing(bars, i, draw_round=None):
         if d is not None:
             return d
     return None
+
+
+# ================================================================ THE PLAIN BASE (round 6, lab base_rebuild)
+# The STATELESS member base ("Buy point X" before any breakout), rebuilt from the textbook after recertification A
+# failed the round-4/5 drawing three rounds running (lab recert/A_bases r1-r3). A NEW geometry, not a filter on the
+# old one: the region, its ceiling, its low and its stage are all chosen here. Display only. Drawn ONLY where no base
+# STATE is (auto_structures.base_draw_row), so every state drawing is unchanged. Parity-railed against the lab rule
+# (lab base_rebuild/rule.py, embedded verbatim in tests/test_base_draw_plain.py).
+#
+#  1. LEFT-SIDE HIGH (C4, C5). The base starts at the EARLIEST bar `lip` of the last PLAIN_MAX_LEN sessions whose high
+#     is within PLAIN_RIM_TOL_ATR x ATR(14) of the highest high from it to the bar before the as-of bar. The ceiling
+#     line H is the highest high of [lip, i-1]: the left-side high, or a later rim high equal to it within the
+#     tolerance. A later high clearly above the left side is never the line: that bar would be the left side.
+#  2. NOT UNDER AN OLDER PEAK (C4): no high in the PLAIN_PEAK_LOOK sessions before the lip above H.
+#  3. NOT A FRAGMENT (C4): no bar in the PLAIN_FRAG_LOOK sessions before the lip (to PLAIN_FRAG_GAP before it) with a
+#     high within PLAIN_FRAG_PCT of H and a dip of PLAIN_FRAG_DIP between it and the lip.
+#  4. THE O'NEIL TABLE (C2, C3): PLAIN_MIN_DEPTH <= (H - L) / H <= PLAIN_MAX_DEPTH (L the lowest low of [lip, i-1]),
+#     H - L >= PLAIN_MIN_RANGE_ATR ATR; sessions lip..i at least PLAIN_MIN_SESS_FLAT for a flat base (depth <=
+#     PLAIN_FLAT_MAX_DEPTH), PLAIN_MIN_SESS_CUP for a deeper one; at most PLAIN_MAX_LEN.
+#  5. NOT A V (C3, C4): a base deeper than PLAIN_V_DEPTH spends PLAIN_V_RIGHT_SHARE of its sessions from its low to
+#     the as-of bar, and PLAIN_V_LEFT_MIN sessions from the lip to its low.
+#  6. PRIOR ADVANCE (C1): H at least 1 + PLAIN_ADV_MIN over the base's own low-before-advance (the lowest low before
+#     the lip on the judged chart frame, `plain_frame_start`), and still PLAIN_ADV_EX_GAP without its largest gap.
+#  7. NOT AFTER A PARABOLIC RUN (C4): H over the lowest low of the PLAIN_RUN_BARS sessions before the lip at most
+#     1 + PLAIN_RUN_MAX.
+#  8. STAGE 2 (C1): the close above a RISING 200-day (above its value PLAIN_SMA_RISE_BARS earlier and at the lip),
+#     falling on at most PLAIN_SMA_FALL_SHARE of the base's sessions; at most PLAIN_UNDER200_SHARE of its closes under it.
+#  9. CURRENT (C8): the as-of close within PLAIN_BELOW_BP under / PLAIN_ABOVE_BP over the buy point (H + $0.10).
+# 10. NO LONE WICK (C5): H within PLAIN_WICK_MAX_ATR ATR of the highest body within PLAIN_WICK_NEAR bars of its bar.
+# 11. STAGE (C7): the IBD base count on the judged frame from the low-before-advance (`plain_stage`).
+# The drawing carries `plain_round` (PLAIN_ROUND) and `stage`; textbook_numbers reads both.
+
+#: The plain base's own round, stamped on its drawing as `plain_round`. Members get it only while
+#: auto_structures.MEMBER_BASE_STATELESS_ROUND (a literal) equals this stamp.
+PLAIN_ROUND = 6
+PLAIN_MAX_LEN = 230
+PLAIN_RIM_TOL_ATR = 0.20
+PLAIN_PEAK_LOOK = 250
+PLAIN_FRAG_LOOK = 60
+PLAIN_FRAG_GAP = 3
+PLAIN_FRAG_PCT = 3.0 / 100      # (written so: round 5's rail keeps the label's 3% floor out of this module)
+PLAIN_FRAG_DIP = 0.08
+PLAIN_MIN_DEPTH = 0.05
+PLAIN_FLAT_MAX_DEPTH = 0.15
+PLAIN_MAX_DEPTH = 0.33
+PLAIN_MIN_RANGE_ATR = 1.5
+PLAIN_MIN_SESS_FLAT = 25
+PLAIN_MIN_SESS_CUP = 35
+PLAIN_V_DEPTH = 0.20
+PLAIN_V_RIGHT_SHARE = 0.20
+PLAIN_V_LEFT_MIN = 5
+PLAIN_ADV_MIN = 0.30
+PLAIN_ADV_EX_GAP = 0.20
+PLAIN_RUN_BARS = 40
+PLAIN_RUN_MAX = 0.75
+PLAIN_SMA_RISE_BARS = 20
+PLAIN_SMA_RISE = 0.0
+PLAIN_SMA_FALL_SHARE = 0.25
+PLAIN_UNDER200_SHARE = 0.15
+PLAIN_BELOW_BP = 0.05
+PLAIN_ABOVE_BP = 0.05
+PLAIN_WICK_MAX_ATR = 1.0
+PLAIN_WICK_NEAR = 3
+#: the stage walk: an earlier stretch from a running high to the bar that cleared it is a base when it lasts
+#: PLAIN_STG_MIN_BARS+ sessions and corrects PLAIN_STG_MIN_DEPTH+; the next stage needs a PLAIN_STG_GAIN advance
+PLAIN_STG_MIN_BARS = 20
+PLAIN_STG_MIN_DEPTH = 0.08
+PLAIN_STG_GAIN = 0.20
+#: the judged chart frame: max(PLAIN_FRAME_MIN, base sessions + PLAIN_FRAME_PAD) bars, at most PLAIN_FRAME_MAX
+PLAIN_FRAME_MIN = 140
+PLAIN_FRAME_PAD = 60
+PLAIN_FRAME_MAX = 300
+#: the buy point is the line + $0.10 (the IBD convention textbook_numbers.BUY_POINT_TICK prints)
+PLAIN_TICK = 0.10
+
+
+def plain_frame_start(i, lip):
+    """The first bar index of the judged chart frame of a base [lip, i]."""
+    show = min(PLAIN_FRAME_MAX, max(PLAIN_FRAME_MIN, i - lip + PLAIN_FRAME_PAD))
+    return max(0, i + 1 - show)
+
+
+def plain_stage(b, adv_i, lip, H, L) -> int:
+    """The base count of the base [lip, ..] (ceiling H, low L) from the low-before-advance bar `adv_i`: every
+    earlier stretch from a running high to the bar that cleared it lasting PLAIN_STG_MIN_BARS+ sessions and
+    PLAIN_STG_MIN_DEPTH+ deep is a base; the first is stage 1; a base undercutting the prior base's low is stage 1;
+    one forming above the prior buy point after a PLAIN_STG_GAIN advance from it is the next stage; anything else is
+    the same stage (base on base)."""
+    bases = []
+    hi, hi_i = _f(b[adv_i], "h"), adv_i
+    for j in range(adv_i + 1, lip + 1):
+        h = _f(b[j], "h")
+        if h > hi:
+            if j - hi_i >= PLAIN_STG_MIN_BARS and j - hi_i >= 2:
+                low = min(_f(b[m], "l") for m in range(hi_i + 1, j))
+                if (hi - low) / hi >= PLAIN_STG_MIN_DEPTH:
+                    bases.append({"lh": hi, "low": low})
+            hi, hi_i = h, j
+    bases.append({"lh": H, "low": L})
+    stage, prev = 0, None
+    for x in bases:
+        if prev is None or x["low"] < prev["low"]:
+            stage = 1
+        elif x["low"] > prev["lh"] + PLAIN_TICK and x["lh"] >= (prev["lh"] + PLAIN_TICK) * (1.0 + PLAIN_STG_GAIN):
+            stage += 1
+        prev = x
+    return stage
+
+
+def plain_geometry(bars, i):
+    """The plain base's geometry at bar i (rule steps 1-11 above), or None. Reads bars[:i+1] only. Never raises."""
+    try:
+        if not isinstance(i, int) or isinstance(i, bool) or i < TREND_N + PLAIN_SMA_RISE_BARS + 40 or i >= len(bars):
+            return None
+        b = bars[:i + 1]
+        a = _atr(b, i)
+        if not a or a <= 0:
+            return None
+        h = [_f(x, "h") for x in b]
+        lo = [_f(x, "l") for x in b]
+        c = [_f(x, "c") for x in b]
+        # 1. the left-side high
+        start = max(1, i - PLAIN_MAX_LEN)
+        suf = [0.0] * (i + 1)
+        run = float("-inf")
+        for j in range(i - 1, start - 1, -1):
+            run = max(run, h[j])
+            suf[j] = run
+        lip = next((j for j in range(start, i) if h[j] >= suf[j] - PLAIN_RIM_TOL_ATR * a), None)
+        if lip is None:
+            return None
+        n_sess = i - lip + 1
+        H = suf[lip]
+        L = min(lo[lip:i])
+        low_i = min(range(lip, i), key=lambda m: (lo[m], m))
+        # 2. not under an older peak
+        p0 = max(0, lip - PLAIN_PEAK_LOOK)
+        if lip > p0 and max(h[p0:lip]) > H:
+            return None
+        # 3. not a fragment of an earlier base
+        for k in range(max(0, lip - PLAIN_FRAG_LOOK), lip - PLAIN_FRAG_GAP + 1):
+            if h[k] >= H * (1.0 - PLAIN_FRAG_PCT) and min(lo[k:lip + 1]) <= h[k] * (1.0 - PLAIN_FRAG_DIP):
+                return None
+        # 4. the O'Neil table
+        depth = (H - L) / H
+        if depth < PLAIN_MIN_DEPTH or depth > PLAIN_MAX_DEPTH or (H - L) / a < PLAIN_MIN_RANGE_ATR:
+            return None
+        if n_sess < (PLAIN_MIN_SESS_FLAT if depth <= PLAIN_FLAT_MAX_DEPTH else PLAIN_MIN_SESS_CUP):
+            return None
+        # 5. not a V
+        if depth > PLAIN_V_DEPTH and (i - low_i < PLAIN_V_RIGHT_SHARE * n_sess or low_i - lip < PLAIN_V_LEFT_MIN):
+            return None
+        # 6. the prior advance off the base's own low-before-advance
+        f0 = plain_frame_start(i, lip)
+        if lip - f0 < 5:
+            return None
+        adv_i = min(range(f0, lip), key=lambda m: (lo[m], -m))
+        adv_low = lo[adv_i]
+        if not adv_low > 0 or H / adv_low - 1.0 < PLAIN_ADV_MIN:
+            return None
+        gap = max([_f(b[m], "o") / c[m - 1] for m in range(adv_i + 1, lip + 1) if c[m - 1] > 0] or [1.0])
+        if gap > 1.0 and H / adv_low / gap - 1.0 < PLAIN_ADV_EX_GAP:
+            return None
+        # 7. not straight after a parabolic run
+        r0 = max(0, lip - PLAIN_RUN_BARS)
+        if lip > r0 and H / min(lo[r0:lip + 1]) - 1.0 > PLAIN_RUN_MAX:
+            return None
+        # 8. stage 2: above a rising 200-day
+        cs = [0.0]
+        for x in c:
+            cs.append(cs[-1] + x)
+
+        def sma(k):
+            return (cs[k + 1] - cs[k + 1 - TREND_N]) / TREND_N if k + 1 - TREND_N >= 0 else None
+        s_i, s_p, s_l = sma(i), sma(i - PLAIN_SMA_RISE_BARS), sma(lip)
+        if None in (s_i, s_p, s_l) or not c[i] > s_i or not s_i > s_p * (1.0 + PLAIN_SMA_RISE) or not s_i > s_l:
+            return None
+        if lip - PLAIN_SMA_RISE_BARS + 1 - TREND_N < 0:
+            return None
+        falls = sum(1 for k in range(lip, i + 1) if sma(k) < sma(k - PLAIN_SMA_RISE_BARS))
+        if falls > PLAIN_SMA_FALL_SHARE * n_sess:
+            return None
+        under = sum(1 for k in range(lip, i + 1) if c[k] < sma(k))
+        if under > PLAIN_UNDER200_SHARE * n_sess:
+            return None
+        # 9. current: the as-of close near the buy point
+        bp = round(H + PLAIN_TICK, 2)
+        if not (bp * (1.0 - PLAIN_BELOW_BP) <= c[i] <= bp * (1.0 + PLAIN_ABOVE_BP)):
+            return None
+        # 10. the ceiling is not a lone wick
+        m_h = max(range(lip, i), key=lambda m: (h[m], -m))
+        near = range(max(0, m_h - PLAIN_WICK_NEAR), min(i, m_h + PLAIN_WICK_NEAR + 1))
+        if H - max(_bt(b[m]) for m in near) > PLAIN_WICK_MAX_ATR * a:
+            return None
+        # 11. the stage
+        st = plain_stage(b, adv_i, lip, H, L)
+        return {"pivot": H, "start_t": int(b[lip]["t"]), "end_t": int(b[i]["t"]), "low": L,
+                "low_t": int(b[low_i]["t"]), "bars": i - lip, "atr": float(a), "label": PIVOT_LABEL,
+                "low_label": LOW_LABEL, "stage": int(st), "plain_round": PLAIN_ROUND}
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
+        return None
+
+
+def plain_drawing(bars, i):
+    """The plain base drawing at bar i, or None: `plain_geometry`, withheld on a pending-deal price pin and where
+    round 5's depth floor (`floor_refuses`) refuses the region -- the two guards every other member base drawing
+    already passes through. Reads bars[:i+1] only. Never raises."""
+    try:
+        d = plain_geometry(bars, i)
+        if d is None:
+            return None
+        b = bars[:i + 1]
+        if _pinned(b) or floor_refuses(b, i, d):
+            return None
+        return d
+    except Exception:  # noqa: BLE001 -- a drawing never raises
+        return None
