@@ -24,8 +24,10 @@ def _from_closes(prices, spread=0.01):
             for i, p in enumerate(prices)]
 
 
+#: base_pivot_px joined the null shape with b5f182d6ab (the head structure's own pivot, read by the screener's Pivot
+#: column, its filter and the Focus list): a classified row always carries it, None when no pivot is computable.
 NULL_KEYS = {"base_shape", "base_shape_label", "base_matches",
-             "base_relation_count", "base_render"}
+             "base_relation_count", "base_render", "base_pivot_px"}
 
 
 # ── the guard ──────────────────────────────────────────────────────────────
