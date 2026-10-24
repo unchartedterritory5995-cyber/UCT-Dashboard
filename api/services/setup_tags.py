@@ -524,7 +524,8 @@ def _team_tags_cached(sym: str) -> list:
 def tags_for(sym: str, *, member: bool) -> Optional[list]:
     """The `setup_tags` for one daily chart, or None while AUTO_STRUCTURES_SETUP_TAGS_ENABLED is off
     (the caller then adds no key). A member gets member_tags(); an admin gets the team set. A ticker
-    pending acquisition gets none. Never raises: any failure serves []."""
+    pending acquisition gets none, and a member also gets none on a clear price pin (the member hold).
+    Never raises: any failure serves []."""
     from api.services import auto_structures
     if not auto_structures.setup_tags_enabled():
         return None
@@ -532,7 +533,10 @@ def tags_for(sym: str, *, member: bool) -> Optional[list]:
     if not sym:
         return []
     try:
-        if auto_structures.deal_hold(sym) is not None:
+        # The SAME hold the chart's drawing path asks: a member also gets nothing on a clear price pin
+        # (auto_structures.deal_hold(member=True)); the team set keeps its tags there. Asked here, at
+        # SERVE time, before the store or the live run is read, so a stored row cannot bypass it.
+        if auto_structures.deal_hold(sym, member=member) is not None:
             return []
         tags = _team_tags_cached(sym)
         return member_tags(tags) if member else list(tags)

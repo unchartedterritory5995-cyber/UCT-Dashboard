@@ -442,7 +442,12 @@ def test_the_member_floor_ids_cover_every_member_base_id_but_bc_base():
     from api.services.pattern_engine.detectors import registry
     ids = auto_structures._member_floor_ids()
     assert "bc:base" not in ids and auto_structures.SHELF_PIVOT_ID in ids
-    not_bases = {"bull_flag", "uct_pullback_ma_v5", "draw:inside-day", "draw:remount", "draw:u_and_r"}
+    # The setup-drawing layer (setup_draw / setup_draw_r2: auto_structures.SETUP_DRAW_IDS, the one authority)
+    # is served as its own `setup_draws` key and never passes through member_base_floor, so its ids are not
+    # base ids. Derived, never listed, so a newly released setup id cannot drift this rail red.
+    setup_ids = set(auto_structures.SETUP_DRAW_IDS)
+    assert not (ids & setup_ids)
+    not_bases = {"bull_flag", "uct_pullback_ma_v5", "draw:inside-day"} | (setup_ids & set(registry.DISPLAY_MEMBER_SET))
     assert ids | {"bc:base"} | not_bases == set(registry.DISPLAY_MEMBER_SET)
 
 
