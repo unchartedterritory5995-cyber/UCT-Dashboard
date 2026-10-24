@@ -348,3 +348,52 @@ def test_the_textbook_gate_never_refuses_a_stateless_row(monkeypatch):
     st = _member_row(dict(_BD, state="forming", state_round=AS.MEMBER_BASE_FORMING_ROUND))
     _det, boxes = AS.member_base_textbook_gate("ZZZ", [], [row, st])
     assert boxes == [row]
+
+
+def _flat_then_drop(hi_len, seed=1):
+    """A long flat stretch at 50, then a drop to 32: the 200-day still holds the 50s when a later base forms."""
+    r = random.Random(seed)
+    return ([50 * (1 + r.gauss(0, 0.004)) for _ in range(hi_len)]
+            + [32 * (1 + r.gauss(0, 0.004)) for _ in range(320 - hi_len)])
+
+
+def _gapped(g):
+    """Flat at 40, then the whole base lifted by one opening gap of `g`: an advance that is one gap."""
+    r = random.Random(2)
+    b = textbook(pre=[40 * (1 + r.gauss(0, 0.003)) for _ in range(320)], adv=0.02, run_len=10, base_len=40, depth=0.10)
+    for x in b[321:]:
+        for f in "ohlc":
+            x[f] = round(x[f] * g, 4)
+    return b
+
+
+@pytest.mark.parametrize("step,make", [
+    ("deep", lambda: textbook(base_len=90, depth=0.40, adv=0.9, run_len=90)),
+    ("deep", lambda: textbook(base_len=80, depth=0.36, adv=0.7, run_len=80, end_below=0.0)),
+    ("trend", lambda: textbook(pre=_flat_then_drop(235), adv=0.62, run_len=60, base_len=46, depth=0.10)),
+    ("trend_falling", lambda: textbook(pre=_flat_then_drop(215), adv=0.62, run_len=60, base_len=46, depth=0.10)),
+    ("gap_advance", lambda: _gapped(1.3)),
+])
+def test_each_step_alone_decides_its_case(step, make):
+    """Charts where exactly one step fails (the lab rule names it as the deciding step): the port draws nothing."""
+    b = make()
+    why = {}
+    assert LAB.plain_base(b, _i(b), why) is None and why.get("fail") == step, why
+    assert BD.plain_geometry(b, _i(b)) is None
+
+
+def test_the_printed_stage_is_the_drawings_stage():
+    b = textbook()
+    row = _plain_row(b)
+    row["geometry"]["extras"]["draw_base"]["stage"] = 3
+    assert TN.compute(row, b, asof_complete=lambda t: True)["stage"] == 3
+
+
+def test_a_rollback_literal_draws_the_old_stateless_drawing_not_the_plain_one(monkeypatch):
+    monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
+    b = textbook()
+    monkeypatch.setattr(AS, "MEMBER_BASE_STATELESS_ROUND", AS.MEMBER_BASE_ROUND)
+    row = AS.base_draw_row("SYN", b)
+    d5 = BD.base_drawing(b, _i(b))
+    assert row is None if d5 is None else row["geometry"]["extras"]["draw_base"] == d5
+    assert row is None or "plain_round" not in row["geometry"]["extras"]["draw_base"]
