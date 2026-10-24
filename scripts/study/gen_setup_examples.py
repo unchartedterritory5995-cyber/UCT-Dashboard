@@ -71,6 +71,13 @@ def fact_line(setup: str, ex: dict) -> str:
                      f"of each other, the prior 20 closes spanned {f.get('base20_range_pct')}%, and the kicker closed "
                      + ("above the 20-day high." if f.get("breakout20") else "inside the base."))
         return line
+    if setup == "Launchpad" and f.get("correction_abs_pct") is not None:
+        # pass 2 (owner definition, 2026-10-24): the correction, the convergence, the coil
+        return (f"Here the stock had corrected {f.get('correction_abs_pct')}% from its high, the 8, 21 and 50-day averages "
+                f"sat within {f.get('ma_spread_pct')}% of each other with price {f.get('s200_dist_pct')}% from the 200-day, "
+                f"the prior 30 closes spanned {f.get('base30_range_pct')}%, and the last bar closed up {f.get('day_pct')}%"
+                + (" above the 20-day high." if f.get("breakout20") else " inside the base.")
+                + (" Earnings day." if f.get("earnings_day") else ""))
     if setup == "High Volume Edge":
         return f"Here the stock closed up {f.get('day_pct')}% on the heaviest volume of the lookback."
     if setup == "Oops Reversal":
@@ -115,7 +122,7 @@ def items_for(examples: list[dict]) -> list[dict]:
                 facts[k + "_pct"] = int(round(float(facts[k]) * 100))
         if facts.get("setup_score") is not None:
             # the Kicker pass-2 lesson names the three averages; the grounding check reads them here
-            facts["ma_periods"] = [8, 20, 21, 50, 200]
+            facts["ma_periods"] = [8, 20, 21, 30, 50, 200]
         ex = dict(ex, facts=facts)
         reveal = {"detector": detector, "setup": setup, "fires": True, "quote": definition,
                   "facts": facts, "source": ref, "window_bars": WINDOW,
